@@ -175,6 +175,10 @@ process.on('uncaughtException', (err) => {
   IPC.sendError(err)
 })
 
+process.on('unhandledRejection', (reason) => {
+  IPC.sendError(reason instanceof Error ? reason : new Error(String(reason)))
+})
+
 const improveConsole = (name: string, stream: string, addStack: boolean) => {
   // @ts-ignore
   const original = console[name]

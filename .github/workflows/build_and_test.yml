@@ -780,7 +780,9 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
+        export NEXT_ENABLE_ADAPTER=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
@@ -815,6 +817,7 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export NEXT_ENABLE_ADAPTER=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         node scripts/test-new-tests.mjs \

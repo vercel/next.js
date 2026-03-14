@@ -786,6 +786,7 @@ impl FileSystem for DiskFileSystem {
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
             }
+            // ast-grep-ignore: no-context-format
             Err(e) => return Err(anyhow!(e).context(format!("reading file {full_path:?}"))),
         };
         Ok(content.cell())
@@ -818,6 +819,7 @@ impl FileSystem for DiskFileSystem {
                 return Ok(RawDirectoryContent::not_found());
             }
             Err(e) => {
+                // ast-grep-ignore: no-context-format
                 return Err(anyhow!(e).context(format!("reading dir {full_path:?}")));
             }
         };

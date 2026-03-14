@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{
     app_structure::{
@@ -63,7 +63,7 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     source_map::SourceMapAsset,
@@ -388,9 +388,9 @@ impl AppProject {
                 // CSS Module to the actual CSS
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     self.css_client_reference_transition().to_resolved().await?,
@@ -399,9 +399,9 @@ impl AppProject {
                 // the list of CSS module classes.
                 TransitionRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                         module_styles_rule_condition(),
                     ]),
                     ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -664,9 +664,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -736,9 +736,9 @@ impl AppProject {
                     // Change context, this is used to determine the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
+                            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                                 CssReferenceSubType::Analyze,
-                            )),
+                            ))),
                             module_styles_rule_condition(),
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
@@ -1358,45 +1358,52 @@ impl AppEndpoint {
 
         let manifest_path_prefix = &app_entry.original_name;
 
-        // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-        let next_package = get_next_package(project.project_path().owned().await?).await?;
-        let polyfill_source_path =
-            next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
-        let polyfill_source = FileSource::new(polyfill_source_path.clone());
-        let polyfill_output_path = client_chunking_context
-            .chunk_path(
-                Some(Vc::upcast(polyfill_source)),
-                polyfill_source.ident(),
-                None,
-                rcstr!(".js"),
-            )
-            .owned()
-            .await?;
+        // Only Pages need a polyfill chunk, Routes handlers don't have any inherent code that runs
+        // in the browser.
+        let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
+            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
+            let next_package = get_next_package(project.project_path().owned().await?).await?;
+            let polyfill_source_path =
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
+            let polyfill_source = FileSource::new(polyfill_source_path.clone());
+            let polyfill_output_path = client_chunking_context
+                .chunk_path(
+                    Some(Vc::upcast(polyfill_source)),
+                    polyfill_source.ident(),
+                    None,
+                    rcstr!(".js"),
+                )
+                .owned()
+                .await?;
 
-        let polyfill_output = SingleFileEcmascriptOutput::new(
-            polyfill_output_path.clone(),
-            polyfill_source_path,
-            Vc::upcast(polyfill_source),
-        )
-        .to_resolved()
-        .await?;
-
-        let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
-        client_assets.insert(polyfill_output_asset);
-
-        let client_source_maps = project
-            .next_config()
-            .client_source_maps(project.next_mode())
-            .await?;
-        if *client_source_maps != SourceMapsType::None {
-            let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+            let polyfill_output = SingleFileEcmascriptOutput::new(
                 polyfill_output_path.clone(),
-                *ResolvedVc::upcast(polyfill_output),
+                polyfill_source_path,
+                Vc::upcast(polyfill_source),
             )
             .to_resolved()
             .await?;
-            client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
-        }
+
+            let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
+            client_assets.insert(polyfill_output_asset);
+
+            let client_source_maps = project
+                .next_config()
+                .client_source_maps(project.next_mode())
+                .await?;
+            if *client_source_maps != SourceMapsType::None {
+                let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+                    polyfill_output_path.clone(),
+                    *ResolvedVc::upcast(polyfill_output),
+                )
+                .to_resolved()
+                .await?;
+                client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+            }
+            Some(polyfill_output_asset)
+        } else {
+            None
+        };
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
@@ -1437,7 +1444,7 @@ impl AppEndpoint {
                 client_relative_path: client_relative_path.clone(),
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
-                polyfill_files: vec![polyfill_output_asset],
+                polyfill_files: polyfill_output_asset.into_iter().collect(),
             };
             server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
@@ -1632,12 +1639,20 @@ impl AppEndpoint {
                         original_source: app_entry.pathname.clone(),
                         ..Default::default()
                     };
+                    let entrypoint_chunk = *app_entry_chunks_ref
+                        .last()
+                        .context("expected app entry chunks for edge app endpoint")?;
+                    let entrypoint = node_root_value
+                        .get_path_to(&*entrypoint_chunk.path().await?)
+                        .context("expected app entry chunk to be within node root")?
+                        .into();
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
+                        entrypoint,
                         regions: app_entry
                             .config
                             .await?
@@ -1799,11 +1814,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Entry(
-                        [ResolvedVc::upcast(server_action_manifest_loader)]
-                            .into_iter()
-                            .collect(),
-                    ),
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1820,18 +1831,23 @@ impl AppEndpoint {
                     .concatenate(chunk_group2_assets)
             }
             NextRuntime::NodeJs => {
-                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
-                    bail!("rsc_entry must be evaluatable");
-                };
-
-                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
-
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
+
+                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+
+                    let chunk_group_info = module_graph.chunk_group_info();
 
                     let client_references = client_references.await?;
                     let span = tracing::trace_span!("server utils");
                     async {
+                        let parent_chunk_group = *chunk_group_info
+                            .get_index_of(entry_chunk_group.clone())
+                            .await?;
+
+                        // This is basically a manual shared chunk. But it's particularly helpful
+                        // for development, so that we share more layout segment chunks across
+                        // pages.
                         let server_utils = client_references
                             .server_utils
                             .iter()
@@ -1844,8 +1860,11 @@ impl AppEndpoint {
                                     this.app_project.project().project_path().owned().await?,
                                 )
                                 .with_modifier(rcstr!("server-utils")),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(server_utils),
+                                ChunkGroup::SharedMerged {
+                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                    entries: server_utils,
+                                    parent: parent_chunk_group,
+                                },
                                 module_graph,
                                 AvailabilityInfo::root(),
                             )
@@ -1876,10 +1895,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                ChunkGroup::Shared(ResolvedVc::upcast(
                                     server_component.await?.module,
-                                )]),
+                                )),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -1898,9 +1916,7 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(
-                                server_action_manifest_loader,
-                            )]),
+                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
@@ -1925,7 +1941,7 @@ impl AppEndpoint {
                                             "app{original_name}.js",
                                             original_name = app_entry.original_name
                                         ))?,
-                                        evaluatable_assets,
+                                        entry_chunk_group,
                                         module_graph,
                                         *current_chunks,
                                         current_referenced_assets,

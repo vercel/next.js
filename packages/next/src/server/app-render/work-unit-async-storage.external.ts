@@ -23,6 +23,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import type { StagedRenderingController } from './staged-rendering'
 import { RenderStage } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -76,8 +77,21 @@ export interface RequestStore extends CommonWorkUnitStore {
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
   fallbackParams?: OpaqueFallbackRouteParams | null
 
+  // Only in build-time instant-validation
+  // We mirror the controller/renderSignal from prerender stores to allow aborting the render
+  // in case we hit an error that makes it unnecessary to continue
+  controller?: AbortController
+  renderSignal?: AbortSignal
+  validationSamples?: InstantValidationSamples
+  validationSampleTracking?: InstantValidationSampleTracking | null
+
   // DEV-only
   usedDynamic?: boolean
+}
+
+export type InstantValidationSamples = {
+  params: Params | undefined
+  searchParams: Record<string, string | string[] | null> | undefined
 }
 
 export type AsyncApiPromises = {
@@ -149,8 +163,9 @@ export interface PrerenderStoreModernClient
 export interface ValidationStoreClient extends PrerenderStoreModernCommon {
   readonly type: 'validation-client'
   readonly boundaryState: ValidationBoundaryTracking | null
-  // When we implement build validation, the store will contain e.g. cookies
-  // and other values derived from samples.
+  validationSamples: InstantValidationSamples | null
+  validationSampleTracking: InstantValidationSampleTracking | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 }
 
 export interface PrerenderStoreModernServer

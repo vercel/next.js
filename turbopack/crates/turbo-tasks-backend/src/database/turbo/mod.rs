@@ -21,7 +21,7 @@ use turbo_tasks::{
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     turbo::parallel_scheduler::TurboTasksParallelScheduler,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
+    write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
@@ -70,17 +70,8 @@ impl TurboKeyValueDatabase {
 }
 
 impl KeyValueDatabase for TurboKeyValueDatabase {
-    type ReadTransaction<'l>
-        = ()
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.db.is_empty()
-    }
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(())
     }
 
     type ValueBuffer<'l>
@@ -88,30 +79,23 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn batch_get(
+        &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
-    fn get_multiple<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn get_multiple(
+        &self,
         key_space: KeySpace,
         key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 
@@ -120,20 +104,18 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch(
-        &self,
-    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
             join_handle.join()?;
         }
         // Start a new write batch
-        Ok(WriteBatch::concurrent(TurboWriteBatch {
+        Ok(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
             compact_join_handle: (!self.is_short_session && !self.db.is_empty())
                 .then_some(&self.compact_join_handle),
-        }))
+        })
     }
 
     fn prevent_writes(&self) {}
@@ -210,7 +192,7 @@ pub struct TurboWriteBatch<'a> {
     compact_join_handle: Option<&'a Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
-impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
+impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
         = ArcBytes
     where
@@ -243,9 +225,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
 
         Ok(())
     }
-}
 
-impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.batch
             .put(key_space as u32, key.into_static(), value.into())

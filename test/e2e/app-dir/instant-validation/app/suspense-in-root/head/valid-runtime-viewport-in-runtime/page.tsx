@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{}],
+  samples: [{ cookies: [] }],
 }
 
 export async function generateViewport(): Promise<Viewport> {

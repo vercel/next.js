@@ -78,8 +78,8 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
+    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -1520,21 +1520,23 @@ async fn merge_modules(
         Ok(v) => v,
         Err((content_idx, err)) => {
             return Err(
-                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?)
+                // ast-grep-ignore: no-context-turbofmt
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?),
             );
         }
     };
 
-    debug_assert!(
-        inserted.len() == contents.len(),
-        "Not all merged modules were inserted: {:?}",
-        contents
-            .iter()
-            .enumerate()
-            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
-            .try_join()
-            .await?,
-    );
+    if cfg!(debug_assertions) && inserted.len() != contents.len() {
+        bail!(
+            "Not all merged modules were inserted: {:?}",
+            contents
+                .iter()
+                .enumerate()
+                .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+                .try_join()
+                .await?,
+        );
+    }
 
     let comments = contents
         .iter_mut()

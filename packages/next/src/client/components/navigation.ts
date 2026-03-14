@@ -32,6 +32,15 @@ const useDynamicSearchParams =
       ).useDynamicSearchParams
     : undefined
 
+const {
+  instrumentParamsForClientValidation,
+  instrumentSearchParamsForClientValidation,
+  expectCompleteParamsInClientValidation,
+} =
+  typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
+    ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
+    : {}
+
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
  * that lets you *read* the current URL's search parameters.
@@ -71,6 +80,16 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
 
+  // During build-time instant validation, wrap with an proxy
+  // so that accessing undeclared search params throws an error.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    readonlySearchParams
+  ) {
+    return instrumentSearchParamsForClientValidation!(readonlySearchParams)
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -106,6 +125,17 @@ export function usePathname(): string {
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   const pathname = useContext(PathnameContext) as string
+
+  // During build-time instant validation, error if fallback params exist
+  // because usePathname() can't return a sensible value without all params.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    pathname
+  ) {
+    expectCompleteParamsInClientValidation!('usePathname()')
+    return pathname
+  }
 
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
@@ -175,6 +205,16 @@ export function useParams<T extends Params = Params>(): T {
 
   const params = useContext(PathParamsContext) as T
 
+  // During build-time instant validation, wrap with a proxy
+  // so that accessing undeclared params throws an error.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    params
+  ) {
+    return instrumentParamsForClientValidation!(params)
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -221,6 +261,16 @@ export function useSelectedLayoutSegments(
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegments() can't return a sensible value without all params.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    context
+  ) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegments()')
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -263,6 +313,12 @@ export function useSelectedLayoutSegment(
   useDynamicRouteParams?.('useSelectedLayoutSegment()')
   const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegment() can't return a sensible value without all params.
+  if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegment()')
+  }
 
   // Instrument with Suspense DevTools (dev-only)
   if (

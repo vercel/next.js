@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_core::reference_type::{
-    CssReferenceSubType, EntryReferenceSubType, ReferenceType, UrlReferenceSubType,
+    CssReferenceSubType, EntryReferenceSubType, ReferenceTypeCondition,
 };
 
 use crate::{
@@ -60,12 +60,14 @@ pub async fn get_next_server_transforms_rules(
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // Ignore the inner ModuleCssAsset -> CssModuleAsset references
+            // Ignore the inner EcmascriptCssModule -> CssModule references
             // The CSS Module module itself (and the Analyze reference) is still needed to generate
             // the class names object.
             ModuleRule::new(
                 RuleCondition::all(vec![
-                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
+                    RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                        CssReferenceSubType::Inner,
+                    ))),
                     module_styles_rule_condition(),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
@@ -90,8 +92,8 @@ pub async fn get_next_server_transforms_rules(
                     pages_dir.clone(),
                     ExportFilter::StripDefaultExport,
                     mdx_rs,
-                    vec![RuleCondition::ReferenceType(ReferenceType::Entry(
-                        EntryReferenceSubType::PageData,
+                    vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
+                        Some(EntryReferenceSubType::PageData),
                     ))],
                     &page_extensions,
                 )?);
@@ -209,8 +211,8 @@ pub async fn get_next_server_transforms_rules(
             // (i.e. for pages), while still allowing `new URL(..., import.meta.url)`
             rules.push(ModuleRule::new(
                 RuleCondition::all(vec![
-                    RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-                        UrlReferenceSubType::Undefined,
+                    RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+                        None,
                     ))),
                     RuleCondition::any(vec![
                         RuleCondition::ResourcePathEndsWith(".apng".to_string()),

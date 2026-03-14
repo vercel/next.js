@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError,
-    ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
+    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -28,7 +28,10 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{
+        GraphEntries, ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     source::Source,
@@ -158,7 +161,7 @@ async fn emit_evaluate_pool_assets_operation(
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        Vc::cell(entries.clone()),
+        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),

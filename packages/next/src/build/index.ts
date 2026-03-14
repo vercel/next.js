@@ -7,6 +7,7 @@ import type {
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import '../lib/setup-exception-listeners'
 
@@ -61,6 +62,7 @@ import {
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
@@ -120,6 +122,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
   printCustomRoutes,
@@ -290,6 +293,13 @@ export interface DynamicPrerenderManifestRoute {
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * The unresolved fallback route params that can still be specialized into a
+   * more specific prerendered shell because their segments export
+   * `generateStaticParams`.
+   */
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -1853,6 +1863,7 @@ export default async function build(
                       SERVER_DIRECTORY,
                       SERVER_REFERENCE_MANIFEST + '.json'
                     ),
+                    path.join(SERVER_DIRECTORY, PREFETCH_HINTS),
                   ]
                 : []),
               ...(pagesDir && bundler !== Bundler.Turbopack
@@ -2063,6 +2074,8 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
+              partialFallbacksEnabled:
+                config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               clientAssetToken:
@@ -2290,6 +2303,8 @@ export default async function build(
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
+                            partialFallbacksEnabled:
+                              config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             clientAssetToken:
@@ -2738,6 +2753,11 @@ export default async function build(
         notFoundRoutes: [],
         preview: previewProps,
       }
+
+      // Accumulate per-route segment inlining decisions for
+      // prefetch-hints.json. First-writer-wins: if multiple param
+      // combinations exist for the same route pattern, use the first one.
+      const prefetchHints: Record<string, PrefetchHints> = {}
 
       const tbdPrerenderRoutes: string[] = []
 
@@ -3194,6 +3214,11 @@ export default async function build(
                 initialCacheControl: cacheControl,
               })
 
+              // Collect prefetch hints (first-writer-wins per page)
+              if (metadata.prefetchHints && !(page in prefetchHints)) {
+                prefetchHints[page] = metadata.prefetchHints
+              }
+
               if (cacheControl.revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
@@ -3369,6 +3394,11 @@ export default async function build(
                       builtSegmentDataRoute
                     )
                   }
+
+                  // Collect prefetch hints (first-writer-wins per page)
+                  if (metadata?.prefetchHints && !(page in prefetchHints)) {
+                    prefetchHints[page] = metadata.prefetchHints
+                  }
                 }
 
                 pageInfos.set(route.pathname, {
@@ -3404,6 +3434,8 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
+                  remainingPrerenderableParams:
+                    route.remainingPrerenderableParams,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -3421,7 +3453,7 @@ export default async function build(
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
-                  fallbackRootParams: fallback
+                  fallbackRootParams: route.fallbackRouteParams
                     ? route.fallbackRootParams
                     : undefined,
                   fallbackSourceRoute:
@@ -3958,6 +3990,10 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys
 
         await writePrerenderManifest(distDir, prerenderManifest)
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),
+          prefetchHints
+        )
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
@@ -4166,6 +4202,14 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (bundler === Bundler.Turbopack) {
+        await nextBuildSpan
+          .traceChild('write-route-bundle-stats')
+          .traceAsyncFn(() =>
+            writeRouteBundleStats(pageKeys, buildManifest, distDir, dir)
+          )
+      }
 
       await nextBuildSpan
         .traceChild('telemetry-flush')

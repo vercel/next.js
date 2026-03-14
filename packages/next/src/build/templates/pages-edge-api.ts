@@ -5,6 +5,8 @@ import '../../server/web/globals'
 import { adapter } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { wrapApiHandler } from '../../server/api-utils'
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
 
 // Import the userland code.
 import handlerUserland from 'VAR_USERLAND'
@@ -23,6 +25,7 @@ const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
+    incrementalCacheHandler,
     page: 'VAR_DEFINITION_PATHNAME',
     handler: wrapApiHandler(page, handlerUserland),
   })

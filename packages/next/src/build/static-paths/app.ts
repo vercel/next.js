@@ -406,22 +406,26 @@ interface TrieNode {
 }
 
 /**
- * Assigns the throwOnEmptyStaticShell property to each of the prerendered routes.
+ * Assigns static shell metadata to each prerendered route.
  * This function uses a Trie data structure to efficiently determine whether each route
- * should throw an error when its static shell is empty.
+ * should throw an error when its static shell is empty and whether a fallback shell
+ * can still be completed into a more specific prerendered shell.
  *
  * A route should not throw on empty static shell if it has child routes in the Trie. For example,
  * if we have two routes, `/blog/first-post` and `/blog/[slug]`, the route for
  * `/blog/[slug]` should not throw because `/blog/first-post` is a more specific concrete route.
  *
  * @param prerenderedRoutes - The prerendered routes.
- * @param pathnameSegments - The keys of the route parameters.
+ * @param pathnameSegments - The pathname params and whether each one is still
+ * prerenderable via generateStaticParams.
  */
-export function assignErrorIfEmpty(
+export function assignStaticShellMetadata(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
-  }>
+    readonly hasGenerateStaticParams: boolean
+  }>,
+  computeRemainingPrerenderableParams: boolean
 ): void {
   // If there are no routes to process, exit early.
   if (prerenderedRoutes.length === 0) {
@@ -470,7 +474,10 @@ export function assignErrorIfEmpty(
         if (!childNode) {
           // If the child node doesn't exist, create a new one and add it to
           // the current node's children.
-          childNode = { children: new Map(), routes: [] }
+          childNode = {
+            children: new Map(),
+            routes: [],
+          }
           currentNode.children.set(valueKey, childNode)
         }
         // Move deeper into the Trie to the `childNode` for the next parameter.
@@ -536,6 +543,45 @@ export function assignErrorIfEmpty(
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
+        }
+
+        if (
+          computeRemainingPrerenderableParams &&
+          route.fallbackRouteParams &&
+          route.fallbackRouteParams.length > 0
+        ) {
+          const fallbackRouteParamsByName = new Map(
+            route.fallbackRouteParams.map((param) => [param.paramName, param])
+          )
+          const remainingPrerenderableParams: FallbackRouteParam[] = []
+
+          // Only unresolved pathname params that can still be filled by
+          // generateStaticParams belong here. Once we hit an unresolved param
+          // that is purely dynamic, the rest of the shell also stays dynamic
+          // and cannot be completed into a more specific prerendered shell.
+          for (const segment of pathnameSegments) {
+            if (route.params.hasOwnProperty(segment.paramName)) {
+              continue
+            }
+
+            if (!segment.hasGenerateStaticParams) {
+              break
+            }
+
+            const fallbackRouteParam = fallbackRouteParamsByName.get(
+              segment.paramName
+            )
+            if (!fallbackRouteParam) {
+              break
+            }
+
+            remainingPrerenderableParams.push(fallbackRouteParam)
+          }
+
+          route.remainingPrerenderableParams =
+            remainingPrerenderableParams.length > 0
+              ? remainingPrerenderableParams
+              : undefined
         }
       }
     }
@@ -696,6 +742,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
+  partialFallbacksEnabled = false,
   buildId,
   rootParamKeys,
 }: {
@@ -718,6 +765,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
+  partialFallbacksEnabled?: boolean
   buildId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
@@ -779,6 +827,18 @@ export async function buildAppStaticPaths({
     segments,
     store,
     isRoutePPREnabled
+  )
+  const generatedParamNames = new Set<string>()
+  for (const params of routeParams) {
+    for (const paramName of Object.keys(params)) {
+      generatedParamNames.add(paramName)
+    }
+  }
+  const prerenderablePathSegments = pathnameRouteParamSegments.map(
+    (segment) => ({
+      paramName: segment.paramName,
+      hasGenerateStaticParams: generatedParamNames.has(segment.paramName),
+    })
   )
 
   await afterRunner.executeAfter()
@@ -1000,7 +1060,11 @@ export async function buildAppStaticPaths({
 
   // Now we have to set the throwOnEmptyStaticShell for each of the routes.
   if (prerenderedRoutes && cacheComponents) {
-    assignErrorIfEmpty(prerenderedRoutes, pathnameRouteParamSegments)
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      prerenderablePathSegments,
+      partialFallbacksEnabled
+    )
   }
 
   return { fallbackMode, prerenderedRoutes }

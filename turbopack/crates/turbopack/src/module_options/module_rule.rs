@@ -9,7 +9,7 @@ use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::CssModuleAssetType;
+use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
     json_source_transform::JsonSourceTransform,
@@ -140,8 +140,9 @@ pub enum ModuleType {
     NodeAddon,
     CssModule,
     Css {
-        ty: CssModuleAssetType,
+        ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
+        lightningcss_features: turbopack_css::LightningCssFeatureFlags,
     },
     StaticUrlJs {
         /// The tag that is passed to ChunkingContext::asset_url
@@ -231,6 +232,7 @@ impl ConfiguredModuleType {
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
+        lightningcss_features: turbopack_css::LightningCssFeatureFlags,
     ) -> Result<ModuleRuleEffect> {
         Ok(match self {
             ConfiguredModuleType::Bytes => {
@@ -262,8 +264,9 @@ impl ConfiguredModuleType {
                 })
             }
             ConfiguredModuleType::Css => ModuleRuleEffect::ModuleType(ModuleType::Css {
-                ty: CssModuleAssetType::Default,
+                ty: CssModuleType::Default,
                 environment,
+                lightningcss_features,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
             ConfiguredModuleType::Json => {

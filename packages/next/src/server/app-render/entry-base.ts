@@ -40,12 +40,21 @@ export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
-export { collectSegmentData } from './collect-segment-data'
+export {
+  collectSegmentData,
+  collectPrefetchHints,
+} from './collect-segment-data'
 
-export const InstantValidation =
-  process.env.NODE_ENV === 'development' && process.env.NEXT_RUNTIME !== 'edge'
-    ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
-    : undefined
+export const InstantValidation = () => {
+  if (
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    return require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
+  } else {
+    return undefined
+  }
+}
 
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'

@@ -885,6 +885,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
+                    this.pages_project.project().next_config(),
                     runtime,
                 )
                 .await?;
@@ -1018,13 +1019,11 @@ impl PageEndpoint {
                 .await?;
             }
 
-            let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
+                    ChunkGroup::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     current_chunk_group.await?.availability_info,
                 );
@@ -1052,7 +1051,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
+                        ChunkGroup::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
@@ -1512,6 +1511,13 @@ impl PageEndpoint {
                     } else {
                         None
                     };
+                    let entrypoint_asset = *assets_ref
+                        .last()
+                        .context("expected assets for edge pages endpoint")?;
+                    let entrypoint = node_root
+                        .get_path_to(&*entrypoint_asset.path().await?)
+                        .context("expected edge pages asset to be within node root")?
+                        .into();
 
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
@@ -1519,6 +1525,7 @@ impl PageEndpoint {
                         assets: paths_to_bindings(all_assets),
                         name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
+                        entrypoint,
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, PrettyPrintError, ResolvedVc, Vc};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{

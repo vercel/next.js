@@ -56,7 +56,7 @@ describe('normalizeNextData - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
+    expect(result.resolvedPathname).toBe(
       '/_next/data/BUILD_ID/api/blog/post.json'
     )
   })
@@ -84,7 +84,7 @@ describe('normalizeNextData - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
+    expect(result.resolvedPathname).toBe(
       '/base/_next/data/BUILD_ID/api/page.json'
     )
   })
@@ -109,7 +109,9 @@ describe('normalizeNextData - pathname checking', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts/hello.json')
+    expect(result.resolvedPathname).toBe(
+      '/_next/data/BUILD_ID/posts/hello.json'
+    )
   })
 
   it('should work with rewrites then pathname check', async () => {
@@ -135,7 +137,7 @@ describe('normalizeNextData - pathname checking', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/posts.json')
   })
 })
 
@@ -163,7 +165,7 @@ describe('normalizeNextData - afterFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/404.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/404.json')
   })
 
   it('should handle complex flow: normalize -> beforeFiles -> denormalize -> normalize -> afterFiles -> denormalize', async () => {
@@ -194,7 +196,7 @@ describe('normalizeNextData - afterFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
+    expect(result.resolvedPathname).toBe(
       '/_next/data/BUILD_ID/internal/users.json'
     )
   })
@@ -224,7 +226,7 @@ describe('normalizeNextData - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts/123.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/posts/123.json')
     expect(result.routeMatches).toEqual({
       '1': '123',
       id: '123',
@@ -261,7 +263,9 @@ describe('normalizeNextData - dynamic routes', () => {
     const result = await resolveRoutes(params)
 
     // Should match with denormalized pathname
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/users/alice.json')
+    expect(result.resolvedPathname).toBe(
+      '/_next/data/BUILD_ID/users/alice.json'
+    )
     expect(result.routeMatches).toEqual({
       '1': 'alice',
       username: 'alice',
@@ -296,7 +300,7 @@ describe('normalizeNextData - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
+    expect(result.resolvedPathname).toBe(
       '/_next/data/BUILD_ID/posts/post-1.json'
     )
     expect(result.routeMatches).toEqual({
@@ -330,7 +334,7 @@ describe('normalizeNextData - fallback routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/404.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/404.json')
   })
 })
 
@@ -358,7 +362,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/post')
+    expect(result.resolvedPathname).toBe('/posts/post')
   })
 
   it('should not normalize when normalizeNextData is undefined', async () => {
@@ -384,7 +388,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/page')
+    expect(result.resolvedPathname).toBe('/api/page')
   })
 
   it('should not normalize URLs that are not data URLs', async () => {
@@ -405,7 +409,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/regular/path')
+    expect(result.resolvedPathname).toBe('/regular/path')
   })
 
   it('should not apply normalization to non-data URLs even with rewrites', async () => {
@@ -431,7 +435,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/post')
+    expect(result.resolvedPathname).toBe('/posts/post')
   })
 
   it('should not normalize if rewrite creates a data URL pattern from non-data URL', async () => {
@@ -459,7 +463,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should NOT normalize because original URL was not a data URL
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/some/path.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/some/path.json')
   })
 
   it('should not normalize in afterFiles if original URL was not a data URL', async () => {
@@ -493,7 +497,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match because afterFiles rewrite should work on the unrewritten data URL path
-    expect(result.matchedPathname).toBe('/processed.json')
+    expect(result.resolvedPathname).toBe('/processed.json')
   })
 
   it('should not normalize data URLs with different buildId', async () => {
@@ -514,7 +518,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/DIFFERENT_ID/page.json')
+    expect(result.resolvedPathname).toBe('/_next/data/DIFFERENT_ID/page.json')
   })
 
   it('should handle data URL without .json extension', async () => {
@@ -535,7 +539,7 @@ describe('normalizeNextData - without normalization', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/page.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/page.json')
   })
 
   it('should resolve to _next/data pathname when both exist and URL is a data URL', async () => {
@@ -558,7 +562,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the denormalized path
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/posts.json')
   })
 
   it('should resolve to normalized pathname when both exist and URL is NOT a data URL', async () => {
@@ -581,7 +585,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the normalized path
-    expect(result.matchedPathname).toBe('/posts')
+    expect(result.resolvedPathname).toBe('/posts')
   })
 
   it('should resolve to _next/data pathname after rewrite when both exist and original URL is data URL', async () => {
@@ -609,7 +613,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the denormalized path
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/posts.json')
   })
 
   it('should resolve to normalized pathname after rewrite when both exist and original URL is NOT data URL', async () => {
@@ -637,7 +641,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the normalized path
-    expect(result.matchedPathname).toBe('/posts')
+    expect(result.resolvedPathname).toBe('/posts')
   })
 
   it('should resolve to _next/data pathname after afterFiles rewrite when original URL is data URL', async () => {
@@ -665,7 +669,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the denormalized path
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/404.json')
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/404.json')
   })
 
   it('should resolve to normalized pathname after afterFiles rewrite when original URL is NOT data URL', async () => {
@@ -693,7 +697,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the normalized path
-    expect(result.matchedPathname).toBe('/404')
+    expect(result.resolvedPathname).toBe('/404')
   })
 
   it('should resolve to _next/data pathname with dynamic routes when both exist and original URL is data URL', async () => {
@@ -725,7 +729,9 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the denormalized path with the first dynamic route
-    expect(result.matchedPathname).toBe('/_next/data/BUILD_ID/posts/hello.json')
+    expect(result.resolvedPathname).toBe(
+      '/_next/data/BUILD_ID/posts/hello.json'
+    )
     expect(result.routeMatches).toEqual({
       '1': 'hello',
       slug: 'hello',
@@ -761,7 +767,7 @@ describe('normalizeNextData - without normalization', () => {
     const result = await resolveRoutes(params)
 
     // Should match the normalized path with the second dynamic route
-    expect(result.matchedPathname).toBe('/posts/hello')
+    expect(result.resolvedPathname).toBe('/posts/hello')
     expect(result.routeMatches).toEqual({
       '1': 'hello',
       slug: 'hello',

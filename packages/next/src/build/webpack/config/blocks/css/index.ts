@@ -612,14 +612,25 @@ export const css = curry(async function css(
           ignoreOrder: true,
           insert: function (linkTag: HTMLLinkElement) {
             if (typeof _N_E_STYLE_LOAD === 'function') {
-              const { href, onload, onerror } = linkTag
+              // Avoid destructuring and optional-chaining here: this function
+              // is serialized as a string by mini-css-extract-plugin and
+              // injected directly into the browser bundle without further
+              // transpilation. Destructuring (`const { x } = obj`) breaks on
+              // browsers that pre-date ES2015 support (e.g. Chrome <49).
+              var href = linkTag.href
+              var onload = linkTag.onload
+              var onerror = linkTag.onerror
               _N_E_STYLE_LOAD(
                 href.indexOf(window.location.origin) === 0
                   ? new URL(href).pathname
                   : href
               ).then(
-                () => onload?.call(linkTag, { type: 'load' } as Event),
-                () => onerror?.call(linkTag, {} as Event)
+                function () {
+                  if (onload) onload.call(linkTag, { type: 'load' } as Event)
+                },
+                function () {
+                  if (onerror) onerror.call(linkTag, {} as Event)
+                }
               )
             } else {
               document.head.appendChild(linkTag)
