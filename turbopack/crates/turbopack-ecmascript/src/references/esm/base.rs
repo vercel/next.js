@@ -46,7 +46,7 @@ use crate::{
             EsmExport,
             export::{all_known_export_names, is_export_missing},
         },
-        util::throw_module_not_found_expr,
+        util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     tree_shake::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
@@ -509,10 +509,15 @@ impl ModuleReference for EsmAssetReference {
         self.annotations
             .as_ref()
             .and_then(|a| a.chunking_type())
-            .unwrap_or(Some(ChunkingType::Parallel {
-                inherit_async: true,
-                hoisted: true,
-            }))
+            .map_or_else(
+                || {
+                    Some(ChunkingType::Parallel {
+                        inherit_async: true,
+                        hoisted: true,
+                    })
+                },
+                |c| c.as_chunking_type(true, true),
+            )
     }
 
     fn binding_usage(&self) -> BindingUsage {
@@ -544,10 +549,12 @@ impl EsmAssetReference {
         }
 
         // only chunked references can be imported
-        if !matches!(
-            this.annotations.as_ref().and_then(|a| a.chunking_type()),
-            Some(None)
-        ) {
+        if this
+            .annotations
+            .as_ref()
+            .and_then(|a| a.chunking_type())
+            .is_none_or(|v| v != SpecifiedChunkingType::None)
+        {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
 
