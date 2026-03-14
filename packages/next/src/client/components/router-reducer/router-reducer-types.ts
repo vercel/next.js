@@ -1,8 +1,5 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type {
-  FlightRouterState,
-  FlightSegmentPath,
-} from '../../../shared/lib/app-router-types'
+import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
@@ -94,7 +91,7 @@ export interface NavigateAction {
   isExternalUrl: boolean
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
-  shouldScroll: boolean
+  scrollBehavior: ScrollBehavior
 }
 
 /**
@@ -163,19 +160,37 @@ export interface PushRef {
   preserveCustomHistoryState: boolean
 }
 
+/**
+ * Controls the scroll behavior for a navigation.
+ */
+export const enum ScrollBehavior {
+  /** Use per-node ScrollRef to decide whether to scroll. */
+  Default = 0,
+  /** Suppress scroll entirely (e.g. scroll={false} on Link or router.push). */
+  NoScroll = 1,
+}
+
 export type FocusAndScrollRef = {
   /**
-   * If focus and scroll should be set in the layout-router's useEffect()
+   * The scroll ref from the most recent navigation. Set to whatever was
+   * accumulated during tree construction (or null if nothing was
+   * accumulated). On the next navigation, if new scroll targets are
+   * created, the previous scrollRef is invalidated by setting
+   * `current = false`.
    */
-  apply: boolean
+  scrollRef: ScrollRef | null
+  /**
+   * When true, the scroll handler uses `focusAndScrollRef.scrollRef`
+   * for every segment regardless of per-node state. Used for hash-only
+   * navigations where every segment should be treated as a scroll
+   * target. When false, the handler checks `cacheNode.scrollRef`
+   * instead (per-node), so only segments that actually navigated scroll.
+   */
+  forceScroll: boolean
   /**
    * The hash fragment that should be scrolled to.
    */
   hashFragment: string | null
-  /**
-   * The paths of the segments that should be focused.
-   */
-  segmentPaths: FlightSegmentPath[]
   /**
    * If only the URLs hash fragment changed
    */

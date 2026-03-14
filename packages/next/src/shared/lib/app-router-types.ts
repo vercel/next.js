@@ -49,7 +49,24 @@ export type CacheNode = {
   head: HeadData
 
   slots: Record<string, CacheNode> | null
+
+  /**
+   * A shared mutable ref that tracks whether this segment should be scrolled
+   * to. All new segments created during a single navigation share the same
+   * ref. When any segment's scroll handler fires, it sets `current` to
+   * `false` so no other segment scrolls for the same navigation.
+   *
+   * `null` means this segment is not a scroll target (e.g., a reused shared
+   * layout segment).
+   */
+  scrollRef: ScrollRef | null
 }
+
+/**
+ * A mutable ref shared across all new segments created during a single
+ * navigation. Used to ensure that only one segment scrolls per navigation.
+ */
+export type ScrollRef = { current: boolean }
 
 export type DynamicParamTypes =
   | 'catchall'
