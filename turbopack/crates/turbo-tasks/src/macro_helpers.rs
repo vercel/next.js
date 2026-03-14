@@ -1,16 +1,16 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
-use std::any::TypeId;
-
 pub use async_trait::async_trait;
 pub use bincode;
+pub use inventory;
 pub use once_cell::sync::{Lazy, OnceCell};
+pub use phf;
 use rustc_hash::FxHashMap;
 pub use shrink_to_fit;
 pub use tracing;
 
 use crate::{
-    FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueType,
+    FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, TraitTypeId, ValueType,
     ValueTypeId, debug::ValueDebugFormatString,
 };
 pub use crate::{
@@ -19,10 +19,12 @@ pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
-        ArgMeta, CollectableFunction, NativeFunction, downcast_args_owned, downcast_args_ref,
+        ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
     },
+    registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
-    value_type::{CollectableTrait, CollectableValueType},
+    turbo_register,
+    value_type::{TraitVtablePrototype, build_trait_vtable},
 };
 
 #[inline(never)]
@@ -229,46 +231,12 @@ pub struct CollectableTraitCastFunctions(
 unsafe impl Sync for CollectableTraitCastFunctions {}
 inventory::collect! {CollectableTraitCastFunctions}
 
-#[allow(clippy::type_complexity)]
-pub struct CollectableTraitMethods(
-    pub  fn() -> (
-        TypeId,
-        TraitTypeId,
-        Vec<(&'static str, &'static NativeFunction)>,
-    ),
-);
-inventory::collect!(CollectableTraitMethods);
-
-// Called when initializing ValueTypes by value_impl
-pub fn register_trait_methods(type_id: TypeId, value_type: &mut ValueType) {
-    #[allow(clippy::type_complexity)]
-    static TRAIT_METHODS_BY_VALUE: Lazy<
-        FxDashMap<TypeId, Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>>,
-    > = Lazy::new(|| {
-        let map: FxDashMap<TypeId, Vec<_>> = FxDashMap::default();
-        for CollectableTraitMethods(thunk) in inventory::iter::<CollectableTraitMethods> {
-            let (type_id, trait_type_id, fn_items) = thunk();
-            map.entry(type_id)
-                .or_default()
-                .push((trait_type_id, fn_items));
-        }
-        map
-    });
-    match TRAIT_METHODS_BY_VALUE.remove(&type_id) {
-        Some((_, traits)) => {
-            for (trait_type_id, methods) in traits {
-                let trait_type = crate::registry::get_trait(trait_type_id);
-                value_type.register_trait(trait_type_id);
-                for (name, method) in methods {
-                    value_type.register_trait_method(trait_type.get(name), method);
-                }
-            }
-        }
-        None => {
-            // do nothing, values don't have to implement any traits
-        }
-    }
+pub struct CollectableTraitMethods {
+    pub value_type: &'static ValueType,
+    pub trait_type: &'static TraitType,
+    pub methods: &'static [&'static NativeFunction],
 }
+inventory::collect! {CollectableTraitMethods}
 
 /// Submit an item to the inventory.
 ///

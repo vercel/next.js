@@ -277,7 +277,9 @@ where
             <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
             "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
              instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id())
+                .ty
+                .global_name
         );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
