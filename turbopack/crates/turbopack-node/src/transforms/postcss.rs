@@ -446,36 +446,28 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<FileSystemPath>> {
-    // For LocalPathOrProjectPath, check the CSS file's parent directory first
-    if matches!(location, PostCssConfigLocation::LocalPathOrProjectPath)
-        && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
-            source.ident().path().await?.parent(),
-            postcss_configs(),
-            rcstr!("postcss"),
-        )
-        .await?
-    {
-        return Ok(Some(config_path.clone()));
-    }
+    // Build an ordered list of directories to search based on the location strategy.
+    let search_paths = match location {
+        // Only check project root (used for foreign/node_modules code).
+        PostCssConfigLocation::ProjectPath => {
+            vec![project_path]
+        }
+        // Check project root first, fall back to the CSS file's directory.
+        PostCssConfigLocation::ProjectPathOrLocalPath => {
+            vec![project_path, source.ident().path().await?.parent()]
+        }
+        // Check the CSS file's directory first, fall back to the project root.
+        PostCssConfigLocation::LocalPathOrProjectPath => {
+            vec![source.ident().path().await?.parent(), project_path]
+        }
+    };
 
-    // Check project root (used by all variants as primary or fallback)
-    if let FindContextFileResult::Found(config_path, _) =
-        &*find_context_file_or_package_key(project_path, postcss_configs(), rcstr!("postcss"))
-            .await?
-    {
-        return Ok(Some(config_path.clone()));
-    }
-
-    // For ProjectPathOrLocalPath, fall back to the CSS file's parent directory
-    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
-        && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
-            source.ident().path().await?.parent(),
-            postcss_configs(),
-            rcstr!("postcss"),
-        )
-        .await?
-    {
-        return Ok(Some(config_path.clone()));
+    for path in search_paths {
+        if let FindContextFileResult::Found(config_path, _) =
+            &*find_context_file_or_package_key(path, postcss_configs(), rcstr!("postcss")).await?
+        {
+            return Ok(Some(config_path.clone()));
+        }
     }
 
     Ok(None)

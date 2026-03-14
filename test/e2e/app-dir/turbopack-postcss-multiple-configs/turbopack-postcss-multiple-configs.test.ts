@@ -5,58 +5,64 @@ describe('turbopack-postcss-multiple-configs', () => {
     files: __dirname,
   })
 
-  // 5 directories × 20 CSS modules = 100 total CSS files, each with its own
-  // postcss.config.js. Initial compilation through PostCSS can be slow.
-  it('should render all 100 elements from 5 directories with PostCSS-processed CSS modules', async () => {
+  const DIRS = 5
+  const FILES_PER_DIR = 3
+
+  // Verifies that per-directory postcss.config.js files are resolved correctly
+  // when experimental.turbopackLocalPostcssConfig is enabled. Each of the 5
+  // style directories has its own PostCSS config that transforms `color: red`
+  // to `color: green`. The root postcss.config.js is a no-op, so if only the
+  // root config were used, the CSS would still contain red.
+
+  it('should render all elements with CSS module classes applied', async () => {
     const $ = await next.render$('/')
 
-    // Verify that all 100 elements from 5 directories × 20 files are rendered
-    for (let dir = 1; dir <= 5; dir++) {
-      for (let file = 1; file <= 20; file++) {
+    for (let dir = 1; dir <= DIRS; dir++) {
+      for (let file = 1; file <= FILES_PER_DIR; file++) {
         const padded = String(file).padStart(2, '0')
         const id = `dir${dir}-file${padded}`
         const el = $(`#${id}`)
         expect(el.length).toBe(1)
         expect(el.text().trim()).toBe(`dir${dir} file${padded}`)
-        // Each element should have a CSS module class assigned (hashed class name)
         expect(el.attr('class')).toBeTruthy()
       }
     }
-  }, 360_000)
+  })
 
-  it('should have PostCSS plugin transforms applied to CSS from all directories', async () => {
-    const html = await next.render('/')
+  it('should apply per-directory PostCSS transforms (color: red → green)', async () => {
+    const cssContent = await collectCss(next)
 
-    // The PostCSS plugin transforms `color: red` to `color: green`.
-    // After PostCSS processing, the served CSS should contain green, not red.
+    // The per-directory PostCSS plugins transform `color: red` to `color: green`.
+    // If per-directory resolution works, CSS contains green and no red.
+    expect(cssContent).toContain('green')
+    expect(cssContent).not.toMatch(/color\s*:\s*red/)
+  })
+})
 
-    // Collect all CSS content from inline styles and linked stylesheets
-    let cssContent = ''
+/** Collect all CSS from the page: inline <style> tags + linked .css files. */
+async function collectCss(next: any): Promise<string> {
+  const html = await next.render('/')
+  const parts: string[] = []
 
-    // Extract inline <style> content
-    const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi)
-    if (styleMatches) {
-      cssContent += styleMatches.join('\n')
-    }
+  // Inline <style> content
+  const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi)
+  if (styleMatches) {
+    parts.push(...styleMatches)
+  }
 
-    // Extract and fetch linked CSS URLs
-    const hrefMatches = html.match(/href="([^"]*\.css[^"]*)"/gi)
-    if (hrefMatches) {
-      for (const match of hrefMatches) {
-        const href = match.match(/href="([^"]+)"/)?.[1]
-        if (href) {
-          const cssRes = await next.fetch(href)
-          if (cssRes.ok) {
-            cssContent += await cssRes.text()
-          }
+  // Linked CSS files
+  const hrefMatches = html.match(/href="([^"]*\.css[^"]*)"/gi)
+  if (hrefMatches) {
+    for (const match of hrefMatches) {
+      const href = match.match(/href="([^"]+)"/)?.[1]
+      if (href) {
+        const res = await next.fetch(href)
+        if (res.ok) {
+          parts.push(await res.text())
         }
       }
     }
+  }
 
-    // Verify PostCSS transformation: color should be green, not red
-    expect(cssContent).toContain('green')
-    // Ensure the original `color: red` was transformed
-    const redColorPattern = /color\s*:\s*red/
-    expect(cssContent).not.toMatch(redColorPattern)
-  }, 360_000)
-})
+  return parts.join('\n')
+}
