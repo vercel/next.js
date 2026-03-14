@@ -23,6 +23,7 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
+        util::SpecifiedChunkingType,
     },
     runtime_functions::TURBOPACK_CACHE,
 };
@@ -80,10 +81,11 @@ impl ModuleReference for CjsAssetReference {
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
-    pub issue_source: IssueSource,
-    pub error_mode: ResolveErrorMode,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    chunking_type_attribute: Option<SpecifiedChunkingType>,
 }
 
 impl CjsRequireAssetReference {
@@ -92,12 +94,14 @@ impl CjsRequireAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
+        chunking_type_attribute: Option<SpecifiedChunkingType>,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
             request,
             issue_source,
             error_mode,
+            chunking_type_attribute,
         }
     }
 }
@@ -116,10 +120,15 @@ impl ModuleReference for CjsRequireAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        })
+        self.chunking_type_attribute.map_or_else(
+            || {
+                Some(ChunkingType::Parallel {
+                    inherit_async: false,
+                    hoisted: false,
+                })
+            },
+            |c| c.as_chunking_type(false, false),
+        )
     }
 }
 
@@ -202,10 +211,11 @@ impl CjsRequireAssetReferenceCodeGen {
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("require.resolve {request}")]
 pub struct CjsRequireResolveAssetReference {
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
-    pub issue_source: IssueSource,
-    pub error_mode: ResolveErrorMode,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    chunking_type_attribute: Option<SpecifiedChunkingType>,
 }
 
 impl CjsRequireResolveAssetReference {
@@ -214,12 +224,14 @@ impl CjsRequireResolveAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
+        chunking_type_attribute: Option<SpecifiedChunkingType>,
     ) -> Self {
         CjsRequireResolveAssetReference {
             origin,
             request,
             issue_source,
             error_mode,
+            chunking_type_attribute,
         }
     }
 }
@@ -238,10 +250,15 @@ impl ModuleReference for CjsRequireResolveAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        })
+        self.chunking_type_attribute.map_or_else(
+            || {
+                Some(ChunkingType::Parallel {
+                    inherit_async: false,
+                    hoisted: false,
+                })
+            },
+            |c| c.as_chunking_type(false, false),
+        )
     }
 }
 
