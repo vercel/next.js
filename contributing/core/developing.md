@@ -180,17 +180,3 @@ pnpm sweep
 ```
 
 It will also clean up other caches (pnpm store, cargo, etc.) and run `git gc` for you.
-
-### MacOS disk compression
-
-If you want to automatically use APFS disk compression on macOS for `node_modules/` and `target/` you can install a launch agent with:
-
-```bash
-./scripts/LaunchAgents/install-macos-agents.sh
-```
-
-Or run it manually with:
-
-```bash
-./scripts/macos-compress.sh
-```
