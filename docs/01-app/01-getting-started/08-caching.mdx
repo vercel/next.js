@@ -312,37 +312,6 @@ Now `<Sidebar />`, `{children}`, and the Suspense fallback are all part of the s
 
 The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a related pattern.
 
-### Client Components that read the current time
-
-Client Components are also prerendered on the server. If a Client Component reads `Date.now()`, `new Date()`, or `Date()` during prerender, Next.js cannot include it in the static shell because the value would be stale by the time a user sees it.
-
-Wrap these components in `<Suspense>` so the fallback is prerendered and the time-dependent content renders at request time:
-
-```tsx filename="app/article.tsx"
-'use client'
-
-import { Suspense } from 'react'
-
-function RelativeTime({ timestamp }: { timestamp: number }) {
-  const now = Date.now()
-  const seconds = Math.round((now - timestamp) / 1000)
-  return <span>{seconds}s ago</span>
-}
-
-export default function Article({ publishedAt }: { publishedAt: number }) {
-  return (
-    <article>
-      <h1>Article title</h1>
-      <Suspense fallback={<span>...</span>}>
-        <RelativeTime timestamp={publishedAt} />
-      </Suspense>
-    </article>
-  )
-}
-```
-
-Alternatively, move the time access into a `useEffect` so it only runs in the browser, or cache the value with `use cache` on the server if a stale time is acceptable (for example, a copyright year). See the [current time in Client Components](/docs/messages/next-prerender-current-time-client) error reference for all available patterns.
-
 ## How rendering works
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
