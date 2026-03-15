@@ -1925,6 +1925,9 @@ importers:
 
   test:
     devDependencies:
+      '@next/mdx':
+        specifier: workspace:*
+        version: link:../packages/next-mdx
       '@next/playwright':
         specifier: workspace:*
         version: link:../packages/next-playwright

@@ -3,6 +3,7 @@
   "version": "16.0.2-canary.16",
   "private": true,
   "devDependencies": {
+    "@next/mdx": "workspace:*",
     "@next/playwright": "workspace:*",
     "next": "workspace:*"
   }
