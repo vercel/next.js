@@ -6754,19 +6754,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
 
 [[package]]
-name = "rusty_pool"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ed36cdb20de66d89a17ea04b8883fc7a386f2cf877aaedca5005583ce4876ff"
-dependencies = [
- "crossbeam-channel",
- "futures",
- "futures-channel",
- "futures-executor",
- "num_cpus",
-]
-
-[[package]]
 name = "ruzstd"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11359,12 +11346,9 @@ dependencies = [
  "dashmap 6.1.0",
  "derive_more 2.0.1",
  "dunce",
- "filetime",
- "fs_extra",
  "futures",
  "getrandom 0.2.15",
  "indexmap 2.13.0",
- "libc",
  "pin-project-lite",
  "replace_with",
  "shared-buffer",
@@ -11740,10 +11724,8 @@ dependencies = [
  "tracing",
  "wasm-bindgen",
  "wasmer-compiler",
- "wasmer-compiler-cranelift",
  "wasmer-derive",
  "wasmer-types",
- "wasmer-vm",
  "wasmparser 0.224.1",
  "wat",
  "windows-sys 0.59.0",
@@ -11792,7 +11774,6 @@ dependencies = [
  "gimli 0.28.1",
  "itertools 0.12.1",
  "more-asserts",
- "rayon",
  "smallvec",
  "target-lexicon 0.12.16",
  "tracing",
@@ -11977,7 +11958,6 @@ dependencies = [
  "pin-utils",
  "rand 0.8.5",
  "rkyv 0.8.10",
- "rusty_pool",
  "semver",
  "serde",
  "serde_derive",

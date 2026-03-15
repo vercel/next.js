@@ -14,9 +14,10 @@ crate-type = ["cdylib", "rlib"]
 # time (i.e wasmer/default vs wasmer/js-default) while cargo merges all the
 # features at once.
 plugin = [
-    "swc_core/plugin_transform_host_native",
+    # Use granular plugin features to avoid pulling in wasmer via __plugin_transform_env_native.
+    "swc_core/__plugin_transform_host",
+    "swc_core/__plugin_transform_host_schema_v1",
     "swc_core/plugin_transform_host_native_filesystem_cache",
-    "swc_core/plugin_transform_host_native_shared_runtime",
     "dep:swc_plugin_backend_wasmtime",
     "next-custom-transforms/plugin",
     "next-core/plugin",

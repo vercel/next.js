@@ -14,8 +14,12 @@ default = ["swc_ecma_transform_plugin"]
 transform_emotion = []
 # [NOTE]: Be careful to explicitly enable this only for the supported platform / targets.
 swc_ecma_transform_plugin = [
-  "swc_core/plugin_transform_host_native",
-  "swc_core/plugin_transform_host_native_shared_runtime",
+  # Use granular plugin features to avoid pulling in wasmer via __plugin_transform_env_native.
+  # __plugin_transform_host provides the plugin runner types and proxy re-exports.
+  # __plugin_transform_host_schema_v1 provides the schema version support.
+  # We provide WasmtimeRuntime explicitly, so we don't need swc's env-native backend wiring.
+  "swc_core/__plugin_transform_host",
+  "swc_core/__plugin_transform_host_schema_v1",
   "swc_plugin_backend_wasmtime"
 ]
 
