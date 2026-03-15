@@ -58,11 +58,26 @@ module.exports = ({ dev, ...rest }) => {
     resolve: {
       alias: {
         // TODO: Get dedicated React version for NDT to uncouple development.
-        react: `next/dist/compiled/react${bundledReactChannel}`,
-        'react-dom$': `next/dist/compiled/react-dom${bundledReactChannel}`,
-        'react-dom/client$': `next/dist/compiled/react-dom${bundledReactChannel}/client`,
-        'react-is$': `next/dist/compiled/react-is${bundledReactChannel}`,
-        scheduler$: `next/dist/compiled/scheduler${bundledReactChannel}`,
+        react: path.join(
+          __dirname,
+          `dist/compiled/react${bundledReactChannel}`
+        ),
+        'react-dom$': path.join(
+          __dirname,
+          `dist/compiled/react-dom${bundledReactChannel}`
+        ),
+        'react-dom/client$': path.join(
+          __dirname,
+          `dist/compiled/react-dom${bundledReactChannel}/client`
+        ),
+        'react-is$': path.join(
+          __dirname,
+          `dist/compiled/react-is${bundledReactChannel}`
+        ),
+        scheduler$: path.join(
+          __dirname,
+          `dist/compiled/scheduler${bundledReactChannel}`
+        ),
       },
       extensions: ['.ts', '.tsx', '.js', '.json'],
     },
