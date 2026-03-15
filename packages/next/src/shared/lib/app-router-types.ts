@@ -212,10 +212,13 @@ export const enum PrefetchHint {
 }
 
 /**
- * Alias: this segment's static prefetch is skipped. Either because it uses
- * runtime prefetching (fetched dynamically instead) or because prefetching
- * is disabled entirely (unstable_instant = false). The segment participates
- * in the bundle chain but with null data.
+ * Bitmask for checking whether a segment's static prefetch is skipped. Matches
+ * if EITHER bit is set — i.e. the segment uses runtime prefetching
+ * (HasRuntimePrefetch) OR prefetching is disabled entirely (PrefetchDisabled,
+ * e.g. unstable_instant = false). The segment participates in the bundle chain
+ * but with null data.
+ *
+ * Usage: `(hints & StaticPrefetchDisabled) !== 0`
  */
 export const StaticPrefetchDisabled =
   PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
