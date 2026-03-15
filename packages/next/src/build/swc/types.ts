@@ -122,7 +122,6 @@ export interface IssueSource {
   source: {
     ident: string
     filePath: string
-    content?: string
   }
   range?: {
     start: SourcePosition
@@ -133,6 +132,8 @@ export interface IssueSource {
 export interface AdditionalIssueSource {
   description: string
   source: IssueSource
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 
 export interface Issue {

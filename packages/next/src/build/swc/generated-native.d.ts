@@ -531,6 +531,8 @@ export interface NapiIssue {
 export interface NapiAdditionalIssueSource {
   description: string
   source: NapiIssueSource
+  /** Pre-rendered code frame for this additional source location, if available. */
+  codeFrame?: string
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -543,7 +545,6 @@ export interface NapiIssueSourceRange {
 export interface NapiSource {
   ident: string
   filePath: string
-  content?: string
 }
 export interface NapiSourcePos {
   line: number

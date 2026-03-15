@@ -1,6 +1,5 @@
 import type {
   Issue,
-  IssueSource,
   PlainTraceItem,
   StyledString,
   TurbopackResult,
@@ -8,8 +7,6 @@ import type {
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import { deobfuscateText } from '../magic-identifier'
-import isInternal from '../is-internal'
-import { codeFrameColumns } from '../errors/code-frame'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
@@ -101,31 +98,6 @@ function formatFilePath(filePath: string): string {
     .replace('\\\\?\\', '')
 }
 
-/**
- * Formats an IssueSource as a code frame with file location header.
- * Returns empty string if the source has no range, no content, or
- * points to an internal (Next.js/React) file.
- */
-function formatSourceCodeFrame(source: IssueSource, filePath: string): string {
-  if (!source.range || !source.source.content || isInternal(filePath)) {
-    return ''
-  }
-  const { start, end } = source.range
-  let result = `${formatFilePath(filePath)}:${start.line + 1}:${start.column + 1}\n`
-  const frame = codeFrameColumns(
-    source.source.content,
-    {
-      start: { line: start.line + 1, column: start.column + 1 },
-      end: { line: end.line + 1, column: end.column + 1 },
-    },
-    { color: true }
-  )
-  if (frame) {
-    result += frame.trimEnd() + '\n\n'
-  }
-  return result
-}
-
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
@@ -183,12 +155,14 @@ export function formatIssue(issue: Issue) {
 
   // Render additional sources (e.g., generated code from a loader)
   for (const additional of issue.additionalSources ?? []) {
-    const codeFrame = formatSourceCodeFrame(
-      additional.source,
-      additional.source.source.filePath
-    )
-    if (codeFrame) {
-      message += `${additional.description}:\n${codeFrame}`
+    if (additional.codeFrame) {
+      const additionalFilePath = formatFilePath(
+        additional.source.source.filePath
+      )
+      const loc = additional.source.range
+        ? `:${additional.source.range.start.line + 1}:${additional.source.range.start.column + 1}`
+        : ''
+      message += `${additional.description}:\n${additionalFilePath}${loc}\n${additional.codeFrame.trimEnd()}\n\n`
     }
   }
 

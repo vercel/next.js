@@ -155,22 +155,19 @@ fn is_internal(file_path: &str) -> bool {
     RE.is_match(file_path)
 }
 
-/// Renders a code frame for the issue's source location, if available.
+/// Renders a code frame for a source location, if available.
 ///
 /// This avoids transferring the full source file content across the NAPI
 /// boundary just to call back into Rust for code frame rendering.
 ///
 /// Because this accesses the terminal size, this function call should not be cached (e.g. in
 /// turbo-tasks).
-fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
-    let Some(source) = issue.source.as_ref() else {
-        return Ok(None);
-    };
+fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Result<Option<String>> {
     let Some((start, end)) = source.range else {
         return Ok(None);
     };
 
-    if is_internal(&issue.file_path) {
+    if is_internal(file_path) {
         return Ok(None);
     }
 
@@ -210,6 +207,14 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     )
 }
 
+/// Renders a code frame for the issue's primary source location.
+fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
+    let Some(source) = issue.source.as_ref() else {
+        return Ok(None);
+    };
+    render_source_code_frame(source, &issue.file_path)
+}
+
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
@@ -231,6 +236,8 @@ pub struct NapiIssue {
 pub struct NapiAdditionalIssueSource {
     pub description: String,
     pub source: NapiIssueSource,
+    /// Pre-rendered code frame for this additional source location, if available.
+    pub code_frame: Option<String>,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -254,6 +261,8 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|s| NapiAdditionalIssueSource {
                     description: s.description.to_string(),
+                    code_frame: render_source_code_frame(&s.source, &s.source.asset.file_path)
+                        .unwrap_or_default(),
                     source: (&s.source).into(),
                 })
                 .collect(),
@@ -339,7 +348,6 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 pub struct NapiSource {
     pub ident: String,
     pub file_path: String,
-    pub content: Option<String>,
 }
 
 impl From<&PlainSource> for NapiSource {
@@ -347,13 +355,6 @@ impl From<&PlainSource> for NapiSource {
         Self {
             ident: source.ident.to_string(),
             file_path: source.file_path.to_string(),
-            content: match &*source.content {
-                FileContent::Content(content) => match content.content().to_str() {
-                    Ok(str) => Some(str.into_owned()),
-                    Err(_) => None,
-                },
-                FileContent::NotFound => None,
-            },
         }
     }
 }
