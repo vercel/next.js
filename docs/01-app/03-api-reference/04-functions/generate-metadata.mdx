@@ -1321,6 +1321,8 @@ Metadata is evaluated in order, starting from the root segment down to the segme
 2. `app/blog/layout.tsx` (Nested Blog Layout)
 3. `app/blog/[slug]/page.tsx` (Blog Page)
 
+> **Good to know**: `generateMetadata` is re-evaluated for **every navigation**, including navigations between sibling routes. Even if a layout's React component tree is preserved during navigation (e.g., navigating from `/alpha` to `/beta` under the same layout), its `generateMetadata` still runs again because metadata reflects the full route and may depend on child segments. React `cache()` and `fetch` memoization only deduplicate within a single request—they do not persist across navigations. If you need to cache expensive data fetches across navigations, use [`fetch` with `revalidate`](/docs/app/guides/caching#time-based-revalidation) or [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) instead.
+
 ### Merging
 
 Following the [evaluation order](#ordering), Metadata objects exported from multiple segments in the same route are **shallowly** merged together to form the final metadata output of a route. Duplicate keys are **replaced** based on their ordering.
