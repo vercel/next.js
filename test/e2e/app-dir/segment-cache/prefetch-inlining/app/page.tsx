@@ -3,7 +3,7 @@ import { LinkAccordion } from '../components/link-accordion'
 export default function Page() {
   return (
     <div>
-      <h1 id="home">Home</h1>
+      <h1 id="home">Prefetch inlining home</h1>
       <ul>
         <li>
           <LinkAccordion href="/test-small-chain">Small chain</LinkAccordion>
