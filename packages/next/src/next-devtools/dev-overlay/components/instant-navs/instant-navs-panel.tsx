@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { ACTION_INSTANT_NAVS_RESET } from '../../shared'
 import {
+  lock,
+  unlock,
   useInstantNavCookieState,
   formatRoutePattern,
-} from './instant-nav-cookie'
+} from '../../../shared/instant-navs-cookie'
 import './instant-navs-panel.css'
-
-const COOKIE_NAME = 'next-instant-navigation-testing'
 
 export function InstantNavsPanel() {
   const { state, dispatch } = useDevOverlayContext()
@@ -33,32 +33,18 @@ export function InstantNavsPanel() {
   // Cleanup on unmount: clear cookie and close the panel.
   useEffect(() => {
     return () => {
-      if (typeof cookieStore !== 'undefined') {
-        cookieStore.delete(COOKIE_NAME)
-      }
+      unlock()
       dispatch({ type: ACTION_INSTANT_NAVS_RESET })
     }
   }, [dispatch])
 
   function handleReload() {
-    if (typeof cookieStore !== 'undefined') {
-      cookieStore.set({
-        name: COOKIE_NAME,
-        value: JSON.stringify([0, `p${Math.random()}`]),
-        path: '/',
-      })
-    }
+    lock()
     window.location.reload()
   }
 
   function handleStartClientNav() {
-    if (typeof cookieStore !== 'undefined') {
-      cookieStore.set({
-        name: COOKIE_NAME,
-        value: JSON.stringify([0, `p${Math.random()}`]),
-        path: '/',
-      })
-    }
+    lock()
     setIsWaitingForClientNav(true)
   }
 
@@ -67,9 +53,7 @@ export function InstantNavsPanel() {
     // event triggers refreshOnInstantNavigationUnlock which does a
     // soft refresh to fetch dynamic data. The panel stays open so
     // the user can start another capture.
-    if (typeof cookieStore !== 'undefined') {
-      cookieStore.delete(COOKIE_NAME)
-    }
+    unlock()
   }
 
   function getShareUrl(): string {

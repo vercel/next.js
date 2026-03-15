@@ -25,5 +25,14 @@ appBootstrap((assetPrefix) => {
         enableCacheIndicator
       )
     }
+
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_EXPOSE_INSTANT_DEVTOOLS
+    ) {
+      const { renderInstantDevTools } =
+        require('next/dist/compiled/next-instant-devtools') as typeof import('next/dist/compiled/next-instant-devtools')
+      renderInstantDevTools()
+    }
   }
 })

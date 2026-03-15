@@ -448,6 +448,11 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Instant DevTools in Production Build depends on the exposed instant testing API.
+  if (result.experimental.exposeInstantDevToolsInProductionBuild) {
+    result.experimental.exposeTestingApiInProductionBuild = true
+  }
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`

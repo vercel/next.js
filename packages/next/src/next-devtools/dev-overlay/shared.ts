@@ -8,7 +8,7 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
-import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
+import { readInstantNavCookieState } from '../shared/instant-navs-cookie'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'

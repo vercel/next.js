@@ -463,6 +463,14 @@ export interface ExperimentalConfig {
    */
   exposeTestingApiInProductionBuild?: boolean
   /**
+   * When enabled, renders the Instant DevTools widget in production builds.
+   * Implicitly enables `exposeTestingApiInProductionBuild`.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeInstantDevToolsInProductionBuild?: boolean
+  /**
    * Show the Instant Navigation Mode toggle in the dev tools indicator.
    * When enabled, a menu item lets you lock navigations to only show
    * the cached/prefetched state.
@@ -1906,6 +1914,7 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
+    | 'exposeInstantDevToolsInProductionBuild'
     | 'immutableAssetToken'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -1972,6 +1981,8 @@ export function getNextConfigRuntime(
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        exposeInstantDevToolsInProductionBuild:
+          ex.exposeInstantDevToolsInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
 
         trustHostHeader: ex.trustHostHeader,
