@@ -12,9 +12,6 @@ type Actions = {
         async: boolean
       }
     }
-    layer: {
-      [name: string]: string
-    }
   }
 }
 
@@ -50,9 +47,7 @@ export function nextTestSetupActionTreeShaking(opts) {
 }
 
 type ActionState = {
-  [route: string]: {
-    [layer: string]: string[]
-  }
+  [route: string]: string[]
 }
 
 function getActionsRoutesState(actionsMappingOfRuntime: Actions): ActionState {
@@ -61,12 +56,7 @@ function getActionsRoutesState(actionsMappingOfRuntime: Actions): ActionState {
     const action = actionsMappingOfRuntime[actionId]
     for (const routePath in action.workers) {
       if (!state[routePath]) {
-        state[routePath] = {}
-      }
-      const layer = action.layer[routePath]
-
-      if (!state[routePath][layer]) {
-        state[routePath][layer] = []
+        state[routePath] = []
       }
 
       // Normalize when NEXT_SKIP_ISOLATE=1
@@ -75,14 +65,12 @@ function getActionsRoutesState(actionsMappingOfRuntime: Actions): ActionState {
             action.filename.indexOf('/', 'test/tmp/next-test-'.length) + 1
           )
         : action.filename
-      state[routePath][layer].push(`${filename}#${action.exportedName}`)
+      state[routePath].push(`${filename}#${action.exportedName}`)
     }
   }
 
-  for (const layer of Object.values(state)) {
-    for (const list of Object.values(layer)) {
-      list.sort()
-    }
+  for (const page of Object.values(state)) {
+    page.sort()
   }
 
   return state
