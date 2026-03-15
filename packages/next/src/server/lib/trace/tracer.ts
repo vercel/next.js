@@ -163,6 +163,14 @@ interface NextTracer {
    * This allows child spans created within the function to automatically parent to this span.
    */
   withSpan<T>(span: Span, fn: () => T): T
+
+  /**
+   * Injects the current trace context (traceparent/tracestate) into the given
+   * headers-like carrier. This enables trace context propagation between
+   * multiple handleRequest calls within the same process (e.g., middleware
+   * invocation followed by page rendering).
+   */
+  injectTraceContext<C>(carrier: C): void
 }
 
 type NextAttributeNames =
@@ -222,6 +230,10 @@ class NextTracerImpl implements NextTracer {
 
   public getActiveScopeSpan(): Span | undefined {
     return trace.getSpan(context?.active())
+  }
+
+  public injectTraceContext<C>(carrier: C): void {
+    propagation.inject(context.active(), carrier)
   }
 
   public withPropagatedContext<T, C>(

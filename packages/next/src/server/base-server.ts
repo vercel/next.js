@@ -896,8 +896,18 @@ export default abstract class Server<
             'http.target': req.url,
           },
         },
-        async (span) =>
-          this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+        async (span) => {
+          // Inject the current trace context (including this span) into the
+          // request headers. This ensures that if handleRequest is called
+          // multiple times for the same request (e.g., middleware invocation
+          // followed by page rendering), subsequent calls to
+          // withPropagatedContext will extract this span's trace context from
+          // the updated headers and create child spans instead of starting
+          // disconnected traces.
+          // See: https://github.com/vercel/next.js/issues/91282
+          tracer.injectTraceContext(req.headers)
+
+          return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
             if (!span) return
 
             const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -956,6 +966,7 @@ export default abstract class Server<
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
           })
+        }
       )
     })
   }

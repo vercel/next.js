@@ -452,34 +452,42 @@ describe('opentelemetry', () => {
 
             await expectTrace(getCollector(), [
               {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
                 runtime: 'nodejs',
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
+                name: expect.any(String),
                 attributes: {
                   'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
                   'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
+                spans: expect.arrayContaining([
+                  expect.objectContaining({
+                    runtime: 'edge',
+                    name: 'middleware GET',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.target': '/behind-middleware',
+                      'next.span_name': 'middleware GET',
+                      'next.span_type': 'Middleware.execute',
+                    },
+                    status: { code: 0 },
+                    spans: [],
+                  }),
+                  expect.objectContaining({
+                    runtime: 'nodejs',
+                    name: 'GET /behind-middleware',
+                    attributes: expect.objectContaining({
+                      'http.method': 'GET',
+                      'http.route': '/behind-middleware',
+                      'http.status_code': 200,
+                      'http.target': '/behind-middleware',
+                      'next.route': '/behind-middleware',
+                      'next.span_name': 'GET /behind-middleware',
+                      'next.span_type': 'BaseServer.handleRequest',
+                    }),
+                  }),
+                ]),
               },
             ])
           })
