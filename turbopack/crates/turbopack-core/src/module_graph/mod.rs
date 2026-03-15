@@ -1,5 +1,5 @@
 use std::{
-    collections::{BinaryHeap, VecDeque},
+    collections::{BTreeSet, BinaryHeap, VecDeque},
     future::Future,
     ops::Deref,
 };
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -268,6 +268,36 @@ pub struct RefData {
     pub reference: ResolvedVc<Box<dyn ModuleReference>>,
 }
 
+#[derive(
+    Default,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub enum GraphCollectingMode {
+    #[default]
+    /// The module graph being built is the complete graph.
+    ///
+    /// Any ChunkingType::Emitted referenecs that don't have a corresponding collecting module are
+    /// completely ignored.
+    CompleteGraph,
+    /// The graph is incomplete, for example because it's being built in layers to improve caching.
+    ///
+    /// Emitted references without a corresponding collecting module cannot be ignored (because the
+    /// collecting module is only contained in a subsequent graph), but the explicitly listed
+    /// namespaces are ignored.
+    IncompleteGraph {
+        ignored_collected_namespace: BTreeSet<RcStr>,
+    },
+}
+
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
@@ -277,6 +307,7 @@ impl SingleModuleGraph {
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         let emit_spans = tracing::enabled!(Level::INFO);
         let root_nodes = entries
@@ -294,6 +325,7 @@ impl SingleModuleGraph {
                     emit_spans,
                     include_traced,
                     include_binding_usage,
+                    collecting_mode,
                 },
             )
             .await
@@ -1447,12 +1479,14 @@ impl SingleModuleGraph {
         entry: ChunkGroupEntry,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             vec![entry],
             &Default::default(),
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1462,12 +1496,14 @@ impl SingleModuleGraph {
         entries: ResolvedVc<GraphEntries>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             entries.owned().await?,
             &Default::default(),
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1478,12 +1514,14 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             entries.owned().await?,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1495,12 +1533,14 @@ impl SingleModuleGraph {
         visited_modules: OperationVc<VisitedModules>,
         include_traced: bool,
         include_binding_usage: bool,
+        collecting_mode: GraphCollectingMode,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(
             entries,
             &visited_modules.connect().await?.modules,
             include_traced,
             include_binding_usage,
+            collecting_mode,
         )
         .await
     }
@@ -1593,6 +1633,8 @@ struct SingleModuleGraphBuilder<'a> {
 
     /// Whether to read ModuleReference::binding_usage()
     include_binding_usage: bool,
+
+    collecting_mode: GraphCollectingMode,
 }
 impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'_> {
     type EdgesIntoIter = Vec<(SingleModuleGraphBuilderNode, RefData)>;
@@ -2096,6 +2138,7 @@ pub mod tests {
                     ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![b_module])]),
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 );
 
                 let module_graph = ModuleGraph::from_graphs(
@@ -2106,6 +2149,7 @@ pub mod tests {
                             VisitedModules::from_graph(parent_graph),
                             false,
                             false,
+                            GraphCollectingMode::CompleteGraph,
                         ),
                     ],
                     None,
@@ -2349,6 +2393,7 @@ pub mod tests {
                 )])),
                 false,
                 false,
+                GraphCollectingMode::CompleteGraph,
             );
 
             // Create a simple name mapping to make analyzing the visitors easier.

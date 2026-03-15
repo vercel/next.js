@@ -57,7 +57,7 @@ use turbopack_core::{
     ident::{AssetIdent, Layer},
     module::{Module, Modules},
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -973,6 +973,7 @@ impl AppProject {
         &self,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
         server_action_loader_modules: ResolvedVc<Modules>,
+        ignored_collected_namespace: Vec<RcStr>,
         client_shared_entries_when_has_layout_segments: Option<Vc<EvaluatableAssets>>,
     ) -> Result<Vc<ModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
@@ -1000,6 +1001,12 @@ impl AppProject {
 
                 if let Some(client_shared_entries) = client_shared_entries_when_has_layout_segments
                 {
+                    let graph_collecting_mode = GraphCollectingMode::IncompleteGraph {
+                        ignored_collected_namespace: ignored_collected_namespace
+                            .into_iter()
+                            .collect(),
+                    };
+
                     let ServerEntries {
                         server_component_entries,
                         server_utils,
@@ -1028,6 +1035,7 @@ impl AppProject {
                         visited_modules,
                         should_trace,
                         should_read_binding_usage,
+                        graph_collecting_mode.clone(),
                     );
                     graphs.push(graph);
                     visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -1045,6 +1053,7 @@ impl AppProject {
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
+                            graph_collecting_mode.clone(),
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -1068,6 +1077,7 @@ impl AppProject {
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    GraphCollectingMode::CompleteGraph,
                 );
                 graphs.push(graph);
 
@@ -1206,6 +1216,45 @@ struct AppEndpoint {
     page: AppPage,
 }
 
+struct ServerActionCollectNamespaces {
+    active: Vec<RcStr>,
+    inactive: Vec<RcStr>,
+}
+impl AppEndpoint {
+    async fn server_action_loader_collect_namespaces(
+        self: Vc<Self>,
+    ) -> Result<ServerActionCollectNamespaces> {
+        let app_entry = self.app_endpoint_entry().await?;
+        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+
+        let mut active = vec![];
+        let mut inactive = vec![];
+
+        // By only collecting the correct runtime, modules emitted for the other runtime are
+        // never even compiled if unused.
+        // next/server-actions/rsc-*: collects inline "use server" function inside of RSC modules
+        // next/server-actions/browser-*: collects "use server" modules imported from client
+        // components
+
+        match runtime {
+            NextRuntime::NodeJs => {
+                active.push(rcstr!("next/server-actions/rsc-nodejs"));
+                inactive.push(rcstr!("next/server-actions/rsc-edge"));
+                active.push(rcstr!("next/server-actions/browser-nodejs"));
+                inactive.push(rcstr!("next/server-actions/browser-edge"));
+            }
+            NextRuntime::Edge => {
+                active.push(rcstr!("next/server-actions/rsc-edge"));
+                inactive.push(rcstr!("next/server-actions/rsc-nodejs"));
+                active.push(rcstr!("next/server-actions/browser-edge"));
+                inactive.push(rcstr!("next/server-actions/browser-nodejs"));
+            }
+        }
+
+        Ok(ServerActionCollectNamespaces { active, inactive })
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
     #[turbo_tasks::function]
@@ -1291,37 +1340,27 @@ impl AppEndpoint {
     #[turbo_tasks::function]
     async fn server_action_loader_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let this = self.await?;
-        let app_entry = self.app_endpoint_entry().await?;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let namespaces = self.server_action_loader_collect_namespaces().await?;
 
         // By only collecting the correct runtime, modules emitted for the other runtime are
         // never even compiled if unused.
-        Ok(Vc::cell(vec![
-            // Collect inline "use server" function inside of RSC modules
-            ResolvedVc::upcast(
-                ServerActionCollectModule::new(
-                    match runtime {
-                        NextRuntime::NodeJs => rcstr!("next/server-actions/rsc-nodejs"),
-                        NextRuntime::Edge => rcstr!("next/server-actions/rsc-edge"),
-                    },
-                    this.page.to_string().into(),
-                )
-                .to_resolved()
+        Ok(Vc::cell(
+            namespaces
+                .active
+                .iter()
+                .map(async |namespace| {
+                    Ok(ResolvedVc::upcast(
+                        ServerActionCollectModule::new(
+                            namespace.clone(),
+                            this.page.to_string().into(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                })
+                .try_join()
                 .await?,
-            ),
-            // Collect "use server" modules imported from client components.
-            ResolvedVc::upcast(
-                ServerActionCollectModule::new(
-                    match runtime {
-                        NextRuntime::NodeJs => rcstr!("next/server-actions/browser-nodejs"),
-                        NextRuntime::Edge => rcstr!("next/server-actions/browser-edge"),
-                    },
-                    this.page.to_string().into(),
-                )
-                .to_resolved()
-                .await?,
-            ),
-        ]))
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1376,12 +1415,14 @@ impl AppEndpoint {
 
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
 
-        let server_action_loader_modules = self.server_action_loader_modules();
-
-        // TODO replace with self.module_graphs()
+        // TODO replace with self.module_graph()
         let module_graph = this.app_project.app_module_graph(
             *rsc_entry,
-            server_action_loader_modules,
+            self.server_action_loader_modules(),
+            self.server_action_loader_collect_namespaces()
+                .await?
+                .inactive
+                .clone(),
             // We only need the client runtime entries for pages not for Route Handlers
             is_app_page.then(|| this.app_project.client_runtime_entries()),
         );
@@ -2184,12 +2225,15 @@ impl Endpoint for AppEndpoint {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
-        let server_action_loader_modules = self.server_action_loader_modules();
         let module_graph = this
             .app_project
             .app_module_graph(
                 *app_entry.rsc_entry,
-                server_action_loader_modules,
+                self.server_action_loader_modules(),
+                self.server_action_loader_collect_namespaces()
+                    .await?
+                    .inactive
+                    .clone(),
                 // We only need the client runtime entries for pages not for Route Handlers
                 is_app_page.then(|| this.app_project.client_runtime_entries()),
             )

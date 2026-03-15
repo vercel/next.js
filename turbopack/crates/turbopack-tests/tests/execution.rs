@@ -43,7 +43,8 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        GraphCollectingMode, ModuleGraph, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType, ReferenceTypeCondition},
     resolve::{
@@ -529,6 +530,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         entries.graph_entries().to_resolved().await?,
         false,
         true,
+        GraphCollectingMode::CompleteGraph,
     );
     let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 

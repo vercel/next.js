@@ -65,7 +65,7 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
@@ -1467,6 +1467,7 @@ impl Project {
                     ChunkGroupEntry::Entry(vec![entry]),
                     is_production,
                     is_production,
+                    GraphCollectingMode::CompleteGraph,
                 )],
                 None,
             )
@@ -1494,6 +1495,7 @@ impl Project {
                     ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entries)]),
                     is_production,
                     is_production,
+                    GraphCollectingMode::CompleteGraph,
                 )],
                 None,
             )
@@ -2496,6 +2498,7 @@ async fn whole_app_module_graph_operation(project: ResolvedVc<Project>) -> Resul
             project.get_all_entries().to_resolved().await?,
             should_trace,
             should_read_binding_usage,
+            GraphCollectingMode::CompleteGraph,
         );
 
         let base = ModuleGraph::from_graphs(vec![module_graph], None);

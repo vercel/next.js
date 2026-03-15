@@ -32,7 +32,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
+        GraphCollectingMode, ModuleGraph, SingleModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
@@ -281,6 +281,7 @@ impl WebpackLoadersProcessedAsset {
                     entries.graph_entries().to_resolved().await?,
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph,
                 )],
                 None,
             )
@@ -719,6 +720,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     ChunkGroupEntry::Entry(vec![module]),
                     false,
                     false,
+                    GraphCollectingMode::CompleteGraph
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()

@@ -52,7 +52,7 @@ use turbopack_core::{
     ident::{AssetIdent, Layer},
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+        GraphCollectingMode, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
@@ -726,6 +726,9 @@ impl PageEndpoint {
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
+                    GraphCollectingMode::IncompleteGraph {
+                        ignored_collected_namespace: Default::default(),
+                    },
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -750,6 +753,7 @@ impl PageEndpoint {
                 visited_modules,
                 should_trace,
                 should_read_binding_usage,
+                GraphCollectingMode::CompleteGraph,
             );
             graphs.push(graph);
 
