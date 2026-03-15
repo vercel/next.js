@@ -1020,6 +1020,10 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
+      // Check for build cache before initializing telemetry, because the
+      // Telemetry constructor creates the cache directory in CI environments.
+      const cacheDir = getCacheDir(distDir)
+
       // Initialize telemetry before installBindings so that SWC load failure
       // events are captured if native bindings fail to load.
       const telemetry = new Telemetry({ distDir })
@@ -1122,8 +1126,6 @@ export default async function build(
             recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
           )
       }
-
-      const cacheDir = getCacheDir(distDir)
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
