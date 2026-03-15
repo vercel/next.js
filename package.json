@@ -138,6 +138,7 @@
     "@jest/expect-utils": "29.7.0",
     "@mdx-js/loader": "2.2.1",
     "@mdx-js/react": "2.2.1",
+    "@opentelemetry/api": "1.6.0",
     "@picocss/pico": "1.5.10",
     "@rspack/core": "1.6.7",
     "@slack/web-api": "7.9.1",

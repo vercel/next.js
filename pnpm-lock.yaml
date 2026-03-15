@@ -105,6 +105,9 @@ importers:
       '@mdx-js/react':
         specifier: 2.2.1
         version: 2.2.1(react@19.3.0-canary-5e9eedb5-20260312)
+      '@opentelemetry/api':
+        specifier: 1.6.0
+        version: 1.6.0
       '@picocss/pico':
         specifier: 1.5.10
         version: 1.5.10
