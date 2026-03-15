@@ -538,6 +538,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         z.literal(false),
       ])
       .optional(),
+    open: z.boolean().optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
     enablePrerenderSourceMaps: z.boolean().optional(),

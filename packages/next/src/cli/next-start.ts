@@ -22,6 +22,9 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import * as Log from '../build/output/log'
+import { openBrowser, buildBrowserUrl } from '../lib/open-browser'
+import loadConfig from '../server/config'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 
 export type NextStartOptions = {
   port: number
@@ -31,6 +34,7 @@ export type NextStartOptions = {
   keepAliveTimeout?: number
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
+  open?: boolean
 }
 
 /**
@@ -41,6 +45,11 @@ export type NextStartOptions = {
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
+
+  const config = await loadConfig(PHASE_PRODUCTION_SERVER, dir)
+  const shouldOpen =
+    options.open !== undefined ? options.open : (config.open ?? false)
+
   const hostname = options.hostname
   const inspect = options.inspect
   const port = options.port
@@ -88,6 +97,17 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     port,
     keepAliveTimeout,
   })
+
+  if (shouldOpen) {
+    const url = buildBrowserUrl({
+      protocol: 'http',
+      hostname,
+      port,
+    })
+    openBrowser(url).catch(() => {
+      // Silently fail - opening browser is not critical
+    })
+  }
 }
 
 export { nextStart }

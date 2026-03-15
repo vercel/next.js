@@ -1,0 +1,61 @@
+---
+title: open
+description: Automatically open the application in the browser when the server starts.
+---
+
+`open` allows you to automatically open the application in the browser when the server starts (both `next dev` and `next start`).
+
+```ts filename="Types"
+open?: boolean
+```
+
+## Default Behavior
+
+By default, `open` is `false`, meaning the browser will not automatically open.
+
+## Usage
+
+You can enable automatic browser opening in two ways:
+
+### Using next.config.js
+
+```js filename="next.config.js"
+module.exports = {
+  open: true,
+}
+```
+
+### Using CLI Flag
+
+```bash
+next dev --open
+```
+
+or
+
+```bash
+next start --open
+```
+
+## CLI Precedence
+
+If both the config option and CLI flag are provided, the CLI flag takes precedence. The `--open` flag enables browser opening, and omitting it disables it even if the config has `open: true`.
+
+## Examples
+
+### Enable automatic browser opening
+
+```js filename="next.config.js"
+module.exports = {
+  open: true,
+}
+```
+
+When you run `next dev` or `next start`, the browser will automatically open to `http://localhost:3000` (or the configured port).
+
+### Disable automatic browser opening (CLI override)
+
+```bash
+# Disable even if config has open: true
+next dev
+```

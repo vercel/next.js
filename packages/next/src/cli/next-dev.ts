@@ -38,6 +38,9 @@ import { clearTimeout } from 'timers'
 import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
+import { openBrowser, buildBrowserUrl } from '../lib/open-browser'
+import loadConfig from '../server/config'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -56,6 +59,7 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   experimentalServerFastRefresh?: boolean
+  open?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -182,6 +186,11 @@ const nextDev = async (
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
+
+  // Resolve open: CLI --open takes precedence over next.config.js open option
+  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+  const shouldOpen =
+    options.open !== undefined ? options.open : (config.open ?? false)
 
   if (options.experimentalCpuProf) {
     Log.info(
@@ -366,6 +375,19 @@ const nextDev = async (
               distDir = msg.distDir
             }
 
+            // Open browser if requested (from CLI --open or next.config.js open)
+            if (shouldOpen) {
+              const url = buildBrowserUrl({
+                protocol: startServerOptions.selfSignedCertificate
+                  ? 'https'
+                  : 'http',
+                hostname: host,
+                port,
+              })
+              openBrowser(url).catch(() => {
+                // Silently fail - opening browser is not critical
+              })
+            }
             resolved = true
             resolve()
           }

@@ -329,6 +329,7 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
   )
+  .option('--open', 'Open the application in the browser.')
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
@@ -341,6 +342,7 @@ program
         const dir = directory || process.cwd()
         process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
       }
+
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -412,6 +414,7 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
   )
+  .option('--open', 'Open the application in the browser.')
   .action((directory: string, options: NextStartOptions) => {
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'

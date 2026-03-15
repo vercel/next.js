@@ -1326,6 +1326,15 @@ export interface NextConfig {
       }
 
   /**
+   * Automatically open the application in the browser when the server starts (both `next dev` and `next start`).
+   * Can also be set via the `--open` CLI flag.
+   *
+   * @default false
+   * @see [Open configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/open)
+   */
+  open?: boolean
+
+  /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
    *
    * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/app/api-reference/config/next-config-js/onDemandEntries)
@@ -1871,6 +1880,8 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  /** CLI-only: open browser when starting dev/start (see NextConfig.open) */
+  open?: NextConfigComplete['open']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -2025,7 +2036,7 @@ export function getNextConfigRuntime(
     pageExtensions: config.pageExtensions,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
     logging: config.logging,
-
+    open: config.open,
     experimental,
   }
 
