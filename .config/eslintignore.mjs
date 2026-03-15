@@ -54,6 +54,7 @@ export default globalIgnores([
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',
   'test/development/next-lint-eslint-formatter-compact/**/*.js',
   'test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs',
+  'test/e2e/babel/fixture/lib/mycomponent.js',
   'turbopack/crates/*/tests/**/*',
   'turbopack/crates/*/js/src/compiled',
   // Eval fixtures are deliberately imperfect code for agents to fix.
