@@ -1,0 +1,24 @@
+[package]
+name = "turbo-persistence-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.9"
+lzzzz = { workspace = true }
+tempfile = { workspace = true }
+turbo-persistence = { path = ".." }
+
+[[bin]]
+name = "fuzz_persistence"
+path = "fuzz_targets/fuzz_persistence.rs"
+test = false
+doc = false
+bench = false
+
+[lints]
+workspace = true
