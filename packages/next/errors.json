@@ -1117,5 +1117,9 @@
   "1116": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent.",
   "1117": "Instant validation boundaries should never appear in browser bundles.",
   "1118": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
-  "1119": "Expected edge function entrypoint to emit a JavaScript file"
+  "1119": "Expected edge function entrypoint to emit a JavaScript file",
+  "1120": "Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route.",
+  "1121": "Prefetch inlining is enabled but no hints were found for route \"%s\". This is a bug in the Next.js build pipeline — prefetch-hints.json should contain an entry for every route that produces segment data.",
+  "1122": "Internal Next.js Error: Prefetch inlining is enabled but no hints were found for route \"%s\". prefetch-hints.json should contain an entry for every route that produces segment data. This is a bug in Next.js.",
+  "1123": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js."
 }

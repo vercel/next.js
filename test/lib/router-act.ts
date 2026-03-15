@@ -293,6 +293,22 @@ export function createRouterAct(
     }
 
     const prevBatch = currentBatch
+
+    // Wait for any in-flight network requests to settle before installing
+    // our route handler. This prevents act() from intercepting requests
+    // that were initiated outside of its scope (e.g. an eager prefetch
+    // triggered during initial page load). Without this, those stale
+    // in-flight requests can get caught in the processing loop and cause
+    // hangs or unexpected behavior.
+    if (prevBatch === null) {
+      // Only wait at the top level — nested act() calls inherit the outer
+      // batch's route handler, so there's nothing external to settle.
+      await page.waitForLoadState('networkidle').catch(() => {
+        // Ignore timeout — best effort. If the network doesn't settle
+        // within Playwright's default timeout, proceed anyway.
+      })
+    }
+
     const batch: Batch = {
       pendingRequestChecks: new Set(),
       pendingRequests: new Set(),
