@@ -5566,6 +5566,14 @@ async function prerenderToStream(
   tree: LoaderTree,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<PrerenderToStreamResult> {
+  // [BUG DEMO LOG] This log should only appear during build or ISR
+  // revalidation. If it appears on every runtime request, it means
+  // static generation is running per-request instead of being cached.
+  console.log(
+    `[prerenderToStream] route: ${ctx.pagePath}` +
+      ` | isBuildTimePrerendering: ${ctx.renderOpts.isBuildTimePrerendering}`
+  )
+
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
@@ -7093,6 +7101,13 @@ async function collectSegmentData(
   pagePath: string,
   metadata: AppPageRenderResultMetadata
 ): Promise<void> {
+  // [BUG DEMO LOG] collectSegmentData should only run during build or ISR
+  // revalidation — not on every runtime request.
+  console.log(
+    `[collectSegmentData] route: ${pagePath}` +
+      ` | isBuildTimePrerendering: ${renderOpts.isBuildTimePrerendering}`
+  )
+
   // Per-segment prefetch data
   //
   // All of the segments for a page are generated simultaneously, including
