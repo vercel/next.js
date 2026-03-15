@@ -1,4 +1,5 @@
 import type { InitialRSCPayload } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
@@ -16,6 +17,7 @@ import {
 import { FetchStrategy } from '../segment-cache/types'
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
+import { prefetch } from '../segment-cache/prefetch'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
@@ -70,12 +72,12 @@ export function createInitialRouterState({
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
   //
-  // TODO: For statically-generated-at-build-time HTML pages, the
-  // FlightRouterState baked into the initial RSC payload won't have the
-  // correct segment inlining hints (ParentInlinedIntoSelf, InlinedIntoChild)
-  // because those are computed after the pre-render. The client will need to
-  // fetch the correct hints from the route tree prefetch (/_tree) response
-  // before acting on inlining decisions.
+  // For statically-generated-at-build-time HTML pages, the FlightRouterState
+  // baked into the initial RSC payload won't have the correct segment inlining
+  // hints because those are computed after the pre-render. The server marks
+  // these trees with InliningHintsStale, which causes the route cache entry
+  // to be immediately expired. The next prefetch will re-fetch the tree with
+  // correct hints from the /_tree response.
   const acc = { metadataVaryPath: null }
   const initialRouteTree = convertRootFlightRouterStateToRouteTree(
     initialTree,
@@ -168,6 +170,23 @@ export function createInitialRouterState({
 
         // Cancel the stream clone — fully static path doesn't need it.
         initialFlightStreamForCache?.cancel()
+      }
+
+      if (initialRouteTree.prefetchHints & PrefetchHint.InliningHintsStale) {
+        // The route cache entry for this page was immediately expired when
+        // we inserted it because its inlining hints are stale. This happens
+        // for build-time static pages whose HTML payload is generated before
+        // segment sizes are measured. RSC prefetch responses (/_tree) always
+        // have correct hints, so we eagerly initiate a prefetch to replace
+        // the stale tree before anyone needs it. The segment data won't be
+        // re-fetched because it was already written into the cache above.
+        prefetch(
+          canonicalUrl,
+          null, // nextUrl — initial render is never an interception
+          initialTree,
+          FetchStrategy.PPR,
+          null // onInvalidate
+        )
       }
     } else {
       // No caching — cancel the unused stream clone.

@@ -73,8 +73,16 @@ export type TreePrefetch = {
   prefetchHints: number
 }
 
+/**
+ * Top-level response for a segment prefetch request. Contains the build ID
+ * and an array of segment data (one per segment in the bundle).
+ */
+export type SegmentPrefetchResponse = {
+  buildId: string
+  data: Array<SegmentPrefetch | null>
+}
+
 export type SegmentPrefetch = {
-  buildId?: string
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
@@ -110,6 +118,7 @@ export type InlinedSegmentPrefetch = {
  * data for a route bundled into a single tree structure, plus the head segment.
  */
 export type InlinedPrefetchResponse = {
+  buildId: string
   tree: InlinedSegmentPrefetch
   head: SegmentPrefetch
 }
@@ -816,23 +825,22 @@ async function renderSegmentPrefetch(
     staleTime,
     varyParams,
   }
-  if (buildId) {
-    segmentPrefetch.buildId = buildId
+  // Wrap in a SegmentPrefetchResponse with a top-level buildId.
+  // For non-bundled responses, the data array has a single element.
+  const response: SegmentPrefetchResponse = {
+    buildId: buildId ?? '',
+    data: [segmentPrefetch],
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
   // caused by dynamic data. Abort the stream at the end of the current task.
   const abortController = new AbortController()
   waitAtLeastOneReactRenderTask().then(() => abortController.abort())
-  const { prelude: segmentStream } = await prerender(
-    segmentPrefetch,
-    clientModules,
-    {
-      filterStackFrame,
-      signal: abortController.signal,
-      onError: onSegmentPrerenderError,
-    }
-  )
+  const { prelude: segmentStream } = await prerender(response, clientModules, {
+    filterStackFrame,
+    signal: abortController.signal,
+    onError: onSegmentPrerenderError,
+  })
   const segmentBuffer = await streamToBuffer(segmentStream)
   if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
     return ['/_index' as SegmentRequestKey, segmentBuffer]
@@ -866,11 +874,9 @@ async function renderInlinedPrefetchResponse(
     staleTime,
     varyParams: headVaryParams,
   }
-  if (buildId) {
-    headPrefetch.buildId = buildId
-  }
 
   const response: InlinedPrefetchResponse = {
+    buildId: buildId ?? '',
     tree: inlinedTree,
     head: headPrefetch,
   }
@@ -927,9 +933,6 @@ async function buildInlinedSegmentPrefetch(
     isPartial: rsc !== null ? await isPartialRSCData(rsc, clientModules) : true,
     staleTime,
     varyParams,
-  }
-  if (buildId) {
-    segment.buildId = buildId
   }
   return { segment, slots }
 }

@@ -1,4 +1,6 @@
+import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
 const ParentInlinedIntoSelf = 0b100000 // 32
@@ -77,7 +79,13 @@ function collectNodes(
 
     const childPrefix =
       prefix + (hasParent ? (isLast ? '    ' : '\u2502   ') : '')
-    const keys = Object.keys(node.slots)
+    // Sort slot keys for deterministic output across bundlers. Put
+    // "children" first (default slot), then alphabetical.
+    const keys = Object.keys(node.slots).sort((a, b) => {
+      if (a === 'children') return -1
+      if (b === 'children') return 1
+      return a.localeCompare(b)
+    })
     const hasMultipleSlots = keys.length > 1
     for (let i = 0; i < keys.length; i++) {
       collectNodes(
@@ -115,7 +123,7 @@ async function fetchRouteTreePrefetch(
 }
 
 describe('prefetch inlining', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -162,34 +170,16 @@ describe('prefetch inlining', () => {
     // accepts (children). The @sidebar slot doesn't receive the parent's
     // data and is fetched independently.
     //
-    // Turbopack and webpack produce slightly different route tree structures
-    // for parallel routes (turbopack adds a "(slot)" intermediate segment),
-    // so we use separate snapshots for each.
-    // Turbopack and webpack produce slightly different route tree structures
-    // for parallel routes. Turbopack adds a "(slot)" intermediate segment
-    // for the @sidebar slot; webpack puts __PAGE__ directly under it.
     const data = await fetchRouteTreePrefetch(next, '/test-parallel')
-    if (isTurbopack) {
-      expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
-       "
-                ⇣  root
-                ⇣  └── "test-parallel"
-       outlined ■      ├── "__PAGE__"
-                ⇣      └── @sidebar/"(slot)"
-       outlined ■          └── "__PAGE__"
-       "
-      `)
-    } else {
-      expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
-       "
-                ⇣  root
-                ⇣  └── "test-parallel"
-                ⇣      ├── @sidebar/"(slot)"
-       outlined ■      │   └── "__PAGE__"
-       outlined ■      └── "__PAGE__"
-       "
-      `)
-    }
+    expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
+     "
+              ⇣  root
+              ⇣  └── "test-parallel"
+     outlined ■      ├── "__PAGE__"
+              ⇣      └── @sidebar/"(slot)"
+     outlined ■          └── "__PAGE__"
+     "
+    `)
   })
 
   it('home: root inlines directly into page', async () => {
@@ -264,5 +254,104 @@ describe('prefetch inlining', () => {
     // pattern, not concrete path)
     const data2 = await fetchRouteTreePrefetch(next, '/test-dynamic/world')
     expect(renderInliningTree(data2.tree)).toBe(helloTree)
+  })
+
+  it('stale hints: no failed requests when re-prefetching a build-time static page', async () => {
+    // At build time, the initial RSC payload embedded in the HTML is
+    // generated before inlining hints are computed. If the client uses that
+    // stale tree to make prefetch decisions, it may request individual
+    // segments that don't exist as standalone responses (because they're
+    // inlined into a bundle). The server marks these trees with
+    // InliningHintsStale so the client immediately expires the route cache
+    // entry and re-fetches the correct tree from /_tree.
+    //
+    // To trigger this, we start on a page with multiple inlined segments
+    // so the stale tree gets cached. Then we navigate to the home page and
+    // prefetch back to the original route, which forces the client to use
+    // the cached (potentially stale) tree for prefetch decisions.
+    //
+    // This test verifies that no non-2xx responses occur during the entire
+    // flow.
+    let page: Playwright.Page
+    const browser = await next.browser('/test-stale-hints/nested/deep', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Reveal the link to home and navigate there.
+    await act(
+      async () => {
+        await browser.elementByCss('input[data-link-accordion="/"]').click()
+        await browser.elementByCss('a[href="/"]').click()
+      },
+      { includes: 'Small chain' }
+    )
+
+    // Start tracking responses after navigation to home.
+    const responses: Array<{ url: string; status: number }> = []
+    page!.on('response', (response: Playwright.Response) => {
+      responses.push({
+        url: response.url(),
+        status: response.status(),
+      })
+    })
+
+    // Reveal the link to trigger a prefetch back to the original route.
+    // The client has a stale cached tree for this route from the initial
+    // HTML load. Without InliningHintsStale, it would use that tree and
+    // try to fetch individual segments that are actually inlined, causing
+    // 204 (no content) responses.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/test-stale-hints/nested/deep"]'
+        )
+        .click()
+    })
+
+    // All prefetch requests should succeed. Without InliningHintsStale,
+    // this would produce 204s for segments that don't have standalone
+    // outputs.
+    const nonOkResponses = responses.filter((r) => r.status !== 200)
+    expect(nonOkResponses).toEqual([])
+  })
+
+  it('instant false at root: does not prefetch segment data', async () => {
+    // TODO: This test exists as a temporary mitigation for a bug where
+    // routes with `instant = false` at the root segment cause the
+    // prerender to run per-request instead of being cached. Until that
+    // bug is fixed (see https://github.com/vercel/next.js/pull/91407),
+    // we fall back to treating every segment as unprefetchable. This
+    // test verifies that fallback works — the route builds successfully
+    // and the client doesn't attempt to prefetch any segment data.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Reveal the link to trigger a prefetch. Since all segments are
+    // treated as PrefetchDisabled, the client should fetch the route
+    // tree but not any segment data.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-instant-false-root"]')
+        .click()
+    })
+
+    // The static page content should NOT appear in any prefetch response
+    // because all segments are marked as unprefetchable.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/test-instant-false-root"]').click()
+      },
+      // The page content should not have been prefetched — it will be
+      // fetched during navigation instead.
+      { includes: 'Static page below instant:false root' }
+    )
   })
 })
