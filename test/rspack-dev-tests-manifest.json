@@ -1280,8 +1280,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/typed-env/typed-env-prod.test.ts": {
-    "passed": [],
-    "failed": ["typed-env should have env types from next config"],
+    "passed": ["typed-env should have env types from next config"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5863,6 +5863,7 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api - root params includes root param in instant shell",
       "instant-navigation-testing-api clears cookie after instant scope exits",
       "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
@@ -5879,6 +5880,8 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
       "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during client navigation",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during page load",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope",
       "instant-navigation-testing-api throws descriptive error on fresh page without baseURL",
@@ -8386,6 +8389,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/partial-fallback-root-blocking/partial-fallback-root-blocking.test.ts": {
+    "passed": ["partial-fallback-root-blocking skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
     "passed": ["partial-fallback-shell-upgrade skipped in dev"],
     "failed": [],
@@ -9024,6 +9034,7 @@
       "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
+      "router autoscrolling on navigation server action refresh should not scroll when refresh() is called from a server action",
       "router autoscrolling on navigation should scroll to top even if React hoists children",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
       "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
@@ -9659,6 +9670,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/max-prefetch-inlining/max-prefetch-inlining.test.ts": {
+    "passed": ["max prefetch inlining disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": ["segment cache memory pressure disabled in development"],
     "failed": [],
@@ -9681,10 +9699,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9706,7 +9724,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
-    "passed": ["prefetch inlining disabled in development"],
+    "passed": [
+      "prefetch inlining prefetch hints are only computed during build"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9722,8 +9742,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": [],
-    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9882,6 +9902,7 @@
       "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
+      "app-dir - server source maps logged errors in client components during ssr have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors include `[errors]` for AggregateError",
       "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
@@ -10138,12 +10159,11 @@
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
+      "typed-routes should generate route types correctly",
+      "typed-routes should have passing tsc after start",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [
-      "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10354,11 +10374,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
-    "passed": [
-      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
-      "use-cache-without-experimental-flag should show a build error"
+    "passed": ["use-cache-without-experimental-flag should show a build error"],
+    "failed": [
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10811,6 +10830,18 @@
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cache-handlers-upstream-wiring/index.test.ts": {
+    "passed": [
+      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router uses configured cacheHandlers for custom app-router cache kind",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router wires revalidateTag and revalidatePath to the custom cache handler",
+      "cache-handlers-upstream-wiring pages router non-edge wires res.revalidate() through the configured custom cacheHandler"
     ],
     "failed": [],
     "pending": [],
