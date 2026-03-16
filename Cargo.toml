@@ -278,6 +278,11 @@ inherits = "release"
 debug-assertions = true
 overflow-checks = true
 
+# Like release-with-assertions but without LTO for faster test binary linking
+[profile.release-with-assertions-no-lto]
+inherits = "release-with-assertions"
+lto = false
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true
