@@ -385,8 +385,6 @@ pub struct ActionManifestEntry<'a> {
     /// module that exports it.
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: FxIndexMap<&'a str, ActionLayer>,
-
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
 

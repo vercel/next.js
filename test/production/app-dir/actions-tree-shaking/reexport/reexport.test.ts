@@ -18,43 +18,31 @@ import { retry } from 'next-test-utils'
 
       expect(actionsRoutesState).toMatchInlineSnapshot(`
        {
-         "app/named-reexport/client/page": {
-           "action-browser": [
-             "app/named-reexport/client/actions.js#sharedClientLayerAction",
-           ],
-         },
-         "app/named-reexport/server/page": {
-           "rsc": [
-             "app/named-reexport/server/actions.js#sharedServerLayerAction",
-             "app/named-reexport/server/actions.js#unusedServerLayerAction1",
-             "app/named-reexport/server/actions.js#unusedServerLayerAction2",
-           ],
-         },
-         "app/namespace-reexport-2/client/page": {
-           "action-browser": [
-             "app/namespace-reexport-2/actions/action-modules.js#action",
-             "app/namespace-reexport-2/nested.js#getFoo",
-           ],
-         },
-         "app/namespace-reexport-2/server/page": {
-           "rsc": [
-             "app/namespace-reexport-2/actions/action-modules.js#action",
-             "app/namespace-reexport-2/nested.js#foo",
-             "app/namespace-reexport-2/nested.js#getFoo",
-           ],
-         },
-         "app/namespace-reexport/client/page": {
-           "action-browser": [
-             "app/namespace-reexport/client/actions.js#sharedClientLayerAction",
-           ],
-         },
-         "app/namespace-reexport/server/page": {
-           "rsc": [
-             "app/namespace-reexport/server/actions.js#sharedServerLayerAction",
-             "app/namespace-reexport/server/actions.js#unusedServerLayerAction1",
-             "app/namespace-reexport/server/actions.js#unusedServerLayerAction2",
-           ],
-         },
+         "app/named-reexport/client/page": [
+           "app/named-reexport/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/named-reexport/server/page": [
+           "app/named-reexport/server/actions.js#sharedServerLayerAction",
+           "app/named-reexport/server/actions.js#unusedServerLayerAction1",
+           "app/named-reexport/server/actions.js#unusedServerLayerAction2",
+         ],
+         "app/namespace-reexport-2/client/page": [
+           "app/namespace-reexport-2/actions/action-modules.js#action",
+           "app/namespace-reexport-2/nested.js#getFoo",
+         ],
+         "app/namespace-reexport-2/server/page": [
+           "app/namespace-reexport-2/actions/action-modules.js#action",
+           "app/namespace-reexport-2/nested.js#foo",
+           "app/namespace-reexport-2/nested.js#getFoo",
+         ],
+         "app/namespace-reexport/client/page": [
+           "app/namespace-reexport/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/namespace-reexport/server/page": [
+           "app/namespace-reexport/server/actions.js#sharedServerLayerAction",
+           "app/namespace-reexport/server/actions.js#unusedServerLayerAction1",
+           "app/namespace-reexport/server/actions.js#unusedServerLayerAction2",
+         ],
        }
       `)
     })

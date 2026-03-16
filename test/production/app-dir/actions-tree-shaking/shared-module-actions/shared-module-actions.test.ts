@@ -15,30 +15,22 @@ import {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
       expect(actionsRoutesState).toMatchInlineSnapshot(`
        {
-         "app/client/one/page": {
-           "action-browser": [
-             "app/client/actions.js#sharedClientLayerAction",
-           ],
-         },
-         "app/client/two/page": {
-           "action-browser": [
-             "app/client/actions.js#sharedClientLayerAction",
-           ],
-         },
-         "app/server/one/page": {
-           "rsc": [
-             "app/server/actions.js#sharedServerLayerAction",
-             "app/server/actions.js#unusedServerLayerAction1",
-             "app/server/actions.js#unusedServerLayerAction2",
-           ],
-         },
-         "app/server/two/page": {
-           "rsc": [
-             "app/server/actions.js#sharedServerLayerAction",
-             "app/server/actions.js#unusedServerLayerAction1",
-             "app/server/actions.js#unusedServerLayerAction2",
-           ],
-         },
+         "app/client/one/page": [
+           "app/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/client/two/page": [
+           "app/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/server/one/page": [
+           "app/server/actions.js#sharedServerLayerAction",
+           "app/server/actions.js#unusedServerLayerAction1",
+           "app/server/actions.js#unusedServerLayerAction2",
+         ],
+         "app/server/two/page": [
+           "app/server/actions.js#sharedServerLayerAction",
+           "app/server/actions.js#unusedServerLayerAction1",
+           "app/server/actions.js#unusedServerLayerAction2",
+         ],
        }
       `)
     })
