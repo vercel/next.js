@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/ba425_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_index_4bae3b44.js",{otherChunks:["output/aaf3a_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_style_45212c4f.css","output/aaf3a_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_index_cbb2f409.js"],runtimeModuleIds:["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/index.js [test] (ecmascript)"]}]);
-
-//# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_index_4bae3b44.js.map
