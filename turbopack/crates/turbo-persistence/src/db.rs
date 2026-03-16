@@ -37,7 +37,7 @@ use crate::{
     mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
-    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
+    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
     write_batch::{FinishResult, WriteBatch},
 };
@@ -1075,11 +1075,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFile::open_for_compaction(
-                                        path,
-                                        entry.sst_metadata(),
-                                    )?
-                                    .try_into_iter()
+                                    StaticSortedFileIter::open(path, entry.sst_metadata())
                                 })
                                 .collect::<Result<Vec<_>>>()?;
 

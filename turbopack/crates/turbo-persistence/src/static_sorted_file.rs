@@ -1,11 +1,4 @@
-use std::{
-    cmp::Ordering,
-    fs::File,
-    hash::BuildHasherDefault,
-    path::{Path, PathBuf},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cmp::Ordering, fs::File, hash::BuildHasherDefault, path::Path, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
@@ -165,25 +158,6 @@ impl StaticSortedFile {
     pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
-        Self::open_internal(path, meta, false)
-            .with_context(|| format!("Unable to open static sorted file {filename}"))
-    }
-
-    /// Opens an SST file for compaction. Uses MADV_SEQUENTIAL instead of MADV_RANDOM,
-    /// since compaction reads blocks sequentially and benefits from OS read-ahead
-    /// and page reclamation.
-    pub fn open_for_compaction(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
-        let filename = format!("{:08}.sst", meta.sequence_number);
-        let path = db_path.join(&filename);
-        Self::open_internal(path, meta, true)
-            .with_context(|| format!("Unable to open static sorted file {filename}"))
-    }
-
-    fn open_internal(
-        path: PathBuf,
-        meta: StaticSortedFileMetaData,
-        sequential: bool,
-    ) -> Result<Self> {
         let file = File::open(&path)
             .with_context(|| format!("Failed to open SST file {}", path.display()))?;
         let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
@@ -194,56 +168,15 @@ impl StaticSortedFile {
             )
         })?;
         #[cfg(unix)]
-        if sequential {
-            mmap.advise(memmap2::Advice::Sequential)?;
-        } else {
+        {
             mmap.advise(memmap2::Advice::Random)?;
             let offset = meta.block_offsets_start(mmap.len());
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
         advise_mmap_for_persistence(&mmap)?;
-        let file = Self {
+        Ok(Self {
             meta,
             mmap: Arc::new(mmap),
-        };
-        Ok(file)
-    }
-
-    /// Consume this file and return an iterator over all entries in sorted order.
-    /// The iterator takes ownership of the SST file, so the mmap and its pages
-    /// are freed when the iterator is dropped.
-    pub fn try_into_iter(self) -> Result<StaticSortedFileIter> {
-        // Create a thread-local Rc handle to the mmap. All RcBytes produced
-        // during iteration share this single Rc, so per-entry refcounting is
-        // a plain integer inc/dec with no atomics.
-        // Wrap the Arc<Mmap> in an Rc. This clones the Arc once (one atomic
-        // increment). All subsequent RcBytes clone/drop operations only touch
-        // the Rc counter (plain integer, no atomics).
-        let rc_mmap = Rc::new(self.mmap.clone());
-
-        let root_block_index = self.meta.block_count - 1;
-        let block_rc = StaticSortedFileIter::read_block_rc(&self, &rc_mmap, root_block_index)?;
-        let block_type = block_rc[0];
-
-        // The builder always writes an index block as the root block.
-        if block_type != BLOCK_TYPE_INDEX {
-            bail!("Root block must be an index block");
-        }
-        let block_len = block_rc.len();
-        let block_indices_count = (block_len - 1 + 8) / 10;
-        let first_child = u16::from_be_bytes(block_rc[1..3].try_into().unwrap());
-        let index_entries = block_rc.slice(1..block_len);
-
-        let current_key_block =
-            StaticSortedFileIter::parse_key_block(&self, &rc_mmap, first_child)?;
-        Ok(StaticSortedFileIter {
-            this: self,
-            rc_mmap,
-            index_entries,
-            index_block_count: block_indices_count,
-            index_pos: 1,
-            current_key_block,
-            value_block_cache: None,
         })
     }
 
@@ -528,22 +461,6 @@ impl StaticSortedFile {
         self.read_block(block_index)
     }
 
-    /// Verifies the CRC32 checksum of on-disk block data. Returns an error on mismatch.
-    fn verify_checksum(&self, data: &[u8], expected: u32, block_index: u16) -> Result<()> {
-        let actual = checksum_block(data);
-        if actual != expected {
-            bail!(
-                "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
-                 {:08x}, got {:08x})",
-                block_index,
-                self.meta.sequence_number,
-                expected,
-                actual
-            );
-        }
-        Ok(())
-    }
-
     /// Reads a block from the file, decompressing if needed, and verifies its checksum.
     ///
     /// The checksum is verified on the raw on-disk data **before** decompression, so
@@ -551,7 +468,7 @@ impl StaticSortedFile {
     #[tracing::instrument(level = "info", name = "reading database block", skip_all)]
     fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
         let (uncompressed_length, expected_checksum, block) =
-            self.get_raw_block_slice(block_index).with_context(|| {
+            get_raw_block_slice(&self.mmap, &self.meta, block_index).with_context(|| {
                 format!(
                     "Failed to read raw block {} from {:08}.sst",
                     block_index, self.meta.sequence_number
@@ -559,11 +476,12 @@ impl StaticSortedFile {
             })?;
 
         // Verify checksum on the raw on-disk data before decompression.
-        self.verify_checksum(block, expected_checksum, block_index)?;
+        verify_checksum(&self.meta, block, expected_checksum, block_index)?;
 
         // 0 means the block was not compressed, return the mmap-backed ArcBytes directly
         if uncompressed_length == 0 {
-            return Ok(self.mmap_slice_to_arc_bytes(block));
+            // SAFETY: callers guarantee block points into self.mmap.
+            return Ok(unsafe { ArcBytes::from_mmap(self.mmap.clone(), block) });
         }
 
         let buffer = decompress_into_arc(uncompressed_length, block).with_context(|| {
@@ -574,104 +492,122 @@ impl StaticSortedFile {
         })?;
         Ok(ArcBytes::from(buffer))
     }
+}
 
-    /// Promotes a mmap subslice to an owned `ArcBytes`. This clones the `Arc<Mmap>`.
-    fn mmap_slice_to_arc_bytes(&self, subslice: &[u8]) -> ArcBytes {
-        // SAFETY: callers guarantee subslice points into self.mmap.
-        unsafe { ArcBytes::from_mmap(self.mmap.clone(), subslice) }
+/// Gets the raw block slice directly from a memory-mapped file.
+/// Returns `(uncompressed_length, checksum, block_data)`.
+fn get_raw_block_slice<'a>(
+    mmap: &'a Mmap,
+    meta: &StaticSortedFileMetaData,
+    block_index: u16,
+) -> Result<(u32, u32, &'a [u8])> {
+    #[cfg(feature = "strict_checks")]
+    if block_index >= meta.block_count {
+        bail!(
+            "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x})",
+            meta.sequence_number,
+            block_index,
+            meta.block_count,
+            meta.block_offsets_start(mmap.len()),
+        );
     }
-
-    /// Gets the raw block slice directly from the memory mapped file, without
-    /// cloning the `Arc<Mmap>`. The returned slice borrows from the mmap.
-    fn get_raw_block_slice(&self, block_index: u16) -> Result<(u32, u32, &[u8])> {
-        #[cfg(feature = "strict_checks")]
-        if block_index >= self.meta.block_count {
-            bail!(
-                "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x})",
-                self.meta.sequence_number,
-                block_index,
-                self.meta.block_count,
-                self.meta.block_offsets_start(self.mmap.len()),
-            );
-        }
-        let offset = self.meta.block_offsets_start(self.mmap.len()) + block_index as usize * 4;
-        #[cfg(feature = "strict_checks")]
-        if offset + 4 > self.mmap.len() {
-            bail!(
-                "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
-                 (block_offsets: {:x})",
-                self.meta.sequence_number,
-                block_index,
-                offset,
-                self.mmap.len(),
-                self.meta.block_offsets_start(self.mmap.len()),
-            );
-        }
-        let block_start = if block_index == 0 {
-            0
-        } else {
-            (&self.mmap[offset - 4..offset])
-                .read_u32::<BE>()
-                .with_context(|| {
-                    format!(
-                        "Failed to read block_start offset for block {} in {:08}.sst",
-                        block_index, self.meta.sequence_number
-                    )
-                })? as usize
-        };
-        let block_end = (&self.mmap[offset..offset + 4])
+    let offset = meta.block_offsets_start(mmap.len()) + block_index as usize * 4;
+    #[cfg(feature = "strict_checks")]
+    if offset + 4 > mmap.len() {
+        bail!(
+            "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
+             (block_offsets: {:x})",
+            meta.sequence_number,
+            block_index,
+            offset,
+            mmap.len(),
+            meta.block_offsets_start(mmap.len()),
+        );
+    }
+    let block_start = if block_index == 0 {
+        0
+    } else {
+        (&mmap[offset - 4..offset])
             .read_u32::<BE>()
             .with_context(|| {
                 format!(
-                    "Failed to read block_end offset for block {} in {:08}.sst",
-                    block_index, self.meta.sequence_number
+                    "Failed to read block_start offset for block {} in {:08}.sst",
+                    block_index, meta.sequence_number
                 )
-            })? as usize;
-        #[cfg(feature = "strict_checks")]
-        if block_end > self.mmap.len() || block_start > self.mmap.len() {
-            bail!(
-                "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x})",
-                self.meta.sequence_number,
-                block_index,
-                block_start,
-                block_end,
-                self.mmap.len(),
-                self.meta.block_offsets_start(self.mmap.len()),
-            );
-        }
-        let uncompressed_length = u32::from_be_bytes(
-            self.mmap[block_start..block_start + 4]
-                .try_into()
-                .with_context(|| {
-                    format!(
-                        "Failed to read uncompressed_length from block {} header in {:08}.sst",
-                        block_index, self.meta.sequence_number
-                    )
-                })?,
+            })? as usize
+    };
+    let block_end = (&mmap[offset..offset + 4])
+        .read_u32::<BE>()
+        .with_context(|| {
+            format!(
+                "Failed to read block_end offset for block {} in {:08}.sst",
+                block_index, meta.sequence_number
+            )
+        })? as usize;
+    #[cfg(feature = "strict_checks")]
+    if block_end > mmap.len() || block_start > mmap.len() {
+        bail!(
+            "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x})",
+            meta.sequence_number,
+            block_index,
+            block_start,
+            block_end,
+            mmap.len(),
+            meta.block_offsets_start(mmap.len()),
         );
-        let checksum = u32::from_be_bytes(
-            self.mmap[block_start + 4..block_start + 8]
-                .try_into()
-                .with_context(|| {
-                    format!(
-                        "Failed to read checksum from block {} header in {:08}.sst",
-                        block_index, self.meta.sequence_number
-                    )
-                })?,
-        );
-        let block = &self.mmap[block_start + BLOCK_HEADER_SIZE..block_end];
-        Ok((uncompressed_length, checksum, block))
     }
+    let uncompressed_length = u32::from_be_bytes(
+        mmap[block_start..block_start + 4]
+            .try_into()
+            .with_context(|| {
+                format!(
+                    "Failed to read uncompressed_length from block {} header in {:08}.sst",
+                    block_index, meta.sequence_number
+                )
+            })?,
+    );
+    let checksum = u32::from_be_bytes(
+        mmap[block_start + 4..block_start + 8]
+            .try_into()
+            .with_context(|| {
+                format!(
+                    "Failed to read checksum from block {} header in {:08}.sst",
+                    block_index, meta.sequence_number
+                )
+            })?,
+    );
+    let block = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+    Ok((uncompressed_length, checksum, block))
+}
+
+/// Verifies the CRC32 checksum of on-disk block data. Returns an error on mismatch.
+fn verify_checksum(
+    meta: &StaticSortedFileMetaData,
+    data: &[u8],
+    expected: u32,
+    block_index: u16,
+) -> Result<()> {
+    let actual = checksum_block(data);
+    if actual != expected {
+        bail!(
+            "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
+             {:08x}, got {:08x})",
+            block_index,
+            meta.sequence_number,
+            expected,
+            actual
+        );
+    }
+    Ok(())
 }
 
 /// An iterator over all entries in a SST file in sorted order.
 pub struct StaticSortedFileIter {
-    this: StaticSortedFile,
-    /// Thread-local refcount handle to the mmap. The `Arc<Mmap>` is cloned once
-    /// at iterator construction into this `Rc`; all `RcBytes` slices produced
-    /// during iteration share this single `Rc`, so per-entry refcounting is a
-    /// plain integer inc/dec (no atomics).
-    rc_mmap: Rc<Arc<Mmap>>,
+    /// The memory-mapped file, wrapped in `Rc` for non-atomic refcounting.
+    /// All `RcBytes` slices produced during iteration share this `Rc`.
+    mmap: Rc<Mmap>,
+    /// Metadata (sequence number, block count) needed for block access.
+    meta: StaticSortedFileMetaData,
 
     /// The root index block entries (body bytes starting after the type byte).
     /// SST files have exactly one index level.
@@ -717,32 +653,80 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
+    /// Opens an SST file for sequential iteration. Uses `MADV_SEQUENTIAL` for
+    /// read-ahead and wraps the mmap in `Rc<Mmap>` directly (no `Arc`),
+    /// eliminating all atomic refcounting during iteration.
+    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
+        let filename = format!("{:08}.sst", meta.sequence_number);
+        let path = db_path.join(&filename);
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open SST file {}", path.display()))?;
+        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+            format!(
+                "Failed to mmap SST file {} ({} bytes)",
+                path.display(),
+                file.metadata().map(|m| m.len()).unwrap_or(0)
+            )
+        })?;
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::Sequential)?;
+        advise_mmap_for_persistence(&mmap)?;
+        Self::new(Rc::new(mmap), meta)
+            .with_context(|| format!("Unable to open static sorted file {filename}"))
+    }
+
+    fn new(mmap: Rc<Mmap>, meta: StaticSortedFileMetaData) -> Result<Self> {
+        let root_block_index = meta.block_count - 1;
+        let block_rc = Self::read_block_rc(&mmap, &meta, root_block_index)?;
+        let block_type = block_rc[0];
+
+        // The builder always writes an index block as the root block.
+        if block_type != BLOCK_TYPE_INDEX {
+            bail!("Root block must be an index block");
+        }
+        let block_len = block_rc.len();
+        let block_indices_count = (block_len - 1 + 8) / 10;
+        let first_child = u16::from_be_bytes(block_rc[1..3].try_into().unwrap());
+        let index_entries = block_rc.slice(1..block_len);
+
+        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child)?;
+        Ok(StaticSortedFileIter {
+            mmap,
+            meta,
+            index_entries,
+            index_block_count: block_indices_count,
+            index_pos: 1,
+            current_key_block,
+            value_block_cache: None,
+        })
+    }
+
     /// Reads a block, decompresses if needed, verifies checksum. Returns `RcBytes`.
     fn read_block_rc(
-        sst: &StaticSortedFile,
-        rc_mmap: &Rc<Arc<Mmap>>,
+        mmap: &Rc<Mmap>,
+        meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<RcBytes> {
         let (uncompressed_length, expected_checksum, block) =
-            sst.get_raw_block_slice(block_index).with_context(|| {
+            get_raw_block_slice(mmap, meta, block_index).with_context(|| {
                 format!(
                     "Failed to read raw block {} from {:08}.sst",
-                    block_index, sst.meta.sequence_number
+                    block_index, meta.sequence_number
                 )
             })?;
 
-        sst.verify_checksum(block, expected_checksum, block_index)?;
+        verify_checksum(meta, block, expected_checksum, block_index)?;
 
         if uncompressed_length == 0 {
             // Uncompressed: wrap the mmap slice in RcBytes (Rc clone, no atomic)
-            return Ok(unsafe { RcBytes::from_mmap(rc_mmap, block) });
+            return Ok(unsafe { RcBytes::from_mmap(mmap, block) });
         }
 
         let buffer = crate::compression::decompress_into_rc(uncompressed_length, block)
             .with_context(|| {
                 format!(
                     "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
-                    block_index, sst.meta.sequence_number, uncompressed_length
+                    block_index, meta.sequence_number, uncompressed_length
                 )
             })?;
         Ok(RcBytes::from(buffer))
@@ -750,20 +734,20 @@ impl StaticSortedFileIter {
 
     /// Returns `(uncompressed_length, checksum, block)` as `RcBytes`.
     fn get_raw_block_rc(
-        sst: &StaticSortedFile,
-        rc_mmap: &Rc<Arc<Mmap>>,
+        mmap: &Rc<Mmap>,
+        meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<(u32, u32, RcBytes)> {
-        let (uncompressed_length, checksum, block) = sst.get_raw_block_slice(block_index)?;
+        let (uncompressed_length, checksum, block) = get_raw_block_slice(mmap, meta, block_index)?;
         Ok((uncompressed_length, checksum, unsafe {
-            RcBytes::from_mmap(rc_mmap, block)
+            RcBytes::from_mmap(mmap, block)
         }))
     }
 
     /// Reads a small value block, using a single-entry cache. Returns `RcBytes`.
     fn read_small_value_block_rc(
-        sst: &StaticSortedFile,
-        rc_mmap: &Rc<Arc<Mmap>>,
+        mmap: &Rc<Mmap>,
+        meta: &StaticSortedFileMetaData,
         cache: &mut Option<(u16, RcBytes)>,
         block_index: u16,
     ) -> Result<RcBytes> {
@@ -772,15 +756,15 @@ impl StaticSortedFileIter {
         {
             return Ok(block.clone());
         }
-        let block = Self::read_block_rc(sst, rc_mmap, block_index)?;
+        let block = Self::read_block_rc(mmap, meta, block_index)?;
         *cache = Some((block_index, block.clone()));
         Ok(block)
     }
 
     /// Handles a key match, producing `IterValue` (uses `RcBytes`).
     fn handle_key_match_rc(
-        sst: &StaticSortedFile,
-        rc_mmap: &Rc<Arc<Mmap>>,
+        mmap: &Rc<Mmap>,
+        meta: &StaticSortedFileMetaData,
         ty: u8,
         val: &[u8],
         key_block_entries: &RcBytes,
@@ -791,14 +775,13 @@ impl StaticSortedFileIter {
                 let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
                 let size = u16::from_be_bytes(val[2..4].try_into().unwrap()) as usize;
                 let position = u32::from_be_bytes(val[4..8].try_into().unwrap()) as usize;
-                let value =
-                    Self::read_small_value_block_rc(sst, rc_mmap, value_block_cache, block)?
-                        .slice(position..position + size);
+                let value = Self::read_small_value_block_rc(mmap, meta, value_block_cache, block)?
+                    .slice(position..position + size);
                 IterValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
                 let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
-                let value = Self::read_block_rc(sst, rc_mmap, block)?;
+                let value = Self::read_block_rc(mmap, meta, block)?;
                 IterValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -817,11 +800,11 @@ impl StaticSortedFileIter {
 
     /// Parses a key block at the given index, returning `RcBytes`-backed data.
     fn parse_key_block(
-        sst: &StaticSortedFile,
-        rc_mmap: &Rc<Arc<Mmap>>,
+        mmap: &Rc<Mmap>,
+        meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<CurrentKeyBlock> {
-        let block_rc = Self::read_block_rc(sst, rc_mmap, block_index)?;
+        let block_rc = Self::read_block_rc(mmap, meta, block_index)?;
         let block = &*block_rc;
         let block_type = block[0];
         let entry_count = u32::from_be_bytes([0, block[1], block[2], block[3]]);
@@ -907,7 +890,7 @@ impl StaticSortedFileIter {
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
                     let (uncompressed_size, checksum, block) =
-                        Self::get_raw_block_rc(&self.this, &self.rc_mmap, block)?;
+                        Self::get_raw_block_rc(&self.mmap, &self.meta, block)?;
                     IterValue::Medium {
                         uncompressed_size,
                         checksum,
@@ -915,8 +898,8 @@ impl StaticSortedFileIter {
                     }
                 } else {
                     Self::handle_key_match_rc(
-                        &self.this,
-                        &self.rc_mmap,
+                        &self.mmap,
+                        &self.meta,
                         ty,
                         val,
                         &kb.entries,
@@ -937,7 +920,7 @@ impl StaticSortedFileIter {
                     u16::from_be_bytes(self.index_entries[base..base + 2].try_into().unwrap());
                 self.index_pos += 1;
                 self.current_key_block =
-                    Self::parse_key_block(&self.this, &self.rc_mmap, block_index)?;
+                    Self::parse_key_block(&self.mmap, &self.meta, block_index)?;
             } else {
                 return Ok(None);
             }

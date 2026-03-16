@@ -3,27 +3,17 @@ use std::{
     fmt::{self, Debug, Formatter},
     ops::{Deref, Range},
     rc::Rc,
-    sync::Arc,
 };
 
 use memmap2::Mmap;
 
 /// The backing storage for an `RcBytes`.
 ///
-/// Uses `Rc` for all refcounting, eliminating atomic operations. The mmap
-/// variant wraps `Arc<Mmap>` in an `Rc` so that cloning the backing only
-/// bumps the `Rc` counter (one plain integer increment), not the `Arc`
-/// counter.
+/// Uses `Rc` for all refcounting, eliminating atomic operations.
 #[derive(Clone)]
 enum Backing {
-    Rc {
-        _backing: Rc<[u8]>,
-    },
-    /// The `Arc<Mmap>` is cloned once when the `Rc` is first created; all
-    /// subsequent `Backing::clone()` calls only increment the outer `Rc`.
-    Mmap {
-        _backing: Rc<Arc<Mmap>>,
-    },
+    Rc { _backing: Rc<[u8]> },
+    Mmap { _backing: Rc<Mmap> },
 }
 
 /// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
@@ -123,13 +113,10 @@ impl RcBytes {
 
     /// Creates an `RcBytes` backed by a memory-mapped file.
     ///
-    /// The `Arc<Mmap>` is wrapped in an `Rc` so that subsequent clone/drop
-    /// operations are non-atomic.
-    ///
     /// # Safety
     ///
     /// The caller must ensure that `subslice` points to memory within the given `mmap`.
-    pub unsafe fn from_mmap(mmap: &Rc<Arc<Mmap>>, subslice: &[u8]) -> RcBytes {
+    pub unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> RcBytes {
         debug_assert!(
             is_subslice_of(subslice, mmap),
             "from_mmap: subslice is not within the mmap"
