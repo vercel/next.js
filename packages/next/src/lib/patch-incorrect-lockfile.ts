@@ -145,7 +145,6 @@ export async function patchIncorrectLockfile(dir: string) {
       // no point in updating in CI as the user can't save the patch
       return
     }
-    console.log({ missingSwcPkgs })
     const pkgsData = await Promise.all(
       missingSwcPkgs.map((pkg) => fetchPkgInfo(pkg))
     )
