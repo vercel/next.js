@@ -18,16 +18,16 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1137",
-         "description": "Route /[lang]/[locale]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
+         "code": "E1141",
+         "description": "Route /[lang]/[countryCode]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
          "environmentLabel": "Server",
          "label": "Runtime Error",
-         "source": "app/[lang]/[locale]/unstable_cache/page.tsx (33:28) @ uncachedGetParams
-       > 33 |   return { lang: await lang(), locale: await locale() }
+         "source": "app/[lang]/[countryCode]/unstable_cache/page.tsx (33:28) @ uncachedGetParams
+       > 33 |   return { lang: await lang(), countryCode: await countryCode() }
             |                            ^",
          "stack": [
-           "uncachedGetParams app/[lang]/[locale]/unstable_cache/page.tsx (33:28)",
-           "Runtime app/[lang]/[locale]/unstable_cache/page.tsx (17:22)",
+           "uncachedGetParams app/[lang]/[countryCode]/unstable_cache/page.tsx (33:28)",
+           "Runtime app/[lang]/[countryCode]/unstable_cache/page.tsx (17:22)",
          ],
        }
       `)
@@ -37,15 +37,15 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/nested-in-unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1136",
-         "description": "Route /[lang]/[locale]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
+         "code": "E1140",
+         "description": "Route /[lang]/[countryCode]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/[lang]/[locale]/nested-in-unstable_cache/page.tsx (29:28) @ getCachedParams
-       > 29 |   return { lang: await lang(), locale: await locale() }
+         "source": "app/[lang]/[countryCode]/nested-in-unstable_cache/page.tsx (29:28) @ getCachedParams
+       > 29 |   return { lang: await lang(), countryCode: await countryCode() }
             |                            ^",
          "stack": [
-           "getCachedParams app/[lang]/[locale]/nested-in-unstable_cache/page.tsx (29:28)",
+           "getCachedParams app/[lang]/[countryCode]/nested-in-unstable_cache/page.tsx (29:28)",
          ],
        }
       `)
@@ -61,8 +61,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
       expect(await browser.elementById('param').text()).toBe('en us')
       const enRandom = await browser.elementById('random').text()
 
-      await browser.loadPage(next.url + '/fr/de/use-cache')
-      expect(await browser.elementById('param').text()).toBe('fr de')
+      await browser.loadPage(next.url + '/fr/ca/use-cache')
+      expect(await browser.elementById('param').text()).toBe('fr ca')
       const frRandom = await browser.elementById('random').text()
 
       // Different root params must produce different cache entries.
@@ -72,7 +72,7 @@ describe('app-root-param-getters - cache - at runtime', () => {
       await browser.loadPage(next.url + '/en/us/use-cache')
       expect(await browser.elementById('random').text()).toBe(enRandom)
 
-      await browser.loadPage(next.url + '/fr/de/use-cache')
+      await browser.loadPage(next.url + '/fr/ca/use-cache')
       expect(await browser.elementById('random').text()).toBe(frRandom)
     })
 
@@ -94,18 +94,153 @@ describe('app-root-param-getters - cache - at runtime', () => {
       await assertNoConsoleErrors(browser)
     })
 
+    it('should handle conditional root param reads based on arguments', async () => {
+      const browser = await next.browser('/en/us/maybe-reads-root-param')
+
+      expect(await browser.elementById('with-lang-value').text()).toBe('en')
+      expect(await browser.elementById('without-lang-value').text()).toBe(
+        'null'
+      )
+      const enWithRandom = await browser.elementById('with-lang-random').text()
+      const enWithoutRandom = await browser
+        .elementById('without-lang-random')
+        .text()
+
+      await browser.loadPage(next.url + '/fr/ca/maybe-reads-root-param')
+
+      expect(await browser.elementById('with-lang-value').text()).toBe('fr')
+      expect(await browser.elementById('without-lang-value').text()).toBe(
+        'null'
+      )
+      const frWithRandom = await browser.elementById('with-lang-random').text()
+      const frWithoutRandom = await browser
+        .elementById('without-lang-random')
+        .text()
+
+      // Different root params produce different cache entries.
+      expect(frWithRandom).not.toBe(enWithRandom)
+
+      // The without-lang call doesn't read lang, but after
+      // knownRootParamsByFunctionId grows, the key includes lang too, so
+      // different root params still produce different entries.
+      expect(frWithoutRandom).not.toBe(enWithoutRandom)
+
+      // Revisit to confirm cache hits.
+      await browser.loadPage(next.url + '/en/us/maybe-reads-root-param')
+      expect(await browser.elementById('with-lang-random').text()).toBe(
+        enWithRandom
+      )
+      expect(await browser.elementById('without-lang-random').text()).toBe(
+        enWithoutRandom
+      )
+
+      await browser.loadPage(next.url + '/fr/ca/maybe-reads-root-param')
+      expect(await browser.elementById('with-lang-random').text()).toBe(
+        frWithRandom
+      )
+      expect(await browser.elementById('without-lang-random').text()).toBe(
+        frWithoutRandom
+      )
+    })
+
+    it('should handle root param reads introduced after revalidation', async () => {
+      const browser = await next.browser('/en/us/conditional-on-another-cache')
+
+      // Reset the flag in case a previous test attempt left it enabled.
+      if ((await browser.elementById('lang-value').text()) !== 'null') {
+        await browser.elementById('disable-flag').click()
+        await retry(async () => {
+          expect(await browser.elementById('lang-value').text()).toBe('null')
+        })
+      }
+
+      // Before the flag is enabled, lang is not read on any route.
+      await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
+      expect(await browser.elementById('lang-value').text()).toBe('null')
+
+      // Enable the flag and revalidate (staying on the fr/ca page).
+      await browser.elementById('enable-flag').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('lang-value').text()).toBe('fr')
+      })
+
+      // Wait for the cache to settle by verifying the random value is
+      // stable across two consecutive loads.
+      let frRandom: string = ''
+      await retry(async () => {
+        await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
+        frRandom = await browser.elementById('random').text()
+        await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
+        expect(await browser.elementById('random').text()).toBe(frRandom)
+      })
+
+      // Different root params must now produce different entries because
+      // lang is being read.
+      await browser.loadPage(next.url + '/en/us/conditional-on-another-cache')
+
+      expect(await browser.elementById('lang-value').text()).toBe('en')
+      const enRandom = await browser.elementById('random').text()
+      expect(enRandom).not.toBe(frRandom)
+
+      // Revisit fr/ca to confirm cache hit.
+      await browser.loadPage(next.url + '/fr/ca/conditional-on-another-cache')
+      expect(await browser.elementById('random').text()).toBe(frRandom)
+    })
+
+    it('should handle root param reads conditional on another root param value', async () => {
+      // Visit en/us first — reads both lang and countryCode.
+      const browser = await next.browser('/en/us/conditional-on-root-param')
+
+      expect(await browser.elementById('lang-value').text()).toBe('en')
+      expect(await browser.elementById('country-code-value').text()).toBe('us')
+      const enUsRandom = await browser.elementById('random').text()
+
+      // Visit en/gb — also reads both. Must produce a different entry because
+      // countryCode differs.
+      await browser.loadPage(next.url + '/en/gb/conditional-on-root-param')
+
+      expect(await browser.elementById('lang-value').text()).toBe('en')
+      expect(await browser.elementById('country-code-value').text()).toBe('gb')
+      const enGbRandom = await browser.elementById('random').text()
+      expect(enGbRandom).not.toBe(enUsRandom)
+
+      // Visit fr/ca — only reads lang (not countryCode), but
+      // knownRootParamsByFunctionId already includes countryCode from the en
+      // visits. The key is more specific than needed, which is safe.
+      await browser.loadPage(next.url + '/fr/ca/conditional-on-root-param')
+
+      expect(await browser.elementById('lang-value').text()).toBe('fr')
+      expect(await browser.elementById('country-code-value').text()).toBe(
+        'null'
+      )
+      const frCaRandom = await browser.elementById('random').text()
+      expect(frCaRandom).not.toBe(enUsRandom)
+      expect(frCaRandom).not.toBe(enGbRandom)
+
+      // Revisit all three to confirm cache hits.
+      await browser.loadPage(next.url + '/en/us/conditional-on-root-param')
+      expect(await browser.elementById('random').text()).toBe(enUsRandom)
+
+      await browser.loadPage(next.url + '/en/gb/conditional-on-root-param')
+      expect(await browser.elementById('random').text()).toBe(enGbRandom)
+
+      await browser.loadPage(next.url + '/fr/ca/conditional-on-root-param')
+      expect(await browser.elementById('random').text()).toBe(frCaRandom)
+    })
+
     if (!isNextDeploy) {
       it('should error when using root params within `unstable_cache` - start', async () => {
         await next.render$('/en/us/unstable_cache')
         expect(next.cliOutput).toInclude(
-          "Error: Route /[lang]/[locale]/unstable_cache used `import('next/root-params').lang()` inside `unstable_cache`"
+          "Error: Route /[lang]/[countryCode]/unstable_cache used `import('next/root-params').lang()` inside `unstable_cache`"
         )
       })
 
       it('should error when using root params in "use cache" nested inside unstable_cache - start', async () => {
         await next.render$('/en/us/nested-in-unstable_cache')
         expect(next.cliOutput).toInclude(
-          'Error: Route /[lang]/[locale]/nested-in-unstable_cache used `import(\'next/root-params\').lang()` inside `"use cache"` nested within `unstable_cache`. Root params are not available in this context.'
+          'Error: Route /[lang]/[countryCode]/nested-in-unstable_cache used `import(\'next/root-params\').lang()` inside `"use cache"` nested within `unstable_cache`. Root params are not available in this context.'
         )
       })
     }

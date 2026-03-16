@@ -1,4 +1,4 @@
-import { lang, locale } from 'next/root-params'
+import { lang, countryCode } from 'next/root-params'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -9,7 +9,7 @@ async function getCachedData() {
     'https://next-data-api-endpoint.vercel.app/api/random'
   ).then((res) => res.text())
 
-  return { lang: await lang(), locale: await locale(), random }
+  return { lang: await lang(), countryCode: await countryCode(), random }
 }
 
 export default async function Page() {
@@ -19,7 +19,7 @@ export default async function Page() {
     <>
       <p>
         <span id="param">
-          {result.lang} {result.locale}
+          {result.lang} {result.countryCode}
         </span>{' '}
         <span id="random">{result.random}</span>
       </p>

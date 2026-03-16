@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { lang, locale } from 'next/root-params'
+import { lang, countryCode } from 'next/root-params'
 import { connection } from 'next/server'
 import { unstable_cache } from 'next/cache'
 
@@ -22,7 +22,7 @@ async function Runtime() {
   return (
     <p>
       <span id="param">
-        {rootParams.lang} {rootParams.locale}
+        {rootParams.lang} {rootParams.countryCode}
       </span>{' '}
       <span id="random">{data}</span>
     </p>
@@ -30,5 +30,5 @@ async function Runtime() {
 }
 
 const getCachedParams = unstable_cache(async function uncachedGetParams() {
-  return { lang: await lang(), locale: await locale() }
+  return { lang: await lang(), countryCode: await countryCode() }
 })

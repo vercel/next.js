@@ -10,7 +10,8 @@ export default function Root({ children }: { children: ReactNode }) {
 
 export function generateStaticParams() {
   return [
-    { lang: 'en', locale: 'us' },
-    { lang: 'fr', locale: 'de' },
+    { lang: 'en', countryCode: 'us' },
+    { lang: 'en', countryCode: 'gb' },
+    { lang: 'fr', countryCode: 'ca' },
   ]
 }
