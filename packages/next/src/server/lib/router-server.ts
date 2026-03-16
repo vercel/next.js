@@ -90,7 +90,7 @@ export async function initialize(opts: {
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -179,7 +179,7 @@ export async function initialize(opts: {
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
-        experimentalServerFastRefresh: opts.experimentalServerFastRefresh,
+        serverFastRefresh: opts.serverFastRefresh,
       })
     )
 

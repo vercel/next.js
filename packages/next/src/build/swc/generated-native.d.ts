@@ -256,7 +256,7 @@ export interface NapiProjectOptions {
   isPersistentCachingEnabled: boolean
   /** The version of Next.js that is running. */
   nextVersion: RcStr
-  /** Whether server-side HMR is enabled (--experimental-server-fast-refresh). */
+  /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
