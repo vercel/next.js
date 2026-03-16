@@ -378,6 +378,9 @@ const transform = (
 
             const doImport = async () => {
               let actualRequest = request
+              // The webpack API allows absolute paths in importModule requests,
+              // but Turbopack's resolver expects relative paths. Convert absolute
+              // paths to relative ones for backward compatibility with webpack loaders.
               if (path.isAbsolute(request)) {
                 actualRequest = path.relative(resourceDir, request)
                 if (
