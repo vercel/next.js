@@ -22,10 +22,10 @@ type CatchErrorProps<P extends UserProps> = {
   pathname: string | null
   isPagesRouter: boolean
   fallback: React.ComponentType<{
-    userPropsWithoutChildren: Omit<P, 'children'>
+    props: Omit<P, 'children'>
     errorInfo: ErrorInfo
   }>
-  userPropsWithoutChildren: Omit<P, 'children'>
+  props: Omit<P, 'children'>
   children: React.ReactNode
 }
 
@@ -44,7 +44,7 @@ class CatchError<P extends UserProps> extends React.Component<
   static contextType = AppRouterContext
   // `unstable_catchError()` is parsed as an HOC-style name and displays as
   // a label (<name> [unstable_catchError]) in DevTools.
-  static displayName = 'unstable_catchError(NextErrorBoundary)'
+  static displayName = 'unstable_catchError(Next.CatchError)'
 
   constructor(props: CatchErrorProps<P>) {
     super(props)
@@ -128,7 +128,7 @@ class CatchError<P extends UserProps> extends React.Component<
 
       return (
         <this.props.fallback
-          userPropsWithoutChildren={this.props.userPropsWithoutChildren}
+          props={this.props.props}
           errorInfo={{
             error: this.state.error,
             reset: this.reset,
@@ -183,23 +183,23 @@ export function unstable_catchError<P extends UserProps>(
   fallback: (
     // children is omitted by design as the error fallback component is the "fallback"
     // for the children when an error occurs.
-    userPropsWithoutChildren: Omit<P, 'children'>,
+    props: Omit<P, 'children'>,
     errorInfo: ErrorInfo
   ) => React.ReactNode
 ): React.ComponentType<P> {
   // Create Fallback component from the closure of `unstable_catchError`.
   const Fallback = ({
-    userPropsWithoutChildren,
+    props,
     errorInfo,
   }: {
-    userPropsWithoutChildren: Omit<P, 'children'>
+    props: Omit<P, 'children'>
     errorInfo: ErrorInfo
-  }) => fallback(userPropsWithoutChildren, errorInfo)
+  }) => fallback(props, errorInfo)
 
   // Rename to match the user component name for DevTools.
-  Fallback.displayName = fallback.name
+  Fallback.displayName = fallback.name || 'CatchErrorFallback'
 
-  return ({ children, ...userPropsWithoutChildren }: P) => {
+  return ({ children, ...props }: P) => {
     // When we're rendering the missing params shell, this will return null. This
     // is because we won't be rendering any not found boundaries or error
     // boundaries for the missing params shell. When this runs on the client
@@ -212,7 +212,7 @@ export function unstable_catchError<P extends UserProps>(
         pathname={pathname}
         isPagesRouter={isPagesRouter}
         fallback={Fallback}
-        userPropsWithoutChildren={userPropsWithoutChildren}
+        props={props}
       >
         {children}
       </CatchError>
