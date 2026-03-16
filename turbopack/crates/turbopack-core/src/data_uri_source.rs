@@ -41,6 +41,18 @@ impl DataUriSource {
 #[turbo_tasks::value_impl]
 impl Source for DataUriSource {
     #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let data = self.data.await?;
+        // Include a short prefix of the raw data for identification; data URIs
+        // can be very long so we cap it at 50 characters.
+        let prefix: String = data.chars().take(50).collect();
+        let ellipsis = if data.len() > 50 { "..." } else { "" };
+        Ok(Vc::cell(
+            format!("data URI content ({prefix}{ellipsis})").into(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let content_type = self.media_type.split(";").next().unwrap().into();
         let filename = format!(

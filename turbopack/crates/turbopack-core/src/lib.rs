@@ -19,6 +19,7 @@ pub mod debug_id;
 pub mod diagnostics;
 pub mod environment;
 pub mod file_source;
+pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
