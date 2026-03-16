@@ -387,7 +387,7 @@ impl DerefMut for StorageWriteGuard<'_> {
 
 /// How big of a buffer to allocate initially. Based on metrics from a large
 /// application this should cover about 98% of values with no resizes.
-const SCRATCH_BUFFER_SIZE: usize = 4096;
+const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
@@ -403,7 +403,9 @@ impl SnapshotGuard<'_> {
     /// borrowed and returned on the same thread.
     fn with_scratch_buffer<R>(&self, f: impl FnOnce(&mut TurboBincodeBuffer) -> R) -> R {
         let cell = self.scratch_buffers.get_or(|| {
-            std::cell::UnsafeCell::new(TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE))
+            std::cell::UnsafeCell::new(TurboBincodeBuffer::with_capacity(
+                SCRATCH_BUFFER_INITIAL_SIZE,
+            ))
         });
         // Safety: ThreadLocal guarantees single-thread access, and with_scratch_buffer's
         // closure-based API ensures no overlapping borrows within the same thread.
