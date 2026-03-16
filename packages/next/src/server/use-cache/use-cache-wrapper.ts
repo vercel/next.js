@@ -224,9 +224,13 @@ function saveToCacheHandler(
     const { entry: fullEntry, readRootParamNames } = collectedResult
 
     // Use the combined set (union of all historically observed reads) for both
-    // the specific key and the redirect entry's tags. Even if this invocation
-    // read no root params, a previous invocation may have — and we need to
-    // match the lookup key from that union.
+    // the specific key and the redirect entry's tags. The read path computes
+    // cacheHandlerKey from this same union (knownRootParamsByFunctionId), so
+    // the write path must use the identical set to land on the same specific
+    // key. If we used only the current invocation's reads, a function that
+    // conditionally reads different root params across invocations would
+    // scatter entries across different specific keys, making previous entries
+    // unreachable from the read path's union-based lookup.
     const rootParamNames = readRootParamNames
       ? addKnownRootParamNames(id, readRootParamNames)
       : knownRootParamsByFunctionId.get(id)
