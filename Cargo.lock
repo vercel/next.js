@@ -9513,6 +9513,7 @@ dependencies = [
  "inventory",
  "once_cell",
  "parking_lot",
+ "phf",
  "pin-project-lite",
  "rayon",
  "regex",

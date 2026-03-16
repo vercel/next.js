@@ -930,9 +930,7 @@ impl AppProject {
                         .take(server_component_entries.len().saturating_sub(1))
                     {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            // This should really be ChunkGroupEntry::Shared(module.await?.module),
-                            // but that breaks everything for some reason.
-                            vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
+                            vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(*module))],
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
@@ -1358,45 +1356,52 @@ impl AppEndpoint {
 
         let manifest_path_prefix = &app_entry.original_name;
 
-        // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-        let next_package = get_next_package(project.project_path().owned().await?).await?;
-        let polyfill_source_path =
-            next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
-        let polyfill_source = FileSource::new(polyfill_source_path.clone());
-        let polyfill_output_path = client_chunking_context
-            .chunk_path(
-                Some(Vc::upcast(polyfill_source)),
-                polyfill_source.ident(),
-                None,
-                rcstr!(".js"),
-            )
-            .owned()
-            .await?;
+        // Only Pages need a polyfill chunk, Routes handlers don't have any inherent code that runs
+        // in the browser.
+        let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
+            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
+            let next_package = get_next_package(project.project_path().owned().await?).await?;
+            let polyfill_source_path =
+                next_package.join("dist/build/polyfills/polyfill-nomodule.js")?;
+            let polyfill_source = FileSource::new(polyfill_source_path.clone());
+            let polyfill_output_path = client_chunking_context
+                .chunk_path(
+                    Some(Vc::upcast(polyfill_source)),
+                    polyfill_source.ident(),
+                    None,
+                    rcstr!(".js"),
+                )
+                .owned()
+                .await?;
 
-        let polyfill_output = SingleFileEcmascriptOutput::new(
-            polyfill_output_path.clone(),
-            polyfill_source_path,
-            Vc::upcast(polyfill_source),
-        )
-        .to_resolved()
-        .await?;
-
-        let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
-        client_assets.insert(polyfill_output_asset);
-
-        let client_source_maps = project
-            .next_config()
-            .client_source_maps(project.next_mode())
-            .await?;
-        if *client_source_maps != SourceMapsType::None {
-            let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+            let polyfill_output = SingleFileEcmascriptOutput::new(
                 polyfill_output_path.clone(),
-                *ResolvedVc::upcast(polyfill_output),
+                polyfill_source_path,
+                Vc::upcast(polyfill_source),
             )
             .to_resolved()
             .await?;
-            client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
-        }
+
+            let polyfill_output_asset = ResolvedVc::upcast(polyfill_output);
+            client_assets.insert(polyfill_output_asset);
+
+            let client_source_maps = project
+                .next_config()
+                .client_source_maps(project.next_mode())
+                .await?;
+            if *client_source_maps != SourceMapsType::None {
+                let polyfill_source_map_asset = SourceMapAsset::new_fixed(
+                    polyfill_output_path.clone(),
+                    *ResolvedVc::upcast(polyfill_output),
+                )
+                .to_resolved()
+                .await?;
+                client_assets.insert(ResolvedVc::upcast(polyfill_source_map_asset));
+            }
+            Some(polyfill_output_asset)
+        } else {
+            None
+        };
 
         let client_assets: ResolvedVc<OutputAssets> =
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
@@ -1437,7 +1442,7 @@ impl AppEndpoint {
                 client_relative_path: client_relative_path.clone(),
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
-                polyfill_files: vec![polyfill_output_asset],
+                polyfill_files: polyfill_output_asset.into_iter().collect(),
             };
             server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
@@ -1632,12 +1637,20 @@ impl AppEndpoint {
                         original_source: app_entry.pathname.clone(),
                         ..Default::default()
                     };
+                    let entrypoint_chunk = *app_entry_chunks_ref
+                        .last()
+                        .context("expected app entry chunks for edge app endpoint")?;
+                    let entrypoint = node_root_value
+                        .get_path_to(&*entrypoint_chunk.path().await?)
+                        .context("expected app entry chunk to be within node root")?
+                        .into();
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
                         name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
+                        entrypoint,
                         regions: app_entry
                             .config
                             .await?
@@ -1880,9 +1893,7 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(
-                                    server_component.await?.module,
-                                )),
+                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2142,9 +2153,9 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+        Ok(Vc::cell(vec![ChunkGroupEntry::Shared(
             server_actions_loader,
-        ])]))
+        )]))
     }
 
     #[turbo_tasks::function]

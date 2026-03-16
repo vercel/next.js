@@ -3069,6 +3069,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/experimental-lightningcss-features/experimental-lightningcss-features.test.ts": {
+    "passed": [
+      "experimental-lightningcss-features include should transpile light-dark() when included in lightningCssFeatures"
+    ],
+    "failed": [
+      "experimental-lightningcss-features exclude should preserve light-dark() when excluded from lightningCssFeatures"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/external-redirect/external-redirect.test.ts": {
     "passed": [
       "external-redirect regression: Server Action triggered from onClick redirects to external URL"
@@ -3421,7 +3432,6 @@
       "instant-navigation-testing-api clears cookie after instant scope exits",
       "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
-      "instant-navigation-testing-api logs an error when attempting to nest instant scopes",
       "instant-navigation-testing-api reload followed by MPA navigation, both block dynamic data",
       "instant-navigation-testing-api renders full prefetch content instantly when prefetch={true}",
       "instant-navigation-testing-api renders prefetched loading shell instantly during navigation",
@@ -3437,10 +3447,18 @@
       "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope",
-      "instant-navigation-testing-api throws descriptive error on fresh page without baseURL"
+      "instant-navigation-testing-api throws descriptive error on fresh page without baseURL",
+      "instant-navigation-testing-api throws when attempting to nest instant scopes"
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-validation-build/instant-validation-build.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["instant-validation-build TODO: snapshot tests for webpack"],
     "flakey": [],
     "runtimeError": false
   },
@@ -3475,7 +3493,7 @@
   "test/e2e/app-dir/instant-validation/instant-validation.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["instant validation Only implemented in dev"],
+    "pending": ["instant validation TODO: snapshot tests for webpack"],
     "flakey": [],
     "runtimeError": false
   },
@@ -4073,7 +4091,7 @@
   },
   "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
     "passed": [
-      "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+      "app dir - metadata missing metadataBase should not show warning in output in default build output mode",
       "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
       "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
       "app dir - metadata missing metadataBase should warn for deprecated fields in other property",
@@ -5404,6 +5422,7 @@
       "optimistic-routing required catch-all: predicts between paths with different segment counts",
       "optimistic-routing rewrite detection (search params): does not use cached pattern when search params cause different rewrite",
       "optimistic-routing rewrite detection: detects dynamic rewrite when URL does not match route structure",
+      "optimistic-routing static route with catch-all sibling: does not match sub-route against catch-all",
       "optimistic-routing static sibling detection: does not incorrectly match static route to dynamic pattern"
     ],
     "failed": [],
@@ -5660,6 +5679,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-group-depth/parallel-routes-group-depth.test.ts": {
+    "passed": [
+      "parallel-routes-group-depth should render a page with a parallel slot and children in a route group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-layouts/parallel-routes-layouts.test.ts": {
     "passed": [
       "parallel-routes-layouts should properly render layouts for multiple slots"
@@ -5777,6 +5805,15 @@
     "passed": [
       "app-dir - params hooks compat should only access path params with useParams",
       "app-dir - params hooks compat should only access search params with useSearchParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
+    "passed": [
+      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell"
     ],
     "failed": [],
     "pending": [],
@@ -7167,6 +7204,10 @@
   },
   "test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts": {
     "passed": [
+      "cached navigations caches a fully static page from the initial HTML for subsequent navigations",
+      "cached navigations caches a partially static page from the initial HTML for subsequent navigations",
+      "cached navigations caches runtime-prefetchable content from a navigation for instant second visit",
+      "cached navigations caches runtime-prefetchable content from the initial HTML for subsequent navigations",
       "cached navigations caches static segments when navigating to a known route without a prefetch",
       "cached navigations defers fallback params to the runtime stage",
       "cached navigations includes static params in the cached static stage",
@@ -7203,8 +7244,10 @@
       "segment cache (deployment skew) header with deployment id header is set on RSC responses",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
       "segment cache (deployment skew) with BUILD_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with BUILD_ID triggers MPA navigation when a server action redirects to a different deployment",
       "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a dynamic, non-PPR page on a different deployment",
-      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment"
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID does not crash when prefetching a static page on a different deployment",
+      "segment cache (deployment skew) with NEXT_DEPLOYMENT_ID triggers MPA navigation when a server action redirects to a different deployment"
     ],
     "failed": [],
     "pending": [],
@@ -7301,7 +7344,8 @@
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
     "passed": [
       "prefetch inlining bundles all segment data into a single request per route",
-      "prefetch inlining deduplicates inlined prefetch requests for the same route"
+      "prefetch inlining deduplicates inlined prefetch requests for the same route",
+      "prefetch inlining works with dynamic routes"
     ],
     "failed": [],
     "pending": [],
@@ -7393,6 +7437,7 @@
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
     "passed": [
       "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
+      "segment cache (refresh) re-navigation to a fully static page does not overwrite dynamic slots with default content",
       "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
     "failed": [],
@@ -8177,6 +8222,13 @@
       "webpack-loader-conditions should render correctly on client side",
       "webpack-loader-conditions should render correctly on server site"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
+    "passed": ["webpack-loader-errors should skip in non-dev mode"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8969,7 +9021,8 @@
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache enabled should cache or not cache loaders"
+      "filesystem-caching with cache enabled should cache or not cache loaders",
+      "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11005,7 +11058,8 @@
       "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect should not have trailing slash redirects in manifest",
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
-      "skip-trailing-slash-redirect should provide original _next/data URL with skipProxyUrlNormalize"
+      "skip-trailing-slash-redirect should provide original _next/data URL with skipProxyUrlNormalize",
+      "skip-trailing-slash-redirect should receive _rsc query and all RSC headers in middleware request"
     ],
     "failed": [],
     "pending": [],
@@ -21654,10 +21708,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - metadata static routes cache should generate different content after replace the static metadata file"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21943,6 +21997,15 @@
     "pending": [
       "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/build-failed-trace/build-failed-trace.test.ts": {
+    "passed": [
+      "build-failed-trace should mark the next-build span as failed when the build fails"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

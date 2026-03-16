@@ -273,12 +273,10 @@ export class TurbopackManifestLoader {
       for (const key in other) {
         const action = (actionEntries[key] ??= {
           workers: {},
-          layer: {},
         })
         action.filename = other[key].filename
         action.exportedName = other[key].exportedName
         Object.assign(action.workers, other[key].workers)
-        Object.assign(action.layer, other[key].layer)
       }
     }
 
@@ -289,12 +287,10 @@ export class TurbopackManifestLoader {
     for (const key in manifest.node) {
       const entry = manifest.node[key]
       entry.workers = sortObjectByKey(entry.workers)
-      entry.layer = sortObjectByKey(entry.layer)
     }
     for (const key in manifest.edge) {
       const entry = manifest.edge[key]
       entry.workers = sortObjectByKey(entry.workers)
-      entry.layer = sortObjectByKey(entry.layer)
     }
 
     return manifest

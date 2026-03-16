@@ -23,8 +23,8 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
     issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
+        AdditionalIssueSources, Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -35,7 +35,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    CssModuleAssetType, LightningCssFeatureFlags,
+    CssModuleType, LightningCssFeatureFlags,
     lifetime_util::stylesheet_into_static,
     references::{
         analyze_references,
@@ -363,7 +363,7 @@ pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     import_context: Option<ResolvedVc<ImportContext>>,
-    ty: CssModuleAssetType,
+    ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
@@ -409,7 +409,7 @@ async fn process_content(
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     import_context: Option<ResolvedVc<ImportContext>>,
-    ty: CssModuleAssetType,
+    ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<ParseCssResult>> {
@@ -427,7 +427,7 @@ async fn process_content(
 
     let config = ParserOptions {
         css_modules: match ty {
-            CssModuleAssetType::Module => Some(lightningcss::css_modules::Config {
+            CssModuleType::Module => Some(lightningcss::css_modules::Config {
                 pattern: Pattern {
                     segments: smallvec![
                         Segment::Name,
@@ -461,7 +461,7 @@ async fn process_content(
             },
         ) {
             Ok(mut ss) => {
-                if matches!(ty, CssModuleAssetType::Module) {
+                if matches!(ty, CssModuleType::Module) {
                     let mut validator = CssValidator { errors: Vec::new() };
                     ss.visit(&mut validator).unwrap();
 
@@ -745,6 +745,14 @@ impl Issue for ParsingIssue {
         Ok(Vc::cell(Some(
             StyledString::Text(self.msg.clone()).resolved_cell(),
         )))
+    }
+
+    #[turbo_tasks::function]
+    async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
+        if let Some(source) = self.source.to_generated_code_source().await? {
+            return Ok(Vc::cell(vec![source]));
+        }
+        Ok(AdditionalIssueSources::empty())
     }
 }
 

@@ -391,6 +391,10 @@ const nextDev = async (
             })
           }
 
+          // Reset the start time so "Ready in X" reflects the restart
+          // duration, not time since the original process started.
+          process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
+
           return startServer({ ...startServerOptions, port })
         }
         // Call handler (e.g. upload telemetry). Don't try to send a signal to

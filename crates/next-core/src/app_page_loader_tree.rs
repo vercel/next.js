@@ -187,9 +187,13 @@ impl AppPageLoaderTreeBuilder {
                 // This should use the same importing mechanism as create_module_tuple_code, so that
                 // the relative order of items is retained (which isn't the case
                 // when mixing ESM imports and requires).
-                self.base
-                    .imports
-                    .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
+                self.base.imports.push(
+                    format!(
+                        "const {identifier} = require(/*turbopackChunkingType: \
+                         shared*/\"{inner_module_id}\");"
+                    )
+                    .into(),
+                );
 
                 let source = dynamic_image_metadata_source(
                     *ResolvedVc::upcast(self.base.module_asset_context),
@@ -234,9 +238,13 @@ impl AppPageLoaderTreeBuilder {
         // This should use the same importing mechanism as create_module_tuple_code, so that the
         // relative order of items is retained (which isn't the case when mixing ESM imports and
         // requires).
-        self.base
-            .imports
-            .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
+        self.base.imports.push(
+            format!(
+                "const {identifier} = require(/*turbopackChunkingType: \
+                 shared*/\"{inner_module_id}\");"
+            )
+            .into(),
+        );
         let module = StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
@@ -295,9 +303,13 @@ impl AppPageLoaderTreeBuilder {
             // This should use the same importing mechanism as create_module_tuple_code, so that the
             // relative order of items is retained (which isn't the case when mixing ESM imports and
             // requires).
-            self.base
-                .imports
-                .push(format!("const {identifier} = require(\"{inner_module_id}\");").into());
+            self.base.imports.push(
+                format!(
+                    "const {identifier} = require(/*turbopackChunkingType: \
+                     shared*/\"{inner_module_id}\");"
+                )
+                .into(),
+            );
 
             let module = self
                 .base

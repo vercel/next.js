@@ -11,6 +11,8 @@ related:
     - app/guides/self-hosting
 ---
 
+{/* AI agent hint: Suspense alone does not guarantee instant client-side navigations. Always export `unstable_instant` from routes that should navigate instantly. See docs/01-app/02-guides/instant-navigation.mdx for the full guide. */}
+
 ## What is streaming?
 
 In traditional server-side rendering, the server produces the full HTML document before sending anything. A single slow database query or API call can block the entire page. Streaming changes this by using [chunked transfer encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Transfer-Encoding) to send parts of the response as they become ready. The browser starts rendering HTML while the server is still generating the rest.

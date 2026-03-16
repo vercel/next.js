@@ -72,7 +72,10 @@ describe('PrerenderManifestMatcher', () => {
 
         const result = matcher.match('/products/123')
 
-        expect(result).toBe(specificRoute)
+        expect(result).toEqual({
+          source: '/products/[id]',
+          route: specificRoute,
+        })
       })
 
       it('should handle when the fallbackSourceRoute is not set', () => {
@@ -88,7 +91,59 @@ describe('PrerenderManifestMatcher', () => {
 
         const result = matcher.match('/products/123')
 
-        expect(result).toBe(route)
+        expect(result).toEqual({
+          source: '/products/[id]',
+          route,
+        })
+      })
+
+      it('should match unknown root branches against the generic source shell', () => {
+        const generatedRootRoute = createMockDynamicRoute({
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          routeRegex: '^/root-gsp/en/([^/]+?)(?:/)?$',
+          fallbackRootParams: [],
+          fallbackRouteParams: [
+            {
+              paramName: 'slug',
+              paramType: 'dynamic',
+            },
+          ],
+        })
+
+        const genericRootRoute = createMockDynamicRoute({
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          routeRegex: '^/root-gsp/([^/]+?)/([^/]+?)(?:/)?$',
+          fallbackRootParams: ['lang'],
+          fallbackRouteParams: [
+            {
+              paramName: 'lang',
+              paramType: 'dynamic',
+            },
+            {
+              paramName: 'slug',
+              paramType: 'dynamic',
+            },
+          ],
+        })
+
+        const manifest = createMockPrerenderManifest({
+          '/root-gsp/en/[slug]': generatedRootRoute,
+          '/root-gsp/[lang]/[slug]': genericRootRoute,
+        })
+
+        const matcher = new PrerenderManifestMatcher(
+          '/root-gsp/[lang]/[slug]',
+          manifest
+        )
+
+        expect(matcher.match('/root-gsp/en/two')).toEqual({
+          source: '/root-gsp/en/[slug]',
+          route: generatedRootRoute,
+        })
+        expect(matcher.match('/root-gsp/fr/two')).toEqual({
+          source: '/root-gsp/[lang]/[slug]',
+          route: genericRootRoute,
+        })
       })
     })
 

@@ -45,6 +45,7 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+lto = "thin"
 
 [profile.release.package]
 
@@ -277,6 +278,11 @@ inherits = "release"
 debug-assertions = true
 overflow-checks = true
 
+# Like release-with-assertions but without LTO for faster test binary linking
+[profile.release-with-assertions-no-lto]
+inherits = "release-with-assertions"
+lto = false
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true
@@ -433,6 +439,7 @@ owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
+phf = { version = "0.11", features = ["macros"] }
 petgraph = "0.8.3"
 pin-project-lite = "0.2.9"
 postcard = "1.0.4"
