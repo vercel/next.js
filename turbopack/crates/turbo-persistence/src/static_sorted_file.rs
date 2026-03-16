@@ -3,6 +3,7 @@ use std::{
     fs::File,
     hash::BuildHasherDefault,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::Arc,
 };
 
@@ -18,8 +19,9 @@ use crate::{
     arc_bytes::ArcBytes,
     compression::{checksum_block, decompress_into_arc},
     constants::MAX_INLINE_VALUE_SIZE,
-    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    lookup_entry::{IterValue, LookupEntry, LookupValue},
     mmap_helper::advise_mmap_for_persistence,
+    rc_bytes::RcBytes,
     static_sorted_file_builder::BLOCK_HEADER_SIZE,
 };
 
@@ -211,15 +213,38 @@ impl StaticSortedFile {
     /// The iterator takes ownership of the SST file, so the mmap and its pages
     /// are freed when the iterator is dropped.
     pub fn try_into_iter(self) -> Result<StaticSortedFileIter> {
-        let block_count = self.meta.block_count;
-        let mut iter = StaticSortedFileIter {
+        // Create a thread-local Rc handle to the mmap. All RcBytes produced
+        // during iteration share this single Rc, so per-entry refcounting is
+        // a plain integer inc/dec with no atomics.
+        // Wrap the Arc<Mmap> in an Rc. This clones the Arc once (one atomic
+        // increment). All subsequent RcBytes clone/drop operations only touch
+        // the Rc counter (plain integer, no atomics).
+        let rc_mmap = Rc::new(self.mmap.clone());
+
+        let root_block_index = self.meta.block_count - 1;
+        let block_rc = StaticSortedFileIter::read_block_rc(&self, &rc_mmap, root_block_index)?;
+        let block_type = block_rc[0];
+
+        // The builder always writes an index block as the root block.
+        if block_type != BLOCK_TYPE_INDEX {
+            bail!("Root block must be an index block");
+        }
+        let block_len = block_rc.len();
+        let block_indices_count = (block_len - 1 + 8) / 10;
+        let first_child = u16::from_be_bytes(block_rc[1..3].try_into().unwrap());
+        let index_entries = block_rc.slice(1..block_len);
+
+        let current_key_block =
+            StaticSortedFileIter::parse_key_block(&self, &rc_mmap, first_child)?;
+        Ok(StaticSortedFileIter {
             this: self,
-            stack: Vec::new(),
-            current_key_block: None,
+            rc_mmap,
+            index_entries,
+            index_block_count: block_indices_count,
+            index_pos: 1,
+            current_key_block,
             value_block_cache: None,
-        };
-        iter.enter_block(block_count - 1)?;
-        Ok(iter)
+        })
     }
 
     /// Looks up a key in this file.
@@ -436,27 +461,27 @@ impl StaticSortedFile {
     fn handle_key_match(
         &self,
         ty: u8,
-        mut val: &[u8],
+        val: &[u8],
         key_block_arc: &ArcBytes,
         value_block_cache: impl ValueBlockCache,
     ) -> Result<LookupValue> {
         Ok(match ty {
             KEY_BLOCK_ENTRY_TYPE_SMALL => {
-                let block = val.read_u16::<BE>()?;
-                let size = val.read_u16::<BE>()? as usize;
-                let position = val.read_u32::<BE>()? as usize;
+                let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
+                let size = u16::from_be_bytes(val[2..4].try_into().unwrap()) as usize;
+                let position = u32::from_be_bytes(val[4..8].try_into().unwrap()) as usize;
                 let value = value_block_cache
                     .get_or_read(self, block)?
                     .slice(position..position + size);
                 LookupValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
-                let block = val.read_u16::<BE>()?;
+                let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
                 let value = self.read_value_block(block)?;
                 LookupValue::Slice { value }
             }
             KEY_BLOCK_ENTRY_TYPE_BLOB => {
-                let sequence_number = val.read_u32::<BE>()?;
+                let sequence_number = u32::from_be_bytes(val[0..4].try_into().unwrap());
                 LookupValue::Blob { sequence_number }
             }
             KEY_BLOCK_ENTRY_TYPE_DELETED => LookupValue::Deleted,
@@ -548,18 +573,6 @@ impl StaticSortedFile {
             )
         })?;
         Ok(ArcBytes::from(buffer))
-    }
-
-    /// Returns `(uncompressed_length, block_data)` as an owned `ArcBytes` backed by
-    /// the mmap. Only use this when the block data needs to outlive the current borrow
-    /// (e.g. medium values stored in `LookupEntry`).
-    fn get_raw_block(&self, block_index: u16) -> Result<(u32, u32, ArcBytes)> {
-        let (uncompressed_length, checksum, block) = self.get_raw_block_slice(block_index)?;
-        Ok((
-            uncompressed_length,
-            checksum,
-            self.mmap_slice_to_arc_bytes(block),
-        ))
     }
 
     /// Promotes a mmap subslice to an owned `ArcBytes`. This clones the `Arc<Mmap>`.
@@ -654,18 +667,29 @@ impl StaticSortedFile {
 /// An iterator over all entries in a SST file in sorted order.
 pub struct StaticSortedFileIter {
     this: StaticSortedFile,
+    /// Thread-local refcount handle to the mmap. The `Arc<Mmap>` is cloned once
+    /// at iterator construction into this `Rc`; all `RcBytes` slices produced
+    /// during iteration share this single `Rc`, so per-entry refcounting is a
+    /// plain integer inc/dec (no atomics).
+    rc_mmap: Rc<Arc<Mmap>>,
 
-    stack: Vec<CurrentIndexBlock>,
-    current_key_block: Option<CurrentKeyBlock>,
+    /// The root index block entries (body bytes starting after the type byte).
+    /// SST files have exactly one index level.
+    index_entries: RcBytes,
+    /// Total number of key block references in the index block.
+    index_block_count: usize,
+    /// Next index entry to read from the index block.
+    index_pos: usize,
+    current_key_block: CurrentKeyBlock,
     /// Single-entry value block cache. Within a key block, entries reference
     /// value blocks sequentially and don't revisit earlier blocks, so caching
     /// just the current one avoids redundant decompression.
-    value_block_cache: Option<(u16, ArcBytes)>,
+    value_block_cache: Option<(u16, RcBytes)>,
 }
 
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
-    Variable { offsets: ArcBytes, hash_len: u8 },
+    Variable { offsets: RcBytes, hash_len: u8 },
     /// Fixed-size entries with uniform key size and value type (no offset table).
     Fixed {
         hash_len: u8,
@@ -677,15 +701,11 @@ enum CurrentKeyBlockKind {
 
 struct CurrentKeyBlock {
     kind: CurrentKeyBlockKind,
-    entries: ArcBytes,
-    entry_count: usize,
-    index: usize,
-}
-
-struct CurrentIndexBlock {
-    entries: ArcBytes,
-    block_indices_count: usize,
-    index: usize,
+    entries: RcBytes,
+    /// Number of entries in this key block (max ~819 per 16 KiB block).
+    entry_count: u32,
+    /// Current position within the key block.
+    index: u32,
 }
 
 impl Iterator for StaticSortedFileIter {
@@ -697,48 +717,146 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
-    /// Enters a block at the given index.
-    fn enter_block(&mut self, block_index: u16) -> Result<()> {
-        let block_arc = self.this.read_key_block(block_index)?;
-        let mut block = &*block_arc;
-        let block_type = block.read_u8()?;
-        match block_type {
-            BLOCK_TYPE_INDEX => {
-                let block_indices_count = (block.len() + 8) / 10;
-                let range = 1..block_arc.len();
-                self.stack.push(CurrentIndexBlock {
-                    entries: block_arc.slice(range),
-                    block_indices_count,
-                    index: 0,
-                });
+    /// Reads a block, decompresses if needed, verifies checksum. Returns `RcBytes`.
+    fn read_block_rc(
+        sst: &StaticSortedFile,
+        rc_mmap: &Rc<Arc<Mmap>>,
+        block_index: u16,
+    ) -> Result<RcBytes> {
+        let (uncompressed_length, expected_checksum, block) =
+            sst.get_raw_block_slice(block_index).with_context(|| {
+                format!(
+                    "Failed to read raw block {} from {:08}.sst",
+                    block_index, sst.meta.sequence_number
+                )
+            })?;
+
+        sst.verify_checksum(block, expected_checksum, block_index)?;
+
+        if uncompressed_length == 0 {
+            // Uncompressed: wrap the mmap slice in RcBytes (Rc clone, no atomic)
+            return Ok(unsafe { RcBytes::from_mmap(rc_mmap, block) });
+        }
+
+        let buffer = crate::compression::decompress_into_rc(uncompressed_length, block)
+            .with_context(|| {
+                format!(
+                    "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                    block_index, sst.meta.sequence_number, uncompressed_length
+                )
+            })?;
+        Ok(RcBytes::from(buffer))
+    }
+
+    /// Returns `(uncompressed_length, checksum, block)` as `RcBytes`.
+    fn get_raw_block_rc(
+        sst: &StaticSortedFile,
+        rc_mmap: &Rc<Arc<Mmap>>,
+        block_index: u16,
+    ) -> Result<(u32, u32, RcBytes)> {
+        let (uncompressed_length, checksum, block) = sst.get_raw_block_slice(block_index)?;
+        Ok((uncompressed_length, checksum, unsafe {
+            RcBytes::from_mmap(rc_mmap, block)
+        }))
+    }
+
+    /// Reads a small value block, using a single-entry cache. Returns `RcBytes`.
+    fn read_small_value_block_rc(
+        sst: &StaticSortedFile,
+        rc_mmap: &Rc<Arc<Mmap>>,
+        cache: &mut Option<(u16, RcBytes)>,
+        block_index: u16,
+    ) -> Result<RcBytes> {
+        if let Some((idx, block)) = cache.as_ref()
+            && *idx == block_index
+        {
+            return Ok(block.clone());
+        }
+        let block = Self::read_block_rc(sst, rc_mmap, block_index)?;
+        *cache = Some((block_index, block.clone()));
+        Ok(block)
+    }
+
+    /// Handles a key match, producing `IterValue` (uses `RcBytes`).
+    fn handle_key_match_rc(
+        sst: &StaticSortedFile,
+        rc_mmap: &Rc<Arc<Mmap>>,
+        ty: u8,
+        val: &[u8],
+        key_block_entries: &RcBytes,
+        value_block_cache: &mut Option<(u16, RcBytes)>,
+    ) -> Result<IterValue> {
+        Ok(match ty {
+            KEY_BLOCK_ENTRY_TYPE_SMALL => {
+                let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
+                let size = u16::from_be_bytes(val[2..4].try_into().unwrap()) as usize;
+                let position = u32::from_be_bytes(val[4..8].try_into().unwrap()) as usize;
+                let value =
+                    Self::read_small_value_block_rc(sst, rc_mmap, value_block_cache, block)?
+                        .slice(position..position + size);
+                IterValue::Slice { value }
             }
+            KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
+                let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
+                let value = Self::read_block_rc(sst, rc_mmap, block)?;
+                IterValue::Slice { value }
+            }
+            KEY_BLOCK_ENTRY_TYPE_BLOB => {
+                let sequence_number = u32::from_be_bytes(val[0..4].try_into().unwrap());
+                IterValue::Blob { sequence_number }
+            }
+            KEY_BLOCK_ENTRY_TYPE_DELETED => IterValue::Deleted,
+            _ => {
+                // Inline value — val is already the correct slice
+                // SAFETY: val points into key_block_entries' data
+                let value = unsafe { key_block_entries.slice_from_subslice(val) };
+                IterValue::Slice { value }
+            }
+        })
+    }
+
+    /// Parses a key block at the given index, returning `RcBytes`-backed data.
+    fn parse_key_block(
+        sst: &StaticSortedFile,
+        rc_mmap: &Rc<Arc<Mmap>>,
+        block_index: u16,
+    ) -> Result<CurrentKeyBlock> {
+        let block_rc = Self::read_block_rc(sst, rc_mmap, block_index)?;
+        let block = &*block_rc;
+        let block_type = block[0];
+        let entry_count = u32::from_be_bytes([0, block[1], block[2], block[3]]);
+        match block_type {
             BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-                let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                let hash_len = if has_hash { 8 } else { 0 };
-                let entry_count = block.read_u24::<BE>()? as usize;
-                let offsets_range = 4..4 + entry_count * 4;
-                let entries_range = 4 + entry_count * 4..block_arc.len();
-                let offsets = block_arc.clone().slice(offsets_range);
-                let entries = block_arc.slice(entries_range);
-                self.current_key_block = Some(CurrentKeyBlock {
+                let hash_len = if block_type == BLOCK_TYPE_KEY_WITH_HASH {
+                    8
+                } else {
+                    0
+                };
+                let n = entry_count as usize;
+                let offsets_range = 4..4 + n * 4;
+                let entries_range = 4 + n * 4..block_rc.len();
+                let offsets = block_rc.clone().slice(offsets_range);
+                let entries = block_rc.slice(entries_range);
+                Ok(CurrentKeyBlock {
                     kind: CurrentKeyBlockKind::Variable { offsets, hash_len },
                     entries,
                     entry_count,
                     index: 0,
-                });
+                })
             }
             BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-                let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
-                let hash_len = if has_hash { 8 } else { 0 };
-                let entry_count = block.read_u24::<BE>()? as usize;
-                let key_size = block.read_u8()? as usize;
-                let value_type = block.read_u8()?;
+                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
+                    8
+                } else {
+                    0
+                };
+                let key_size = block[4] as usize;
+                let value_type = block[5];
                 let val_size = entry_val_size(value_type)?;
                 let stride = hash_len as usize + key_size + val_size;
-                // Header is 6 bytes for fixed-size blocks
-                let entries_range = 6..block_arc.len();
-                let entries = block_arc.slice(entries_range);
-                self.current_key_block = Some(CurrentKeyBlock {
+                let entries_range = 6..block_rc.len();
+                let entries = block_rc.slice(entries_range);
+                Ok(CurrentKeyBlock {
                     kind: CurrentKeyBlockKind::Fixed {
                         hash_len,
                         key_size,
@@ -748,28 +866,24 @@ impl StaticSortedFileIter {
                     entries,
                     entry_count,
                     index: 0,
-                });
+                })
             }
             _ => {
-                bail!("Invalid block type");
+                bail!("Invalid key block type: {block_type}");
             }
         }
-        Ok(())
     }
 
     /// Gets the next entry in the file and moves the cursor.
     fn next_internal(&mut self) -> Result<Option<LookupEntry>> {
         loop {
-            if let Some(CurrentKeyBlock {
-                kind,
-                entries,
-                entry_count,
-                index,
-            }) = self.current_key_block.take()
-            {
-                let GetKeyEntryResult { hash, key, ty, val } = match &kind {
+            let kb = &mut self.current_key_block;
+            if kb.index < kb.entry_count {
+                let index = kb.index as usize;
+                let entry_count = kb.entry_count as usize;
+                let GetKeyEntryResult { hash, key, ty, val } = match &kb.kind {
                     CurrentKeyBlockKind::Variable { offsets, hash_len } => {
-                        get_key_entry(offsets, &entries, entry_count, index, *hash_len)?
+                        get_key_entry(offsets, &kb.entries, entry_count, index, *hash_len)?
                     }
                     CurrentKeyBlockKind::Fixed {
                         hash_len,
@@ -777,7 +891,7 @@ impl StaticSortedFileIter {
                         value_type,
                         stride,
                     } => get_fixed_key_entry(
-                        &entries,
+                        &kb.entries,
                         index,
                         *hash_len,
                         *key_size,
@@ -785,61 +899,45 @@ impl StaticSortedFileIter {
                         *stride,
                     ),
                 };
-                // Convert hash slice to u64, computing from key if no hash stored
                 let full_hash = if hash.is_empty() {
                     crate::key::hash_key(&key)
                 } else {
                     u64::from_be_bytes(hash.try_into().unwrap())
                 };
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
-                    let mut val = val;
-                    let block = val.read_u16::<BE>()?;
-                    let (uncompressed_size, checksum, block) = self.this.get_raw_block(block)?;
-                    LazyLookupValue::Medium {
+                    let block = u16::from_be_bytes(val[0..2].try_into().unwrap());
+                    let (uncompressed_size, checksum, block) =
+                        Self::get_raw_block_rc(&self.this, &self.rc_mmap, block)?;
+                    IterValue::Medium {
                         uncompressed_size,
                         checksum,
                         block,
                     }
                 } else {
-                    let value = self.this.handle_key_match(
+                    Self::handle_key_match_rc(
+                        &self.this,
+                        &self.rc_mmap,
                         ty,
                         val,
-                        &entries,
+                        &kb.entries,
                         &mut self.value_block_cache,
-                    )?;
-                    LazyLookupValue::Eager(value)
+                    )?
                 };
                 let entry = LookupEntry {
                     hash: full_hash,
-                    // SAFETY: key points into entries which is backed by the same Arc
-                    key: unsafe { entries.slice_from_subslice(key) },
+                    key: unsafe { kb.entries.slice_from_subslice(key) },
                     value,
                 };
-                if index + 1 < entry_count {
-                    self.current_key_block = Some(CurrentKeyBlock {
-                        kind,
-                        entries,
-                        entry_count,
-                        index: index + 1,
-                    });
-                }
+                kb.index += 1;
                 return Ok(Some(entry));
             }
-            if let Some(CurrentIndexBlock {
-                entries,
-                block_indices_count,
-                index,
-            }) = self.stack.pop()
-            {
-                let block_index = (&entries[index * 10..]).read_u16::<BE>()?;
-                if index + 1 < block_indices_count {
-                    self.stack.push(CurrentIndexBlock {
-                        entries,
-                        block_indices_count,
-                        index: index + 1,
-                    });
-                }
-                self.enter_block(block_index)?;
+            if self.index_pos < self.index_block_count {
+                let base = self.index_pos * 10;
+                let block_index =
+                    u16::from_be_bytes(self.index_entries[base..base + 2].try_into().unwrap());
+                self.index_pos += 1;
+                self.current_key_block =
+                    Self::parse_key_block(&self.this, &self.rc_mmap, block_index)?;
             } else {
                 return Ok(None);
             }
@@ -912,6 +1010,17 @@ fn entry_val_size(ty: u8) -> Result<usize> {
     }
 }
 
+/// Reads the type and start offset from an offset table entry.
+/// Each entry is 4 bytes: 1 byte type + 3 bytes BE offset.
+#[inline(always)]
+fn read_offset_entry(offsets: &[u8], index: usize) -> (u8, usize) {
+    let base = index * 4;
+    let word = u32::from_be_bytes(offsets[base..base + 4].try_into().unwrap());
+    let ty = (word >> 24) as u8;
+    let offset = (word & 0x00FF_FFFF) as usize;
+    (ty, offset)
+}
+
 /// Reads a key entry from a key block.
 fn get_key_entry<'l>(
     offsets: &[u8],
@@ -921,13 +1030,12 @@ fn get_key_entry<'l>(
     hash_len: u8,
 ) -> Result<GetKeyEntryResult<'l>> {
     let hash_len_usize = hash_len as usize;
-    let mut offset = &offsets[index * 4..];
-    let ty = offset.read_u8()?;
-    let start = offset.read_u24::<BE>()? as usize;
+    let (ty, start) = read_offset_entry(offsets, index);
     let end = if index == entry_count - 1 {
         entries.len()
     } else {
-        (&offsets[(index + 1) * 4 + 1..]).read_u24::<BE>()? as usize
+        let (_, next_start) = read_offset_entry(offsets, index + 1);
+        next_start
     };
     // Return the raw hash bytes slice (0-8 bytes depending on hash_len)
     let hash = &entries[start..start + hash_len_usize];

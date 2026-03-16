@@ -30,7 +30,7 @@ use crate::{
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
-    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    lookup_entry::{IterValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
@@ -1188,7 +1188,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let mut used_collector = Collector::new(MetaEntryFlags::WARM);
                             let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                            let mut current_key: Option<ArcBytes> = None;
+                            let mut current_key: Option<crate::rc_bytes::RcBytes> = None;
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
@@ -1220,10 +1220,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         FamilyKind::MultiValue => {
                                             // For MultiValue families we only skip remaining if we
                                             // see a tombstone
-                                            if matches!(
-                                                entry.value,
-                                                LazyLookupValue::Eager(LookupValue::Deleted)
-                                            ) {
+                                            if matches!(entry.value, IterValue::Deleted) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1243,10 +1240,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     // Entry is being dropped (superseded by newer entry or
                                     // pruned by tombstone). If it references a blob file,
                                     // mark that blob for deletion.
-                                    if let LazyLookupValue::Eager(LookupValue::Blob {
-                                        sequence_number,
-                                    }) = &entry.value
-                                    {
+                                    if let IterValue::Blob { sequence_number } = &entry.value {
                                         blob_seq_numbers_to_delete.push(*sequence_number);
                                     }
                                 }
