@@ -49,7 +49,7 @@ Each [`Module`] has an identifier composed of file path, query, fragment, and ot
 
 [`OutputAsset`]s are artifacts that are understood by the target environment. They include references to other output assets.
 
-[`OutputAsset`]s are usually the result of transforming one or more modules to a given output format. This can be a very simple transformation like just copying the Source content (like with static assets like images), or a complex transformation like chunking and bundling modules (like with JavaScript or CSS).
+[`OutputAsset`]s are usually the result of transforming one or more modules to a given output format. This can be a very simple transformation like copying the [`Source`] content (like with static assets like images), or a complex transformation like chunking and bundling modules (like with JavaScript or CSS).
 
 [`OutputAsset`]s can be emitted to disk or served from the dev server.
 
