@@ -20,6 +20,9 @@ export function lightningCssTransformStyleAttribute(
 ): Promise<unknown>
 export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
+// Optional: only available when built with the "plugin" feature.
+export function registerWasmPluginRuntime(jsManager: object): void
+
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
 // You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.

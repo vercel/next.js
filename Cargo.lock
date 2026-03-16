@@ -4936,7 +4936,7 @@ dependencies = [
  "serde_json",
  "supports-hyperlinks",
  "swc_core",
- "swc_plugin_backend_wasmtime",
+ "swc_plugin_backend_napi",
  "terminal_hyperlink",
  "terminal_size",
  "tokio",
@@ -8738,6 +8738,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "swc_plugin_backend_napi"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-derive",
+ "once_cell",
+ "swc_plugin_runner 25.0.0",
+]
+
+[[package]]
 name = "swc_plugin_backend_wasmer"
 version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10477,7 +10488,7 @@ dependencies = [
  "styled_jsx",
  "swc_core",
  "swc_emotion",
- "swc_plugin_backend_wasmtime",
+ "swc_plugin_backend_napi",
  "swc_relay",
  "tracing",
  "turbo-rcstr",

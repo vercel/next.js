@@ -1733,6 +1733,14 @@ function loadNative(importPath?: string): Binding {
         return bindings.codeFrameColumns(source, location, options) ?? undefined
       },
     }
+
+    // Register the NAPI-based WASM plugin runtime so SWC plugins run via
+    // Node's V8 WebAssembly engine instead of wasmtime.
+    if (typeof bindings.registerWasmPluginRuntime === 'function') {
+      const { wasmManager } = (require('./wasm-manager') as typeof import('./wasm-manager'))
+      bindings.registerWasmPluginRuntime(wasmManager)
+    }
+
     return loadedBindings!
   }
 

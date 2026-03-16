@@ -12,6 +12,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
+  "crates/swc-plugin-backend-napi",
   "turbopack/crates/*",
   "turbopack/crates/*/fuzz",
   "turbopack/xtask",
