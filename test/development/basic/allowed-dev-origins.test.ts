@@ -116,7 +116,8 @@ describe.each([['', '/docs']])(
               const script = document.createElement('script')
               script.src = "${next.url}/_next/static/chunks/pages/_app.js"
               
-              script.onerror = (err) => {
+              script.onerror = (error) => {
+                console.error('script error', error)
                 statusEl.innerText = 'error'
               }
               script.onload = () => {
@@ -126,7 +127,13 @@ describe.each([['', '/docs']])(
             })()`
 
           // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await webdriver(
+            `http://127.0.0.1:${port}`,
+            '/about',
+            {
+              permissions: ['local-network-access'],
+            }
+          )
           await browser.eval(scriptSnippet)
 
           await retry(async () => {
@@ -136,6 +143,7 @@ describe.each([['', '/docs']])(
           })
 
           // ensure different host is blocked
+          // Requires local-network-access permission to send a request to next.url
           await browser.get(`https://example.vercel.sh/`)
           await browser.eval(scriptSnippet)
 
@@ -145,7 +153,11 @@ describe.each([['', '/docs']])(
             )
           })
 
-          expect(next.cliOutput).toContain('Cross origin request detected from')
+          expect(next.cliOutput).toContain(
+            // We're not sending an Origin header
+            // TODO: redundant spacing
+            'Cross origin request detected  to'
+          )
         } finally {
           server.close()
         }

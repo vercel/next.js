@@ -30,14 +30,15 @@ export type InstantNavCookieData =
 function parseCookieValue(raw: string): InstantNavCookieData {
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 2) {
-      if (parsed[1] === null) {
+    if (Array.isArray(parsed) && parsed.length >= 3) {
+      const rawState = parsed[2]
+      if (rawState === null) {
         return { state: 'mpa' }
       }
-      // SPA capture: parsed[1] is { from, to }
-      if (typeof parsed[1] === 'object' && parsed[1] !== null) {
-        const fromTree: FlightRouterState = parsed[1].from ?? ['', {}]
-        const toTree: FlightRouterState | null = parsed[1].to ?? null
+      // SPA capture: rawState is { from, to }
+      if (typeof rawState === 'object' && rawState !== null) {
+        const fromTree: FlightRouterState = rawState.from ?? ['', {}]
+        const toTree: FlightRouterState | null = rawState.to ?? null
         return { state: 'spa', fromTree, toTree }
       }
       return { state: 'spa', fromTree: ['', {}], toTree: null }
