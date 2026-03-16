@@ -523,15 +523,14 @@ impl ProcessArgs {
     }
 }
 
-/// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
-/// [env].
+/// A pool of Node.js workers operating on an `entrypoint` with specific `cwd` and `env`.
 ///
-/// The pool will spawn processes when needed and reuses old ones. It will never
-/// spawn more then a certain number of concurrent processes. This is specified
-/// with the `concurrency` argument in the constructor.
+/// The pool will spawn processes when needed and reuses old ones. It will never spawn more then a
+/// certain number of concurrent processes. This is specified with the `concurrency` argument in the
+/// constructor.
 ///
-/// The worker will *not* use the env of the parent process by default. All env
-/// vars need to be provided to make the execution as pure as possible.
+/// The worker will *not* use the `env` of the parent process by default. All environment variables
+/// need to be provided to make the execution as pure as possible.
 #[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
 pub struct ChildProcessPool {
     cwd: PathBuf,

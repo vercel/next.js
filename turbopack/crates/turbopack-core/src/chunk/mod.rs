@@ -202,25 +202,25 @@ pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 
 #[turbo_tasks::value_impl]
 impl Chunks {
-    /// Creates a new empty [Vc<Chunks>].
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(vec![])
     }
 }
 
-/// A [Chunk] group chunk items together into something that will become an [OutputAsset].
-/// It usually contains multiple chunk items.
-// TODO This could be simplified to and merged with [OutputChunk]
+/// Groups chunk items together into something that will become an [`OutputAsset`]. It usually
+/// contains multiple chunk items.
+///
+/// [`OutputAsset`]: crate::output::OutputAsset
+//
+// TODO: This could be simplified to and merged with OutputChunk
 #[turbo_tasks::value_trait]
 pub trait Chunk: OutputAssetsReference {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
+
     #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
-    //     self.ident().path()
-    // }
 
     #[turbo_tasks::function]
     fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {

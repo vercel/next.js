@@ -2,7 +2,8 @@
 //!
 //! This avoid the problem of sleeping threads with mimalloc when using rayon in combination with
 //! tokio. It also avoid having multiple thread pools.
-//! see also https://pwy.io/posts/mimalloc-cigarette/
+//!
+//! See also: <https://pwy.io/posts/mimalloc-cigarette/>
 
 use crate::{
     scope::scope_and_block,
