@@ -1537,6 +1537,8 @@ async function finalRuntimeServerPrerender(
     true // track sync IO
   )
 
+  const varyParamsAccumulator = createResponseVaryParamsAccumulator()
+
   const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
     phase: 'render',
@@ -1556,8 +1558,7 @@ async function finalRuntimeServerPrerender(
     prerenderResumeDataCache,
     renderResumeDataCache,
     hmrRefreshHash: undefined,
-    // TODO: Enable vary params tracking for runtime prefetches.
-    varyParamsAccumulator: null,
+    varyParamsAccumulator,
     // Used to separate the stages in the 5-task pipeline.
     stagedRendering: finalStageController,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1612,10 +1613,13 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      finishStaleTimeTracking(staleTimeIterable).then(() => {
+      Promise.all([
+        finishStaleTimeTracking(staleTimeIterable),
+        finishAccumulatingVaryParams(varyParamsAccumulator),
+      ]).then(() => {
         // Abort. This runs as a microtask after Flight has flushed the
-        // staleTime closing chunk, but before the next macrotask resolves the
-        // overall result.
+        // staleTime and varyParams closing chunks, but before the next
+        // macrotask resolves the overall result.
         if (finalServerController.signal.aborted) {
           // If the server controller is already aborted we must have called
           // something that required aborting the prerender synchronously such
