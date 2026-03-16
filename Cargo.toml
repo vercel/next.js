@@ -12,6 +12,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
+  "crates/swc-plugin-backend-napi",
   "crates/swc-plugin-backend-wasmtime",
   "turbopack/crates/*",
   "turbopack/crates/*/fuzz",
@@ -322,6 +323,7 @@ swc_core = { version = "58.0.4", default-features = false, features = [
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
+swc_plugin_backend_napi = { path = "crates/swc-plugin-backend-napi" }
 swc_plugin_backend_wasmtime = { path = "crates/swc-plugin-backend-wasmtime" }
 testing = "19.0.0"
 wasmtime = { version = "29", default-features = false, features = ["cranelift", "runtime"] }

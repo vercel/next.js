@@ -28,11 +28,11 @@ impl SwcPluginModule {
             use swc_core::plugin_runner::plugin_module_bytes::{
                 CompiledPluginModuleBytes, RawPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
+            use swc_plugin_backend_napi::NapiRuntime;
 
             Self {
                 plugin: CompiledPluginModuleBytes::from_raw_module(
-                    &WasmtimeRuntime,
+                    &NapiRuntime,
                     RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
                 ),
                 name: plugin_name,
@@ -181,7 +181,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
+            use swc_plugin_backend_napi::NapiRuntime;
             use turbo_tasks::TryJoinIterExt;
 
             let plugins = self
@@ -192,7 +192,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     Ok((
                         plugin_module.name.clone(),
                         config.clone(),
-                        Box::new(plugin_module.plugin.clone_module(&WasmtimeRuntime)),
+                        Box::new(plugin_module.plugin.clone_module(&NapiRuntime)),
                     ))
                 })
                 .try_join()
@@ -259,7 +259,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                             None,
                             plugin_module,
                             Some(plugin_config),
-                            Arc::new(WasmtimeRuntime),
+                            Arc::new(NapiRuntime),
                         );
 
                     serialized_program = Either::Right(

@@ -17,10 +17,10 @@ swc_ecma_transform_plugin = [
   # Use granular plugin features to avoid pulling in wasmer via __plugin_transform_env_native.
   # __plugin_transform_host provides the plugin runner types and proxy re-exports.
   # __plugin_transform_host_schema_v1 provides the schema version support.
-  # We provide WasmtimeRuntime explicitly, so we don't need swc's env-native backend wiring.
+  # We provide NapiRuntime explicitly, so we don't need swc's env-native backend wiring.
   "swc_core/__plugin_transform_host",
   "swc_core/__plugin_transform_host_schema_v1",
-  "swc_plugin_backend_wasmtime"
+  "swc_plugin_backend_napi"
 ]
 
 [lints]
@@ -46,7 +46,7 @@ turbopack-ecmascript = { workspace = true }
 styled_components = { workspace = true }
 styled_jsx = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "common"] }
-swc_plugin_backend_wasmtime = { workspace = true, optional = true }
+swc_plugin_backend_napi = { workspace = true, optional = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 

@@ -34,6 +34,8 @@ use std::{
 };
 
 use anyhow::{Context as _, anyhow, bail};
+#[cfg(feature = "plugin")]
+use napi::JsObject;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
@@ -134,7 +136,7 @@ impl Task for TransformTask {
                                 options.swc.runtime_options =
                                     swc_core::base::config::RuntimeOptions::default()
                                         .plugin_runtime(std::sync::Arc::new(
-                                            swc_plugin_backend_wasmtime::WasmtimeRuntime,
+                                            swc_plugin_backend_napi::NapiRuntime,
                                         ));
                             }
 
@@ -257,6 +259,14 @@ fn test_deser() {
     let tr: TransformOptions = serde_json::from_str(JSON_STR).unwrap();
 
     println!("{tr:#?}");
+}
+
+/// Register the NAPI-based WASM plugin runtime.
+/// Must be called from JS before any SWC transforms that use plugins.
+#[cfg(feature = "plugin")]
+#[napi]
+pub fn register_wasm_plugin_runtime(env: Env, js_manager: JsObject) -> napi::Result<()> {
+    swc_plugin_backend_napi::register_wasm_runtime(&env, &js_manager)
 }
 
 #[test]
