@@ -5643,8 +5643,9 @@ async function prerenderToStream(
   )
 
   const { reactServerErrorsByDigest } = workStore
-  // We don't report errors during prerendering through our instrumentation hooks
-  const reportErrors = !experimental.isRoutePPREnabled
+  // We don't report errors during build-time prerendering through our instrumentation hooks,
+  // but we DO report errors during ISR revalidation at runtime.
+  const reportErrors = !isBuildTimePrerendering
   function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
     if (reportErrors) {
       return onInstrumentationRequestError?.(
