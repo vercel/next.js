@@ -139,6 +139,37 @@ impl Transition for RSCTransition {
     }
 }
 
+// This is equivalent to `FullContextTransition::new(app_project.route_module_context())`
+#[turbo_tasks::value]
+struct RouteTransition {
+    app_project: ResolvedVc<AppProject>,
+    runtime: NextRuntime,
+}
+#[turbo_tasks::value_impl]
+impl RouteTransition {
+    #[turbo_tasks::function]
+    pub fn new(app_project: ResolvedVc<AppProject>, runtime: NextRuntime) -> Vc<RouteTransition> {
+        RouteTransition {
+            app_project,
+            runtime,
+        }
+        .cell()
+    }
+}
+#[turbo_tasks::value_impl]
+impl Transition for RouteTransition {
+    #[turbo_tasks::function]
+    fn process_context(
+        &self,
+        _module_asset_context: Vc<ModuleAssetContext>,
+    ) -> Vc<ModuleAssetContext> {
+        match self.runtime {
+            NextRuntime::NodeJs => self.app_project.route_module_context(),
+            NextRuntime::Edge => self.app_project.edge_route_module_context(),
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl AppProject {
     #[turbo_tasks::function]
@@ -412,6 +443,18 @@ impl AppProject {
                     rcstr!("next-server-component"),
                     ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
                 ),
+                (
+                    rcstr!("next-app-route"),
+                    self.route_transition(NextRuntime::NodeJs)
+                        .to_resolved()
+                        .await?,
+                ),
+                (
+                    rcstr!("next-app-edge-route"),
+                    self.route_transition(NextRuntime::Edge)
+                        .to_resolved()
+                        .await?,
+                ),
                 // noops, but keep here to always have the transitions defined
                 (
                     rcstr!("next-rsc"),
@@ -626,6 +669,18 @@ impl AppProject {
                 ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
             ),
             (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
                 rcstr!("next-rsc"),
                 self.rsc_transition(NextRuntime::NodeJs)
                     .to_resolved()
@@ -728,6 +783,18 @@ impl AppProject {
                 self.shared_transition().to_resolved().await?,
             ),
             (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
                 rcstr!("next-rsc"),
                 self.rsc_transition(NextRuntime::NodeJs)
                     .to_resolved()
@@ -796,6 +863,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    fn route_transition(self: Vc<Self>, runtime: NextRuntime) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(RouteTransition::new(self, runtime))
+    }
+
+    #[turbo_tasks::function]
     async fn edge_ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
@@ -813,6 +885,18 @@ impl AppProject {
             (
                 rcstr!("next-shared"),
                 self.edge_shared_transition().to_resolved().await?,
+            ),
+            (
+                rcstr!("next-app-route"),
+                self.route_transition(NextRuntime::NodeJs)
+                    .to_resolved()
+                    .await?,
+            ),
+            (
+                rcstr!("next-app-edge-route"),
+                self.route_transition(NextRuntime::Edge)
+                    .to_resolved()
+                    .await?,
             ),
             (
                 rcstr!("next-rsc"),
