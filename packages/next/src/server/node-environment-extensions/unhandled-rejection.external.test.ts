@@ -19,8 +19,6 @@
  * @jest-environment node
  */
 
- 
-
 type ReportableResult =
   | CountReport
   | UHRReport
@@ -79,7 +77,6 @@ export function runWorkerCode(
         // from node directly to be compatible with edge runtimes.
         globalThis.AsyncLocalStorage = AsyncLocalStorage;
 
-        const { parentPort } = require('node:worker_threads');
         global.reportResult = (value) => {
           parentPort?.postMessage(value);
         };
