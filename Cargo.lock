@@ -9564,6 +9564,7 @@ dependencies = [
  "serde_path_to_error",
  "smallvec",
  "tempfile",
+ "thread_local",
  "tokio",
  "tracing",
  "turbo-bincode",
