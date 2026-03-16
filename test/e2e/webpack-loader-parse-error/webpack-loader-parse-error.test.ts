@@ -248,14 +248,14 @@ describe('webpack-loader-parse-error (production)', () => {
         'Parsing CSS source code failed'
       )
       expect(cssError).toMatchInlineSnapshot(`
-       "./app/css-page/styles.broken.css:2:3
+       "./app/css-page/styles.broken.css:5:15
        Parsing CSS source code failed
-         1 | .page {
-       > 2 |   color: blue;
-           |   ^
-         3 |   font-size: 16px;
-         4 | }
-         5 |
+         3 |   color: red
+         4 |   @@@ THIS IS NOT VALID CSS @@@;
+       > 5 |   background: {{{ invalid
+           |               ^
+         6 | }
+         7 |
 
        Unexpected token CurlyBracketBlock
 
