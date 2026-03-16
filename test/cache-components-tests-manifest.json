@@ -350,6 +350,7 @@
       "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts",
       "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts",
       "test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts",
+      "test/production/app-dir/app-fetch-patching/app-fetch-patching.test.ts",
       "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts",
       "test/production/app-dir/build-output/index.test.ts",
       "test/production/app-dir/client-components-tree-shaking/index.test.ts",
