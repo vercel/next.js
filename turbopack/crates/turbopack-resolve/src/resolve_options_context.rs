@@ -27,8 +27,6 @@ pub enum TsConfigHandling {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
-    /// Used when tracing (see the `turbopack-tracing` crate).
-    ///
     /// - Overrides `options.node_externals`
     /// - Appends `environment.resolve_conditions`
     /// - Overrides `options.extensions`
