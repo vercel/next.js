@@ -9936,6 +9936,7 @@ dependencies = [
  "const_format",
  "data-encoding",
  "either",
+ "futures",
  "indexmap 2.13.0",
  "num-bigint",
  "once_cell",
