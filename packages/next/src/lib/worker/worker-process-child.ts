@@ -20,6 +20,10 @@ const transport: ChildTransport = {
   },
   disconnect(): void {
     process.removeListener('message', listener)
+    // Close the IPC channel so the child can exit naturally.
+    // This allows process 'exit' handlers (e.g. cpu-profile saving) to fire
+    // before the parent's force-kill timeout.
+    process.disconnect()
   },
 }
 
