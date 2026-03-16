@@ -99,15 +99,12 @@ import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
-import {
-  DYNAMIC_STALETIME_MS,
-  STATIC_STALETIME_MS,
-} from '../router-reducer/reducers/navigate-reducer'
+import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
-import { readFromBFCacheDuringRegularNavigation } from './bfcache'
+import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
@@ -951,23 +948,20 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
   // regular navigation.
   const varyPath = tree.varyPath
 
-  // The stale time for dynamic prefetches (default: 5 mins) is different from
-  // the stale time for regular navigations (default: 0 secs). We adjust the
-  // current timestamp to account for the difference.
-  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
-  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-    adjustedCurrentTime,
-    varyPath
-  )
+  // Read from the BFCache without expiring it (pass -1). We check freshness
+  // ourselves using navigatedAt, because the BFCache's staleAt may have been
+  // overridden by a per-page unstable_dynamicStaleTime and can't be used to
+  // derive the original request time.
+  const bfcacheEntry = readFromBFCache(varyPath)
   if (bfcacheEntry !== null) {
-    // Fulfill the prefetch using the bfcache entry.
-
-    // As explained above, the stale time of this prefetch entry is different
-    // than the one for the bfcache. Calculate when it was originally requested
-    // by subtracting the stale time used by the bfcache.
-    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
-    // Now add the stale time used by dynamic prefetches.
-    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+    // The stale time for dynamic prefetches (default: 5 mins) is different
+    // from the stale time for regular navigations (default: 0 secs). Use
+    // navigatedAt to compute the correct expiry for prefetch purposes.
+    const dynamicPrefetchStaleAt =
+      bfcacheEntry.navigatedAt + STATIC_STALETIME_MS
+    if (now > dynamicPrefetchStaleAt) {
+      return null
+    }
 
     const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
     const isPartial = false
@@ -992,14 +986,13 @@ export function attemptToUpgradeSegmentFromBFCache(
   tree: RouteTree
 ): FulfilledSegmentCacheEntry | null {
   const varyPath = tree.varyPath
-  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
-  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-    adjustedCurrentTime,
-    varyPath
-  )
+  const bfcacheEntry = readFromBFCache(varyPath)
   if (bfcacheEntry !== null) {
-    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
-    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+    const dynamicPrefetchStaleAt =
+      bfcacheEntry.navigatedAt + STATIC_STALETIME_MS
+    if (now > dynamicPrefetchStaleAt) {
+      return null
+    }
     const pendingSegment = upgradeToPendingSegment(
       createDetachedSegmentCacheEntry(now),
       FetchStrategy.Full
@@ -2292,9 +2285,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       return null
     }
     const navigationSeed = convertServerPatchToFullTree(
+      now,
       dynamicRequestTree,
       flightDatas,
-      renderedSearch
+      renderedSearch,
+      // Not needed for prefetch responses; pass unknown to use the default.
+      UnknownDynamicStaleTime
     )
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
@@ -2395,9 +2391,11 @@ function writeDynamicTreeResponseIntoCache(
   // enabled everywhere. Tree prefetches should never include segment data.  We
   // can delete it. Leaving for a subsequent PR.
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     flightRouterState,
     normalizedFlightDataResult,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   const buildId =
     response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
@@ -2921,9 +2919,11 @@ export function writeStaticStageResponseIntoCache(
     return
   }
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     baseTree,
     flightDatas,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   writeDynamicRenderResponseIntoCache(
     now,
@@ -2979,9 +2979,11 @@ export async function processRuntimePrefetchStream(
     return null
   }
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     baseTree,
     flightDatas,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
 
   return {
