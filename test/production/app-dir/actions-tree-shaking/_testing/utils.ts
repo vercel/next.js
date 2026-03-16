@@ -1,10 +1,27 @@
-// @ts-ignore avoid ts errors during manual testing
-import { type NextInstance } from 'e2e-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
+
+// This is from 'next/dist/build/webpack/plugins/flight-client-entry-plugin', but unfortunately
+// Typescript breaks when importing it directly.
+type Actions = {
+  [actionId: string]: {
+    exportedName?: string
+    filename?: string
+    workers: {
+      [name: string]: {
+        moduleId: string | number
+        async: boolean
+      }
+    }
+    layer: {
+      [name: string]: string
+    }
+  }
+}
 
 async function getActionsMappingByRuntime(
   next: NextInstance,
   runtime: 'node' | 'edge'
-) {
+): Promise<Actions> {
   const manifest = JSON.parse(
     await next.readFile('.next/server/server-reference-manifest.json')
   )
@@ -12,60 +29,61 @@ async function getActionsMappingByRuntime(
   return manifest[runtime]
 }
 
-export function markLayoutAsEdge(next: NextInstance) {
-  beforeAll(async () => {
-    await next.stop()
-    const layoutContent = await next.readFile('app/layout.js')
-    await next.patchFile(
-      'app/layout.js',
-      layoutContent + `\nexport const runtime = 'edge'`
-    )
-    await next.start()
+export function nextTestSetupActionTreeShaking(opts) {
+  let result = nextTestSetup({
+    ...opts,
+    skipStart: !!process.env.TEST_EDGE,
   })
+
+  if (process.env.TEST_EDGE) {
+    beforeAll(async () => {
+      const layoutContent = await result.next.readFile('app/layout.js')
+      await result.next.patchFile(
+        'app/layout.js',
+        layoutContent + `\nexport const runtime = 'edge'`
+      )
+      await result.next.start()
+    })
+  }
+
+  return result
 }
 
-/* 
-{ 
-  [route path]: { [layer]: Set<workerId> ]
-}
-*/
-type ActionsMappingOfRuntime = {
-  [actionId: string]: {
-    workers: {
-      [route: string]: string
-    }
-    layer: {
-      [route: string]: string
-    }
-  }
-}
 type ActionState = {
   [route: string]: {
-    [layer: string]: number
+    [layer: string]: string[]
   }
 }
 
-function getActionsRoutesState(
-  actionsMappingOfRuntime: ActionsMappingOfRuntime
-): ActionState {
+function getActionsRoutesState(actionsMappingOfRuntime: Actions): ActionState {
   const state: ActionState = {}
-  Object.keys(actionsMappingOfRuntime).forEach((actionId) => {
+  for (const actionId in actionsMappingOfRuntime) {
     const action = actionsMappingOfRuntime[actionId]
-    const routePaths = Object.keys(action.workers)
-
-    routePaths.forEach((routePath) => {
+    for (const routePath in action.workers) {
       if (!state[routePath]) {
         state[routePath] = {}
       }
       const layer = action.layer[routePath]
 
       if (!state[routePath][layer]) {
-        state[routePath][layer] = 0
+        state[routePath][layer] = []
       }
 
-      state[routePath][layer]++
-    })
-  })
+      // Normalize when NEXT_SKIP_ISOLATE=1
+      const filename = action.filename.startsWith('test/tmp/next-test-')
+        ? action.filename.slice(
+            action.filename.indexOf('/', 'test/tmp/next-test-'.length) + 1
+          )
+        : action.filename
+      state[routePath][layer].push(`${filename}#${action.exportedName}`)
+    }
+  }
+
+  for (const layer of Object.values(state)) {
+    for (const list of Object.values(layer)) {
+      list.sort()
+    }
+  }
 
   return state
 }
