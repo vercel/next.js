@@ -3,7 +3,9 @@ name: pr-status-triage
 description: >
   Triage CI failures and PR review comments using scripts/pr-status.js.
   Use when investigating failing CI jobs, flaky tests, or PR review feedback.
-  Covers blocker-first prioritization (build > lint > types > tests),
+  Covers the full automated workflow (background run, parallel subagent analysis,
+  deduplication by test file, flaky test detection, final re-analysis after CI
+  completes), blocker-first prioritization (build > lint > types > tests),
   CI env var matching for local reproduction, and the Known Flaky Tests
   distinction.
 ---
@@ -30,5 +32,5 @@ node scripts/pr-status.js <number>
 
 ## Detailed References
 
-- [workflow.md](./workflow.md) - prioritization and common failure patterns
+- [workflow.md](./workflow.md) - full automated workflow, prioritization, failure/review categories, and common failure patterns
 - [local-repro.md](./local-repro.md) - mode/env matching and isolation guidance
