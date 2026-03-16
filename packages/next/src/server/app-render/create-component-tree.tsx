@@ -335,6 +335,7 @@ async function createComponentTreeInternal(
         case 'prerender-client':
         case 'validation-client':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           workUnitStore satisfies never
@@ -1290,6 +1291,7 @@ function createSeedData(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           workUnitStore satisfies never

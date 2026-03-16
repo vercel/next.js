@@ -246,6 +246,7 @@ function createUseCacheStore(
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           outerWorkUnitStore satisfies never
@@ -405,6 +406,7 @@ function propagateCacheLifeAndTags(
         )
         break
       case 'unstable-cache':
+      case 'generate-static-params':
       case undefined:
         break
       default:
@@ -544,6 +546,8 @@ async function collectResult(
         propagateCacheLifeAndTags(cacheContext, entry)
         break
       }
+      case 'generate-static-params':
+        break
       default: {
         outerWorkUnitStore satisfies never
       }
@@ -626,6 +630,7 @@ async function generateCacheEntryImpl(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
+                  case 'generate-static-params':
                     break
                   default:
                     outerWorkUnitStore satisfies never
@@ -766,6 +771,7 @@ async function generateCacheEntryImpl(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
     case undefined:
       stream = renderToReadableStream(
         resultPromise,
@@ -1003,6 +1009,7 @@ export async function cache(
           outerWorkUnitStore: workUnitStore,
         }
         break
+      case 'generate-static-params':
       case undefined:
         throw wrapAsInvalidDynamicUsageError(
           new Error(
@@ -1035,6 +1042,7 @@ export async function cache(
       // TODO: We should probably forbid nesting "use cache" inside
       // unstable_cache. (fallthrough)
       case 'unstable-cache':
+      case 'generate-static-params':
       case undefined:
         cacheContext = {
           kind: 'public',
@@ -1286,6 +1294,7 @@ export async function cache(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
     case undefined:
       encodedCacheKeyParts = await encodeCacheKeyParts()
       break
@@ -1441,6 +1450,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -1490,6 +1500,7 @@ export async function cache(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -1567,6 +1578,7 @@ export async function cache(
           case 'cache':
           case 'private-cache':
           case 'unstable-cache':
+          case 'generate-static-params':
             break
           default:
             workUnitStore satisfies never
@@ -1695,6 +1707,7 @@ export async function cache(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           workUnitStore satisfies never
@@ -1948,6 +1961,7 @@ function shouldForceRevalidate(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -1995,6 +2009,7 @@ function shouldDiscardCacheEntry(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never

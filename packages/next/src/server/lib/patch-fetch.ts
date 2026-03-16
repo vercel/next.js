@@ -373,6 +373,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -412,6 +413,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -583,6 +585,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -715,6 +718,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -759,6 +763,7 @@ export function createPatchedFetcher(
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -913,6 +918,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
+                  case 'generate-static-params':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -996,6 +1002,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1125,6 +1132,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1172,6 +1180,7 @@ export function createPatchedFetcher(
                   case 'unstable-cache':
                   case 'prerender-legacy':
                   case 'prerender-ppr':
+                  case 'generate-static-params':
                     break
                   default:
                     workUnitStore satisfies never

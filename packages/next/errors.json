@@ -1117,5 +1117,20 @@
   "1116": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent.",
   "1117": "Instant validation boundaries should never appear in browser bundles.",
   "1118": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
-  "1119": "Expected edge function entrypoint to emit a JavaScript file"
+  "1119": "Expected edge function entrypoint to emit a JavaScript file",
+  "1120": "createServerParamsForServerSegment should not be called inside generateStaticParams.",
+  "1121": "Route %s used \\`%s\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+  "1122": "createParamsFromClient should not be called inside generateStaticParams.",
+  "1123": "Route %s used \\`cookies()\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+  "1124": "createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.",
+  "1125": "Route %s used \\`connection()\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+  "1126": "createPrerenderParamsForClientSegment should not be called inside generateStaticParams.",
+  "1127": "Route %s used \"%s\" inside \\`generateStaticParams\\` which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+  "1128": "createServerSearchParamsForServerPage should not be called inside generateStaticParams.",
+  "1129": "createServerPathnameForMetadata should not be called inside generateStaticParams.",
+  "1130": "\\`%s\\` was called in \\`generateStaticParams\\`. Next.js should be preventing %s from being included in server component files statically, but did not in this case.",
+  "1131": "createServerParamsForRoute should not be called inside generateStaticParams.",
+  "1132": "Route %s used \\`draftMode()\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+  "1133": "createSearchParamsFromClient should not be called inside generateStaticParams.",
+  "1134": "Route %s used \\`headers()\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context"
 }
