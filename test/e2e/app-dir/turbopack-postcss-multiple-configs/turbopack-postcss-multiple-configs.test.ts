@@ -1,19 +1,19 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('turbopack-postcss-multiple-configs', () => {
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     // Per-directory PostCSS config resolution is a Turbopack-only feature
-    // (turbopackLocalPostcssConfig), and PostCSS evaluation in production
-    // builds triggers a Turbopack panic (dependency tracking disabled).
+    // (turbopackLocalPostcssConfig). Webpack does not support this feature and
+    // does not accept function-valued PostCSS plugins, so skip non-Turbopack runs.
     skipStart: true,
     skipDeployment: true,
   })
 
   if (skipped) return
 
-  if (!isTurbopack || !isNextDev) {
-    it('should only run in Turbopack dev mode', () => {})
+  if (!isTurbopack) {
+    it('should only run with Turbopack', () => {})
     return
   }
 
