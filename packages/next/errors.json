@@ -1135,5 +1135,7 @@
   "1134": "Route %s used \\`headers()\\` inside \\`generateStaticParams\\`. This is not supported because \\`generateStaticParams\\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
   "1135": "\"use cache\" cannot be used outside of App Router. Expected a WorkUnitStore.",
   "1136": "Page \"%s\" cannot use both \\`export const unstable_dynamicStaleTime\\` and \\`export const unstable_instant\\`.",
-  "1137": "\"%s\" cannot use \\`export const unstable_dynamicStaleTime\\`. This config is only supported in page files, not layouts."
+  "1137": "\"%s\" cannot use \\`export const unstable_dynamicStaleTime\\`. This config is only supported in page files, not layouts.",
+  "1138": "`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.",
+  "1139": "`unstable_catchError` can only be used in Client Components."
 }
