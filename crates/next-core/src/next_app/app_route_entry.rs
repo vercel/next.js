@@ -71,19 +71,25 @@ pub async fn get_app_route_entry(
         .unwrap_or("\"\"");
 
     // Load the file from the next.js codebase.
+    // `getUserland` returns the user route entry. In dev it's called at request
+    // time for HMR
+    let userland_getter = format!("() => require(\"{}\")", inner);
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root.clone(),
         [
+            ("VAR_USERLAND", &*inner),
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
             ("VAR_DEFINITION_FILENAME", path.file_stem().unwrap()),
             // TODO(alexkirsz) Is this necessary?
             ("VAR_DEFINITION_BUNDLE_PATH", ""),
             ("VAR_RESOLVED_PAGE_PATH", &path.value_to_string().await?),
-            ("VAR_USERLAND", &inner),
         ],
-        [("nextConfigOutput", output_type)],
+        [
+            ("nextConfigOutput", output_type),
+            ("__next_app_require__", &userland_getter),
+        ],
         [],
     )
     .await?;
