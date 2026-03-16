@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -41,8 +41,15 @@ impl DataUriSource {
 #[turbo_tasks::value_impl]
 impl Source for DataUriSource {
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("data URI content"))
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let data = self.data.await?;
+        // Include a short prefix of the raw data for identification; data URIs
+        // can be very long so we cap it at 50 characters.
+        let prefix: String = data.chars().take(50).collect();
+        let ellipsis = if data.len() > 50 { "..." } else { "" };
+        Ok(Vc::cell(
+            format!("data URI content ({prefix}{ellipsis})").into(),
+        ))
     }
 
     #[turbo_tasks::function]

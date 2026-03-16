@@ -645,6 +645,10 @@ impl IssueSource {
                 description: format!("Generated code of {}", description).into(),
                 source: IssueSource {
                     source: generated,
+                    // The range is intentionally copied verbatim: the offsets
+                    // are already in generated-source coordinates (they came
+                    // from parsing the loader output), so no remapping is
+                    // needed here.
                     range: self.range,
                 },
             }));
@@ -959,6 +963,12 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
     } else {
         hasher.write_value(0_u8);
     }
+
+    // `additional_sources` is intentionally not hashed: it carries supplementary
+    // display info (e.g. generated code from a loader) that does not change the
+    // identity of the underlying problem.  Two issues that differ only in their
+    // generated-code snippet still represent the same root cause and should be
+    // deduplicated.
 
     if full {
         hasher.write_ref(&issue.import_traces);
