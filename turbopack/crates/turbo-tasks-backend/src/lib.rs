@@ -87,7 +87,7 @@ pub fn compact_database(
     let db =
         TurboPersistence::<turbo::TurboTasksParallelScheduler, { turbo::FAMILIES }>::open_with_config(
             versioned_path,
-            turbo::DB_CONFIG,
+            turbo::db_config(),
         )?;
     // Fully compact with no segment count limit (unlike the runtime shutdown path
     // which caps segments based on available parallelism).

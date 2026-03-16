@@ -31,16 +31,13 @@ const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction"
 
 const MB: u64 = 1024 * 1024;
 
-/// Database configuration for the Turbopack persistent cache, mapping each [`KeySpace`] to its
-/// persistence family config.
-pub const DB_CONFIG: DbConfig<FAMILIES> = DbConfig {
-    family_configs: [
-        KeySpace::Infra.family_config(),
-        KeySpace::TaskMeta.family_config(),
-        KeySpace::TaskData.family_config(),
-        KeySpace::TaskCache.family_config(),
-    ],
-};
+/// Returns the database configuration for the Turbopack persistent cache, mapping each
+/// [`KeySpace`] to its persistence family config.
+pub fn db_config() -> DbConfig<FAMILIES> {
+    DbConfig {
+        family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+    }
+}
 
 pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
     min_merge_count: 3,
@@ -69,7 +66,7 @@ impl TurboKeyValueDatabase {
     ) -> Result<Self> {
         let db = Arc::new(TurboPersistence::open_with_config(
             versioned_path,
-            DB_CONFIG,
+            db_config(),
         )?);
         Ok(Self {
             db: db.clone(),
