@@ -260,7 +260,10 @@ import {
   createValidationBoundaryTracking,
   type ValidationBoundaryTracking,
 } from './instant-validation/boundary-tracking'
-import type { InstantSample } from '../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  InstantSample,
+} from '../../build/segment-config/app/app-segment-config'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
@@ -429,6 +432,48 @@ function parseRequestHeaders(
     requestId,
     htmlRequestId,
   }
+}
+
+/**
+ * Walks the loader tree to find the minimum `unstable_dynamicStaleTime` exported by
+ * any page module. Returns null if no page exports the config.
+ *
+ * This only reads static exports from page modules — it does not render any
+ * server components, so it's cheap to call.
+ *
+ * TODO: Move this to the prefetch hints file so we don't have to walk the
+ * tree on every render.
+ */
+async function getDynamicStaleTime(tree: LoaderTree): Promise<number | null> {
+  const { page, parallelRoutes } = parseLoaderTree(tree)
+
+  let result: number | null = null
+
+  // Only pages (not layouts) can export unstable_dynamicStaleTime.
+  if (typeof page !== 'undefined') {
+    const pageMod = await page[0]()
+    if (
+      pageMod &&
+      typeof (pageMod as AppSegmentConfig).unstable_dynamicStaleTime ===
+        'number'
+    ) {
+      const value = (pageMod as AppSegmentConfig).unstable_dynamicStaleTime!
+      result = result !== null ? Math.min(result, value) : value
+    }
+  }
+
+  const childPromises: Promise<number | null>[] = []
+  for (const parallelRouteKey in parallelRoutes) {
+    childPromises.push(getDynamicStaleTime(parallelRoutes[parallelRouteKey]))
+  }
+  const childResults = await Promise.all(childPromises)
+  for (const childResult of childResults) {
+    if (childResult !== null) {
+      result = result !== null ? Math.min(result, childResult) : childResult
+    }
+  }
+
+  return result
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -666,6 +711,20 @@ async function generateDynamicRSCPayload(
 
   if (options?.runtimePrefetchStream !== undefined) {
     baseResponse.p = options.runtimePrefetchStream
+  }
+
+  // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but only
+  // for dynamic renders (not prerenders/static generation). The client treats
+  // its presence as authoritative.
+  // TODO: Move this to the prefetch hints file so we don't have to walk the
+  // tree on every render.
+  if (!workStore.isStaticGeneration) {
+    const dynamicStaleTime = await getDynamicStaleTime(
+      ctx.componentMod.routeModule.userland.loaderTree
+    )
+    if (dynamicStaleTime !== null) {
+      baseResponse.d = dynamicStaleTime
+    }
   }
 
   return baseResponse
@@ -1789,6 +1848,14 @@ async function getRSCPayload(
     s: staleTimeIterable,
     l: staticStageByteLengthPromise,
     p: runtimePrefetchStream,
+    // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
+    // only for dynamic renders. The client treats its presence as
+    // authoritative.
+    // TODO: Move this to the prefetch hints file so we don't have to walk
+    // the tree on every render.
+    d: !workStore.isStaticGeneration
+      ? ((await getDynamicStaleTime(tree)) ?? undefined)
+      : undefined,
   })
 }
 

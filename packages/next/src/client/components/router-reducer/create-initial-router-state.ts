@@ -14,6 +14,10 @@ import {
   writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
 import { FetchStrategy } from '../segment-cache/types'
+import {
+  UnknownDynamicStaleTime,
+  computeDynamicStaleAt,
+} from '../segment-cache/bfcache'
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -41,6 +45,7 @@ export function createInitialRouterState({
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
     p: initialRuntimePrefetchStream,
+    d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
 
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -87,7 +92,11 @@ export function createInitialRouterState({
     navigatedAt,
     initialRouteTree,
     initialSeedData,
-    initialHead
+    initialHead,
+    computeDynamicStaleAt(
+      navigatedAt,
+      initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
+    )
   )
 
   // The following only applies in the browser (location !== null) since neither

@@ -11,7 +11,10 @@ import {
 import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -63,13 +66,17 @@ export function refreshDynamicData(
   // TODO: Eventually we will store this type directly on the state object
   // instead of reconstructing it on demand. Part of a larger series of
   // refactors to unify the various tree types that the client deals with.
+  const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const refreshSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     null,
-    currentRenderedSearch
+    currentRenderedSearch,
+    UnknownDynamicStaleTime
   )
 
-  const now = Date.now()
   const navigateType = 'replace'
   return navigateToKnownRoute(
     now,

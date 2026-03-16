@@ -314,6 +314,14 @@ export type InitialRSCPayload = {
   l?: Promise<number>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -336,6 +344,14 @@ export type NavigationFlightResponse = {
   h: VaryParamsThenable | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null
