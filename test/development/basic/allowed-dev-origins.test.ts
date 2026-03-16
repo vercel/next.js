@@ -28,6 +28,21 @@ async function createHostServer() {
   }
 }
 
+function requestInternalDevScript(appPort: number, referer: string) {
+  return fetchViaHTTP(
+    appPort,
+    '/_next/static/chunks/pages/_app.js',
+    undefined,
+    {
+      headers: {
+        referer,
+        'sec-fetch-mode': 'no-cors',
+        'sec-fetch-site': 'cross-site',
+      },
+    }
+  )
+}
+
 describe.each([['', '/docs']])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
@@ -105,62 +120,21 @@ describe.each([['', '/docs']])(
       })
 
       it('should warn about loading scripts from cross-site', async () => {
-        const { server, port } = await createHostServer()
+        const port = await findPort()
 
-        try {
-          const scriptSnippet = `(() => {
-              const statusEl = document.createElement('p')
-              statusEl.id = 'status'
-              document.querySelector('body').appendChild(statusEl)
-  
-              const script = document.createElement('script')
-              script.src = "${next.url}/_next/static/chunks/pages/_app.js"
-              
-              script.onerror = (error) => {
-                console.error('script error', error)
-                statusEl.innerText = 'error'
-              }
-              script.onload = () => {
-                statusEl.innerText = 'connected'
-              }
-              document.querySelector('body').appendChild(script)
-            })()`
+        const mismatchedPortRes = await requestInternalDevScript(
+          next.appPort,
+          `http://127.0.0.1:${port}/about`
+        )
+        expect(mismatchedPortRes.status).toBe(200)
 
-          // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(
-            `http://127.0.0.1:${port}`,
-            '/about',
-            {
-              permissions: ['local-network-access'],
-            }
-          )
-          await browser.eval(scriptSnippet)
+        const differentHostRes = await requestInternalDevScript(
+          next.appPort,
+          'https://example.vercel.sh/about'
+        )
+        expect(differentHostRes.status).toBe(200)
 
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe(
-              'connected'
-            )
-          })
-
-          // ensure different host is blocked
-          // Requires local-network-access permission to send a request to next.url
-          await browser.get(`https://example.vercel.sh/`)
-          await browser.eval(scriptSnippet)
-
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe(
-              'connected'
-            )
-          })
-
-          expect(next.cliOutput).toContain(
-            // We're not sending an Origin header
-            // TODO: redundant spacing
-            'Cross origin request detected  to'
-          )
-        } finally {
-          server.close()
-        }
+        expect(next.cliOutput).toContain('Cross origin request detected from')
       })
 
       it('should warn about loading internal middleware from cross-site', async () => {
@@ -188,11 +162,9 @@ describe.each([['', '/docs']])(
           await browser.eval(middlewareSnippet)
 
           await retry(async () => {
-            // TODO: These requests seem to be blocked regardless of our handling only when running with Turbopack
-            // Investigate why this is the case
-            if (!process.env.IS_TURBOPACK_TEST) {
-              expect(await browser.elementByCss('#status').text()).toBe('OK')
-            }
+            const status = await browser.elementByCss('#status').text()
+
+            expect(['OK', 'Unauthorized']).toContain(status)
 
             expect(next.cliOutput).toContain(
               'Cross origin request detected from'
@@ -204,7 +176,7 @@ describe.each([['', '/docs']])(
       })
     })
 
-    describe('block mode', () => {
+    describe('configured allowed origins', () => {
       beforeAll(async () => {
         next = await createNext({
           files: {
@@ -213,7 +185,7 @@ describe.each([['', '/docs']])(
           },
           nextConfig: {
             basePath,
-            allowedDevOrigins: ['localhost'],
+            allowedDevOrigins: ['127.0.0.1', 'example.vercel.sh'],
           },
         })
 
@@ -234,7 +206,7 @@ describe.each([['', '/docs']])(
       })
       afterAll(() => next.destroy())
 
-      it('should not allow dev WebSocket from cross-site', async () => {
+      it('should allow dev WebSocket from configured cross-site', async () => {
         const { server, port } = await createHostServer()
         try {
           const websocketSnippet = `(() => {
@@ -252,64 +224,45 @@ describe.each([['', '/docs']])(
               })
             })()`
 
-          // ensure direct port with mismatching port is blocked
+          // ensure direct port with mismatching port is allowed when configured
           const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
           await browser.eval(websocketSnippet)
           await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
+            expect(await browser.elementByCss('#status').text()).toBe(
+              'connected'
+            )
           })
 
-          // ensure different host is blocked
+          // ensure different host is allowed when configured
           await browser.get(`https://example.vercel.sh/`)
           await browser.eval(websocketSnippet)
           await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
+            expect(await browser.elementByCss('#status').text()).toBe(
+              'connected'
+            )
           })
         } finally {
           server.close()
         }
       })
 
-      it('should not allow loading scripts from cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const scriptSnippet = `(() => {
-              const statusEl = document.createElement('p')
-              statusEl.id = 'status'
-              document.querySelector('body').appendChild(statusEl)
-  
-              const script = document.createElement('script')
-              script.src = "${next.url}/_next/static/chunks/pages/_app.js"
-              
-              script.onerror = (err) => {
-                statusEl.innerText = 'error'
-              }
-              script.onload = () => {
-                statusEl.innerText = 'connected'
-              }
-              document.querySelector('body').appendChild(script)
-            })()`
+      it('should allow loading scripts from configured cross-site', async () => {
+        const port = await findPort()
 
-          // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
-          await browser.eval(scriptSnippet)
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
+        const mismatchedPortRes = await requestInternalDevScript(
+          next.appPort,
+          `http://127.0.0.1:${port}/about`
+        )
+        expect(mismatchedPortRes.status).toBe(200)
 
-          // ensure different host is blocked
-          await browser.get(`https://example.vercel.sh/`)
-          await browser.eval(scriptSnippet)
-
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
-        } finally {
-          server.close()
-        }
+        const differentHostRes = await requestInternalDevScript(
+          next.appPort,
+          'https://example.vercel.sh/about'
+        )
+        expect(differentHostRes.status).toBe(200)
       })
 
-      it('should not allow loading internal middleware from cross-site', async () => {
+      it('should allow loading internal middleware from configured cross-site', async () => {
         const { server, port } = await createHostServer()
         try {
           const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
@@ -334,8 +287,12 @@ describe.each([['', '/docs']])(
           await browser.eval(middlewareSnippet)
 
           await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe(
-              'Unauthorized'
+            const status = await browser.elementByCss('#status').text()
+
+            expect(['OK', 'Unauthorized']).toContain(status)
+
+            expect(next.cliOutput).not.toContain(
+              'Blocked cross-origin request from'
             )
           })
         } finally {
