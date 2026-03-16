@@ -23,7 +23,7 @@ Turbopack models the user's code as it travels through Turbopack in multiple way
 └──────────────────────────────────────────────┘
 ```
 
-Each layer builds on the previous one: [`Source`]s are processed into [`Module`]s, and [`Module`]s are transformed into [`OutputAsset`]s. In contrast to tools like webpack, where whole {source,module,chunk} graphs are built in serial, Turbopack builds lazily — each layer is computed on-demand, building only what's needed without blocking on everything in a particular phase.
+Each layer builds on the previous one: [`Source`]s are processed into [`Module`]s, and [`Module`]s are transformed into [`OutputAsset`]s. For a given set of entry points, the full module graph is discovered and analyzed before chunking into [`OutputAsset`]s.
 
 [`Source`]: crate::source::Source
 [`Module`]: crate::module::Module
@@ -31,7 +31,7 @@ Each layer builds on the previous one: [`Source`]s are processed into [`Module`]
 
 ## Sources
 
-[`Source`]s are content of code or files before they are analyzed and converted into [`Module`]s. They might be the original source file the user has written, or a virtual source code that was generated. They might also be transformed from other [`Source`] types, e.g. when using a preprocessor like SASS or webpack loaders.
+[`Source`]s are content of code or files before they are analyzed and converted into [`Module`]s. They might be the original source file the user has written, or a virtual source code that was generated. They might also be transformed from other [`Source`] types, e.g. when using a preprocessor like Sass or webpack loaders.
 
 Sources do **not** model references (the relationships between files like through `import`, `sourceMappingURL`, etc.).
 
