@@ -409,12 +409,12 @@ pub async fn parse_css(
 fn parse_css_stylesheet<'a, 'o>(
     code: &'a str,
     config: ParserOptions<'o, 'a>,
-    ty: CssModuleAssetType,
+    ty: CssModuleType,
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<StyleSheet<'a, 'o>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
     let mut ss = StyleSheet::parse(code, config)?;
 
-    if matches!(ty, CssModuleAssetType::Module) {
+    if matches!(ty, CssModuleType::Module) {
         let mut validator = CssValidator { errors: Vec::new() };
         ss.visit(&mut validator).unwrap();
 
