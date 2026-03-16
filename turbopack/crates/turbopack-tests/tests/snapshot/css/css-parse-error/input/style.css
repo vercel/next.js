@@ -9,3 +9,7 @@
 .after {
   color: green;
 }
+
+::highlight(highlight-test) {
+  color: white;
+}
