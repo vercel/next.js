@@ -24,7 +24,8 @@ use tracing::span::Span;
 ))]
 use tracing::trace_span;
 use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription,
+    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
+    event::EventDescription,
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -857,6 +858,8 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    #[bincode(skip, default = "Vec::new")]
+    scheduled_tasks: Vec<(TaskId, TaskPriority)>,
 }
 
 impl AggregationUpdateQueue {
@@ -869,6 +872,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            scheduled_tasks: Vec::new(),
         }
     }
 
@@ -881,12 +885,14 @@ impl AggregationUpdateQueue {
             balance_queue,
             optimize_queue,
             done_aggregation_number_updates: _,
+            scheduled_tasks,
         } = self;
         jobs.is_empty()
             && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
+            && scheduled_tasks.is_empty()
     }
 
     /// Pushes a job to the queue.
@@ -978,6 +984,23 @@ impl AggregationUpdateQueue {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
+    }
+
+    /// Drains `scheduled_tasks` and schedules them all at once using a batched task fetch.
+    fn batch_schedule(&mut self, ctx: &mut impl ExecuteContext<'_>) {
+        if self.scheduled_tasks.is_empty() {
+            return;
+        }
+        let scheduled_tasks = take(&mut self.scheduled_tasks);
+        let priority_map: FxHashMap<TaskId, TaskPriority> =
+            scheduled_tasks.iter().copied().collect();
+        ctx.for_each_task_all(
+            scheduled_tasks.into_iter().map(|(id, _)| id),
+            |task, ctx| {
+                let parent_priority = priority_map[&task.id()];
+                ctx.schedule_task(task, parent_priority);
+            },
+        );
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
@@ -1255,6 +1278,7 @@ impl AggregationUpdateQueue {
             }
             false
         } else {
+            self.batch_schedule(ctx);
             true
         }
     }
@@ -1478,7 +1502,7 @@ impl AggregationUpdateQueue {
             let description = EventDescription::new(|| task.get_task_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
-                ctx.schedule(task_id, parent_priority);
+                self.scheduled_tasks.push((task_id, parent_priority));
             }
         }
     }
