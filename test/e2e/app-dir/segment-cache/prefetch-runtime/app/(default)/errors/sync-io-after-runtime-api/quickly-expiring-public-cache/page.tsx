@@ -1,6 +1,14 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../../shared'
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
+
+export const unstable_instant = {
+  prefetch: 'runtime',
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  samples: [{ cookies: [] }],
+}
 
 export default async function Page() {
   return (
@@ -24,6 +32,6 @@ async function RuntimePrefetchable() {
 
 async function publicCache() {
   'use cache'
-  unstable_cacheLife('seconds')
+  cacheLife('seconds')
   await cachedDelay([__dirname])
 }

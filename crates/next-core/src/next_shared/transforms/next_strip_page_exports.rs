@@ -17,25 +17,28 @@ pub fn get_next_pages_transforms_rule(
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
     extra_conditions: Vec<RuleCondition>,
+    page_extensions: &[String],
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
         EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
             export_filter,
         }) as _));
+    let document_exclusions: Vec<RuleCondition> = page_extensions
+        .iter()
+        .map(|ext| {
+            Ok(RuleCondition::ResourcePathEquals(
+                pages_dir.join(&format!("_document.{ext}"))?,
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?;
     let conditions = RuleCondition::all(vec![
         RuleCondition::all(vec![
             RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
             RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
                 pages_dir.join("api")?,
             )),
-            RuleCondition::not(RuleCondition::any(vec![
-                // TODO(alexkirsz): Possibly ignore _app as well?
-                RuleCondition::ResourcePathEquals(pages_dir.join("_document.js")?),
-                RuleCondition::ResourcePathEquals(pages_dir.join("_document.jsx")?),
-                RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts")?),
-                RuleCondition::ResourcePathEquals(pages_dir.join("_document.tsx")?),
-            ])),
+            RuleCondition::not(RuleCondition::any(document_exclusions)),
         ]),
         module_rule_match_js_no_url(enable_mdx_rs),
         RuleCondition::all(extra_conditions),

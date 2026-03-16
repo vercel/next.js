@@ -24,6 +24,7 @@ import { ImageConfigContext } from '../../shared/lib/image-config-context.shared
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
+import { getDeploymentId } from '../../shared/lib/deployment-id'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
@@ -120,6 +121,43 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
+  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  // Extract dpl parameter early so validation uses the clean URL
+  let deploymentId = getDeploymentId()
+  if (src.startsWith('/') && !src.startsWith('//')) {
+    // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+    // double-encoding with the `encodeURIComponent(src)` below
+    const qIndex = src.indexOf('?')
+    if (qIndex !== -1) {
+      const params = new URLSearchParams(src.slice(qIndex + 1))
+      const srcDpl = params.get('dpl')
+      if (srcDpl) {
+        deploymentId = srcDpl
+        params.delete('dpl')
+        const remaining = params.toString()
+        src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+      }
+    }
+  }
+
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -192,15 +230,11 @@ function defaultLoader({
 
   const q = findClosestQuality(quality, config)
 
-  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
-
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${q}`
+  )}&w=${width}&q=${q}${
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
+  }`
 }
 
 const loaders = new Map<
@@ -391,6 +425,26 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      if (deploymentId) {
+        // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+        // double-encoding with the `encodeURIComponent(src)` below
+        const qIndex = src.indexOf('?')
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(src.slice(qIndex + 1))
+          const srcDpl = params.get('dpl')
+          if (!srcDpl) {
+            // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+            params.append('dpl', deploymentId)
+            src = src.slice(0, qIndex) + '?' + params.toString()
+          }
+        } else {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          src = src + `?dpl=${deploymentId}`
+        }
+      }
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 
@@ -645,7 +699,19 @@ export default function Image({
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
     const qualities = c.qualities?.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes, qualities }
+    return {
+      ...c,
+      allSizes,
+      deviceSizes,
+      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+      // security sensitive configs like `localPatterns`, which is needed
+      // during the server render to ensure it's validated. Therefore use
+      // configContext, which holds the config from the server for validation.
+      localPatterns:
+        typeof window === 'undefined'
+          ? configContext?.localPatterns
+          : c.localPatterns,
+    }
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
@@ -862,19 +928,6 @@ export default function Image({
         warnOnce(
           `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
-        )
-      }
-
-      if (
-        src.startsWith('/') &&
-        src.includes('?') &&
-        (!config?.localPatterns?.length ||
-          (config.localPatterns.length === 1 &&
-            config.localPatterns[0].pathname === '/_next/static/media/**'))
-      ) {
-        warnOnce(
-          `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
-            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
         )
       }
 

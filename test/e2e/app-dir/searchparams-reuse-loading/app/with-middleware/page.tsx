@@ -14,18 +14,12 @@ export default function Page() {
         </Link>
       </li>
       <li>
-        <Link
-          href="/with-middleware/search-params?id=3"
-          prefetch="unstable_forceStale"
-        >
+        <Link href="/with-middleware/search-params?id=3" prefetch={true}>
           /search-params?id=3 (prefetch: true)
         </Link>
       </li>
       <li>
-        <Link
-          href="/with-middleware/search-params"
-          prefetch="unstable_forceStale"
-        >
+        <Link href="/with-middleware/search-params" prefetch={true}>
           /search-params (prefetch: true)
         </Link>
       </li>

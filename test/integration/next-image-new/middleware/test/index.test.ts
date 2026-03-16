@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { check, findPort, killApp, launchApp } from 'next-test-utils'
+import { retry, findPort, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
@@ -34,7 +34,9 @@ describe('Image with middleware in edge func', () => {
         Attempted import error: 'preload' is not exported from 'react-dom' (imported as 'preload').
        */
         await webdriver(appPort, '/')
-        await check(() => output, /compiled \//i)
+        await retry(async () => {
+          expect(output).toContain('GET /')
+        })
         expect(output).not.toContain(
           `'preload' is not exported from 'react-dom'`
         )

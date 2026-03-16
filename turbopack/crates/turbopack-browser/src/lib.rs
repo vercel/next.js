@@ -8,5 +8,5 @@ pub mod ecmascript;
 pub mod react_refresh;
 
 pub use chunking_context::{
-    BrowserChunkingContext, BrowserChunkingContextBuilder, ContentHashing, CurrentChunkMethod,
+    BrowserChunkingContext, BrowserChunkingContextBuilder, CurrentChunkMethod,
 };

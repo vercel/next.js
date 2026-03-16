@@ -10,22 +10,24 @@ import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
+  type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { RenderStage } from '../app-render/staged-rendering'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -75,6 +77,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
         case 'prerender-ppr':
@@ -97,6 +100,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'prerender':
           return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
@@ -139,8 +143,13 @@ export function headers(): Promise<ReadonlyHeaders> {
             // as a proxy so we can statically exclude this code from production builds.
             return makeUntrackedHeadersWithDevWarnings(
               workUnitStore.headers,
-              workStore?.route
+              workStore?.route,
+              workUnitStore
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            return isInEarlyRenderStage(workUnitStore)
+              ? workUnitStore.asyncApiPromises.earlyHeaders
+              : workUnitStore.asyncApiPromises.headers
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }
@@ -193,43 +202,28 @@ function makeUntrackedHeaders(
 
 function makeUntrackedHeadersWithDevWarnings(
   underlyingHeaders: ReadonlyHeaders,
-  route?: string
+  route: string | undefined,
+  requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
+  if (requestStore.asyncApiPromises) {
+    const promise = isInEarlyRenderStage(requestStore)
+      ? requestStore.asyncApiPromises.earlyHeaders
+      : requestStore.asyncApiPromises.headers
+    return instrumentHeadersPromiseWithDevWarnings(promise, route)
+  }
+
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
   }
 
-  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
+  const promise = makeDevtoolsIOAwarePromise(
+    underlyingHeaders,
+    requestStore,
+    RenderStage.Runtime
+  )
 
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case Symbol.iterator: {
-          warnForSyncAccess(route, '`...headers()` or similar iteration')
-          break
-        }
-        case 'append':
-        case 'delete':
-        case 'get':
-        case 'has':
-        case 'set':
-        case 'getSetCookie':
-        case 'forEach':
-        case 'keys':
-        case 'values':
-        case 'entries': {
-          warnForSyncAccess(route, `\`headers().${prop}\``)
-          break
-        }
-        default: {
-          // We only warn for well-defined properties of the headers object.
-        }
-      }
-
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-  })
+  const proxiedPromise = instrumentHeadersPromiseWithDevWarnings(promise, route)
 
   CachedHeaders.set(underlyingHeaders, proxiedPromise)
 
@@ -239,6 +233,73 @@ function makeUntrackedHeadersWithDevWarnings(
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createHeadersAccessError
 )
+
+function instrumentHeadersPromiseWithDevWarnings(
+  promise: Promise<ReadonlyHeaders>,
+  route: string | undefined
+) {
+  Object.defineProperties(promise, {
+    [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
+      promise,
+      route
+    ),
+    append: replaceableWarningDescriptor(promise, 'append', route),
+    delete: replaceableWarningDescriptor(promise, 'delete', route),
+    get: replaceableWarningDescriptor(promise, 'get', route),
+    has: replaceableWarningDescriptor(promise, 'has', route),
+    set: replaceableWarningDescriptor(promise, 'set', route),
+    getSetCookie: replaceableWarningDescriptor(promise, 'getSetCookie', route),
+    forEach: replaceableWarningDescriptor(promise, 'forEach', route),
+    keys: replaceableWarningDescriptor(promise, 'keys', route),
+    values: replaceableWarningDescriptor(promise, 'values', route),
+    entries: replaceableWarningDescriptor(promise, 'entries', route),
+  })
+  return promise
+}
+
+function replaceableWarningDescriptor(
+  target: unknown,
+  prop: string,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, `\`headers().${prop}\``)
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, prop, {
+        value,
+        writable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
+
+function replaceableWarningDescriptorForSymbolIterator(
+  target: unknown,
+  route: string | undefined
+) {
+  return {
+    enumerable: false,
+    get() {
+      warnForSyncAccess(route, '`...headers()` or similar iteration')
+      return undefined
+    },
+    set(value: unknown) {
+      Object.defineProperty(target, Symbol.iterator, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      })
+    },
+    configurable: true,
+  }
+}
 
 function createHeadersAccessError(
   route: string | undefined,

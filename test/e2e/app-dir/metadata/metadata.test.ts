@@ -417,7 +417,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/opengraph-image`
               )
             ),
@@ -431,7 +431,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/twitter-image`
               )
             ),
@@ -597,8 +597,10 @@ describe('app dir - metadata', () => {
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
       const $dynamicIcon = $dynamic('link[rel="icon"][type!="image/x-icon"]')
       const dynamicIconHref = $dynamicIcon.attr('href')
+      // Static icon files under dynamic routes use "-" as placeholder
+      // since the file content is the same regardless of params
       expect(dynamicIconHref).toMatch(
-        /\/icons\/static\/dynamic-routes\/123\/icon/
+        /\/icons\/static\/dynamic-routes\/-\/icon/
       )
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)

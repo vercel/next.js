@@ -19,10 +19,10 @@ export default function SearchParamsPage({
         </li>
         <li>
           <LinkAccordion
-            prefetch="unstable_forceStale"
+            prefetch={true}
             href="/search-params/target-page?searchParam=b_full"
           >
-            searchParam=b_full, prefetch="unstable_forceStale"
+            searchParam=b_full, prefetch={true}
           </LinkAccordion>
         </li>
         <li>
@@ -32,10 +32,10 @@ export default function SearchParamsPage({
         </li>
         <li>
           <LinkAccordion
-            prefetch="unstable_forceStale"
+            prefetch={true}
             href="/search-params/target-page?searchParam=d_full"
           >
-            searchParam=d_full, prefetch="unstable_forceStale"
+            searchParam=d_full, prefetch={true}
           </LinkAccordion>
         </li>
       </ul>

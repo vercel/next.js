@@ -31,6 +31,7 @@ pub async fn module_references(
         EcmascriptModuleAssetType::Ecmascript,
         *transforms,
         false,
+        false,
     )
     .await?;
     match &*parsed {

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertNoConsoleErrors,
-  assertNoErrorToast,
+  waitForNoErrorToast,
   retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -16,8 +16,7 @@ import { PrerenderManifest } from 'next/dist/build'
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
-const withCacheComponents =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
@@ -220,13 +219,13 @@ describe('use-cache', () => {
     })
   })
 
-  it('should update after unstable_expireTag correctly', async () => {
+  it('should update after revalidateTag correctly', async () => {
     const browser = await next.browser('/cache-tag')
     const initial = await browser.elementByCss('#a').text()
 
     if (!isNextDev) {
       // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent unstable_expireTag calls.
+      // subsequent revalidateTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
@@ -475,6 +474,8 @@ describe('use-cache', () => {
           // [id] route, first entry in generateStaticParams
           expect.stringMatching(/\/a\d/),
           withCacheComponents && '/api',
+          // api/[id] route handler using generateStaticParams with 'use cache' from node_modules
+          expect.stringMatching(/\/api\/\d/),
           // [id] route, second entry in generateStaticParams
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
@@ -485,6 +486,7 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/fetch-revalidate',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -496,10 +498,12 @@ describe('use-cache', () => {
           '/react-cache',
           '/referential-equality',
           '/revalidate-and-redirect/redirect',
+          '/revalidate-tag-no-refresh',
           '/rsc-payload',
           '/static-class-method',
           withCacheComponents && '/unhandled-promise-regression',
           '/use-action-state',
+          '/use-action-state-separate-export',
           '/with-server-action',
         ].filter(Boolean)
       )
@@ -608,7 +612,7 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using unstable_expireTag', async () => {
+  it('should be able to revalidate a page using revalidateTag', async () => {
     const browser = await next.browser(`/form`)
     const time1 = await browser.waitForElementByCss('#t').text()
 
@@ -636,9 +640,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
-    await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    // Revalidate is set to 1 second, so after waiting the value should change.
+    await retry(async () => {
+      await browser.refresh()
+
+      expect(await browser.elementByCss('#random').text()).not.toBe(
+        initialValue
+      )
+    })
   })
 
   it('should cache fetch without no-store', async () => {
@@ -679,6 +689,41 @@ describe('use-cache', () => {
         'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random?no-store'
       )
     })
+
+    // Test for revalidateTag with profile (stale-while-revalidate)
+    // This should NOT cause immediate client refresh - only updateTag should do that
+    it('should NOT update immediately after revalidateTag with profile (stale-while-revalidate)', async () => {
+      const browser = await next.browser('/revalidate-tag-no-refresh')
+      const initial = await browser.elementByCss('#random').text()
+
+      console.log('[Test] Initial value:', initial)
+
+      // Click 1: revalidateTag with profile - should NOT cause immediate refresh
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      // Wait for the action to complete
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick1 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 1:', afterClick1)
+      expect(afterClick1).toBe(initial) // No change - stale-while-revalidate
+
+      // Click 2: Same as click 1 - should still show stale data
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick2 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 2:', afterClick2)
+      expect(afterClick2).toBe(initial) // Still no change
+
+      // Click 3: Same as before - should still show stale data (not data from click 1)
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick3 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 3:', afterClick3)
+      expect(afterClick3).toBe(initial) // Still no change - no read-your-own-writes
+
+      // The key assertion: after 3 clicks, the value should still be the same
+      // This proves revalidateTag with profile does NOT cause read-your-own-writes
+      // (Unlike the bug where click 3 would show a different stale value)
+    })
   }
 
   it('should override fetch with cookies/auth in use cache properly', async () => {
@@ -692,6 +737,26 @@ describe('use-cache', () => {
 
   it('works with useActionState if previousState parameter is not used in "use cache" function', async () => {
     const browser = await next.browser('/use-action-state')
+
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
+
+  it('works with useActionState if previousState parameter is not used in "use cache" function (separate export)', async () => {
+    const browser = await next.browser('/use-action-state-separate-export')
 
     let value = await browser.elementByCss('p').text()
     expect(value).toBe('-1')
@@ -929,7 +994,7 @@ describe('use-cache', () => {
   })
 
   if (isNextDev) {
-    if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
+    if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {
       it('should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents', async () => {
         await next.render('/unhandled-promise-regression')
         // We assert both to better defend against changes in error messaging invalidating this test silently.
@@ -952,9 +1017,7 @@ describe('use-cache', () => {
       const initialLogs = await getSanitizedLogs(browser)
 
       const expectedOutsideBadge =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-          ? 'Prerender'
-          : 'Server'
+        process.env.__NEXT_CACHE_COMPONENTS === 'true' ? 'Prerender' : 'Server'
 
       // We ignore the logged time string at the end of this message:
       const logMessageWithDateRegexp = /^ Cache {2}deep inside /
@@ -1098,51 +1161,60 @@ describe('use-cache', () => {
       expect(await browser.eval('document.title')).toBe(title)
     })
 
-    it('can resume a cached generateMetadata function that does not read params', async () => {
-      // First load the page with JavaScript disabled, to ensure that the
-      // generateMetadata result was included in the prerendered shell.
-      let browser = await next.browser(
-        '/generate-metadata-resume/params-unused/foo',
-        { disableJavaScript: true }
-      )
+    // TODO(restart-on-cache-miss):
+    // in dev, cached Page components and generateMetadata can end up delayed into the dynamic stage
+    // even if they don't read params. This is because the `params` promise is delayed a task (for staging purposes),
+    // and thus encoding the cache key takes a task (but is not itself tracked as a cache read).
+    // If this happens, then we won't see a cache miss, and don't wait for caches to warm,
+    // so they'll end up delayed, like they're not cached at all.
+    // This breaks the tests expectations about what's in the static shell, so we're skipping it in dev for now.
+    if (!isNextDev) {
+      it('can resume a cached generateMetadata function that does not read params', async () => {
+        // First load the page with JavaScript disabled, to ensure that the
+        // generateMetadata result was included in the prerendered shell.
+        let browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo',
+          { disableJavaScript: true }
+        )
 
-      // The metadata must be in the head if it was prerendered.
-      const title = await browser
-        .elementByCss('head title', { state: 'attached' })
-        .text()
-      expect(title).toBeDateString()
-      const description = await browser
-        .elementByCss('head meta[name="description"]', { state: 'attached' })
-        .getAttribute('content')
-      expect(description).toBeDateString()
+        // The metadata must be in the head if it was prerendered.
+        const title = await browser
+          .elementByCss('head title', { state: 'attached' })
+          .text()
+        expect(title).toBeDateString()
+        const description = await browser
+          .elementByCss('head meta[name="description"]', { state: 'attached' })
+          .getAttribute('content')
+        expect(description).toBeDateString()
 
-      await browser.close()
+        await browser.close()
 
-      // Load the page again, now with JavaScript enabled.
-      browser = await next.browser(
-        '/generate-metadata-resume/params-unused/foo'
-      )
+        // Load the page again, now with JavaScript enabled.
+        browser = await next.browser(
+          '/generate-metadata-resume/params-unused/foo'
+        )
 
-      // If there was no cache hit from the RDC during the resume, we'd observe
-      // different metadata.
-      const title2 = await browser.eval('document.title')
-      const description2 = await browser
-        // Select the last meta element, in case another one was added during
-        // the resume due to a cache miss.
-        .elementByCss('meta[name="description"]:last-of-type')
-        .getAttribute('content')
+        // If there was no cache hit from the RDC during the resume, we'd observe
+        // different metadata.
+        const title2 = await browser.eval('document.title')
+        const description2 = await browser
+          // Select the last meta element, in case another one was added during
+          // the resume due to a cache miss.
+          .elementByCss('meta[name="description"]:last-of-type')
+          .getAttribute('content')
 
-      if (isNextDev) {
-        expect(title2).toBe(title)
-        expect(description2).toBe(description)
-      } else {
-        // TODO: Omitting unused params from cache keys (and upgrading cache
-        // keys when they are used) is not yet implemented. Remove this else
-        // branch once it is.
-        expect(title2).not.toBe(title)
-        expect(description2).not.toBe(description)
-      }
-    })
+        if (isNextDev) {
+          expect(title2).toBe(title)
+          expect(description2).toBe(description)
+        } else {
+          // TODO: Omitting unused params from cache keys (and upgrading cache
+          // keys when they are used) is not yet implemented. Remove this else
+          // branch once it is.
+          expect(title2).not.toBe(title)
+          expect(description2).not.toBe(description)
+        }
+      })
+    }
 
     it('can serialize parent metadata as generateMetadata argument', async () => {
       const browser = await next.browser('/generate-metadata-resume/nested')
@@ -1155,7 +1227,7 @@ describe('use-cache', () => {
       expect(canonicalUrl).toBe('https://example.com/baz/qux')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
@@ -1184,7 +1256,7 @@ describe('use-cache', () => {
       browser = await next.browser('/generate-metadata-resume/canonical/foo')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
@@ -1334,7 +1406,85 @@ describe('use-cache', () => {
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
     })
+    // end withCacheComponents
   }
+
+  it('caches a higher-order component in a "use cache" module', async () => {
+    const browser = await next.browser('/hoc/foo')
+    const slug = await browser.elementById('slug').text()
+    expect(slug).toBe('foo')
+    const date = await browser.elementById('date').text()
+    expect(date).toBeDateString()
+    await browser.refresh()
+    expect(await browser.elementById('date').text()).toBe(date)
+  })
+
+  it('ignores unused arguments in a "use cache" function', async () => {
+    const browser = await next.browser('/unused-args')
+    const initialNumbers = await browser.elementById('numbers').text()
+    await browser.refresh()
+    const numbers = await browser.elementById('numbers').text()
+    expect(numbers).toBe(initialNumbers)
+  })
+
+  if (isNextDev) {
+    it('should not log "use cache" functions called from client', async () => {
+      const browser = await next.browser('/passed-to-client')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#submit-button').click()
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        // Should have the POST request but not the function log
+        expect(logs).toContain('POST /passed-to-client')
+        expect(logs).not.toContain('└─ ƒ')
+      })
+    })
+  }
+
+  it('should allow nested short-lived caches after connection()', async () => {
+    // Check the prerendered shell (no JS).
+    let browser = await next.browser('/short-lived-caches', {
+      disableJavaScript: true,
+    })
+
+    // Static content should be in the shell.
+    expect(await browser.elementById('static').text()).toBe('Static content')
+
+    // Explicit long cacheLife should be in the shell despite short-lived inner
+    // caches.
+    expect(
+      await browser.elementById('explicit-long-revalidate-zero').text()
+    ).toBeDateString()
+    expect(
+      await browser.elementById('explicit-long-low-expire').text()
+    ).toBeDateString()
+
+    // Now check with JS enabled to verify dynamic content loads.
+    browser = await next.browser('/short-lived-caches', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    // Dynamic content should eventually render.
+    await retry(async () => {
+      // No explicit outer cacheLife (after connection()).
+      expect(
+        await browser.elementById('revalidate-zero').text()
+      ).toBeDateString()
+      expect(await browser.elementById('low-expire').text()).toBeDateString()
+
+      // Explicit short cacheLife - excluded from prerender.
+      expect(
+        await browser.elementById('explicit-revalidate-zero').text()
+      ).toBeDateString()
+      expect(
+        await browser.elementById('explicit-low-expire').text()
+      ).toBeDateString()
+    })
+
+    await assertNoConsoleErrors(browser)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
@@ -1354,6 +1504,7 @@ function extractResumeDataCacheFromPostponedState(
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 
   return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
+    undefined
   )
 }

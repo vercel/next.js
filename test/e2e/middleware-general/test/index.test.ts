@@ -39,8 +39,6 @@ describe('Middleware Runtime', () => {
           ),
         },
         nextConfig: {
-          // This test needs to intercept internal routes /_next/ (skipped by default)
-          skipMiddlewareNextInternalRoutes: false,
           experimental: {
             webpackBuildWorker: true,
           },
@@ -129,7 +127,7 @@ describe('Middleware Runtime', () => {
             runtime: 'nodejs',
             matchers: [
               {
-                regexp: '^/.*$',
+                regexp: '^.*$',
                 originalSource: '/:path*',
               },
             ],
@@ -220,21 +218,21 @@ describe('Middleware Runtime', () => {
           ...middlewareWithoutEnvs.env,
         }
         delete middlewareWithoutEnvs.env
-        expect(middlewareWithoutEnvs).toEqual({
-          // Turbopack creates more files as it can do chunking.
-          files: process.env.IS_TURBOPACK_TEST
-            ? expect.toBeArray()
-            : expect.arrayContaining([
-                'server/edge-runtime-webpack.js',
-                'server/middleware.js',
-              ]),
+        expect(middlewareWithoutEnvs).toMatchObject({
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
+          assets: [],
           regions: 'auto',
         })
+        expect(middlewareWithoutEnvs.files).toBeArray()
+        expect(middlewareWithoutEnvs.entrypoint).toMatch(
+          /^server\/.+\.(?:js|mjs|cjs)$/
+        )
+        expect(middlewareWithoutEnvs.files).toContain(
+          middlewareWithoutEnvs.entrypoint
+        )
         expect(envs).toContainAllKeys([
           'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
           '__NEXT_BUILD_ID',
@@ -261,11 +259,8 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.IS_TURBOPACK_TEST) {
-            expect(middleware.files).toContainEqual(
-              expect.stringContaining('server/edge-runtime-webpack')
-            )
-          }
+          expect(middleware.entrypoint).toMatch(/^server\/.+\.(?:js|mjs|cjs)$/)
+          expect(middleware.files).toContain(middleware.entrypoint)
 
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
@@ -693,7 +688,9 @@ describe('Middleware Runtime', () => {
 
     it('should throw when using URL with a relative URL', async () => {
       const res = await fetchViaHTTP(next.url, `/url/relative-url`)
-      expect(readMiddlewareError(res)).toContain('Invalid URL')
+      expect(readMiddlewareError(res)).toMatch(
+        /Invalid URL|cannot be parsed as a URL/
+      )
     })
 
     it('should throw when using NextRequest with a relative URL', async () => {

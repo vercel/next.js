@@ -1,3 +1,4 @@
+import './register-deployment-id-global'
 import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
@@ -12,12 +13,17 @@ appBootstrap((assetPrefix) => {
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.__NEXT_DEV_SERVER) {
+      const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
       const { getOwnerStack } =
         require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
       const { renderAppDevOverlay } =
         require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
-      renderAppDevOverlay(getOwnerStack, isRecoverableError)
+      renderAppDevOverlay(
+        getOwnerStack,
+        isRecoverableError,
+        enableCacheIndicator
+      )
     }
   }
 })

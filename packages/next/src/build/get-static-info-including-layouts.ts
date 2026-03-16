@@ -29,7 +29,7 @@ export async function getStaticInfoIncludingLayouts({
   pageFilePath: string
   appDir: string | undefined
   config: NextConfigComplete
-  isDev: boolean | undefined
+  isDev: boolean
   page: string
 }): Promise<PageStaticInfo> {
   // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.

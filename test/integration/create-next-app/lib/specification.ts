@@ -36,8 +36,7 @@ export const projectSpecification: ProjectSpecification = {
       'react-dom',
       ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
     ],
-    // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
-    devDeps: ['eslint', 'eslint-config-next', '@eslint/eslintrc'],
+    devDeps: ['eslint', 'eslint-config-next'],
   },
   default: {
     js: {

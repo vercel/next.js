@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertStaticIndicator, retry } from 'next-test-utils'
+import { waitForStaticIndicator } from 'next-test-utils'
 
 describe('app dir dev indicator - route type', () => {
   const { next } = nextTestSetup({
@@ -9,9 +9,7 @@ describe('app dir dev indicator - route type', () => {
   it('should have route type as static by default for static page', async () => {
     const browser = await next.browser('/')
 
-    await retry(async () => {
-      await assertStaticIndicator(browser, 'Static')
-    })
+    await waitForStaticIndicator(browser, 'Static')
   })
 
   it('should have route type as dynamic when changing to dynamic page', async () => {
@@ -24,9 +22,7 @@ describe('app dir dev indicator - route type', () => {
     )
 
     try {
-      await retry(async () => {
-        await assertStaticIndicator(browser, 'Dynamic')
-      })
+      await waitForStaticIndicator(browser, 'Dynamic')
     } finally {
       await next.patchFile('app/page.tsx', origContent)
     }
@@ -43,9 +39,7 @@ describe('app dir dev indicator - route type', () => {
     const browser = await next.browser('/')
 
     try {
-      await retry(async () => {
-        await assertStaticIndicator(browser, 'Dynamic')
-      })
+      await waitForStaticIndicator(browser, 'Dynamic')
     } finally {
       await next.patchFile('app/page.tsx', origContent)
     }
@@ -56,6 +50,6 @@ describe('app dir dev indicator - route type', () => {
 
     await browser.waitForElementByCss('#ready')
 
-    await assertStaticIndicator(browser, 'Dynamic')
+    await waitForStaticIndicator(browser, 'Dynamic')
   })
 })

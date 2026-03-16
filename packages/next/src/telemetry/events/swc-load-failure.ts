@@ -1,7 +1,7 @@
 import { traceGlobals } from '../../trace/shared'
 import type { Telemetry } from '../storage'
 // @ts-ignore JSON
-import { version as nextVersion, optionalDependencies } from 'next/package.json'
+import { optionalDependencies } from 'next/package.json'
 
 const EVENT_PLUGIN_PRESENT = 'NEXT_SWC_LOAD_FAILURE'
 export type EventSwcLoadFailure = {
@@ -19,7 +19,10 @@ export type EventSwcLoadFailure = {
 }
 
 export async function eventSwcLoadFailure(
-  event?: EventSwcLoadFailure['payload']
+  event?: Pick<
+    EventSwcLoadFailure['payload'],
+    'wasm' | 'nativeBindingsErrorCode'
+  >
 ): Promise<void> {
   const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
   // can't continue if telemetry isn't set
@@ -54,7 +57,7 @@ export async function eventSwcLoadFailure(
   telemetry.record({
     eventName: EVENT_PLUGIN_PRESENT,
     payload: {
-      nextVersion,
+      nextVersion: process.env.__NEXT_VERSION as string,
       glibcVersion,
       installedSwcPackages,
       arch: process.arch,

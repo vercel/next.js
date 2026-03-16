@@ -9,29 +9,35 @@ import {
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
-  ACTION_PREFETCH,
+  ScrollBehavior,
+  type AppHistoryState,
 } from './router-reducer/router-reducer-types'
 import { reducer } from './router-reducer/router-reducer'
-import { startTransition } from 'react'
+import { addTransitionType, startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import {
   FetchStrategy,
-  prefetch as prefetchWithSegmentCache,
   type PrefetchTaskFetchStrategy,
-} from './segment-cache'
-import { dispatchAppRouterAction } from './use-action-queue'
+} from './segment-cache/types'
+import { prefetch as prefetchWithSegmentCache } from './segment-cache/prefetch'
+import { navigate } from './segment-cache/navigation'
+import {
+  dispatchAppRouterAction,
+  dispatchGestureState,
+} from './use-action-queue'
+import { resetKnownRoutes } from './segment-cache/optimistic-routes'
+import { FreshnessPolicy } from './router-reducer/ppr-navigations'
 import { addBasePath } from '../add-base-path'
-import { createPrefetchURL, isExternalURL } from './app-router-utils'
-import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
+import { isExternalURL } from './app-router-utils'
 import type {
   AppRouterInstance,
   NavigateOptions,
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
+import { isJavaScriptURLString } from '../lib/javascript-url'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
@@ -81,13 +87,7 @@ function runRemainingActions(
     // after the navigation has already finished and the queue is empty
     if (actionQueue.needsRefresh) {
       actionQueue.needsRefresh = false
-      actionQueue.dispatch(
-        {
-          type: ACTION_REFRESH,
-          origin: window.location.origin,
-        },
-        setState
-      )
+      actionQueue.dispatch({ type: ACTION_REFRESH }, setState)
     }
   }
 }
@@ -278,11 +278,19 @@ function getProfilingHookForOnNavigationStart() {
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
-  shouldScroll: boolean,
-  linkInstanceRef: LinkInstance | null
+  scrollBehavior: ScrollBehavior,
+  linkInstanceRef: LinkInstance | null,
+  transitionTypes: string[] | undefined
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
+
+  if (transitionTypes) {
+    for (const type of transitionTypes) {
+      addTransitionType(type)
+    }
+  }
+
   const url = new URL(addBasePath(href), location.href)
   if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
     window.next.__pendingUrl = url
@@ -300,15 +308,14 @@ export function dispatchNavigateAction(
     url,
     isExternalUrl: isExternalURL(url),
     locationSearch: location.search,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
-    allowAliasing: true,
   })
 }
 
 export function dispatchTraverseAction(
   href: string,
-  tree: FlightRouterState | undefined
+  historyState: AppHistoryState | undefined
 ) {
   const onRouterTransitionStart = getProfilingHookForOnNavigationStart()
   if (onRouterTransitionStart !== null) {
@@ -317,8 +324,64 @@ export function dispatchTraverseAction(
   dispatchAppRouterAction({
     type: ACTION_RESTORE,
     url: new URL(href),
-    tree,
+    historyState,
   })
+}
+
+/**
+ * (Experimental) Perform a gesture navigation. This dispatches through React's
+ * useOptimistic instead of the main action queue, allowing the state to be
+ * shown during a gesture transition and discarded when the canonical navigation
+ * completes.
+ *
+ * Only available when experimental.gestureTransition is enabled.
+ */
+function gesturePush(href: string, options?: NavigateOptions): void {
+  if (process.env.__NEXT_GESTURE_TRANSITION) {
+    // TODO: Trigger a prefetch so the cache starts populating if there isn't
+    // already a prefetch for this route.
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
+
+    const state = getCurrentAppRouterState()
+    if (state === null) {
+      return
+    }
+    const url = new URL(addBasePath(href), location.href)
+    if (isExternalURL(url)) {
+      return
+    }
+
+    // Fork the router state for the duration of the gesture transition.
+    const currentUrl = new URL(state.canonicalUrl, location.href)
+    const scrollBehavior =
+      options?.scroll === false
+        ? ScrollBehavior.NoScroll
+        : ScrollBehavior.Default
+    // This is a special freshness policy that prevents dynamic requests from
+    // being spawned. During the gesture, we should only show the cached
+    // prefetched UI, not dynamic data.
+    // TODO: In the case of navigations to an unknown route, this will still
+    // end up performing a dynamic request. The plan is to do prefetch instead.
+    // There's a separate TODO for this.
+    const freshnessPolicy = FreshnessPolicy.Gesture
+    const forkedGestureState = navigate(
+      state,
+      url,
+      currentUrl,
+      state.renderedSearch,
+      state.cache,
+      state.tree,
+      state.nextUrl,
+      freshnessPolicy,
+      scrollBehavior,
+      'push'
+    )
+    dispatchGestureState(forkedGestureState)
+  }
 }
 
 /**
@@ -329,82 +392,90 @@ export function dispatchTraverseAction(
 export const publicAppRouterInstance: AppRouterInstance = {
   back: () => window.history.back(),
   forward: () => window.history.forward(),
-  prefetch: process.env.__NEXT_CLIENT_SEGMENT_CACHE
-    ? // Unlike the old implementation, the Segment Cache doesn't store its
-      // data in the router reducer state; it writes into a global mutable
-      // cache. So we don't need to dispatch an action.
-      (href: string, options?: PrefetchOptions) => {
-        const actionQueue = getAppRouterActionQueue()
-        const prefetchKind = options?.kind ?? PrefetchKind.AUTO
-
-        // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
-        // This will be possible when we update its API to not take a PrefetchKind.
-        let fetchStrategy: PrefetchTaskFetchStrategy
-        switch (prefetchKind) {
-          case PrefetchKind.AUTO: {
-            // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
-            fetchStrategy = FetchStrategy.PPR
-            break
-          }
-          case PrefetchKind.FULL: {
-            fetchStrategy = FetchStrategy.Full
-            break
-          }
-          case PrefetchKind.TEMPORARY: {
-            // This concept doesn't exist in the segment cache implementation.
-            return
-          }
-          default: {
-            prefetchKind satisfies never
-            // Despite typescript thinking that this can't happen,
-            // we might get an unexpected value from user code.
-            // We don't know what they want, but we know they want a prefetch,
-            // so use the default.
-            fetchStrategy = FetchStrategy.PPR
-          }
-        }
-
-        prefetchWithSegmentCache(
-          href,
-          actionQueue.state.nextUrl,
-          actionQueue.state.tree,
-          fetchStrategy,
-          options?.onInvalidate ?? null
+  prefetch:
+    // Unlike the old implementation, the Segment Cache doesn't store its
+    // data in the router reducer state; it writes into a global mutable
+    // cache. So we don't need to dispatch an action.
+    (href: string, options?: PrefetchOptions) => {
+      if (isJavaScriptURLString(href)) {
+        throw new Error(
+          'Next.js has blocked a javascript: URL as a security precaution.'
         )
       }
-    : (href: string, options?: PrefetchOptions) => {
-        // Use the old prefetch implementation.
-        const actionQueue = getAppRouterActionQueue()
-        const url = createPrefetchURL(href)
-        if (url !== null) {
-          // The prefetch reducer doesn't actually update any state or
-          // trigger a rerender. It just writes to a mutable cache. So we
-          // shouldn't bother calling setState/dispatch; we can just re-run
-          // the reducer directly using the current state.
-          // TODO: Refactor this away from a "reducer" so it's
-          // less confusing.
-          prefetchReducer(actionQueue.state, {
-            type: ACTION_PREFETCH,
-            url,
-            kind: options?.kind ?? PrefetchKind.FULL,
-          })
+      const actionQueue = getAppRouterActionQueue()
+      const prefetchKind = options?.kind ?? PrefetchKind.AUTO
+
+      // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
+      // This will be possible when we update its API to not take a PrefetchKind.
+      let fetchStrategy: PrefetchTaskFetchStrategy
+      switch (prefetchKind) {
+        case PrefetchKind.AUTO: {
+          // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
+          fetchStrategy = FetchStrategy.PPR
+          break
         }
-      },
+        case PrefetchKind.FULL: {
+          fetchStrategy = FetchStrategy.Full
+          break
+        }
+        default: {
+          prefetchKind satisfies never
+          // Despite typescript thinking that this can't happen,
+          // we might get an unexpected value from user code.
+          // We don't know what they want, but we know they want a prefetch,
+          // so use the default.
+          fetchStrategy = FetchStrategy.PPR
+        }
+      }
+
+      prefetchWithSegmentCache(
+        href,
+        actionQueue.state.nextUrl,
+        actionQueue.state.tree,
+        fetchStrategy,
+        options?.onInvalidate ?? null
+      )
+    },
   replace: (href: string, options?: NavigateOptions) => {
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     startTransition(() => {
-      dispatchNavigateAction(href, 'replace', options?.scroll ?? true, null)
+      dispatchNavigateAction(
+        href,
+        'replace',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes
+      )
     })
   },
   push: (href: string, options?: NavigateOptions) => {
+    if (isJavaScriptURLString(href)) {
+      throw new Error(
+        'Next.js has blocked a javascript: URL as a security precaution.'
+      )
+    }
     startTransition(() => {
-      dispatchNavigateAction(href, 'push', options?.scroll ?? true, null)
+      dispatchNavigateAction(
+        href,
+        'push',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes
+      )
     })
   },
   refresh: () => {
     startTransition(() => {
       dispatchAppRouterAction({
         type: ACTION_REFRESH,
-        origin: window.location.origin,
       })
     })
   },
@@ -414,14 +485,21 @@ export const publicAppRouterInstance: AppRouterInstance = {
         'hmrRefresh can only be used in development mode. Please use refresh instead.'
       )
     } else {
+      // Reset the known routes table so that route predictions are cleared
+      // when routes change during development.
+      resetKnownRoutes()
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_HMR_REFRESH,
-          origin: window.location.origin,
         })
       })
     }
   },
+}
+
+// Conditionally add experimental_gesturePush when gestureTransition is enabled
+if (process.env.__NEXT_GESTURE_TRANSITION) {
+  ;(publicAppRouterInstance as any).experimental_gesturePush = gesturePush
 }
 
 // Exists for debugging purposes. Don't use in application code.

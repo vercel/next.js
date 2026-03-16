@@ -29,8 +29,8 @@ describe('create-next-app ESLint configuration', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-react-compiler',
+          '--no-agents-md',
           '--app',
-          '--no-turbopack',
           '--no-import-alias',
           '--skip-install',
         ],
@@ -63,7 +63,6 @@ describe('create-next-app ESLint configuration', () => {
       expect(packageJson.scripts.lint).toBe('eslint')
       expect(packageJson.devDependencies.eslint).toBeTruthy()
       expect(packageJson.devDependencies['eslint-config-next']).toBeTruthy()
-      expect(packageJson.devDependencies['@eslint/eslintrc']).toBeTruthy()
     })
   })
 
@@ -78,8 +77,8 @@ describe('create-next-app ESLint configuration', () => {
           '--no-tailwind',
           '--no-src-dir',
           '--no-react-compiler',
+          '--no-agents-md',
           '--app',
-          '--no-turbopack',
           '--no-import-alias',
           '--skip-install',
         ],

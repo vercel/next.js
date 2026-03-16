@@ -10,5 +10,5 @@ publish = false
 workspace = true
 
 [dependencies]
-serde_json = "1.0.59"
-reqwest = { version = "0.11.6", features = ["blocking"] }
+serde_json = { workspace = true }
+reqwest = { workspace = true, features = ["blocking"] }

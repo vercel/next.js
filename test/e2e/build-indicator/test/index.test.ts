@@ -7,10 +7,13 @@ const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
       window.checkInterval = setInterval(function() {
       const root = document.querySelector('nextjs-portal').shadowRoot;
-      const indicator = root.querySelector('[data-next-mark]')
-      if(!indicator) return
+      const statusElement = root.querySelector('[data-indicator-status]')
+      const badge = root.querySelector('[data-next-badge]')
+      const status = badge ? badge.getAttribute('data-status') : null
+
+      // Check if we're showing any build/compile status
       window.showedBuilder = window.showedBuilder || (
-        indicator.getAttribute('data-next-mark-loading') === 'true'
+        statusElement !== null || (status && status !== 'none')
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 5)
@@ -46,9 +49,11 @@ describe('Build Activity Indicator', () => {
         expect(result.exitCode).toBe(1)
       }
 
-      expect(next.cliOutput).toContain(
-        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
-      )
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        )
+      })
     })
   })
 

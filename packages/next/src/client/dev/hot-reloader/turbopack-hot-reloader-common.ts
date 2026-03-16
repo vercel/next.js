@@ -142,11 +142,8 @@ function extractModulesFromTurbopackMessage(
 
     for (const mergedUpdate of update.instruction.merged) {
       for (const name of Object.keys(mergedUpdate.entries)) {
-        const res = /(.*)\s+\[.*/.exec(name)
+        const res = /(.*)\s+[([].*/.exec(name)
         if (res === null) {
-          console.error(
-            '[Turbopack HMR] Expected module to match pattern: ' + name
-          )
           continue
         }
 

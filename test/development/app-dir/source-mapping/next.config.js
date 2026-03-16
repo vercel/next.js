@@ -14,9 +14,7 @@ const nextConfig = {
       ],
     }
   },
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
 }
 
 module.exports = nextConfig

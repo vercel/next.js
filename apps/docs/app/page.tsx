@@ -22,7 +22,7 @@ export default function Home() {
               href="https://vercel.com/templates?framework=next.js"
               className="font-medium text-zinc-950 dark:text-zinc-50"
             >
-              Template
+              Templates
             </a>{' '}
             or the{' '}
             <a

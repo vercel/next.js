@@ -10,13 +10,14 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
   type PrerenderStorePPR,
-  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { ParamValue } from './params'
 import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
+import { accumulateRootVaryParam } from '../app-render/vary-params'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -64,7 +65,6 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       )
     }
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -74,30 +74,55 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         apiName
       )
     }
-    case 'private-cache':
-    case 'prerender-runtime':
+    case 'validation-client':
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
+      )
+    }
     case 'request': {
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        workUnitStore.validationSamples
+      ) {
+        const { assertRootParamInSamples } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        // If we error, make sure we return a rejected promise instead of erroring synchronously.
+        try {
+          assertRootParamInSamples(
+            workStore,
+            workUnitStore.validationSamples.params,
+            paramName
+          )
+        } catch (err) {
+          return Promise.reject(err)
+        }
+      }
+      break
+    }
+    case 'private-cache':
+    case 'prerender-runtime': {
       break
     }
     default: {
       workUnitStore satisfies never
     }
   }
+
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
 }
 
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore,
+  prerenderStore:
+    | PrerenderStorePPR
+    | PrerenderStoreLegacy
+    | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
-    case 'prerender-client': {
-      throw new InvariantError(
-        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
-      )
-    }
     case 'prerender':
     case 'prerender-legacy':
     case 'prerender-ppr':
@@ -108,7 +133,7 @@ function createPrerenderRootParamPromise(
 
   switch (prerenderStore.type) {
     case 'prerender': {
-      // We are in a dynamicIO prerender.
+      // We are in a cacheComponents prerender.
       // The param is a fallback, so it should be treated as dynamic.
       if (
         prerenderStore.fallbackRouteParams &&
@@ -123,7 +148,7 @@ function createPrerenderRootParamPromise(
       break
     }
     case 'prerender-ppr': {
-      // We aren't in a dynamicIO prerender, but the param is a fallback,
+      // We aren't in a cacheComponents prerender, but the param is a fallback,
       // so we need to make an erroring params object which will postpone/error if you access it
       if (
         prerenderStore.fallbackRouteParams &&
@@ -148,6 +173,7 @@ function createPrerenderRootParamPromise(
   }
 
   // If the param is not a fallback param, we just return the statically available value.
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(underlyingParams[paramName])
 }
 
@@ -162,7 +188,7 @@ async function makeErroringRootParamPromise(
   // In most dynamic APIs, we also throw if `dynamic = "error"`.
   // However, root params are only dynamic when we're generating a fallback shell,
   // and even with `dynamic = "error"` we still support generating dynamic fallback shells.
-  // TODO: remove this comment when dynamicIO is the default since there will be no `dynamic = "error"`
+  // TODO: remove this comment when cacheComponents is the default since there will be no `dynamic = "error"`
   switch (prerenderStore.type) {
     case 'prerender-ppr': {
       return postponeWithTracking(

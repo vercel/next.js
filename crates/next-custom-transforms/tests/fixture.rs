@@ -8,17 +8,18 @@ use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    debug_instant_stack::debug_instant_stack,
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
     optimize_server_react::{self, optimize_server_react},
     pure::pure_magic,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    shake_exports::{shake_exports, Config as ShakeExportsConfig},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    shake_exports::{Config as ShakeExportsConfig, shake_exports},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
     track_dynamic_imports::track_dynamic_imports,
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
@@ -26,20 +27,20 @@ use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
     atoms::atom,
-    common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
+    common::{FileName, Mark, SyntaxContext, comments::SingleThreadedComments},
     ecma::{
         ast::Pass,
-        parser::{EsSyntax, Syntax},
+        parser::{EsSyntax, Syntax, TsSyntax},
         transforms::{
             base::resolver,
             react::jsx,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
         utils::ExprCtx,
-        visit::{visit_mut_pass, visit_pass, Visit},
+        visit::{Visit, visit_mut_pass, visit_pass},
     },
 };
-use swc_relay::{relay, RelayLanguageConfig};
+use swc_relay::{RelayLanguageConfig, relay};
 use testing::fixture;
 
 fn syntax() -> Syntax {
@@ -453,6 +454,8 @@ fn react_server_components_typescript(input: PathBuf) {
                     is_react_server_layer: true,
                     cache_components_enabled: false,
                     use_cache_enabled: false,
+                    taint_enabled: true,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -471,19 +474,43 @@ fn react_server_components_typescript(input: PathBuf) {
 fn react_server_components_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let filename = FileName::Real(PathBuf::from("/some-project/src/some-file.js"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer,
-                    cache_components_enabled: false,
-                    use_cache_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
+            let unresolved_mark = Mark::new();
+            (
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                server_components(
+                    filename.clone().into(),
+                    Config::WithOptions(Options {
+                        is_react_server_layer,
+                        cache_components_enabled: false,
+                        use_cache_enabled: false,
+                        taint_enabled: true,
+                        page_extensions: vec![],
+                    }),
+                    tr.comments.as_ref().clone(),
+                    None,
+                ),
+                server_actions(
+                    &filename,
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    tr.comments.as_ref().clone(),
+                    unresolved_mark,
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Webpack,
+                ),
             )
         },
         &input,
@@ -514,10 +541,16 @@ fn next_font_loaders_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/server-actions/**/input.*")]
 fn server_actions_fixture(input: PathBuf) {
-    let (input_syntax, extension) = if input.extension() == Some("ts".as_ref()) {
-        (Syntax::Typescript(Default::default()), "ts")
-    } else {
-        (syntax(), "js")
+    let (input_syntax, extension) = match input.extension().and_then(|e| e.to_str()) {
+        Some("ts") => (Syntax::Typescript(Default::default()), "ts"),
+        Some("tsx") => (
+            Syntax::Typescript(TsSyntax {
+                tsx: true,
+                ..Default::default()
+            }),
+            "tsx",
+        ),
+        _ => (syntax(), "js"),
     };
 
     let output = input.parent().unwrap().join(format!("output.{extension}"));
@@ -533,8 +566,9 @@ fn server_actions_fixture(input: PathBuf) {
     test_fixture(
         input_syntax,
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -546,6 +580,7 @@ fn server_actions_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,
@@ -567,8 +602,9 @@ fn next_font_with_directive_fixture(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 next_font_loaders(FontLoaderConfig {
                     relative_file_path_from_root: "app/test.tsx".into(),
                     font_loaders: vec!["@next/font/google".into()],
@@ -584,6 +620,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -835,6 +872,22 @@ fn test_debug_name(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/debug-instant-stack/**/input.js")]
+fn test_debug_instant_stack(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+
+    test_fixture(
+        syntax(),
+        &|_| debug_instant_stack("app/page.js".to_string(), vec![]),
+        &input,
+        &output,
+        FixtureTestConfig {
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
 #[fixture("tests/fixture/edge-assert/**/input.js")]
 fn test_edge_assert(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
@@ -884,8 +937,9 @@ fn test_source_maps(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                resolver(unresolved_mark, Mark::new(), false),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     None,
@@ -897,6 +951,7 @@ fn test_source_maps(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     mode,
@@ -918,12 +973,12 @@ fn track_dynamic_imports_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             let unresolved_mark = Mark::new();
             let top_level_mark = Mark::new();
             (
                 resolver(unresolved_mark, top_level_mark, false),
-                track_dynamic_imports(unresolved_mark),
+                track_dynamic_imports(unresolved_mark, tr.comments.as_ref().clone()),
             )
         },
         &input,

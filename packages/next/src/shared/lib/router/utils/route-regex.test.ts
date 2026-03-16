@@ -44,8 +44,13 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/photos/(.):nxtIauthor/:nxtPid",
        "re": /\\^\\\\/photos\\\\/\\\\\\(\\\\\\.\\\\\\)\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "author": "nxtIauthor",
-         "id": "nxtPid",
+         "intercepted": {
+           "author": "(.)",
+         },
+         "names": {
+           "author": "nxtIauthor",
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtIauthor": "nxtIauthor",
@@ -86,8 +91,13 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/(.):nxtIauthor/:nxtPid",
        "re": /\\^\\\\/\\\\\\(\\\\\\.\\\\\\)\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "author": "nxtIauthor",
-         "id": "nxtPid",
+         "intercepted": {
+           "author": "(.)",
+         },
+         "names": {
+           "author": "nxtIauthor",
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtIauthor": "nxtIauthor",
@@ -122,8 +132,13 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/(..)(..):nxtIauthor/:nxtPid",
        "re": /\\^\\\\/\\\\\\(\\\\\\.\\\\\\.\\\\\\)\\\\\\(\\\\\\.\\\\\\.\\\\\\)\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "author": "nxtIauthor",
-         "id": "nxtPid",
+         "intercepted": {
+           "author": "(..)(..)",
+         },
+         "names": {
+           "author": "nxtIauthor",
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtIauthor": "nxtIauthor",
@@ -160,8 +175,13 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/photos/(..)(..):nxtIauthor/:nxtPid",
        "re": /\\^\\\\/photos\\\\/\\\\\\(\\\\\\.\\\\\\.\\\\\\)\\\\\\(\\\\\\.\\\\\\.\\\\\\)\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "author": "nxtIauthor",
-         "id": "nxtPid",
+         "intercepted": {
+           "author": "(..)(..)",
+         },
+         "names": {
+           "author": "nxtIauthor",
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtIauthor": "nxtIauthor",
@@ -206,8 +226,11 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/:nxtPlocale/about.segments/:nxtPsegmentPath+.segment.rsc",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/about\\\\\\.segments\\\\/\\(\\.\\+\\?\\)\\\\\\.segment\\\\\\.rsc\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "locale": "nxtPlocale",
-         "segmentPath": "nxtPsegmentPath",
+         "intercepted": {},
+         "names": {
+           "locale": "nxtPlocale",
+           "segmentPath": "nxtPsegmentPath",
+         },
        },
        "routeKeys": {
          "nxtPlocale": "nxtPlocale",
@@ -245,8 +268,11 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/:nxtPlocale/about.segments/$dname$d/:nxtPname.segment.rsc",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/about\\\\\\.segments\\\\/\\\\\\$dname\\\\\\$d\\(\\[\\^/\\]\\+\\?\\)\\\\\\.segment\\\\\\.rsc\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "locale": "nxtPlocale",
-         "name": "nxtPname",
+         "intercepted": {},
+         "names": {
+           "locale": "nxtPlocale",
+           "name": "nxtPname",
+         },
        },
        "routeKeys": {
          "nxtPlocale": "nxtPlocale",
@@ -283,7 +309,10 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/photos/(.)author/:nxtPid",
        "re": /\\^\\\\/photos\\\\/\\\\\\(\\\\\\.\\\\\\)author\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",
@@ -317,7 +346,10 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/photos/:nxtPid",
        "re": /\\^\\\\/photos\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",
@@ -354,7 +386,10 @@ describe('getNamedRouteRegex', () => {
        "pathToRegexpPattern": "/photos/:nxtPid*",
        "re": /\\^\\\\/photos\\(\\?:\\\\/\\(\\.\\+\\?\\)\\)\\?\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",
@@ -402,7 +437,10 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
        "pathToRegexpPattern": "/:nxtPfoobar/page",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/page\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "foo-bar": "nxtPfoobar",
+         "intercepted": {},
+         "names": {
+           "foo-bar": "nxtPfoobar",
+         },
        },
        "routeKeys": {
          "nxtPfoobar": "nxtPfoo-bar",
@@ -430,7 +468,10 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
        "pathToRegexpPattern": "/:nxtPfoo_id/page",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/page\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "foo_id": "nxtPfoo_id",
+         "intercepted": {},
+         "names": {
+           "foo_id": "nxtPfoo_id",
+         },
        },
        "routeKeys": {
          "nxtPfoo_id": "nxtPfoo_id",
@@ -458,7 +499,10 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
        "pathToRegexpPattern": "/:nxtPthisis_myroute/page",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/page\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "this-is_my-route": "nxtPthisis_myroute",
+         "intercepted": {},
+         "names": {
+           "this-is_my-route": "nxtPthisis_myroute",
+         },
        },
        "routeKeys": {
          "nxtPthisis_myroute": "nxtPthis-is_my-route",
@@ -508,11 +552,11 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
     })
 
     // Both should use the same prefixed key for 'lang'
-    expect(regex1.reference.lang).toBe(regex2.reference.lang)
-    expect(regex2.reference.lang).toBe('nxtPlang')
+    expect(regex1.reference.names.lang).toBe(regex2.reference.names.lang)
+    expect(regex2.reference.names.lang).toBe('nxtPlang')
 
     // New parameter should be added to the reference
-    expect(regex2.reference.id).toBe('nxtPid')
+    expect(regex2.reference.names.id).toBe('nxtPid')
   })
 
   it('should maintain reference consistency across multiple paths', () => {
@@ -526,8 +570,10 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
     })
 
     // Same parameter name should map to same prefixed key
-    expect(baseRegex.reference.locale).toBe(interceptedRegex.reference.locale)
-    expect(interceptedRegex.reference.locale).toBe('nxtPlocale')
+    expect(baseRegex.reference.names.locale).toBe(
+      interceptedRegex.reference.names.locale
+    )
+    expect(interceptedRegex.reference.names.locale).toBe('nxtPlocale')
   })
 
   it('should generate inverse pattern with correct parameter references', () => {
@@ -566,7 +612,10 @@ describe('getNamedRouteRegex - Duplicate Keys', () => {
        "pathToRegexpPattern": "/:nxtPid/posts/:nxtPid",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/posts\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",
@@ -595,7 +644,10 @@ describe('getNamedRouteRegex - Duplicate Keys', () => {
        "pathToRegexpPattern": "/:nxtPid/posts/:nxtPid",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/posts\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",
@@ -639,10 +691,13 @@ describe('getNamedRouteRegex - Complex Paths', () => {
        "pathToRegexpPattern": "/:nxtPorg/:nxtPrepo/:nxtPbranch/:nxtPpath+",
        "re": /\\^\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\[\\^/\\]\\+\\?\\)\\\\/\\(\\.\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "branch": "nxtPbranch",
-         "org": "nxtPorg",
-         "path": "nxtPpath",
-         "repo": "nxtPrepo",
+         "intercepted": {},
+         "names": {
+           "branch": "nxtPbranch",
+           "org": "nxtPorg",
+           "path": "nxtPpath",
+           "repo": "nxtPrepo",
+         },
        },
        "routeKeys": {
          "nxtPbranch": "nxtPbranch",
@@ -689,7 +744,7 @@ describe('getNamedRouteRegex - Complex Paths', () => {
         prefixRouteKeys: true,
       })
 
-      // Should use interception prefix
+      // Should use consistent parameter prefix (interception marker adjacent to parameter uses nxtI)
       expect(regex.routeKeys).toEqual({
         nxtIid: 'nxtIid',
       })
@@ -721,7 +776,10 @@ describe('getNamedRouteRegex - Trailing Slash Behavior', () => {
        "pathToRegexpPattern": "/posts/:nxtPid",
        "re": /\\^\\\\/posts\\\\/\\(\\[\\^/\\]\\+\\?\\)\\(\\?:\\\\/\\)\\?\\$/,
        "reference": {
-         "id": "nxtPid",
+         "intercepted": {},
+         "names": {
+           "id": "nxtPid",
+         },
        },
        "routeKeys": {
          "nxtPid": "nxtPid",

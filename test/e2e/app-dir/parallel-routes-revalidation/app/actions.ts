@@ -1,5 +1,5 @@
 'use server'
-import { unstable_expirePath } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 let data = []
@@ -25,5 +25,5 @@ export async function redirectAction() {
 
 export async function clearData() {
   data = []
-  unstable_expirePath('/')
+  revalidatePath('/')
 }

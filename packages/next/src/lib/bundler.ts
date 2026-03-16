@@ -64,7 +64,9 @@ export function parseBundlerArgs(options: {
 
   if (bundlerFlags.size > 1) {
     console.error(
-      `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}. Configure exactly one bundler.`
+      `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}.
+
+Edit your command or your package.json script to configure only one bundler.`
     )
     process.exit(1)
   }

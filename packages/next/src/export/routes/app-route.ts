@@ -47,9 +47,8 @@ export async function exportAppRoute(
       },
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
-  experimental: Required<
-    Pick<ExperimentalConfig, 'cacheComponents' | 'authInterrupts'>
-  >,
+  cacheComponents: boolean,
+  experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
   buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
@@ -67,20 +66,15 @@ export async function exportAppRoute(
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest: {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
-      notFoundRoutes: [],
+    previewProps: {
+      previewModeEncryptionKey: '',
+      previewModeId: '',
+      previewModeSigningKey: '',
     },
     renderOpts: {
+      cacheComponents,
       experimental,
-      nextExport: true,
+      isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
@@ -107,7 +101,7 @@ export async function exportAppRoute(
       // expect that anything dynamic in the GET handler will make it dynamic
       // and thus avoid the cache surprises that led to us removing static gen
       // unless specifically opted into
-      experimental.cacheComponents !== true
+      cacheComponents !== true
     ) {
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }

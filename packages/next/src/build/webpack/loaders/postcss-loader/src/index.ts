@@ -112,7 +112,6 @@ export default async function loader(
         }
       }
 
-      // eslint-disable-next-line no-undefined
       let map = result.map ? result.map.toJSON() : undefined
 
       if (map && useSourceMap) {

@@ -105,6 +105,16 @@
         ),
     ),
     (
+        "i",
+        Function(
+            2,
+            622,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
         "x#10",
         Unknown {
             original_value: None,

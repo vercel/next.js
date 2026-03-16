@@ -3,9 +3,8 @@ import type {
   EdgeMiddlewareMeta,
 } from '../loaders/get-module-build-info'
 import type { EdgeSSRMeta } from '../loaders/get-module-build-info'
-import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
+import type { ProxyMatcher } from '../../analysis/get-page-static-info'
 import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-regex'
-import { getDefaultMiddlewareMatcher } from '../../../shared/lib/router/utils/get-default-middleware-matcher'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -23,8 +22,9 @@ import {
   SERVER_REFERENCE_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  SERVER_FILES_MANIFEST,
 } from '../../../shared/lib/constants'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { ProxyConfig } from '../../analysis/get-page-static-info'
 import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
@@ -34,10 +34,9 @@ import {
   WEBPACK_LAYERS,
 } from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
-import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../../lib/is-interception-route-rewrite'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
 import { getModuleReferencesInOrder } from '../utils'
-import type { NextConfigComplete } from '../../../server/config-shared'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -46,7 +45,11 @@ export interface EdgeFunctionDefinition {
   files: string[]
   name: string
   page: string
-  matchers: MiddlewareMatcher[]
+  /**
+   * Canonical entrypoint module path (relative to distDir) for this edge function.
+   */
+  entrypoint: string
+  matchers: ProxyMatcher[]
   env: Record<string, string>
   wasm?: AssetBinding[]
   assets?: AssetBinding[]
@@ -135,6 +138,10 @@ function getEntryFiles(
       `server/${NEXT_FONT_MANIFEST}.js`,
       `server/${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
     )
+
+    if (!opts.dev) {
+      files.push(`${SERVER_FILES_MANIFEST}.js`)
+    }
   }
 
   if (hasInstrumentationHook) {
@@ -148,6 +155,31 @@ function getEntryFiles(
   )
 
   return files
+}
+
+function getEntrypointFile(entrypoint: {
+  getEntrypointChunk(): { files: Iterable<string> }
+  getFiles(): Iterable<string>
+}): string {
+  const getJsFile = (files: Iterable<string>): string | undefined => {
+    for (const file of files) {
+      if (!file.endsWith('.hot-update.js') && /\.(?:js|mjs|cjs)$/i.test(file)) {
+        return `server/${file}`
+      }
+    }
+  }
+
+  const file =
+    getJsFile(entrypoint.getEntrypointChunk().files) ||
+    getJsFile(entrypoint.getFiles())
+
+  if (!file) {
+    throw new Error(
+      'Expected edge function entrypoint to emit a JavaScript file'
+    )
+  }
+
+  return file
 }
 
 function getCreateAssets(params: {
@@ -197,29 +229,21 @@ function getCreateAssets(params: {
         continue
       }
 
-      let matchers: MiddlewareMatcher[]
-      if (metadata?.edgeMiddleware?.matchers) {
-        matchers = metadata.edgeMiddleware.matchers
-      } else {
-        // For middleware at root with no explicit matchers, use getDefaultMiddlewareMatcher
-        // which respects skipMiddlewareNextInternalRoutes config
-        const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
-        if (page === '/' && catchAll) {
-          matchers = [getDefaultMiddlewareMatcher(opts.nextConfig)]
-        } else {
-          const matcherSource = metadata.edgeSSR?.isAppDir
-            ? normalizeAppPath(page)
-            : page
-          matchers = [
-            {
-              regexp: getNamedMiddlewareRegex(matcherSource, {
-                catchAll,
-              }).namedRegex,
-              originalSource: matcherSource,
-            },
-          ]
-        }
-      }
+      const matcherSource = metadata.edgeSSR?.isAppDir
+        ? normalizeAppPath(page)
+        : page
+
+      const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
+
+      const { namedRegex } = getNamedMiddlewareRegex(matcherSource, {
+        catchAll,
+      })
+      const matchers = metadata?.edgeMiddleware?.matchers ?? [
+        {
+          regexp: namedRegex,
+          originalSource: page === '/' && catchAll ? '/:path*' : matcherSource,
+        },
+      ]
 
       const isEdgeFunction = !!(metadata.edgeApiFunction || metadata.edgeSSR)
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
@@ -229,6 +253,7 @@ function getCreateAssets(params: {
           hasInstrumentationHook,
           opts
         ),
+        entrypoint: getEntrypointFile(entrypoint),
         name: entrypoint.name,
         page: page,
         matchers,
@@ -304,7 +329,7 @@ function isBunModule(moduleName: string) {
 
 function isDynamicCodeEvaluationAllowed(
   fileName: string,
-  middlewareConfig?: MiddlewareConfig,
+  middlewareConfig?: ProxyConfig,
   rootDir?: string
 ) {
   // Some packages are known to use `eval` but are safe to use in the Edge
@@ -828,7 +853,6 @@ interface Options {
   sriEnabled: boolean
   rewrites: CustomRoutes['rewrites']
   edgeEnvironments: EdgeRuntimeEnvironments
-  nextConfig: NextConfigComplete
 }
 
 export default class MiddlewarePlugin {
@@ -836,20 +860,12 @@ export default class MiddlewarePlugin {
   private readonly sriEnabled: Options['sriEnabled']
   private readonly rewrites: Options['rewrites']
   private readonly edgeEnvironments: EdgeRuntimeEnvironments
-  private readonly nextConfig: Options['nextConfig']
 
-  constructor({
-    dev,
-    sriEnabled,
-    rewrites,
-    edgeEnvironments,
-    nextConfig,
-  }: Options) {
+  constructor({ dev, sriEnabled, rewrites, edgeEnvironments }: Options) {
     this.dev = dev
     this.sriEnabled = sriEnabled
     this.rewrites = rewrites
     this.edgeEnvironments = edgeEnvironments
-    this.nextConfig = nextConfig
   }
 
   public apply(compiler: webpack.Compiler) {
@@ -905,7 +921,6 @@ export default class MiddlewarePlugin {
             rewrites: this.rewrites,
             edgeEnvironments: this.edgeEnvironments,
             dev: this.dev,
-            nextConfig: this.nextConfig,
           },
         })
       )

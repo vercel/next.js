@@ -1,11 +1,10 @@
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
-    source::Source,
+    context::AssetContext, module::Module, reference_type::ReferenceType, source::Source,
 };
 use turbopack_ecmascript::EcmascriptInputTransforms;
 use turbopack_static::ecma::StaticUrlJsModule;
@@ -24,8 +23,8 @@ use super::source_asset::StructuredImageFileSource;
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
+    Encode,
+    Decode,
 )]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
@@ -56,7 +55,9 @@ impl StructuredImageModuleType {
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: ResolvedVc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticUrlJsModule::new(*source).to_resolved().await?;
+        let static_asset = StaticUrlJsModule::new(*source, Some(rcstr!("client")))
+            .to_resolved()
+            .await?;
         Ok(module_asset_context
             .process(
                 Vc::upcast(
@@ -88,7 +89,7 @@ impl CustomModuleType for StructuredImageModuleType {
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _part: Option<ModulePart>,
+        _reference_type: ReferenceType,
     ) -> Vc<Box<dyn Module>> {
         StructuredImageModuleType::create_module(
             source,

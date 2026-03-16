@@ -1,4 +1,4 @@
-  x To use "use cache", please enable the feature flag `experimental.cacheComponents` in your Next.js config.
+  x To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.
   | 
   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
   | 

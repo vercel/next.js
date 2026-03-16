@@ -86,7 +86,6 @@ function modulesToDom(list: any, options: any) {
     } else {
       stylesInDom.push({
         identifier: identifier,
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         updater: addStyle(obj, options),
         references: 1,
       })
@@ -104,7 +103,6 @@ function insertStyleElement(options: any) {
 
   if (typeof attributes.nonce === 'undefined') {
     const nonce =
-      // eslint-disable-next-line no-undef
       typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
 
     if (nonce) {

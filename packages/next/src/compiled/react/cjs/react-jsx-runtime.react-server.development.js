@@ -331,42 +331,54 @@
     exports.jsx = function (type, config, maybeKey) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
+      if (trackActualOwner) {
+        var previousStackTraceLimit = Error.stackTraceLimit;
+        Error.stackTraceLimit = 10;
+        var debugStackDEV = Error("react-stack-top-frame");
+        Error.stackTraceLimit = previousStackTraceLimit;
+      } else debugStackDEV = unknownOwnerDebugStack;
       return jsxDEVImpl(
         type,
         config,
         maybeKey,
         !1,
-        trackActualOwner
-          ? Error("react-stack-top-frame")
-          : unknownOwnerDebugStack,
+        debugStackDEV,
         trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.jsxDEV = function (type, config, maybeKey, isStaticChildren) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
+      if (trackActualOwner) {
+        var previousStackTraceLimit = Error.stackTraceLimit;
+        Error.stackTraceLimit = 10;
+        var debugStackDEV = Error("react-stack-top-frame");
+        Error.stackTraceLimit = previousStackTraceLimit;
+      } else debugStackDEV = unknownOwnerDebugStack;
       return jsxDEVImpl(
         type,
         config,
         maybeKey,
         isStaticChildren,
-        trackActualOwner
-          ? Error("react-stack-top-frame")
-          : unknownOwnerDebugStack,
+        debugStackDEV,
         trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.jsxs = function (type, config, maybeKey) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
+      if (trackActualOwner) {
+        var previousStackTraceLimit = Error.stackTraceLimit;
+        Error.stackTraceLimit = 10;
+        var debugStackDEV = Error("react-stack-top-frame");
+        Error.stackTraceLimit = previousStackTraceLimit;
+      } else debugStackDEV = unknownOwnerDebugStack;
       return jsxDEVImpl(
         type,
         config,
         maybeKey,
         !0,
-        trackActualOwner
-          ? Error("react-stack-top-frame")
-          : unknownOwnerDebugStack,
+        debugStackDEV,
         trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };

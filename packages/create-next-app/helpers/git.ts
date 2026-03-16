@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { execSync } from 'node:child_process'
 import { join } from 'node:path'
 import { rmSync } from 'node:fs'

@@ -250,6 +250,10 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
+      /**
+       * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
+       */
+      extraHTTPHeaders?: Record<string, string>
       waitUntil?: PlaywrightNavigationWaitUntil
     }
   ) {
@@ -265,6 +269,10 @@ export class Playwright<TCurrent = undefined> {
 
     page.setDefaultTimeout(defaultTimeout)
     page.setDefaultNavigationTimeout(defaultTimeout)
+    const extraHTTPHeaders = opts?.extraHTTPHeaders
+    if (extraHTTPHeaders !== undefined) {
+      page.setExtraHTTPHeaders(extraHTTPHeaders)
+    }
 
     pageLogs = []
     websocketFrames = []
@@ -310,23 +318,29 @@ export class Playwright<TCurrent = undefined> {
     }
 
     page.on('websocket', (ws) => {
+      const decoder = tracePlaywright ? new TextDecoder() : null
       if (tracePlaywright) {
-        page
-          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
-          .catch(() => {})
+        // We're just evaluating a string here so that it appears in Playwright
+        // traces.
+        // console.log spams CI logs. If you already have a browser open, you can
+        // see WebSocket messages in the network tab of dev tools.
+        // TODO: Revisit once https://github.com/microsoft/playwright/issues/10996 is resolved.
+        page.evaluate(`'connected to ws at ${ws.url()}'`).catch(() => {})
 
         ws.on('close', () =>
-          page
-            .evaluate(`console.log('closed websocket ${ws.url()}')`)
-            .catch(() => {})
+          page.evaluate(`'closed websocket ${ws.url()}'`).catch(() => {})
         )
       }
       ws.on('framereceived', (frame) => {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
+          const { payload } = frame
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            .evaluate(
+              `'received ws message ${JSON.stringify(typeof payload === 'string' ? payload : decoder!.decode(payload))}'`
+            )
             .catch(() => {})
         }
       })
@@ -607,7 +621,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
   }
 
   locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {

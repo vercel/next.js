@@ -1,5 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
+import { execSync } from 'node:child_process'
+import semver from 'semver'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { createParserFromPath } from '../lib/parser'
 import { white, bold, red, yellow, green, magenta } from 'picocolors'
@@ -19,20 +21,12 @@ interface TransformerOptions {
   [key: string]: unknown
 }
 
-const ESLINT_CONFIG_TEMPLATE_TYPESCRIPT = `\
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+const ESLINT_CONFIG_TEMPLATE_TYPESCRIPT = `import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     ignores: [
       "node_modules/**",
@@ -47,19 +41,10 @@ const eslintConfig = [
 export default eslintConfig;
 `
 
-const ESLINT_CONFIG_TEMPLATE_JAVASCRIPT = `import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+const ESLINT_CONFIG_TEMPLATE_JAVASCRIPT = `import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals"),
+  ...nextCoreWebVitals,
   {
     ignores: [
       "node_modules/**",
@@ -80,8 +65,8 @@ function detectTypeScript(projectRoot: string): boolean {
 
 function findExistingEslintConfig(projectRoot: string): {
   exists: boolean
-  path?: string
-  isFlat?: boolean
+  path: string | null
+  isLegacy: boolean | null
 } {
   const flatConfigs = [
     'eslint.config.js',
@@ -105,7 +90,7 @@ function findExistingEslintConfig(projectRoot: string): {
   for (const config of flatConfigs) {
     const configPath = path.join(projectRoot, config)
     if (existsSync(configPath)) {
-      return { exists: true, path: configPath, isFlat: true }
+      return { exists: true, path: configPath, isLegacy: false }
     }
   }
 
@@ -113,16 +98,493 @@ function findExistingEslintConfig(projectRoot: string): {
   for (const config of legacyConfigs) {
     const configPath = path.join(projectRoot, config)
     if (existsSync(configPath)) {
-      return { exists: true, path: configPath, isFlat: false }
+      return { exists: true, path: configPath, isLegacy: true }
     }
   }
 
-  return { exists: false }
+  return { exists: false, path: null, isLegacy: null }
+}
+
+function replaceFlatCompatInConfig(configPath: string): boolean {
+  let configContent: string
+  try {
+    configContent = readFileSync(configPath, 'utf8')
+  } catch (error) {
+    console.error(`   Error reading config file: ${error}`)
+    return false
+  }
+
+  // Check if FlatCompat is used
+  const hasFlatCompat =
+    configContent.includes('FlatCompat') ||
+    configContent.includes('@eslint/eslintrc')
+
+  if (!hasFlatCompat) {
+    console.log('   No FlatCompat usage found, no changes needed')
+    return false
+  }
+
+  // Parse the file using jscodeshift
+  const j = createParserFromPath(configPath)
+  const root = j(configContent)
+
+  // Track if we need to add imports and preserve other configs
+  let needsNext = false
+  let needsNextVitals = false
+  let needsNextTs = false
+  let otherConfigs: string[] = []
+
+  // Look for FlatCompat extends usage and identify which configs are being used
+  root.find(j.CallExpression).forEach((astPath) => {
+    const node = astPath.value
+
+    // Detect compat.extends() calls and identify which configs are being used
+    if (
+      node.callee.type === 'MemberExpression' &&
+      (node.callee as any).object.type === 'Identifier' &&
+      (node.callee as any).object.name === 'compat' &&
+      (node.callee as any).property.type === 'Identifier' &&
+      (node.callee as any).property.name === 'extends'
+    ) {
+      // Check arguments for all configs
+      node.arguments.forEach((arg: any) => {
+        if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
+          if (arg.value === 'next') {
+            needsNext = true
+          } else if (arg.value === 'next/core-web-vitals') {
+            needsNextVitals = true
+          } else if (arg.value === 'next/typescript') {
+            needsNextTs = true
+          } else if (typeof arg.value === 'string') {
+            // Preserve other configs (non-Next.js or other Next.js variants)
+            otherConfigs.push(arg.value)
+          }
+        }
+      })
+    }
+
+    // Detect compat.config({ extends: [...] }) calls and identify which configs are being used
+    if (
+      node.callee.type === 'MemberExpression' &&
+      (node.callee as any).object.type === 'Identifier' &&
+      (node.callee as any).object.name === 'compat' &&
+      (node.callee as any).property.type === 'Identifier' &&
+      (node.callee as any).property.name === 'config'
+    ) {
+      // Look for extends property in the object argument
+      node.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              // Process the extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next') {
+                    needsNext = true
+                  } else if (element.value === 'next/core-web-vitals') {
+                    needsNextVitals = true
+                  } else if (element.value === 'next/typescript') {
+                    needsNextTs = true
+                  } else if (typeof element.value === 'string') {
+                    // Preserve other configs (non-Next.js or other Next.js variants)
+                    otherConfigs.push(element.value)
+                  }
+                }
+              })
+            }
+          })
+        }
+      })
+    }
+  })
+
+  if (
+    !needsNext &&
+    !needsNextVitals &&
+    !needsNextTs &&
+    otherConfigs.length === 0
+  ) {
+    console.warn(
+      prefixes.warn,
+      '   No ESLint configs found in FlatCompat usage'
+    )
+    return false
+  }
+
+  if (!needsNext && !needsNextVitals && !needsNextTs) {
+    console.log('   No Next.js configs found, but preserving other configs')
+  }
+
+  // Only remove FlatCompat setup if no other configs need it
+  if (otherConfigs.length === 0) {
+    // Remove FlatCompat imports and setup
+    root.find(j.ImportDeclaration).forEach((astPath) => {
+      const node = astPath.value
+      if (
+        node.source.value === '@eslint/eslintrc' ||
+        node.source.value === '@eslint/js'
+      ) {
+        // Only remove FlatCompat-specific imports
+        j(astPath).remove()
+      }
+      // Leave path/url imports alone - they might be used elsewhere
+    })
+
+    // Remove only the compat variable - keep __dirname and __filename
+    root.find(j.VariableDeclaration).forEach((astPath) => {
+      const node = astPath.value
+      if (node.declarations) {
+        // Filter out only the compat variable
+        const filteredDeclarations = node.declarations.filter((decl: any) => {
+          if (decl && decl.id && decl.id.type === 'Identifier') {
+            return decl.id.name !== 'compat'
+          }
+          return true
+        })
+
+        if (filteredDeclarations.length === 0) {
+          // Remove entire declaration if no declarations left
+          j(astPath).remove()
+        } else if (filteredDeclarations.length < node.declarations.length) {
+          // Update declaration with filtered declarations
+          node.declarations = filteredDeclarations
+        }
+      }
+    })
+  } else {
+    console.log('   Preserving FlatCompat setup for other ESLint configs')
+  }
+
+  // Add new imports after the eslint/config import
+  const imports = []
+
+  // Add imports in correct order: next first, then core-web-vitals, then typescript
+  if (needsNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
+      )
+    )
+  }
+
+  if (needsNextVitals) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('nextCoreWebVitals'))],
+        j.literal('eslint-config-next/core-web-vitals')
+      )
+    )
+  }
+
+  if (needsNextTs) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('nextTypescript'))],
+        j.literal('eslint-config-next/typescript')
+      )
+    )
+  }
+
+  // Find the eslint/config import and insert our imports after it
+  let eslintConfigImportPath = null
+  root.find(j.ImportDeclaration).forEach((astPath) => {
+    if (astPath.value.source.value === 'eslint/config') {
+      eslintConfigImportPath = astPath
+    }
+  })
+
+  // Insert imports after eslint/config import (or at beginning if not found)
+  if (eslintConfigImportPath) {
+    // Insert after the eslint/config import in correct order
+    for (let i = imports.length - 1; i >= 0; i--) {
+      eslintConfigImportPath.insertAfter(imports[i])
+    }
+  } else {
+    // Fallback: insert at the beginning in correct order
+    const program = root.find(j.Program)
+    for (let i = imports.length - 1; i >= 0; i--) {
+      program.get('body', 0).insertBefore(imports[i])
+    }
+  }
+
+  // Replace FlatCompat extends with spread imports
+  root.find(j.SpreadElement).forEach((astPath) => {
+    const node = astPath.value
+
+    // Replace spread of compat.extends(...) calls with direct imports
+    if (
+      node.argument.type === 'CallExpression' &&
+      node.argument.callee.type === 'MemberExpression' &&
+      node.argument.callee.object.type === 'Identifier' &&
+      node.argument.callee.object.name === 'compat' &&
+      node.argument.callee.property.type === 'Identifier' &&
+      node.argument.callee.property.name === 'extends'
+    ) {
+      // Replace with spread of direct imports and preserve other configs
+      const replacements = []
+      node.argument.arguments.forEach((arg: any) => {
+        if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
+          if (arg.value === 'next') {
+            replacements.push(j.spreadElement(j.identifier('next')))
+          } else if (arg.value === 'next/core-web-vitals') {
+            replacements.push(
+              j.spreadElement(j.identifier('nextCoreWebVitals'))
+            )
+          } else if (arg.value === 'next/typescript') {
+            replacements.push(j.spreadElement(j.identifier('nextTypescript')))
+          } else if (typeof arg.value === 'string') {
+            // Preserve other configs as compat.extends() calls
+            replacements.push(
+              j.spreadElement(
+                j.callExpression(
+                  j.memberExpression(
+                    j.identifier('compat'),
+                    j.identifier('extends')
+                  ),
+                  [j.literal(arg.value)]
+                )
+              )
+            )
+          }
+        }
+      })
+
+      if (replacements.length > 0) {
+        // Replace the current spread element with multiple spread elements
+        const parent = astPath.parent
+        if (parent.value.type === 'ArrayExpression') {
+          const index = parent.value.elements.indexOf(node)
+          if (index !== -1) {
+            parent.value.elements.splice(index, 1, ...replacements)
+          }
+        }
+      }
+    }
+
+    // Replace spread of compat.config({ extends: [...] }) calls with direct imports
+    if (
+      node.argument.type === 'CallExpression' &&
+      node.argument.callee.type === 'MemberExpression' &&
+      node.argument.callee.object.type === 'Identifier' &&
+      node.argument.callee.object.name === 'compat' &&
+      node.argument.callee.property.type === 'Identifier' &&
+      node.argument.callee.property.name === 'config'
+    ) {
+      const replacements = []
+      const preservedConfigs = []
+
+      // Process each argument to compat.config
+      node.argument.arguments.forEach((arg: any) => {
+        if (arg.type === 'ObjectExpression') {
+          const updatedProperties = []
+
+          arg.properties?.forEach((prop: any) => {
+            if (
+              prop.type === 'ObjectProperty' &&
+              prop.key.type === 'Identifier' &&
+              prop.key.name === 'extends' &&
+              prop.value.type === 'ArrayExpression'
+            ) {
+              const nonNextConfigs = []
+
+              // Process extends array
+              prop.value.elements?.forEach((element: any) => {
+                if (
+                  element.type === 'Literal' ||
+                  element.type === 'StringLiteral'
+                ) {
+                  if (element.value === 'next') {
+                    replacements.push(j.spreadElement(j.identifier('next')))
+                  } else if (element.value === 'next/core-web-vitals') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextCoreWebVitals'))
+                    )
+                  } else if (element.value === 'next/typescript') {
+                    replacements.push(
+                      j.spreadElement(j.identifier('nextTypescript'))
+                    )
+                  } else if (typeof element.value === 'string') {
+                    // Keep non-Next.js configs
+                    nonNextConfigs.push(element)
+                  }
+                }
+              })
+
+              // If there are non-Next.js configs, preserve the extends property with them
+              if (nonNextConfigs.length > 0) {
+                updatedProperties.push(
+                  j.property(
+                    'init',
+                    j.identifier('extends'),
+                    j.arrayExpression(nonNextConfigs)
+                  )
+                )
+              }
+            } else {
+              // Preserve other properties (not extends)
+              updatedProperties.push(prop)
+            }
+          })
+
+          // If we still have properties to preserve, keep the compat.config call
+          if (updatedProperties.length > 0) {
+            preservedConfigs.push(
+              j.spreadElement(
+                j.callExpression(
+                  j.memberExpression(
+                    j.identifier('compat'),
+                    j.identifier('config')
+                  ),
+                  [j.objectExpression(updatedProperties)]
+                )
+              )
+            )
+          }
+        }
+      })
+
+      // Add all replacements
+      const allReplacements = [...replacements, ...preservedConfigs]
+
+      if (allReplacements.length > 0) {
+        // Replace the current spread element with multiple spread elements
+        const parent = astPath.parent
+        if (parent.value.type === 'ArrayExpression') {
+          const index = parent.value.elements.indexOf(node)
+          if (index !== -1) {
+            parent.value.elements.splice(index, 1, ...allReplacements)
+          }
+        }
+      }
+    }
+  })
+
+  // Also handle the case where extends is used as a property value (not spread)
+  root.find(j.ObjectExpression).forEach((astPath) => {
+    const objectNode = astPath.value
+    objectNode.properties?.forEach((prop: any) => {
+      if (
+        prop.type === 'ObjectProperty' &&
+        prop.key.type === 'Identifier' &&
+        prop.key.name === 'extends' &&
+        prop.value.type === 'CallExpression' &&
+        prop.value.callee.type === 'MemberExpression' &&
+        prop.value.callee.object.type === 'Identifier' &&
+        prop.value.callee.object.name === 'compat' &&
+        prop.value.callee.property.type === 'Identifier' &&
+        prop.value.callee.property.name === 'extends'
+      ) {
+        // Replace with array of spread imports and preserve other configs
+        const replacements = []
+        prop.value.arguments.forEach((arg: any) => {
+          if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
+            if (arg.value === 'next') {
+              replacements.push(j.spreadElement(j.identifier('next')))
+            } else if (arg.value === 'next/core-web-vitals') {
+              replacements.push(
+                j.spreadElement(j.identifier('nextCoreWebVitals'))
+              )
+            } else if (arg.value === 'next/typescript') {
+              replacements.push(j.spreadElement(j.identifier('nextTypescript')))
+            } else if (typeof arg.value === 'string') {
+              // Preserve other configs as compat.extends() calls
+              replacements.push(
+                j.spreadElement(
+                  j.callExpression(
+                    j.memberExpression(
+                      j.identifier('compat'),
+                      j.identifier('extends')
+                    ),
+                    [j.literal(arg.value)]
+                  )
+                )
+              )
+            }
+          }
+        })
+
+        if (replacements.length > 0) {
+          // Replace the property value with an array of spreads
+          prop.value = j.arrayExpression(replacements)
+        }
+      }
+    })
+  })
+
+  // Generate the updated code
+  const updatedContent = root.toSource()
+
+  if (updatedContent !== configContent) {
+    // Validate the generated code by parsing it
+    try {
+      const validateJ = createParserFromPath(configPath)
+      validateJ(updatedContent) // This will throw if the syntax is invalid
+    } catch (parseError) {
+      console.error(
+        `   Generated code has invalid syntax: ${parseError instanceof Error ? parseError.message : parseError}`
+      )
+      console.error('   Skipping update to prevent breaking the config file')
+      return false
+    }
+
+    // Create backup of original file
+    const backupPath = `${configPath}.backup-${Date.now()}`
+    try {
+      writeFileSync(backupPath, configContent)
+    } catch (backupError) {
+      console.warn(`   Warning: Could not create backup file: ${backupError}`)
+    }
+
+    try {
+      writeFileSync(configPath, updatedContent)
+      console.log(
+        `   Updated ${path.basename(configPath)} to use direct eslint-config-next imports`
+      )
+
+      // Remove backup on success
+      try {
+        if (existsSync(backupPath)) {
+          unlinkSync(backupPath)
+        }
+      } catch (cleanupError) {
+        console.warn(
+          `   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`
+        )
+      }
+
+      return true
+    } catch (error) {
+      console.error(`   Error writing config file: ${error}`)
+
+      // Restore from backup on failure
+      try {
+        if (existsSync(backupPath)) {
+          writeFileSync(configPath, readFileSync(backupPath, 'utf8'))
+          console.log('   Restored original config from backup')
+        }
+      } catch (restoreError) {
+        console.error(`   Error restoring backup: ${restoreError}`)
+      }
+
+      return false
+    }
+  }
+
+  return true
 }
 
 function updateExistingFlatConfig(
   configPath: string,
-  isTypeScript: boolean
+  isTypeScript: boolean = false
 ): boolean {
   let configContent: string
   try {
@@ -132,129 +594,37 @@ function updateExistingFlatConfig(
     return false
   }
 
-  // Check if Next.js configs are already imported
-  const hasNextConfigs =
-    configContent.includes('next/core-web-vitals') ||
-    configContent.includes('next/typescript')
-
-  // TypeScript config files need special handling
-  if (
-    configPath.endsWith('.ts') ||
-    configPath.endsWith('.mts') ||
-    configPath.endsWith('.cts')
-  ) {
-    console.warn(
-      prefixes.warn,
-      '   TypeScript config files require manual migration'
-    )
-    console.log('   Please add the following to your config:')
-    console.log('   - Import: import { FlatCompat } from "@eslint/eslintrc"')
-    console.log(
-      '   - Extend: ...compat.extends("next/core-web-vitals"' +
-        (isTypeScript ? ', "next/typescript"' : '') +
-        ')'
-    )
-    return false
-  }
+  // Check if Next.js configs are already imported directly
+  const hasNext = configContent.includes('eslint-config-next')
+  const hasNextVitals = configContent.includes(
+    'eslint-config-next/core-web-vitals'
+  )
+  const hasNextTs = configContent.includes('eslint-config-next/typescript')
+  const hasNextConfigs = hasNextVitals || hasNextTs
 
   // Parse the file using jscodeshift
   const j = createParserFromPath(configPath)
   const root = j(configContent)
 
-  // Determine if it's CommonJS or ES modules
-  let isCommonJS = false
-
-  if (configPath.endsWith('.cjs')) {
-    isCommonJS = true
-  } else if (configPath.endsWith('.mjs')) {
-    isCommonJS = false
-  } else if (configPath.endsWith('.js')) {
-    // For .js files, check package.json type field
-    const projectRoot = path.dirname(configPath)
-    const packageJsonPath = path.join(projectRoot, 'package.json')
-
-    try {
-      if (existsSync(packageJsonPath)) {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'))
-        isCommonJS = packageJson.type !== 'module'
-      } else {
-        // Default to CommonJS if no package.json found
-        isCommonJS = true
-      }
-    } catch {
-      // Default to CommonJS if package.json can't be read
-      isCommonJS = true
-    }
-
-    // Always check file syntax to override package.json detection if needed
-    // This handles cases where package.json doesn't specify type but file uses ES modules
-    const hasESModuleSyntax =
-      root.find(j.ExportDefaultDeclaration).size() > 0 ||
-      root.find(j.ExportNamedDeclaration).size() > 0 ||
-      root.find(j.ImportDeclaration).size() > 0
-
-    const hasCommonJSSyntax =
-      root
-        .find(j.AssignmentExpression, {
-          left: {
-            type: 'MemberExpression',
-            object: { name: 'module' },
-            property: { name: 'exports' },
-          },
-        })
-        .size() > 0
-
-    // Override package.json detection based on actual syntax
-    if (hasESModuleSyntax && !hasCommonJSSyntax) {
-      isCommonJS = false
-    } else if (hasCommonJSSyntax && !hasESModuleSyntax) {
-      isCommonJS = true
-    }
-    // If both or neither are found, keep the package.json-based detection
-  } else {
-    // For other extensions (.ts, .mts, .cts), assume based on extension
-    isCommonJS = configPath.endsWith('.cts')
-  }
-
-  // Find the exported array
+  // Find the exported array - support different export patterns
   let exportedArray = null
-  let exportNode = null
 
-  if (isCommonJS) {
-    // Look for module.exports = [...]
-    const moduleExports = root.find(j.AssignmentExpression, {
-      left: {
-        type: 'MemberExpression',
-        object: { name: 'module' },
-        property: { name: 'exports' },
-      },
-      right: { type: 'ArrayExpression' },
-    })
+  // Pattern 1: export default [...]
+  const directArrayExports = root.find(j.ExportDefaultDeclaration, {
+    declaration: { type: 'ArrayExpression' },
+  })
 
-    if (moduleExports.size() > 0) {
-      exportNode = moduleExports.at(0)
-      exportedArray = exportNode.get('right')
-    }
+  if (directArrayExports.size() > 0) {
+    exportedArray = directArrayExports.at(0).get('declaration')
   } else {
-    // Look for export default [...]
-    const defaultExports = root.find(j.ExportDefaultDeclaration, {
-      declaration: { type: 'ArrayExpression' },
+    // Pattern 2: const config = [...]; export default config
+    const defaultExportIdentifier = root.find(j.ExportDefaultDeclaration, {
+      declaration: { type: 'Identifier' },
     })
 
-    if (defaultExports.size() > 0) {
-      exportNode = defaultExports.at(0)
-      exportedArray = exportNode.get('declaration')
-    } else {
-      // Look for const variable = [...]; export default variable
-      const defaultExportIdentifier = root.find(j.ExportDefaultDeclaration, {
-        declaration: { type: 'Identifier' },
-      })
-
-      if (defaultExportIdentifier.size() > 0) {
-        const declarationNode = defaultExportIdentifier.at(0).get('declaration')
-        if (!declarationNode.value) {
-          return false
-        }
+    if (defaultExportIdentifier.size() > 0) {
+      const declarationNode = defaultExportIdentifier.at(0).get('declaration')
+      if (declarationNode.value) {
         const varName = declarationNode.value.name
         const varDeclaration = root.find(j.VariableDeclarator, {
           id: { name: varName },
@@ -263,6 +633,28 @@ function updateExistingFlatConfig(
 
         if (varDeclaration.size() > 0) {
           exportedArray = varDeclaration.at(0).get('init')
+        } else {
+          // Pattern 3: defineConfig([...]) or similar wrapper function
+          const callDeclaration = root.find(j.VariableDeclarator, {
+            id: { name: varName },
+            init: { type: 'CallExpression' },
+          })
+
+          if (callDeclaration.size() > 0) {
+            const callExpression = callDeclaration.at(0).get('init')
+            if (
+              callExpression.value.arguments.length > 0 &&
+              callExpression.value.arguments[0].type === 'ArrayExpression'
+            ) {
+              exportedArray = callExpression.get('arguments', 0)
+            } else {
+              console.warn(
+                prefixes.warn,
+                '   Wrapper function does not have an array parameter. Manual migration required.'
+              )
+              return false
+            }
+          }
         }
       }
     }
@@ -271,286 +663,166 @@ function updateExistingFlatConfig(
   if (!exportedArray) {
     console.warn(
       prefixes.warn,
-      '   Config does not export an array. Manual migration required.'
-    )
-    console.warn(
-      prefixes.warn,
-      '   ESLint flat configs must export an array of configuration objects.'
+      '   Config does not export an array or supported pattern. Manual migration required.'
     )
     return false
   }
 
-  // Check if FlatCompat is already imported
-  const hasFlatCompat = isCommonJS
-    ? root
-        .find(j.CallExpression, {
-          callee: { name: 'require' },
-          arguments: [{ value: '@eslint/eslintrc' }],
-        })
-        .size() > 0
-    : root
-        .find(j.ImportDeclaration, {
-          source: { value: '@eslint/eslintrc' },
-        })
-        .size() > 0
+  // Add Next.js imports if not present
+  const program = root.find(j.Program)
+  const imports = []
 
-  // Add necessary imports if not present and if we're adding Next.js extends
-  if (!hasFlatCompat && !hasNextConfigs) {
-    if (isCommonJS) {
-      // Add CommonJS requires at the top
-      const firstNode = root.find(j.Program).get('body', 0)
-      const compatRequire = j.variableDeclaration('const', [
-        j.variableDeclarator(
-          j.objectPattern([
-            j.property(
-              'init',
-              j.identifier('FlatCompat'),
-              j.identifier('FlatCompat')
-            ),
-          ]),
-          j.callExpression(j.identifier('require'), [
-            j.literal('@eslint/eslintrc'),
-          ])
-        ),
-      ])
-      const pathRequire = j.variableDeclaration('const', [
-        j.variableDeclarator(
-          j.identifier('path'),
-          j.callExpression(j.identifier('require'), [j.literal('path')])
-        ),
-      ])
-      const compatNew = j.variableDeclaration('const', [
-        j.variableDeclarator(
-          j.identifier('compat'),
-          j.newExpression(j.identifier('FlatCompat'), [
-            j.objectExpression([
-              j.property(
-                'init',
-                j.identifier('baseDirectory'),
-                j.identifier('__dirname')
-              ),
-            ]),
-          ])
-        ),
-      ])
-
-      j(firstNode).insertBefore(compatRequire)
-      j(firstNode).insertBefore(pathRequire)
-      j(firstNode).insertBefore(compatNew)
-    } else {
-      // Add ES module imports
-      const firstImport = root.find(j.ImportDeclaration).at(0)
-      const insertPoint =
-        firstImport.size() > 0
-          ? firstImport
-          : root.find(j.Program).get('body', 0)
-
-      const imports = [
-        j.importDeclaration(
-          [j.importSpecifier(j.identifier('dirname'))],
-          j.literal('path')
-        ),
-        j.importDeclaration(
-          [j.importSpecifier(j.identifier('fileURLToPath'))],
-          j.literal('url')
-        ),
-        j.importDeclaration(
-          [j.importSpecifier(j.identifier('FlatCompat'))],
-          j.literal('@eslint/eslintrc')
-        ),
-      ]
-
-      const setupVars = [
-        j.variableDeclaration('const', [
-          j.variableDeclarator(
-            j.identifier('__filename'),
-            j.callExpression(j.identifier('fileURLToPath'), [
-              j.memberExpression(
-                j.memberExpression(
-                  j.identifier('import'),
-                  j.identifier('meta')
-                ),
-                j.identifier('url')
-              ),
-            ])
-          ),
-        ]),
-        j.variableDeclaration('const', [
-          j.variableDeclarator(
-            j.identifier('__dirname'),
-            j.callExpression(j.identifier('dirname'), [
-              j.identifier('__filename'),
-            ])
-          ),
-        ]),
-        j.variableDeclaration('const', [
-          j.variableDeclarator(
-            j.identifier('compat'),
-            j.newExpression(j.identifier('FlatCompat'), [
-              j.objectExpression([
-                j.property(
-                  'init',
-                  j.identifier('baseDirectory'),
-                  j.identifier('__dirname')
-                ),
-              ]),
-            ])
-          ),
-        ]),
-      ]
-
-      if (firstImport.size() > 0) {
-        // Insert after the last import
-        const lastImportPath = root.find(j.ImportDeclaration).at(-1).get()
-        if (!lastImportPath) {
-          // Fallback to inserting at the beginning
-          const fallbackInsertPoint = root.find(j.Program).get('body', 0)
-          imports.forEach((imp) => j(fallbackInsertPoint).insertBefore(imp))
-          setupVars.forEach((v) => j(fallbackInsertPoint).insertBefore(v))
-        } else {
-          imports.forEach((imp) => j(lastImportPath).insertAfter(imp))
-          setupVars.forEach((v) => j(lastImportPath).insertAfter(v))
-        }
-      } else {
-        // Insert at the beginning
-        imports.forEach((imp) => j(insertPoint).insertBefore(imp))
-        setupVars.forEach((v) => j(insertPoint).insertBefore(v))
-      }
-    }
-  }
-
-  // Create ignores configuration object
-  const ignoresConfig = j.objectExpression([
-    j.property(
-      'init',
-      j.identifier('ignores'),
-      j.arrayExpression([
-        j.literal('node_modules/**'),
-        j.literal('.next/**'),
-        j.literal('out/**'),
-        j.literal('build/**'),
-        j.literal('next-env.d.ts'),
-      ])
-    ),
-  ])
-
-  // Only add Next.js extends if they're not already present
-  if (!hasNextConfigs) {
-    // Add Next.js configs to the array
-    const nextExtends = isTypeScript
-      ? ['next/core-web-vitals', 'next/typescript']
-      : ['next/core-web-vitals']
-
-    const spreadElement = j.spreadElement(
-      j.callExpression(
-        j.memberExpression(j.identifier('compat'), j.identifier('extends')),
-        nextExtends.map((ext) => j.literal(ext))
+  if (!hasNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
       )
     )
-
-    // Insert Next.js extends at the beginning of the array
-    if (!exportedArray.value.elements) {
-      exportedArray.value.elements = []
-    }
-    exportedArray.value.elements.unshift(spreadElement)
   }
 
-  // Check if ignores already exist in the config and merge if needed
-  let existingIgnoresIndex = -1
-  if (exportedArray.value.elements) {
-    for (let i = 0; i < exportedArray.value.elements.length; i++) {
-      const element = exportedArray.value.elements[i]
-      if (
-        element &&
-        element.type === 'ObjectExpression' &&
-        element.properties &&
-        element.properties.some(
-          (prop) =>
-            prop.type === 'Property' &&
-            prop.key &&
-            prop.key.type === 'Identifier' &&
-            prop.key.name === 'ignores'
-        )
-      ) {
-        existingIgnoresIndex = i
-        break
-      }
-    }
-  }
-
-  if (existingIgnoresIndex === -1) {
-    // No existing ignores, add our own at appropriate position
-    const insertIndex = hasNextConfigs ? 0 : 1
-    exportedArray.value.elements.splice(insertIndex, 0, ignoresConfig)
-  } else {
-    // Merge with existing ignores
-    const existingIgnoresArr =
-      exportedArray.value.elements[existingIgnoresIndex]?.properties ?? []
-
-    const ignoresProp = existingIgnoresArr.find(
-      (prop) =>
-        prop.type === 'Property' &&
-        prop.key &&
-        prop.key.type === 'Identifier' &&
-        prop.key.name === 'ignores'
+  if (!hasNextVitals) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('nextCoreWebVitals'))],
+        j.literal('eslint-config-next/core-web-vitals')
+      )
     )
+  }
 
-    if (
-      ignoresProp &&
-      ignoresProp.value &&
-      ignoresProp.value.type === 'ArrayExpression'
-    ) {
-      // Add our ignores to the existing array if they're not already there
-      const nextIgnores = [
-        'node_modules/**',
-        '.next/**',
-        'out/**',
-        'build/**',
-        'next-env.d.ts',
-      ]
+  if (!hasNextTs && isTypeScript) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('nextTypescript'))],
+        j.literal('eslint-config-next/typescript')
+      )
+    )
+  }
 
-      const existingIgnores = ignoresProp.value.elements
-        .map((el) => (el.type === 'Literal' ? el.value : null))
-        .filter(Boolean)
+  // Insert imports at the beginning in correct order
+  for (let i = imports.length - 1; i >= 0; i--) {
+    program.get('body', 0).insertBefore(imports[i])
+  }
 
-      for (const ignore of nextIgnores) {
-        if (!existingIgnores.includes(ignore)) {
-          ignoresProp.value.elements.push(j.literal(ignore))
-        }
-      }
-    }
+  // Add spread elements to config array if not already present
+  if (!exportedArray.value.elements) {
+    exportedArray.value.elements = []
+  }
+
+  const spreadsToAdd = []
+  if (!hasNext) {
+    spreadsToAdd.push(j.spreadElement(j.identifier('next')))
+  }
+  if (!hasNextVitals) {
+    spreadsToAdd.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
+  }
+  if (!hasNextTs && isTypeScript) {
+    spreadsToAdd.push(j.spreadElement(j.identifier('nextTypescript')))
+  }
+
+  // Insert at the beginning of array in correct order
+  for (let i = spreadsToAdd.length - 1; i >= 0; i--) {
+    exportedArray.value.elements.unshift(spreadsToAdd[i])
+  }
+
+  // Add ignores config if not already present
+  const hasIgnores = exportedArray.value.elements.some(
+    (element) =>
+      element &&
+      element.type === 'ObjectExpression' &&
+      element.properties &&
+      element.properties.some(
+        (prop) =>
+          prop.type === 'ObjectProperty' &&
+          prop.key &&
+          prop.key.type === 'Identifier' &&
+          prop.key.name === 'ignores'
+      )
+  )
+
+  if (!hasIgnores) {
+    const ignoresConfig = j.objectExpression([
+      j.property(
+        'init',
+        j.identifier('ignores'),
+        j.arrayExpression([
+          j.literal('node_modules/**'),
+          j.literal('.next/**'),
+          j.literal('out/**'),
+          j.literal('build/**'),
+          j.literal('next-env.d.ts'),
+        ])
+      ),
+    ])
+    exportedArray.value.elements.push(ignoresConfig)
   }
 
   // Generate the updated code
   const updatedContent = root.toSource()
 
   if (updatedContent !== configContent) {
+    // Validate the generated code by parsing it
     try {
-      writeFileSync(configPath, updatedContent)
-    } catch (error) {
-      console.error(`   Error writing config file: ${error}`)
+      const validateJ = createParserFromPath(configPath)
+      validateJ(updatedContent) // This will throw if the syntax is invalid
+    } catch (parseError) {
+      console.error(
+        `   Generated code has invalid syntax: ${parseError instanceof Error ? parseError.message : parseError}`
+      )
+      console.error('   Skipping update to prevent breaking the config file')
       return false
     }
 
-    if (hasNextConfigs) {
-      console.log(
-        `   Updated ${path.basename(configPath)} with Next.js ignores configuration`
-      )
-    } else {
-      console.log(
-        `   Updated ${path.basename(configPath)} with Next.js ESLint configs`
-      )
+    // Create backup of original file
+    const backupPath = `${configPath}.backup-${Date.now()}`
+    try {
+      writeFileSync(backupPath, configContent)
+    } catch (backupError) {
+      console.warn(`   Warning: Could not create backup file: ${backupError}`)
     }
-    return true
+
+    try {
+      writeFileSync(configPath, updatedContent)
+      console.log(
+        `   Updated ${path.basename(configPath)} with Next.js configurations`
+      )
+
+      // Remove backup on success
+      try {
+        if (existsSync(backupPath)) {
+          unlinkSync(backupPath)
+        }
+      } catch (cleanupError) {
+        console.warn(
+          `   Warning: Could not remove backup file ${backupPath}: ${cleanupError}`
+        )
+      }
+
+      return true
+    } catch (error) {
+      console.error(`   Error writing config file: ${error}`)
+
+      // Restore from backup on failure
+      try {
+        if (existsSync(backupPath)) {
+          writeFileSync(configPath, readFileSync(backupPath, 'utf8'))
+          console.log('   Restored original config from backup')
+        }
+      } catch (restoreError) {
+        console.error(`   Error restoring backup: ${restoreError}`)
+      }
+
+      return false
+    }
   }
 
-  // If nothing changed but Next.js configs were already present, that's still success
+  // If nothing changed but configs are present, that's still success
   if (hasNextConfigs) {
     console.log('   Next.js ESLint configs already present in flat config')
     return true
   }
 
-  return false
+  return true
 }
 
 function updatePackageJsonScripts(packageJsonContent: string): {
@@ -728,12 +1000,37 @@ function updatePackageJsonScripts(packageJsonContent: string): {
       needsUpdate = true
     }
 
-    // Check if @eslint/eslintrc exists in either dependencies or devDependencies
+    // Bump eslint to v9 for full Flat config support
     if (
-      !packageJson.devDependencies['@eslint/eslintrc'] &&
-      !packageJson.dependencies?.['@eslint/eslintrc']
+      packageJson.dependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
     ) {
-      packageJson.devDependencies['@eslint/eslintrc'] = '^3'
+      packageJson.dependencies['eslint'] = '^9'
+      needsUpdate = true
+    }
+    if (
+      packageJson.devDependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.devDependencies['eslint'] = '^9'
+      needsUpdate = true
+    }
+
+    // Remove @eslint/eslintrc if it exists since we no longer use FlatCompat
+    if (packageJson.devDependencies?.['@eslint/eslintrc']) {
+      delete packageJson.devDependencies['@eslint/eslintrc']
+      needsUpdate = true
+    }
+    if (packageJson.dependencies?.['@eslint/eslintrc']) {
+      delete packageJson.dependencies['@eslint/eslintrc']
       needsUpdate = true
     }
 
@@ -776,52 +1073,8 @@ export default function transformer(
   // Check for existing ESLint config
   const existingConfig = findExistingEslintConfig(projectRoot)
 
-  if (existingConfig.exists) {
-    if (existingConfig.isFlat) {
-      // Try to update existing flat config
-      if (existingConfig.path) {
-        console.log(
-          `   Found existing flat config: ${path.basename(existingConfig.path)}`
-        )
-        const updated = updateExistingFlatConfig(
-          existingConfig.path,
-          isTypeScript
-        )
-
-        if (!updated) {
-          console.log(
-            '   Could not automatically update the existing flat config.'
-          )
-          console.log(
-            '   Please manually ensure your ESLint config extends "next/core-web-vitals"'
-          )
-          if (isTypeScript) {
-            console.log('   and "next/typescript" for TypeScript projects.')
-          }
-        }
-      }
-    } else {
-      // Legacy config exists
-      if (existingConfig.path) {
-        console.log(
-          `   Found legacy ESLint config: ${path.basename(existingConfig.path)}`
-        )
-        console.log(
-          '   Legacy .eslintrc configs are not automatically migrated.'
-        )
-        console.log(
-          '   Please migrate to flat config format (eslint.config.js) and ensure it extends:'
-        )
-        console.log('   - "next/core-web-vitals"')
-        if (isTypeScript) {
-          console.log('   - "next/typescript"')
-        }
-        console.log(
-          '   Learn more: https://eslint.org/docs/latest/use/configure/migration-guide'
-        )
-      }
-    }
-  } else {
+  // If no existing ESLint config found, create a new one.
+  if (existingConfig.exists === false) {
     // Create new ESLint flat config
     const eslintConfigPath = path.join(projectRoot, 'eslint.config.mjs')
     const template = isTypeScript
@@ -834,9 +1087,63 @@ export default function transformer(
     } catch (error) {
       console.error('   Error creating ESLint config:', error)
     }
+  } else {
+    let eslintConfigFilename = path.basename(existingConfig.path)
+    let eslintConfigPath = existingConfig.path
+
+    // If legacy config found, run ESLint migration tool first. It will
+    // use FlatCompat, so will continue to migrate using Flat config format.
+    if (existingConfig.isLegacy && existingConfig.path) {
+      console.log(`   Found legacy ESLint config: ${eslintConfigFilename}`)
+
+      // Run npx @eslint/migrate-config
+      const command = `npx @eslint/migrate-config ${existingConfig.path}`
+      console.log(`   Running "${command}" to convert legacy config...`)
+      try {
+        execSync(command, {
+          cwd: projectRoot,
+          stdio: 'pipe',
+        })
+
+        // The migration tool creates eslint.config.mjs by default
+        const outputPath = path.join(projectRoot, 'eslint.config.mjs')
+        if (!existsSync(outputPath)) {
+          throw new Error(
+            `Failed to find the expected output file "${outputPath}" generated by the migration tool.`
+          )
+        }
+
+        // Use generated config will have FlatCompat, so continue to apply
+        // the next steps to it.
+        eslintConfigPath = outputPath
+        eslintConfigFilename = path.basename(eslintConfigPath)
+      } catch (cause) {
+        throw new Error(
+          `Failed to run "${command}" to migrate the legacy ESLint config "${eslintConfigFilename}".\n` +
+            `Please try the migration to Flat config manually.\n` +
+            `Learn more: https://eslint.org/docs/latest/use/configure/migration-guide`,
+          { cause }
+        )
+      }
+    }
+
+    console.log(`   Found existing ESLint Flat config: ${eslintConfigFilename}`)
+
+    // First try to replace FlatCompat usage if present
+    replaceFlatCompatInConfig(eslintConfigPath)
+
+    // Always try to update flat config with Next.js configurations
+    // regardless of whether FlatCompat was found
+    const updated = updateExistingFlatConfig(eslintConfigPath, isTypeScript)
+
+    if (!updated) {
+      console.log('   Could not automatically update the existing flat config.')
+      console.log(
+        '   Please manually ensure your ESLint config includes the Next.js configurations'
+      )
+    }
   }
 
-  // Update package.json
   const packageJsonContent = readFileSync(packageJsonPath, 'utf8')
   const result = updatePackageJsonScripts(packageJsonContent)
 

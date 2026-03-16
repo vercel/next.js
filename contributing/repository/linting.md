@@ -22,7 +22,7 @@ If you get a warning by alex, follow the instructions to correct the language.
 
 We recommend installing the [ESLint plugin for VS Code](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint).
 
-You can find the enabled rules in the [ESLint config](../../.eslintrc.json).
+You can find the enabled rules in the [ESLint config](../../eslint.config.mjs).
 
 ## Prettier
 

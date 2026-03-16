@@ -2,10 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    useCache: true,
-  },
+  cacheComponents: true,
+  experimental: { useCache: true },
 }
 
 module.exports = nextConfig

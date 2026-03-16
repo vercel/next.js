@@ -7,6 +7,7 @@ const withMDX = nextMDX({
       'rehype-slug',
       ['rehype-katex', { strict: true, throwOnError: true }],
     ],
+    recmaPlugins: ['recma-export-filepath'],
   },
 })
 

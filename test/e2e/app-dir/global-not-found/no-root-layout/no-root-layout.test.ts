@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('global-not-found - no-root-layout', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -9,7 +9,7 @@ describe('global-not-found - no-root-layout', () => {
   it('should render global-not-found for 404', async () => {
     const browser = await next.browser('/does-not-exist')
     if (isNextDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
 
     const errorTitle = await browser.elementByCss('#global-error-title').text()

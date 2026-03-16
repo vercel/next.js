@@ -24,7 +24,6 @@ let currentBatch: Batch | null = null
 type ExpectedResponseConfig = {
   includes: string
   block?: boolean | 'reject'
-  allowMultipleResponses?: boolean
 }
 
 /**
@@ -57,8 +56,67 @@ type ActConfig =
   | null
 
 export function createRouterAct(
-  page: Playwright.Page
+  page: Playwright.Page,
+  options?: {
+    /**
+     * Status codes that are allowed to be returned by the server. If not
+     * provided, all error status codes are disallowed (400+).
+     */
+    allowErrorStatusCodes?: number[]
+  }
 ): <T>(scope: () => Promise<T> | T, config?: ActConfig) => Promise<T> {
+  /**
+   * Helper function to wait for requestIdleCallback with retry logic.
+   * Retries up to 3 times if "Execution context was destroyed" error occurs.
+   */
+  async function waitForIdleCallback(): Promise<void> {
+    const maxRetries = 3
+    const retryDelayMs = 100
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        await page.evaluate(
+          () =>
+            new Promise<void>((res) =>
+              requestIdleCallback(() => res(), {
+                // Add a timeout option to prevents the callback from being
+                // backgrounded indefinitely. Not sure why this happens but
+                // without it, the callback will never fire.
+                //
+                // Note that this does not delay the callback from firing.
+                // It should still fire pretty much "immediately". It's just a
+                // safeguard in case the idle callback queue is not fired within
+                // a reasonable amount of time. It really shouldn't
+                // be necessary.
+                //
+                // TODO: I'm getting increasingly frustrated by how flaky
+                // Playwright's APIs are. At this point I'm convinced we should
+                // rewrite the whole router-act module to an equivalent
+                // implementation that runs directly in the browser, by
+                // injecting a script into the page. Since we only use it for
+                // our own contrived e2e test apps, we can just import the
+                // script into each test app that needs it.
+                timeout: 100,
+              })
+            )
+        )
+        return
+      } catch (err) {
+        const isLastAttempt = attempt === maxRetries - 1
+        const isExecutionContextError =
+          err instanceof Error &&
+          err.message.includes('Execution context was destroyed')
+
+        if (isExecutionContextError && !isLastAttempt) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs))
+          continue
+        }
+
+        throw err
+      }
+    }
+  }
+
   /**
    * Test utility for requests initiated by the Next.js Router, such as
    * prefetches and navigations. Calls the given async function then intercepts
@@ -79,6 +137,8 @@ export function createRouterAct(
     let expectedResponses: Array<ExpectedResponseConfig> | null
     let forbiddenResponses: Array<ExpectedResponseConfig> | null = null
     let shouldBlockAll = false
+    const allowStatuses = options?.allowErrorStatusCodes ?? null
+
     if (config === undefined || config === null) {
       // Default. Expect at least one request, but don't assert on the response.
       expectedResponses = []
@@ -164,9 +224,18 @@ export function createRouterAct(
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: (async () => {
-              const originalResponse = await page.request.fetch(request, {
-                maxRedirects: 0,
-              })
+              let originalResponse: Playwright.APIResponse
+              try {
+                originalResponse = await page.request.fetch(request, {
+                  maxRedirects: 0,
+                })
+              } catch (fetchError) {
+                error.message =
+                  fetchError instanceof Error
+                    ? fetchError.message
+                    : String(fetchError)
+                throw error
+              }
 
               // WORKAROUND:
               // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
@@ -230,7 +299,7 @@ export function createRouterAct(
     }
     currentBatch = batch
     await page.route('**/*', routeHandler)
-    await page.on('framedetached', hardNavigationHandler)
+    page.on('framedetached', hardNavigationHandler)
     try {
       // Call the user-provided scope function
       const returnValue = await scope()
@@ -258,9 +327,7 @@ export function createRouterAct(
       // We use requestIdleCallback to schedule the task because that's
       // guaranteed to fire after any IntersectionObserver events, which the
       // router uses to track the visibility of links.
-      await page.evaluate(
-        () => new Promise<void>((res) => requestIdleCallback(() => res()))
-      )
+      await waitForIdleCallback()
 
       // Checking whether a request needs to be intercepted is an async
       // operation, so we need to wait for all the checks to complete before
@@ -271,7 +338,9 @@ export function createRouterAct(
       // keep checking for more requests until the queue has settled.
       const remaining = new Set<PendingRSCRequest>()
       let actualResponses: Array<ExpectedResponseConfig> = []
-      let alreadyMatched = new Map<string, string>()
+
+      let claimedExpectations = new Set<ExpectedResponseConfig>()
+
       while (batch.pendingRequests.size > 0) {
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
@@ -298,7 +367,11 @@ ${fulfilled.body}
 
               throw error
             }
-            if (fulfilled.status >= 400) {
+            if (
+              fulfilled.status >= 400 &&
+              (allowStatuses === null ||
+                !allowStatuses.includes(fulfilled.status))
+            ) {
               error.message = `
 Received a response with an error status code.
 
@@ -328,47 +401,73 @@ ${fulfilled.body}
               }
             }
             if (expectedResponses !== null) {
+              // Check if this response matches any of the expectations.
+              //
+              //
+              // The same response may match multiple expectations, but within
+              // that response the expected strings must appear in order. So
+              // once something matches, keep track of the remaining
+              // response body.
+              const entireResponseBody = fulfilled.body
+              let remainingUnclaimedBody = entireResponseBody
+
+              // If the response doesn't match any of the expectations, that's
+              // fine. If it does match an expectation, but the only thing
+              // it matches is an expectation that was already claimed, then
+              // that's an error — each occurence of an expectation must be
+              // given separately.
+              let responseWasClaimed = false
+              let firstAlreadyClaimedMatch: ExpectedResponseConfig | null = null
               for (const expectedResponse of expectedResponses) {
                 const includes = expectedResponse.includes
                 const block = expectedResponse.block
-                if (fulfilled.body.includes(includes)) {
-                  // Match. Don't check yet whether the responses are received
-                  // in the expected order. Instead collect all the matches and
-                  // check at the end so we can include a diff in the
-                  // error message.
-                  const otherResponse = alreadyMatched.get(includes)
-                  if (otherResponse !== undefined) {
-                    if (!expectedResponse.allowMultipleResponses) {
-                      error.message = `
-Received multiple responses containing the same expected substring.
+                if (!claimedExpectations.has(expectedResponse)) {
+                  // This expectation was not already claimed. Check if we
+                  // can claim it.
+                  if (remainingUnclaimedBody.includes(includes)) {
+                    // Match.
+                    responseWasClaimed = true
+                    // Remove everything up to and including the first
+                    // occurrence of the matched substring.
+                    remainingUnclaimedBody = remainingUnclaimedBody.slice(
+                      remainingUnclaimedBody.indexOf(includes) + includes.length
+                    )
+                    claimedExpectations.add(expectedResponse)
+                    actualResponses.push(expectedResponse)
+                    if (block) {
+                      shouldBlock = true
+                    }
+                    continue
+                  }
+                }
 
-Expected substring:
-${includes}
+                // This expectation was already claimed, but let's check if the
+                // same string occurs later, too. If it does, it implies that
+                // the server sent the same string multiple times. This is fine
+                // as long as there's a separate expectation for
+                // each occurrence.
+                if (
+                  firstAlreadyClaimedMatch === null &&
+                  remainingUnclaimedBody.includes(includes)
+                ) {
+                  firstAlreadyClaimedMatch = expectedResponse
+                }
+              }
 
-Responses:
+              if (!responseWasClaimed && firstAlreadyClaimedMatch !== null) {
+                // This response did not match any of the _unclaimed_
+                // expecations, but it did match something that had already
+                // been claimed by an earlier response. This is an error —
+                // if the same expectation matches multiple times, you must
+                // list out a separate expectation for each occurrence.
+                error.message = `
+The same expected substring was sent multiple times by the server:
 
-${otherResponse}
-
-${fulfilled.body}
+${firstAlreadyClaimedMatch.includes}
 
 Choose a more specific substring to assert on.
 `
-                      throw error
-                    }
-                  } else {
-                    alreadyMatched.set(includes, fulfilled.body)
-                    if (actualResponses === null) {
-                      actualResponses = [expectedResponse]
-                    } else {
-                      actualResponses.push(expectedResponse)
-                    }
-                  }
-                  if (block) {
-                    shouldBlock = true
-                  }
-                  // Keep checking all the expected responses to verify there
-                  // are no duplicate matches
-                }
+                throw error
               }
             }
           }
@@ -400,7 +499,11 @@ ${fulfilled.body}
               })
               const browserResponse = await request.response()
               if (browserResponse !== null) {
-                await browserResponse.finished()
+                // For error responses (>= 400), the browser may not consume the body
+                // in the same way, so we skip waiting for finished() to avoid hanging
+                if (fulfilled.status < 400) {
+                  await browserResponse.finished()
+                }
               }
             }
           }
@@ -417,7 +520,7 @@ ${fulfilled.body}
             // a strategy to make that work. In the meantime, attempting to
             // write a test that blocks a redirect will result in an error
             // (see error above).
-            await new Promise<void>((resolve) => {
+            await new Promise<void>((resolve, reject) => {
               page.once('request', (req) => {
                 const handleResponse = (res: Playwright.Response) => {
                   if (res.url() === req.url()) {
@@ -426,8 +529,10 @@ ${fulfilled.body}
                       route: null,
                       result: (async () => {
                         return {
-                          text: await res.text(),
-                          body: await res.body(),
+                          // For redirects, body may not be available, so catch
+                          // the error and return an empty string.
+                          text: await res.text().catch(() => ''),
+                          body: await res.body().catch(() => Buffer.from('')),
                           headers: res.headers(),
                           status: res.status(),
                         }
@@ -435,10 +540,20 @@ ${fulfilled.body}
                       didProcess: false,
                     })
                     page.off('response', handleResponse)
+                    page.off('requestfailed', handleFailure)
                     resolve()
                   }
                 }
+                const handleFailure = (failedReq: Playwright.Request) => {
+                  if (failedReq.url() === req.url()) {
+                    page.off('response', handleResponse)
+                    page.off('requestfailed', handleFailure)
+                    error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
+                    reject(error)
+                  }
+                }
                 page.on('response', handleResponse)
+                page.on('requestfailed', handleFailure)
               })
             })
           }
@@ -450,9 +565,7 @@ ${fulfilled.body}
         // network throttled, the next request is issued either directly within
         // the task of the previous request's completion event, or in the
         // microtask queue of that event.
-        await page.evaluate(
-          () => new Promise<void>((res) => requestIdleCallback(() => res()))
-        )
+        await waitForIdleCallback()
 
         await waitForPendingRequestChecks()
       }
@@ -484,7 +597,10 @@ ${fulfilled.body}
             error.message =
               'Expected sequence of responses does not match:\n\n' +
               diff(expectedSubstrings, actualSubstrings) +
-              '\n'
+              '\n\n' +
+              'NOTE: Assertions are checked in order, so if an expectation ' +
+              'is missing, it may have actually appeared earlier in the ' +
+              'sequence than expected. Make sure the order is correct.'
           }
           throw error
         }
@@ -503,7 +619,7 @@ ${fulfilled.body}
       // Clean up
       currentBatch = prevBatch
       await page.unroute('**/*', routeHandler)
-      await page.off('framedetached', hardNavigationHandler)
+      page.off('framedetached', hardNavigationHandler)
     }
   }
 

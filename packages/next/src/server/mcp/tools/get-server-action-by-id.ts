@@ -2,6 +2,7 @@ import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/ser
 import { z } from 'next/dist/compiled/zod'
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -29,6 +30,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
       },
     },
     async (request) => {
+      // Track telemetry
+      mcpTelemetryTracker.recordToolCall('mcp/get_server_action_by_id')
+
       try {
         const { actionId } = request
 
@@ -37,7 +41,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
             content: [
               {
                 type: 'text',
-                text: 'Error: actionId parameter is required',
+                text: JSON.stringify({
+                  error: 'actionId parameter is required',
+                }),
               },
             ],
           }
@@ -57,7 +63,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
             content: [
               {
                 type: 'text',
-                text: `Error: Could not read server-reference-manifest.json at ${manifestPath}.`,
+                text: JSON.stringify({
+                  error: `Could not read server-reference-manifest.json at ${manifestPath}.`,
+                }),
               },
             ],
           }
@@ -125,7 +133,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Error: Action ID "${actionId}" not found in server-reference-manifest.json`,
+              text: JSON.stringify({
+                error: `Action ID "${actionId}" not found in server-reference-manifest.json`,
+              }),
             },
           ],
         }
@@ -134,7 +144,9 @@ export function registerGetActionByIdTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }

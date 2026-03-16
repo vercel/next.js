@@ -4,16 +4,17 @@ pub mod client_reference_manifest;
 mod encode_uri_component;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
     Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
 use crate::next_config::RouteHas;
@@ -32,18 +33,14 @@ pub struct BuildManifest {
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for BuildManifest {
+impl OutputAssetsReference for BuildManifest {
     #[turbo_tasks::function]
-    async fn path(&self) -> Vc<FileSystemPath> {
-        self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
         let root_main_files = self
@@ -61,7 +58,17 @@ impl OutputAsset for BuildManifest {
             .chain(self.polyfill_files.iter().copied())
             .collect();
 
-        Ok(Vc::cell(references))
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for BuildManifest {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Vc<FileSystemPath> {
+        self.output_path.clone().cell()
     }
 }
 
@@ -148,7 +155,7 @@ impl Asset for BuildManifest {
         };
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -159,7 +166,17 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(chunks)))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -167,12 +184,6 @@ impl OutputAsset for ClientBuildManifest {
     #[turbo_tasks::function]
     async fn path(&self) -> Vc<FileSystemPath> {
         self.output_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
-        Ok(Vc::cell(chunks))
     }
 }
 
@@ -202,7 +213,7 @@ impl Asset for ClientBuildManifest {
             .collect();
 
         Ok(AssetContent::file(
-            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+            FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?)).cell(),
         ))
     }
 }
@@ -236,10 +247,12 @@ impl Default for MiddlewaresManifest {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
-pub struct MiddlewareMatcher {
-    // When skipped next.js with fill that during merging.
+pub struct ProxyMatcher {
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -251,7 +264,7 @@ pub struct MiddlewareMatcher {
     pub original_source: RcStr,
 }
 
-impl Default for MiddlewareMatcher {
+impl Default for ProxyMatcher {
     fn default() -> Self {
         Self {
             regexp: None,
@@ -272,7 +285,8 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
-    pub matchers: Vec<MiddlewareMatcher>,
+    pub entrypoint: RcStr,
+    pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -377,6 +391,14 @@ pub struct ActionManifestEntry<'a> {
     pub exported_name: &'a str,
 
     pub filename: &'a str,
+
+    /// Source location line number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+
+    /// Source location column number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]
@@ -411,6 +433,8 @@ pub enum ActionManifestModuleId<'a> {
     Serialize,
     Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {
@@ -446,14 +470,14 @@ mod tests {
     #[test]
     fn test_middleware_matcher_serialization() {
         let matchers = vec![
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: None,
                 locale: false,
                 has: None,
                 missing: None,
                 original_source: rcstr!(""),
             },
-            MiddlewareMatcher {
+            ProxyMatcher {
                 regexp: Some(rcstr!(".*")),
                 locale: true,
                 has: Some(vec![RouteHas::Query {
@@ -469,7 +493,7 @@ mod tests {
         ];
 
         let serialized = serde_json::to_string(&matchers).unwrap();
-        let deserialized: Vec<MiddlewareMatcher> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: Vec<ProxyMatcher> = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(matchers, deserialized);
     }

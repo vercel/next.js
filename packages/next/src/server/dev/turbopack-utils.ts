@@ -35,6 +35,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
 /**
@@ -85,11 +86,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
@@ -541,7 +538,6 @@ export function hasEntrypointForKey(
         )
     default: {
       // validation that we covered all cases, this should never run.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = type
       return false
     }
@@ -712,10 +708,13 @@ export async function handleEntrypoints({
     const key = getEntryKey('root', 'server', 'middleware')
 
     const endpoint = middleware.endpoint
+    const triggerName = middleware.isProxy
+      ? PROXY_FILENAME
+      : MIDDLEWARE_FILENAME
 
     async function processMiddleware() {
       const finishBuilding = dev.hooks.startBuilding(
-        'middleware',
+        triggerName,
         undefined,
         true
       )
@@ -744,7 +743,7 @@ export async function handleEntrypoints({
         endpoint,
         async () => {
           const finishBuilding = dev.hooks.startBuilding(
-            'middleware',
+            triggerName,
             undefined,
             true
           )
@@ -992,9 +991,10 @@ export function normalizedPageToTurbopackStructureRoute(
       if (entrypointKey.endsWith('/[__metadata_id__]')) {
         entrypointKey = entrypointKey.slice(0, -'/[__metadata_id__]'.length)
       }
-      if (entrypointKey.endsWith('/sitemap.xml') && ext !== '.xml') {
-        // For dynamic sitemap route, remove the extension
-        entrypointKey = entrypointKey.slice(0, -'.xml'.length)
+      // After stripping [__metadata_id__], add .xml for dynamic sitemap routes
+      // to match the Turbopack entry key from normalize_metadata_route
+      if (entrypointKey.endsWith('/sitemap') && ext !== '.xml') {
+        entrypointKey = entrypointKey + '.xml'
       }
     }
     entrypointKey = entrypointKey + '/route'

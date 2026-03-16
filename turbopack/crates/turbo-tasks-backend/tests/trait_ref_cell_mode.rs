@@ -2,16 +2,19 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
-use turbo_tasks::{IntoTraitRef, State, TraitRef, Upcast, Vc};
+use turbo_tasks::{
+    State, TraitRef, Upcast, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-// Test that with `cell = "shared"`, the cell will be re-used as long as the
+// Test that with `cell = "compare"`, the cell will be re-used as long as the
 // value is equal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
@@ -32,7 +35,7 @@ async fn test_trait_ref_shared_cell_mode() {
             assert_eq!(*TraitRef::cell(trait_ref.clone()).get_value().await?, 42);
         }
 
-        // because we're using `cell = "shared"`, these trait refs must use the same
+        // because we're using `cell = "compare"`, these trait refs must use the same
         // underlying Arc/SharedRef (by identity)
         assert!(TraitRef::ptr_eq(&trait_ref_a, &trait_ref_b));
 
@@ -47,6 +50,7 @@ async fn test_trait_ref_shared_cell_mode() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
@@ -83,7 +87,7 @@ trait ValueTrait {
     fn get_value(&self) -> Vc<usize>;
 }
 
-#[turbo_tasks::value(transparent, cell = "shared")]
+#[turbo_tasks::value(transparent, cell = "compare")]
 struct SharedValue(usize);
 
 #[turbo_tasks::value(transparent, cell = "new")]

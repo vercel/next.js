@@ -6,6 +6,7 @@ const appDir = join(__dirname, '../app')
 describe('with minimumCacheTTL of 5 sec', () => {
   setupTests({
     nextConfigImages: {
+      dangerouslyAllowLocalIP: true,
       // Configure external domains so we can try out
       // variations of the upstream Cache-Control header.
       domains: [

@@ -1,7 +1,3 @@
-import {
-  getOwnerStack,
-  setOwnerStackIfAvailable,
-} from './errors/stitched-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { getIsTerminalLoggingEnabled } from './terminal-logging-config'
 import {
@@ -12,8 +8,12 @@ import {
   type LogMethod,
   patchConsoleMethod,
 } from '../../shared/forward-logs-shared'
-import { preLogSerializationClone, logStringify } from './forward-logs-utils'
-import { safeStringify } from '../../../lib/is-error'
+import {
+  preLogSerializationClone,
+  logStringify,
+  safeStringifyWithDepth,
+} from './forward-logs-utils'
+import { getOwnerStack } from './errors/stitched-error'
 
 // Client-side file logger for browser logs
 class ClientFileLogger {
@@ -46,7 +46,11 @@ class ClientFileLogger {
           return String(arg)
         if (arg === null) return 'null'
         if (arg === undefined) return 'undefined'
-        return safeStringify(arg)
+        // Handle DOM nodes - only log the tag name to avoid React proxied elements
+        if (arg instanceof Element) {
+          return `<${arg.tagName.toLowerCase()}>`
+        }
+        return safeStringifyWithDepth(arg)
       })
       .join(' ')
 
@@ -321,11 +325,10 @@ const stringifyUserArg = (
 }
 
 const createErrorArg = (error: Error) => {
-  const stack = stackWithOwners(error)
   return {
     kind: 'formatted-error-arg' as const,
     prefix: error.message ? `${error.name}: ${error.message}` : `${error.name}`,
-    stack,
+    stack: getErrorStackWithOwnerStack(error),
   }
 }
 
@@ -340,7 +343,7 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 
   // do not abstract this, it implicitly relies on which functions call it. forcing the inlined implementation makes you think about callers
   // error capture stack trace maybe
-  const stack = stackWithOwners(new Error())
+  const stack = getErrorStack(new Error())
   const stackLines = stack?.split('\n')
   const cleanStack = stackLines?.slice(3).join('\n') // this is probably ignored anyways
   const entry: ConsoleEntry<unknown> = {
@@ -362,6 +365,11 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 }
 
 export const forwardErrorLog = (args: any[]) => {
+  // Skip React server replayed logs - they were already logged on the server
+  if (isReactServerReplayedLog(args)) {
+    return
+  }
+
   // Always log to client file logger with args (formatting done inside log method)
   clientFileLogger.log('error', args)
   // Only forward to terminal if enabled
@@ -382,7 +390,7 @@ export const forwardErrorLog = (args: any[]) => {
    *
    * do not abstract this, it implicitly relies on which functions call it. forcing the inlined implementation makes you think about callers
    */
-  const stack = stackWithOwners(new Error())
+  const stack = getErrorStack(new Error())
   const stackLines = stack?.split('\n')
   const cleanStack = stackLines?.slice(3).join('\n')
 
@@ -419,12 +427,15 @@ const createUncaughtErrorEntry = (
   logQueue.scheduleLogSend(entry)
 }
 
-const stackWithOwners = (error: Error) => {
-  let ownerStack = ''
-  setOwnerStackIfAvailable(error)
-  ownerStack = getOwnerStack(error) || ''
-  const stack = (error.stack || '') + ownerStack
-  return stack
+const getErrorStack = (error: Error) => {
+  return error.stack || ''
+}
+
+// Get error stack with owner stack appended for source mapping on the server
+const getErrorStackWithOwnerStack = (error: Error) => {
+  const errorStack = getErrorStack(error)
+  const ownerStack = getOwnerStack(error)
+  return ownerStack ? `${errorStack}\n${ownerStack}` : errorStack
 }
 
 export function logUnhandledRejection(reason: unknown) {
@@ -441,7 +452,10 @@ export function logUnhandledRejection(reason: unknown) {
   }
 
   if (reason instanceof Error) {
-    createUnhandledRejectionErrorEntry(reason, stackWithOwners(reason))
+    createUnhandledRejectionErrorEntry(
+      reason,
+      getErrorStackWithOwnerStack(reason)
+    )
     return
   }
   createUnhandledRejectionNonErrorEntry(reason)
@@ -536,7 +550,11 @@ export function forwardUnhandledError(error: Error) {
     return
   }
 
-  createUncaughtErrorEntry(error.name, error.message, stackWithOwners(error))
+  createUncaughtErrorEntry(
+    error.name,
+    error.message,
+    getErrorStackWithOwnerStack(error)
+  )
 }
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using

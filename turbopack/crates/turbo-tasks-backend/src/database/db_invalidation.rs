@@ -33,8 +33,7 @@ struct InvalidationFile<'a> {
 /// If the cache was invalidated, the application may choose to show a warning to the user or log it
 /// to telemetry.
 ///
-/// This value is returned by [`crate::turbo_backing_storage`] and
-/// [`crate::default_backing_storage`].
+/// This value is returned by [`crate::turbo_backing_storage`].
 pub enum StartupCacheState {
     NoCache,
     Cached,
@@ -166,7 +165,11 @@ fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
     for entry in contents {
         let entry = entry?;
         if entry.file_name() != INVALIDATION_MARKER {
-            fs::remove_dir_all(entry.path())?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(entry.path())?;
+            } else {
+                fs::remove_file(entry.path())?;
+            }
         }
     }
 

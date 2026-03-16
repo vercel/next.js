@@ -91,10 +91,10 @@ jobs:
       afterBuild: |
         # e2e and ${{ inputs.test_type }} tests with `node run-tests.js`
 
-        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 
@@ -123,8 +123,6 @@ jobs:
       afterBuild: |
         # legacy integration tests with `node run-tests.js`
 
-        export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
-
         # HACK: Despite the name, these environment variables are just used to
         # gate tests, so they're applicable to both turbopack and rspack tests
         export ${{
@@ -132,6 +130,7 @@ jobs:
             'TURBOPACK_DEV=1' ||
             'TURBOPACK_BUILD=1'
         }}
+        export NEXT_TEST_EMIT_ALL_OUTPUT=1
 
         ${{ inputs.run_before_test }}
 

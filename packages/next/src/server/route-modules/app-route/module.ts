@@ -2,10 +2,10 @@ import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
   RouteModule,
@@ -31,7 +31,10 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
-import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -111,7 +114,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
-  prerenderManifest: DeepReadonly<PrerenderManifest>
+  previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
 
@@ -310,8 +313,7 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const cacheComponentsEnabled =
-      !!context.renderOpts.experimental?.cacheComponents
+    const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -321,24 +323,25 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = executeRevalidates(
-        workStore
-      ).finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log(
-            'pending revalidates promise finished for:',
-            requestStore.url
-          )
-        }
-      })
+      const maybeRevalidatesPromise = executeRevalidates(workStore)
+
+      if (maybeRevalidatesPromise !== false) {
+        context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
+          () => {
+            if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+              console.log(
+                'pending revalidates promise finished for:',
+                requestStore.url.pathname + requestStore.url.search
+              )
+            }
+          }
+        )
+      }
     }
 
     let prerenderStore: null | PrerenderStore = null
@@ -414,7 +417,7 @@ export class AppRouteRouteModule extends RouteModule<
               prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
-              captureOwnerStack: undefined,
+              varyParamsAccumulator: null,
             })
 
           let prospectiveResult
@@ -434,7 +437,11 @@ export class AppRouteRouteModule extends RouteModule<
               process.env.NEXT_DEBUG_BUILD ||
               process.env.__NEXT_VERBOSE_LOGGING
             ) {
-              printDebugThrownValueForProspectiveRender(err, workStore.route)
+              printDebugThrownValueForProspectiveRender(
+                err,
+                workStore.route,
+                Phase.ProspectiveRender
+              )
             }
           }
           if (
@@ -454,7 +461,8 @@ export class AppRouteRouteModule extends RouteModule<
                 } else if (process.env.NEXT_DEBUG_BUILD) {
                   printDebugThrownValueForProspectiveRender(
                     err,
-                    workStore.route
+                    workStore.route,
+                    Phase.ProspectiveRender
                   )
                 }
               }
@@ -506,7 +514,7 @@ export class AppRouteRouteModule extends RouteModule<
             prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
-            captureOwnerStack: undefined,
+            varyParamsAccumulator: null,
           })
 
           let responseHandled = false
@@ -638,8 +646,19 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Validate that the response is a valid response object.
     if (!(res instanceof Response)) {
+      const invalidType =
+        res === null
+          ? 'null'
+          : res === undefined
+            ? 'undefined'
+            : typeof res === 'object'
+              ? res.constructor?.name || 'object'
+              : typeof res
+
       throw new Error(
-        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+        `No response is returned from route handler '${this.resolvedPagePath}'. ` +
+          `Expected a Response object but received '${invalidType}' (method: ${request.method}, url: ${requestStore.url.pathname}). ` +
+          `Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
       )
     }
 
@@ -694,7 +713,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )
@@ -704,7 +723,7 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.prerenderManifest.preview
+      context.previewProps
     )
 
     const workStore = createWorkStore(staticGenerationContext)
@@ -1193,6 +1212,7 @@ function trackDynamic(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
         )

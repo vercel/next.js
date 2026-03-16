@@ -73,7 +73,9 @@ function getBaseSWCOptions({
   isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -92,9 +94,11 @@ function getBaseSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   isCacheComponents?: boolean
-  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -157,7 +161,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? undefined
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
@@ -205,9 +209,7 @@ function getBaseSWCOptions({
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development
@@ -219,6 +221,8 @@ function getBaseSWCOptions({
             isReactServerLayer,
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
+            taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -312,6 +316,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  imageConfig,
   serverReferenceHashSalt,
 }: {
   isServer: boolean
@@ -324,6 +329,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
@@ -345,6 +351,19 @@ export function getJestSWCOptions({
     serverComponents: false,
     serverReferenceHashSalt,
   })
+
+  // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+  // with an object literal at compile time. Emulate that here by enabling
+  // SWC's optimizer globals.envs so the same compile-time replacement happens
+  // during Jest transforms.
+  if (imageConfig) {
+    baseOptions.jsc.transform.optimizer.globals = {
+      envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.envs,
+        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
+      },
+    } as any
+  }
 
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
@@ -389,7 +408,9 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -414,9 +435,11 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -437,7 +460,9 @@ export function getLoaderSWCOptions({
     isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
+    taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

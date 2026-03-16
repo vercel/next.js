@@ -14,6 +14,8 @@ import {
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { RenderStage } from '../app-render/staged-rendering'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -83,6 +85,14 @@ export function connection(): Promise<void> {
             workStore.route,
             '`connection()`'
           )
+        case 'validation-client': {
+          // TODO(NAR-789): make this consistent with the actual browser behavior when we change it.
+          // Until then, erroring is fine.
+          const exportName = '`connection`'
+          throw new InvariantError(
+            `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
+          )
+        }
         case 'prerender-ppr':
           // We use React's postpone API to interrupt rendering here to create a
           // dynamic hole
@@ -105,7 +115,16 @@ export function connection(): Promise<void> {
             // Semantically we only need the dev tracking when running in `next dev`
             // but since you would never use next dev with production NODE_ENV we use this
             // as a proxy so we can statically exclude this code from production builds.
-            return makeDevtoolsIOAwarePromise(undefined)
+            if (workUnitStore.asyncApiPromises) {
+              return workUnitStore.asyncApiPromises.connection
+            }
+            return makeDevtoolsIOAwarePromise(
+              undefined,
+              workUnitStore,
+              RenderStage.Dynamic
+            )
+          } else if (workUnitStore.asyncApiPromises) {
+            return workUnitStore.asyncApiPromises.connection
           } else {
             return Promise.resolve(undefined)
           }
@@ -116,5 +135,7 @@ export function connection(): Promise<void> {
   }
 
   // If we end up here, there was no work store or work unit store present.
+  // TODO(NAR-789): connection() is not currently statically prevented from being imported in client components,
+  // so we always error about a missing work unit store.
   throwForMissingRequestStore(callingExpression)
 }

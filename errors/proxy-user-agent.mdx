@@ -1,0 +1,34 @@
+---
+title: Removed req.ua from Proxy API
+---
+
+## Why This Error Occurred
+
+Your proxy is interacting with `req.ua` and this feature needs to opt-in.
+
+```ts filename="proxy.ts"
+import { NextRequest, NextResponse } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  const url = request.nextUrl
+  const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(url)
+}
+```
+
+## Possible Ways to Fix It
+
+To parse the user agent, import `userAgent` function from `next/server` and give it your request:
+
+```ts filename="proxy.ts"
+import { NextRequest, NextResponse, userAgent } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  const url = request.nextUrl
+  const { device } = userAgent(request)
+  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
+  url.searchParams.set('viewport', viewport)
+  return NextResponse.rewrite(url)
+}
+```

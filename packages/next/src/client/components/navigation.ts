@@ -1,7 +1,6 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
-import { useContext, useMemo } from 'react'
+import React, { useContext, useMemo, use } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -11,10 +10,13 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
+  ReadonlyURLSearchParams,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import { ReadonlyURLSearchParams } from './navigation.react-server'
+import {
+  computeSelectedLayoutSegment,
+  getSelectedLayoutSegmentPath,
+} from '../../shared/lib/segment'
 
 const useDynamicRouteParams =
   typeof window === 'undefined'
@@ -29,6 +31,15 @@ const useDynamicSearchParams =
         require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
       ).useDynamicSearchParams
     : undefined
+
+const {
+  instrumentParamsForClientValidation,
+  instrumentSearchParamsForClientValidation,
+  expectCompleteParamsInClientValidation,
+} =
+  typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
+    ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
+    : {}
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -59,15 +70,33 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   // In the case where this is `null`, the compat types added in
   // `next-env.d.ts` will add a new overload that changes the return type to
   // include `null`.
-  const readonlySearchParams = useMemo(() => {
+  const readonlySearchParams = useMemo((): ReadonlyURLSearchParams => {
     if (!searchParams) {
       // When the router is not ready in pages, we won't have the search params
       // available.
-      return null
+      return null!
     }
 
     return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams]) as ReadonlyURLSearchParams
+  }, [searchParams])
+
+  // During build-time instant validation, wrap with an proxy
+  // so that accessing undeclared search params throws an error.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    readonlySearchParams
+  ) {
+    return instrumentSearchParamsForClientValidation!(readonlySearchParams)
+  }
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.searchParams)
+    }
+  }
 
   return readonlySearchParams
 }
@@ -95,7 +124,28 @@ export function usePathname(): string {
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
-  return useContext(PathnameContext) as string
+  const pathname = useContext(PathnameContext) as string
+
+  // During build-time instant validation, error if fallback params exist
+  // because usePathname() can't return a sensible value without all params.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    pathname
+  ) {
+    expectCompleteParamsInClientValidation!('usePathname()')
+    return pathname
+  }
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.pathname)
+    }
+  }
+
+  return pathname
 }
 
 // Client components API
@@ -153,44 +203,27 @@ export function useRouter(): AppRouterInstance {
 export function useParams<T extends Params = Params>(): T {
   useDynamicRouteParams?.('useParams()')
 
-  return useContext(PathParamsContext) as T
-}
+  const params = useContext(PathParamsContext) as T
 
-/** Get the canonical parameters from the current level to the leaf node. */
-// Client components API
-function getSelectedLayoutSegmentPath(
-  tree: FlightRouterState,
-  parallelRouteKey: string,
-  first = true,
-  segmentPath: string[] = []
-): string[] {
-  let node: FlightRouterState
-  if (first) {
-    // Use the provided parallel route key on the first parallel route
-    node = tree[1][parallelRouteKey]
-  } else {
-    // After first parallel route prefer children, if there's no children pick the first parallel route.
-    const parallelRoutes = tree[1]
-    node = parallelRoutes.children ?? Object.values(parallelRoutes)[0]
+  // During build-time instant validation, wrap with a proxy
+  // so that accessing undeclared params throws an error.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    params
+  ) {
+    return instrumentParamsForClientValidation!(params)
   }
 
-  if (!node) return segmentPath
-  const segment = node[0]
-
-  let segmentValue = getSegmentValue(segment)
-
-  if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
-    return segmentPath
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      return use(navigationPromises.params) as T
+    }
   }
 
-  segmentPath.push(segmentValue)
-
-  return getSelectedLayoutSegmentPath(
-    node,
-    parallelRouteKey,
-    false,
-    segmentPath
-  )
+  return params
 }
 
 /**
@@ -228,6 +261,30 @@ export function useSelectedLayoutSegments(
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegments() can't return a sensible value without all params.
+  if (
+    typeof window === 'undefined' &&
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    context
+  ) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegments()')
+  }
+
+  // Instrument with Suspense DevTools (dev-only)
+  if (process.env.NODE_ENV !== 'production' && 'use' in React) {
+    const navigationPromises = use(NavigationPromisesContext)
+    if (navigationPromises) {
+      const promise =
+        navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+      if (promise) {
+        // We should always have a promise here, but if we don't, it's not worth erroring over.
+        // We just won't be able to instrument it, but can still provide the value.
+        return use(promise)
+      }
+    }
+  }
+
   return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
@@ -254,28 +311,41 @@ export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
   useDynamicRouteParams?.('useSelectedLayoutSegment()')
-
+  const navigationPromises = useContext(NavigationPromisesContext)
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
-  if (!selectedLayoutSegments || selectedLayoutSegments.length === 0) {
-    return null
+  // During build-time instant validation, error if fallback params exist
+  // because useSelectedLayoutSegment() can't return a sensible value without all params.
+  if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
+    expectCompleteParamsInClientValidation!('useSelectedLayoutSegment()')
   }
 
-  const selectedLayoutSegment =
-    parallelRouteKey === 'children'
-      ? selectedLayoutSegments[0]
-      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
+  // Instrument with Suspense DevTools (dev-only)
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    navigationPromises &&
+    'use' in React
+  ) {
+    const promise =
+      navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
+    if (promise) {
+      // We should always have a promise here, but if we don't, it's not worth erroring over.
+      // We just won't be able to instrument it, but can still provide the value.
+      return use(promise)
+    }
+  }
 
-  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
-  // and returning an internal value like `__DEFAULT__` would be confusing.
-  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
-    ? null
-    : selectedLayoutSegment
+  return computeSelectedLayoutSegment(selectedLayoutSegments, parallelRouteKey)
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
 
 // Shared components APIs
+export {
+  // We need the same class that was used to instantiate the context value
+  // Otherwise instanceof checks will fail in usercode
+  ReadonlyURLSearchParams,
+}
 export {
   notFound,
   forbidden,
@@ -283,6 +353,5 @@ export {
   redirect,
   permanentRedirect,
   RedirectType,
-  ReadonlyURLSearchParams,
   unstable_rethrow,
 } from './navigation.react-server'

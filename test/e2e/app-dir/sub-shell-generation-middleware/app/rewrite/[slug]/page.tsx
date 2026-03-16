@@ -8,5 +8,5 @@ export default async function RewritePage({
 }
 
 export async function generateStaticParams() {
-  return []
+  return [{ slug: 'foo' }]
 }

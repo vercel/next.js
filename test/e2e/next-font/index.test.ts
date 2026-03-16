@@ -642,4 +642,33 @@ describe('next/font', () => {
       })
     })
   })
+
+  describe('custom declarations', () => {
+    test('local font with custom declarations', async () => {
+      const browser = await webdriver(next.url, '/with-local-fonts')
+
+      // Get all stylesheets
+      const stylesheets = await browser.eval(`
+        Array.from(document.styleSheets)
+          .flatMap(sheet => {
+            try {
+              return Array.from(sheet.cssRules || sheet.rules || [])
+                .map(rule => rule.cssText)
+            } catch (e) {
+              return ''
+            }
+          })
+      `)
+
+      // Check that the custom declaration is included in the CSS
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
+
+      // Check that the custom declaration is included in the CSS and overrides the default family
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
+    })
+  })
 })

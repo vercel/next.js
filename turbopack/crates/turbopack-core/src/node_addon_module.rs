@@ -7,14 +7,13 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     raw_module::RawModule,
     reference::{ModuleReferences, TracedModuleReference},
     resolve::pattern::{Pattern, PatternMatch, read_matches},
-    source::Source,
+    source::{OptionSource, Source},
 };
 
 /// A module corresponding to `.node` files.
@@ -36,6 +35,11 @@ impl Module for NodeAddonModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("node addon"))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
     }
 
     #[turbo_tasks::function]
@@ -95,13 +99,11 @@ impl Module for NodeAddonModule {
         // Most addon modules don't have references to other modules.
         Ok(ModuleReferences::empty())
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for NodeAddonModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        // We assume that a node addon could have arbitrary side effects when loading.
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -125,7 +127,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
                     Ok(path) => {
                         results.insert(path.clone());
                     }
-                    Err(e) => bail!(e.as_error_message(file, &realpath)),
+                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
                 }
             }
             PatternMatch::Directory(..) => {}

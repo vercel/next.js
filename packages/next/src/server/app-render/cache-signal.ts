@@ -12,7 +12,7 @@ export class CacheSignal {
   private earlyListeners: Array<() => void> = []
   private listeners: Array<() => void> = []
   private tickPending = false
-  private taskPending = false
+  private pendingTimeoutCleanup: (() => void) | null = null
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
@@ -28,27 +28,42 @@ export class CacheSignal {
   private noMorePendingCaches() {
     if (!this.tickPending) {
       this.tickPending = true
-      process.nextTick(() => {
-        this.tickPending = false
-        if (this.count === 0) {
-          for (let i = 0; i < this.earlyListeners.length; i++) {
-            this.earlyListeners[i]()
+      queueMicrotask(() =>
+        process.nextTick(() => {
+          this.tickPending = false
+          if (this.count === 0) {
+            for (let i = 0; i < this.earlyListeners.length; i++) {
+              this.earlyListeners[i]()
+            }
+            this.earlyListeners.length = 0
           }
-          this.earlyListeners.length = 0
-        }
-      })
+        })
+      )
     }
-    if (!this.taskPending) {
-      this.taskPending = true
-      setTimeout(() => {
-        this.taskPending = false
-        if (this.count === 0) {
-          for (let i = 0; i < this.listeners.length; i++) {
-            this.listeners[i]()
-          }
-          this.listeners.length = 0
-        }
-      }, 0)
+
+    // After a cache resolves, React will schedule new rendering work:
+    // - in a microtask (when prerendering)
+    // - in setImmediate (when rendering)
+    // To cover both of these, we have to make sure that we let immediates execute at least once after each cache resolved.
+    // We don't know when the pending timeout was scheduled (and if it's about to resolve),
+    // so by scheduling a new one, we can be sure that we'll go around the event loop at least once.
+    if (this.pendingTimeoutCleanup) {
+      // We cancel the timeout in beginRead, so this shouldn't ever be active here,
+      // but we still cancel it defensively.
+      this.pendingTimeoutCleanup()
+    }
+    this.pendingTimeoutCleanup = scheduleImmediateAndTimeoutWithCleanup(
+      this.invokeListenersIfNoPendingReads
+    )
+  }
+
+  private invokeListenersIfNoPendingReads = () => {
+    this.pendingTimeoutCleanup = null
+    if (this.count === 0) {
+      for (let i = 0; i < this.listeners.length; i++) {
+        this.listeners[i]()
+      }
+      this.listeners.length = 0
     }
   }
 
@@ -82,6 +97,13 @@ export class CacheSignal {
   beginRead() {
     this.count++
 
+    // There's a new pending cache, so if there's a `noMorePendingCaches` timeout running,
+    // we should cancel it.
+    if (this.pendingTimeoutCleanup) {
+      this.pendingTimeoutCleanup()
+      this.pendingTimeoutCleanup = null
+    }
+
     if (this.subscribedSignals !== null) {
       for (const subscriber of this.subscribedSignals) {
         subscriber.beginRead()
@@ -112,6 +134,10 @@ export class CacheSignal {
         subscriber.endRead()
       }
     }
+  }
+
+  hasPendingReads(): boolean {
+    return this.count > 0
   }
 
   trackRead<T>(promise: Promise<T>) {
@@ -150,4 +176,18 @@ export class CacheSignal {
     // if other signals are subscribing to this one, it'll likely get more subscriptions later,
     // so we'd have to allocate a fresh set again when that happens.
   }
+}
+
+function scheduleImmediateAndTimeoutWithCleanup(cb: () => void): () => void {
+  // If we decide to clean up the timeout, we want to remove
+  // either the immediate or the timeout, whichever is still pending.
+  let clearPending: () => void
+
+  const immediate = setImmediate(() => {
+    const timeout = setTimeout(cb, 0)
+    clearPending = clearTimeout.bind(null, timeout)
+  })
+  clearPending = clearImmediate.bind(null, immediate)
+
+  return () => clearPending()
 }

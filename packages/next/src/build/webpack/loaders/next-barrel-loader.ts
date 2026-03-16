@@ -88,6 +88,7 @@ import type webpack from 'webpack'
 
 import path from 'path'
 import { transform } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 
 // This is a in-memory cache for the mapping of barrel exports. This only applies
 // to the packages that we optimize. It will never change (e.g. upgrading packages)
@@ -251,6 +252,10 @@ const NextBarrelLoader = async function (
 ) {
   this.async()
   this.cacheable(true)
+  // Install bindings early so they are definitely available.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  await installBindings()
 
   const { names, swcCacheDir } = this.getOptions()
 

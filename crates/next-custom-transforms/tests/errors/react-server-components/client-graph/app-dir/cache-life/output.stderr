@@ -1,0 +1,8 @@
+  x You're importing a component that needs "cacheLife". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { cacheLife } from 'next/cache'
+   :          ^^^^^^^^^
+   `----

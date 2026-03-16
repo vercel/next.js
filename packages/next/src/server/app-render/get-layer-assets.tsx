@@ -1,4 +1,3 @@
-import React from 'react'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
@@ -22,9 +21,11 @@ export function getLayerAssets({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
 }): React.ReactNode {
+  const {
+    componentMod: { createElement },
+  } = ctx
   const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
     ? getLinkAndScriptTags(
-        ctx.clientReferenceManifest,
         layoutOrPagePath,
         injectedCSSWithCurrentLayout,
         injectedJSWithCurrentLayout,
@@ -46,7 +47,7 @@ export function getLayerAssets({
         const fontFilename = preloadedFontFiles[i]
         const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
         const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}`
+        const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}${getAssetQueryString(ctx, true)}`
 
         preloadCallbacks.push(() => {
           ctx.componentMod.preloadFont(
@@ -81,14 +82,12 @@ export function getLayerAssets({
           href
         )}${getAssetQueryString(ctx, true)}`
 
-        return (
-          <script
-            src={fullSrc}
-            async={true}
-            key={`script-${index}`}
-            nonce={ctx.nonce}
-          />
-        )
+        return createElement('script', {
+          src: fullSrc,
+          async: true,
+          key: `script-${index}`,
+          nonce: ctx.nonce,
+        })
       })
     : []
 
