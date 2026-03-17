@@ -28,10 +28,25 @@ async function createHostServer() {
   }
 }
 
-function requestInternalDevScript(appPort: string | number, referer: string) {
+function withBasePath(basePath: string, path: string) {
+  return `${basePath}${path}`
+}
+
+function getImageOptimizerPath(basePath: string) {
+  return withBasePath(
+    basePath,
+    `/_next/image?url=${encodeURIComponent(withBasePath(basePath, '/image.png'))}&w=256&q=75`
+  )
+}
+
+function requestInternalDevScript(
+  appPort: string | number,
+  basePath: string,
+  referer: string
+) {
   return fetchViaHTTP(
     appPort,
-    '/_next/static/chunks/pages/_app.js',
+    withBasePath(basePath, '/_next/static/chunks/pages/_app.js'),
     undefined,
     {
       headers: {
@@ -45,11 +60,15 @@ function requestInternalDevScript(appPort: string | number, referer: string) {
 
 function requestInternalDevMiddleware(
   appPort: string | number,
+  basePath: string,
   origin: string
 ) {
   return fetchViaHTTP(
     appPort,
-    '/__nextjs_error_feedback?errorCode=0&wasHelpful=true',
+    withBasePath(
+      basePath,
+      '/__nextjs_error_feedback?errorCode=0&wasHelpful=true'
+    ),
     undefined,
     {
       headers: {
@@ -59,7 +78,7 @@ function requestInternalDevMiddleware(
   )
 }
 
-describe.each([['', '/docs']])(
+describe.each(['', '/docs'])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
     let next: NextInstance
@@ -80,13 +99,13 @@ describe.each([['', '/docs']])(
         // "/_next/static/chunks/pages/_app.js"
         // we need this because not found static assets
         // served as plain text 404 instead of HTML.
-        await next.render('/404')
+        await next.render(withBasePath(basePath, '/404'))
 
         await retry(async () => {
           // make sure host server is running
           const res = await fetchViaHTTP(
             next.appPort,
-            '/_next/static/chunks/pages/_app.js'
+            withBasePath(basePath, '/_next/static/chunks/pages/_app.js')
           )
           expect(res.status).toBe(200)
         })
@@ -101,7 +120,7 @@ describe.each([['', '/docs']])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -140,12 +159,14 @@ describe.each([['', '/docs']])(
 
         const mismatchedPortRes = await requestInternalDevScript(
           next.appPort,
+          basePath,
           `http://127.0.0.1:${port}/about`
         )
         expect(mismatchedPortRes.status).toBe(200)
 
         const differentHostRes = await requestInternalDevScript(
           next.appPort,
+          basePath,
           'https://example.vercel.sh/about'
         )
         expect(differentHostRes.status).toBe(200)
@@ -158,12 +179,14 @@ describe.each([['', '/docs']])(
 
         const mismatchedPortRes = await requestInternalDevMiddleware(
           next.appPort,
+          basePath,
           `http://127.0.0.1:${port}`
         )
         expect(mismatchedPortRes.status).toBe(204)
 
         const differentHostRes = await requestInternalDevMiddleware(
           next.appPort,
+          basePath,
           'https://example.vercel.sh'
         )
         expect(differentHostRes.status).toBe(204)
@@ -189,13 +212,13 @@ describe.each([['', '/docs']])(
         // "/_next/static/chunks/pages/_app.js"
         // since we haven't built any paths by this point
         // causing this chunk to not be written to disk yet
-        await next.render('/404')
+        await next.render(withBasePath(basePath, '/404'))
 
         await retry(async () => {
           // make sure host server is running
           const res = await fetchViaHTTP(
             next.appPort,
-            '/_next/static/chunks/pages/_app.js'
+            withBasePath(basePath, '/_next/static/chunks/pages/_app.js')
           )
           expect(res.status).toBe(200)
         })
@@ -210,7 +233,7 @@ describe.each([['', '/docs']])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -247,12 +270,14 @@ describe.each([['', '/docs']])(
 
         const mismatchedPortRes = await requestInternalDevScript(
           next.appPort,
+          basePath,
           `http://127.0.0.1:${port}/about`
         )
         expect(mismatchedPortRes.status).toBe(200)
 
         const differentHostRes = await requestInternalDevScript(
           next.appPort,
+          basePath,
           'https://example.vercel.sh/about'
         )
         expect(differentHostRes.status).toBe(200)
@@ -263,12 +288,14 @@ describe.each([['', '/docs']])(
 
         const mismatchedPortRes = await requestInternalDevMiddleware(
           next.appPort,
+          basePath,
           `http://127.0.0.1:${port}`
         )
         expect(mismatchedPortRes.status).toBe(204)
 
         const differentHostRes = await requestInternalDevMiddleware(
           next.appPort,
+          basePath,
           'https://example.vercel.sh'
         )
         expect(differentHostRes.status).toBe(204)
@@ -285,7 +312,7 @@ describe.each([['', '/docs']])(
             document.querySelector('body').appendChild(statusEl)
 
             const image = document.createElement('img')
-            image.src = "${next.url}/_next/image?url=%2Fimage.png&w=256&q=75"
+            image.src = "${next.url}${getImageOptimizerPath(basePath)}"
             document.querySelector('body').appendChild(image)
             image.onload = () => {
               statusEl.innerText = 'OK'
@@ -320,7 +347,7 @@ describe.each([['', '/docs']])(
                     statusEl.id = 'status'
                     document.querySelector('body').appendChild(statusEl)
         
-                    const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+                    const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
                     
                     ws.addEventListener('error', (err) => {
                       statusEl.innerText = 'error'
