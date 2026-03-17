@@ -8,7 +8,7 @@ const CookieSchema = z
   })
   .strict()
 
-const RuntimeSampleSchema = z
+const InstantSampleSchema = z
   .object({
     cookies: z.array(CookieSchema).optional(),
     headers: z.array(z.tuple([z.string(), z.string().or(z.null())])).optional(),
@@ -19,10 +19,18 @@ const RuntimeSampleSchema = z
   })
   .strict()
 
+export const InstantSamplesSchema = z.array(InstantSampleSchema).min(1)
+
+const InstantGenerateSamplesSchema = z
+  .function()
+  .args()
+  .returns(z.promise(InstantSamplesSchema))
+
 const InstantConfigStaticSchema = z
   .object({
     prefetch: z.literal('static'),
-    samples: z.array(RuntimeSampleSchema).min(1).optional(),
+    samples: InstantSamplesSchema.optional(),
+    generateSamples: InstantGenerateSamplesSchema.optional(),
     from: z.array(z.string()).optional(),
     unstable_disableValidation: z.literal(true).optional(),
     unstable_disableDevValidation: z.literal(true).optional(),
@@ -33,7 +41,8 @@ const InstantConfigStaticSchema = z
 const InstantConfigRuntimeSchema = z
   .object({
     prefetch: z.literal('runtime'),
-    samples: z.array(RuntimeSampleSchema).min(1),
+    samples: InstantSamplesSchema.optional(),
+    generateSamples: InstantGenerateSamplesSchema.optional(),
     from: z.array(z.string()).optional(),
     unstable_disableValidation: z.literal(true).optional(),
     unstable_disableDevValidation: z.literal(true).optional(),
@@ -41,13 +50,38 @@ const InstantConfigRuntimeSchema = z
   })
   .strict()
 
-const InstantConfigSchema = z.union([
-  z.discriminatedUnion('prefetch', [
-    InstantConfigStaticSchema,
-    InstantConfigRuntimeSchema,
-  ]),
-  z.literal(false),
+const InstantConfigObjectSchema = z.discriminatedUnion('prefetch', [
+  InstantConfigStaticSchema,
+  InstantConfigRuntimeSchema,
 ])
+
+const InstantConfigSchema = z
+  .union([InstantConfigObjectSchema, z.literal(false)])
+  .superRefine((value, ctx) => {
+    if (value === false) {
+      return
+    }
+    if (value.samples && value.generateSamples) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Instant config cannot provide both `samples` and `generateSamples`.',
+        path: ['generateSamples'],
+      })
+    }
+    if (
+      value.prefetch === 'runtime' &&
+      !value.samples &&
+      !value.generateSamples
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          'Instant config with `prefetch: "runtime"` must define `samples` or `generateSamples`.',
+        path: ['samples'],
+      })
+    }
+  }) as z.ZodType<Instant | false>
 
 export type Instant = InstantConfigStatic | InstantConfigRuntime | false
 
@@ -61,29 +95,47 @@ export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 interface __GenericInstantConfig {
   prefetch: string
   samples?: Array<WideInstantSample>
+  generateSamples?: () => Promise<Array<WideInstantSample>>
   from?: string[]
   unstable_disableValidation?: boolean
   unstable_disableDevValidation?: boolean
   unstable_disableBuildValidation?: boolean
 }
 
-interface InstantConfigStatic {
-  prefetch: 'static'
-  samples?: Array<InstantSample>
+type InstantSamplesGenerator = () => Promise<Array<InstantSample>>
+
+interface InstantConfigShared {
   from?: string[]
   unstable_disableValidation?: true
   unstable_disableDevValidation?: true
   unstable_disableBuildValidation?: true
 }
 
-interface InstantConfigRuntime {
+type InstantConfigStatic = InstantConfigShared & {
+  prefetch: 'static'
+} & (
+    | {
+        samples?: Array<InstantSample>
+        generateSamples?: never
+      }
+    | {
+        samples?: never
+        generateSamples: InstantSamplesGenerator
+      }
+  )
+
+type InstantConfigRuntime = InstantConfigShared & {
   prefetch: 'runtime'
-  samples: Array<InstantSample>
-  from?: string[]
-  unstable_disableValidation?: true
-  unstable_disableDevValidation?: true
-  unstable_disableBuildValidation?: true
-}
+} & (
+    | {
+        samples: Array<InstantSample>
+        generateSamples?: never
+      }
+    | {
+        samples?: never
+        generateSamples: InstantSamplesGenerator
+      }
+  )
 
 type WideInstantSample = {
   cookies?: InstantSample['cookies']

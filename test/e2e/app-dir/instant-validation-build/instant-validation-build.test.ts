@@ -832,6 +832,114 @@ describe('instant-validation-build', () => {
     })
   })
 
+  describe('generateSamples', () => {
+    it('uses samples returned from generateSamples', async () => {
+      const result = await prerender('/(default)/generate-samples/happy/[slug]')
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
+
+    it('reports a helpful error when generateSamples throws', async () => {
+      const result = await prerender('/(default)/generate-samples/throws')
+      const validationOutput = extractBuildValidationError(
+        result.cliOutput
+      ).trim()
+      expect(validationOutput).toMatchInlineSnapshot(`
+       "Error: This route encountered an error while executing \`unstable_instant.generateSamples\`.
+           at ignore-listed frames {
+         digest: 'INSTANT_VALIDATION_ERROR',
+         [cause]: Error: generateSamples exploded
+             at Object.generateSamples (app/(default)/generate-samples/throws/page.tsx:6:11)
+           4 |   prefetch: 'runtime',
+           5 |   generateSamples: async () => {
+         > 6 |     throw new Error('generateSamples exploded')
+             |           ^
+           7 |   },
+           8 | }
+           9 |
+       }
+       Error: generateSamples exploded
+           at Object.generateSamples (app/(default)/generate-samples/throws/page.tsx:6:11)
+         4 |   prefetch: 'runtime',
+         5 |   generateSamples: async () => {
+       > 6 |     throw new Error('generateSamples exploded')
+           |           ^
+         7 |   },
+         8 | }
+         9 |
+       Build-time instant validation failed for route "/generate-samples/throws".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('reports a helpful error when generateSamples returns invalid samples', async () => {
+      const result = await prerender(
+        '/(default)/generate-samples/invalid-empty'
+      )
+      const validationOutput = extractBuildValidationError(
+        result.cliOutput
+      ).trim()
+      expect(validationOutput).toMatchInlineSnapshot(`
+       "Error: This route expected \`unstable_instant.generateSamples\` to resolve to a non-empty array of valid samples.
+           at ignore-listed frames {
+         digest: 'INSTANT_VALIDATION_ERROR',
+         [cause]: Error [ZodError]: [
+           {
+             "code": "too_small",
+             "minimum": 1,
+             "type": "array",
+             "inclusive": true,
+             "exact": false,
+             "message": "Array must contain at least 1 element(s)",
+             "path": []
+           }
+         ]
+             at ignore-listed frames {
+           issues: [ [Object] ],
+           addIssue: [Function (anonymous)],
+           addIssues: [Function (anonymous)]
+         }
+       }
+       Error [ZodError]: [
+         {
+           "code": "too_small",
+           "minimum": 1,
+           "type": "array",
+           "inclusive": true,
+           "exact": false,
+           "message": "Array must contain at least 1 element(s)",
+           "path": []
+         }
+       ]
+           at ignore-listed frames {
+         issues: [
+           {
+             code: 'too_small',
+             minimum: 1,
+             type: 'array',
+             inclusive: true,
+             exact: false,
+             message: 'Array must contain at least 1 element(s)',
+             path: []
+           }
+         ],
+         addIssue: [Function (anonymous)],
+         addIssues: [Function (anonymous)]
+       }
+       Build-time instant validation failed for route "/generate-samples/invalid-empty".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('prefers page generateSamples over the parent layout', async () => {
+      const result = await prerender('/(default)/generate-samples/override')
+      expectNoBuildValidationErrors(result)
+      expect(result.cliOutput).not.toContain('AssertionError')
+    })
+  })
+
   describe('generateStaticParams', () => {
     it('valid - page with generateStaticParams and samples only runs validation once', async () => {
       const result = await prerender('/(default)/gsp/[slug]')

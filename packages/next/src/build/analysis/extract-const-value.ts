@@ -1,7 +1,9 @@
 import type {
+  ArrowFunctionExpression,
   ArrayExpression,
   BooleanLiteral,
   ExportDeclaration,
+  FunctionExpression,
   Identifier,
   KeyValueProperty,
   Module,
@@ -46,6 +48,16 @@ function isNumericLiteral(node: Node): node is NumericLiteral {
 
 function isArrayExpression(node: Node): node is ArrayExpression {
   return node.type === 'ArrayExpression'
+}
+
+function isFunctionExpression(node: Node): node is FunctionExpression {
+  return node.type === 'FunctionExpression'
+}
+
+function isArrowFunctionExpression(
+  node: Node
+): node is ArrowFunctionExpression {
+  return node.type === 'ArrowFunctionExpression'
 }
 
 function isObjectExpression(node: Node): node is ObjectExpression {
@@ -142,6 +154,16 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
       }
     }
     return { value: arr }
+  } else if (isFunctionExpression(node) || isArrowFunctionExpression(node)) {
+    // TODO(instant-validation-build): `unstable_instant.generateSamples` needs this, but this feels really hacky.
+    // We should figure out how to factor this differently
+    return {
+      value: () => {
+        throw new Error(
+          'This function is a placeholder that should not be called. Functions cannot be statically extracted.'
+        )
+      },
+    }
   } else if (isObjectExpression(node)) {
     // e.g. { a: 1, b: 2 }
     const obj: any = {}
