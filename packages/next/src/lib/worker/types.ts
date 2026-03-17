@@ -35,7 +35,6 @@ export const PARENT_MESSAGE_READY = 4
 // Parent → Child message types
 export type ChildMessageInitialize = [
   type: typeof CHILD_MESSAGE_INITIALIZE,
-  reserved: false,
   workerPath: string,
   setupArgs: unknown[],
 ]

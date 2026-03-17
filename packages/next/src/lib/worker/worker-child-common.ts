@@ -173,7 +173,7 @@ export function createMessageHandler(
     switch (message[0]) {
       case CHILD_MESSAGE_INITIALIZE:
         onInitialize?.(message)
-        initialize(message[2], message[3])
+        initialize(message[1], message[2])
         break
       case CHILD_MESSAGE_CALL:
         execMethod(message[1], message[2], message[3])

@@ -494,7 +494,6 @@ export class WorkerPool {
     // Send INITIALIZE message so the child knows which module to load
     handle.send([
       CHILD_MESSAGE_INITIALIZE,
-      false,
       workerPath,
       setupArgs ?? [],
     ] satisfies ChildMessageInitialize)

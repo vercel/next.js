@@ -37,7 +37,7 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 
 | Message | Format |
 |---------|--------|
-| INITIALIZE | `[0, false, workerPath, setupArgs]` |
+| INITIALIZE | `[0, workerPath, setupArgs]` |
 | CALL | `[1, requestId, methodName, args]` |
 | END | `[2]` |
 

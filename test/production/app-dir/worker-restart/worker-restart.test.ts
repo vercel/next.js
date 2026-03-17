@@ -1,30 +1,35 @@
 import { nextBuild } from 'next-test-utils'
 
 describe('worker-restart', () => {
-  it('should properly exhaust all restart attempts and not fail with any worker errors', async () => {
-    const { stdout, stderr } = await nextBuild(
-      __dirname + '/fixtures/timeout',
-      [],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
+  // Webpack build + 3×10s retry timeouts can exceed 60 s on slow CI runners.
+  it(
+    'should properly exhaust all restart attempts and not fail with any worker errors',
+    async () => {
+      const { stdout, stderr } = await nextBuild(
+        __dirname + '/fixtures/timeout',
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
 
-    const output = stdout + stderr
-    expect(output).toContain(
-      'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
-    )
-    expect(output).toContain(
-      'Failed to build /bad-page/page: /bad-page (attempt 2 of 3) because it took more than 10 seconds. Retrying again shortly.'
-    )
-    expect(output).toContain(
-      'Failed to build /bad-page/page: /bad-page after 3 attempts'
-    )
-    expect(output).not.toContain(
-      'Error: Worker is ended, no more calls can be done to it'
-    )
-  })
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
+      )
+      expect(output).toContain(
+        'Failed to build /bad-page/page: /bad-page (attempt 2 of 3) because it took more than 10 seconds. Retrying again shortly.'
+      )
+      expect(output).toContain(
+        'Failed to build /bad-page/page: /bad-page after 3 attempts'
+      )
+      expect(output).not.toContain(
+        'Error: Worker is ended, no more calls can be done to it'
+      )
+    },
+    5 * 60 * 1000
+  )
 
   it('should support configurable static generation retries', async () => {
     const { stdout, stderr } = await nextBuild(
