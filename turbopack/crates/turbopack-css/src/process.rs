@@ -402,6 +402,30 @@ pub async fn parse_css(
     .await
 }
 
+/// Parse a CSS stylesheet and run CSS module validation.
+///
+/// Does not handle parser warnings — the caller is responsible for configuring
+/// the `warnings` field in `config` and processing collected warnings.
+fn parse_css_stylesheet<'a, 'o>(
+    code: &'a str,
+    config: ParserOptions<'o, 'a>,
+    ty: CssModuleType,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Result<StyleSheet<'a, 'o>, lightningcss::error::Error<lightningcss::error::ParserError<'a>>> {
+    let mut ss = StyleSheet::parse(code, config)?;
+
+    if matches!(ty, CssModuleType::Module) {
+        let mut validator = CssValidator { errors: Vec::new() };
+        ss.visit(&mut validator).unwrap();
+
+        for err in validator.errors {
+            err.report(source);
+        }
+    }
+
+    Ok(ss)
+}
+
 async fn process_content(
     content_vc: ResolvedVc<FileContent>,
     code: String,
@@ -453,30 +477,23 @@ async fn process_content(
     let stylesheet = {
         let warnings: Arc<RwLock<_>> = Default::default();
 
-        match StyleSheet::parse(
+        match parse_css_stylesheet(
             &code,
             ParserOptions {
                 warnings: Some(warnings.clone()),
                 ..config.clone()
             },
+            ty,
+            source,
         ) {
             Ok(mut ss) => {
-                if matches!(ty, CssModuleType::Module) {
-                    let mut validator = CssValidator { errors: Vec::new() };
-                    ss.visit(&mut validator).unwrap();
-
-                    for err in validator.errors {
-                        err.report(source);
-                    }
-                }
-
                 for err in warnings.read().unwrap().iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
                         | lightningcss::error::ParserError::EndOfInput => {
-                            let source = match &err.loc {
+                            let issue_source = match &err.loc {
                                 Some(loc) => IssueSource::from_single_line_col(
                                     source,
                                     SourcePos {
@@ -491,11 +508,10 @@ async fn process_content(
                             ParsingIssue {
                                 msg: err.kind.to_string().into(),
                                 stage: IssueStage::Parse,
-                                source,
+                                source: issue_source,
                             }
                             .resolved_cell()
                             .emit();
-                            return Ok(ParseCssResult::Unparsable.cell());
                         }
 
                         _ => {
@@ -519,7 +535,7 @@ async fn process_content(
                     targets,
                     ..Default::default()
                 }) {
-                    let source = match &e.loc {
+                    let issue_source = match &e.loc {
                         Some(loc) => IssueSource::from_single_line_col(
                             source,
                             SourcePos {
@@ -533,17 +549,32 @@ async fn process_content(
                     ParsingIssue {
                         msg: e.kind.to_string().into(),
                         stage: IssueStage::Transform,
-                        source,
+                        source: issue_source,
                     }
                     .resolved_cell()
                     .emit();
-                    return Ok(ParseCssResult::Unparsable.cell());
+                    // Re-parse to get a fresh stylesheet since minify may
+                    // have partially modified the original.
+                    match parse_css_stylesheet(
+                        &code,
+                        ParserOptions {
+                            warnings: None,
+                            ..config.clone()
+                        },
+                        ty,
+                        source,
+                    ) {
+                        Ok(fresh) => {
+                            stylesheet_into_static(&fresh, without_warnings(config.clone()))
+                        }
+                        Err(_) => return Ok(ParseCssResult::Unparsable.cell()),
+                    }
+                } else {
+                    stylesheet_into_static(&ss, without_warnings(config.clone()))
                 }
-
-                stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
             Err(e) => {
-                let source = match &e.loc {
+                let issue_source = match &e.loc {
                     Some(loc) => IssueSource::from_single_line_col(
                         source,
                         SourcePos {
@@ -557,7 +588,7 @@ async fn process_content(
                 ParsingIssue {
                     msg: e.kind.to_string().into(),
                     stage: IssueStage::Parse,
-                    source,
+                    source: issue_source,
                 }
                 .resolved_cell()
                 .emit();
