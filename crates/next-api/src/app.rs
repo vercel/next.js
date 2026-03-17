@@ -1252,6 +1252,7 @@ impl AppEndpoint {
 
         let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
 
+        // TODO replace with self.module_graphs()
         let module_graphs = this
             .app_project
             .app_module_graphs(
