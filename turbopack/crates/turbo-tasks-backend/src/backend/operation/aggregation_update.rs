@@ -43,10 +43,10 @@ type FxRingSet<T> = RingSet<T, FxBuildHasher>;
 
 pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
-/// A larger batch limit for find_and_schedule processing. These jobs are cheaper than aggregation
+/// Batch size for find_and_schedule processing. These jobs are cheaper than aggregation
 /// updates (they only read task metadata and optionally schedule a task), so we can process more
 /// of them per `process()` call before yielding.
-const MAX_FIND_AND_SCHEDULE_COUNT_BEFORE_YIELD: usize = MAX_COUNT_BEFORE_YIELD * 10;
+const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
@@ -1244,7 +1244,7 @@ impl AggregationUpdateQueue {
             let count = self
                 .find_and_schedule
                 .len()
-                .min(MAX_FIND_AND_SCHEDULE_COUNT_BEFORE_YIELD);
+                .min(FIND_AND_SCHEDULE_BATCH_SIZE);
             let jobs: SmallVec<[FindAndScheduleJob; 4]> =
                 self.find_and_schedule.drain(..count).collect();
             self.find_and_schedule_dirty(jobs, ctx);
