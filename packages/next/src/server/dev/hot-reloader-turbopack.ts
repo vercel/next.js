@@ -1075,7 +1075,7 @@ export async function createHotReloaderTurbopack(
         //
         // If next-browser is not installed, fall back to internal HTTP GET.
 
-        await project.invalidateFileSystemCache()
+        await project.invalidateSources()
 
         const { exec } =
           require('child_process') as typeof import('child_process')
@@ -1145,10 +1145,9 @@ export async function createHotReloaderTurbopack(
                       .filter((f: string) => f.endsWith('.png'))
                       .sort()
                     if (frames.length > 0) {
-                      result.screenshot = (require('path') as typeof import('path')).join(
-                        captureDir,
-                        frames[frames.length - 1]
-                      )
+                      result.screenshot = (
+                        require('path') as typeof import('path')
+                      ).join(captureDir, frames[frames.length - 1])
                     }
                   } catch {
                     // Directory read failed

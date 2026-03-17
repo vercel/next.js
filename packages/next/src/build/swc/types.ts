@@ -330,6 +330,8 @@ export interface Project {
 
   invalidateFileSystemCache(): Promise<void>
 
+  invalidateSources(): Promise<void>
+
   shutdown(): Promise<void>
 
   onExit(): Promise<void>

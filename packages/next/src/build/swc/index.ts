@@ -838,6 +838,10 @@ function bindingToApi(
       return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
+    invalidateSources(): Promise<void> {
+      return binding.projectInvalidateSources(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }

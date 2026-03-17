@@ -335,6 +335,15 @@ export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
+ * Invalidates in-memory file system state, forcing Turbopack to re-read source
+ * files from disk on the next compilation. Unlike `invalidateFileSystemCache`
+ * (which marks the persisted database for cleanup on restart), this drains
+ * in-memory invalidator maps and immediately invalidates all tracked tasks.
+ */
+export declare function projectInvalidateSources(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
  * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
