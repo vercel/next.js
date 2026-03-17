@@ -1425,7 +1425,8 @@ impl AggregationUpdateQueue {
         jobs: SmallVec<[FindAndScheduleJob; 4]>,
         ctx: &mut impl ExecuteContext,
     ) {
-        // Pre-fetch all task data from backing storage in a single batch (parallel I/O).
+        // Pre-fetch all task data from backing storage in a single batch (keys are sorted by hash
+        // for cache-friendly sequential access to the storage layer).
         // We still acquire each task individually below because `find_and_schedule_dirty_internal`
         // drops the guard and then calls `ctx.schedule()` (which calls `ctx.task()` internally),
         // requiring the lock counter to be zero at that point. `for_each_task_meta` keeps the
