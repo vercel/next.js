@@ -62,7 +62,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<Item = SnapshotItem> + Send + Sync;
+        I: IntoIterator<Item = SnapshotItem> + Send + Sync;
     /// Returns all task IDs that match the given task type (hash collision candidates).
     ///
     /// Since TaskCache uses hash-based keys, multiple task types may (rarely) hash to the same key.
@@ -125,7 +125,7 @@ where
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<Item = SnapshotItem> + Send + Sync,
+        I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
         either::for_both!(self, this => this.save_snapshot(
             operations,

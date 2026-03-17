@@ -1209,7 +1209,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 )
             };
 
-        // take_snapshot already filters empty items and empty shards in parallel
+        // take_snapshot filters empty shards (no modified/snapshot entries) in parallel.
+        // Individual empty SnapshotItems are filtered by the iterator.
         let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
