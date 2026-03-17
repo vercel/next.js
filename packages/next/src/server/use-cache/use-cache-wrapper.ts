@@ -54,6 +54,7 @@ import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { createReactServerErrorHandler } from '../app-render/create-error-handler'
+import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
@@ -710,6 +711,10 @@ async function generateCacheEntryImpl(
               return undefined
             }
 
+            if (isNextRouterError(error)) {
+              errors.push(error)
+            }
+
             return handleError(error)
           },
         }
@@ -776,7 +781,12 @@ async function generateCacheEntryImpl(
           environmentName: 'Cache',
           filterStackFrame,
           temporaryReferences,
-          onError: handleError,
+          onError: (error) => {
+            if (isNextRouterError(error)) {
+              errors.push(error)
+            }
+            return handleError(error)
+          },
         }
       )
       break
