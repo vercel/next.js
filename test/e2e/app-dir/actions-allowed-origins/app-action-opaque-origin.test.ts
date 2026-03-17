@@ -5,6 +5,7 @@ import { join } from 'path'
 describe('app-dir action allowed from opaque origins', () => {
   const { next, skipped } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
+    skipDeployment: true,
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '1',
     },
@@ -30,6 +31,7 @@ describe('app-dir action allowed from opaque origins', () => {
 describe('app-dir action disallowed from opaque origins', () => {
   const { isNextDev, next, skipped } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
+    skipDeployment: true,
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '',
     },
