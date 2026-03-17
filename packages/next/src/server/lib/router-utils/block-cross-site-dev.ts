@@ -20,6 +20,10 @@ function formatBlockedCrossSiteMessage(
     'Cross-origin access to Next.js dev resources is blocked by default for safety.',
   ]
 
+  // `source` has 3 meanings here:
+  // - `'null'`: browser explicitly sent `Origin: null` for an opaque/sandboxed origin
+  // - hostname string: we parsed an allowlistable host from Origin/Referer
+  // - `undefined` (and effectively empty string): the request did not include a usable host
   if (source === 'null') {
     lines.push(
       '',
