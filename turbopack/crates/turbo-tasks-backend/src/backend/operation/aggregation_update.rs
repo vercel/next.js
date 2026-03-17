@@ -1237,22 +1237,10 @@ impl AggregationUpdateQueue {
             self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
-            let mut remaining = MAX_COUNT_BEFORE_YIELD;
-            while remaining > 0 {
-                if let Some(FindAndScheduleJob {
-                    task_id,
-                    #[cfg(feature = "trace_find_and_schedule")]
-                    span,
-                }) = self.find_and_schedule.pop_front()
-                {
-                    #[cfg(feature = "trace_find_and_schedule")]
-                    let _guard = span.map(|s| s.entered());
-                    self.find_and_schedule_dirty(task_id, ctx);
-                    remaining -= 1;
-                } else {
-                    break;
-                }
-            }
+            let count = self.find_and_schedule.len().min(MAX_COUNT_BEFORE_YIELD);
+            let jobs: SmallVec<[FindAndScheduleJob; 4]> =
+                self.find_and_schedule.drain(..count).collect();
+            self.find_and_schedule_dirty(jobs, ctx);
             false
         } else {
             true
@@ -1422,23 +1410,33 @@ impl AggregationUpdateQueue {
         }
     }
 
-    /// Schedules the task if it's dirty.
+    /// Schedules the tasks if they're dirty.
     ///
     /// Only used when activeness is tracked.
-    fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut impl ExecuteContext) {
+    fn find_and_schedule_dirty(
+        &mut self,
+        jobs: SmallVec<[FindAndScheduleJob; 4]>,
+        ctx: &mut impl ExecuteContext,
+    ) {
+        // For performance reasons this should stay `Meta` and not `All`
         #[cfg(feature = "trace_find_and_schedule")]
-        let _span = trace_span!(
-            "find and schedule",
-            %task_id,
-            name = ctx.get_task_description(task_id)
-        )
-        .entered();
-        let task = ctx.task(
-            task_id,
-            // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
-        );
-        self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        let mut spans: std::collections::HashMap<TaskId, Option<Span>> = jobs
+            .iter()
+            .map(|job| (job.task_id, job.span.clone()))
+            .collect();
+        ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
+            let task_id = task.id();
+            #[cfg(feature = "trace_find_and_schedule")]
+            let _parent_guard = spans.remove(&task_id).flatten().map(|s| s.entered());
+            #[cfg(feature = "trace_find_and_schedule")]
+            let _span = trace_span!(
+                "find and schedule",
+                %task_id,
+                name = task.get_task_description()
+            )
+            .entered();
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        });
     }
 
     fn find_and_schedule_dirty_internal(
