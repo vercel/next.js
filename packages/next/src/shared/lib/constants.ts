@@ -85,7 +85,6 @@ export type PHASE_TYPE =
   | typeof PHASE_DEVELOPMENT_SERVER
 
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
