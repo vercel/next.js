@@ -392,19 +392,15 @@ const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
 /// - `Taken` → `Available` (return)
 ///
 /// Any other transition is a bug (e.g. double-take or double-return).
+#[derive(Default)]
 enum ScratchBufferSlot {
     /// No buffer has been allocated on this thread yet.
+    #[default]
     Uninit,
     /// The buffer is currently checked out.
     Taken,
     /// The buffer is available for reuse.
     Available(TurboBincodeBuffer),
-}
-
-impl Default for ScratchBufferSlot {
-    fn default() -> Self {
-        ScratchBufferSlot::Uninit
-    }
 }
 
 pub struct SnapshotGuard<'l> {
