@@ -393,8 +393,6 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
-  /** @deprecated use top-level `adapterPath` instead */
-  adapterPath?: string
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
