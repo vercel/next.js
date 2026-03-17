@@ -102,7 +102,7 @@ impl ModuleId {
 #[turbo_tasks::value(transparent, shared)]
 pub struct ModuleIds(Vec<ModuleId>);
 
-/// A [Module] that can be converted into a [Chunk].
+/// A [Module] that can be converted into a [ChunkItem].
 #[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
