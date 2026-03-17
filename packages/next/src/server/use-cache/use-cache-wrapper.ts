@@ -552,6 +552,63 @@ function propagateCacheEntryMetadata(
   }
 }
 
+/**
+ * Conditionally propagates cache life, tags, and root param names to the outer
+ * context. During prerenders (`prerender` / `prerender-runtime`) and dev
+ * cache-filling requests, propagation is deferred because the entry might be
+ * omitted from the final prerender due to short expire/stale times. If omitted,
+ * it should not affect the prerender. The final decision happens when the entry
+ * is read from the resume data cache in the final render phase — at that point
+ * `propagateCacheEntryMetadata` is called unconditionally (after the omission
+ * checks have already filtered out short-lived entries).
+ *
+ * Note: Root param names are only propagated when the outer context is a
+ * `cache` store (i.e. an enclosing `"use cache"` function), which is never
+ * deferred. For prerender contexts, root param names are tracked separately
+ * via `addKnownRootParamNames` in the resume data cache read path.
+ */
+function maybePropagateCacheEntryMetadata(
+  cacheContext: CacheContext,
+  entry: CacheEntry,
+  readRootParamNames: ReadonlySet<string> | undefined
+): void {
+  const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+
+  switch (outerWorkUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime': {
+      // Don't propagate yet — the entry might be omitted from the final
+      // prerender due to short expire/stale times. Propagation will happen when
+      // the entry is read from the resume data cache.
+      break
+    }
+    case 'request': {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        outerWorkUnitStore.cacheSignal
+      ) {
+        // If we're filling caches for a dev request, apply the same logic as
+        // prerenders do above.
+        break
+      }
+      // fallthrough
+    }
+    case 'private-cache':
+    case 'cache':
+    case 'unstable-cache':
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
+      propagateCacheEntryMetadata(cacheContext, entry, readRootParamNames)
+      break
+    }
+    case 'generate-static-params':
+      break
+    default: {
+      outerWorkUnitStore satisfies never
+    }
+  }
+}
+
 export interface CollectedCacheResult {
   entry: CacheEntry
   /**
@@ -654,56 +711,15 @@ async function collectResult(
   }
 
   if (!cacheContext.skipPropagation) {
-    const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+    maybePropagateCacheEntryMetadata(
+      cacheContext,
+      entry,
+      innerCacheStore.type === 'cache'
+        ? innerCacheStore.readRootParamNames
+        : undefined
+    )
 
-    // Propagate cache life & tags to the outer context if appropriate.
-    switch (outerWorkUnitStore.type) {
-      case 'prerender':
-      case 'prerender-runtime': {
-        // If we've just created a cache result, and we're filling caches for a
-        // Cache Components prerender, then we don't want to propagate cache
-        // life & tags yet, in case the entry ends up being omitted from the
-        // final prerender due to short expire/stale times. If it is omitted,
-        // then it shouldn't have any effects on the prerender. We'll decide
-        // whether or not this cache should have its life & tags propagated when
-        // we read the entry in the final prerender from the resume data cache.
-
-        break
-      }
-      case 'request': {
-        if (
-          process.env.NODE_ENV === 'development' &&
-          outerWorkUnitStore.cacheSignal
-        ) {
-          // If we're filling caches for a dev request, apply the same logic as prerenders do above,
-          // and don't propagate cache life/tags yet.
-          break
-        }
-        // fallthrough
-      }
-
-      case 'private-cache':
-      case 'cache':
-      case 'unstable-cache':
-      case 'prerender-legacy':
-      case 'prerender-ppr': {
-        propagateCacheEntryMetadata(
-          cacheContext,
-          entry,
-          innerCacheStore.type === 'cache'
-            ? innerCacheStore.readRootParamNames
-            : undefined
-        )
-        break
-      }
-      case 'generate-static-params':
-        break
-      default: {
-        outerWorkUnitStore satisfies never
-      }
-    }
-
-    const cacheSignal = getCacheSignal(outerWorkUnitStore)
+    const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
     if (cacheSignal) {
       cacheSignal.endRead()
     }
@@ -1976,7 +1992,7 @@ export async function cache(
         )
       }
 
-      propagateCacheEntryMetadata(
+      maybePropagateCacheEntryMetadata(
         cacheContext,
         entry,
         knownRootParamsByFunctionId.get(id)
