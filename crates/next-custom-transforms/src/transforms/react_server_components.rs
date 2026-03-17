@@ -328,7 +328,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a module that depends on \"{source}\" into a React Client Component module. This API is only available in Server Components which is not supported in the pages/ directory.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
+                format!("You're importing a module that depends on \"{source}\". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
                 format!("You're importing a module that depends on \"{source}\" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with \"use client\", so this module is also a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };

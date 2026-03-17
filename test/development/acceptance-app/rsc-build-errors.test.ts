@@ -276,7 +276,7 @@ describe('Error overlay - RSC build errors', () => {
     const { session } = sandbox
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+      'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
     )
   })
 
@@ -311,7 +311,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+        'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
       )
     }
   )
