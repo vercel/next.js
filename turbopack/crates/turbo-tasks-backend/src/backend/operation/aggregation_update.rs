@@ -1418,23 +1418,22 @@ impl AggregationUpdateQueue {
         jobs: SmallVec<[FindAndScheduleJob; 4]>,
         ctx: &mut impl ExecuteContext,
     ) {
-        // For performance reasons this should stay `Meta` and not `All`
         #[cfg(feature = "trace_find_and_schedule")]
-        let mut spans: std::collections::HashMap<TaskId, Option<Span>> = jobs
+        let mut spans: FxHashMap<TaskId, Option<Span>> = jobs
             .iter()
             .map(|job| (job.task_id, job.span.clone()))
             .collect();
+        // For performance reasons this should stay `Meta` and not `All`
         ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
             let task_id = task.id();
+            // Enter the enqueue-time span and create a per-task child span with the
+            // task description. Both guards must live until the end of the closure.
             #[cfg(feature = "trace_find_and_schedule")]
-            let _parent_guard = spans.remove(&task_id).flatten().map(|s| s.entered());
-            #[cfg(feature = "trace_find_and_schedule")]
-            let _span = trace_span!(
-                "find and schedule",
-                %task_id,
-                name = task.get_task_description()
-            )
-            .entered();
+            let _trace = (
+                spans.remove(&task_id).flatten().map(|s| s.entered()),
+                trace_span!("find and schedule", %task_id, name = task.get_task_description())
+                    .entered(),
+            );
             self.find_and_schedule_dirty_internal(task_id, task, ctx);
         });
     }
