@@ -858,8 +858,8 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
-    #[bincode(skip, default = "Vec::new")]
-    scheduled_tasks: Vec<(TaskId, TaskPriority)>,
+    #[bincode(skip, default = "FxHashMap::default")]
+    scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
 }
 
 impl AggregationUpdateQueue {
@@ -872,7 +872,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
-            scheduled_tasks: Vec::new(),
+            scheduled_tasks: FxHashMap::default(),
         }
     }
 
@@ -984,23 +984,6 @@ impl AggregationUpdateQueue {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
-    }
-
-    /// Drains `scheduled_tasks` and schedules them all at once using a batched task fetch.
-    fn batch_schedule(&mut self, ctx: &mut impl ExecuteContext<'_>) {
-        if self.scheduled_tasks.is_empty() {
-            return;
-        }
-        let scheduled_tasks = take(&mut self.scheduled_tasks);
-        let priority_map: FxHashMap<TaskId, TaskPriority> =
-            scheduled_tasks.iter().copied().collect();
-        ctx.for_each_task_all(
-            scheduled_tasks.into_iter().map(|(id, _)| id),
-            |task, ctx| {
-                let parent_priority = priority_map[&task.id()];
-                ctx.schedule_task(task, parent_priority);
-            },
-        );
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
@@ -1278,7 +1261,13 @@ impl AggregationUpdateQueue {
             }
             false
         } else {
-            self.batch_schedule(ctx);
+            if !self.scheduled_tasks.is_empty() {
+                ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
+                    let parent_priority = self.scheduled_tasks[&task.id()];
+                    ctx.schedule_task(task, parent_priority);
+                });
+                self.scheduled_tasks.clear();
+            }
             true
         }
     }
@@ -1502,7 +1491,7 @@ impl AggregationUpdateQueue {
             let description = EventDescription::new(|| task.get_task_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
-                self.scheduled_tasks.push((task_id, parent_priority));
+                self.scheduled_tasks.insert(task_id, parent_priority);
             }
         }
     }
