@@ -2,6 +2,7 @@ import type { Options as SWCOptions } from '@swc/core'
 import type { CompilerOptions } from 'typescript'
 
 import path from 'node:path'
+import Module from 'node:module'
 import { readFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import * as CommentJson from 'next/dist/compiled/comment-json'
@@ -201,6 +202,17 @@ async function handleCJS({
 }) {
   const swcOptions = resolveSWCOptions(dir, compilerOptions)
   let hasRequire = false
+
+  // Snapshot require.cache and Module._pathCache before config loading.
+  // In pnpm workspaces, modules loaded during config resolution may be cached
+  // under symlink paths, while the runtime resolves them to real paths. This
+  // causes duplicate module instances and separate AsyncLocalStorage singletons,
+  // leading to "Expected workUnitAsyncStorage to have a store" errors.
+  // See: https://github.com/vercel/next.js/issues/90669
+  const previousRequireCacheKeys = new Set(Object.keys(require.cache))
+  const pathCache: Record<string, string> = (Module as any)._pathCache
+  const previousPathCacheKeys = new Set(Object.keys(pathCache))
+
   try {
     const nextConfigString = readFileSync(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
@@ -236,6 +248,20 @@ async function handleCJS({
   } finally {
     if (hasRequire) {
       deregisterHook()
+    }
+
+    // Clean up module caches populated during config loading to prevent
+    // symlink-path cached modules from conflicting with real-path resolved
+    // modules at runtime (pnpm workspace symlink issue).
+    for (const key of Object.keys(require.cache)) {
+      if (!previousRequireCacheKeys.has(key)) {
+        delete require.cache[key]
+      }
+    }
+    for (const key of Object.keys(pathCache)) {
+      if (!previousPathCacheKeys.has(key)) {
+        delete pathCache[key]
+      }
     }
   }
 }
