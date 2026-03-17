@@ -1,10 +1,11 @@
-import { lang, locale } from 'next/root-params'
-import { connection } from 'next/server'
 import { Suspense } from 'react'
+import { lang, countryCode } from 'next/root-params'
+import { connection } from 'next/server'
+import { unstable_cache } from 'next/cache'
 
 export default async function Page() {
   return (
-    <Suspense fallback="Loading...">
+    <Suspense fallback="...">
       <Runtime />
     </Suspense>
   )
@@ -21,14 +22,13 @@ async function Runtime() {
   return (
     <p>
       <span id="param">
-        {rootParams.lang} {rootParams.locale}
+        {rootParams.lang} {rootParams.countryCode}
       </span>{' '}
       <span id="random">{data}</span>
     </p>
   )
 }
 
-async function getCachedParams() {
-  'use cache'
-  return { lang: await lang(), locale: await locale() }
-}
+const getCachedParams = unstable_cache(async function uncachedGetParams() {
+  return { lang: await lang(), countryCode: await countryCode() }
+})

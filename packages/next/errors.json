@@ -1137,5 +1137,7 @@
   "1136": "Page \"%s\" cannot use both \\`export const unstable_dynamicStaleTime\\` and \\`export const unstable_instant\\`.",
   "1137": "\"%s\" cannot use \\`export const unstable_dynamicStaleTime\\`. This config is only supported in page files, not layouts.",
   "1138": "`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.",
-  "1139": "`unstable_catchError` can only be used in Client Components."
+  "1139": "`unstable_catchError` can only be used in Client Components.",
+  "1140": "Route %s used \\`import('next/root-params').%s()\\` inside \\`\"use cache\"\\` nested within \\`unstable_cache\\`. Root params are not available in this context.",
+  "1141": "Route %s used \\`import('next/root-params').%s()\\` inside \\`unstable_cache\\`. This is not supported. Use \\`\"use cache\"\\` instead."
 }

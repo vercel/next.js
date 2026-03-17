@@ -230,7 +230,7 @@ describe('Error overlay - RSC build errors', () => {
         // `Component` has a custom error message
         api === 'Component'
           ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-          : `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          : `You're importing a module that depends on \`${api}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }
@@ -251,7 +251,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs \`${api}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a module that depends on \`${api}\` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
     })
   }
@@ -276,7 +276,7 @@ describe('Error overlay - RSC build errors', () => {
     const { session } = sandbox
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+      'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
     )
   })
 
@@ -311,7 +311,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+        'You\'re importing a module that depends on `unstable_catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
       )
     }
   )
@@ -335,7 +335,7 @@ describe('Error overlay - RSC build errors', () => {
 
     await session.waitForRedbox()
     expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that needs "server-only". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      `You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
     )
   })
 
@@ -351,7 +351,7 @@ describe('Error overlay - RSC build errors', () => {
         const { session } = sandbox
         await session.waitForRedbox()
         expect(await session.getRedboxSource()).toInclude(
-          `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+          `You're importing a module that depends on "${api}" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
         )
       }
     )
@@ -414,7 +414,7 @@ describe('Error overlay - RSC build errors', () => {
       const { session } = sandbox
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs "next/root-params". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+        `You're importing a module that depends on "next/root-params" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
       )
     })
 

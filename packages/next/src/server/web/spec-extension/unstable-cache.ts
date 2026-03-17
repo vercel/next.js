@@ -148,6 +148,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        rootParams: undefined,
       }
 
       if (workStore) {
