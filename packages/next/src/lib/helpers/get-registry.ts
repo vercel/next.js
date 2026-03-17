@@ -10,7 +10,7 @@ import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
 export function getRegistry(baseDir: string = process.cwd()) {
   let pkgManager = getPkgManager(baseDir)
 
-  // Starting from pnpm v10.7.1, pnpm fallbacks to npm for registry config.
+  // Starting from pnpm v10.7.1, pnpm typically falls back to npm for registry config.
   // This works in most cases, unless the project is a workspace because the flag below is needed.
   // Setting `pkgManager` to `npm` to ensure the command works as expected.
   if (pkgManager === 'pnpm') {
