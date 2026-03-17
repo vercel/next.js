@@ -1116,5 +1116,8 @@
   "1115": "Route \"%s\" accessed cookie \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`cookies\\` array, or \\`{ name: \"%s\", value: null }\\` if it should be absent.",
   "1116": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent.",
   "1117": "Instant validation boundaries should never appear in browser bundles.",
-  "1118": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing."
+  "1118": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
+  "1119": "This function is a placeholder that should not be called. Functions cannot be statically extracted.",
+  "1120": "Route \"%s\" expected \\`unstable_instant.generateSamples\\` to resolve to a non-empty array of valid samples.",
+  "1121": "Route \"%s\" encountered an error while executing \\`unstable_instant.generateSamples\\`."
 }
