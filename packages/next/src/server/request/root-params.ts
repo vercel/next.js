@@ -58,11 +58,19 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
   }
 
   switch (workUnitStore.type) {
-    case 'unstable-cache':
-    case 'cache': {
+    case 'unstable-cache': {
       throw new Error(
-        `Route ${workStore.route} used ${apiName} inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
+        `Route ${workStore.route} used ${apiName} inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.`
       )
+    }
+    case 'cache': {
+      if (!workUnitStore.rootParams) {
+        throw new Error(
+          `Route ${workStore.route} used ${apiName} inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
+        )
+      }
+      workUnitStore.readRootParamNames.add(paramName)
+      return Promise.resolve(workUnitStore.rootParams[paramName])
     }
     case 'prerender':
     case 'prerender-ppr':

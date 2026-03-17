@@ -55,6 +55,8 @@ import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { createReactServerErrorHandler } from '../app-render/create-error-handler'
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
+import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
+import type { CacheHandler } from '../lib/cache-handlers/types'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import {
@@ -67,6 +69,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
+import type { PrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
@@ -150,6 +153,131 @@ const nestedCacheShortExpireErrorMessage =
   `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
   `dynamic (with short \`expire\`). Read more: ` +
   `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
+
+// Tracks which root params each cache function has historically read. Used to
+// compute the specific cache key upfront on subsequent invocations. In-memory
+// only — after server restart, the coarse-key redirect entry in the cache
+// handler provides fallback.
+const knownRootParamsByFunctionId = new Map<string, Set<string>>()
+
+function addKnownRootParamNames(
+  id: string,
+  names: ReadonlySet<string>
+): Set<string> {
+  const existing = knownRootParamsByFunctionId.get(id)
+  if (existing) {
+    for (const name of names) {
+      existing.add(name)
+    }
+    return existing
+  }
+  const created = new Set(names)
+  knownRootParamsByFunctionId.set(id, created)
+  return created
+}
+
+function computeRootParamsCacheKeySuffix(
+  rootParams: Params,
+  paramNames: ReadonlySet<string>
+): string {
+  if (paramNames.size === 0) {
+    return ''
+  }
+
+  return JSON.stringify(
+    [...paramNames]
+      .sort()
+      .map((paramName) => [paramName, rootParams[paramName]])
+  )
+}
+
+function saveToResumeDataCache(
+  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  serializedCacheKey: string,
+  pendingCacheResult: Promise<CollectedCacheResult>
+): Promise<CollectedCacheResult> {
+  if (!prerenderResumeDataCache) {
+    return pendingCacheResult
+  }
+
+  const split = clonePendingCacheResult(pendingCacheResult)
+  const savedCacheResult = getNthCacheResult(split, 0)
+  const rdcResult = getNthCacheResult(split, 1)
+
+  // The RDC is per-page and root params are fixed within a page, so we always
+  // use the coarse key (without root param suffix). Unlike the cache handler,
+  // the RDC doesn't need root-param-specific keys for isolation.
+  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+
+  return savedCacheResult
+}
+
+function saveToCacheHandler(
+  cacheHandler: CacheHandler,
+  workStore: WorkStore,
+  id: string,
+  serializedCacheKey: string,
+  savedCacheResult: Promise<CollectedCacheResult>,
+  rootParams: Params | undefined
+): void {
+  const pendingCoarseEntry = savedCacheResult.then((collectedResult) => {
+    const { entry: fullEntry, readRootParamNames } = collectedResult
+
+    // Use the combined set (union of all historically observed reads) for both
+    // the specific key and the redirect entry's tags. The read path computes
+    // cacheHandlerKey from this same union (knownRootParamsByFunctionId), so
+    // the write path must use the identical set to land on the same specific
+    // key. If we used only the current invocation's reads, a function that
+    // conditionally reads different root params across invocations would
+    // scatter entries across different specific keys, making previous entries
+    // unreachable from the read path's union-based lookup.
+    const rootParamNames = readRootParamNames
+      ? addKnownRootParamNames(id, readRootParamNames)
+      : knownRootParamsByFunctionId.get(id)
+
+    if (rootParamNames && rootParamNames.size > 0 && rootParams) {
+      const specificKey =
+        serializedCacheKey +
+        computeRootParamsCacheKeySuffix(rootParams, rootParamNames)
+
+      const specificSetPromise = cacheHandler.set(
+        specificKey,
+        Promise.resolve(fullEntry)
+      )
+      workStore.pendingRevalidateWrites ??= []
+      workStore.pendingRevalidateWrites.push(specificSetPromise)
+
+      // Return a redirect entry for the coarse key. On a cold server (empty
+      // knownRootParamsByFunctionId), this entry's tags tell us which root
+      // params to include in the specific key for the follow-up lookup.
+
+      const rootParamTags = [...rootParamNames].map(
+        (paramName) => NEXT_CACHE_ROOT_PARAM_TAG_ID + paramName
+      )
+
+      return {
+        value: new ReadableStream({
+          start(controller) {
+            // Single byte so the entry has non-zero size in LRU caches.
+            controller.enqueue(new Uint8Array([0]))
+            controller.close()
+          },
+        }),
+        tags: [...fullEntry.tags, ...rootParamTags],
+        stale: fullEntry.stale,
+        timestamp: fullEntry.timestamp,
+        expire: fullEntry.expire,
+        revalidate: fullEntry.revalidate,
+      } satisfies CacheEntry
+    }
+
+    return fullEntry
+  })
+
+  const promise = cacheHandler.set(serializedCacheKey, pendingCoarseEntry)
+  workStore.pendingRevalidateWrites ??= []
+  workStore.pendingRevalidateWrites.push(promise)
+}
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -274,6 +402,8 @@ function createUseCacheStore(
         workStore,
         outerWorkUnitStore
       ),
+      rootParams: outerWorkUnitStore.rootParams,
+      readRootParamNames: new Set<string>(),
     }
   }
 }
@@ -363,9 +493,10 @@ function propagateCacheStaleTimeToRequestStore(
   }
 }
 
-function propagateCacheLifeAndTags(
+function propagateCacheEntryMetadata(
   cacheContext: CacheContext,
-  entry: CacheEntry
+  entry: CacheEntry,
+  readRootParamNames: ReadonlySet<string> | undefined
 ): void {
   if (cacheContext.kind === 'private') {
     switch (cacheContext.outerWorkUnitStore.type) {
@@ -390,6 +521,12 @@ function propagateCacheLifeAndTags(
   } else {
     switch (cacheContext.outerWorkUnitStore.type) {
       case 'cache':
+        if (readRootParamNames) {
+          for (const paramName of readRootParamNames) {
+            cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
+          }
+        }
+      // fallthrough
       case 'private-cache':
       case 'prerender':
       case 'prerender-runtime':
@@ -433,6 +570,13 @@ export interface CollectedCacheResult {
    * - `undefined`: unknown (e.g. pre-existing entry from a cache handler)
    */
   hasExplicitExpire: boolean | undefined
+  /**
+   * The root param names that were read during cache entry generation.
+   * Used to compute the specific cache key after generation completes.
+   * `undefined` for pre-existing entries from cache handlers where we
+   * don't have this information.
+   */
+  readRootParamNames: ReadonlySet<string> | undefined
 }
 
 async function collectResult(
@@ -543,7 +687,13 @@ async function collectResult(
       case 'unstable-cache':
       case 'prerender-legacy':
       case 'prerender-ppr': {
-        propagateCacheLifeAndTags(cacheContext, entry)
+        propagateCacheEntryMetadata(
+          cacheContext,
+          entry,
+          innerCacheStore.type === 'cache'
+            ? innerCacheStore.readRootParamNames
+            : undefined
+        )
         break
       }
       case 'generate-static-params':
@@ -563,6 +713,10 @@ async function collectResult(
     entry,
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
     hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
+    readRootParamNames:
+      innerCacheStore.type === 'cache'
+        ? innerCacheStore.readRootParamNames
+        : undefined,
   }
 }
 
@@ -834,11 +988,13 @@ function cloneCacheResult(
       entry: entryA,
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
+      readRootParamNames: result.readRootParamNames,
     },
     {
       entry: entryB,
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
+      readRootParamNames: result.readRootParamNames,
     },
   ]
 }
@@ -1309,6 +1465,17 @@ export async function cache(
         encodedCacheKeyParts
       : await encodeFormData(encodedCacheKeyParts)
 
+  // If we already know which root params this function reads, include them in
+  // the cache handler key for a direct hit (skipping the redirect entry).
+  // rootParams is undefined when nested inside unstable_cache.
+  const rootParams = workUnitStore.rootParams
+  const knownRootParamNames = knownRootParamsByFunctionId.get(id)
+  let cacheHandlerKey =
+    knownRootParamNames && rootParams
+      ? serializedCacheKey +
+        computeRootParamsCacheKeySuffix(rootParams, knownRootParamNames)
+      : serializedCacheKey
+
   let stream: undefined | ReadableStream = undefined
 
   // Get an immutable and mutable versions of the resume data cache.
@@ -1323,16 +1490,16 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const cachedResult = renderResumeDataCache.cache.get(serializedCacheKey)
-    if (cachedResult !== undefined) {
-      let existingResult: CollectedCacheResult | undefined = await cachedResult
+    const rdcEntry = renderResumeDataCache.cache.get(serializedCacheKey)
+    if (rdcEntry !== undefined) {
+      let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
-      // Check if the RDC entry should be discarded due to recently revalidated tags.
-      // When a server action calls updateTag(), the re-render should see fresh data
-      // instead of stale RDC data.
-      if (existingResult !== undefined) {
+      // Check if the RDC entry should be discarded due to recently revalidated
+      // tags. When a server action calls updateTag(), the re-render should see
+      // fresh data instead of stale RDC data.
+      if (rdcResult !== undefined) {
         if (
-          existingResult.entry.tags.some((tag) =>
+          rdcResult.entry.tags.some((tag) =>
             isRecentlyRevalidatedTag(tag, workStore)
           ) ||
           implicitTags.some((tag) => isRecentlyRevalidatedTag(tag, workStore))
@@ -1341,14 +1508,14 @@ export async function cache(
             'discarding RDC entry due to recently revalidated tags',
             serializedCacheKey
           )
-          existingResult = undefined
+          rdcResult = undefined
         }
       }
 
-      if (existingResult !== undefined) {
+      if (rdcResult !== undefined) {
         if (
-          existingResult.entry.revalidate === 0 ||
-          existingResult.entry.expire < DYNAMIC_EXPIRE
+          rdcResult.entry.revalidate === 0 ||
+          rdcResult.entry.expire < DYNAMIC_EXPIRE
         ) {
           switch (workUnitStore.type) {
             case 'prerender':
@@ -1358,8 +1525,8 @@ export async function cache(
               // generating static pages for such data. It's better to leave
               // a dynamic hole that can be filled in during the resume with
               // a potentially cached entry.
-              if (existingResult.entry.revalidate === 0) {
-                if (existingResult.hasExplicitRevalidate === false) {
+              if (rdcResult.entry.revalidate === 0) {
+                if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage),
                     workStore
@@ -1371,7 +1538,7 @@ export async function cache(
                   'from static shell due to revalidate: 0'
                 )
               } else {
-                if (existingResult.hasExplicitExpire === false) {
+                if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage),
                     workStore
@@ -1381,7 +1548,7 @@ export async function cache(
                   'omitting entry',
                   serializedCacheKey,
                   'from static shell due to short expire value:',
-                  existingResult.entry.expire
+                  rdcResult.entry.expire
                 )
               }
               if (cacheSignal) {
@@ -1407,8 +1574,8 @@ export async function cache(
             case 'request': {
               if (process.env.NODE_ENV === 'development') {
                 if (
-                  existingResult.entry.revalidate === 0 &&
-                  existingResult.hasExplicitRevalidate === false
+                  rdcResult.entry.revalidate === 0 &&
+                  rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheZeroRevalidateErrorMessage),
@@ -1416,8 +1583,8 @@ export async function cache(
                   )
                 }
                 if (
-                  existingResult.entry.expire < DYNAMIC_EXPIRE &&
-                  existingResult.hasExplicitExpire === false
+                  rdcResult.entry.expire < DYNAMIC_EXPIRE &&
+                  rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
                     new Error(nestedCacheShortExpireErrorMessage),
@@ -1454,7 +1621,7 @@ export async function cache(
           }
         }
 
-        if (existingResult.entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
+        if (rdcResult.entry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
           switch (workUnitStore.type) {
             case 'prerender-runtime':
               // In a runtime prerender, if the cache entry will become
@@ -1465,7 +1632,7 @@ export async function cache(
                 'omitting entry',
                 serializedCacheKey,
                 'from runtime shell due to short stale value:',
-                existingResult.entry.stale
+                rdcResult.entry.stale
               )
               if (cacheSignal) {
                 cacheSignal.endRead()
@@ -1505,20 +1672,31 @@ export async function cache(
         }
       }
 
-      if (existingResult !== undefined) {
+      if (rdcResult !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
 
         if (prerenderResumeDataCache) {
-          prerenderResumeDataCache.cache.set(serializedCacheKey, cachedResult)
+          prerenderResumeDataCache.cache.set(serializedCacheKey, rdcEntry)
+        }
+
+        if (
+          rdcResult.readRootParamNames &&
+          rdcResult.readRootParamNames.size > 0
+        ) {
+          addKnownRootParamNames(id, rdcResult.readRootParamNames)
         }
 
         // We want to make sure we only propagate cache life & tags if the
         // entry was *not* omitted from the prerender. So we only do this
         // after the above early returns.
-        propagateCacheLifeAndTags(cacheContext, existingResult.entry)
+        propagateCacheEntryMetadata(
+          cacheContext,
+          rdcResult.entry,
+          rdcResult.readRootParamNames
+        )
 
-        const [streamA, streamB] = existingResult.entry.value.tee()
-        existingResult.entry.value = streamB
+        const [streamA, streamB] = rdcResult.entry.value.tee()
+        rdcResult.entry.value = streamB
 
         if (cacheSignal) {
           // When we have a cacheSignal we need to block on reading the cache
@@ -1599,7 +1777,26 @@ export async function cache(
 
     // We ignore existing cache entries when force revalidating.
     if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
-      entry = await cacheHandler.get(serializedCacheKey, implicitTags)
+      entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
+
+      // Check if this is a redirect entry (coarse key → specific key). Redirect
+      // entries have private tags encoding the root param names (one tag per
+      // param name, prefixed with _N_RP_).
+      if (entry && rootParams) {
+        const paramNames = new Set<string>()
+        for (const tag of entry.tags) {
+          if (tag.startsWith(NEXT_CACHE_ROOT_PARAM_TAG_ID)) {
+            paramNames.add(tag.slice(NEXT_CACHE_ROOT_PARAM_TAG_ID.length))
+          }
+        }
+        if (paramNames.size > 0) {
+          addKnownRootParamNames(id, paramNames)
+          cacheHandlerKey =
+            serializedCacheKey +
+            computeRootParamsCacheKeySuffix(rootParams, paramNames)
+          entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
+        }
+      }
     }
 
     if (entry) {
@@ -1634,7 +1831,7 @@ export async function cache(
           implicitTagsExpiration
         )
       ) {
-        debug?.('discarding expired entry', serializedCacheKey)
+        debug?.('discarding expired entry', cacheHandlerKey)
         entry = undefined
       }
     }
@@ -1655,13 +1852,13 @@ export async function cache(
           if (entry.revalidate === 0) {
             debug?.(
               'omitting entry',
-              serializedCacheKey,
+              cacheHandlerKey,
               'from static shell due to revalidate: 0'
             )
           } else {
             debug?.(
               'omitting entry',
-              serializedCacheKey,
+              cacheHandlerKey,
               'from static shell due to short expire value:',
               entry.expire
             )
@@ -1723,14 +1920,14 @@ export async function cache(
 
       if (entry) {
         if (currentTime > entry.timestamp + entry.expire * 1000) {
-          debug?.('entry is expired', serializedCacheKey)
+          debug?.('entry is expired', cacheHandlerKey)
         }
 
         if (
           workStore.isStaticGeneration &&
           currentTime > entry.timestamp + entry.revalidate * 1000
         ) {
-          debug?.('static generation, entry is stale', serializedCacheKey)
+          debug?.('static generation, entry is stale', cacheHandlerKey)
         }
       }
 
@@ -1751,28 +1948,21 @@ export async function cache(
 
       // When draft mode is enabled, we must not save the cache entry.
       if (!workStore.isDraftMode) {
-        let savedCacheResult
-
-        if (prerenderResumeDataCache) {
-          // Create a clone that goes into the cache scope memory cache.
-          const split = clonePendingCacheResult(pendingCacheResult)
-          savedCacheResult = getNthCacheResult(split, 0)
-          prerenderResumeDataCache.cache.set(
-            serializedCacheKey,
-            getNthCacheResult(split, 1)
-          )
-        } else {
-          savedCacheResult = pendingCacheResult
-        }
+        const savedCacheResult = saveToResumeDataCache(
+          prerenderResumeDataCache,
+          serializedCacheKey,
+          pendingCacheResult
+        )
 
         if (cacheHandler) {
-          const promise = cacheHandler.set(
+          saveToCacheHandler(
+            cacheHandler,
+            workStore,
+            id,
             serializedCacheKey,
-            savedCacheResult.then((r) => r.entry)
+            savedCacheResult,
+            rootParams
           )
-
-          workStore.pendingRevalidateWrites ??= []
-          workStore.pendingRevalidateWrites.push(promise)
         }
       }
 
@@ -1786,13 +1976,17 @@ export async function cache(
         )
       }
 
-      propagateCacheLifeAndTags(cacheContext, entry)
+      propagateCacheEntryMetadata(
+        cacheContext,
+        entry,
+        knownRootParamsByFunctionId.get(id)
+      )
 
       // We want to return this stream, even if it's stale.
       stream = entry.value
 
-      // If we have a cache scope, we need to clone the entry and set it on
-      // the inner cache scope.
+      // If we have a resume data cache, we need to clone the entry and add it
+      // to the resume data cache.
       if (prerenderResumeDataCache) {
         const [entryLeft, entryRight] = cloneCacheEntry(entry)
         if (cacheSignal) {
@@ -1801,6 +1995,8 @@ export async function cache(
           stream = entryLeft.value
         }
 
+        // The RDC is per-page and root params are fixed within a page, so we
+        // always use the coarse key (without root param suffix).
         prerenderResumeDataCache.cache.set(
           serializedCacheKey,
           Promise.resolve({
@@ -1813,6 +2009,7 @@ export async function cache(
             // set this to undefined here.
             hasExplicitRevalidate: undefined,
             hasExplicitExpire: undefined,
+            readRootParamNames: knownRootParamNames,
           })
         )
       } else {
@@ -1844,27 +2041,22 @@ export async function cache(
 
         if (result.type === 'cached') {
           const { stream: ignoredStream, pendingCacheResult } = result
-          let savedCacheResult: Promise<CollectedCacheResult>
 
-          if (prerenderResumeDataCache) {
-            const split = clonePendingCacheResult(pendingCacheResult)
-            savedCacheResult = getNthCacheResult(split, 0)
-            prerenderResumeDataCache.cache.set(
-              serializedCacheKey,
-              getNthCacheResult(split, 1)
-            )
-          } else {
-            savedCacheResult = pendingCacheResult
-          }
+          const savedCacheResult = saveToResumeDataCache(
+            prerenderResumeDataCache,
+            serializedCacheKey,
+            pendingCacheResult
+          )
 
           if (cacheHandler) {
-            const promise = cacheHandler.set(
+            saveToCacheHandler(
+              cacheHandler,
+              workStore,
+              id,
               serializedCacheKey,
-              savedCacheResult.then((r) => r.entry)
+              savedCacheResult,
+              rootParams
             )
-
-            workStore.pendingRevalidateWrites ??= []
-            workStore.pendingRevalidateWrites.push(promise)
           }
 
           await ignoredStream.cancel()

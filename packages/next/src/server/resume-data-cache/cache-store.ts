@@ -44,6 +44,7 @@ export interface UseCacheCacheStoreSerialized {
   }
   hasExplicitRevalidate: boolean | undefined
   hasExplicitExpire: boolean | undefined
+  readRootParamNames: string[] | undefined
 }
 
 /**
@@ -64,7 +65,7 @@ export function parseUseCacheCacheStore(
 
   for (const [
     key,
-    { entry, hasExplicitRevalidate, hasExplicitExpire },
+    { entry, hasExplicitRevalidate, hasExplicitExpire, readRootParamNames },
   ] of entries) {
     store.set(
       key,
@@ -88,6 +89,9 @@ export function parseUseCacheCacheStore(
         },
         hasExplicitRevalidate,
         hasExplicitExpire,
+        readRootParamNames: readRootParamNames
+          ? new Set(readRootParamNames)
+          : undefined,
       })
     )
   }
@@ -107,45 +111,55 @@ export async function serializeUseCacheCacheStore(
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
       return value
-        .then(async ({ entry, hasExplicitRevalidate, hasExplicitExpire }) => {
-          if (
-            isCacheComponentsEnabled &&
-            (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
-          ) {
-            // The entry was omitted from the prerender result, and subsequently
-            // does not need to be included in the serialized RDC.
-            return null
-          }
+        .then(
+          async ({
+            entry,
+            hasExplicitRevalidate,
+            hasExplicitExpire,
+            readRootParamNames,
+          }) => {
+            if (
+              isCacheComponentsEnabled &&
+              (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+            ) {
+              // The entry was omitted from the prerender result, and subsequently
+              // does not need to be included in the serialized RDC.
+              return null
+            }
 
-          const [left, right] = entry.value.tee()
-          entry.value = right
+            const [left, right] = entry.value.tee()
+            entry.value = right
 
-          let binaryString: string = ''
+            let binaryString: string = ''
 
-          // We want to encode the value as a string, but we aren't sure if the
-          // value is a a stream of UTF-8 bytes or not, so let's just encode it
-          // as a string using base64.
-          for await (const chunk of left) {
-            binaryString += arrayBufferToString(chunk)
-          }
+            // We want to encode the value as a string, but we aren't sure if the
+            // value is a a stream of UTF-8 bytes or not, so let's just encode it
+            // as a string using base64.
+            for await (const chunk of left) {
+              binaryString += arrayBufferToString(chunk)
+            }
 
-          return [
-            key,
-            {
-              entry: {
-                // Encode the value as a base64 string.
-                value: btoa(binaryString),
-                tags: entry.tags,
-                stale: entry.stale,
-                timestamp: entry.timestamp,
-                expire: entry.expire,
-                revalidate: entry.revalidate,
+            return [
+              key,
+              {
+                entry: {
+                  // Encode the value as a base64 string.
+                  value: btoa(binaryString),
+                  tags: entry.tags,
+                  stale: entry.stale,
+                  timestamp: entry.timestamp,
+                  expire: entry.expire,
+                  revalidate: entry.revalidate,
+                },
+                hasExplicitRevalidate,
+                hasExplicitExpire,
+                readRootParamNames: readRootParamNames
+                  ? [...readRootParamNames]
+                  : undefined,
               },
-              hasExplicitRevalidate,
-              hasExplicitExpire,
-            },
-          ] satisfies [string, UseCacheCacheStoreSerialized]
-        })
+            ] satisfies [string, UseCacheCacheStoreSerialized]
+          }
+        )
         .catch(() => {
           // Any failed cache writes should be ignored as to not discard the
           // entire cache.

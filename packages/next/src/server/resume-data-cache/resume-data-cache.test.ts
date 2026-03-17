@@ -25,6 +25,7 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
@@ -42,6 +43,7 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
@@ -59,6 +61,7 @@ function createMockedCache() {
       },
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
