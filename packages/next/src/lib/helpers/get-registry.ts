@@ -8,13 +8,14 @@ import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
  * @default https://registry.npmjs.org/
  */
 export function getRegistry(baseDir: string = process.cwd()) {
-  let pkgManager = getPkgManager(baseDir)
+  const detectedPkgManager = getPkgManager(baseDir)
+  let runnerPkgManager = detectedPkgManager
 
   // Starting from pnpm v10.7.1, pnpm typically falls back to npm for registry config.
   // This works in most cases, unless the project is a workspace because the flag below is needed.
-  // Setting `pkgManager` to `npm` to ensure the command works as expected.
-  if (pkgManager === 'pnpm') {
-    pkgManager = 'npm'
+  // Setting `runnerPkgManager` to `npm` to ensure the command works as expected.
+  if (detectedPkgManager === 'pnpm') {
+    runnerPkgManager = 'npm'
   }
 
   // Since `npm config` command fails in npm workspace to prevent workspace config conflicts,
@@ -22,12 +23,12 @@ export function getRegistry(baseDir: string = process.cwd()) {
   // Safe for non-workspace projects as it's equivalent to default `--workspaces=false`.
   // x-ref: https://github.com/vercel/next.js/issues/47121#issuecomment-1499044345
   // x-ref: https://github.com/npm/statusboard/issues/371#issue-920669998
-  const resolvedFlags = pkgManager === 'npm' ? '--no-workspaces' : ''
+  const resolvedFlags = runnerPkgManager === 'npm' ? '--no-workspaces' : ''
   let registry = `https://registry.npmjs.org/`
 
   try {
     const output = execSync(
-      `${pkgManager} config get registry ${resolvedFlags}`,
+      `${runnerPkgManager} config get registry ${resolvedFlags}`,
       {
         env: {
           ...process.env,
@@ -42,7 +43,7 @@ export function getRegistry(baseDir: string = process.cwd()) {
       registry = output.endsWith('/') ? output : `${output}/`
     }
   } catch (err) {
-    throw new Error(`Failed to get registry from "${pkgManager}".`, {
+    throw new Error(`Failed to get registry from "${detectedPkgManager}".`, {
       cause: err,
     })
   }
