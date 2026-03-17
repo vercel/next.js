@@ -56,7 +56,10 @@ export function createReactServerErrorHandler(
   shouldFormatError: boolean,
   isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
-  onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
+  onReactServerRenderError: (
+    err: DigestedError,
+    silenceLog: boolean
+  ) => void | Promise<void>,
   spanToRecordOn?: any
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
@@ -141,7 +144,22 @@ export function createReactServerErrorHandler(
         })
       }
 
-      onReactServerRenderError(err, silenceLog)
+      const instrumentationPromise = onReactServerRenderError(err, silenceLog)
+      // onReactServerRenderError may return a Promise (e.g. from async
+      // instrumentation hooks like onRequestError). React's onError
+      // callback must be synchronous, so we cannot await it here.
+      // Register it with after() so serverless runtimes keep the
+      // invocation alive until the promise settles.
+      if (instrumentationPromise) {
+        try {
+          const { after } =
+            require('../after/after') as typeof import('../after/after')
+          after(instrumentationPromise)
+        } catch {
+          // after() is unavailable (e.g. during build-time prerendering
+          // or outside a request scope). Fall back to fire-and-forget.
+        }
+      }
     }
 
     return err.digest
