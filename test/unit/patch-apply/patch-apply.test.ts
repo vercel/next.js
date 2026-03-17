@@ -54,6 +54,50 @@ export default function Layout({ children }) {
     expect(parsePatch('')).toHaveLength(0)
     expect(parsePatch('  \n\n  ')).toHaveLength(0)
   })
+
+  it('returns empty array for garbage input with no directives', () => {
+    expect(
+      parsePatch('just some random text\nno directives here')
+    ).toHaveLength(0)
+  })
+
+  it('parses multi-line search/replace blocks', () => {
+    const patch = `--- edit: app/page.tsx
+--- search
+function foo() {
+  return 1
+}
+--- replace
+function foo() {
+  return 2
+}
+---`
+    const ops = parsePatch(patch)
+    expect(ops).toHaveLength(1)
+    expect(ops[0].search).toContain('function foo() {\n  return 1\n}')
+    expect(ops[0].replace).toContain('function foo() {\n  return 2\n}')
+  })
+
+  it('parses multiple edits to the same file', () => {
+    const patch = `--- edit: app/page.tsx
+--- search
+foo
+--- replace
+bar
+---
+--- edit: app/page.tsx
+--- search
+baz
+--- replace
+qux
+---`
+    const ops = parsePatch(patch)
+    expect(ops).toHaveLength(2)
+    expect(ops[0].filePath).toBe('app/page.tsx')
+    expect(ops[1].filePath).toBe('app/page.tsx')
+    expect(ops[0].search).toContain('foo')
+    expect(ops[1].search).toContain('baz')
+  })
 })
 
 describe('applyPatches', () => {
@@ -90,6 +134,18 @@ nested
     )
   })
 
+  it('write overwrites an existing file', () => {
+    const filePath = path.join(tmpDir, 'existing.txt')
+    fs.writeFileSync(filePath, 'old content')
+
+    const ops = parsePatch(`--- write: existing.txt
+new content
+---`)
+    const result = applyPatches(ops, tmpDir)
+    expect(result.success).toBe(true)
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe('new content')
+  })
+
   it('applies a search/replace edit', () => {
     const filePath = path.join(tmpDir, 'page.tsx')
     fs.writeFileSync(filePath, '<h1>Hello World</h1>\n<p>Content</p>\n')
@@ -105,6 +161,47 @@ nested
     const content = fs.readFileSync(filePath, 'utf-8')
     expect(content).toContain('Hello Agentic World')
     expect(content).toContain('<p>Content</p>')
+  })
+
+  it('tolerates trailing whitespace differences in search', () => {
+    const filePath = path.join(tmpDir, 'page.tsx')
+    // File has trailing spaces on the line
+    fs.writeFileSync(filePath, '<h1>Hello</h1>   \n<p>World</p>\n')
+
+    // Search text has no trailing spaces
+    const ops = parsePatch(`--- edit: page.tsx
+--- search
+<h1>Hello</h1>
+--- replace
+<h1>Changed</h1>
+---`)
+    const result = applyPatches(ops, tmpDir)
+    expect(result.success).toBe(true)
+    expect(fs.readFileSync(filePath, 'utf-8')).toContain('<h1>Changed</h1>')
+  })
+
+  it('applies multi-line search/replace', () => {
+    const filePath = path.join(tmpDir, 'page.tsx')
+    fs.writeFileSync(
+      filePath,
+      'function foo() {\n  return 1\n}\n\nfunction bar() {}\n'
+    )
+
+    const ops = parsePatch(`--- edit: page.tsx
+--- search
+function foo() {
+  return 1
+}
+--- replace
+function foo() {
+  return 42
+}
+---`)
+    const result = applyPatches(ops, tmpDir)
+    expect(result.success).toBe(true)
+    const content = fs.readFileSync(filePath, 'utf-8')
+    expect(content).toContain('return 42')
+    expect(content).toContain('function bar() {}')
   })
 
   it('fails when search text is not found', () => {
@@ -156,5 +253,50 @@ new-b
     expect(result.success).toBe(true)
     expect(fs.readFileSync(path.join(tmpDir, 'a.txt'), 'utf-8')).toBe('new-a')
     expect(fs.readFileSync(path.join(tmpDir, 'b.txt'), 'utf-8')).toBe('new-b')
+  })
+
+  it('does not write first file when second operation fails (atomicity)', () => {
+    fs.writeFileSync(path.join(tmpDir, 'a.txt'), 'original-a')
+    fs.writeFileSync(path.join(tmpDir, 'b.txt'), 'original-b')
+
+    const ops = parsePatch(`--- edit: a.txt
+--- search
+original-a
+--- replace
+modified-a
+---
+--- edit: b.txt
+--- search
+text-that-does-not-exist
+--- replace
+modified-b
+---`)
+    const result = applyPatches(ops, tmpDir)
+    expect(result.success).toBe(false)
+    // a.txt should NOT have been modified because b.txt failed
+    expect(fs.readFileSync(path.join(tmpDir, 'a.txt'), 'utf-8')).toBe(
+      'original-a'
+    )
+    expect(fs.readFileSync(path.join(tmpDir, 'b.txt'), 'utf-8')).toBe(
+      'original-b'
+    )
+  })
+
+  it('returns correct diffs summary', () => {
+    fs.writeFileSync(path.join(tmpDir, 'page.tsx'), 'line1\nline2\nline3\n')
+
+    const ops = parsePatch(`--- edit: page.tsx
+--- search
+line2
+--- replace
+replaced-line2a
+replaced-line2b
+---`)
+    const result = applyPatches(ops, tmpDir)
+    expect(result.success).toBe(true)
+    expect(result.diffs).toHaveLength(1)
+    expect(result.diffs[0].file).toBe('page.tsx')
+    expect(result.diffs[0].type).toBe('edit')
+    expect(result.diffs[0].summary).toBe('-1 lines, +2 lines')
   })
 })
