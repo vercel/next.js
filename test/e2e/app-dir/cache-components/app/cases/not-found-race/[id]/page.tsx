@@ -40,7 +40,7 @@ export default async function Page({
 }) {
   const { id } = await params
 
-  // 'trigger-not-found' 경로일 때만 플래그 설정
+  // Set flag only for the 'trigger-not-found' path
   if (id === 'trigger-not-found') {
     ;(globalThis as any).__notFoundRaceShouldNotFound = true
   }
