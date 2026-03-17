@@ -1040,18 +1040,6 @@ export interface ExperimentalConfig {
   immutableAssetToken?: string
 
   /**
-   * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
-   * This allows conditional requests to the server, which can help with development
-   * workflows that benefit from caching validation.
-   *
-   * When enabled, the Cache-Control header changes from 'no-store, must-revalidate'
-   * to 'no-cache, must-revalidate'.
-   *
-   * @default false
-   */
-  devCacheControlNoCache?: boolean
-
-  /**
    * An array of paths in app or pages directories that should wait to be processed
    * until all other entries have been processed. This is useful for deferring
    * compilation of certain routes during development and build.
@@ -1812,7 +1800,6 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1911,7 +1898,6 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
-    | 'devCacheControlNoCache'
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
@@ -1982,7 +1968,6 @@ export function getNextConfigRuntime(
         testProxy: ex.testProxy,
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
-        devCacheControlNoCache: ex.devCacheControlNoCache,
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
