@@ -29,7 +29,7 @@ patchedDependencies:
     hash: rvl3vkomen3tospgr67bzubfyu
     path: patches/@types__node@20.17.6.patch
   http-proxy@1.18.1:
-    hash: qqiqxx62zlcu62nljjmhlvexni
+    hash: eyqcxg3pntyhqyqr5zytxa7pbi
     path: patches/http-proxy@1.18.1.patch
   minizlib@3.1.0:
     hash: o4nv5mg6kfnuzlknbdln3azhvu
@@ -371,7 +371,7 @@ importers:
         version: 5.1.18
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
+        version: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
       husky:
         specifier: 9.0.11
         version: 9.0.11
@@ -1523,7 +1523,7 @@ importers:
         version: 5.1.1
       http-proxy:
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
+        version: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
       http-proxy-agent:
         specifier: 5.0.0
         version: 5.0.0
@@ -30554,7 +30554,7 @@ snapshots:
   http-proxy-middleware@2.0.7(@types/express@4.17.21):
     dependencies:
       '@types/http-proxy': 1.17.17
-      http-proxy: 1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni)
+      http-proxy: 1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi)
       is-glob: 4.0.3
       is-plain-obj: 3.0.0
       micromatch: 4.0.8
@@ -30563,7 +30563,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  http-proxy@1.18.1(patch_hash=qqiqxx62zlcu62nljjmhlvexni):
+  http-proxy@1.18.1(patch_hash=eyqcxg3pntyhqyqr5zytxa7pbi):
     dependencies:
       eventemitter3: 4.0.7
       follow-redirects: 1.9.0
