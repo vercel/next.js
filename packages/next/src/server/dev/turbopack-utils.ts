@@ -169,8 +169,6 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
-  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
-
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -235,10 +233,6 @@ export async function handleRouteType({
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-
-        if (shouldCreateWebpackStats) {
-          await manifestLoader.loadWebpackStats(page, 'pages')
-        }
 
         manifestLoader.writeManifests({
           devRewrites,
@@ -388,10 +382,6 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
       manifestLoader.loadActionManifest(page)
       manifestLoader.loadFontManifest(page, 'app')
-
-      if (shouldCreateWebpackStats) {
-        manifestLoader.loadWebpackStats(page, 'app')
-      }
 
       manifestLoader.writeManifests({
         devRewrites,

@@ -2,13 +2,6 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
-import type {
-  StatsAsset,
-  StatsChunk,
-  StatsChunkGroup,
-  StatsModule,
-  StatsCompilation as WebpackStats,
-} from 'webpack'
 import type { BuildManifest } from '../../../server/get-page-files'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
@@ -27,7 +20,6 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
-  WEBPACK_STATS,
 } from '../constants'
 import { join, posix } from 'path'
 import { readFileSync } from 'fs'
@@ -69,7 +61,6 @@ type ManifestName =
   | typeof MIDDLEWARE_MANIFEST
   | typeof BUILD_MANIFEST
   | typeof PAGES_MANIFEST
-  | typeof WEBPACK_STATS
   | typeof APP_PATHS_MANIFEST
   | `${typeof SERVER_REFERENCE_MANIFEST}.json`
   | `${typeof SUBRESOURCE_INTEGRITY_MANIFEST}.json`
@@ -200,8 +191,6 @@ export class TurbopackManifestLoader {
   > = new ManifestsMap()
   private pagesManifests: ManifestsMap<string, PagesManifest> =
     new ManifestsMap()
-  private webpackStats: ManifestsMap<EntryKey, WebpackStats> =
-    new ManifestsMap()
   private sriManifests: ManifestsMap<EntryKey, SubresourceIntegrityManifest> =
     new ManifestsMap()
   private encryptionKey: string
@@ -243,7 +232,6 @@ export class TurbopackManifestLoader {
     this.fontManifests.delete(key)
     this.middlewareManifests.delete(key)
     this.pagesManifests.delete(key)
-    this.webpackStats.delete(key)
   }
 
   loadActionManifest(pageName: string): void {
@@ -354,16 +342,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private writeWebpackStats(): void {
-    if (!this.webpackStats.takeChanged()) {
-      return
-    }
-    const webpackStats = this.mergeWebpackStats(this.webpackStats.values())
-    const path = join(this.distDir, 'server', WEBPACK_STATS)
-    this.pendingCacheDeletes.push(path)
-    writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
-  }
-
   private writeSriManifest(): void {
     if (!this.sriEnabled || !this.sriManifests.takeChanged()) {
       return
@@ -412,13 +390,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  loadWebpackStats(pageName: string, type: 'app' | 'pages' = 'pages'): void {
-    this.webpackStats.set(
-      getEntryKey(type, 'client', pageName),
-      readPartialManifestContent(this.distDir, WEBPACK_STATS, pageName, type)
-    )
-  }
-
   loadSriManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
     if (!this.sriEnabled) return
     this.sriManifests.set(
@@ -430,66 +401,6 @@ export class TurbopackManifestLoader {
         type
       )
     )
-  }
-
-  private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
-    const entrypoints: Record<string, StatsChunkGroup> = {}
-    const assets: Map<string, StatsAsset> = new Map()
-    const chunks: Map<string | number, StatsChunk> = new Map()
-    const modules: Map<string | number, StatsModule> = new Map()
-
-    for (const statsFile of statsFiles) {
-      if (statsFile.entrypoints) {
-        for (const [k, v] of Object.entries(statsFile.entrypoints)) {
-          if (!entrypoints[k]) {
-            entrypoints[k] = v
-          }
-        }
-      }
-
-      if (statsFile.assets) {
-        for (const asset of statsFile.assets) {
-          if (!assets.has(asset.name)) {
-            assets.set(asset.name, asset)
-          }
-        }
-      }
-
-      if (statsFile.chunks) {
-        for (const chunk of statsFile.chunks) {
-          if (!chunks.has(chunk.id!)) {
-            chunks.set(chunk.id!, chunk)
-          }
-        }
-      }
-
-      if (statsFile.modules) {
-        for (const module of statsFile.modules) {
-          const id = module.id
-          if (id != null) {
-            // Merge the chunk list for the module. This can vary across endpoints.
-            const existing = modules.get(id)
-            if (existing == null) {
-              modules.set(id, module)
-            } else if (module.chunks != null && existing.chunks != null) {
-              for (const chunk of module.chunks) {
-                if (!existing.chunks.includes(chunk)) {
-                  existing.chunks.push(chunk)
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      version: 'Turbopack',
-      entrypoints,
-      assets: [...assets.values()],
-      chunks: [...chunks.values()],
-      modules: [...modules.values()],
-    }
   }
 
   private mergeBuildManifests(
@@ -955,10 +866,6 @@ export class TurbopackManifestLoader {
     this.writePagesManifest()
 
     this.writeSriManifest()
-
-    if (process.env.TURBOPACK_STATS != null) {
-      this.writeWebpackStats()
-    }
 
     // Flush all queued cache deletions in a single require.cache scan
     if (this.pendingCacheDeletes.length > 0) {
