@@ -1059,7 +1059,7 @@ export async function handler(
           // When fallback isn't present, abort this render so we 404
           fallbackMode === FallbackMode.NOT_FOUND
         ) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()

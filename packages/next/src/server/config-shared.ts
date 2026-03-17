@@ -393,7 +393,6 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
-  adapterPath?: string
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
@@ -1258,6 +1257,12 @@ export interface NextConfig {
    */
   cacheHandler?: string | undefined
 
+  /**
+   * Path to a custom adapter module for deployment platform integration.
+   * Can also be set via the `NEXT_ADAPTER_PATH` environment variable.
+   */
+  adapterPath?: string
+
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -1707,8 +1712,8 @@ export const defaultConfig = Object.freeze({
     remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
+  adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -1858,6 +1863,7 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  adapterPath?: NextConfigComplete['adapterPath']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1872,7 +1878,6 @@ export interface NextConfigRuntime {
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
-    | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
@@ -1938,10 +1943,6 @@ export function getNextConfigRuntime(
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
-        // at runtime, as it's only used to determine whether the adapter was used or not, not to
-        // execute it again. So replace it with a placeholder if it's set.
-        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -2002,6 +2003,9 @@ export function getNextConfigRuntime(
     poweredByHeader: config.poweredByHeader,
     cacheHandler: config.cacheHandler,
     cacheHandlers: config.cacheHandlers,
+    // The full adapterPath might be non-deterministic across builds and doesn't
+    // actually matter at runtime, so replace it with a placeholder if it's set.
+    adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
     compress: config.compress,
     i18n: config.i18n,
