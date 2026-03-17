@@ -217,6 +217,11 @@ describe('segment cache (per-page dynamic stale time)', () => {
     // The global staleTimes.dynamic is 30s. This test verifies that a per-page
     // value of 10s (smaller) causes the data to expire sooner, and a per-page
     // value of 60s (larger) causes the data to last longer.
+    //
+    // Instead of using browser.back() to return to a page that was already
+    // visited, this test navigates forward to fresh "hub" pages. This avoids
+    // flakiness caused by restored accordion state (from BFCache) triggering
+    // uncontrolled re-prefetches outside the act scope.
     const { browser, page, act, startDate } =
       await startBrowserWithFakeClock('/per-page-config')
 
@@ -235,7 +240,22 @@ describe('segment cache (per-page dynamic stale time)', () => {
       { includes: 'Dynamic content (stale time 10s)' }
     )
 
-    await browser.back()
+    // Navigate forward to hub/a — a fresh page with its own accordion links.
+    // Because this is a forward navigation to a never-visited page, the
+    // accordions start closed and no uncontrolled prefetches are triggered.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/per-page-config/hub-a"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss(
+          'a[href="/per-page-config/hub-a"]'
+        )
+        await link.click()
+      },
+      { includes: 'Hub a' }
+    )
 
     // At 11s the 10s page should be stale, even though the global default
     // is 30s. This proves a smaller per-page value overrides the global.
@@ -243,6 +263,10 @@ describe('segment cache (per-page dynamic stale time)', () => {
 
     await act(
       async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/per-page-config/dynamic-stale-10"]'
+        )
+        await toggle.click()
         const link = await browser.elementByCss(
           'a[href="/per-page-config/dynamic-stale-10"]'
         )
@@ -251,7 +275,20 @@ describe('segment cache (per-page dynamic stale time)', () => {
       { includes: 'Dynamic content (stale time 10s)' }
     )
 
-    await browser.back()
+    // Navigate forward to hub/b
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/per-page-config/hub-b"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss(
+          'a[href="/per-page-config/hub-b"]'
+        )
+        await link.click()
+      },
+      { includes: 'Hub b' }
+    )
 
     // Now navigate to the 60s page
     await act(
@@ -268,13 +305,30 @@ describe('segment cache (per-page dynamic stale time)', () => {
       { includes: 'Dynamic content (stale time 60s)' }
     )
 
-    await browser.back()
+    // Navigate forward to hub/c
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/per-page-config/hub-c"]'
+        )
+        await toggle.click()
+        const link = await browser.elementByCss(
+          'a[href="/per-page-config/hub-c"]'
+        )
+        await link.click()
+      },
+      { includes: 'Hub c' }
+    )
 
     // At 42s from the 60s page's navigation (11s + 31s), the data should
     // still be fresh — the per-page value of 60s overrides the global 30s.
     await page.clock.setFixedTime(startDate + 42 * 1000)
 
     await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/per-page-config/dynamic-stale-60"]'
+      )
+      await toggle.click()
       const link = await browser.elementByCss(
         'a[href="/per-page-config/dynamic-stale-60"]'
       )
