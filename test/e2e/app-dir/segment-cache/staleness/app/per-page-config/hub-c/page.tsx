@@ -2,13 +2,9 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { LinkAccordion } from '../../../components/link-accordion'
 
-export const unstable_dynamicStaleTime = 60
-
 async function Content() {
   await connection()
-  return (
-    <div id="dynamic-stale-60-content">Dynamic content (stale time 60s)</div>
-  )
+  return <div id="hub-c-content">Hub c</div>
 }
 
 export default function Page() {
@@ -19,10 +15,14 @@ export default function Page() {
       </Suspense>
       <ul>
         <li>
-          <LinkAccordion href="/per-page-config/hub-a">Hub A</LinkAccordion>
+          <LinkAccordion href="/per-page-config/dynamic-stale-10">
+            Dynamic page with stale time of 10 seconds
+          </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/per-page-config/hub-c">Hub C</LinkAccordion>
+          <LinkAccordion href="/per-page-config/dynamic-stale-60">
+            Dynamic page with stale time of 60 seconds
+          </LinkAccordion>
         </li>
       </ul>
     </>

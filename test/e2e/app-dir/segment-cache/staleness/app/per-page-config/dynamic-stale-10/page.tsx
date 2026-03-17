@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
+import { LinkAccordion } from '../../../components/link-accordion'
 
 export const unstable_dynamicStaleTime = 10
 
@@ -12,8 +13,18 @@ async function Content() {
 
 export default function Page() {
   return (
-    <Suspense fallback="Loading...">
-      <Content />
-    </Suspense>
+    <>
+      <Suspense fallback="Loading...">
+        <Content />
+      </Suspense>
+      <ul>
+        <li>
+          <LinkAccordion href="/per-page-config/hub-a">Hub A</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/per-page-config/hub-b">Hub B</LinkAccordion>
+        </li>
+      </ul>
+    </>
   )
 }
