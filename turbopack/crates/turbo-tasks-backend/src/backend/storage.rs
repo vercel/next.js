@@ -533,9 +533,8 @@ where
 
 impl<P, PS> Drop for SnapshotShardIter<'_, P, PS> {
     fn drop(&mut self) {
-        self.shard._guard.return_scratch_buffer(std::mem::replace(
-            &mut self.buffer,
-            TurboBincodeBuffer::new(),
-        ));
+        self.shard
+            ._guard
+            .return_scratch_buffer(std::mem::take(&mut self.buffer));
     }
 }
