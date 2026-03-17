@@ -335,10 +335,14 @@ export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
- * Invalidates in-memory file system state, forcing Turbopack to re-read source
- * files from disk on the next compilation. Unlike `invalidateFileSystemCache`
- * (which marks the persisted database for cleanup on restart), this drains
- * in-memory invalidator maps and immediately invalidates all tracked tasks.
+ * Invalidates in-memory file system state, forcing Turbopack to re-read source files
+ * from disk on the next compilation. Unlike `invalidateFileSystemCache` (which only
+ * marks the persisted database for cleanup on restart), this drains the in-memory
+ * invalidator maps and immediately invalidates all tracked tasks.
+ *
+ * This is the mechanism that makes `experimental.agenticEditing` work: with the native
+ * filesystem watcher disabled, this is the only way to tell Turbopack that files have
+ * changed.
  */
 export declare function projectInvalidateSources(project: {
   __napiType: 'Project'
