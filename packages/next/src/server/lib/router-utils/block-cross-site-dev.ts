@@ -31,6 +31,19 @@ function warnOrBlockRequest(
   return true
 }
 
+function parseHostnameFromHeader(
+  header: string | string[] | undefined
+): string | undefined {
+  const headerValue = Array.isArray(header) ? header[0] : header
+
+  if (!headerValue || headerValue === 'null') {
+    return
+  }
+
+  const parsedHeader = parseUrl(headerValue)
+  return parsedHeader?.hostname.toLowerCase()
+}
+
 function isInternalEndpoint(req: IncomingMessage): boolean {
   if (!req.url) return false
 
@@ -80,13 +93,27 @@ export const blockCrossSiteDEV = (
     req.headers['sec-fetch-mode'] === 'no-cors' &&
     req.headers['sec-fetch-site'] === 'cross-site'
   ) {
-    return warnOrBlockRequest(res, undefined, mode)
+    // no-cors requests do not send an Origin header, so fall back to Referer
+    // when validating configured cross-site script loads.
+    const refererHostname = parseHostnameFromHeader(req.headers['referer'])
+
+    if (
+      refererHostname &&
+      isCsrfOriginAllowed(refererHostname, allowedOrigins)
+    ) {
+      return false
+    }
+
+    return warnOrBlockRequest(res, refererHostname, mode)
   }
 
   // ensure websocket requests are only fulfilled from allowed origin
   const rawOrigin = req.headers['origin']
+  const originHeader = Array.isArray(rawOrigin) ? rawOrigin[0] : rawOrigin
   const parsedOrigin =
-    rawOrigin && rawOrigin !== 'null' ? parseUrl(rawOrigin) : rawOrigin
+    originHeader && originHeader !== 'null'
+      ? parseUrl(originHeader)
+      : originHeader
 
   const originLowerCase =
     parsedOrigin === undefined || typeof parsedOrigin === 'string'

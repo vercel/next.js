@@ -28,7 +28,57 @@ async function createHostServer() {
   }
 }
 
-describe.each([['', '/docs']])(
+function withBasePath(basePath: string, path: string) {
+  return `${basePath}${path}`
+}
+
+function getImageOptimizerPath(basePath: string) {
+  return withBasePath(
+    basePath,
+    `/_next/image?url=${encodeURIComponent(withBasePath(basePath, '/image.png'))}&w=256&q=75`
+  )
+}
+
+function requestInternalDevScript(
+  appPort: string | number,
+  basePath: string,
+  referer: string
+) {
+  return fetchViaHTTP(
+    appPort,
+    withBasePath(basePath, '/_next/static/chunks/pages/_app.js'),
+    undefined,
+    {
+      headers: {
+        referer,
+        'sec-fetch-mode': 'no-cors',
+        'sec-fetch-site': 'cross-site',
+      },
+    }
+  )
+}
+
+function requestInternalDevMiddleware(
+  appPort: string | number,
+  basePath: string,
+  origin: string
+) {
+  return fetchViaHTTP(
+    appPort,
+    withBasePath(
+      basePath,
+      '/__nextjs_error_feedback?errorCode=0&wasHelpful=true'
+    ),
+    undefined,
+    {
+      headers: {
+        origin,
+      },
+    }
+  )
+}
+
+describe.each(['', '/docs'])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
     let next: NextInstance
@@ -49,13 +99,13 @@ describe.each([['', '/docs']])(
         // "/_next/static/chunks/pages/_app.js"
         // we need this because not found static assets
         // served as plain text 404 instead of HTML.
-        await next.render('/404')
+        await next.render(withBasePath(basePath, '/404'))
 
         await retry(async () => {
           // make sure host server is running
           const res = await fetchViaHTTP(
             next.appPort,
-            '/_next/static/chunks/pages/_app.js'
+            withBasePath(basePath, '/_next/static/chunks/pages/_app.js')
           )
           expect(res.status).toBe(200)
         })
@@ -70,7 +120,7 @@ describe.each([['', '/docs']])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -105,106 +155,47 @@ describe.each([['', '/docs']])(
       })
 
       it('should warn about loading scripts from cross-site', async () => {
-        const { server, port } = await createHostServer()
+        const port = await findPort()
 
-        try {
-          const scriptSnippet = `(() => {
-              const statusEl = document.createElement('p')
-              statusEl.id = 'status'
-              document.querySelector('body').appendChild(statusEl)
-  
-              const script = document.createElement('script')
-              script.src = "${next.url}/_next/static/chunks/pages/_app.js"
-              
-              script.onerror = (error) => {
-                console.error('script error', error)
-                statusEl.innerText = 'error'
-              }
-              script.onload = () => {
-                statusEl.innerText = 'connected'
-              }
-              document.querySelector('body').appendChild(script)
-            })()`
+        const mismatchedPortRes = await requestInternalDevScript(
+          next.appPort,
+          basePath,
+          `http://127.0.0.1:${port}/about`
+        )
+        expect(mismatchedPortRes.status).toBe(200)
 
-          // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(
-            `http://127.0.0.1:${port}`,
-            '/about',
-            {
-              permissions: ['local-network-access'],
-            }
-          )
-          await browser.eval(scriptSnippet)
+        const differentHostRes = await requestInternalDevScript(
+          next.appPort,
+          basePath,
+          'https://example.vercel.sh/about'
+        )
+        expect(differentHostRes.status).toBe(200)
 
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe(
-              'connected'
-            )
-          })
-
-          // ensure different host is blocked
-          // Requires local-network-access permission to send a request to next.url
-          await browser.get(`https://example.vercel.sh/`)
-          await browser.eval(scriptSnippet)
-
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe(
-              'connected'
-            )
-          })
-
-          expect(next.cliOutput).toContain(
-            // We're not sending an Origin header
-            // TODO: redundant spacing
-            'Cross origin request detected  to'
-          )
-        } finally {
-          server.close()
-        }
+        expect(next.cliOutput).toContain('Cross origin request detected from')
       })
 
       it('should warn about loading internal middleware from cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+        const port = await findPort()
 
-          const middlewareSnippet = `(() => {
-            const statusEl = document.createElement('p')
-            statusEl.id = 'status'
-            document.querySelector('body').appendChild(statusEl)
+        const mismatchedPortRes = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          `http://127.0.0.1:${port}`
+        )
+        expect(mismatchedPortRes.status).toBe(204)
 
-            const xhr = new XMLHttpRequest()
-            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
-            xhr.send()
+        const differentHostRes = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'https://example.vercel.sh'
+        )
+        expect(differentHostRes.status).toBe(204)
 
-            xhr.onload = () => {
-              statusEl.innerText = "OK"
-            }
-            xhr.onerror = () => {
-              statusEl.innerText = "Unauthorized"
-            }
-          })()`
-
-          await browser.eval(middlewareSnippet)
-
-          await retry(async () => {
-            // TODO: These requests seem to be blocked regardless of our handling only when running with Turbopack
-            // Investigate why this is the case
-            if (!process.env.IS_TURBOPACK_TEST) {
-              expect(await browser.elementByCss('#status').text()).toBe('OK')
-            }
-
-            expect(next.cliOutput).toContain(
-              'Cross origin request detected from'
-            )
-          })
-        } finally {
-          server.close()
-        }
+        expect(next.cliOutput).toContain('Cross origin request detected from')
       })
     })
 
-    describe('block mode', () => {
+    describe('configured allowed origins', () => {
       beforeAll(async () => {
         next = await createNext({
           files: {
@@ -213,7 +204,7 @@ describe.each([['', '/docs']])(
           },
           nextConfig: {
             basePath,
-            allowedDevOrigins: ['localhost'],
+            allowedDevOrigins: ['127.0.0.1', 'example.vercel.sh'],
           },
         })
 
@@ -221,20 +212,20 @@ describe.each([['', '/docs']])(
         // "/_next/static/chunks/pages/_app.js"
         // since we haven't built any paths by this point
         // causing this chunk to not be written to disk yet
-        await next.render('/404')
+        await next.render(withBasePath(basePath, '/404'))
 
         await retry(async () => {
           // make sure host server is running
           const res = await fetchViaHTTP(
             next.appPort,
-            '/_next/static/chunks/pages/_app.js'
+            withBasePath(basePath, '/_next/static/chunks/pages/_app.js')
           )
           expect(res.status).toBe(200)
         })
       })
       afterAll(() => next.destroy())
 
-      it('should not allow dev WebSocket from cross-site', async () => {
+      it('should allow dev WebSocket from configured cross-site', async () => {
         const { server, port } = await createHostServer()
         try {
           const websocketSnippet = `(() => {
@@ -242,7 +233,7 @@ describe.each([['', '/docs']])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -252,95 +243,62 @@ describe.each([['', '/docs']])(
               })
             })()`
 
-          // ensure direct port with mismatching port is blocked
+          // ensure direct port with mismatching port is allowed when configured
           const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
           await browser.eval(websocketSnippet)
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
-
-          // ensure different host is blocked
-          await browser.get(`https://example.vercel.sh/`)
-          await browser.eval(websocketSnippet)
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
-        } finally {
-          server.close()
-        }
-      })
-
-      it('should not allow loading scripts from cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const scriptSnippet = `(() => {
-              const statusEl = document.createElement('p')
-              statusEl.id = 'status'
-              document.querySelector('body').appendChild(statusEl)
-  
-              const script = document.createElement('script')
-              script.src = "${next.url}/_next/static/chunks/pages/_app.js"
-              
-              script.onerror = (err) => {
-                statusEl.innerText = 'error'
-              }
-              script.onload = () => {
-                statusEl.innerText = 'connected'
-              }
-              document.querySelector('body').appendChild(script)
-            })()`
-
-          // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
-          await browser.eval(scriptSnippet)
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
-
-          // ensure different host is blocked
-          await browser.get(`https://example.vercel.sh/`)
-          await browser.eval(scriptSnippet)
-
-          await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
-          })
-        } finally {
-          server.close()
-        }
-      })
-
-      it('should not allow loading internal middleware from cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
-
-          const middlewareSnippet = `(() => {
-            const statusEl = document.createElement('p')
-            statusEl.id = 'status'
-            document.querySelector('body').appendChild(statusEl)
-
-            const xhr = new XMLHttpRequest()
-            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
-            xhr.send()
-
-            xhr.onload = () => {
-              statusEl.innerText = "OK"
-            }
-            xhr.onerror = () => {
-              statusEl.innerText = "Unauthorized"
-            }
-          })()`
-
-          await browser.eval(middlewareSnippet)
-
           await retry(async () => {
             expect(await browser.elementByCss('#status').text()).toBe(
-              'Unauthorized'
+              'connected'
+            )
+          })
+
+          // ensure different host is allowed when configured
+          await browser.get(`https://example.vercel.sh/`)
+          await browser.eval(websocketSnippet)
+          await retry(async () => {
+            expect(await browser.elementByCss('#status').text()).toBe(
+              'connected'
             )
           })
         } finally {
           server.close()
         }
+      })
+
+      it('should allow loading scripts from configured cross-site', async () => {
+        const port = await findPort()
+
+        const mismatchedPortRes = await requestInternalDevScript(
+          next.appPort,
+          basePath,
+          `http://127.0.0.1:${port}/about`
+        )
+        expect(mismatchedPortRes.status).toBe(200)
+
+        const differentHostRes = await requestInternalDevScript(
+          next.appPort,
+          basePath,
+          'https://example.vercel.sh/about'
+        )
+        expect(differentHostRes.status).toBe(200)
+      })
+
+      it('should allow loading internal middleware from configured cross-site', async () => {
+        const port = await findPort()
+
+        const mismatchedPortRes = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          `http://127.0.0.1:${port}`
+        )
+        expect(mismatchedPortRes.status).toBe(204)
+
+        const differentHostRes = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'https://example.vercel.sh'
+        )
+        expect(differentHostRes.status).toBe(204)
       })
 
       it('should load images regardless of allowed origins', async () => {
@@ -354,7 +312,7 @@ describe.each([['', '/docs']])(
             document.querySelector('body').appendChild(statusEl)
 
             const image = document.createElement('img')
-            image.src = "${next.url}/_next/image?url=%2Fimage.png&w=256&q=75"
+            image.src = "${next.url}${getImageOptimizerPath(basePath)}"
             document.querySelector('body').appendChild(image)
             image.onload = () => {
               statusEl.innerText = 'OK'
@@ -389,7 +347,7 @@ describe.each([['', '/docs']])(
                     statusEl.id = 'status'
                     document.querySelector('body').appendChild(statusEl)
         
-                    const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+                    const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
                     
                     ws.addEventListener('error', (err) => {
                       statusEl.innerText = 'error'
