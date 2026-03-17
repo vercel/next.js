@@ -4,11 +4,6 @@ import { createNext, NextInstance } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('rewrite-request-smuggling', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip deploy', () => {})
-    return
-  }
-
   let backend: http.Server
   let backendPort: number
   let intermediary: http.Server
