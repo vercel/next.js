@@ -1,4 +1,4 @@
-error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:13:12  Parsing CSS source code failed
+warning - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:13:12  Parsing CSS source code failed
        9 | .after {
       10 |   color: green;
       11 | }
