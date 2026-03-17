@@ -52,6 +52,12 @@ pub mod virtual_fs {
     pub use turbo_tasks_fs::VirtualFileSystem;
 }
 
+#[doc = include_str!("../chunking.md")]
+pub mod _chunking {}
+
+#[doc = include_str!("../layers.md")]
+pub mod _layers {}
+
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
 pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";
 

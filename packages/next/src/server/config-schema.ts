@@ -188,7 +188,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
-  adapterPath: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
@@ -404,7 +403,6 @@ export const experimentalSchema = {
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
   immutableAssetToken: z.string().optional(),
-  devCacheControlNoCache: z.boolean().optional(),
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
@@ -412,6 +410,7 @@ export const experimentalSchema = {
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
+    adapterPath: z.string().optional(),
     allowedDevOrigins: z.array(z.string()).optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),

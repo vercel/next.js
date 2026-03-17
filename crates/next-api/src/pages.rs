@@ -81,7 +81,6 @@ use crate::{
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     sri_manifest::get_sri_manifest_asset,
-    webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
@@ -1346,32 +1345,6 @@ impl PageEndpoint {
                 .resolved_cell(),
             );
             server_assets.push(next_font_manifest_output);
-        }
-
-        if *this
-            .pages_project
-            .project()
-            .should_create_webpack_stats()
-            .await?
-        {
-            let webpack_stats = generate_webpack_stats(
-                self.client_module_graph(),
-                this.original_name.clone(),
-                client_assets.await?.into_iter().copied(),
-            )
-            .await?;
-            let stats_output = VirtualOutputAsset::new(
-                node_root.join(&format!(
-                    "server/pages{manifest_path_prefix}/webpack-stats.json",
-                ))?,
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(&webpack_stats)?))
-                        .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
-            server_assets.push(ResolvedVc::upcast(stats_output));
         }
 
         let page_output = match *ssr_chunk.await? {

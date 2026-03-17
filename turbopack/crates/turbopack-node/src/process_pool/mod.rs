@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bytes::Bytes;
 use futures::join;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -416,7 +417,7 @@ impl NodeJsPoolProcess {
         Ok(process)
     }
 
-    async fn recv(&mut self) -> Result<Vec<u8>> {
+    async fn recv(&mut self) -> Result<Bytes> {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
             debug: bool,
@@ -448,20 +449,19 @@ impl NodeJsPoolProcess {
             with_timeout(debug, true, connection.read_exact(&mut packet_data))
                 .await
                 .context("reading packet data")?;
-            Ok::<_, anyhow::Error>(packet_data)
+            Ok::<_, anyhow::Error>(packet_data.into())
         };
         let (result, stdout, stderr) = join!(
             recv_future,
             self.stdout_handler.handle_operation(),
             self.stderr_handler.handle_operation(),
         );
-        let result = result?;
+        let result: Bytes = result?;
         stdout.context("unable to handle stdout from the Node.js process in a structured way")?;
         stderr.context("unable to handle stderr from the Node.js process in a structured way")?;
         Ok(result)
     }
-
-    async fn send(&mut self, packet_data: Vec<u8>) -> Result<()> {
+    async fn send(&mut self, packet_data: Bytes) -> Result<()> {
         self.connection
             .write_u32(
                 packet_data
@@ -798,16 +798,16 @@ pub struct ChildProcessOperation {
 
 #[async_trait::async_trait]
 impl Operation for ChildProcessOperation {
-    async fn recv(&mut self) -> Result<Vec<u8>> {
-        let vec = self
+    async fn recv(&mut self) -> Result<Bytes> {
+        let bytes = self
             .with_process(|process| async move {
                 process.recv().await.context("failed to receive message")
             })
             .await?;
-        Ok(vec)
+        Ok(bytes)
     }
 
-    async fn send(&mut self, message: Vec<u8>) -> Result<()> {
+    async fn send(&mut self, message: Bytes) -> Result<()> {
         self.with_process(|process| async move {
             timeout(Duration::from_secs(30), process.send(message))
                 .await

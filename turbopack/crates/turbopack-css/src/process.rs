@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 use anyhow::{Result, bail};
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
+    error::SelectorError,
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{BrowserslistConfig, Features, Targets},
     traits::ToCss,
@@ -23,8 +24,8 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
     issue::{
-        AdditionalIssueSources, Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
+        AdditionalIssueSources, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
+        OptionIssueSource, OptionStyledString, StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -505,10 +506,23 @@ async fn process_content(
                                 None => IssueSource::from_source_only(source),
                             };
 
+                            let severity = match &err.kind {
+                                lightningcss::error::ParserError::SelectorError(
+                                    SelectorError::UnsupportedPseudoClass(_)
+                                    | SelectorError::UnsupportedPseudoElement(_),
+                                ) => {
+                                    // In most cases, these are new selectors not yet
+                                    // implemented in LightningCSS.
+                                    IssueSeverity::Warning
+                                }
+                                _ => IssueSeverity::Error,
+                            };
+
                             ParsingIssue {
                                 msg: err.kind.to_string().into(),
                                 stage: IssueStage::Parse,
                                 source: issue_source,
+                                severity,
                             }
                             .resolved_cell()
                             .emit();
@@ -550,6 +564,7 @@ async fn process_content(
                         msg: e.kind.to_string().into(),
                         stage: IssueStage::Transform,
                         source: issue_source,
+                        severity: IssueSeverity::Error,
                     }
                     .resolved_cell()
                     .emit();
@@ -589,6 +604,7 @@ async fn process_content(
                     msg: e.kind.to_string().into(),
                     stage: IssueStage::Parse,
                     source: issue_source,
+                    severity: IssueSeverity::Error,
                 }
                 .resolved_cell()
                 .emit();
@@ -643,6 +659,7 @@ impl CssError {
                     stage: IssueStage::Transform,
                     // TODO: This should include the location of the selector in the file.
                     source: IssueSource::from_source_only(source),
+                    severity: IssueSeverity::Error,
                 }
                 .resolved_cell()
                 .emit();
@@ -742,10 +759,15 @@ struct ParsingIssue {
     msg: RcStr,
     stage: IssueStage,
     source: IssueSource,
+    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.file_path()

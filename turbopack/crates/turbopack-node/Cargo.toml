@@ -26,6 +26,7 @@ async-trait = { workspace = true }
 dashmap = { workspace = true }
 base64 = "0.21.0"
 bincode = { workspace = true }
+bytes = { workspace = true }
 const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }

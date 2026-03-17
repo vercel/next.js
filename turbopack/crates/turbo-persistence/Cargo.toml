@@ -26,7 +26,7 @@ memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
-qfilter = { version = "0.2.4", features = ["serde"] }
+qfilter = { version = "0.3.0-alpha.2", features = ["serde"] }
 quick_cache = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
