@@ -251,7 +251,7 @@ For full triage workflow (failure prioritization, mode selection, CI env reprodu
 
 - Skill file: `.agents/skills/pr-status-triage/SKILL.md`
 
-**Use `$pr-status-triage` for automated analysis** - runs the script with `--wait`, spawns parallel subagents to analyze failing jobs and review comments, deduplicates by test file, and produces a final summary after CI completes. See `.agents/skills/pr-status-triage/SKILL.md` for the full step-by-step workflow.
+**Use `$pr-status-triage` for automated analysis** - see `.agents/skills/pr-status-triage/SKILL.md` for the full step-by-step workflow.
 
 **CI Analysis Tips:**
 
