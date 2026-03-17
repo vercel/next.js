@@ -1052,6 +1052,16 @@ export interface ExperimentalConfig {
   devCacheControlNoCache?: boolean
 
   /**
+   * When enabled, `getStaticPaths` / `generateStaticParams` is called
+   * in-process during `next dev` instead of forking a separate worker.
+   * This reduces per-request overhead but allows side-effects to leak
+   * between invocations.
+   *
+   * @default false
+   */
+  devGetStaticPathsInProcess?: boolean
+
+  /**
    * An array of paths in app or pages directories that should wait to be processed
    * until all other entries have been processed. This is useful for deferring
    * compilation of certain routes during development and build.
@@ -1813,6 +1823,7 @@ export const defaultConfig = Object.freeze({
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     devCacheControlNoCache: false,
+    devGetStaticPathsInProcess: true,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
