@@ -6,6 +6,9 @@ use crate::{asset::Asset, ident::AssetIdent};
 /// Unparsed input source code. Source code is processed into [`Module`]s by the [`AssetContext`].
 /// All `Source`s have content and an identifier.
 ///
+/// For documentation about where this is used and how it fits into the rest of Turbopack, see
+/// [`crate::_layers`].
+///
 /// [`Module`]: crate::module::Module
 /// [`AssetContext`]: crate::context::AssetContext
 #[turbo_tasks::value_trait]
