@@ -1,6 +1,10 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  reactCompiler: {
+    target: '18',
+  },
+}
 
 module.exports = nextConfig

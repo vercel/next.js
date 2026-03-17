@@ -10,10 +10,19 @@ _describe('app-dir - unstable_catchError with react compiler', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     nextConfig: {
-      reactCompiler: true,
+      reactCompiler: {
+        // For React 18 & Pages Router, need to specifiy the target to '18'
+        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+        target: process.env.NEXT_TEST_REACT_VERSION
+          ? // e.g. 18.3.1 -> 18
+            process.env.NEXT_TEST_REACT_VERSION.split('.')[0]
+          : undefined,
+      },
     },
     dependencies: {
       'babel-plugin-react-compiler': 'latest',
+      // For React 18 & Pages Router
+      'react-compiler-runtime': 'latest',
     },
   })
 
