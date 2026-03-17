@@ -64,6 +64,10 @@ impl TurboKeyValueDatabase {
         is_short_session: bool,
         skip_compaction: bool,
     ) -> Result<Self> {
+        assert!(
+            !skip_compaction || is_short_session,
+            "skip_compaction=true requires is_short_session=true"
+        );
         let db = Arc::new(TurboPersistence::open_with_config(
             versioned_path,
             db_config(),
