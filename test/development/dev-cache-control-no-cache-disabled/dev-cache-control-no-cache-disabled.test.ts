@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('experimental.devCacheControlNoCache disabled (default)', () => {
+describe('experimental.devCacheControlNoCache disabled (explicit opt-out)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

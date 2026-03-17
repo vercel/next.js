@@ -1995,8 +1995,8 @@
   },
   "test/development/dev-cache-control-no-cache-disabled/dev-cache-control-no-cache-disabled.test.ts": {
     "passed": [
-      "experimental.devCacheControlNoCache disabled (default) should use no-store for app router by default",
-      "experimental.devCacheControlNoCache disabled (default) should use no-store for pages router by default"
+      "experimental.devCacheControlNoCache disabled (explicit opt-out) should use no-store for app router by default",
+      "experimental.devCacheControlNoCache disabled (explicit opt-out) should use no-store for pages router by default"
     ],
     "failed": [],
     "pending": [],
