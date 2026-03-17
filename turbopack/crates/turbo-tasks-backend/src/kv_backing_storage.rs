@@ -231,7 +231,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<Item = SnapshotItem> + Send + Sync,
+        I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
         let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
         let batch = self.inner.database.write_batch()?;
@@ -451,7 +451,7 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync, I>(
     batch: &B,
 ) -> Result<()>
 where
-    I: Iterator<Item = SnapshotItem> + Send + Sync,
+    I: IntoIterator<Item = SnapshotItem> + Send + Sync,
 {
     parallel::try_for_each_owned(tasks, |tasks| {
         for SnapshotItem {
