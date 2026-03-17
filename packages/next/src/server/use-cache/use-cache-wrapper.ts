@@ -651,6 +651,12 @@ async function generateCacheEntryImpl(
 
   let errors: Array<unknown> = []
 
+  const recordNextRouterError = (error: unknown) => {
+    if (isNextRouterError(error)) {
+      errors.push(error)
+    }
+  }
+
   // In the "Cache" environment, we only need to make sure that the error
   // digests are handled correctly. Error formatting and reporting is not
   // necessary here; the errors are encoded in the stream, and will be reported
@@ -711,9 +717,7 @@ async function generateCacheEntryImpl(
               return undefined
             }
 
-            if (isNextRouterError(error)) {
-              errors.push(error)
-            }
+            recordNextRouterError(error)
 
             return handleError(error)
           },
@@ -782,9 +786,7 @@ async function generateCacheEntryImpl(
           filterStackFrame,
           temporaryReferences,
           onError: (error) => {
-            if (isNextRouterError(error)) {
-              errors.push(error)
-            }
+            recordNextRouterError(error)
             return handleError(error)
           },
         }
