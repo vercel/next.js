@@ -22,10 +22,10 @@ type CatchErrorProps<P extends UserProps> = {
   pathname: string | null
   isPagesRouter: boolean
   fallback: React.ComponentType<{
-    props: Omit<P, 'children'>
+    props: P
     errorInfo: ErrorInfo
   }>
-  props: Omit<P, 'children'>
+  props: P
   children: React.ReactNode
 }
 
@@ -183,23 +183,18 @@ export function unstable_catchError<P extends UserProps>(
   fallback: (
     // children is omitted by design as the error fallback component is the "fallback"
     // for the children when an error occurs.
-    props: Omit<P, 'children'>,
+    props: P,
     errorInfo: ErrorInfo
   ) => React.ReactNode
-): React.ComponentType<P> {
+): React.ComponentType<P & { children?: React.ReactNode }> {
   // Create Fallback component from the closure of `unstable_catchError`.
-  const Fallback = ({
-    props,
-    errorInfo,
-  }: {
-    props: Omit<P, 'children'>
-    errorInfo: ErrorInfo
-  }) => fallback(props, errorInfo)
+  const Fallback = ({ props, errorInfo }: { props: P; errorInfo: ErrorInfo }) =>
+    fallback(props, errorInfo)
 
   // Rename to match the user component name for DevTools.
   Fallback.displayName = fallback.name || 'CatchErrorFallback'
 
-  return ({ children, ...props }: P) => {
+  return ({ children, ...props }: P & { children?: React.ReactNode }) => {
     // When we're rendering the missing params shell, this will return null. This
     // is because we won't be rendering any not found boundaries or error
     // boundaries for the missing params shell. When this runs on the client
@@ -212,7 +207,7 @@ export function unstable_catchError<P extends UserProps>(
         pathname={pathname}
         isPagesRouter={isPagesRouter}
         fallback={Fallback}
-        props={props}
+        props={props as P}
       >
         {children}
       </CatchError>
