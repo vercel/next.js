@@ -18289,12 +18289,13 @@ function setFocusIfFocusable(node, focusOptions) {
   function handleFocus() {
     didFocus = !0;
   }
+  if (node.ownerDocument.activeElement === node) return !0;
   var didFocus = !1;
   try {
-    node.addEventListener("focus", handleFocus),
+    node.ownerDocument.addEventListener("focus", handleFocus, !0),
       (node.focus || HTMLElement.prototype.focus).call(node, focusOptions);
   } finally {
-    node.removeEventListener("focus", handleFocus);
+    node.ownerDocument.removeEventListener("focus", handleFocus, !0);
   }
   return didFocus;
 }
@@ -19926,14 +19927,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2236 = React.version;
 if (
-  "19.3.0-experimental-5e9eedb5-20260312" !==
+  "19.3.0-experimental-c80a0750-20260312" !==
   isomorphicReactPackageVersion$jscomp$inline_2236
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2236,
-      "19.3.0-experimental-5e9eedb5-20260312"
+      "19.3.0-experimental-c80a0750-20260312"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19955,10 +19956,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2921 = {
   bundleType: 0,
-  version: "19.3.0-experimental-5e9eedb5-20260312",
+  version: "19.3.0-experimental-c80a0750-20260312",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-5e9eedb5-20260312"
+  reconcilerVersion: "19.3.0-experimental-c80a0750-20260312"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2922 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20065,4 +20066,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-5e9eedb5-20260312";
+exports.version = "19.3.0-experimental-c80a0750-20260312";
