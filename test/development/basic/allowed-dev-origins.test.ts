@@ -43,6 +43,19 @@ function requestInternalDevScript(appPort: number, referer: string) {
   )
 }
 
+function requestInternalDevMiddleware(appPort: number, origin: string) {
+  return fetchViaHTTP(
+    appPort,
+    '/__nextjs_error_feedback?errorCode=0&wasHelpful=true',
+    undefined,
+    {
+      headers: {
+        origin,
+      },
+    }
+  )
+}
+
 describe.each([['', '/docs']])(
   'allowed-dev-origins, basePath: %p',
   (basePath: string) => {
@@ -138,41 +151,21 @@ describe.each([['', '/docs']])(
       })
 
       it('should warn about loading internal middleware from cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+        const port = await findPort()
 
-          const middlewareSnippet = `(() => {
-            const statusEl = document.createElement('p')
-            statusEl.id = 'status'
-            document.querySelector('body').appendChild(statusEl)
+        const mismatchedPortRes = await requestInternalDevMiddleware(
+          next.appPort,
+          `http://127.0.0.1:${port}`
+        )
+        expect(mismatchedPortRes.status).toBe(204)
 
-            const xhr = new XMLHttpRequest()
-            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
-            xhr.send()
+        const differentHostRes = await requestInternalDevMiddleware(
+          next.appPort,
+          'https://example.vercel.sh'
+        )
+        expect(differentHostRes.status).toBe(204)
 
-            xhr.onload = () => {
-              statusEl.innerText = "OK"
-            }
-            xhr.onerror = () => {
-              statusEl.innerText = "Unauthorized"
-            }
-          })()`
-
-          await browser.eval(middlewareSnippet)
-
-          await retry(async () => {
-            const status = await browser.elementByCss('#status').text()
-
-            expect(['OK', 'Unauthorized']).toContain(status)
-
-            expect(next.cliOutput).toContain(
-              'Cross origin request detected from'
-            )
-          })
-        } finally {
-          server.close()
-        }
+        expect(next.cliOutput).toContain('Cross origin request detected from')
       })
     })
 
@@ -263,41 +256,19 @@ describe.each([['', '/docs']])(
       })
 
       it('should allow loading internal middleware from configured cross-site', async () => {
-        const { server, port } = await createHostServer()
-        try {
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+        const port = await findPort()
 
-          const middlewareSnippet = `(() => {
-            const statusEl = document.createElement('p')
-            statusEl.id = 'status'
-            document.querySelector('body').appendChild(statusEl)
+        const mismatchedPortRes = await requestInternalDevMiddleware(
+          next.appPort,
+          `http://127.0.0.1:${port}`
+        )
+        expect(mismatchedPortRes.status).toBe(204)
 
-            const xhr = new XMLHttpRequest()
-            xhr.open('GET', '${next.url}/__nextjs_error_feedback?errorCode=0&wasHelpful=true', true)
-            xhr.send()
-
-            xhr.onload = () => {
-              statusEl.innerText = "OK"
-            }
-            xhr.onerror = () => {
-              statusEl.innerText = "Unauthorized"
-            }
-          })()`
-
-          await browser.eval(middlewareSnippet)
-
-          await retry(async () => {
-            const status = await browser.elementByCss('#status').text()
-
-            expect(['OK', 'Unauthorized']).toContain(status)
-
-            expect(next.cliOutput).not.toContain(
-              'Blocked cross-origin request from'
-            )
-          })
-        } finally {
-          server.close()
-        }
+        const differentHostRes = await requestInternalDevMiddleware(
+          next.appPort,
+          'https://example.vercel.sh'
+        )
+        expect(differentHostRes.status).toBe(204)
       })
 
       it('should load images regardless of allowed origins', async () => {
