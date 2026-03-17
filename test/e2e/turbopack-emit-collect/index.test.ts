@@ -46,6 +46,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -73,6 +75,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -99,6 +103,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/rsc/a/unique.js [app-rsc]                     : "data-for-unique-rsc-a" ==> "unique /rsc/a"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -125,6 +131,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/rsc/b/unique.js [app-rsc]                     : "data-for-unique-rsc-b" ==> "unique /rsc/b"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -149,6 +157,56 @@ import { nextTestSetup } from 'e2e-utils'
            "app/layout-target.js [app-rsc]                    : "data-for-layout" ==> "layout"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
            "app/rsc/shared-page/target.js [app-rsc]           : "data-for-shared-page" ==> "shared-page"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
+         ]
+        `)
+      }
+    })
+
+    it('works for /pages/a', async () => {
+      let $ = await next.render$('/pages/a')
+      let response = JSON.parse($('#list').text())
+      if (isNextDev) {
+        expect(formatData(response)).toMatchInlineSnapshot(`
+         [
+           "pages-lib/a/unique.js [ssr]                       : "data-for-unique-pages-a" ==> "unique /pages/a"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-a" ==> "shared pages client"",
+         ]
+        `)
+      } else {
+        expect(formatData(response)).toMatchInlineSnapshot(`
+         [
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "pages-lib/a/unique.js [ssr]                       : "data-for-unique-pages-a" ==> "unique /pages/a"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
+         ]
+        `)
+      }
+    })
+
+    it('works for /pages/client-only', async () => {
+      let $ = await next.render$('/pages/client-only')
+      let response = JSON.parse($('#list').text())
+      if (isNextDev) {
+        expect(formatData(response)).toMatchInlineSnapshot(`
+         [
+           "pages-lib/client-only/unique.js [ssr]             : "data-for-unique-pages-client-only" ==> "unique /pages/client-only"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
+         ]
+        `)
+      } else {
+        expect(formatData(response)).toMatchInlineSnapshot(`
+         [
+           "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
+           "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
+           "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "pages-lib/client-only/unique.js [ssr]             : "data-for-unique-pages-client-only" ==> "unique /pages/client-only"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -169,6 +227,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
@@ -184,6 +244,8 @@ import { nextTestSetup } from 'e2e-utils'
            "app/client/shared-app-client.js [app-client]      : "data-for-shared-app-client-a" ==> "app client"",
            "app/client/shared-app-client.js [app-ssr]         : "data-for-shared-app-client-a" ==> "app client"",
            "app/rsc/shared-app/target.js [app-rsc]            : "data-for-shared-app" ==> "shared-app"",
+           "shared-pages-client.js [client]                   : "data-for-shared-pages-client-only" ==> "shared pages client"",
+           "shared-pages-client.js [ssr]                      : "data-for-shared-pages-client-only" ==> "shared pages client"",
          ]
         `)
       }
