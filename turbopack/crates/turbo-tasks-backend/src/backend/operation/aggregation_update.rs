@@ -1260,14 +1260,14 @@ impl AggregationUpdateQueue {
                 }
             }
             false
+        } else if !self.scheduled_tasks.is_empty() {
+            ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
+                let parent_priority = self.scheduled_tasks[&task.id()];
+                ctx.schedule_task(task, parent_priority);
+            });
+            self.scheduled_tasks.clear();
+            false
         } else {
-            if !self.scheduled_tasks.is_empty() {
-                ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
-                    let parent_priority = self.scheduled_tasks[&task.id()];
-                    ctx.schedule_task(task, parent_priority);
-                });
-                self.scheduled_tasks.clear();
-            }
             true
         }
     }
