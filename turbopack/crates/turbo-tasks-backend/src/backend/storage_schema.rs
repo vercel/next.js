@@ -743,8 +743,8 @@ mod tests {
         assert!(!storage.flags.data_restored());
         assert!(!storage.flags.meta_modified());
         assert!(!storage.flags.data_modified());
-        assert!(!storage.flags.meta_snapshot());
-        assert!(!storage.flags.data_snapshot());
+        assert!(!storage.flags.meta_modified_during_snapshot());
+        assert!(!storage.flags.data_modified_during_snapshot());
         assert!(!storage.flags.prefetched());
 
         // Test setting restored flags
@@ -760,10 +760,10 @@ mod tests {
         assert!(storage.flags.data_modified());
 
         // Test setting snapshot flags
-        storage.flags.set_meta_snapshot(true);
-        storage.flags.set_data_snapshot(true);
-        assert!(storage.flags.meta_snapshot());
-        assert!(storage.flags.data_snapshot());
+        storage.flags.set_meta_modified_during_snapshot(true);
+        storage.flags.set_data_modified_during_snapshot(true);
+        assert!(storage.flags.meta_modified_during_snapshot());
+        assert!(storage.flags.data_modified_during_snapshot());
 
         // Test prefetched flag
         storage.flags.set_prefetched(true);

@@ -123,7 +123,7 @@ impl Storage {
     >(
         &'l self,
         process: &'l P,
-    ) -> Vec<SnapshotShard<'l, P, PS>> {
+    ) -> Vec<SnapshotShard<'l, P>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
@@ -495,7 +495,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((task_id, snapshot)) = self.shard.direct_snapshots.pop() {
-            let item = (self.shard.process)(task_id, &*snapshot, &mut self.buffer);
+            let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
             if !item.is_empty() {
                 return Some(item);
             }
@@ -517,7 +517,7 @@ where
                     snapshot.take()
                 };
                 if let Some(snapshot) = maybe_snapshot {
-                    let item = (self.shard.process)(task_id, &*snapshot, &mut self.buffer);
+                    let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
                     if !item.is_empty() {
                         return Some(item);
                     }
