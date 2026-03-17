@@ -28,7 +28,7 @@ async function createHostServer() {
   }
 }
 
-function requestInternalDevScript(appPort: number, referer: string) {
+function requestInternalDevScript(appPort: string | number, referer: string) {
   return fetchViaHTTP(
     appPort,
     '/_next/static/chunks/pages/_app.js',
@@ -43,7 +43,10 @@ function requestInternalDevScript(appPort: number, referer: string) {
   )
 }
 
-function requestInternalDevMiddleware(appPort: number, origin: string) {
+function requestInternalDevMiddleware(
+  appPort: string | number,
+  origin: string
+) {
   return fetchViaHTTP(
     appPort,
     '/__nextjs_error_feedback?errorCode=0&wasHelpful=true',
