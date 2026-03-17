@@ -1144,5 +1144,11 @@
   "1143": "Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route.",
   "1144": "Prefetch inlining is enabled but no hints were found for route \"%s\". This is a bug in the Next.js build pipeline — prefetch-hints.json should contain an entry for every route that produces segment data.",
   "1145": "Internal Next.js Error: Prefetch inlining is enabled but no hints were found for route \"%s\". prefetch-hints.json should contain an entry for every route that produces segment data. This is a bug in Next.js.",
-  "1146": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js."
+  "1146": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js.",
+  "1147": "`unstable_navigation` must not be used within a Client Component. Next.js should be preventing `unstable_navigation` from being included in Client Components statically, but did not in this case.",
+  "1148": "Unexpected work unit store type.",
+  "1149": "`unstable_navigation()` cannot be called inside `generateStaticParams()`.",
+  "1150": "`unstable_navigation()` is only available with the `cacheComponents` config.",
+  "1151": "`unstable_navigation()` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
+  "1152": "`unstable_navigation()` cannot be called inside `unstable_cache()`."
 }

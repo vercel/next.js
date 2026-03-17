@@ -57,6 +57,7 @@ import { createReactServerErrorHandler } from '../app-render/create-error-handle
 import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
+import { CacheStage } from '../../shared/lib/segment-cache/cache-stage'
 import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import {
@@ -634,6 +635,13 @@ export interface CollectedCacheResult {
    * don't have this information.
    */
   readRootParamNames: ReadonlySet<string> | undefined
+  /**
+   * Whether this cache entry includes the maximum prefetchable content.
+   * Set to `false` by `unstable_navigation()` to indicate the entry should
+   * be omitted from default runtime prefetches. In the future this will
+   * likely become an integer representing the cache stage level.
+   */
+  hasMaxPrefetch?: boolean
 }
 
 async function collectResult(
@@ -719,6 +727,18 @@ async function collectResult(
         : undefined
     )
 
+    // Propagate hasMaxPrefetch to outer cache stores so that if
+    // navigation() is called in a deeply nested cache, the outermost cache
+    // entry is also omitted from prefetches.
+    if (innerCacheStore.hasMaxPrefetch === false) {
+      if (
+        cacheContext.outerWorkUnitStore.type === 'cache' ||
+        cacheContext.outerWorkUnitStore.type === 'private-cache'
+      ) {
+        cacheContext.outerWorkUnitStore.hasMaxPrefetch = false
+      }
+    }
+
     const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
     if (cacheSignal) {
       cacheSignal.endRead()
@@ -733,6 +753,8 @@ async function collectResult(
       innerCacheStore.type === 'cache'
         ? innerCacheStore.readRootParamNames
         : undefined,
+    hasMaxPrefetch:
+      innerCacheStore.hasMaxPrefetch === false ? false : undefined,
   }
 }
 
@@ -1005,12 +1027,14 @@ function cloneCacheResult(
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      hasMaxPrefetch: result.hasMaxPrefetch,
     },
     {
       entry: entryB,
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      hasMaxPrefetch: result.hasMaxPrefetch,
     },
   ]
 }
@@ -1686,6 +1710,43 @@ export async function cache(
               workUnitStore satisfies never
           }
         }
+
+        if (rdcResult.hasMaxPrefetch === false) {
+          switch (workUnitStore.type) {
+            case 'prerender-runtime':
+              // The cache entry does not have the maximum prefetchable content
+              // (unstable_navigation() was called inside it). During runtime
+              // prefetches, we omit this entry so the client fetches fresh
+              // content on actual navigation.
+              if (workUnitStore.cacheStageAccumulator) {
+                workUnitStore.cacheStageAccumulator.current = CacheStage.Default
+              }
+              debug?.(
+                'omitting entry',
+                serializedCacheKey,
+                'from runtime shell due to navigation boundary'
+              )
+              if (cacheSignal) {
+                cacheSignal.endRead()
+              }
+              return makeHangingPromise(
+                workUnitStore.renderSignal,
+                workStore.route,
+                'navigation boundary "use cache"'
+              )
+            case 'request':
+            case 'prerender':
+            case 'prerender-ppr':
+            case 'prerender-legacy':
+            case 'cache':
+            case 'private-cache':
+            case 'unstable-cache':
+            case 'generate-static-params':
+              break
+            default:
+              workUnitStore satisfies never
+          }
+        }
       }
 
       if (rdcResult !== undefined) {
@@ -1710,6 +1771,17 @@ export async function cache(
           rdcResult.entry,
           rdcResult.readRootParamNames
         )
+
+        // Propagate hasMaxPrefetch to outer cache stores.
+        if (rdcResult.hasMaxPrefetch === false) {
+          const outerWorkUnitStore = cacheContext.outerWorkUnitStore
+          if (
+            outerWorkUnitStore.type === 'cache' ||
+            outerWorkUnitStore.type === 'private-cache'
+          ) {
+            outerWorkUnitStore.hasMaxPrefetch = false
+          }
+        }
 
         const [streamA, streamB] = rdcResult.entry.value.tee()
         rdcResult.entry.value = streamB

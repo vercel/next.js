@@ -494,7 +494,8 @@ async function navigateToUnknownRoute(
               processed.headVaryParams,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              processed.stage
             )
           }
         })

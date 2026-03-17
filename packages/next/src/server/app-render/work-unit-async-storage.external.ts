@@ -25,6 +25,8 @@ import { RenderStage } from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
+import type { ServerCacheInfo } from './cache-info'
+
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
 export interface CommonWorkUnitStore {
@@ -185,6 +187,9 @@ export interface PrerenderStoreModernRuntime
    */
   readonly stagedRendering: StagedRenderingController | null
 
+  // Always created for runtime prerenders.
+  readonly cacheStageAccumulator: ServerCacheInfo<number>
+
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
@@ -264,6 +269,13 @@ interface PrerenderStoreModernCommon
    * cache to re-key entries for better sharing across different param values.
    */
   readonly varyParamsAccumulator: ResponseVaryParamsAccumulator | null
+
+  /**
+   * A thenable that resolves to the cache stage level after rendering. Flight
+   * serializes this lazily into the response stream. The `current` field is
+   * updated during rendering as navigation boundaries are encountered.
+   */
+  readonly cacheStageAccumulator: ServerCacheInfo<number> | null
 }
 
 interface StaticPrerenderStoreCommon {
@@ -337,6 +349,17 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
   explicitExpire: undefined | number // server expiration time
   explicitStale: undefined | number // client expiration time
+  /**
+   * Whether this cache entry includes the maximum prefetchable content.
+   * Set to `false` by `unstable_navigation()` to indicate that content
+   * after the navigation boundary should be excluded from default runtime
+   * prefetches.
+   *
+   * Currently a boolean, but this will likely evolve into an integer
+   * representing the cache stage level, once multiple stage boundaries
+   * are supported.
+   */
+  hasMaxPrefetch?: boolean
   readonly hmrRefreshHash: string | undefined
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined

@@ -1,30 +1,33 @@
 /**
- * Vary Params Decoding
+ * Cache Info Decoding
+ *
+ * Types and utilities for cache info thenables — the mechanism used to
+ * embed lazily-resolved metadata (vary params, cache stage, etc.) into
+ * Flight prerender responses.
  *
  * This module is shared between server and client.
  */
 
 export type VaryParams = Set<string>
 
-type FulfilledVaryParamsThenable = {
-  status: 'fulfilled'
-  value: VaryParams
-} & PromiseLike<VaryParams>
-
-type PendingVaryParamsThenable = {
-  // 'resolved_model' is an internal React Flight state: the underlying model
-  // data has arrived but the thenable hasn't been "unwrapped" yet. Calling
-  // .then() triggers Flight to synchronously transition to 'fulfilled'.
-  status: 'pending' | 'resolved_model'
+/**
+ * A thenable that follows the React Flight thenable protocol for lazily
+ * serializing values into a Flight response stream.
+ *
+ * On the server, a CacheInfo is created in a 'pending' state,
+ * accumulates data during rendering (via the `current` field), and is
+ * resolved right before the prerender is aborted.
+ *
+ * On the client, the thenable arrives from the Flight stream and can be
+ * read synchronously via `readCacheInfo()` once the stream is received.
+ */
+export type CacheInfo<T> = {
+  status: string
   value: unknown
-} & PromiseLike<VaryParams>
-
-export type VaryParamsThenable =
-  | FulfilledVaryParamsThenable
-  | PendingVaryParamsThenable
+} & PromiseLike<T>
 
 /**
- * Synchronously reads vary params from a thenable.
+ * Synchronously reads a value from a CacheInfo.
  *
  * By the time this is called (client-side or in collectSegmentData), the
  * thenable should already be fulfilled because the Flight stream has been
@@ -32,11 +35,9 @@ export type VaryParamsThenable =
  * microtasks.
  *
  * Returns null if the thenable is still pending (which shouldn't happen in
- * normal operation - it indicates the server failed to track vary params).
+ * normal operation - it indicates the server failed to resolve the thenable).
  */
-export function readVaryParams(
-  thenable: VaryParamsThenable
-): VaryParams | null {
+export function readCacheInfo<T>(thenable: CacheInfo<T>): T | null {
   // Attach a no-op listener to force Flight to synchronously resolve the
   // thenable. When a thenable arrives from the Flight stream, it may be in an
   // intermediate 'resolved_model' state (data received but not unwrapped).
@@ -49,7 +50,7 @@ export function readVaryParams(
   if (thenable.status !== 'fulfilled') {
     return null
   }
-  return thenable.value
+  return thenable.value as T
 }
 
 const noop = () => {}

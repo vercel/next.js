@@ -152,3 +152,5 @@ export function cacheLife(profile: {
 
 export const unstable_cacheLife: typeof cacheLife
 export const unstable_cacheTag: typeof cacheTag
+
+export { unstable_navigation } from 'next/dist/server/use-cache/navigation'
