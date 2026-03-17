@@ -192,7 +192,7 @@ describe.skip('ppr-full', () => {
           if (isNextDeploy) {
             expect(cacheControl).toEqual('public, max-age=0, must-revalidate')
           } else if (isNextDev) {
-            expect(cacheControl).toEqual('no-store, must-revalidate')
+            expect(cacheControl).toEqual('no-cache, must-revalidate')
           } else if (dynamic === false || dynamic === 'force-static') {
             expect(cacheControl).toEqual(
               revalidate === undefined
