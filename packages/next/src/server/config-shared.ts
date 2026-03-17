@@ -1005,6 +1005,14 @@ export interface ExperimentalConfig {
   mcpServer?: boolean
 
   /**
+   * Enable agentic editing mode. When true, the native filesystem watcher is
+   * disabled and all code changes must go through `next internal apply` (which
+   * POSTs to `/_next/dev/apply`). This gives AI agents a deterministic
+   * apply→compile→feedback loop with no watcher races.
+   */
+  agenticEditing?: boolean
+
+  /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
    * build`. Failing to acquire the lock causes the process to exit with an
    * error message.

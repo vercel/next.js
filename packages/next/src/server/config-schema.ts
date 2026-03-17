@@ -191,6 +191,7 @@ export const experimentalSchema = {
   adapterPath: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
+  agenticEditing: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
   appNewScrollHandler: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),

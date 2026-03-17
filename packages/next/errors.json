@@ -1137,5 +1137,10 @@
   "1136": "Page \"%s\" cannot use both \\`export const unstable_dynamicStaleTime\\` and \\`export const unstable_instant\\`.",
   "1137": "\"%s\" cannot use \\`export const unstable_dynamicStaleTime\\`. This config is only supported in page files, not layouts.",
   "1138": "`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.",
-  "1139": "`unstable_catchError` can only be used in Client Components."
+  "1139": "`unstable_catchError` can only be used in Client Components.",
+  "1140": "Request timed out",
+  "1141": "Invalid response from dev server",
+  "1142": "Timeout visiting %s",
+  "1143": "Hunk at line %s does not match file content. Expected:\\n  %s%s\\nFound at line %s:\\n  %s",
+  "1144": "Search text not found in %s.\\nSearched for:\\n%s%s"
 }

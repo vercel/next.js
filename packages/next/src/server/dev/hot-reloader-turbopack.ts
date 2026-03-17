@@ -135,6 +135,10 @@ import {
   sendSerializedErrorsToClientForHtmlRequest,
   setErrorsRscStreamForHtmlRequest,
 } from './serialized-errors'
+import {
+  getAgenticApplyMiddleware,
+  type PageResult,
+} from './agentic-apply-middleware'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -384,7 +388,10 @@ export async function createHotReloaderTurbopack(
       distDir,
       nextConfig: opts.nextConfig,
       watch: {
-        enable: dev,
+        // In agentic editing mode, disable the native filesystem watcher.
+        // All changes go through /_next/dev/apply which calls
+        // invalidateFileSystemCache() explicitly.
+        enable: dev && !nextConfig.experimental.agenticEditing,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
       },
       dev,
@@ -481,6 +488,10 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+
+  // One-shot listeners for compilation end events.
+  // Used by the agentic apply middleware to wait for recompilation.
+  const compilationEndListeners: Array<() => void> = []
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -1049,6 +1060,227 @@ export async function createHotReloaderTurbopack(
           }),
         ]
       : []),
+    getAgenticApplyMiddleware({
+      projectDir: projectPath,
+      async onPatchApplied(_affectedFiles, urls) {
+        // After writing files to disk:
+        // 1. Invalidate Turbopack's FS cache
+        // 2. For each URL: visit via next-browser (async!) to trigger
+        //    compilation, capture runtime errors, take screenshot
+        //
+        // IMPORTANT: next-browser goto makes an HTTP request back to this
+        // server. We MUST use async exec (not execSync) to avoid deadlock —
+        // execSync would block the event loop, preventing the server from
+        // handling the goto request.
+        //
+        // If next-browser is not installed, fall back to internal HTTP GET.
+
+        await project.invalidateFileSystemCache()
+
+        const { exec } =
+          require('child_process') as typeof import('child_process')
+        const { promisify } = require('util') as typeof import('util')
+        const execAsync = promisify(exec)
+        const devServerUrl = process.env.__NEXT_PRIVATE_ORIGIN
+        const results: PageResult[] = []
+
+        // Resolve the next-browser command: prefer global, fall back to npx
+        let nextBrowserCmd = ''
+        try {
+          await execAsync('which next-browser')
+          nextBrowserCmd = 'next-browser'
+        } catch {
+          try {
+            await execAsync('npx @vercel/next-browser --help', {
+              timeout: 15_000,
+            })
+            nextBrowserCmd = 'npx @vercel/next-browser'
+          } catch {
+            // not available
+          }
+        }
+
+        // Ensure next-browser is open and connected to the dev server
+        if (nextBrowserCmd && devServerUrl) {
+          try {
+            await execAsync(`${nextBrowserCmd} open ${devServerUrl}`, {
+              timeout: 15_000,
+            })
+          } catch {
+            // Already open or failed — continue anyway
+          }
+        }
+
+        for (const pageUrl of urls) {
+          const fullUrl = `${devServerUrl}${pageUrl}`
+          const result: PageResult = {
+            url: pageUrl,
+            captureDir: '',
+            screenshot: '',
+            compileErrors: [],
+            runtimeErrors: [],
+          }
+
+          if (nextBrowserCmd) {
+            try {
+              // Try capture-goto first (captures loading sequence frames).
+              // If it fails (e.g., compile error pages can hang capture-goto),
+              // fall back to goto + screenshot.
+              let usedCaptureGoto = false
+              try {
+                const { stdout: captureOutput } = await execAsync(
+                  `${nextBrowserCmd} capture-goto ${fullUrl}`,
+                  { timeout: 15_000 }
+                )
+
+                const dirMatch = captureOutput.match(/→\s*(.+)/)
+                if (dirMatch) {
+                  const captureDir = dirMatch[1].trim()
+                  result.captureDir = captureDir
+
+                  const capturedFs = require('fs') as typeof import('fs')
+                  try {
+                    const frames = capturedFs
+                      .readdirSync(captureDir)
+                      .filter((f: string) => f.endsWith('.png'))
+                      .sort()
+                    if (frames.length > 0) {
+                      result.screenshot = (require('path') as typeof import('path')).join(
+                        captureDir,
+                        frames[frames.length - 1]
+                      )
+                    }
+                  } catch {
+                    // Directory read failed
+                  }
+                }
+                usedCaptureGoto = true
+              } catch {
+                // capture-goto failed — fall back to goto + screenshot
+                try {
+                  await execAsync(`${nextBrowserCmd} goto ${fullUrl}`, {
+                    timeout: 15_000,
+                  })
+                  await new Promise((r) => setTimeout(r, 300))
+                  const { stdout: screenshotPath } = await execAsync(
+                    `${nextBrowserCmd} screenshot`,
+                    { timeout: 10_000 }
+                  )
+                  if (screenshotPath.trim()) {
+                    result.screenshot = screenshotPath.trim()
+                  }
+                } catch {
+                  // goto also failed
+                }
+              }
+
+              // Small delay for errors to propagate to the overlay
+              if (usedCaptureGoto) {
+                await new Promise((r) => setTimeout(r, 500))
+              }
+
+              // Capture errors (build + runtime)
+              const { stdout: errorsJson } = await execAsync(
+                `${nextBrowserCmd} errors`,
+                { timeout: 10_000 }
+              )
+
+              try {
+                const parsed = JSON.parse(errorsJson)
+                for (const session of parsed.sessionErrors || []) {
+                  if (session.buildError) {
+                    result.compileErrors.push(session.buildError)
+                  }
+                  for (const re of session.runtimeErrors || []) {
+                    result.runtimeErrors.push(re.message || String(re))
+                  }
+                }
+              } catch {
+                // Ignore parse errors
+              }
+            } catch {
+              // next-browser command failed
+            }
+          } else {
+            // Fallback: internal HTTP GET (compilation only, no screenshots)
+            try {
+              const http = require('http') as typeof import('http')
+              await new Promise<void>((resolve, reject) => {
+                const urlObj = new URL(fullUrl)
+                const req = http.request(
+                  {
+                    hostname: urlObj.hostname,
+                    port: urlObj.port,
+                    path: urlObj.pathname + urlObj.search,
+                    method: 'GET',
+                    timeout: 30_000,
+                  },
+                  (res) => {
+                    res.resume()
+                    res.on('end', () => resolve())
+                  }
+                )
+                req.on('error', reject)
+                req.on('timeout', () => {
+                  req.destroy()
+                  reject(new Error(`Timeout visiting ${pageUrl}`))
+                })
+                req.end()
+              })
+            } catch {
+              // Continue
+            }
+          }
+
+          results.push(result)
+        }
+
+        // If using fallback (no @vercel/next-browser), collect compile errors
+        // from Turbopack's internal state after waiting for recompile
+        if (!nextBrowserCmd && urls.length > 0) {
+          const compilationDone = new Promise<void>((resolve) => {
+            const timeout = setTimeout(() => {
+              const idx = compilationEndListeners.indexOf(resolve)
+              if (idx !== -1) compilationEndListeners.splice(idx, 1)
+              resolve()
+            }, 30_000)
+            compilationEndListeners.push(() => {
+              clearTimeout(timeout)
+              resolve()
+            })
+          })
+          await compilationDone
+
+          const seenMessages = new Set<string>()
+          const allErrors: string[] = []
+          for (const issue of currentTopLevelIssues.values()) {
+            if (issue.severity !== 'warning') {
+              const msg = formatIssue(issue)
+              if (!seenMessages.has(msg)) {
+                seenMessages.add(msg)
+                allErrors.push(msg)
+              }
+            }
+          }
+          for (const entryIssues of currentEntryIssues.values()) {
+            for (const issue of entryIssues.values()) {
+              if (issue.severity !== 'warning') {
+                const msg = formatIssue(issue)
+                if (!seenMessages.has(msg)) {
+                  seenMessages.add(msg)
+                  allErrors.push(msg)
+                }
+              }
+            }
+          }
+          if (allErrors.length > 0 && results.length > 0) {
+            results[0].compileErrors = allErrors
+          }
+        }
+
+        return results
+      },
+    }),
   ]
 
   setStackFrameResolver(async (request) => {
@@ -1825,6 +2057,12 @@ export async function createHotReloaderTurbopack(
           // Use debounced function to prevent rapid-fire calls from turbopack updates
           if (hasDeferredEntriesConfig) {
             callOnBeforeDeferredEntriesAfterHMR()
+          }
+
+          // Notify any one-shot compilation-end listeners (used by agentic apply)
+          while (compilationEndListeners.length > 0) {
+            const listener = compilationEndListeners.shift()
+            listener?.()
           }
           break
         }

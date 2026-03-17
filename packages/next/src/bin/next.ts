@@ -551,4 +551,47 @@ internal
     )
   })
 
+internal
+  .command('apply')
+  .description(
+    'Apply a patch to the project via the running dev server. Returns compilation results, runtime errors, and screenshots.'
+  )
+  .argument(
+    '<patch-file>',
+    'Path to a patch file in search/replace format (use "-" for stdin).'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which the project is located. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--format <format>',
+    'Output format: "json" for machine-readable (default), "text" for human-readable.',
+    'json'
+  )
+  .option(
+    '--url <url>',
+    'Relative URL path of a page to compile (e.g., "/", "/about", "/dashboard"). Can be specified multiple times.',
+    (value: string, previous: string[]) => previous.concat([value]),
+    [] as string[]
+  )
+  .action(
+    (
+      patchFile: string,
+      directory: string | undefined,
+      options: { format: 'json' | 'text'; url: string[] }
+    ) => {
+      return import('../cli/next-dev-apply.js').then((mod) =>
+        mod.nextDevApply({
+          patchFile,
+          directory,
+          format: options.format,
+          url: options.url,
+        })
+      )
+    }
+  )
+
 program.parse(process.argv)
