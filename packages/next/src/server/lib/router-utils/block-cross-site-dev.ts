@@ -31,7 +31,7 @@ function warnOrBlockRequest(
   return true
 }
 
-function isInternalDevEndpoint(req: IncomingMessage): boolean {
+function isInternalEndpoint(req: IncomingMessage): boolean {
   if (!req.url) return false
 
   try {
@@ -50,7 +50,7 @@ function isInternalDevEndpoint(req: IncomingMessage): boolean {
   }
 }
 
-export const blockCrossSite = (
+export const blockCrossSiteDEV = (
   req: IncomingMessage,
   res: ServerResponse | Duplex,
   allowedDevOrigins: string[] | undefined,
@@ -70,9 +70,10 @@ export const blockCrossSite = (
   }
 
   // only process internal URLs/middleware
-  if (!isInternalDevEndpoint(req)) {
+  if (!isInternalEndpoint(req)) {
     return false
   }
+
   // block non-cors request from cross-site e.g. script tag on
   // different host
   if (
@@ -82,20 +83,20 @@ export const blockCrossSite = (
     return warnOrBlockRequest(res, undefined, mode)
   }
 
-  // ensure websocket requests from allowed origin
+  // ensure websocket requests are only fulfilled from allowed origin
   const rawOrigin = req.headers['origin']
+  const parsedOrigin =
+    rawOrigin && rawOrigin !== 'null' ? parseUrl(rawOrigin) : rawOrigin
 
-  if (rawOrigin && rawOrigin !== 'null') {
-    const parsedOrigin = parseUrl(rawOrigin)
+  const originLowerCase =
+    parsedOrigin === undefined || typeof parsedOrigin === 'string'
+      ? parsedOrigin
+      : parsedOrigin.hostname.toLowerCase()
 
-    if (parsedOrigin) {
-      const originLowerCase = parsedOrigin.hostname.toLowerCase()
-
-      if (!isCsrfOriginAllowed(originLowerCase, allowedOrigins)) {
-        return warnOrBlockRequest(res, originLowerCase, mode)
-      }
-    }
-  }
-
-  return false
+  // Allow requests with no origin since those are just GET requests from same-site
+  return (
+    originLowerCase !== undefined &&
+    !isCsrfOriginAllowed(originLowerCase, allowedOrigins) &&
+    warnOrBlockRequest(res, originLowerCase, mode)
+  )
 }

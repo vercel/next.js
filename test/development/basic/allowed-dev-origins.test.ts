@@ -373,6 +373,56 @@ describe.each([['', '/docs']])(
           server.close()
         }
       })
+
+      it('blocks cross-site requests from privacy-sensitive origins', async () => {
+        const server = http.createServer((req, res) => {
+          res.appendHeader('Content-Security-Policy', 'sandbox allow-scripts')
+          res.end(`
+            <html>
+              <head>
+                <title>testing cross-site privacy-sensitive</title> 
+              </head>
+              <body>
+                <script>
+                  (() => {
+                    const statusEl = document.createElement('p')
+                    statusEl.id = 'status'
+                    document.querySelector('body').appendChild(statusEl)
+        
+                    const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+                    
+                    ws.addEventListener('error', (err) => {
+                      statusEl.innerText = 'error'
+                    })
+                    ws.addEventListener('open', () => {
+                      statusEl.innerText = 'connected'
+                    })
+                  })()
+                </script>
+              </body>
+            </html>
+          `)
+        })
+
+        const port = await findPort()
+        await new Promise<void>((res) => {
+          server.listen(port, () => res())
+        })
+
+        try {
+          const browser = await webdriver(`http://127.0.0.1:${port}`, '/')
+
+          await retry(async () => {
+            expect(await browser.elementByCss('#status').text()).toBe('error')
+          })
+        } finally {
+          await new Promise<void>((res) => {
+            server.close(() => {
+              res()
+            })
+          })
+        }
+      })
     })
   }
 )
