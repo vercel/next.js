@@ -188,6 +188,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  /** @deprecated use top-level `adapterPath` instead */
   adapterPath: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
@@ -411,6 +412,7 @@ export const experimentalSchema = {
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
+    adapterPath: z.string().optional(),
     allowedDevOrigins: z.array(z.string()).optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
