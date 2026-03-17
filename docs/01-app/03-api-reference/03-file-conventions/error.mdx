@@ -91,6 +91,7 @@ export default function Error({ error, unstable_retry }) {
 >
 > - The [React DevTools](https://react.dev/learn/react-developer-tools) allow you to toggle error boundaries to test error states.
 > - If you want errors to bubble up to the parent error boundary, you can `throw` when rendering the `error` component.
+> - For component-level error recovery that aren't tied to route segments like [`error.js`](/docs/app/api-reference/file-conventions/error), use the [`unstable_catchError`](/docs/app/api-reference/functions/catchError) function.
 
 In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `error.js` wraps `loading.js`, `not-found.js`, `page.js`, and nested `layout.js` files in a React error boundary. It does **not** wrap the `layout.js` or `template.js` above it in the same segment. To handle errors in the root layout, use [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error).
 
