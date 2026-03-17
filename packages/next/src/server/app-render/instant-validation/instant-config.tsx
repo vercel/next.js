@@ -1,14 +1,16 @@
 import { getLayoutOrPageModule } from '../../lib/app-dir-module'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-tree'
-import type {
-  AppSegmentConfig,
-  InstantSample,
+import {
+  InstantSamplesSchema,
+  type AppSegmentConfig,
+  type InstantSample,
 } from '../../../build/segment-config/app/app-segment-config'
 import {
   workAsyncStorage,
   type WorkStore,
 } from '../work-async-storage.external'
+import { InstantValidationError } from './instant-validation-error'
 
 export async function anySegmentHasRuntimePrefetchEnabled(
   tree: LoaderTree
@@ -149,22 +151,14 @@ export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(
 )
 
 export const resolveInstantConfigSamplesForPage = async (
-  tree: LoaderTree
+  tree: LoaderTree,
+  route: string
 ): Promise<InstantSample[] | null> => {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   const instantConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
     : undefined
-
-  let samples: InstantSample[] | null = null
-  if (
-    instantConfig !== undefined &&
-    typeof instantConfig === 'object' &&
-    instantConfig.samples
-  ) {
-    samples = instantConfig.samples
-  }
 
   // The samples from inner segments override samples from outer segments,
   // i.e. a page overrides the samples from a layout.
@@ -176,13 +170,41 @@ export const resolveInstantConfigSamplesForPage = async (
       continue
     }
     const childTree = parallelRoutes[parallelRouteKey]
-    const childSamples = await resolveInstantConfigSamplesForPage(childTree)
+    const childSamples = await resolveInstantConfigSamplesForPage(
+      childTree,
+      route
+    )
     if (childSamples !== null) {
-      samples = childSamples
+      return childSamples
     }
   }
 
-  return samples
+  if (instantConfig !== undefined && typeof instantConfig === 'object') {
+    if (instantConfig.samples) {
+      return instantConfig.samples
+    }
+    if (instantConfig.generateSamples) {
+      let generatedSamples: unknown
+      try {
+        generatedSamples = await instantConfig.generateSamples()
+      } catch (err) {
+        throw new InstantValidationError(
+          `Route "${route}" encountered an error while executing \`unstable_instant.generateSamples\`.`,
+          { cause: err }
+        )
+      }
+      const parsedSamples = InstantSamplesSchema.safeParse(generatedSamples)
+      if (!parsedSamples.success) {
+        throw new InstantValidationError(
+          `Route "${route}" expected \`unstable_instant.generateSamples\` to resolve to a non-empty array of valid samples.`,
+          { cause: parsedSamples.error }
+        )
+      }
+      return parsedSamples.data
+    }
+  }
+
+  return null
 }
 
 /**

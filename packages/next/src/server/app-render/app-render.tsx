@@ -5257,7 +5257,8 @@ async function validateInstantConfigsInBuild(
 }
 
 /**
- * Runs instant validation at build time using the `samples` from `unstable_instant`.
+ * Runs instant validation at build time using the samples declared (static or generated)
+ * in `unstable_instant`.
  *
  * For each sample, this creates a staged RSC render with a synthetic `RequestStore`
  * populated from sample data, then feeds the accumulated chunks to
@@ -5274,7 +5275,23 @@ async function validateInstantConfigsInBuildImpl(
   const route = outerWorkStore.route
 
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
-  let samples = await resolveInstantConfigSamplesForPage(loaderTree)
+  let samples: InstantSample[] | null
+  try {
+    samples = await resolveInstantConfigSamplesForPage(loaderTree, route)
+  } catch (err) {
+    if (isInstantValidationError(err)) {
+      console.error(err)
+      const cause = (err as Error & { cause?: unknown }).cause
+      if (cause) {
+        console.error(cause)
+      }
+      console.error(
+        `Build-time instant validation failed for route "${route}".`
+      )
+      return false
+    }
+    throw err
+  }
   if (!samples || samples.length === 0) {
     // No samples defined; use a single empty sample to still run validation
     samples = [{}]
