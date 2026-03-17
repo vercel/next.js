@@ -219,6 +219,7 @@ export default function Component({ children }) {
 >
 > - Unlike the `error.js` file convention which is scoped to route segments, `unstable_catchError` can be used to wrap any part of your component tree for component-level error recovery.
 > - Props passed to the wrapper component are forwarded to the fallback function, making it easy to create reusable error UIs with different configurations.
+> - You don't need to wrap `error.js` default exports with `unstable_catchError`. The [`error.js`](/docs/app/api-reference/file-conventions/error) file convention already renders inside a built-in error boundary provided by Next.js.
 
 ## Version History
 
