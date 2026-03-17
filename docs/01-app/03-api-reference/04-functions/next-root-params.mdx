@@ -11,7 +11,7 @@ related:
     - app/api-reference/file-conventions/dynamic-routes
 ---
 
-The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
+The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component) and [**Route Handlers**](/docs/app/api-reference/file-conventions/route). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
 
 The export names are generated from your dynamic segment folder names. For example, if your root layout is inside `app/[locale]`, you import `locale` from `next/root-params`.
 
@@ -46,7 +46,7 @@ Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventi
 > **Good to know:**
 >
 > - Root parameter names must be valid JavaScript function identifiers. Kebab-cased segment names (e.g. `[post-slug]`) are not supported and will cause an error at dev time or during build.
-> - `next/root-params` is only available in Server Components. It cannot be used in Client Components, Server Actions, or Route Handlers.
+> - `next/root-params` can be used in Server Components and [Route Handlers](/docs/app/api-reference/file-conventions/route). It cannot be used in Client Components or Server Actions.
 > - The examples on this page use [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper) and [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), which are auto-generated type helpers based on your route structure.
 
 ## Configuration
@@ -295,11 +295,33 @@ Each root parameter getter returns a `Promise` that resolves to one of the follo
 
 If the parameter does not exist in the current route's root layout (see [Multiple root layouts](#multiple-root-layouts)), the return type includes `undefined`.
 
+## Route Handlers
+
+Root parameter getters can be used in [Route Handlers](/docs/app/api-reference/file-conventions/route):
+
+```tsx filename="app/[lang]/api/route.ts" highlight={1,5} switcher
+import { lang } from 'next/root-params'
+
+export async function GET() {
+  const language = await lang()
+  return Response.json({ lang: language })
+}
+```
+
+```jsx filename="app/[lang]/api/route.js" highlight={1,5} switcher
+import { lang } from 'next/root-params'
+
+export async function GET() {
+  const language = await lang()
+  return Response.json({ lang: language })
+}
+```
+
 ## Restrictions
 
-### Server Components only
+### Server Components and Route Handlers only
 
-Root parameter getters can only be used in Server Components:
+Root parameter getters can only be used in Server Components and [Route Handlers](/docs/app/api-reference/file-conventions/route):
 
 ```tsx
 // This will cause a build error
@@ -330,19 +352,6 @@ import { lang } from 'next/root-params'
 async function submitForm() {
   'use server'
   const language = await lang() // Error: Not supported in Server Actions
-}
-```
-
-### Not available in Route Handlers
-
-Support for Route Handlers is planned for a future version of Next.js. In the meantime, use the [`params`](/docs/app/api-reference/file-conventions/route#context-optional) from the route context:
-
-```tsx filename="app/[lang]/api/route.ts"
-import { NextRequest } from 'next/server'
-
-export async function GET(req: NextRequest, ctx: RouteContext<'/[lang]/api'>) {
-  const { lang } = await ctx.params
-  return Response.json({ lang })
 }
 ```
 
