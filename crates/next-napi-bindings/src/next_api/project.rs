@@ -735,6 +735,37 @@ pub async fn project_invalidate_file_system_cache(
     Ok(())
 }
 
+/// Invalidates in-memory file system state, forcing Turbopack to re-read source files
+/// from disk on the next compilation. Unlike `invalidateFileSystemCache` (which only
+/// marks the persisted database for cleanup on restart), this drains the in-memory
+/// invalidator maps and immediately invalidates all tracked tasks.
+///
+/// This is the mechanism that makes `experimental.agenticEditing` work: with the native
+/// filesystem watcher disabled, this is the only way to tell Turbopack that files have
+/// changed.
+#[napi]
+pub async fn project_invalidate_sources(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    let container = project.container;
+    let ctx = &project.turbopack_ctx;
+    ctx.turbo_tasks()
+        .run(async move {
+            #[turbo_tasks::function(operation)]
+            fn project_fs_op(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
+                container.project().project_fs()
+            }
+
+            let project_fs = project_fs_op(container).read_strongly_consistent().await?;
+            project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            });
+            Ok(())
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await
+}
+
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.
 ///
 /// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
