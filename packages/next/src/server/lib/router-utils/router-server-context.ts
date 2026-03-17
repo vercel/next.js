@@ -5,7 +5,7 @@ import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache
 
 export type RevalidateFn = (config: {
   urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
+  headers: { [key: string]: string | string[] }
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 
@@ -49,6 +49,8 @@ export type RouterServerContext = Record<
       errorsRscStream: ReadableStream<Uint8Array>,
       htmlRequestId: string
     ) => void
+    // indicates request handlers are already wrapped by next-server tracing
+    isWrappedByNextServer?: boolean
   }
 >
 

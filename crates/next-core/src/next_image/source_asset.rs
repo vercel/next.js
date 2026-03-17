@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -46,6 +46,12 @@ impl Source for StructuredImageFileSource {
             .ident()
             .with_modifier(modifier)
             .rename_as(rcstr!("*.mjs"))
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let ident = self.image.ident().to_string().await?;
+        Ok(Vc::cell(format!("structured image of {}", ident).into()))
     }
 }
 

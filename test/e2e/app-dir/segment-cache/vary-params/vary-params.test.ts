@@ -83,10 +83,7 @@ describe('segment cache - vary params', () => {
     expect(await page.text()).toContain('Item: headphones')
   })
 
-  // TODO: Re-enable once vary params tracking is implemented for runtime
-  // prefetch abort paths. The abort timing needs to resolve vary params before
-  // the abort signal fires. See static-siblings-infrastructure branch.
-  it.skip('renders cached loading state instantly with runtime prefetching', async () => {
+  it('renders cached loading state instantly with runtime prefetching', async () => {
     // Setup: Page accesses `category` in static portion (tracked in varyParams),
     // but accesses `itemId` only after connection() (not tracked).
     let act: ReturnType<typeof createRouterAct>
@@ -334,6 +331,337 @@ describe('segment cache - vary params', () => {
     expect(await layout.text()).toContain('Layout: electronics/tablet')
 
     const page = await browser.elementById('page-reuse-page')
+    expect(await page.text()).toContain('Page category: electronics')
+  })
+
+  it('does not reuse cached segment for optional catch-all when page accesses slug', async () => {
+    // Setup: Page accesses params.slug directly. Prefetch the empty-slug
+    // page first, then verify that prefetching a different slug value
+    // triggers a new request (not a cache hit).
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — should trigger a new request because the
+    // page varies on slug
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    // Navigate and verify correct content
+    const link = await browser.elementByCss('a[href="/optional-catchall/aaa"]')
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
+  it('does not reuse cached segment for optional catch-all when page enumerates params', async () => {
+    // Setup: Page accesses params via spread ({...params}). Enumeration
+    // should cause the segment to vary on the optional catch-all param,
+    // even when the param has no value.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-enumeration-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-enumeration"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — not cached
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-enumeration/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    const link = await browser.elementByCss(
+      'a[href="/optional-catchall-enumeration/aaa"]'
+    )
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-enumeration-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
+  it('does not reuse cached segment for optional catch-all when page checks slug with in operator', async () => {
+    // Setup: Page checks for slug using `'slug' in params`. The `in`
+    // operator should cause the segment to vary on the optional catch-all
+    // param, even when the param has no value.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/optional-catchall-has-index', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the empty-slug page first
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-has"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: none' }
+    )
+
+    // Prefetch a different slug — not cached
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/optional-catchall-has/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Slug: aaa' }
+    )
+
+    const link = await browser.elementByCss(
+      'a[href="/optional-catchall-has/aaa"]'
+    )
+    await link.click()
+
+    const page = await browser.elementById('optional-catchall-has-page')
+    expect(await page.text()).toContain('Slug: aaa')
+  })
+
+  it('shares cached segment across all params when none accessed statically (runtime prefetch)', async () => {
+    // Both params are accessed only after connection(), so varyParams is
+    // empty. ALL param combinations share the same cached loading shell.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/runtime-prefetch-no-vary', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches the segment
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-no-vary/electronics/phone"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Loading all content dynamically' }
+    )
+
+    // All other combinations are cache hits — even different categories
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch-no-vary/electronics/tablet"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch-no-vary/clothing/shirt"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+  })
+
+  it('does not share cached segment when all params accessed statically (runtime prefetch)', async () => {
+    // Both params are accessed before connection(), so every unique
+    // combination of (category, itemId) requires its own prefetch.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/runtime-prefetch-all-vary', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Each prefetch triggers a new request
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-all-vary/electronics/phone"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static content - electronics/phone' }
+    )
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-all-vary/electronics/tablet"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static content - electronics/tablet' }
+    )
+
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-all-vary/clothing/shirt"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static content - clothing/shirt' }
+    )
+  })
+
+  it('shares cached segment across search params when not accessed (runtime prefetch)', async () => {
+    // Runtime prefetch page that does NOT access searchParams. Since '?'
+    // is not in varyParams, different search param values share the cache.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/runtime-prefetch-search-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches the segment
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-search-params/target-page?q=1"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Static content - searchParams not accessed' }
+    )
+
+    // Different search param values are cache hits
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch-search-params/target-page?q=2"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch-search-params/target-page?q=3"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+  })
+
+  it('tracks metadata param access separately from body (runtime prefetch)', async () => {
+    // generateMetadata accesses slug, but the page body does NOT.
+    // Each slug triggers a new head prefetch because metadata varies on slug.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/runtime-prefetch-metadata', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch triggers a request including the metadata
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-metadata/aaa"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Runtime Metadata: aaa' }
+    )
+
+    // Second prefetch with different slug triggers a new request
+    // (metadata varies on slug, so it can't reuse the cache)
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-metadata/bbb"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Runtime Metadata: bbb' }
+    )
+  })
+
+  it('tracks vary params per-segment with layout/page split (runtime prefetch)', async () => {
+    // Layout accesses both category and itemId; page accesses only category.
+    // When itemId changes but category stays the same, the page segment
+    // should be reused from cache (only varies on category).
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/runtime-prefetch-layout-split', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // First prefetch fetches page segment
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/phone"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Page category:' }
+    )
+
+    // Second prefetch: same category, different itemId.
+    // The page segment is a cache hit since it only varies on category.
+    await act(async () => {
+      const toggle = await browser.elementByCss(
+        'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
+      )
+      await toggle.click()
+    }, 'no-requests')
+
+    // Different category triggers a new page segment fetch
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-layout-split/clothing/shirt"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Page category:' }
+    )
+
+    // Navigate and verify correct content
+    const link = await browser.elementByCss(
+      'a[href="/runtime-prefetch-layout-split/electronics/tablet"]'
+    )
+    await link.click()
+
+    const layout = await browser.elementByCss('[data-layout-content]')
+    expect(await layout.text()).toContain('Layout: electronics/tablet')
+
+    const page = await browser.elementById('runtime-prefetch-layout-split-page')
     expect(await page.text()).toContain('Page category: electronics')
   })
 

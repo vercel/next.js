@@ -269,6 +269,50 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('logged errors in client components during ssr have a sourcemapped stack with a codeframe', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/ssr-error-log')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-error-log'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: ssr-error-log' +
+          '\n    at logError (app/ssr-error-log/page.js:4:17)' +
+          '\n    at Page (app/ssr-error-log/page.js:9:3)' +
+          '\n  2 |' +
+          '\n  3 | function logError() {' +
+          "\n> 4 |   const error = new Error('ssr-error-log')" +
+          '\n    |                 ^' +
+          '\n  5 |   console.error(error)' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          'Error: ssr-error-log' +
+            '\n    at <unknown> (app/ssr-error-log/page.js:4:17)' +
+            '\n  2 |' +
+            '\n  3 | function logError() {' +
+            "\n> 4 |   const error = new Error('ssr-error-log')" +
+            '\n    |                 ^' +
+            '\n  5 |   console.error(error)' +
+            '\n  6 | }' +
+            '\n  7 |' +
+            '\n'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('stack frames are ignore-listed in ssr', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
@@ -318,7 +362,6 @@ describe('app-dir - server source maps', () => {
       )
       if (isTurbopack) {
         // TODO(veil): Turbopack errors because it thinks the sources are not part of the project.
-        // TODO(veil-NDX-910): Turbopack's sourcemap loader drops `ignoreList` in browser sourcemaps.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "ssr-error-log-ignore-listed",
@@ -330,7 +373,6 @@ describe('app-dir - server source maps', () => {
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
              "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
-             "runInternalIgnored internal-pkg/ignored.ts (6:10)",
              "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:29)",
              "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:32)",
              "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:18)",
@@ -851,7 +893,9 @@ describe('app-dir - server source maps', () => {
              "description": "ignore-listed frames",
              "environmentLabel": null,
              "label": "Console Error",
-             "source": "internal-pkg/sourcemapped.ts (9:13) @ runSetOfSets",
+             "source": "app/ssr-anonymous-stack-frame-sandwich/page.js (7:29) @ Page
+         >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
+              |                             ^",
              "stack": [
                "<unknown> internal-pkg/sourcemapped.ts (18:43)",
                "<unknown> internal-pkg/sourcemapped.ts (11:7)",

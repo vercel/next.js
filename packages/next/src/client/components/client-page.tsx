@@ -1,8 +1,6 @@
 'use client'
 
 import type { ParsedUrlQuery } from 'querystring'
-import { InvariantError } from '../../shared/lib/invariant-error'
-
 import type { Params } from '../../server/request/params'
 import { LayoutRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { use } from 'react'
@@ -49,27 +47,16 @@ export function ClientPageRoot({
   }
 
   if (typeof window === 'undefined') {
-    const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
-
     let clientSearchParams: Promise<ParsedUrlQuery>
     let clientParams: Promise<Params>
-    // We are going to instrument the searchParams prop with tracking for the
-    // appropriate context. We wrap differently in prerendering vs rendering
-    const store = workAsyncStorage.getStore()
-    if (!store) {
-      throw new InvariantError(
-        'Expected workStore to exist when handling searchParams in a client Page.'
-      )
-    }
 
     const { createSearchParamsFromClient } =
       require('../../server/request/search-params') as typeof import('../../server/request/search-params')
-    clientSearchParams = createSearchParamsFromClient(searchParams, store)
+    clientSearchParams = createSearchParamsFromClient(searchParams)
 
     const { createParamsFromClient } =
       require('../../server/request/params') as typeof import('../../server/request/params')
-    clientParams = createParamsFromClient(params, store)
+    clientParams = createParamsFromClient(params)
 
     return <Component params={clientParams} searchParams={clientSearchParams} />
   } else {

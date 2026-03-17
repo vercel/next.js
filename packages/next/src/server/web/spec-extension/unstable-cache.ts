@@ -148,6 +148,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        rootParams: undefined,
       }
 
       if (workStore) {
@@ -195,7 +196,9 @@ export function unstable_cache<T extends Callback>(
               isNestedUnstableCache = true
               break
             case 'prerender-client':
+            case 'validation-client':
             case 'request':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -409,12 +412,14 @@ function getFetchUrlPrefix(
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return workStore.route
     default:
       return workUnitStore satisfies never

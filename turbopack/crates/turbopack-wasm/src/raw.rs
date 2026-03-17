@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,

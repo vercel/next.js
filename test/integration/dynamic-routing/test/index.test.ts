@@ -17,6 +17,7 @@ import {
   check,
   getRedboxHeader,
   normalizeManifest,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -245,11 +246,12 @@ function runTests({ dev }) {
 
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss(`#${id}`).click()
-      await check(() => browser.eval('window.location.pathname'), pathname)
 
-      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
-        navQuery
-      )
+      await retry(async () => {
+        expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
+          navQuery
+        )
+      })
       expect(await browser.eval('window.location.pathname')).toBe(pathname)
       expect(await browser.eval('window.location.hash')).toBe(hash)
       expect(
@@ -1582,8 +1584,6 @@ function runTests({ dev }) {
   }
 }
 
-const nextConfig = join(appDir, 'next.config.js')
-
 describe('Dynamic Routing', () => {
   if (process.env.__MIDDLEWARE_TEST) {
     const middlewarePath = join(__dirname, '../middleware.js')
@@ -1606,8 +1606,6 @@ describe('Dynamic Routing', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(nextConfig)
-
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
         buildId = 'development'
@@ -1621,13 +1619,15 @@ describe('Dynamic Routing', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(nextConfig)
-
-        await nextBuild(appDir)
+        await nextBuild(appDir, undefined, {
+          disableAutoSkewProtection: true,
+        })
         buildId = await fs.readFile(buildIdPath, 'utf8')
 
         appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        app = await nextStart(appDir, appPort, {
+          disableAutoSkewProtection: true,
+        })
       })
       afterAll(() => killApp(app))
 

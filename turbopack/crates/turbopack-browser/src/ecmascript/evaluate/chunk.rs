@@ -1,11 +1,11 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -36,6 +36,8 @@ use crate::{
 /// * Contains the Turbopack browser runtime code; and
 /// * Evaluates a list of runtime entries.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Browser Evaluate Chunk")]
 pub(crate) struct EcmascriptBrowserEvaluateChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     ident: ResolvedVc<AssetIdent>,
@@ -99,7 +101,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
                     path
                 } else {
-                    bail!("chunk path {chunk_path} is not in output root {output_root}");
+                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }
@@ -235,14 +237,6 @@ impl EcmascriptBrowserEvaluateChunk {
             self.ident_for_path(),
             Vc::upcast(self),
         ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBrowserEvaluateChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Browser Evaluate Chunk"))
     }
 }
 

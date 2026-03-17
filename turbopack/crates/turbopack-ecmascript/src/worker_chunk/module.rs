@@ -1,12 +1,12 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
-        EvaluatableAssets, availability_info::AvailabilityInfo,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     ident::AssetIdent,
@@ -91,7 +91,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        EvaluatableAssets::one(*evaluatable),
+                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
@@ -306,6 +306,8 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("{} module", self.worker_type.friendly_str())]
 struct WorkerModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
     worker_type: WorkerType,
@@ -329,26 +331,13 @@ impl ModuleReference for WorkerModuleReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: match self.worker_type {
                 WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
                 WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
             },
             merge_tag: None,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for WorkerModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(match self.worker_type {
-            WorkerType::WebWorker => rcstr!("web worker module"),
-            WorkerType::NodeWorkerThread => rcstr!("node worker thread module"),
-            WorkerType::SharedWebWorker => rcstr!("shared web worker module"),
         })
     }
 }

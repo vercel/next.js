@@ -1,14 +1,14 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, EvaluatableAsset,
+        EvaluatableAsset,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -143,6 +143,8 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
 impl EvaluatableAsset for HmrEntryModule {}
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("entry")]
 pub struct HmrEntryModuleReference {
     pub module: ResolvedVc<Box<dyn Module>>,
 }
@@ -156,25 +158,16 @@ impl HmrEntryModuleReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for HmrEntryModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("entry"))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl ModuleReference for HmrEntryModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }

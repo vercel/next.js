@@ -4,21 +4,33 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
-use turbo_tasks_hash::Xxh3Hash64Hasher;
+use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
-/// An asset. It also forms a graph when following [Asset::references].
+/// A file or intermediate result containing content as a [`Rope`] or a symlink.
+///
+/// This is a supertrait for [`Source`], [`OutputAsset`], and [`OutputChunk`].
+///
+/// [`Rope`]: turbo_tasks_fs::rope::Rope
+/// [`Source`]: crate::source::Source
+/// [`OutputAsset`]: crate::output::OutputAsset
+/// [`OutputChunk`]: crate::chunk::OutputChunk
 #[turbo_tasks::value_trait]
 pub trait Asset {
-    /// The content of the [Asset].
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
-    /// The content of the [Asset] alongside its version.
+    /// The content of the `Asset` alongside its version.
     #[turbo_tasks::function]
     fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
+    }
+
+    /// Hash of the content of the `Asset`.
+    #[turbo_tasks::function]
+    fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
+        self.content().content_hash(algorithm)
     }
 }
 
@@ -115,6 +127,16 @@ impl AssetContent {
                 link_type.deterministic_hash(&mut hasher);
                 Ok(Vc::cell(hasher.finish()))
             }
+        }
+    }
+
+    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
+    /// else. If there is no file content, it returns `None`.
+    #[turbo_tasks::function]
+    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            AssetContent::File(content) => Ok(content.content_hash(algorithm)),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }
 }

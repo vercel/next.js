@@ -30,14 +30,22 @@ export const expectedWhenTrailingSlashTrue = [
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-  '_next/static/test-build-id/_buildManifest.js',
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
+  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
-    ? ['_next/static/test-build-id/_clientMiddlewareManifest.js']
+    ? [
+        expect.stringMatching(
+          /_next\/static\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+        ),
+      ]
     : []),
-  '_next/static/test-build-id/_ssgManifest.js',
+  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
   '_not-found/__next._full.txt',
   '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
@@ -105,14 +113,22 @@ const expectedWhenTrailingSlashFalse = [
   '__next._tree.txt',
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
-  '_next/static/test-build-id/_buildManifest.js',
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
+  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
-    ? ['_next/static/test-build-id/_clientMiddlewareManifest.js']
+    ? [
+        expect.stringMatching(
+          /_next\/static\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+        ),
+      ]
     : []),
-  '_next/static/test-build-id/_ssgManifest.js',
+  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
   '_not-found.html',
   '_not-found.txt',
   '_not-found/__next._full.txt',
@@ -202,6 +218,7 @@ export function runTests({
     files: join(__dirname, '..'),
     skipDeployment: true,
     skipStart: true,
+    disableAutoSkewProtection: true,
   })
   if (skipped) {
     return
@@ -378,15 +395,12 @@ export function runTests({
 
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
-        if (trailingSlash) {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashTrue
-          )
-        } else {
-          expect(await getFiles(outputDir)).toEqual(
-            expectedWhenTrailingSlashFalse
-          )
-        }
+        const expected = trailingSlash
+          ? expectedWhenTrailingSlashTrue
+          : expectedWhenTrailingSlashFalse
+        const actualFiles = await getFiles(outputDir)
+        expect(actualFiles).toEqual(expect.arrayContaining(expected))
+        expect(actualFiles).toHaveLength(expected.length)
         const html404 = await fs.readFile(join(outputDir, '404.html'), 'utf8')
         expect(html404).toContain('<h1>My custom not found page</h1>')
       }

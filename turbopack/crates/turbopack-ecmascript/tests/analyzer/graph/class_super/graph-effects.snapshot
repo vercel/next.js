@@ -121,9 +121,7 @@
                                 Module(
                                     ModuleValue {
                                         module: "./module.js",
-                                        annotations: ImportAnnotations {
-                                            map: {},
-                                        },
+                                        annotations: None,
                                     },
                                 ),
                                 Constant(

@@ -14,7 +14,7 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -22,8 +22,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        MinifyType, ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -227,7 +227,7 @@ impl RequireContextMap {
 /// A reference for `require.context()`, will replace it with an inlined map
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
 pub struct RequireContextAssetReference {
     pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
@@ -235,6 +235,17 @@ pub struct RequireContextAssetReference {
 
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
+}
+
+impl std::fmt::Display for RequireContextAssetReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "require.context {}/{}",
+            self.dir,
+            if self.include_subdirs { "**" } else { "*" },
+        )
+    }
 }
 
 impl RequireContextAssetReference {
@@ -284,27 +295,11 @@ impl ModuleReference for RequireContextAssetReference {
         *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for RequireContextAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(
-            format!(
-                "require.context {}/{}",
-                self.dir,
-                if self.include_subdirs { "**" } else { "*" },
-            )
-            .into(),
-        )
+        })
     }
 }
 
@@ -366,6 +361,8 @@ impl RequireContextAssetReferenceCodeGen {
 }
 
 #[turbo_tasks::value(transparent)]
+#[derive(ValueToString)]
+#[value_to_string("resolved reference")]
 pub struct ResolvedModuleReference(ResolvedVc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
@@ -375,20 +372,11 @@ impl ModuleReference for ResolvedModuleReference {
         *self.0
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ResolvedModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("resolved reference"))
+        })
     }
 }
 

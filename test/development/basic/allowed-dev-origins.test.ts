@@ -116,7 +116,8 @@ describe.each([['', '/docs']])(
               const script = document.createElement('script')
               script.src = "${next.url}/_next/static/chunks/pages/_app.js"
               
-              script.onerror = (err) => {
+              script.onerror = (error) => {
+                console.error('script error', error)
                 statusEl.innerText = 'error'
               }
               script.onload = () => {
@@ -126,7 +127,13 @@ describe.each([['', '/docs']])(
             })()`
 
           // ensure direct port with mismatching port is blocked
-          const browser = await webdriver(`http://127.0.0.1:${port}`, '/about')
+          const browser = await webdriver(
+            `http://127.0.0.1:${port}`,
+            '/about',
+            {
+              permissions: ['local-network-access'],
+            }
+          )
           await browser.eval(scriptSnippet)
 
           await retry(async () => {
@@ -136,6 +143,7 @@ describe.each([['', '/docs']])(
           })
 
           // ensure different host is blocked
+          // Requires local-network-access permission to send a request to next.url
           await browser.get(`https://example.vercel.sh/`)
           await browser.eval(scriptSnippet)
 
@@ -145,7 +153,11 @@ describe.each([['', '/docs']])(
             )
           })
 
-          expect(next.cliOutput).toContain('Cross origin request detected from')
+          expect(next.cliOutput).toContain(
+            // We're not sending an Origin header
+            // TODO: redundant spacing
+            'Cross origin request detected  to'
+          )
         } finally {
           server.close()
         }
@@ -359,6 +371,56 @@ describe.each([['', '/docs']])(
           })
         } finally {
           server.close()
+        }
+      })
+
+      it('blocks cross-site requests from privacy-sensitive origins', async () => {
+        const server = http.createServer((req, res) => {
+          res.appendHeader('Content-Security-Policy', 'sandbox allow-scripts')
+          res.end(`
+            <html>
+              <head>
+                <title>testing cross-site privacy-sensitive</title> 
+              </head>
+              <body>
+                <script>
+                  (() => {
+                    const statusEl = document.createElement('p')
+                    statusEl.id = 'status'
+                    document.querySelector('body').appendChild(statusEl)
+        
+                    const ws = new WebSocket("${next.url}/_next/webpack-hmr")
+                    
+                    ws.addEventListener('error', (err) => {
+                      statusEl.innerText = 'error'
+                    })
+                    ws.addEventListener('open', () => {
+                      statusEl.innerText = 'connected'
+                    })
+                  })()
+                </script>
+              </body>
+            </html>
+          `)
+        })
+
+        const port = await findPort()
+        await new Promise<void>((res) => {
+          server.listen(port, () => res())
+        })
+
+        try {
+          const browser = await webdriver(`http://127.0.0.1:${port}`, '/')
+
+          await retry(async () => {
+            expect(await browser.elementByCss('#status').text()).toBe('error')
+          })
+        } finally {
+          await new Promise<void>((res) => {
+            server.close(() => {
+              res()
+            })
+          })
         }
       })
     })

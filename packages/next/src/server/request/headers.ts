@@ -11,15 +11,16 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
@@ -74,8 +75,13 @@ export function headers(): Promise<ReadonlyHeaders> {
           throw new Error(
             `Route ${workStore.route} used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`headers()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+          )
         case 'prerender':
         case 'prerender-client':
+        case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
         case 'prerender-ppr':
@@ -98,6 +104,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'prerender':
           return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
@@ -143,6 +150,10 @@ export function headers(): Promise<ReadonlyHeaders> {
               workStore?.route,
               workUnitStore
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            return isInEarlyRenderStage(workUnitStore)
+              ? workUnitStore.asyncApiPromises.earlyHeaders
+              : workUnitStore.asyncApiPromises.headers
           } else {
             return makeUntrackedHeaders(workUnitStore.headers)
           }
@@ -199,7 +210,9 @@ function makeUntrackedHeadersWithDevWarnings(
   requestStore: RequestStore
 ): Promise<ReadonlyHeaders> {
   if (requestStore.asyncApiPromises) {
-    const promise = requestStore.asyncApiPromises.headers
+    const promise = isInEarlyRenderStage(requestStore)
+      ? requestStore.asyncApiPromises.earlyHeaders
+      : requestStore.asyncApiPromises.headers
     return instrumentHeadersPromiseWithDevWarnings(promise, route)
   }
 

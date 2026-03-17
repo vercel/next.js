@@ -75,6 +75,7 @@ function getBaseSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -97,6 +98,7 @@ function getBaseSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -159,7 +161,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? undefined
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
@@ -220,6 +222,7 @@ function getBaseSWCOptions({
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
             taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -313,6 +316,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  imageConfig,
   serverReferenceHashSalt,
 }: {
   isServer: boolean
@@ -325,6 +329,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
@@ -346,6 +351,19 @@ export function getJestSWCOptions({
     serverComponents: false,
     serverReferenceHashSalt,
   })
+
+  // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+  // with an object literal at compile time. Emulate that here by enabling
+  // SWC's optimizer globals.envs so the same compile-time replacement happens
+  // during Jest transforms.
+  if (imageConfig) {
+    baseOptions.jsc.transform.optimizer.globals = {
+      envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.envs,
+        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
+      },
+    } as any
+  }
 
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
@@ -392,6 +410,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -420,6 +439,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -442,6 +462,7 @@ export function getLoaderSWCOptions({
     useCacheEnabled,
     taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

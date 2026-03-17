@@ -39,6 +39,7 @@ import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
@@ -109,8 +110,9 @@ import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
@@ -201,6 +203,10 @@ export default class NextNodeServer extends BaseServer<
 
     installGlobalBehaviors(this.nextConfig)
 
+    // Load prefetch hints from the build output. This must happen before
+    // any render to ensure segment inlining decisions are available.
+    this.renderOpts.prefetchHints = this.getPrefetchHints()
+
     const isDev = options.dev ?? false
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
@@ -274,6 +280,8 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
+      // immutableAssetToken only works with Turbopack, and `isExperimentalCompile` isn't supported
+      // with that anyway, so we can assign immutableAssetToken to deploymentId here
       populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
@@ -409,7 +417,7 @@ export default class NextNodeServer extends BaseServer<
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
-    const dev = !!this.renderOpts.dev
+    const dev = !!this.dev
     let CacheHandler: any
     const { cacheHandler } = this.nextConfig
 
@@ -634,6 +642,9 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
+            clientAssetToken:
+              this.nextConfig.experimental.immutableAssetToken ??
+              this.deploymentId,
           }
         )
       } else {
@@ -649,6 +660,9 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
+            clientAssetToken:
+              this.nextConfig.experimental.immutableAssetToken ??
+              this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {
@@ -700,9 +714,26 @@ export default class NextNodeServer extends BaseServer<
         return
       }
 
-      const { isAbsolute, href } = paramsResult
+      let { href } = paramsResult
 
-      const imageUpstream = isAbsolute
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.IS_TURBOPACK_TEST &&
+        !paramsResult.isAbsolute
+      ) {
+        // Forward the dpl query param from the original /_next/image request to the
+        // internal static file request so that the static file validation in
+        // resolve-routes.ts can verify it.
+        const dpl =
+          typeof req.url === 'string'
+            ? new URL(req.url, 'http://n').searchParams.get('dpl')
+            : undefined
+        if (dpl) {
+          href += `${href.includes('?') ? '&' : '?'}dpl=${dpl}`
+        }
+      }
+
+      const imageUpstream = paramsResult.isAbsolute
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
@@ -717,7 +748,7 @@ export default class NextNodeServer extends BaseServer<
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.renderOpts.dev,
+        isDev: this.dev,
         previousCacheEntry,
       })
     }
@@ -922,7 +953,7 @@ export default class NextNodeServer extends BaseServer<
             )
           )
           this.imageCacheHandler = new CacheHandler({
-            dev: !!this.renderOpts.dev,
+            dev: !!this.dev,
             flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
             serverDistDir: this.serverDistDir,
             maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
@@ -955,7 +986,7 @@ export default class NextNodeServer extends BaseServer<
         req.originalRequest,
         parsedUrl.query,
         this.nextConfig,
-        !!this.renderOpts.dev
+        !!this.dev
       )
 
       if ('errorMessage' in paramsResult) {
@@ -1015,7 +1046,7 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
           cacheEntry.cacheControl?.revalidate || 0,
-          Boolean(this.renderOpts.dev)
+          Boolean(this.dev)
         )
         return true
       } catch (err) {
@@ -1060,6 +1091,9 @@ export default class NextNodeServer extends BaseServer<
     routerServerGlobal[RouterServerContextSymbol][
       relativeProjectDir
     ].nextConfig = this.nextConfig
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].isWrappedByNextServer = true
 
     try {
       // next.js core assumes page path without trailing slash
@@ -1146,7 +1180,7 @@ export default class NextNodeServer extends BaseServer<
       }
 
       try {
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
@@ -1256,16 +1290,16 @@ export default class NextNodeServer extends BaseServer<
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts,
   }: {
     urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
+    headers: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     const handler = this.getRequestHandler()
@@ -1324,7 +1358,7 @@ export default class NextNodeServer extends BaseServer<
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      if (this.renderOpts.dev) {
+      if (this.dev) {
         await this.ensurePage({
           page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
@@ -1512,7 +1546,7 @@ export default class NextNodeServer extends BaseServer<
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.renderOpts.dev
+        const functionsConfig = this.dev
           ? {}
           : require(
               join(
@@ -1522,10 +1556,7 @@ export default class NextNodeServer extends BaseServer<
               )
             )
 
-        if (
-          this.renderOpts.dev ||
-          functionsConfig?.functions?.['/_middleware']
-        ) {
+        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
           // if used with top level await, this will be a promise
           return require(
             join(
@@ -1717,10 +1748,12 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
+        clientAssetToken:
+          this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
       })
     }
 
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
       })
@@ -1879,6 +1912,28 @@ export default class NextNodeServer extends BaseServer<
     return this._cachedPreviewManifest
   }
 
+  private _cachedPrefetchHints: Record<string, PrefetchHints> | undefined
+  protected getPrefetchHints(): Record<string, PrefetchHints> {
+    if (this._cachedPrefetchHints) {
+      return this._cachedPrefetchHints
+    }
+
+    this._cachedPrefetchHints =
+      (loadManifest(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          SERVER_DIRECTORY,
+          PREFETCH_HINTS
+        ),
+        true,
+        undefined,
+        false,
+        true // handleMissing: don't crash if the file doesn't exist
+      ) as Record<string, PrefetchHints>) ?? {}
+
+    return this._cachedPrefetchHints
+  }
+
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(
       NextNodeServerSpan.getRoutesManifest,
@@ -2014,6 +2069,8 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
+      clientAssetToken:
+        this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
     })
 
     if (result.fetchMetrics) {
@@ -2075,7 +2132,7 @@ export default class NextNodeServer extends BaseServer<
     await super.instrumentationOnRequestError(...args)
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       const [err, , , silenceLog] = args
       if (!silenceLog) {
         this.logError(err)

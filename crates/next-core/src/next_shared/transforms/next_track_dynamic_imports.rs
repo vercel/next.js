@@ -23,7 +23,10 @@ struct NextTrackDynamicImports {}
 impl CustomTransformer for NextTrackDynamicImports {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_track_dynamic_imports", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        program.mutate(track_dynamic_imports(ctx.unresolved_mark));
+        program.mutate(track_dynamic_imports(
+            ctx.unresolved_mark,
+            ctx.comments.clone(),
+        ));
         Ok(())
     }
 }

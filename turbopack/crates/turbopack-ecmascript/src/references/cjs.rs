@@ -5,12 +5,11 @@ use swc_core::{
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
@@ -24,12 +23,14 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
+        util::SpecifiedChunkingType,
     },
     runtime_functions::TURBOPACK_CACHE,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("generic commonjs {request}")]
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -68,32 +69,23 @@ impl ModuleReference for CjsAssetReference {
         )
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("generic commonjs {}", self.request.to_string().await?,).into(),
-        ))
+        })
     }
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
-    pub issue_source: IssueSource,
-    pub error_mode: ResolveErrorMode,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    chunking_type_attribute: Option<SpecifiedChunkingType>,
 }
 
 impl CjsRequireAssetReference {
@@ -102,12 +94,14 @@ impl CjsRequireAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
+        chunking_type_attribute: Option<SpecifiedChunkingType>,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
             request,
             issue_source,
             error_mode,
+            chunking_type_attribute,
         }
     }
 }
@@ -125,22 +119,16 @@ impl ModuleReference for CjsRequireAssetReference {
         )
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsRequireAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("require {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type_attribute.map_or_else(
+            || {
+                Some(ChunkingType::Parallel {
+                    inherit_async: false,
+                    hoisted: false,
+                })
+            },
+            |c| c.as_chunking_type(false, false),
+        )
     }
 }
 
@@ -220,12 +208,14 @@ impl CjsRequireAssetReferenceCodeGen {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("require.resolve {request}")]
 pub struct CjsRequireResolveAssetReference {
-    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    pub request: ResolvedVc<Request>,
-    pub issue_source: IssueSource,
-    pub error_mode: ResolveErrorMode,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    chunking_type_attribute: Option<SpecifiedChunkingType>,
 }
 
 impl CjsRequireResolveAssetReference {
@@ -234,12 +224,14 @@ impl CjsRequireResolveAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
+        chunking_type_attribute: Option<SpecifiedChunkingType>,
     ) -> Self {
         CjsRequireResolveAssetReference {
             origin,
             request,
             issue_source,
             error_mode,
+            chunking_type_attribute,
         }
     }
 }
@@ -257,22 +249,16 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         )
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("require.resolve {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type_attribute.map_or_else(
+            || {
+                Some(ChunkingType::Parallel {
+                    inherit_async: false,
+                    hoisted: false,
+                })
+            },
+            |c| c.as_chunking_type(false, false),
+        )
     }
 }
 

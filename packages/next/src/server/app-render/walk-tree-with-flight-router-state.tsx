@@ -2,6 +2,7 @@ import type {
   FlightDataPath,
   FlightDataSegment,
   FlightRouterState,
+  PrefetchHints,
   Segment,
   HeadData,
 } from '../../shared/lib/app-router-types'
@@ -37,6 +38,7 @@ export async function walkTreeWithFlightRouterState({
   ctx,
   preloadCallbacks,
   MetadataOutlet,
+  hintTree,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -50,6 +52,7 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
   MetadataOutlet: React.ComponentType
+  hintTree: PrefetchHints | null
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -99,8 +102,6 @@ export async function walkTreeWithFlightRouterState({
     !flightRouterState ||
     // Segment in router state does not match current segment
     !matchSegment(actualSegment, flightRouterState[0]) ||
-    // Last item in the tree
-    parallelRoutesKeys.length === 0 ||
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
@@ -151,9 +152,14 @@ export async function walkTreeWithFlightRouterState({
 
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? // Route tree prefetch requests contain some extra information
-        createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+        await createRouteTreePrefetch(
           loaderTreeToFilter,
+          hintTree,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          hintTree,
           getDynamicParamFromSegment,
           query
         )
@@ -178,9 +184,14 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
-      ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
-      : createFlightRouterStateFromLoaderTree(
+      ? await createRouteTreePrefetch(
           loaderTreeToFilter,
+          hintTree,
+          getDynamicParamFromSegment
+        )
+      : await createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          hintTree,
           getDynamicParamFromSegment,
           query
         )
@@ -205,9 +216,10 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
 
-    const routerState = createFlightRouterStateFromLoaderTree(
+    const routerState = await createFlightRouterStateFromLoaderTree(
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
+      hintTree,
       getDynamicParamFromSegment,
       query
     )
@@ -219,6 +231,8 @@ export async function walkTreeWithFlightRouterState({
         ctx,
         loaderTree: loaderTreeToFilter,
         parentParams: currentParams,
+        parentOptionalCatchAllParamName: null,
+        parentRuntimePrefetchable: false,
         injectedCSS,
         injectedJS,
         injectedFontPreloadTags,
@@ -284,6 +298,7 @@ export async function walkTreeWithFlightRouterState({
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
       preloadCallbacks,
       MetadataOutlet,
+      hintTree: hintTree?.slots?.[parallelRouteKey] ?? null,
     })
 
     for (const subPath of subPaths) {
@@ -323,10 +338,15 @@ export async function createFullTreeFlightDataForNavigation({
     renderOpts: { experimental },
     query,
     getDynamicParamFromSegment,
+    pagePath,
   } = ctx
 
-  const routerState = createFlightRouterStateFromLoaderTree(
+  const hintTreeForInitialRender =
+    ctx.renderOpts.prefetchHints?.[pagePath] ?? null
+
+  const routerState = await createFlightRouterStateFromLoaderTree(
     loaderTree,
+    hintTreeForInitialRender,
     getDynamicParamFromSegment,
     query
   )
@@ -336,6 +356,8 @@ export async function createFullTreeFlightDataForNavigation({
     ctx,
     loaderTree,
     parentParams: {},
+    parentOptionalCatchAllParamName: null,
+    parentRuntimePrefetchable: false,
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,

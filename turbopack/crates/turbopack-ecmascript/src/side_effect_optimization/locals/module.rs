@@ -28,9 +28,11 @@ use crate::{
     },
 };
 
-/// A module derived from an original ecmascript module that only contains the
-/// local declarations, but excludes all reexports. These reexports are exposed
-/// from [EcmascriptModuleFacadeModule] instead.
+/// A module derived from an original ecmascript module that only contains the local declarations,
+/// but excludes all reexports. These reexports are exposed from [`EcmascriptModuleFacadeModule`]
+/// instead.
+///
+/// [`EcmascriptModuleFacadeModule`]: crate::side_effect_optimization::facade::module::EcmascriptModuleFacadeModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleLocalsModule {
     pub module: ResolvedVc<EcmascriptModuleAsset>,

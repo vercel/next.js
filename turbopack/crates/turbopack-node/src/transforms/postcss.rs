@@ -175,6 +175,12 @@ impl Source for PostCssTransformedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -285,6 +291,11 @@ impl JsonSource {
 #[turbo_tasks::value_impl]
 impl Source for JsonSource {
     #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("JSON content of {}", self.path).into())
+    }
+
+    #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
@@ -323,7 +334,7 @@ impl Asset for JsonSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+            _ => bail!("Invalid file type {:?}", file_type),
         }
     }
 }
@@ -461,6 +472,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
+            node_backend,
         } = &*self.execution_context.await?;
 
         // For this postcss transform, there is no guarantee that looking up for the
@@ -508,9 +520,10 @@ impl PostCssTransformedAsset {
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
 
-        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
-            .to_resolved()
-            .await?;
+        let entries =
+            get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
+                .to_resolved()
+                .await?;
 
         let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
             entries.graph_entries().to_resolved().await?,
@@ -537,6 +550,7 @@ impl PostCssTransformedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
+            node_backend: *node_backend,
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             module_graph,

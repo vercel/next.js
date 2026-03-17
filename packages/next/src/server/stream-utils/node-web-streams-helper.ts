@@ -19,6 +19,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
+  NEXT_INSTANT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
@@ -514,6 +515,91 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
 
       controller.enqueue(insertedHeadContent)
       didAlreadyInsert = true
+    },
+  })
+}
+
+/**
+ * Creates a transform stream that injects an inline script as the first
+ * element inside <head>. Used during instant navigation testing to set
+ * self.__next_instant_test before any async bootstrap scripts execute.
+ */
+export function createInstantTestScriptInsertionTransformStream(
+  requestId: string | null
+): TransformStream<Uint8Array, Uint8Array> {
+  // Kick off a fetch for the static RSC payload. This is the hydration
+  // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
+  // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
+  // so the server returns static-only data.
+  //
+  // The fetch promise is stored as self.__next_instant_test, which doubles
+  // as the feature flag (truthy = instant test mode). The client processes
+  // this as a fallback prerender payload for hydration.
+  const segmentPath = '/_full'
+  const cacheBustingHeader = computeCacheBustingSearchParam(
+    '1',
+    segmentPath,
+    undefined,
+    undefined
+  )
+  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
+  // In dev mode, inject self.__next_r (request ID) so that HMR WebSocket
+  // and debug channel initialization don't crash. The static shell
+  // bypasses renderToFizzStream which normally injects this via
+  // bootstrapScriptContent.
+  const requestIdScript =
+    requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
+  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
+
+  let didAlreadyInsert = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (didAlreadyInsert) {
+        // Already inserted the script into the head. Pass through.
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Find the opening <head tag (may have attributes like <head class="...">)
+      const headOpenIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HEAD)
+
+      if (headOpenIndex === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      // Find the closing > of the <head ...> tag
+      const headCloseAngle = chunk.indexOf(
+        62, // '>'
+        headOpenIndex + ENCODED_TAGS.OPENING.HEAD.length
+      )
+      if (headCloseAngle === -1) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
+      const insertionPoint = headCloseAngle + 1
+      // e.g.
+      // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
+      // insertion = <script>self.__next_instant_test=fetch(...)</script>
+      // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
+      const insertedHeadContent = new Uint8Array(
+        chunk.length + encodedInsertion.length
+      )
+      insertedHeadContent.set(chunk.slice(0, insertionPoint))
+      insertedHeadContent.set(encodedInsertion, insertionPoint)
+      insertedHeadContent.set(
+        chunk.slice(insertionPoint),
+        insertionPoint + encodedInsertion.length
+      )
+
+      controller.enqueue(insertedHeadContent)
+      didAlreadyInsert = true
+    },
+    flush(controller) {
+      // Append closing tags so the browser can parse the full document.
+      controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
     },
   })
 }
@@ -1037,4 +1123,120 @@ export async function continueDynamicHTMLResume(
 
 export function createDocumentClosingStream(): ReadableStream<Uint8Array> {
   return streamFromString(CLOSE_TAG)
+}
+
+// ---------------------------------------------------------------------------
+// Runtime prefetch transform (Web streams)
+// ---------------------------------------------------------------------------
+
+/**
+ * Web TransformStream that replaces the runtime prefetch sentinel in an RSC
+ * payload stream: `[<sentinel>]` -> `[<isPartial>,<staleTime>]`.
+ *
+ * This is the web equivalent of createRuntimePrefetchNodeTransform
+ * in node-stream-helpers.ts.
+ */
+export function createRuntimePrefetchTransformStream(
+  sentinel: number,
+  isPartial: boolean,
+  staleTime: number
+): TransformStream<Uint8Array, Uint8Array> {
+  const enc = new TextEncoder()
+
+  // Search for: [<sentinel>]
+  // Replace with: [<isPartial>,<staleTime>]
+  const search = enc.encode(`[${sentinel}]`)
+  const first = search[0]
+  const replace = enc.encode(`[${isPartial},${staleTime}]`)
+  const searchLen = search.length
+
+  let currentChunk: Uint8Array | null = null
+  let found = false
+
+  function processChunk(
+    controller: TransformStreamDefaultController<Uint8Array>,
+    nextChunk: null | Uint8Array
+  ) {
+    if (found) {
+      if (nextChunk) {
+        controller.enqueue(nextChunk)
+      }
+      return
+    }
+
+    if (currentChunk) {
+      // We can't search past the index that can contain a full match
+      let exclusiveUpperBound = currentChunk.length - (searchLen - 1)
+      if (nextChunk) {
+        // If we have any overflow bytes we can search up to the chunk's final byte
+        exclusiveUpperBound += Math.min(nextChunk.length, searchLen - 1)
+      }
+      if (exclusiveUpperBound < 1) {
+        // we can't match the current chunk.
+        controller.enqueue(currentChunk)
+        currentChunk = nextChunk // advance so we don't process this chunk again
+        return
+      }
+
+      let currentIndex = currentChunk.indexOf(first)
+
+      // check the current candidate match if it is within the bounds of our search space for the currentChunk
+      candidateLoop: while (
+        -1 < currentIndex &&
+        currentIndex < exclusiveUpperBound
+      ) {
+        // We already know index 0 matches because we used indexOf to find the candidateIndex so we start at index 1
+        let matchIndex = 1
+        while (matchIndex < searchLen) {
+          const candidateIndex = currentIndex + matchIndex
+          const candidateValue =
+            candidateIndex < currentChunk.length
+              ? currentChunk[candidateIndex]
+              : // if we ever hit this condition it is because there is a nextChunk we can read from
+                nextChunk![candidateIndex - currentChunk.length]
+          if (candidateValue !== search[matchIndex]) {
+            // No match, reset and continue the search from the next position
+            currentIndex = currentChunk.indexOf(first, currentIndex + 1)
+            continue candidateLoop
+          }
+          matchIndex++
+        }
+        // We found a complete match. currentIndex is our starting point to replace the value.
+        found = true
+        // enqueue everything up to the match
+        controller.enqueue(currentChunk.subarray(0, currentIndex))
+        // enqueue the replacement value
+        controller.enqueue(replace)
+        // If there are bytes in the currentChunk after the match enqueue them
+        if (currentIndex + searchLen < currentChunk.length) {
+          controller.enqueue(currentChunk.slice(currentIndex + searchLen))
+        }
+        // If we have a next chunk we enqueue it now
+        if (nextChunk) {
+          // if replacement spills over to the next chunk we first exclude the replaced bytes
+          const overflowBytes = currentIndex + searchLen - currentChunk.length
+          const truncatedChunk =
+            overflowBytes > 0 ? nextChunk!.subarray(overflowBytes) : nextChunk
+          controller.enqueue(truncatedChunk)
+        }
+        // We are now in found mode and don't need to track currentChunk anymore
+        currentChunk = null
+        return
+      }
+      // No match found in this chunk, emit it and wait for the next one
+      controller.enqueue(currentChunk)
+    }
+
+    // Advance to the next chunk
+    currentChunk = nextChunk
+  }
+
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      processChunk(controller, chunk)
+    },
+    flush(controller) {
+      processChunk(controller, null)
+    },
+  })
 }

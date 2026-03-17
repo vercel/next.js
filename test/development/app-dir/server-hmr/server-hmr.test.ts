@@ -1,10 +1,10 @@
+import type { Response } from 'node-fetch'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-server-fast-refresh'],
   })
 
   // Server HMR is a Turbopack-only feature, only available in dev mode
@@ -126,5 +126,56 @@ describe('server-hmr', () => {
         })
       }
     )
+  })
+
+  describe('source maps', () => {
+    itTurbopackDev(
+      "stack frames from eval'd HMR modules point to original source locations",
+      async () => {
+        await next.fetch('/sourcemaps').catch(() => {})
+
+        await next.patchFile('app/sourcemaps/page.tsx', (content) =>
+          content.replace('hmr-trigger: 0', 'hmr-trigger: 1')
+        )
+
+        const outputLengthBeforeFetch = next.cliOutput.length
+        await next.fetch('/sourcemaps').catch(() => {})
+
+        await retry(async () => {
+          expect(next.cliOutput.slice(outputLengthBeforeFetch)).toContain(
+            'hmr-sourcemap-test-error'
+          )
+        })
+
+        const outputAfterHmr = next.cliOutput.slice(outputLengthBeforeFetch)
+
+        // Without proper sourcemaps, the stack frame doesn't include the accurate file number
+        expect(outputAfterHmr).toMatch(/page\.tsx:4:9/)
+      }
+    )
+  })
+
+  describe('route handler hmr', () => {
+    function getText(res: Response) {
+      return res.ok
+        ? res.text()
+        : Promise.reject(
+            new Error('Failed to fetch route handler: ' + res.status)
+          )
+    }
+
+    it('reflects route handler changes on fetch/refresh', async () => {
+      const initial = await next.fetch('/api/hello').then(getText)
+      expect(initial).toBe('version: 0')
+
+      await next.patchFile('app/api/hello/route.ts', (content) =>
+        content.replace('version: 0', 'version: 1')
+      )
+
+      await retry(async () => {
+        const updated = await next.fetch('/api/hello').then(getText)
+        expect(updated).toBe('version: 1')
+      })
+    })
   })
 })

@@ -1,10 +1,10 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkGroupType, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkGroupType, ChunkingType},
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
@@ -78,6 +78,8 @@ impl Asset for CssClientReferenceModule {
 }
 
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("css client reference to client")]
 pub(crate) struct CssClientReference {
     module: ResolvedVc<Box<dyn Module>>,
 }
@@ -97,19 +99,10 @@ impl ModuleReference for CssClientReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
             merge_tag: Some(rcstr!("client")),
-        }))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssClientReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("css client reference to client"))
+        })
     }
 }

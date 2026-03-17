@@ -323,10 +323,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
@@ -1215,6 +1212,7 @@ function trackDynamic(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           'A client prerender store should not be used for a route handler.'
         )
@@ -1244,6 +1242,8 @@ function trackDynamic(
           // only controls the ISR status that's shown for pages.
           workUnitStore.usedDynamic = true
         }
+        break
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
