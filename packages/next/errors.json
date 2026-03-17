@@ -1139,5 +1139,6 @@
   "1138": "`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.",
   "1139": "`unstable_catchError` can only be used in Client Components.",
   "1140": "Route %s used \\`import('next/root-params').%s()\\` inside \\`\"use cache\"\\` nested within \\`unstable_cache\\`. Root params are not available in this context.",
-  "1141": "Route %s used \\`import('next/root-params').%s()\\` inside \\`unstable_cache\\`. This is not supported. Use \\`\"use cache\"\\` instead."
+  "1141": "Route %s used \\`import('next/root-params').%s()\\` inside \\`unstable_cache\\`. This is not supported. Use \\`\"use cache\"\\` instead.",
+  "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them."
 }
