@@ -10230,6 +10230,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.4",
  "bincode 2.0.1",
+ "bytes",
  "const_format",
  "dashmap 6.1.0",
  "either",
