@@ -1,6 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-dir - unstable_catchError with react compiler', () => {
+// FIXME: If NEXT_TEST_REACT_VERSION is set, skip the test for now. Need to address react/compiler-runtime
+// compatibility with React below 19.
+// _describe for cleaner git history.
+const _describe = process.env.NEXT_TEST_REACT_VERSION ? describe.skip : describe
+
+_describe('app-dir - unstable_catchError with react compiler', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     nextConfig: {
