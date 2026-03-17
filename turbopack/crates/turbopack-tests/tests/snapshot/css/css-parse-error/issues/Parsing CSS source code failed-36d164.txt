@@ -1,15 +1,15 @@
 error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:13:12  Parsing CSS source code failed
-      9 | .after {
-     10 |   color: green;
-     11 | }
-     12 | 
+       9 | .after {
+      10 |   color: green;
+      11 | }
+      12 | 
          +             v
-     13 + ::highlight(highlight-test) {
+      13 + ::highlight(highlight-test) {
          +             ^
-     14 |   color: white;
-     15 | }
-     16 | 
-     17 | .carousel {
+      14 |   color: white;
+      15 | }
+      16 | 
+      17 | .carousel {
   
   'highlight' is not recognized as a valid pseudo-element. Did you mean ':highlight' (pseudo-class) or is this a typo?
   
