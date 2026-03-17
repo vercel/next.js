@@ -507,12 +507,7 @@ export async function initialize(opts: {
           matchedOutput.type === 'nextStaticFolder'
         ) {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader(
-              'Cache-Control',
-              config.experimental.devCacheControlNoCache
-                ? 'no-cache, must-revalidate'
-                : 'no-store, must-revalidate'
-            )
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
               'Cache-Control',
