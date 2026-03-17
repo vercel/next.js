@@ -5663,9 +5663,9 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.2.4"
+version = "0.3.0-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1f7df258517b16d2677d20c0e8f660f1f7d9677076c64b564e7a3b3de8b08fb"
+checksum = "6bd0ea20afc2eab082dde00f58d9e83ed70dcb693fa88c23890e122e19355635"
 dependencies = [
  "serde",
  "serde_bytes",
