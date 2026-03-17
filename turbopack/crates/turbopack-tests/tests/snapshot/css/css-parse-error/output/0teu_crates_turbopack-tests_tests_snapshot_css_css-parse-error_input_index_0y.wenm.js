@@ -1,0 +1,3 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0teu_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_index_0y.wenm.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/index.js [test] (ecmascript)",s=>{"use strict";s.s([])}]);
+
+//# sourceMappingURL=0teu_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_index_0y.wenm.js.map
