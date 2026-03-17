@@ -14,7 +14,7 @@ Use this skill when the user asks about PR status, CI failures, or review commen
 
 ## Workflow
 
-1. Run `node scripts/pr-status.js [PR] --wait` in the background, then read `scripts/pr-status/index.md`.
+1. Run `node scripts/pr-status.js --wait` in the background (timeout 1 min), then read `scripts/pr-status/index.md`.
 2. Analyze each `job-{id}.md` and `thread-{N}.md` file for failures and review feedback.
 3. Prioritize blocking jobs first: build, lint, types, then test jobs.
 4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky.
