@@ -256,6 +256,66 @@ describe('Error overlay - RSC build errors', () => {
     })
   }
 
+  it('should error when unstable_catchError from next/error is used in a server component', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            import { unstable_catchError } from 'next/error'
+
+            export default function Page() {
+              return 'Hello world'
+            }
+          `,
+        ],
+      ])
+    )
+
+    const { session } = sandbox
+    await session.waitForRedbox()
+    expect(await session.getRedboxSource()).toInclude(
+      'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+    )
+  })
+
+  test.each([
+    ['middleware.js', 'export function middleware() {}'],
+    ['proxy.js', 'export function proxy() {}'],
+    ['instrumentation.js', 'export function register() {}'],
+  ])(
+    'should error when unstable_catchError from next/error is imported in %s',
+    async (entryFile, exportCode) => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              export default function Page() {
+                return 'Hello world'
+              }
+            `,
+          ],
+          [
+            entryFile,
+            outdent`
+              import { unstable_catchError } from 'next/error'
+              ${exportCode}
+            `,
+          ],
+        ])
+      )
+
+      const { session } = sandbox
+      await session.waitForRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        'You\'re importing a component that needs `unstable_catchError`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the `"use client"` directive.'
+      )
+    }
+  )
+
   it('should allow to use and handle rsc poisoning server-only', async () => {
     await using sandbox = await createSandbox(
       next,

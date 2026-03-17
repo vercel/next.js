@@ -37,13 +37,12 @@ pub trait BackingStorage: BackingStorageSealed {
     ///
     /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
     /// database. If this happens, there's no point in writing anything else to disk, or flushing
-    /// during [`KeyValueDatabase::shutdown`].
+    /// during [`TurboTasksBackend::stop`].
     ///
-    /// This can be implemented by calling [`invalidate_db`] with
-    /// the database's non-versioned base path.
-    ///
-    /// [`KeyValueDatabase::shutdown`]: crate::database::key_value_database::KeyValueDatabase::shutdown
-    /// [`invalidate_db`]: crate::database::db_invalidation::invalidate_db
+    /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
+    //
+    // This can be implemented by calling `database::db_invalidation::invalidate_db` with the
+    // database's non-versioned base path.
     fn invalidate(&self, reason_code: &str) -> Result<()>;
 }
 

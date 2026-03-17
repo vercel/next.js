@@ -48,7 +48,7 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
-import { blockCrossSite } from './router-utils/block-cross-site'
+import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -90,7 +90,7 @@ export async function initialize(opts: {
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -179,7 +179,7 @@ export async function initialize(opts: {
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
-        experimentalServerFastRefresh: opts.experimentalServerFastRefresh,
+        serverFastRefresh: opts.serverFastRefresh,
       })
     )
 
@@ -355,7 +355,7 @@ export async function initialize(opts: {
       // handle hot-reloader first
       if (development) {
         if (
-          blockCrossSite(
+          blockCrossSiteDEV(
             req,
             res,
             development.config.allowedDevOrigins,
@@ -815,7 +815,7 @@ export async function initialize(opts: {
 
       if (opts.dev && development && req.url) {
         if (
-          blockCrossSite(
+          blockCrossSiteDEV(
             req,
             socket,
             development.config.allowedDevOrigins,

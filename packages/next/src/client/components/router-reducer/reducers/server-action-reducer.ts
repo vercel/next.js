@@ -68,7 +68,10 @@ import {
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
 import { processFetch } from '../fetch-server-response'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -437,12 +440,16 @@ export function serverActionReducer(
         // subset of the data needed to render the new page, we'll initiate a
         // new fetch, like we would for a normal navigation.
         const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+        const now = Date.now()
+        // TODO: Store the dynamic stale time on the top-level state so it's
+        // known during restores and refreshes.
         const redirectSeed = convertServerPatchToFullTree(
+          now,
           currentFlightRouterState,
           flightData,
-          flightDataRenderedSearch
+          flightDataRenderedSearch,
+          UnknownDynamicStaleTime
         )
-        const now = Date.now()
 
         // Learn the route pattern so we can predict it for future navigations.
         const metadataVaryPath = redirectSeed.metadataVaryPath

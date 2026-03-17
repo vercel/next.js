@@ -678,6 +678,7 @@ impl ReactServerComponentValidator {
                         "useFormState",
                     ],
                 ),
+                (atom!("next/error").into(), vec!["unstable_catchError"]),
                 (
                     atom!("next/navigation").into(),
                     vec![

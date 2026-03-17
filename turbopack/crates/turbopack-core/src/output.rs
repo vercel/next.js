@@ -14,7 +14,7 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_trait]
 pub trait OutputAssetsReference {
-    /// References to other [OutputAsset]s from this [OutputAssetReference].
+    /// References to other [`OutputAsset`]s from this [`OutputAssetsReference`].
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced {

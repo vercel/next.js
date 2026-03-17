@@ -33,7 +33,9 @@ use crate::{
 
 /// A module derived from an original ecmascript module that contains all
 /// the reexports from that module and also reexports the locals from
-/// [EcmascriptModuleLocalsModule].
+/// [`EcmascriptModuleLocalsModule`].
+///
+/// [`EcmascriptModuleLocalsModule`]: crate::side_effect_optimization::locals::module::EcmascriptModuleLocalsModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,

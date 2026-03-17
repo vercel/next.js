@@ -368,7 +368,7 @@ pub struct ProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
 }
 
@@ -960,7 +960,7 @@ pub struct Project {
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
 }
 

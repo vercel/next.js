@@ -405,8 +405,7 @@ impl IssueFilter {
     }
 }
 
-/// A list of issues captured with [`Issue::peek_issues_with_path`] and
-/// [`Issue::take_issues`].
+/// A list of issues captured with [`CollectibleIssuesExt::peek_issues`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
@@ -414,26 +413,7 @@ pub struct CapturedIssues {
     tracer: ResolvedVc<DelegatingImportTracer>,
 }
 
-#[turbo_tasks::value_impl]
 impl CapturedIssues {
-    #[turbo_tasks::function]
-    pub fn is_empty(&self) -> Vc<bool> {
-        Vc::cell(self.is_empty_ref())
-    }
-}
-
-impl CapturedIssues {
-    /// Returns true if there are no issues.
-    pub fn is_empty_ref(&self) -> bool {
-        self.issues.is_empty()
-    }
-
-    /// Returns the number of issues.
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.issues.len()
-    }
-
     /// Returns an iterator over the issues.
     pub fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
         self.issues.iter().copied()
@@ -976,14 +956,13 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
 }
 
 impl PlainIssue {
-    /// We need deduplicate issues that can come from unique paths, but
-    /// represent the same underlying problem. Eg, a parse error for a file
-    /// that is compiled in both client and server contexts.
+    /// We need deduplicate issues that can come from unique paths, but represent the same
+    /// underlying problem. E.g., a parse error for a file that is compiled in both client and
+    /// server contexts.
     ///
-    /// Passing [full] will also hash any sub-issues and processing paths. While
-    /// useful for generating exact matching hashes, it's possible for the
-    /// same issue to pass from multiple processing paths, making for overly
-    /// verbose logging.
+    /// Passing `full` will also hash any sub-issues and processing paths. While useful for
+    /// generating exact matching hashes, it's possible for the same issue to pass from multiple
+    /// processing paths, making for overly verbose logging.
     pub fn internal_hash_ref(&self, full: bool) -> u64 {
         let mut hasher = Xxh3Hash64Hasher::new();
         hash_plain_issue(self, &mut hasher, full);
