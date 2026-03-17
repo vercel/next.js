@@ -20,7 +20,7 @@
     "rust-check-doc": "RUSTDOCFLAGS='-Zunstable-options --output-format=json' cargo doc --no-deps --workspace",
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-napi": "cargo check -p next-napi-bindings",
-    "test-cargo-unit": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --cargo-profile release-with-assertions-no-lto --no-fail-fast"
+    "test-cargo-unit": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --cargo-profile release-with-assertions --no-fail-fast"
   },
   "napi": {
     "name": "next-swc",
