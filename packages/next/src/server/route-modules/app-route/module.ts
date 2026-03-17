@@ -173,21 +173,15 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends Omit<
-    RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
-    'userland'
-  > {
+  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
   /**
-   * The userland module, or a getter that returns it. Provide `userland`
-   * directly for static (production/webpack) use. Provide `getUserland` for
-   * Turbopack dev with server HMR so the getter queries devModuleCache on each
-   * request — avoiding re-execution of the entry chunk when deps change.
-   * Exactly one of the two must be provided.
+   * Optional getter that returns the live userland module. When provided (in
+   * Turbopack dev mode), it is called on every request so that server HMR
+   * updates are picked up without re-executing the entry chunk.
    */
-  readonly userland?: AppRouteUserlandModule
-  readonly getUserland?: () => AppRouteUserlandModule
+  readonly getUserland?: () => Promise<AppRouteUserlandModule>
 }
 
 /**
@@ -224,8 +218,7 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  private readonly _getUserland?: () => AppRouteUserlandModule
-
+  private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
   private methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private hasNonStaticMethods: boolean
   private dynamic: AppRouteUserlandModule['dynamic']
@@ -239,27 +232,26 @@ export class AppRouteRouteModule extends RouteModule<
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    const initialUserland = getUserland ? getUserland() : userland!
     super({
-      userland: initialUserland,
+      userland: userland!,
       definition,
       distDir,
       relativeProjectDir,
     })
-    this._getUserland = getUserland
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this._getUserland = getUserland
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
-    this.methods = autoImplementMethods(initialUserland)
+    this.methods = autoImplementMethods(userland!)
 
     // Get the non-static methods for this route.
-    this.hasNonStaticMethods = hasNonStaticMethods(initialUserland)
+    this.hasNonStaticMethods = hasNonStaticMethods(userland!)
 
     // Get the dynamic property from the userland module.
-    this.dynamic = initialUserland.dynamic
+    this.dynamic = userland!.dynamic
     if (this.nextConfigOutput === 'export') {
       if (this.dynamic === 'force-dynamic') {
         throw new Error(
@@ -309,17 +301,6 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   /**
-   * Returns the current userland module. When a `getUserland` getter was
-   * provided (Turbopack dev + server HMR), this queries devModuleCache on
-   * every call so that HMR-updated exports are picked up per-request.
-   */
-  private getEffectiveUserland(): AppRouteUserlandModule {
-    return this._getUserland
-      ? this._getUserland()
-      : (this.userland as AppRouteUserlandModule)
-  }
-
-  /**
    * Resolves the handler function for the given method.
    *
    * @param method the requested method
@@ -329,14 +310,22 @@ export class AppRouteRouteModule extends RouteModule<
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
 
-    // When a getUserland getter is provided, resolve methods fresh each request
-    // so HMR-updated handlers are picked up from devModuleCache.
-    if (this._getUserland) {
-      return autoImplementMethods(this._getUserland())[method]
-    }
+    return autoImplementMethods(this.userland as AppRouteUserlandModule)[method]
+  }
 
-    // Return the handler.
-    return this.methods[method]
+  /**
+   * Like resolve(), but re-fetches the userland module on every call via the
+   * async getter. Only used in Turbopack dev mode, where server HMR disposes
+   * modules between requests. The async wrapper also unwraps async-module
+   * Promises produced by ESM-only serverExternalPackages.
+   */
+  private async resolveWithGetter(
+    method: string,
+    getUserland: () => Promise<AppRouteUserlandModule>
+  ): Promise<AppRouteHandlerFn> {
+    if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
+    const userland = await getUserland()
+    return autoImplementMethods(userland)[method]
   }
 
   private async do(
@@ -388,7 +377,7 @@ export class AppRouteRouteModule extends RouteModule<
     let res: unknown
     try {
       if (isStaticGeneration) {
-        const userlandRevalidate = this.getEffectiveUserland().revalidate
+        const userlandRevalidate = this.userland.revalidate
         const defaultRevalidate: number =
           // If the static generation store does not have a revalidate value
           // set, then we should set it the revalidate value from the userland
@@ -731,14 +720,12 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
-    // Resolve the effective userland module once per request. When a
-    // getUserland getter is present (Turbopack dev + server HMR), this queries
-    // devModuleCache so HMR-updated exports are visible on the next request
-    // without re-executing the entry chunk.
-    const userland = this.getEffectiveUserland()
-
-    // Get the handler function for the given method.
-    const handler = this.resolve(req.method)
+    // Get the handler function for the given method. In Turbopack dev mode,
+    // use resolveWithGetter() to re-fetch the live userland on every request
+    // In all other modes, resolve() is synchronous.
+    const handler = this._getUserland
+      ? await this.resolveWithGetter(req.method, this._getUserland)
+      : this.resolve(req.method)
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
@@ -749,7 +736,7 @@ export class AppRouteRouteModule extends RouteModule<
     }
 
     // Add the fetchCache option to the renderOpts.
-    staticGenerationContext.renderOpts.fetchCache = userland.fetchCache
+    staticGenerationContext.renderOpts.fetchCache = this.userland.fetchCache
 
     const actionStore: ActionStore = {
       isAppRoute: true,
@@ -783,7 +770,7 @@ export class AppRouteRouteModule extends RouteModule<
           this.workAsyncStorage.run(workStore, async () => {
             // Check to see if we should bail out of static generation based on
             // having non-static methods.
-            if (hasNonStaticMethods(userland)) {
+            if (hasNonStaticMethods(this.userland)) {
               if (workStore.isStaticGeneration) {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
@@ -799,7 +786,8 @@ export class AppRouteRouteModule extends RouteModule<
             let request = req
 
             // Update the static generation store based on the dynamic property.
-            switch (userland.dynamic) {
+            const { dynamic } = this.userland
+            switch (dynamic) {
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
@@ -835,7 +823,7 @@ export class AppRouteRouteModule extends RouteModule<
                 request = proxyNextRequest(req, workStore)
                 break
               default:
-                userland.dynamic satisfies never
+                dynamic satisfies never
             }
 
             const tracer = getTracer()

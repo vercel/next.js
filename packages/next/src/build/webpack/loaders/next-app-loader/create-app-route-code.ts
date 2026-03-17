@@ -78,10 +78,6 @@ export async function createAppRouteCode({
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
-      // process.env.TURBOPACK is replaced with false at webpack build time, so
-      // the getUserland branch referencing __next_app_require__ is DCE'd. The
-      // injection is still required by the template expansion machinery.
-      __next_app_require__: `() => require(${JSON.stringify(resolvedPagePath)})`,
     }
   )
 }

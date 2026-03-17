@@ -43,15 +43,9 @@ import * as userland from 'VAR_USERLAND'
 // an empty string.
 declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
 
-// __next_app_require__ is injected by the Turbopack loader as a zero-argument
-// getter for the userland module. In dev mode it hits devModuleCache on each
-// call so server HMR picks up updated exports without re-executing the entry
-// chunk. Only injected for Turbopack; webpack uses the static import below.
-declare const __next_app_require__: () => AppRouteUserlandModule
-
-// We inject the nextConfigOutput and (for Turbopack) __next_app_require__ here.
+// We inject the nextConfigOutput here so that we can use them in the route
+// module.
 // INJECT:nextConfigOutput
-// INJECT:__next_app_require__
 
 const routeModule = new AppRouteRouteModule({
   definition: {
@@ -65,17 +59,17 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // Turbopack dev: use a getter so each request fetches fresh exports from
-  // devModuleCache, enabling server HMR without re-executing the entry chunk.
-  // Turbopack require() is synchronous even for modules with ESM externals.
-  //
-  // Webpack (dev or prod) and Turbopack prod: use the statically imported
-  // userland module. The static import ensures webpack properly initializes
-  // async modules (e.g. ESM-only serverExternalPackages) before use — a plain
-  // require() on a webpack async module returns a Promise, not the exports.
+  // The static import is used for initialization (methods, dynamic, etc.).
+  userland: userland as AppRouteUserlandModule,
+  // In Turbopack dev mode, also provide a getter that calls require() on every
+  // request. This re-reads from devModuleCache so HMR updates are picked up,
+  // and the async wrapper unwraps async-module Promises (ESM-only
+  // serverExternalPackages) automatically.
   ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
-    ? { getUserland: __next_app_require__ }
-    : { userland: userland as AppRouteUserlandModule }),
+    ? {
+        getUserland: () => import('VAR_USERLAND'),
+      }
+    : {}),
 })
 
 // Pull out the exports that we need to expose from the module. This should
