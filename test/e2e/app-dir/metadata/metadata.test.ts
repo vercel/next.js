@@ -228,6 +228,23 @@ describe('app dir - metadata', () => {
       })
     })
 
+    it('should preserve URL instance pathname in alternates', async () => {
+      const browser = await next.browser('/alternates/url-instance')
+      const matchDom = createDomMatcher(browser)
+
+      await matchDom('link', 'rel="canonical"', {
+        href: 'https://example.com/alternates/url-instance',
+      })
+      await matchDom('link', 'hreflang="en-US"', {
+        rel: 'alternate',
+        href: 'https://example.com/us/alternates/url-instance',
+      })
+      await matchDom('link', 'hreflang="de-DE"', {
+        rel: 'alternate',
+        href: 'https://example.com/de/alternates/url-instance',
+      })
+    })
+
     it('should not contain query in canonical url after client navigation', async () => {
       const browser = await next.browser('/')
       await browser.waitForElementByCss('p#index')

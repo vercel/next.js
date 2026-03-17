@@ -22,14 +22,12 @@ function resolveAlternateUrl(
   pathname: string,
   metadataContext: MetadataContext
 ) {
-  // If alter native url is an URL instance,
-  // we treat it as a URL base and resolve with current pathname
+  // If the url is a URL instance, convert it to its href string so that
+  // its full path is preserved. Previously this used the URL as a base and
+  // resolved with the current page pathname, which incorrectly discarded
+  // the URL's own pathname (e.g. new URL('/nl/blog', base) lost '/nl/blog').
   if (url instanceof URL) {
-    const newUrl = new URL(pathname, url)
-    url.searchParams.forEach((value, key) =>
-      newUrl.searchParams.set(key, value)
-    )
-    url = newUrl
+    url = url.href
   }
   return resolveAbsoluteUrlWithPathname(
     url,
