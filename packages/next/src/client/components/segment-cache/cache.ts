@@ -1938,7 +1938,8 @@ export async function fetchSegmentOnCacheMiss(
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
-    const staleAt = Date.now() + getStaleTimeMs(serverData.staleTime)
+    const now = Date.now()
+    const staleAt = now + getStaleTimeMs(serverData.staleTime)
     const fulfilledEntry = fulfillSegmentCacheEntry(
       segmentCacheEntry,
       serverData.rsc,
@@ -1951,21 +1952,14 @@ export async function fetchSegmentOnCacheMiss(
     // across different param values for params that the segment doesn't
     // actually depend on.
     const varyParams = serverData.varyParams
-    if (process.env.__NEXT_VARY_PARAMS && varyParams !== null) {
-      // Re-key the entry by storing it at a more generic vary path where
-      // unused params are replaced with Fallback.
-      const fulfilledVaryPath = getFulfilledSegmentVaryPath(
-        tree.varyPath,
-        varyParams
-      )
-      const isRevalidation = false
-      setInCacheMap(
-        segmentCacheMap,
-        fulfilledVaryPath,
-        fulfilledEntry,
-        isRevalidation
-      )
-    }
+    const fulfilledVaryPath =
+      process.env.__NEXT_VARY_PARAMS && varyParams !== null
+        ? getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
+        : getSegmentVaryPathForRequest(segmentCacheEntry.fetchStrategy, tree)
+    // Re-key and upsert the entry at the fulfilled vary path. This ensures
+    // the entry is stored at the most generic path possible based on which
+    // params the segment actually depends on.
+    upsertSegmentEntry(now, fulfilledVaryPath, fulfilledEntry)
 
     return {
       value: fulfilledEntry,
