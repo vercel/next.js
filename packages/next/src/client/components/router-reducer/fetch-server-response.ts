@@ -24,10 +24,12 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
+  NEXT_HMR_REFRESH_HASH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
+import { getCurrentHmrRefreshHash } from '../hmr-client-state'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
@@ -102,6 +104,7 @@ export type RequestHeaders = {
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
+  [NEXT_HMR_REFRESH_HASH_HEADER]?: string
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
@@ -152,6 +155,14 @@ export async function fetchServerResponse(
 
   if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
     headers[NEXT_HMR_REFRESH_HEADER] = '1'
+    // Also pass the hash as a header to support cross-origin iframes where
+    // SameSite=Lax cookies are not sent due to the top-level context being a
+    // different origin. The server will use the header as a fallback when the
+    // cookie is absent.
+    const hmrHash = getCurrentHmrRefreshHash()
+    if (hmrHash) {
+      headers[NEXT_HMR_REFRESH_HASH_HEADER] = hmrHash
+    }
   }
 
   if (nextUrl) {
