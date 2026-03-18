@@ -1119,7 +1119,7 @@ export default class NextNodeServer extends BaseServer<
           await this.render404(req, res, parsedUrl)
           return true
         }
-        delete query[NEXT_RSC_UNION_QUERY]
+        query[NEXT_RSC_UNION_QUERY] = undefined
 
         // If we handled the request, we can return early.
         // For api routes edge runtime

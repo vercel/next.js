@@ -34,7 +34,7 @@ function filterInternalQuery(
 ) {
   // this is used to pass query information in rewrites
   // but should not be exposed in final query
-  delete query['nextInternalLocale']
+  query['nextInternalLocale'] = undefined
 
   for (const key in query) {
     const isNextQueryPrefix =
@@ -49,7 +49,7 @@ function filterInternalQuery(
       isNextInterceptionMarkerPrefix ||
       paramKeys.includes(key)
     ) {
-      delete query[key]
+      query[key] = undefined
     }
   }
 }
@@ -398,7 +398,7 @@ export function getServerUtils({
   ) {
     // this is used to pass query information in rewrites
     // but should not be exposed in final query
-    delete query['nextInternalLocale']
+    query['nextInternalLocale'] = undefined
 
     for (const [key, value] of Object.entries(query)) {
       const normalizedKey = normalizeNextQueryParam(key)

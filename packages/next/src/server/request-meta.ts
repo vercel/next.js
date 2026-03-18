@@ -372,7 +372,7 @@ export function removeRequestMeta<K extends keyof RequestMeta>(
   key: K
 ) {
   const meta = getRequestMeta(request)
-  delete meta[key]
+  meta[key] = undefined as RequestMeta[K]
   return setRequestMeta(request, meta)
 }
 

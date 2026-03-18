@@ -2018,7 +2018,7 @@ export default abstract class Server<
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
       // This is to avoid any dependency on the `Next-URL` header being present when preparing the response.
-      delete req.headers[NEXT_URL]
+      req.headers[NEXT_URL] = undefined
     }
   }
 
@@ -2579,7 +2579,7 @@ export default abstract class Server<
         query[NEXT_RSC_UNION_QUERY]
       )
     }
-    delete query[NEXT_RSC_UNION_QUERY]
+    query[NEXT_RSC_UNION_QUERY] = undefined
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromRequest(req, pathname),
