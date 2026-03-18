@@ -2579,7 +2579,7 @@ export default abstract class Server<
         query[NEXT_RSC_UNION_QUERY]
       )
     }
-    query[NEXT_RSC_UNION_QUERY] = undefined
+    delete query[NEXT_RSC_UNION_QUERY]
 
     const options: MatchOptions = {
       i18n: this.i18nProvider?.fromRequest(req, pathname),
