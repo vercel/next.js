@@ -45,6 +45,86 @@ import type { AppSegmentConfig } from '../../build/segment-config/app/app-segmen
 import { RenderStage, type StagedRenderingController } from './staged-rendering'
 
 /**
+ * A Set wrapper that defers copying its parent until the first mutation.
+ * Reads (has, size, forEach, iteration) delegate to the parent Set.
+ * On the first add() or delete(), it copies the parent into a real Set and
+ * switches all subsequent operations to that copy.
+ *
+ * This avoids O(n) Set copy costs in the common case where a layout level
+ * has no CSS/JS/fonts to inject — which is typical for most intermediate
+ * segments in a layout tree. For a tree with 5+ segments and parallel
+ * routes, this can eliminate 30+ unnecessary Set allocations per request.
+ */
+class CopyOnWriteSet<T> implements Set<T> {
+  private _parent: Set<T>
+  private _own: Set<T> | null
+
+  constructor(parent: Set<T>) {
+    this._parent = parent
+    this._own = null
+  }
+
+  private _materialize(): Set<T> {
+    if (this._own === null) {
+      this._own = new Set(this._parent)
+    }
+    return this._own
+  }
+
+  private _current(): Set<T> {
+    return this._own ?? this._parent
+  }
+
+  get size(): number {
+    return this._current().size
+  }
+
+  has(value: T): boolean {
+    return this._current().has(value)
+  }
+
+  add(value: T): this {
+    this._materialize().add(value)
+    return this
+  }
+
+  delete(value: T): boolean {
+    return this._materialize().delete(value)
+  }
+
+  clear(): void {
+    this._materialize().clear()
+  }
+
+  forEach(
+    callbackfn: (value: T, value2: T, set: Set<T>) => void,
+    thisArg?: any
+  ): void {
+    this._current().forEach(callbackfn, thisArg)
+  }
+
+  entries(): SetIterator<[T, T]> {
+    return this._current().entries()
+  }
+
+  keys(): SetIterator<T> {
+    return this._current().keys()
+  }
+
+  values(): SetIterator<T> {
+    return this._current().values()
+  }
+
+  [Symbol.iterator](): SetIterator<T> {
+    return this._current()[Symbol.iterator]()
+  }
+
+  get [Symbol.toStringTag](): string {
+    return 'CopyOnWriteSet'
+  }
+}
+
+/**
  * Use the provided loader tree to create the React Component tree.
  */
 // TODO convert these arguments to non-object form. the entrypoint doesn't need most of them
@@ -154,9 +234,9 @@ async function createComponentTreeInternal(
     unauthorized,
   } = modules
 
-  const injectedCSSWithCurrentLayout = new Set(injectedCSS)
-  const injectedJSWithCurrentLayout = new Set(injectedJS)
-  const injectedFontPreloadTagsWithCurrentLayout = new Set(
+  const injectedCSSWithCurrentLayout = new CopyOnWriteSet(injectedCSS)
+  const injectedJSWithCurrentLayout = new CopyOnWriteSet(injectedJS)
+  const injectedFontPreloadTagsWithCurrentLayout = new CopyOnWriteSet(
     injectedFontPreloadTags
   )
 
