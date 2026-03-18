@@ -641,6 +641,67 @@ interface NextDataCache {
   [asPath: string]: Promise<FetchDataOutput>
 }
 
+const PAGES_ROUTER_CACHE_MAX_SIZE_BYTES = 100 * 1024 * 1024
+const PAGES_ROUTER_CACHE_MAX_ENTRIES = 100
+
+function createLRUDataCache(): NextDataCache {
+  const storage: Record<string, Promise<FetchDataOutput>> = Object.create(null)
+  const order: string[] = []
+  const sizeMap = new Map<string, number>()
+  let totalSize = 0
+
+  function evict() {
+    while (
+      order.length > 0 &&
+      (order.length > PAGES_ROUTER_CACHE_MAX_ENTRIES ||
+        totalSize > PAGES_ROUTER_CACHE_MAX_SIZE_BYTES)
+    ) {
+      const key = order.shift()!
+      const entrySize = sizeMap.get(key) ?? 0
+      totalSize = Math.max(0, totalSize - entrySize)
+      sizeMap.delete(key)
+      delete storage[key]
+    }
+  }
+
+  function remove(key: string) {
+    const idx = order.indexOf(key)
+    if (idx !== -1) order.splice(idx, 1)
+    const entrySize = sizeMap.get(key) ?? 0
+    totalSize = Math.max(0, totalSize - entrySize)
+    sizeMap.delete(key)
+    delete storage[key]
+  }
+
+  return new Proxy(storage, {
+    set(target, key: string, value: Promise<FetchDataOutput>) {
+      if (typeof key !== 'string') return Reflect.set(target, key, value)
+
+      const existingSize = sizeMap.get(key) ?? 0
+      totalSize = Math.max(0, totalSize - existingSize)
+      if (order.indexOf(key) !== -1) order.splice(order.indexOf(key), 1)
+
+      const wrapped = value.then((data) => {
+        const size = (data.text?.length ?? 0) + (data.cacheKey?.length ?? 0)
+        sizeMap.set(key, size)
+        totalSize += size
+        evict()
+        return data
+      })
+
+      target[key] = wrapped
+      order.push(key)
+      evict()
+      return true
+    },
+    deleteProperty(target, key: string) {
+      if (typeof key !== 'string') return Reflect.deleteProperty(target, key)
+      remove(key)
+      return true
+    },
+  })
+}
+
 export function createKey() {
   return Math.random().toString(36).slice(2, 10)
 }
@@ -697,8 +758,8 @@ export default class Router implements BaseRouter {
    * Map of all components loaded in `Router`
    */
   components: { [pathname: string]: PrivateRouteInfo }
-  // Server Data Cache (full data requests)
-  sdc: NextDataCache = {}
+  // Server Data Cache (full data requests) - LRU eviction to prevent memory leak
+  sdc: NextDataCache = createLRUDataCache()
   // Server Background Cache (HEAD requests)
   sbc: NextDataCache = {}
 
