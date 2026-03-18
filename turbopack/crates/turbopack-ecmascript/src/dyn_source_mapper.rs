@@ -62,15 +62,15 @@ impl SourceMapperExt for DynSourceMapper {
 
 /// Creates an [`Emitter`] with [`DynSourceMapper`] as the source mapper.
 ///
-/// Using this helper ensures all `Emitter` instances in the crate share the
-/// `S = DynSourceMapper` type parameter, reducing binary size by collapsing
-/// otherwise separate monomorphizations of emit methods.
-pub(crate) fn make_emitter<'a, W: WriteJs>(
+/// Using this helper ensures all `Emitter` instances in the crate share a
+/// single fully-monomorphic type `Emitter<Box<dyn WriteJs>, DynSourceMapper>`,
+/// collapsing otherwise separate monomorphizations of every emit method.
+pub(crate) fn make_emitter<'a, 'w>(
     cm: Arc<dyn SourceMapper>,
     cfg: Config,
     comments: Option<&'a dyn Comments>,
-    wr: W,
-) -> Emitter<'a, W, DynSourceMapper> {
+    wr: Box<dyn WriteJs + 'w>,
+) -> Emitter<'a, Box<dyn WriteJs + 'w>, DynSourceMapper> {
     Emitter {
         cfg,
         cm: Arc::new(DynSourceMapper(cm)),

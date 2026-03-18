@@ -2092,7 +2092,7 @@ async fn emit_content(
             source_map.clone(),
             swc_core::ecma::codegen::Config::default(),
             Some(&comments as &dyn Comments),
-            wr,
+            Box::new(wr),
         );
 
         emitter.emit_program(&program)?;

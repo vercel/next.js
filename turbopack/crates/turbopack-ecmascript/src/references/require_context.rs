@@ -529,10 +529,11 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
             source_map.clone(),
             swc_core::ecma::codegen::Config::default(),
             None,
-            wr,
+            Box::new(wr),
         );
 
         emitter.emit_module(&module)?;
+        drop(emitter);
 
         Ok(EcmascriptChunkItemContent {
             inner_code: bytes.into(),

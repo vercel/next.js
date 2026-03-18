@@ -215,7 +215,7 @@ mod tests {
             cm.clone(),
             swc_core::ecma::codegen::Config::default().with_minify(true),
             None,
-            JsWriter::new(cm.clone(), "\n", &mut bytes, None),
+            Box::new(JsWriter::new(cm.clone(), "\n", &mut bytes, None)),
         );
 
         emitter.emit_module(m).unwrap();
