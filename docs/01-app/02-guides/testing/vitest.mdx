@@ -6,8 +6,6 @@ description: Learn how to set up Vitest with Next.js for Unit Testing.
 
 Vitest and React Testing Library are frequently used together for **Unit Testing**. This guide will show you how to setup Vitest with Next.js and write your first tests.
 
-> **Good to know:** Since `async` Server Components are new to the React ecosystem, Vitest currently does not support them. While you can still run **unit tests** for synchronous Server and Client Components, we recommend using **E2E tests** for `async` components.
-
 ## Quickstart
 
 You can use `create-next-app` with the Next.js [with-vitest](https://github.com/vercel/next.js/tree/canary/examples/with-vitest) example to quickly get started:
@@ -213,6 +211,148 @@ test('Page', () => {
 ```
 
 </PagesOnly>
+
+<AppOnly>
+
+## Testing async Server Components
+
+Vitest does not natively render `async` Server Components. To test them, `await` the component and render the result:
+
+> **Good to know:** `PageProps` and `LayoutProps` are generated types. Run `next typegen` to generate them (both `next dev` and `next build` also run typegen internally). If you see type errors for these types, make sure you've run one of these commands at least once. See [TypeScript](/docs/app/guides/typescript) for more information.
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+  const { slug } = await params
+  return <h1>Slug: {slug}</h1>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.jsx" switcher
+export default async function Page({ params }) {
+  const { slug } = await params
+  return <h1>Slug: {slug}</h1>
+}
+```
+
+```tsx filename="app/blog/[slug]/page.test.tsx" switcher
+import { expect, test } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import Page from './page'
+
+test('renders the slug', async () => {
+  const params = Promise.resolve({ slug: 'my-post' })
+  const searchParams = Promise.resolve({})
+  render(await Page({ params, searchParams }))
+  expect(
+    screen.getByRole('heading', { level: 1, name: 'Slug: my-post' })
+  ).toBeDefined()
+})
+```
+
+```jsx filename="app/blog/[slug]/page.test.jsx" switcher
+import { expect, test } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import Page from './page'
+
+test('renders the slug', async () => {
+  const params = Promise.resolve({ slug: 'my-post' })
+  const searchParams = Promise.resolve({})
+  render(await Page({ params, searchParams }))
+  expect(
+    screen.getByRole('heading', { level: 1, name: 'Slug: my-post' })
+  ).toBeDefined()
+})
+```
+
+## Mocking Next.js APIs
+
+Use `vi.mock` to stub out Next.js modules like `next/navigation` or `next/headers` in your tests:
+
+```tsx filename="app/nav-links.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export default function NavLinks() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={pathname === '/' ? 'active' : ''} href="/">
+        Home
+      </Link>
+      <Link className={pathname === '/about' ? 'active' : ''} href="/about">
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```jsx filename="app/nav-links.jsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+
+export default function NavLinks() {
+  const pathname = usePathname()
+
+  return (
+    <nav>
+      <Link className={pathname === '/' ? 'active' : ''} href="/">
+        Home
+      </Link>
+      <Link className={pathname === '/about' ? 'active' : ''} href="/about">
+        About
+      </Link>
+    </nav>
+  )
+}
+```
+
+```tsx filename="app/nav-links.test.tsx" switcher
+import { expect, test, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import NavLinks from './nav-links'
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+}))
+
+test('highlights the active link', () => {
+  render(<NavLinks />)
+
+  const homeLink = screen.getByRole('link', { name: 'Home' })
+  const aboutLink = screen.getByRole('link', { name: 'About' })
+
+  expect(homeLink).toHaveProperty('className', 'active')
+  expect(aboutLink).toHaveProperty('className', '')
+})
+```
+
+```jsx filename="app/nav-links.test.jsx" switcher
+import { expect, test, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import NavLinks from './nav-links'
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+}))
+
+test('highlights the active link', () => {
+  render(<NavLinks />)
+
+  const homeLink = screen.getByRole('link', { name: 'Home' })
+  const aboutLink = screen.getByRole('link', { name: 'About' })
+
+  expect(homeLink).toHaveProperty('className', 'active')
+  expect(aboutLink).toHaveProperty('className', '')
+})
+```
+
+</AppOnly>
 
 ## Running your tests
 
