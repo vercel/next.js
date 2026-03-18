@@ -1,4 +1,4 @@
-import { Readable, PassThrough, Transform } from 'node:stream'
+import { Readable, PassThrough } from 'node:stream'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
@@ -288,5 +288,30 @@ describe('nodeStreamToString', () => {
     const source = readableFrom(['foo', 'bar'])
     const str = await nodeStreamToString(source)
     expect(str).toBe('foobar')
+  })
+
+  it('handles multi-byte UTF-8 characters split across chunks', async () => {
+    // The emoji is 4 bytes: f0 9f 98 80
+    const emoji = Buffer.from('\u{1F600}')
+    expect(emoji.length).toBe(4)
+
+    // Split the 4-byte sequence across two chunks.
+    const chunk1 = emoji.subarray(0, 2) // f0 9f
+    const chunk2 = emoji.subarray(2, 4) // 98 80
+
+    let index = 0
+    const parts = [chunk1, chunk2]
+    const source = new Readable({
+      read() {
+        if (index < parts.length) {
+          this.push(parts[index++])
+        } else {
+          this.push(null)
+        }
+      },
+    })
+
+    const str = await nodeStreamToString(source)
+    expect(str).toBe('\u{1F600}')
   })
 })

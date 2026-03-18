@@ -16,12 +16,51 @@
  * This addresses the review feedback from @lubieowoce on PRs #89859/#90500
  * where ALS context was incorrectly propagated by wrapping the callback
  * return value rather than binding the callback itself.
+ *
+ * **Edge/DCE safety**: `node:stream` is loaded lazily via `require()` so
+ * that this module can be safely imported (and tree-shaken) in Edge and
+ * client bundles without causing a hard failure at import time.
  */
 
-import { Transform, Readable, PassThrough } from 'node:stream'
+import type { Transform, Readable } from 'node:stream'
 import type { ServerResponse } from 'node:http'
 import { bindSnapshot } from '../app-render/async-local-storage'
 import { DetachedPromise } from '../../lib/detached-promise'
+import { scheduleImmediate } from '../../lib/scheduler'
+
+// ---------------------------------------------------------------------------
+// Lazy node:stream accessor (Edge/DCE-safe)
+// ---------------------------------------------------------------------------
+
+/**
+ * Lazily loads `node:stream` at runtime. This avoids a top-level import that
+ * would break Edge runtime and prevents Webpack/Turbopack from pulling the
+ * module into client bundles.
+ */
+function getNodeStream(): typeof import('node:stream') {
+  return require('node:stream') as typeof import('node:stream')
+}
+
+// ---------------------------------------------------------------------------
+// safePipe – error-forwarding pipe helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Pipes `source` into `dest` while ensuring errors on the source stream
+ * are forwarded to the destination. The built-in `.pipe()` does NOT forward
+ * errors, so without this helper an erroring source can leave the
+ * destination hanging.
+ */
+function safePipe<T extends Transform>(
+  source: Readable,
+  dest: T,
+  opts?: { end?: boolean }
+): T {
+  source.on('error', (err) => {
+    if (!dest.destroyed) dest.destroy(err)
+  })
+  return source.pipe(dest, opts)
+}
 
 // ---------------------------------------------------------------------------
 // chainNodeStreams
@@ -36,6 +75,8 @@ import { DetachedPromise } from '../../lib/detached-promise'
  * `node-web-streams-helper.ts`.
  */
 export function chainNodeStreams(...streams: Readable[]): Readable {
+  const { PassThrough } = getNodeStream()
+
   if (streams.length === 0) {
     // Return an immediately-ended readable (equivalent to ReadableStream that
     // closes in start()).
@@ -67,15 +108,11 @@ export function chainNodeStreams(...streams: Readable[]): Readable {
       pipeNext()
     })
 
-    const onError = bindSnapshot((err: Error) => {
-      output.destroy(err)
-    })
-
     // `end: false` prevents the PassThrough from closing when each
     // individual source ends -- we close it manually after the last one.
-    current.pipe(output, { end: false })
+    // Use safePipe so errors on the source propagate to the output.
+    safePipe(current, output, { end: false })
     current.once('end', onEnd)
-    current.once('error', onError)
   }
 
   pipeNext()
@@ -92,7 +129,7 @@ export function chainNodeStreams(...streams: Readable[]): Readable {
  * downstream. Chunks are accumulated until either:
  * - The buffer reaches `maxBufferBytes`, at which point it flushes
  *   synchronously, or
- * - A `setImmediate` tick fires, flushing whatever has been buffered.
+ * - A scheduled immediate tick fires, flushing whatever has been buffered.
  *
  * This is the Node.js equivalent of `createBufferedTransformStream()` in
  * `node-web-streams-helper.ts`.
@@ -100,9 +137,11 @@ export function chainNodeStreams(...streams: Readable[]): Readable {
 export function createBufferedTransformNode(
   maxBufferBytes: number = Infinity
 ): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
   let bufferedChunks: Buffer[] = []
   let bufferByteLength = 0
-  let pendingFlush: ReturnType<typeof setImmediate> | null = null
+  let pendingFlush = false
 
   function flushBuffer(transform: Transform) {
     if (bufferedChunks.length === 0) return
@@ -114,7 +153,7 @@ export function createBufferedTransformNode(
     transform.push(merged)
   }
 
-  return new Transform({
+  return new NodeTransform({
     transform: bindSnapshot(function (
       this: Transform,
       chunk: Buffer,
@@ -126,10 +165,8 @@ export function createBufferedTransformNode(
 
       if (bufferByteLength >= maxBufferBytes) {
         // Flush synchronously when the buffer is large enough.
-        if (pendingFlush !== null) {
-          clearImmediate(pendingFlush)
-          pendingFlush = null
-        }
+        // Mark pendingFlush as false so the scheduled callback is a no-op.
+        pendingFlush = false
         flushBuffer(this)
         callback()
         return
@@ -137,10 +174,12 @@ export function createBufferedTransformNode(
 
       // Schedule a flush on the next event loop iteration so that multiple
       // small chunks arriving in the same tick get batched together.
-      if (pendingFlush === null) {
-        pendingFlush = setImmediate(
+      if (!pendingFlush) {
+        pendingFlush = true
+        scheduleImmediate(
           bindSnapshot(() => {
-            pendingFlush = null
+            if (!pendingFlush) return
+            pendingFlush = false
             flushBuffer(this)
           })
         )
@@ -152,10 +191,8 @@ export function createBufferedTransformNode(
       this: Transform,
       callback: (error?: Error | null) => void
     ) {
-      if (pendingFlush !== null) {
-        clearImmediate(pendingFlush)
-        pendingFlush = null
-      }
+      // Cancel any pending scheduled flush by marking it as handled.
+      pendingFlush = false
       flushBuffer(this)
       callback()
     }),
@@ -184,6 +221,8 @@ export function createInlinedDataNodeStream(
   dataStream: Readable,
   delayDataUntilFirstHtmlChunk: boolean
 ): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
   let htmlStreamFinished = false
   let dataPullingStarted = false
   let dataExhausted = false
@@ -195,6 +234,10 @@ export function createInlinedDataNodeStream(
   // A promise that resolves when all data has been consumed from
   // `dataStream`. Used in `flush()` to wait for remaining data.
   const dataComplete = new DetachedPromise<void>()
+
+  // TODO: For future tag-searching transforms, pre-compute Buffer versions
+  // of ENCODED_TAGS for fast C++ `Buffer.indexOf()` (~1.3-3.2x faster than
+  // the JS `indexOfUint8Array` used by the web helpers).
 
   function startPulling(transform: Transform) {
     if (dataPullingStarted) return
@@ -222,7 +265,7 @@ export function createInlinedDataNodeStream(
     if (delayDataUntilFirstHtmlChunk) {
       // Wait one tick so the shell can flush first, matching the web stream
       // helper behavior.
-      setImmediate(
+      scheduleImmediate(
         bindSnapshot(() => {
           dataStream.on('data', onData)
           dataStream.once('end', onEnd)
@@ -236,7 +279,7 @@ export function createInlinedDataNodeStream(
     }
   }
 
-  return new Transform({
+  return new NodeTransform({
     transform: bindSnapshot(function (
       this: Transform,
       chunk: Buffer,
@@ -308,7 +351,7 @@ export function createInlinedDataNodeStream(
 /**
  * Pipes a Node.js Readable directly to a ServerResponse without going
  * through the WhatWG WritableStream conversion. This avoids the overhead
- * of `pipe-readable.ts`'s `createWriterFromResponse()` → `pipeTo()` path
+ * of `pipe-readable.ts`'s `createWriterFromResponse()` -> `pipeTo()` path
  * when we already have a Node.js native stream.
  *
  * Handles backpressure via the standard `.pipe()` mechanism and properly
@@ -316,7 +359,9 @@ export function createInlinedDataNodeStream(
  *
  * @param readable - The source Node.js Readable stream
  * @param res - The Node.js ServerResponse to write to
- * @param onEnd - Optional callback invoked when piping completes
+ * @param onEnd - Optional callback invoked when piping completes (on
+ *   success or client disconnect). NOT called on stream error since the
+ *   response is already destroyed in that case.
  */
 export function pipeNodeReadableToResponse(
   readable: Readable,
@@ -353,6 +398,9 @@ export function pipeNodeReadableToResponse(
     }
     cleanup()
     done.resolve()
+    // Call onEnd so the caller knows piping has finished and can clean up
+    // resources (e.g. abort pending work).
+    onEnd?.()
   })
 
   function cleanup() {
@@ -389,8 +437,17 @@ export async function nodeStreamToBuffer(readable: Readable): Promise<Buffer> {
 
 /**
  * Collects all chunks from a Node.js Readable into a string.
+ *
+ * Uses a streaming `TextDecoder` to correctly handle multi-byte UTF-8
+ * characters that may span chunk boundaries.
  */
 export async function nodeStreamToString(readable: Readable): Promise<string> {
-  const buf = await nodeStreamToBuffer(readable)
-  return buf.toString('utf-8')
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  let result = ''
+  for await (const chunk of readable) {
+    result += decoder.decode(chunk, { stream: true })
+  }
+  // Flush any remaining bytes in the decoder.
+  result += decoder.decode()
+  return result
 }
