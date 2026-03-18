@@ -145,6 +145,9 @@ impl SubpathValue {
                 false
             }
             SubpathValue::Conditional(list) => {
+                // Process conditions in order and return immediately on first successful match.
+                // This matches Node.js conditional exports behavior where the first matching
+                // condition wins, preventing dual-module issues.
                 for (condition, value) in list {
                     let condition_value = if condition == "default" {
                         &ConditionValue::Set
@@ -174,10 +177,11 @@ impl SubpathValue {
                                 condition_overrides,
                                 target,
                             ) {
-                                condition_overrides.insert(condition, ConditionValue::Unset);
-                            } else {
-                                condition_overrides.remove(condition.as_str());
+                                // Found a match with this condition set - return immediately
+                                return true;
                             }
+                            // Backtrack: this condition didn't work, remove it and continue
+                            condition_overrides.remove(condition.as_str());
                         }
                     }
                 }
@@ -273,6 +277,9 @@ impl ReplacedSubpathValue {
                 false
             }
             ReplacedSubpathValue::Conditional(list) => {
+                // Process conditions in order and return immediately on first successful match.
+                // This matches Node.js conditional exports behavior where the first matching
+                // condition wins, preventing dual-module issues.
                 for (condition, value) in list {
                     let condition_value = if condition == "default" {
                         &ConditionValue::Set
@@ -306,10 +313,11 @@ impl ReplacedSubpathValue {
                                 condition_overrides,
                                 target,
                             ) {
-                                condition_overrides.insert(condition, ConditionValue::Unset);
-                            } else {
-                                condition_overrides.remove(condition.as_str());
+                                // Found a match with this condition set - return immediately
+                                return true;
                             }
+                            // Backtrack: this condition didn't work, remove it and continue
+                            condition_overrides.remove(condition.as_str());
                         }
                     }
                 }
