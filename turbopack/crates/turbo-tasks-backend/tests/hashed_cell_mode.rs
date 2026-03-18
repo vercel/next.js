@@ -10,9 +10,9 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-/// A value type using `cell = "hashed"` mode.
+/// A value type using `serialization = "hash"` mode.
 /// Only `value` participates in Hash/Eq; `noise` does not.
-#[turbo_tasks::value(cell = "hashed", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(serialization = "hash", eq = "manual")]
 #[derive(Debug)]
 struct HashedValue {
     value: u32,
@@ -98,7 +98,7 @@ async fn test_hashed_cell_mode_change_triggers_invalidation() {
 
 /// Test 2: When the value stays the same, the consumer should NOT be invalidated.
 /// The producer re-runs (state.set triggers it) but produces an equal HashedValue.
-/// With `cell = "hashed"`, the consumer should not be re-executed.
+/// With `serialization = "hash"`, the consumer should not be re-executed.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hashed_cell_mode_equal_value_no_invalidation() {
     run(&REGISTRATION, || async {

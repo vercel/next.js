@@ -18,7 +18,6 @@ enum CellMode {
     KeyedCompare,
     Compare,
     New,
-    Hashed,
 }
 
 impl Parse for CellMode {
@@ -36,10 +35,9 @@ impl TryFrom<LitStr> for CellMode {
             "keyed" => Ok(CellMode::KeyedCompare),
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
-            "hashed" => Ok(CellMode::Hashed),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"new\", \"keyed\", \"compare\", or \"hashed\"",
+                "expected \"new\", \"keyed\", or \"compare\"",
             )),
         }
     }
@@ -47,6 +45,10 @@ impl TryFrom<LitStr> for CellMode {
 
 enum SerializationMode {
     None,
+    /// Like `None` (no bincode serialization), but also stores a hash of the cell value so that
+    /// changes can be detected even when the transient cell data has been evicted from memory.
+    /// Only valid with `cell = "compare"` (or the default).
+    Hash,
     Auto,
     Custom,
 }
@@ -64,11 +66,12 @@ impl TryFrom<LitStr> for SerializationMode {
     fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
+            "hash" => Ok(SerializationMode::Hash),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"auto\", or \"custom\"",
+                "expected \"none\", \"hash\", \"auto\", or \"custom\"",
             )),
         }
     }
@@ -181,6 +184,18 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         operation,
     } = parse_macro_input!(args as ValueArguments);
 
+    // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
+    if matches!(serialization_mode, SerializationMode::Hash)
+        && !matches!(cell_mode, CellMode::Compare)
+    {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "serialization = \"hash\" only makes sense with cell = \"compare\" (or default)",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let mut struct_attributes = vec![quote! {
         #[derive(
             turbo_tasks::ShrinkToFit,
@@ -279,14 +294,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
         },
+        CellMode::Compare if matches!(serialization_mode, SerializationMode::Hash) => quote! {
+            turbo_tasks::VcCellHashedCompareMode<#ident>
+        },
         CellMode::Compare => quote! {
             turbo_tasks::VcCellCompareMode<#ident>
         },
         CellMode::KeyedCompare => quote! {
             turbo_tasks::VcCellKeyedCompareMode<#ident>
-        },
-        CellMode::Hashed => quote! {
-            turbo_tasks::VcCellHashedCompareMode<#ident>
         },
     };
 
@@ -319,7 +334,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
         }
-        SerializationMode::None | SerializationMode::Custom => {}
+        SerializationMode::None | SerializationMode::Hash | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -348,7 +363,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let name = global_name_for_type(ident);
     let new_value_type = match serialization_mode {
-        SerializationMode::None => quote! {
+        SerializationMode::None | SerializationMode::Hash => quote! {
             turbo_tasks::ValueType::new::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => {
@@ -358,7 +373,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         }
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::None => quote! { false },
+        SerializationMode::None | SerializationMode::Hash => quote! { false },
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 
