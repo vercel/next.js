@@ -148,13 +148,13 @@ pnpm test-dev-turbo test/development/
 Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
-# Use --args for non-interactive mode
-# Format: pnpm new-test --args <appDir> <name> <type>
+# Use --args for non-interactive mode (forward args to the script using `--`)
+# Format: pnpm new-test -- --args <appDir> <name> <type>
 # appDir: true/false (is this for app directory?)
 # name: test name (e.g. "my-feature")
 # type: e2e | production | development | unit
 
-pnpm new-test --args true my-feature e2e
+pnpm new-test -- --args true my-feature e2e
 ```
 
 **Analyzing test output efficiently:**
@@ -400,7 +400,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Test Gotchas
 
 - **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
+  -- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test -- --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).

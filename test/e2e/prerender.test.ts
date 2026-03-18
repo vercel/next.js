@@ -2063,7 +2063,10 @@ describe('Prerender', () => {
 
       it('should handle revalidating JSON correctly', async () => {
         const route = `/_next/data/${next.buildId}/blog/post-2/comment-3.json`
-        const initialJson = await renderViaHTTP(next.url, route)
+        const initialRes = await fetchViaHTTP(next.url, route)
+        const initialJson = await initialRes.text()
+        expect(initialRes.headers.get('Content-Length')).toBeDefined()
+        expect(initialRes.headers.get('ETag')).toBeDefined()
         expect(initialJson).toMatch(/post-2/)
         expect(initialJson).toMatch(/comment-3/)
 
@@ -2078,7 +2081,10 @@ describe('Prerender', () => {
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
-          newJson = await renderViaHTTP(next.url, route)
+          const newRes = await fetchViaHTTP(next.url, route)
+          expect(newRes.headers.get('Content-Length')).toBeDefined()
+          expect(newRes.headers.get('ETag')).toBeDefined()
+          newJson = await newRes.text()
           return newJson !== initialJson ? 'success' : newJson
         }, 'success')
 
@@ -2135,7 +2141,10 @@ describe('Prerender', () => {
 
       it('should handle revalidating HTML correctly with blocking and seed', async () => {
         const route = '/blocking-fallback/a'
-        const initialHtml = await renderViaHTTP(next.url, route)
+        const initialRes = await fetchViaHTTP(next.url, route)
+        const initialHtml = await initialRes.text()
+        expect(initialRes.headers.get('Content-Length')).toBeDefined()
+        expect(initialRes.headers.get('ETag')).toBeDefined()
         const $initial = cheerio.load(initialHtml)
         expect($initial('p').text()).toBe('Post: a')
 
@@ -2150,7 +2159,10 @@ describe('Prerender', () => {
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
+          const newRes = await fetchViaHTTP(next.url, route)
+          expect(newRes.headers.get('Content-Length')).toBeDefined()
+          expect(newRes.headers.get('ETag')).toBeDefined()
+          newHtml = await newRes.text()
           return newHtml !== initialHtml ? 'success' : newHtml
         }, 'success')
 
