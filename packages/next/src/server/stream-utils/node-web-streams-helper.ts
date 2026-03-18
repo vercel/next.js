@@ -885,6 +885,210 @@ export function createRootLayoutValidatorStream(): TransformStream<
   })
 }
 
+/**
+ * Merges the deployment-ID insertion, metadata icon-mark handling, and
+ * root-layout validation into a single TransformStream.
+ *
+ * Each of these operations works on the first few chunks and then becomes a
+ * pure pass-through, so fusing them avoids creating up to 3 extra
+ * TransformStream objects (each with its own ReadableStream + WritableStream +
+ * internal queues + backpressure bookkeeping) per request.
+ */
+function createUnifiedHeadTransform(options: {
+  deploymentId?: string
+  getServerInsertedMetadata: () => Promise<string> | string
+  validateRootLayout?: boolean
+}): TransformStream<Uint8Array, Uint8Array> {
+  // --- dplId state ---
+  const hasDplId = !!options.deploymentId
+  let dplIdDone = !hasDplId
+
+  // --- metadata state ---
+  let metadataChunkIndex = -1
+  let metadataMarkRemoved = false
+
+  // --- root layout validator state ---
+  const doValidate = !!options.validateRootLayout
+  let foundHtml = false
+  let foundBody = false
+  let validatorDone = !doValidate
+
+  // Fast-path flag: once every one-shot operation is complete we skip all
+  // search work and just forward chunks unchanged.
+  let allDone = false
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      // --- fast path: all one-shot work is done ---
+      if (allDone) {
+        controller.enqueue(chunk)
+        return
+      }
+
+      let processedChunk = chunk
+
+      // ---------------------------------------------------------------
+      // 1. Insert data-dpl-id attribute on the <html> tag (first chunk)
+      // ---------------------------------------------------------------
+      if (!dplIdDone) {
+        const htmlTagIndex = indexOfUint8Array(
+          processedChunk,
+          ENCODED_TAGS.OPENING.HTML
+        )
+        if (htmlTagIndex !== -1) {
+          const insertionPoint =
+            htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
+          const attribute = ` data-dpl-id="${options.deploymentId}"`
+          const encodedAttribute = encoder.encode(attribute)
+          const modifiedChunk = new Uint8Array(
+            processedChunk.length + encodedAttribute.length
+          )
+          modifiedChunk.set(processedChunk.subarray(0, insertionPoint))
+          modifiedChunk.set(encodedAttribute, insertionPoint)
+          modifiedChunk.set(
+            processedChunk.subarray(insertionPoint),
+            insertionPoint + encodedAttribute.length
+          )
+          processedChunk = modifiedChunk
+          dplIdDone = true
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // 2. Metadata icon-mark handling
+      // ---------------------------------------------------------------
+      if (!metadataMarkRemoved) {
+        metadataChunkIndex++
+
+        const iconMarkIndex = indexOfUint8Array(
+          processedChunk,
+          ENCODED_TAGS.META.ICON_MARK
+        )
+
+        if (iconMarkIndex !== -1) {
+          // Determine the full length of the icon mark tag (including > or />)
+          let iconMarkLength = ENCODED_TAGS.META.ICON_MARK.length
+          if (processedChunk[iconMarkIndex + iconMarkLength] === 47) {
+            // xml self-closing: />
+            iconMarkLength += 2
+          } else {
+            // html: >
+            iconMarkLength++
+          }
+
+          if (metadataChunkIndex === 0) {
+            const closedHeadIndex = indexOfUint8Array(
+              processedChunk,
+              ENCODED_TAGS.CLOSED.HEAD
+            )
+            if (iconMarkIndex < closedHeadIndex) {
+              // Icon mark is inside <head>, just remove it
+              const replaced = new Uint8Array(
+                processedChunk.length - iconMarkLength
+              )
+              replaced.set(processedChunk.subarray(0, iconMarkIndex))
+              replaced.set(
+                processedChunk.subarray(iconMarkIndex + iconMarkLength),
+                iconMarkIndex
+              )
+              processedChunk = replaced
+            } else {
+              // Icon mark is after </head>, replace with insertion
+              const insertion = await options.getServerInsertedMetadata()
+              const encodedInsertion = encoder.encode(insertion)
+              const insertionLength = encodedInsertion.length
+              const replaced = new Uint8Array(
+                processedChunk.length - iconMarkLength + insertionLength
+              )
+              replaced.set(processedChunk.subarray(0, iconMarkIndex))
+              replaced.set(encodedInsertion, iconMarkIndex)
+              replaced.set(
+                processedChunk.subarray(iconMarkIndex + iconMarkLength),
+                iconMarkIndex + insertionLength
+              )
+              processedChunk = replaced
+            }
+          } else {
+            // Non-first chunk: replace icon mark with insertion
+            const insertion = await options.getServerInsertedMetadata()
+            const encodedInsertion = encoder.encode(insertion)
+            const insertionLength = encodedInsertion.length
+            const replaced = new Uint8Array(
+              processedChunk.length - iconMarkLength + insertionLength
+            )
+            replaced.set(processedChunk.subarray(0, iconMarkIndex))
+            replaced.set(encodedInsertion, iconMarkIndex)
+            replaced.set(
+              processedChunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex + insertionLength
+            )
+            processedChunk = replaced
+          }
+          metadataMarkRemoved = true
+        } else {
+          // Icon mark not found in this chunk -- if metadata isn't done yet,
+          // continue searching in subsequent chunks (no modification needed).
+        }
+      }
+
+      // ---------------------------------------------------------------
+      // 3. Root layout validation (inspect only, no mutation)
+      // ---------------------------------------------------------------
+      if (!validatorDone) {
+        if (
+          !foundHtml &&
+          indexOfUint8Array(processedChunk, ENCODED_TAGS.OPENING.HTML) > -1
+        ) {
+          foundHtml = true
+        }
+        if (
+          !foundBody &&
+          indexOfUint8Array(processedChunk, ENCODED_TAGS.OPENING.BODY) > -1
+        ) {
+          foundBody = true
+        }
+        if (foundHtml && foundBody) {
+          validatorDone = true
+        }
+      }
+
+      // Check if all one-shot operations are now complete
+      if (dplIdDone && metadataMarkRemoved && validatorDone) {
+        allDone = true
+      }
+
+      controller.enqueue(processedChunk)
+    },
+
+    flush(controller) {
+      // Root layout validation: emit error template if tags are missing
+      if (doValidate) {
+        const missingTags: ('html' | 'body')[] = []
+        if (!foundHtml) missingTags.push('html')
+        if (!foundBody) missingTags.push('body')
+
+        if (missingTags.length) {
+          controller.enqueue(
+            encoder.encode(
+              `<html id="__next_error__">
+            <template
+              data-next-error-message="Missing ${missingTags
+                .map((c) => `<${c}>`)
+                .join(
+                  missingTags.length > 1 ? ' and ' : ''
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+              data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
+              data-next-error-stack=""
+            ></template>
+          `
+            )
+          )
+        }
+      }
+    },
+  })
+}
+
 function chainTransformers<T>(
   readable: ReadableStream<T>,
   transformers: ReadonlyArray<TransformStream<T, T> | null>
@@ -939,11 +1143,14 @@ export async function continueFizzStream(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
-
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
+    // Unified transform: merges deployment-ID insertion, metadata icon-mark
+    // handling, and root-layout validation into a single TransformStream to
+    // reduce per-request stream pipeline overhead.
+    createUnifiedHeadTransform({
+      deploymentId,
+      getServerInsertedMetadata,
+      validateRootLayout,
+    }),
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -954,9 +1161,6 @@ export async function continueFizzStream(
     inlinedDataStream
       ? createFlightDataInjectionTransformStream(inlinedDataStream, true)
       : null,
-
-    // Validate the root layout for missing html or body tags
-    validateRootLayout ? createRootLayoutValidatorStream() : null,
 
     // Close tags should always be deferred to the end
     createMoveSuffixStream(),
@@ -986,12 +1190,13 @@ export async function continueDynamicPrerender(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
     createStripDocumentClosingTagsTransform(),
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+    // Unified transform: deployment-ID + metadata in a single stream
+    createUnifiedHeadTransform({
+      deploymentId,
+      getServerInsertedMetadata,
+    }),
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
   ])
 }
 
@@ -1014,13 +1219,13 @@ export async function continueStaticPrerender(
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-    // Add build id comment to start of the HTML document (in export mode)
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
+    // Unified transform: deployment-ID + metadata in a single stream
+    createUnifiedHeadTransform({
+      deploymentId,
+      getServerInsertedMetadata,
+    }),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     createFlightDataInjectionTransformStream(inlinedDataStream, true),
     // Close tags should always be deferred to the end
@@ -1043,14 +1248,15 @@ export async function continueStaticFallbackPrerender(
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
     createClientResumeScriptInsertionTransformStream(),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
+    // Unified transform: deployment-ID + metadata in a single stream
+    createUnifiedHeadTransform({
+      deploymentId,
+      getServerInsertedMetadata,
+    }),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     createFlightDataInjectionTransformStream(inlinedDataStream, true),
     // Close tags should always be deferred to the end
@@ -1079,12 +1285,13 @@ export async function continueDynamicHTMLResume(
   return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
+    // Unified transform: deployment-ID + metadata in a single stream
+    createUnifiedHeadTransform({
+      deploymentId,
+      getServerInsertedMetadata,
+    }),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     createFlightDataInjectionTransformStream(
       inlinedDataStream,
