@@ -59,7 +59,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
+import { getBotType } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -157,6 +157,27 @@ import {
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from './lib/postponed-request-body'
+
+// Hoisted regex literals — avoids re-creation on every request.
+const DOUBLE_SLASH_OR_BACKSLASH_RE = /(\\|\/\/)/
+const INDEX_ROUTE_RE = /^\/index($|\?)/
+const INDEX_PREFIX_RE = /^\/index/
+const NEXT_ASSET_RE = /^\/_next\//
+const STATIC_DIR_RE = /^\/static\//
+const TRAILING_JSON_RE = /\.json$/
+
+/**
+ * Extract the pathname (path before '?' or '#') from a relative URL string.
+ * Avoids the ~4 μs overhead of `new URL(value, 'http://localhost')`.
+ */
+function getPathname(url: string): string {
+  const qIdx = url.indexOf('?')
+  const hIdx = url.indexOf('#')
+  if (qIdx === -1 && hIdx === -1) return url
+  if (qIdx === -1) return url.slice(0, hIdx)
+  if (hIdx === -1) return url.slice(0, qIdx)
+  return url.slice(0, Math.min(qIdx, hIdx))
+}
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -983,7 +1004,7 @@ export default abstract class Server<
       // hello/world or backslashes to forward slashes, this does not
       // handle trailing slash as that is handled the same as a next.config.js
       // redirect
-      if (urlNoQuery?.match(/(\\|\/\/)/)) {
+      if (urlNoQuery?.match(DOUBLE_SLASH_OR_BACKSLASH_RE)) {
         const cleanUrl = normalizeRepeatedSlashes(req.url!)
         res.redirect(cleanUrl, 308).body(cleanUrl).send()
         return
@@ -1060,8 +1081,8 @@ export default abstract class Server<
           if (this.enabledDirectories.app) {
             // ensure /index path is normalized for prerender
             // in minimal mode
-            if (req.url.match(/^\/index($|\?)/)) {
-              req.url = req.url.replace(/^\/index/, '/')
+            if (INDEX_ROUTE_RE.test(req.url)) {
+              req.url = req.url.replace(INDEX_PREFIX_RE, '/')
             }
             parsedUrl.pathname =
               parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
@@ -1069,12 +1090,11 @@ export default abstract class Server<
 
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
-          let { pathname: matchedPath } = new URL(
-            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
-            'http://localhost'
+          let matchedPath = getPathname(
+            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string)
           )
 
-          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let urlPathname = getPathname(req.url)
 
           // For ISR the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -1923,8 +1943,8 @@ export default abstract class Server<
       !internalRender &&
       !this.minimalMode &&
       !getRequestMeta(req, 'isNextDataReq') &&
-      (req.url?.match(/^\/_next\//) ||
-        (this.hasStaticDir && req.url!.match(/^\/static\//)))
+      ((req.url && NEXT_ASSET_RE.test(req.url)) ||
+        (this.hasStaticDir && STATIC_DIR_RE.test(req.url!)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -2281,8 +2301,9 @@ export default abstract class Server<
     }
 
     if (opts.supportsDynamicResponse === true) {
-      const ua = req.headers['user-agent'] || ''
-      const isBotRequest = isBot(ua)
+      // Derive from botType already computed in renderImpl — avoids a
+      // second regex test against the user-agent string.
+      const isBotRequest = opts.botType !== undefined
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
         // The built-in `Document` component also supports dynamic HTML for concurrent mode.
@@ -2470,7 +2491,7 @@ export default abstract class Server<
         filePath.indexOf(this.buildId) + this.buildId.length
       )
 
-      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+      filePath = denormalizePagePath(splitPath.replace(TRAILING_JSON_RE, ''))
     }
 
     if (this.localeNormalizer && stripLocale) {
