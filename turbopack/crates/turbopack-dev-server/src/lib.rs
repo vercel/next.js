@@ -57,7 +57,7 @@ where
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", cell = "compare")]
 struct ContentSourceWithIssues {
     source_op: OperationVc<Box<dyn ContentSource>>,
     effects: Effects,

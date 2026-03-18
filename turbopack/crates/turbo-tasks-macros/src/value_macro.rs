@@ -86,14 +86,12 @@ struct ValueArguments {
 
 impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut result = ValueArguments {
-            serialization_mode: SerializationMode::Auto,
-            shared: false,
-            cell_mode: CellMode::Compare,
-            manual_eq: false,
-            transparent: false,
-            operation: None,
-        };
+        let mut serialization_mode = SerializationMode::Auto;
+        let mut shared = false;
+        let mut cell_mode: Option<CellMode> = None;
+        let mut manual_eq = false;
+        let mut transparent = false;
+        let mut operation = None;
         let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
             match (
@@ -105,7 +103,7 @@ impl Parse for ValueArguments {
                 meta,
             ) {
                 ("shared", Meta::Path(_)) => {
-                    result.shared = true;
+                    shared = true;
                 }
                 (
                     "serialization",
@@ -117,7 +115,7 @@ impl Parse for ValueArguments {
                         ..
                     }),
                 ) => {
-                    result.serialization_mode = SerializationMode::try_from(str)?;
+                    serialization_mode = SerializationMode::try_from(str)?;
                 }
                 (
                     "cell",
@@ -129,7 +127,7 @@ impl Parse for ValueArguments {
                         ..
                     }),
                 ) => {
-                    result.cell_mode = CellMode::try_from(str)?;
+                    cell_mode = Some(CellMode::try_from(str)?);
                 }
                 (
                     "eq",
@@ -141,17 +139,17 @@ impl Parse for ValueArguments {
                         ..
                     }),
                 ) => {
-                    result.manual_eq = if str.value() == "manual" {
+                    manual_eq = if str.value() == "manual" {
                         true
                     } else {
                         return Err(Error::new_spanned(&str, "expected \"manual\""));
                     };
                 }
                 ("transparent", Meta::Path(_)) => {
-                    result.transparent = true;
+                    transparent = true;
                 }
                 ("operation", Meta::Path(path)) => {
-                    result.operation = Some(path.span());
+                    operation = Some(path.span());
                 }
                 (_, meta) => {
                     return Err(Error::new_spanned(
@@ -166,7 +164,26 @@ impl Parse for ValueArguments {
             }
         }
 
-        Ok(result)
+        // When serialization is disabled and equality is auto-derived, default to hashed
+        // cell mode so the backend can detect unchanged transient cells by hash even after
+        // data eviction. When eq = "manual" we can't auto-derive Hash, so fall back to
+        // plain compare mode.
+        let cell_mode = cell_mode.unwrap_or_else(|| {
+            if matches!(serialization_mode, SerializationMode::None) && !manual_eq {
+                CellMode::Hashed
+            } else {
+                CellMode::Compare
+            }
+        });
+
+        Ok(ValueArguments {
+            serialization_mode,
+            shared,
+            cell_mode,
+            manual_eq,
+            transparent,
+            operation,
+        })
     }
 }
 
@@ -275,6 +292,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         )
     };
 
+    let cell_mode_is_hashed = matches!(cell_mode, CellMode::Hashed);
     let cell_mode = match cell_mode {
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
@@ -338,6 +356,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
         });
+        if cell_mode_is_hashed {
+            struct_attributes.push(quote! {
+                #[derive(Hash)]
+            });
+        }
     }
     if let Some(span) = operation {
         struct_attributes.push(quote_spanned! {

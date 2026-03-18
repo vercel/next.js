@@ -8,7 +8,7 @@ use super::super::version::EcmascriptBrowserChunkVersion;
 
 /// The version of a [`super::content::EcmascriptMergedChunkContent`]. This is
 /// essentially a composite [`EcmascriptChunkVersion`].
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "none", shared, cell = "compare")]
 pub(super) struct EcmascriptBrowserMergedChunkVersion {
     #[turbo_tasks(trace_ignore)]
     pub(super) versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>,

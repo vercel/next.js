@@ -184,7 +184,7 @@ async fn emit_evaluate_pool_assets_operation(
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", cell = "compare")]
 struct EmittedEvaluatePoolAssetsWithEffects {
     assets: ReadRef<EmittedEvaluatePoolAssets>,
     effects: Arc<Effects>,

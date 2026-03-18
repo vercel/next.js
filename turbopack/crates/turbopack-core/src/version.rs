@@ -174,7 +174,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "none", shared, cell = "compare")]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -260,7 +260,7 @@ struct VersionRef(
     #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
 );
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", cell = "compare")]
 pub struct VersionState {
     version: State<VersionRef>,
 }
