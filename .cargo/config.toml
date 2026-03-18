@@ -43,23 +43,29 @@ rustflags = [
 linker = "rust-lld"
 rustflags = ["-Ctarget-feature=+crt-static"]
 
-# Linux/GNU: use rust-lld via the cc linker driver for fast linking.
-# While rust-lld is the default on x86_64-unknown-linux-gnu since Rust 1.90,
-# it must be explicitly configured in Docker containers where the sysroot
-# isn't set up for self-contained linking.
-# Not yet default on aarch64-unknown-linux-gnu.
+# Why `linker-flavor=gnu-lld-cc` instead of `linker = "rust-lld"`?
+#
+# `linker = "rust-lld"` invokes lld directly, bypassing the cc linker driver.
+# This fails because lld alone can't find system libraries (-lgcc_s, -lc) and
+# doesn't understand -Wl, prefixed args from crate build scripts.
+# `gnu-lld-cc` + `link-self-contained=+linker` routes lld through cc, which
+# resolves library paths and translates -Wl, args.
+#
+# On x86_64-unknown-linux-gnu, this is already the nightly default since
+# Rust 1.90, so no explicit config is needed for GNU targets.
+# Not yet default on aarch64-unknown-linux-gnu or any musl target.
 # https://blog.rust-lang.org/2025/09/01/rust-lld-on-1.90.0-stable/
-[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+
+# Musl targets: disable static CRT linking (we produce dynamic .node shared
+# libraries, not static binaries) and use rust-lld via the cc linker driver.
+# Like GNU targets, `linker = "rust-lld"` doesn't work (can't find -lc, -lgcc_s,
+# and doesn't understand -Wl, prefixed args).
+[target.'cfg(all(target_os = "linux", target_env = "musl"))']
 rustflags = [
+  "-Ctarget-feature=-crt-static",
   "-Clinker-flavor=gnu-lld-cc",
   "-Clink-self-contained=+linker",
 ]
-
-# Musl targets: use rust-lld directly and disable static CRT linking
-# (we produce dynamic .node shared libraries, not static binaries).
-[target.'cfg(all(target_os = "linux", target_env = "musl"))']
-linker = "rust-lld"
-rustflags = ["-Ctarget-feature=-crt-static"]
 
 # aarch64-musl: cross-compiled from x86_64, so self-contained rust-lld won't
 # work (it would resolve to the host sysroot). Instead, use the musl cross-
