@@ -212,6 +212,9 @@ impl StaticSortedFile {
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
         let mut current_block = self.meta.block_count - 1;
+        // TODO: there is only one index block per file, so we can simplify control flow directly
+        // parsing the index block and then proceeding to key blocks.  Basically there is no need to
+        // loop.
         loop {
             let key_block_arc = self.get_key_block(current_block, key_block_cache)?;
             ensure!(!key_block_arc.is_empty(), "empty key block");

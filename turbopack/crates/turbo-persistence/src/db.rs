@@ -36,6 +36,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
+    rc_bytes::RcBytes,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
@@ -1184,7 +1185,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let mut used_collector = Collector::new(MetaEntryFlags::WARM);
                             let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                            let mut current_key: Option<crate::rc_bytes::RcBytes> = None;
+                            let mut current_key: Option<RcBytes> = None;
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
