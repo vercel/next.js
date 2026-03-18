@@ -154,12 +154,12 @@ impl RawVc {
 
     /// See [`crate::Vc::to_resolved`].
     pub(crate) fn resolve(self) -> ResolveRawVcFuture {
-        ResolveRawVcFuture::new(self, false)
+        ResolveRawVcFuture::new(self)
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) fn resolve_strongly_consistent(self) -> ResolveRawVcFuture {
-        ResolveRawVcFuture::new(self, true)
+        self.resolve().strongly_consistent()
     }
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
@@ -277,20 +277,19 @@ pub struct ResolveRawVcFuture {
 }
 
 impl ResolveRawVcFuture {
-    fn new(vc: RawVc, strongly_consistent: bool) -> Self {
+    fn new(vc: RawVc) -> Self {
         ResolveRawVcFuture {
             current: vc,
-            read_output_options: ReadOutputOptions {
-                consistency: if strongly_consistent {
-                    ReadConsistency::Strong
-                } else {
-                    ReadConsistency::Eventual
-                },
-                ..Default::default()
-            },
-            strongly_consistent,
+            read_output_options: ReadOutputOptions::default(),
+            strongly_consistent: false,
             listener: None,
         }
+    }
+
+    pub fn strongly_consistent(mut self) -> Self {
+        self.strongly_consistent = true;
+        self.read_output_options.consistency = ReadConsistency::Strong;
+        self
     }
 }
 
