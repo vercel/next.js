@@ -23,6 +23,10 @@ const transport: ChildTransport = {
     if (!process.send) {
       throw new Error('Child can only be used on a forked process')
     }
+    // Note: unlike worker_threads (which uses structured clone and throws
+    // DataCloneError for non-clonable values), IPC uses JSON serialization.
+    // Non-serializable values are silently coerced (symbols → undefined,
+    // functions are dropped). No explicit error handling is needed here.
     process.send(message)
   },
   disconnect(): void {

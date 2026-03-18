@@ -5,7 +5,7 @@ Custom worker pool implementation for Next.js, replacing `jest-worker`.
 ## Key Features
 
 - **Lazy spawning**: Workers are created on-demand when jobs are dispatched, not at construction time
-- **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`
+- **Dynamic scaling**: Worker count grows as concurrent jobs increase, up to `maxWorkers`. Workers are never scaled down — once spawned, a worker persists until the pool is shut down.
 - **Per-worker concurrency**: Configurable concurrent calls per worker via `concurrencyPerWorker`
 - **Boot throttling**: `maxBootingWorkers` limits how many workers start concurrently, preventing resource contention when many tasks arrive at once
 - **Fault recovery**: Workers that exit unexpectedly are removed from the pool; queued tasks are drained to remaining workers or trigger new worker spawns. The high-level `Worker` class supports `maxRetries` to automatically re-dispatch failed calls.
@@ -144,7 +144,7 @@ The `Worker` class wraps `WorkerPool` and adds retry logic, NODE_OPTIONS managem
 | `exposedMethods` | string[] | required | Methods to wire up from worker module (underscore-prefixed names are skipped) |
 | `workerName` | string | undefined | Human-readable name for error messages (e.g. "Next.js build worker") |
 | `debuggerPortOffset` | number \| undefined | undefined | Debugger port offset; `undefined` = not inspectable |
-| `isolatedMemory` | boolean | false | If true, strips `--max-old-space-size` from NODE_OPTIONS |
+| `isolatedMemory` | boolean | false | If true, strips `--max-old-space-size` from NODE_OPTIONS. Only applies to child_process workers — worker_threads share the parent's V8 heap so this flag has no effect in that mode. |
 | `maxWorkers` | number | cpus - 1 (min 1) | Maximum number of workers to spawn |
 | `maxRetries` | number | 0 | Number of times to re-dispatch a call after a `WorkerExitError` (worker crash). Non-crash errors are never retried. |
 | `onRestart` | function | undefined | `(method, args, attempt) => void` — called before each retry attempt |

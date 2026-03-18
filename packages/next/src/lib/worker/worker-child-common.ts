@@ -124,6 +124,15 @@ export function createMessageHandler(
       return
     }
 
+    if (typeof main.setup !== 'function') {
+      reportInitializeError(
+        new TypeError(
+          `Worker module exports a non-function "setup": ${typeof main.setup}`
+        )
+      )
+      return
+    }
+
     execFunction(
       main.setup,
       main,
@@ -138,15 +147,40 @@ export function createMessageHandler(
     method: string,
     args: unknown[]
   ): void {
-    let fn: Function
+    let fn: unknown
     if (method === 'default') {
       fn = main.__esModule ? main['default'] : main
+      if (typeof fn !== 'function') {
+        reportClientError(
+          requestId,
+          new TypeError(`Worker default export is not a function: ${typeof fn}`)
+        )
+        return
+      }
     } else {
+      // Guard against prototype-chain traversal (e.g. "constructor", "__proto__",
+      // "toString"). Only own properties of the module are callable.
+      if (!Object.prototype.hasOwnProperty.call(main, method)) {
+        reportClientError(
+          requestId,
+          new TypeError(`Worker has no own export named "${method}"`)
+        )
+        return
+      }
       fn = main[method]
+      if (typeof fn !== 'function') {
+        reportClientError(
+          requestId,
+          new TypeError(
+            `Worker export "${method}" is not a function: ${typeof fn}`
+          )
+        )
+        return
+      }
     }
 
     execFunction(
-      fn,
+      fn as Function,
       main,
       args,
       (result) => reportSuccess(requestId, result),
@@ -155,7 +189,7 @@ export function createMessageHandler(
   }
 
   function end(): void {
-    if (!main?.teardown) {
+    if (typeof main?.teardown !== 'function') {
       transport.disconnect()
       return
     }

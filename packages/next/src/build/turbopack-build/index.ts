@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { Worker } from '../../lib/worker'
+import { Worker } from '../../lib/worker/index'
 import { NextBuildContext } from '../build-context'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 

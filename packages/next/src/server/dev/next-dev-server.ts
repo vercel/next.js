@@ -24,7 +24,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 
 import * as React from 'react'
 import fs from 'fs'
-import { Worker } from '../../lib/worker'
+import { Worker } from '../../lib/worker/index'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'

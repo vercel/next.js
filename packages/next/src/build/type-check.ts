@@ -3,7 +3,7 @@ import type { Telemetry } from '../telemetry/storage'
 import type { Span } from '../trace'
 
 import * as Log from './output/log'
-import { Worker } from '../lib/worker'
+import { Worker } from '../lib/worker/index'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 
