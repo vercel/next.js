@@ -1,11 +1,9 @@
 import { ReactNode, Suspense } from 'react'
 
-// The unstable_instant config makes this route eligible for validation.
-// The Suspense here covers children in the validation render (where both
-// (outer) and (inner) are in the new tree), but in a real /foo → / client
-// navigation, (outer)/layout is shared and its Suspense doesn't apply.
-export const unstable_instant = { prefetch: 'static' }
-
+// This layout has Suspense around children. When both (outer) and (inner)
+// are in the new tree (groupDepth=0), the Suspense covers (inner)'s
+// blocking cookies() call. But when (outer) is shared (groupDepth=1),
+// the Suspense is already mounted and doesn't cover the new tree.
 export default function OuterLayout({ children }: { children: ReactNode }) {
   return (
     <div>

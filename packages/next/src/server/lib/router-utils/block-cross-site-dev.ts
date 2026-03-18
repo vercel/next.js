@@ -4,14 +4,72 @@ import { parseUrl } from '../../../lib/url'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
 
+const allowedDevOriginsDocs =
+  'https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins'
+
+function getBlockedResourcePath(req: IncomingMessage): string {
+  return parseUrl(req.url ?? '')?.pathname ?? req.url ?? '/_next/*'
+}
+
+function formatBlockedCrossSiteMessage(
+  source: string | undefined,
+  resourcePath: string
+): string {
+  const lines = [
+    `Blocked cross-origin request to Next.js dev resource ${resourcePath}${getBlockedSourceDescription(source)}.`,
+    'Cross-origin access to Next.js dev resources is blocked by default for safety.',
+  ]
+
+  // `source` has 3 meanings here:
+  // - `'null'`: browser explicitly sent `Origin: null` for an opaque/sandboxed origin
+  // - hostname string: we parsed an allowlistable host from Origin/Referer
+  // - `undefined` (and effectively empty string): the request did not include a usable host
+  if (source === 'null') {
+    lines.push(
+      '',
+      'This request came from a privacy-sensitive or opaque origin, so Next.js cannot determine which host to allow.',
+      'If you need it to succeed, load the dev server from a normal origin and add that host to "allowedDevOrigins".'
+    )
+  } else if (source) {
+    lines.push(
+      '',
+      'To allow this host in development, add it to "allowedDevOrigins" in next.config.js and restart the dev server:',
+      '',
+      '// next.config.js',
+      'module.exports = {',
+      `  allowedDevOrigins: ['${source}'],`,
+      '}'
+    )
+  } else {
+    lines.push(
+      '',
+      'This request did not include an allowlistable source host.',
+      'If you need it to succeed, make sure the browser sends an Origin or Referer from a host listed in "allowedDevOrigins".'
+    )
+  }
+
+  lines.push('', `Read more: ${allowedDevOriginsDocs}`)
+  return lines.join('\n')
+}
+
+function getBlockedSourceDescription(source: string | undefined): string {
+  if (source === 'null') {
+    return ' from a privacy-sensitive or opaque origin'
+  }
+
+  if (source) {
+    return ` from "${source}"`
+  }
+
+  return ' from an unknown source'
+}
+
 function blockRequest(
+  req: IncomingMessage,
   res: ServerResponse | Duplex,
-  origin: string | undefined
+  source: string | undefined
 ): boolean {
-  const originString = origin ? `from ${origin}` : ''
-  warnOnce(
-    `Blocked cross-origin request ${originString} to /_next/* resource. To allow this, configure "allowedDevOrigins" in next.config\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
-  )
+  warnOnce(formatBlockedCrossSiteMessage(source, getBlockedResourcePath(req)))
 
   if ('statusCode' in res) {
     res.statusCode = 403
@@ -91,7 +149,7 @@ export const blockCrossSiteDEV = (
       return false
     }
 
-    return blockRequest(res, refererHostname)
+    return blockRequest(req, res, refererHostname)
   }
 
   // ensure websocket requests are only fulfilled from allowed origin
@@ -111,6 +169,6 @@ export const blockCrossSiteDEV = (
   return (
     originLowerCase !== undefined &&
     !isCsrfOriginAllowed(originLowerCase, allowedOrigins) &&
-    blockRequest(res, originLowerCase)
+    blockRequest(req, res, originLowerCase)
   )
 }

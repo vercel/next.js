@@ -32,6 +32,10 @@ unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(codspeed)',
 ] }
 
+[profile.dev]
+# https://kobzol.github.io/rust/rustc/2025/05/20/disable-debuginfo-to-improve-rust-compile-times.html
+debug = "line-tables-only"
+
 # This crate is particularly sensitive to compiler optimizations
 [profile.dev.package.turbo-persistence]
 opt-level = 1
@@ -43,6 +47,10 @@ opt-level = 1
 # Set the settings for build scripts and proc-macros.
 [profile.dev.build-override]
 opt-level = 3
+
+[profile.dev-with-debug]
+inherits = "dev"
+debug = true
 
 [profile.release]
 lto = "thin"

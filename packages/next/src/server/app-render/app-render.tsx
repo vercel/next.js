@@ -4662,6 +4662,7 @@ async function validateInstantConfigs(
     createCombinedPayloadAtDepth,
     createCombinedPayloadStream,
     collectStagedSegmentData,
+    discoverValidationDepths,
   } = ctx.componentMod.InstantValidation()!
 
   const { createValidationSampleTracking } =
@@ -4707,13 +4708,15 @@ async function validateInstantConfigs(
    * runtime and dynamic errors, returning the more specific result.
    */
   async function validateAtDepth(
-    depth: number
+    depth: number,
+    groupDepthForValidation: number
   ): Promise<Array<unknown> | null> {
-    return validateAtDepthImpl(depth, null)
+    return validateAtDepthImpl(depth, groupDepthForValidation, null)
   }
 
   async function validateAtDepthImpl(
     depth: number,
+    groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
   ): Promise<null | Array<unknown>> {
     const extraChunksController = new AbortController()
@@ -4735,6 +4738,7 @@ async function validateInstantConfigs(
       ctx.getDynamicParamFromSegment,
       ctx.query,
       depth,
+      groupDepthForValidation,
       extraChunksController.signal,
       boundaryState,
       clientReferenceManifest,
@@ -4914,7 +4918,11 @@ async function validateInstantConfigs(
     if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
       // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
       // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
-      const dynamicOnlyErrors = await validateAtDepthImpl(depth, boundaryState)
+      const dynamicOnlyErrors = await validateAtDepthImpl(
+        depth,
+        groupDepthForValidation,
+        boundaryState
+      )
 
       if (dynamicOnlyErrors !== null && dynamicOnlyErrors.length > 0) {
         // The dynamic errors only validation found errors to report so we favor those
@@ -4926,25 +4934,43 @@ async function validateInstantConfigs(
     return errors
   }
 
-  const urlSegments = ctx.url.pathname.split('/').filter(Boolean)
-  const maxDepth = urlSegments.length + 1 // +1 for root
+  // Discover validation depth bounds from the LoaderTree. The array
+  // length is the max URL depth; each entry is the max group depth
+  // (route group segments) between that URL depth and the next.
+  const groupDepthsByUrlDepth = discoverValidationDepths(loaderTree)
+  const maxDepth = groupDepthsByUrlDepth.length
 
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
-    debug?.(`Trying depth ${depth}...`)
+    const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
-    const errors = await validateAtDepth(depth)
+    for (
+      let currentGroupDepth = maxGroupDepth;
+      currentGroupDepth >= 0;
+      currentGroupDepth--
+    ) {
+      debug?.(
+        `Trying depth ${depth}` +
+          (currentGroupDepth > 0
+            ? ` + groupDepth ${currentGroupDepth}...`
+            : '...')
+      )
 
-    if (errors === null) {
-      debug?.(`  No config at depth ${depth}, skipping.`)
-      continue
+      const errors = await validateAtDepth(depth, currentGroupDepth)
+
+      if (errors === null) {
+        debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
+        continue
+      }
+
+      if (errors.length > 0) {
+        debug?.(
+          `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+        )
+        return errors
+      }
+
+      debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
     }
-
-    if (errors.length > 0) {
-      debug?.(`  Depth ${depth}: ❌ Failed (${errors.length} errors)`)
-      return errors
-    }
-
-    debug?.(`  Depth ${depth}: ✅ Passed`)
   }
 
   debug?.(`✅ All depths passed`)
