@@ -200,5 +200,5 @@ describe(`Handle new URL asset references`, () => {
 })
 
 function stripVercelPngHash(text: string) {
-  return text.replace(/vercel\.[0-9a-f]{8,}\.png/g, 'vercel.HASH.png')
+  return text.replace(/vercel\.[0-9a-z_.~-]{4,}\.png/g, 'vercel.HASH.png')
 }

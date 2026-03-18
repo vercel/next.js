@@ -1,6 +1,7 @@
 import { debugPrint, getFullUrl } from 'next-test-utils'
 import os from 'os'
 import {
+  Permissions,
   Playwright,
   PlaywrightNavigationWaitUntil,
 } from './browsers/playwright'
@@ -48,6 +49,7 @@ if (typeof afterAll === 'function') {
 }
 
 export interface WebdriverOptions {
+  permissions?: Permissions
   /**
    * whether to wait for React hydration to finish
    */
@@ -121,6 +123,7 @@ export default async function webdriver(
     extraHTTPHeaders,
     locale,
     disableJavaScript,
+    permissions,
     ignoreHTTPSErrors,
     headless,
     cpuThrottleRate,
@@ -141,7 +144,8 @@ export default async function webdriver(
     Boolean(ignoreHTTPSErrors),
     // allow headless to be overwritten for a particular test
     typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
-    userAgent
+    userAgent,
+    permissions
   )
   ;(global as any).browserName = browserName
 

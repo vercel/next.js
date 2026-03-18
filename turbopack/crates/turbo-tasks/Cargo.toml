@@ -37,6 +37,7 @@ indexmap = { workspace = true, features = ["serde"] }
 inventory = { workspace = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
+phf = { workspace = true }
 pin-project-lite = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }

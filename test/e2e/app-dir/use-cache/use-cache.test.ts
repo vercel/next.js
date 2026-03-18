@@ -188,7 +188,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 
@@ -210,7 +212,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 

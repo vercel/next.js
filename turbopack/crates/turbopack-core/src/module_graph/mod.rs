@@ -17,7 +17,7 @@ use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryJoinIterExt, ValueToString, Vc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::TraceRawVcs,
@@ -815,7 +815,7 @@ impl ModuleGraph {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
         let graph_ref = self.await?;
-        let async_modules_info = self.async_module_info().await?;
+        let async_module_info = self.async_module_info();
 
         let entry = graph_ref.get_entry(module)?;
         let referenced_modules = graph_ref
@@ -828,9 +828,9 @@ impl ModuleGraph {
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .rev()
-            .filter(|m| async_modules_info.contains(m))
-            .map(|m| *m)
-            .collect();
+            .map(async |m| Ok(async_module_info.is_async(m).await?.then_some(*m)))
+            .try_flat_join()
+            .await?;
 
         Ok(AsyncModuleInfo::new(referenced_modules))
     }

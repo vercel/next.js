@@ -60,7 +60,7 @@ pub async fn get_next_server_transforms_rules(
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // Ignore the inner ModuleCssAsset -> CssModuleAsset references
+            // Ignore the inner EcmascriptCssModule -> CssModule references
             // The CSS Module module itself (and the Analyze reference) is still needed to generate
             // the class names object.
             ModuleRule::new(

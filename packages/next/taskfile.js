@@ -32,9 +32,18 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
-  await task.source(join(docsSource, '**/*')).target('dist/docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1448,7 +1457,11 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      // avoid infinite suffix addition in case the package name already has the suffix
+      // e.g. if we install from src/compiled instead of npm registry.
+      if (!json.name.endsWith(`-${channel}`)) {
+        json.name = json.name + '-' + channel
+      }
       return JSON.stringify(
         {
           name: json.name,

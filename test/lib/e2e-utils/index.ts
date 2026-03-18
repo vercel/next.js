@@ -164,6 +164,8 @@ if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
 
 export const isRspack = !!process.env.NEXT_RSPACK
 const isNextTestWasm = !!process.env.NEXT_TEST_WASM
+export const itTurbopack =
+  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
 
 if (!testMode) {
   throw new Error(

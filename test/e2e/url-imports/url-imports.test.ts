@@ -43,7 +43,7 @@ import { join } from 'path'
     }
 
     const expectedServer =
-      /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png/
+      /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-z_.~-]+\.png<!-- -->\+<!-- -->\/_next\/static\/media\/vercel\.[0-9a-z_.~-]+\.png/
     const expectedClient = new RegExp(
       expectedServer.source.replace(/<!-- -->/g, '')
     )
@@ -69,7 +69,7 @@ import { join } from 'path'
         expect(
           await browser.elementByCss('#static-image').getAttribute('src')
         ).toMatch(
-          /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-f]{8}\.png&/
+          /^\/_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fvercel\.[0-9a-z_.~-]+\.png&/
         )
       )
     })
@@ -84,7 +84,7 @@ import { join } from 'path'
             .elementByCss('#static-css')
             .getComputedCss('background-image')
         ).toMatch(
-          /^url\("http(s)?:\/\/.+\/_next\/static\/media\/vercel\.[0-9a-f]{8}\.png(?:\?.*)?"\)$/
+          /^url\("http(s)?:\/\/.+\/_next\/static\/media\/vercel\.[0-9a-z_.~-]+\.png(?:\?.*)?"\)$/
         )
       )
     })

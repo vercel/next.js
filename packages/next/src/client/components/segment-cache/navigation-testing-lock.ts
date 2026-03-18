@@ -5,11 +5,6 @@
  * during instant navigation captures, and owns all cookie state
  * transitions (pending → captured-MPA, pending → captured-SPA).
  *
- * The cookie value is a JSON array:
- *   [0]        — pending (waiting to capture)
- *   [1, null]  — captured MPA page load
- *   [1, { from, to }] — captured SPA navigation (from/to route trees)
- *
  * External actors (Playwright, devtools) set [0] to start a lock scope
  * and delete the cookie to end one. Next.js writes captured values.
  * The CookieStore handler distinguishes them by value: pending = external,
@@ -22,17 +17,30 @@ import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
 type InstantNavCookieState = 'pending' | 'mpa' | 'spa'
 
+type InstantCookie =
+  // pending (waiting to capture)
+  | [captured: 0, id: string]
+  // captured MPA page load
+  | [captured: 1, id: string, state: null]
+  // captured SPA navigation (from/to route trees)
+  | [
+      captured: 1,
+      id: string,
+      state: { from: FlightRouterState; to: FlightRouterState | null },
+    ]
+
 function parseCookieValue(raw: string): InstantNavCookieState {
   try {
     const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 2) {
-      return parsed[1] === null ? 'mpa' : 'spa'
+    if (Array.isArray(parsed) && parsed.length >= 3) {
+      const rawState = parsed[2]
+      return rawState === null ? 'mpa' : 'spa'
     }
   } catch {}
   return 'pending'
 }
 
-function writeCookieValue(value: unknown[]): void {
+function writeCookieValue(value: InstantCookie): void {
   if (typeof cookieStore === 'undefined') {
     return
   }
@@ -101,7 +109,7 @@ export function startListeningForInstantNavigationCookie(): void {
         })
       }
 
-      writeCookieValue([1, null])
+      writeCookieValue([1, `c${Math.random()}`, null])
       acquireLock()
     }
 
@@ -151,7 +159,7 @@ export function transitionToCapturedSPA(
   toTree: FlightRouterState | null
 ): void {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, { from: fromTree, to: toTree }])
+    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
   }
 }
 
@@ -164,7 +172,7 @@ export function updateCapturedSPAToTree(
   toTree: FlightRouterState
 ): void {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, { from: fromTree, to: toTree }])
+    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
   }
 }
 

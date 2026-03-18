@@ -16,13 +16,13 @@ use turbo_tasks_backend::{
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
 use turbopack::global_module_ids::get_global_module_id_strategy;
-use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
+use turbopack_browser::{BrowserChunkingContext, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, MangleType,
-        MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
+        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -375,7 +375,8 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .chunk_content_hashing(ContentHashing::Direct { length: 13 })
+                        .asset_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }

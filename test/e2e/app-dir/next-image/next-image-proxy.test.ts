@@ -77,7 +77,9 @@ describe('next-image-proxy', () => {
     })
 
     const local = await browser.elementByCss('#app-page').getAttribute('src')
-    expect(local.replace(/test\.[0-9a-f]{8,}\.png/g, 'test.HASH.png')).toEqual(
+    expect(
+      local.replace(/test\.[0-9a-z_.~-]{4,}\.png/g, 'test.HASH.png')
+    ).toEqual(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
     )
 

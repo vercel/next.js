@@ -3,6 +3,7 @@ import type {
   ReducerState,
   RefreshAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import {
   convertServerPatchToFullTree,
   navigateToKnownRoute,
@@ -10,7 +11,10 @@ import {
 import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -56,19 +60,23 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = false
+  const scrollBehavior = ScrollBehavior.NoScroll
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
   // instead of reconstructing it on demand. Part of a larger series of
   // refactors to unify the various tree types that the client deals with.
+  const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const refreshSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     null,
-    currentRenderedSearch
+    currentRenderedSearch,
+    UnknownDynamicStaleTime
   )
 
-  const now = Date.now()
   const navigateType = 'replace'
   return navigateToKnownRoute(
     now,
@@ -82,7 +90,7 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     null,
     // Refresh navigations don't use route prediction, so there's no route

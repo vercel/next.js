@@ -1,4 +1,9 @@
-import type { Route, ResolveRoutesParams, ResolveRoutesResult } from './types'
+import type {
+  Route,
+  ResolveRoutesParams,
+  ResolveRoutesQuery,
+  ResolveRoutesResult,
+} from './types'
 import { checkHasConditions, checkMissingConditions } from './matchers'
 import {
   replaceDestination,
@@ -168,6 +173,58 @@ function matchesPathname(
   return undefined
 }
 
+function toResolvedQuery(url: URL): ResolveRoutesQuery {
+  const query: ResolveRoutesQuery = {}
+  for (const [key, value] of url.searchParams.entries()) {
+    const existing = query[key]
+    if (existing === undefined) {
+      query[key] = value
+      continue
+    }
+    query[key] = Array.isArray(existing)
+      ? [...existing, value]
+      : [existing, value]
+  }
+  return query
+}
+
+function mergeDestinationQueryIntoUrl(url: URL, destination: string): URL {
+  const mergedUrl = new URL(url.toString())
+  const destinationSearch = destination.split('?')[1]
+  if (!destinationSearch) {
+    return mergedUrl
+  }
+
+  const destinationParams = new URLSearchParams(destinationSearch)
+  for (const [key, value] of destinationParams.entries()) {
+    mergedUrl.searchParams.set(key, value)
+  }
+  return mergedUrl
+}
+
+function withResolvedInvocationTarget({
+  result,
+  url,
+  resolvedPathname,
+  invocationPathname,
+}: {
+  result: ResolveRoutesResult
+  url: URL
+  resolvedPathname: string
+  invocationPathname: string
+}): ResolveRoutesResult {
+  const resolvedQuery = toResolvedQuery(url)
+  return {
+    ...result,
+    resolvedPathname,
+    resolvedQuery,
+    invocationTarget: {
+      pathname: invocationPathname,
+      query: resolvedQuery,
+    },
+  }
+}
+
 /**
  * Matches dynamic routes and extracts route parameters
  */
@@ -265,30 +322,41 @@ function checkDynamicRoutes(
       )
 
       if (hasResult.matched && missingMatched) {
-        // Check if the destination pathname (template path) is in the provided pathnames list
-        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = route.destination
+        const replacedDestination = route.destination
           ? replaceDestination(
               route.destination,
               match.regexMatches || null,
               hasResult.captures
-            ).split('?')[0]
+            )
+          : undefined
+        // Check if the destination pathname (template path) is in the provided pathnames list
+        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
+        const pathnameToCheck = replacedDestination
+          ? replacedDestination.split('?')[0]
           : checkUrl.pathname
         const matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
+          const resolvedUrl = replacedDestination
+            ? mergeDestinationQueryIntoUrl(checkUrl, replacedDestination)
+            : checkUrl
           const finalHeaders = applyOnMatchHeaders(
             onMatchRoutes,
-            checkUrl,
+            resolvedUrl,
             requestHeaders,
             responseHeaders
           )
-          return {
-            matched: true,
+          const result = withResolvedInvocationTarget({
             result: {
-              matchedPathname: matchedPath,
               routeMatches: match.params,
               resolvedHeaders: finalHeaders,
             },
+            url: resolvedUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: checkUrl.pathname,
+          })
+          return {
+            matched: true,
+            result,
             resetUrl: checkUrl, // Return the denormalized URL to reset to
           }
         }
@@ -580,18 +648,32 @@ export async function resolveRoutes(
         )
 
         if (hasResult.matched && missingMatched) {
+          const replacedDestination = route.destination
+            ? replaceDestination(
+                route.destination,
+                match.regexMatches || null,
+                hasResult.captures
+              )
+            : undefined
+          const resolvedUrl = replacedDestination
+            ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+            : currentUrl
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentUrl,
+            resolvedUrl,
             currentRequestHeaders,
             currentResponseHeaders
           )
-          return {
-            matchedPathname: matchedPath,
-            routeMatches: match.params,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              routeMatches: match.params,
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: resolvedUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: currentUrl.pathname,
+          })
         }
       }
     }
@@ -603,11 +685,15 @@ export async function resolveRoutes(
       currentRequestHeaders,
       currentResponseHeaders
     )
-    return {
-      matchedPathname: matchedPath,
-      resolvedHeaders: finalHeaders,
-      status: currentStatus,
-    }
+    return withResolvedInvocationTarget({
+      result: {
+        resolvedHeaders: finalHeaders,
+        status: currentStatus,
+      },
+      url: currentUrl,
+      resolvedPathname: matchedPath,
+      invocationPathname: currentUrl.pathname,
+    })
   }
 
   // Normalize again before processing afterFiles if this was originally a data URL
@@ -712,11 +798,15 @@ export async function resolveRoutes(
             currentRequestHeaders,
             currentResponseHeaders
           )
-          return {
-            matchedPathname: matchedPath,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: pathnameCheckUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: pathnameCheckUrl.pathname,
+          })
         }
       }
     }
@@ -740,29 +830,39 @@ export async function resolveRoutes(
       )
 
       if (hasResult.matched && missingMatched) {
-        // Check if the destination pathname (template path) is in the provided pathnames list
-        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = route.destination
+        const replacedDestination = route.destination
           ? replaceDestination(
               route.destination,
               match.regexMatches || null,
               hasResult.captures
-            ).split('?')[0]
+            )
+          : undefined
+        // Check if the destination pathname (template path) is in the provided pathnames list
+        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
+        const pathnameToCheck = replacedDestination
+          ? replacedDestination.split('?')[0]
           : currentUrl.pathname
         matchedPath = matchesPathname(pathnameToCheck, pathnames)
         if (matchedPath) {
+          const resolvedUrl = replacedDestination
+            ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+            : currentUrl
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentUrl,
+            resolvedUrl,
             currentRequestHeaders,
             currentResponseHeaders
           )
-          return {
-            matchedPathname: matchedPath,
-            routeMatches: match.params,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              routeMatches: match.params,
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: resolvedUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: currentUrl.pathname,
+          })
         }
       }
     }
@@ -865,11 +965,15 @@ export async function resolveRoutes(
             currentRequestHeaders,
             currentResponseHeaders
           )
-          return {
-            matchedPathname: matchedPath,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: pathnameCheckUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: pathnameCheckUrl.pathname,
+          })
         }
       }
     }

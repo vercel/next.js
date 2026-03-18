@@ -7,6 +7,7 @@ import type {
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import '../lib/setup-exception-listeners'
 
@@ -61,6 +62,7 @@ import {
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
@@ -120,6 +122,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
   printCustomRoutes,
@@ -290,6 +293,13 @@ export interface DynamicPrerenderManifestRoute {
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * The unresolved fallback route params that can still be specialized into a
+   * more specific prerendered shell because their segments export
+   * `generateStaticParams`.
+   */
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -999,16 +1009,6 @@ export default async function build(
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
-      // Install the native bindings early so we can have synchronous access later.
-      await installBindings(config.experimental?.useWasmBinary)
-
-      // Set up code frame renderer for error formatting
-      const { installCodeFrameSupport } =
-        require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
-      installCodeFrameSupport()
-
-      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
-      NextBuildContext.config = config
 
       let configOutDir = 'out'
       if (hasCustomExportOutput(config)) {
@@ -1019,6 +1019,26 @@ export default async function build(
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
+
+      // Check for build cache before initializing telemetry, because the
+      // Telemetry constructor creates the cache directory in CI environments.
+      const cacheDir = getCacheDir(distDir)
+
+      // Initialize telemetry before installBindings so that SWC load failure
+      // events are captured if native bindings fail to load.
+      const telemetry = new Telemetry({ distDir })
+      setGlobal('telemetry', telemetry)
+
+      // Install the native bindings early so we can have synchronous access later.
+      await installBindings(config.experimental?.useWasmBinary)
+
+      // Set up code frame renderer for error formatting
+      const { installCodeFrameSupport } =
+        require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
+      installCodeFrameSupport()
+
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
+      NextBuildContext.config = config
 
       const buildId = await getBuildId(
         isGenerateMode,
@@ -1106,12 +1126,6 @@ export default async function build(
             recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
           )
       }
-
-      const cacheDir = getCacheDir(distDir)
-
-      const telemetry = new Telemetry({ distDir })
-
-      setGlobal('telemetry', telemetry)
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
@@ -1853,6 +1867,7 @@ export default async function build(
                       SERVER_DIRECTORY,
                       SERVER_REFERENCE_MANIFEST + '.json'
                     ),
+                    path.join(SERVER_DIRECTORY, PREFETCH_HINTS),
                   ]
                 : []),
               ...(pagesDir && bundler !== Bundler.Turbopack
@@ -2063,6 +2078,8 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
+              partialFallbacksEnabled:
+                config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               clientAssetToken:
@@ -2290,6 +2307,8 @@ export default async function build(
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
+                            partialFallbacksEnabled:
+                              config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             clientAssetToken:
@@ -2738,6 +2757,11 @@ export default async function build(
         notFoundRoutes: [],
         preview: previewProps,
       }
+
+      // Accumulate per-route segment inlining decisions for
+      // prefetch-hints.json. First-writer-wins: if multiple param
+      // combinations exist for the same route pattern, use the first one.
+      const prefetchHints: Record<string, PrefetchHints> = {}
 
       const tbdPrerenderRoutes: string[] = []
 
@@ -3194,6 +3218,11 @@ export default async function build(
                 initialCacheControl: cacheControl,
               })
 
+              // Collect prefetch hints (first-writer-wins per page)
+              if (metadata.prefetchHints && !(page in prefetchHints)) {
+                prefetchHints[page] = metadata.prefetchHints
+              }
+
               if (cacheControl.revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
@@ -3369,6 +3398,11 @@ export default async function build(
                       builtSegmentDataRoute
                     )
                   }
+
+                  // Collect prefetch hints (first-writer-wins per page)
+                  if (metadata?.prefetchHints && !(page in prefetchHints)) {
+                    prefetchHints[page] = metadata.prefetchHints
+                  }
                 }
 
                 pageInfos.set(route.pathname, {
@@ -3404,6 +3438,8 @@ export default async function build(
 
                 prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
+                  remainingPrerenderableParams:
+                    route.remainingPrerenderableParams,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -3421,7 +3457,7 @@ export default async function build(
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
-                  fallbackRootParams: fallback
+                  fallbackRootParams: route.fallbackRouteParams
                     ? route.fallbackRootParams
                     : undefined,
                   fallbackSourceRoute:
@@ -3958,6 +3994,10 @@ export default async function build(
           config.experimental.allowedRevalidateHeaderKeys
 
         await writePrerenderManifest(distDir, prerenderManifest)
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),
+          prefetchHints
+        )
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
@@ -4082,7 +4122,7 @@ export default async function build(
       // This should come after output: export handling but before
       // output: standalone, in the future output: standalone might
       // not be allowed if an adapter with onBuildComplete is configured
-      const adapterPath = config.experimental.adapterPath
+      const adapterPath = config.adapterPath
       if (adapterPath) {
         await nextBuildSpan
           .traceChild('adapter-handle-build-complete')
@@ -4166,6 +4206,14 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (bundler === Bundler.Turbopack) {
+        await nextBuildSpan
+          .traceChild('write-route-bundle-stats')
+          .traceAsyncFn(() =>
+            writeRouteBundleStats(pageKeys, buildManifest, distDir, dir)
+          )
+      }
 
       await nextBuildSpan
         .traceChild('telemetry-flush')

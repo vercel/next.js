@@ -11,6 +11,7 @@ import type {
   FlightData,
   InitialRSCPayload,
   FlightDataPath,
+  PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
 import {
@@ -259,7 +260,10 @@ import {
   createValidationBoundaryTracking,
   type ValidationBoundaryTracking,
 } from './instant-validation/boundary-tracking'
-import type { InstantSample } from '../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  InstantSample,
+} from '../../build/segment-config/app/app-segment-config'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
@@ -428,6 +432,48 @@ function parseRequestHeaders(
     requestId,
     htmlRequestId,
   }
+}
+
+/**
+ * Walks the loader tree to find the minimum `unstable_dynamicStaleTime` exported by
+ * any page module. Returns null if no page exports the config.
+ *
+ * This only reads static exports from page modules — it does not render any
+ * server components, so it's cheap to call.
+ *
+ * TODO: Move this to the prefetch hints file so we don't have to walk the
+ * tree on every render.
+ */
+async function getDynamicStaleTime(tree: LoaderTree): Promise<number | null> {
+  const { page, parallelRoutes } = parseLoaderTree(tree)
+
+  let result: number | null = null
+
+  // Only pages (not layouts) can export unstable_dynamicStaleTime.
+  if (typeof page !== 'undefined') {
+    const pageMod = await page[0]()
+    if (
+      pageMod &&
+      typeof (pageMod as AppSegmentConfig).unstable_dynamicStaleTime ===
+        'number'
+    ) {
+      const value = (pageMod as AppSegmentConfig).unstable_dynamicStaleTime!
+      result = result !== null ? Math.min(result, value) : value
+    }
+  }
+
+  const childPromises: Promise<number | null>[] = []
+  for (const parallelRouteKey in parallelRoutes) {
+    childPromises.push(getDynamicStaleTime(parallelRoutes[parallelRouteKey]))
+  }
+  const childResults = await Promise.all(childPromises)
+  for (const childResult of childResults) {
+    if (childResult !== null) {
+      result = result !== null ? Math.min(result, childResult) : childResult
+    }
+  }
+
+  return result
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -618,6 +664,7 @@ async function generateDynamicRSCPayload(
             rootLayoutIncluded: false,
             preloadCallbacks,
             MetadataOutlet,
+            hintTree: ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null,
           })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -664,6 +711,20 @@ async function generateDynamicRSCPayload(
 
   if (options?.runtimePrefetchStream !== undefined) {
     baseResponse.p = options.runtimePrefetchStream
+  }
+
+  // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but only
+  // for dynamic renders (not prerenders/static generation). The client treats
+  // its presence as authoritative.
+  // TODO: Move this to the prefetch hints file so we don't have to walk the
+  // tree on every render.
+  if (!workStore.isStaticGeneration) {
+    const dynamicStaleTime = await getDynamicStaleTime(
+      ctx.componentMod.routeModule.userland.loaderTree
+    )
+    if (dynamicStaleTime !== null) {
+      baseResponse.d = dynamicStaleTime
+    }
   }
 
   return baseResponse
@@ -1476,6 +1537,8 @@ async function finalRuntimeServerPrerender(
     true // track sync IO
   )
 
+  const varyParamsAccumulator = createResponseVaryParamsAccumulator()
+
   const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
     phase: 'render',
@@ -1495,8 +1558,7 @@ async function finalRuntimeServerPrerender(
     prerenderResumeDataCache,
     renderResumeDataCache,
     hmrRefreshHash: undefined,
-    // TODO: Enable vary params tracking for runtime prefetches.
-    varyParamsAccumulator: null,
+    varyParamsAccumulator,
     // Used to separate the stages in the 5-task pipeline.
     stagedRendering: finalStageController,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1551,10 +1613,13 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
-      finishStaleTimeTracking(staleTimeIterable).then(() => {
+      Promise.all([
+        finishStaleTimeTracking(staleTimeIterable),
+        finishAccumulatingVaryParams(varyParamsAccumulator),
+      ]).then(() => {
         // Abort. This runs as a microtask after Flight has flushed the
-        // staleTime closing chunk, but before the next macrotask resolves the
-        // overall result.
+        // staleTime and varyParams closing chunks, but before the next
+        // macrotask resolves the overall result.
         if (finalServerController.signal.aborted) {
           // If the server controller is already aborted we must have called
           // something that required aborting the prerender synchronously such
@@ -1667,8 +1732,10 @@ async function getRSCPayload(
     workStore,
   } = ctx
 
+  const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
+    hints,
     getDynamicParamFromSegment,
     query
   )
@@ -1785,6 +1852,14 @@ async function getRSCPayload(
     s: staleTimeIterable,
     l: staticStageByteLengthPromise,
     p: runtimePrefetchStream,
+    // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
+    // only for dynamic renders. The client treats its presence as
+    // authoritative.
+    // TODO: Move this to the prefetch hints file so we don't have to walk
+    // the tree on every render.
+    d: !workStore.isStaticGeneration
+      ? ((await getDynamicStaleTime(tree)) ?? undefined)
+      : undefined,
   })
 }
 
@@ -1848,8 +1923,10 @@ async function getErrorRSCPayload(
     createElement(Metadata, null)
   )
 
+  const errorHints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
+    errorHints,
     getDynamicParamFromSegment,
     query
   )
@@ -2112,6 +2189,7 @@ async function renderToHTMLOrFlightImpl(
         case 'prerender-legacy':
         case 'request':
         case 'unstable-cache':
+        case 'generate-static-params':
           return false
         default:
           workUnitStore satisfies never
@@ -4584,6 +4662,7 @@ async function validateInstantConfigs(
     createCombinedPayloadAtDepth,
     createCombinedPayloadStream,
     collectStagedSegmentData,
+    discoverValidationDepths,
   } = ctx.componentMod.InstantValidation()!
 
   const { createValidationSampleTracking } =
@@ -4629,13 +4708,15 @@ async function validateInstantConfigs(
    * runtime and dynamic errors, returning the more specific result.
    */
   async function validateAtDepth(
-    depth: number
+    depth: number,
+    groupDepthForValidation: number
   ): Promise<Array<unknown> | null> {
-    return validateAtDepthImpl(depth, null)
+    return validateAtDepthImpl(depth, groupDepthForValidation, null)
   }
 
   async function validateAtDepthImpl(
     depth: number,
+    groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
   ): Promise<null | Array<unknown>> {
     const extraChunksController = new AbortController()
@@ -4657,6 +4738,7 @@ async function validateInstantConfigs(
       ctx.getDynamicParamFromSegment,
       ctx.query,
       depth,
+      groupDepthForValidation,
       extraChunksController.signal,
       boundaryState,
       clientReferenceManifest,
@@ -4836,7 +4918,11 @@ async function validateInstantConfigs(
     if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
       // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
       // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
-      const dynamicOnlyErrors = await validateAtDepthImpl(depth, boundaryState)
+      const dynamicOnlyErrors = await validateAtDepthImpl(
+        depth,
+        groupDepthForValidation,
+        boundaryState
+      )
 
       if (dynamicOnlyErrors !== null && dynamicOnlyErrors.length > 0) {
         // The dynamic errors only validation found errors to report so we favor those
@@ -4848,25 +4934,43 @@ async function validateInstantConfigs(
     return errors
   }
 
-  const urlSegments = ctx.url.pathname.split('/').filter(Boolean)
-  const maxDepth = urlSegments.length + 1 // +1 for root
+  // Discover validation depth bounds from the LoaderTree. The array
+  // length is the max URL depth; each entry is the max group depth
+  // (route group segments) between that URL depth and the next.
+  const groupDepthsByUrlDepth = discoverValidationDepths(loaderTree)
+  const maxDepth = groupDepthsByUrlDepth.length
 
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
-    debug?.(`Trying depth ${depth}...`)
+    const maxGroupDepth = groupDepthsByUrlDepth[depth]
 
-    const errors = await validateAtDepth(depth)
+    for (
+      let currentGroupDepth = maxGroupDepth;
+      currentGroupDepth >= 0;
+      currentGroupDepth--
+    ) {
+      debug?.(
+        `Trying depth ${depth}` +
+          (currentGroupDepth > 0
+            ? ` + groupDepth ${currentGroupDepth}...`
+            : '...')
+      )
 
-    if (errors === null) {
-      debug?.(`  No config at depth ${depth}, skipping.`)
-      continue
+      const errors = await validateAtDepth(depth, currentGroupDepth)
+
+      if (errors === null) {
+        debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
+        continue
+      }
+
+      if (errors.length > 0) {
+        debug?.(
+          `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+        )
+        return errors
+      }
+
+      debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
     }
-
-    if (errors.length > 0) {
-      debug?.(`  Depth ${depth}: ❌ Failed (${errors.length} errors)`)
-      return errors
-    }
-
-    debug?.(`  Depth ${depth}: ✅ Passed`)
   }
 
   debug?.(`✅ All depths passed`)
@@ -6320,11 +6424,13 @@ async function prerenderToStream(
         ? metadata.flightData.subarray(1)
         : metadata.flightData
 
-      metadata.segmentData = await collectSegmentData(
+      await collectSegmentData(
         flightData,
         finalServerPrerenderStore,
         ComponentMod,
-        renderOpts
+        renderOpts,
+        ctx.pagePath,
+        metadata
       )
 
       if (serverIsDynamic) {
@@ -6574,11 +6680,13 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -6783,11 +6891,13 @@ async function prerenderToStream(
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -6951,11 +7061,13 @@ async function prerenderToStream(
           reactServerPrerenderResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentData = await collectSegmentData(
+        await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          ctx.pagePath,
+          metadata
         )
       }
 
@@ -7075,8 +7187,10 @@ async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
-  renderOpts: RenderOpts
-): Promise<Map<string, Buffer> | undefined> {
+  renderOpts: RenderOpts,
+  pagePath: string,
+  metadata: AppPageRenderResultMetadata
+): Promise<void> {
   // Per-segment prefetch data
   //
   // All of the segments for a page are generated simultaneously, including
@@ -7107,13 +7221,45 @@ async function collectSegmentData(
 
   const selectStaleTime = createSelectStaleTime(renderOpts.experimental)
   const staleTime = selectStaleTime(prerenderStore.stale)
-  return await ComponentMod.collectSegmentData(
+
+  // Resolve prefetch hints. At runtime (next start / ISR), the precomputed
+  // hints are already loaded from the prefetch-hints.json manifest. During
+  // build, compute them by measuring segment gzip sizes and write them to
+  // metadata so the build pipeline can persist them to the manifest.
+  let hints: PrefetchHints | null
+  const prefetchInlining = renderOpts.experimental.prefetchInlining
+  if (!prefetchInlining) {
+    hints = null
+  } else if (renderOpts.isBuildTimePrerendering) {
+    // Build time: compute fresh hints and store in metadata for the manifest.
+    hints = await ComponentMod.collectPrefetchHints(
+      fullPageDataBuffer,
+      staleTime,
+      clientModules,
+      serverConsumerManifest,
+      prefetchInlining.maxSize,
+      prefetchInlining.maxBundleSize
+    )
+    metadata.prefetchHints = hints
+  } else {
+    // Runtime: use hints from the manifest. Never compute fresh hints
+    // during ISR/revalidation.
+    hints = renderOpts.prefetchHints?.[pagePath] ?? null
+  }
+
+  // Pass the resolved hints so collectSegmentData can union them into
+  // the TreePrefetch. During the initial build the FlightRouterState in
+  // the buffer doesn't have inlining hints yet (they were just computed
+  // above), so we need to merge them in here. At runtime/ISR the hints
+  // are already embedded in the FlightRouterState, so this is null.
+  metadata.segmentData = await ComponentMod.collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
     staleTime,
     clientModules,
     serverConsumerManifest,
-    renderOpts.experimental.prefetchInlining
+    Boolean(renderOpts.experimental.prefetchInlining),
+    hints
   )
 }
 

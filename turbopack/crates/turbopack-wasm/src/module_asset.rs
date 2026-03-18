@@ -1,6 +1,6 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{

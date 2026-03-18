@@ -11,8 +11,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
-    trace::TraceRawVcs, turbobail,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -154,6 +154,21 @@ impl Source for WebpackLoadersProcessedAsset {
             },
         )
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        let loaders = self.transform.await?.loaders.await?;
+        let loader_names: Vec<&str> = loaders.iter().map(|l| l.loader.as_str()).collect();
+        Ok(Vc::cell(
+            format!(
+                "loaders [{}] transform of {}",
+                loader_names.join(", "),
+                inner
+            )
+            .into(),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -262,9 +277,10 @@ impl WebpackLoadersProcessedAsset {
 
             let resource_fs_path = self.source.ident().path().await?;
             let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-                turbobail!(
-                    "Resource path \"{resource_fs_path}\" needs to be on project filesystem \
-                     \"{project_path}\"",
+                bail!(
+                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
+                    resource_fs_path,
+                    project_path
                 );
             };
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
@@ -610,13 +626,18 @@ impl EvaluateContext for WebpackLoaderContext {
                     {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
-                        turbobail!(
-                            "Resolving {request} in {lookup_path} ends up on a different \
-                             filesystem"
+                        bail!(
+                            "Resolving {} in {} ends up on a different filesystem",
+                            request.to_string().await?,
+                            lookup_path.value_to_string().await?
                         );
                     }
                 } else {
-                    turbobail!("Unable to resolve {request} in {lookup_path}");
+                    bail!(
+                        "Unable to resolve {} in {}",
+                        request.to_string().await?,
+                        lookup_path.value_to_string().await?
+                    );
                 }
             }
             RequestMessage::TrackFileRead { file } => {
