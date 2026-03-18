@@ -45,7 +45,7 @@ export function interpolateParallelRouteParams(
   pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Params {
-  const interpolated = structuredClone(params)
+  const interpolated: Params = { ...params }
 
   // Stack-based traversal with depth tracking
   const stack: Array<{ tree: LoaderTree; depth: number }> = [

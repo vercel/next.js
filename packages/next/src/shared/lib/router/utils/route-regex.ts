@@ -280,7 +280,10 @@ function getNamedParametrizedRoute(
   const inverseParts: string[] = []
 
   // Ensure we don't mutate the original reference object.
-  reference = structuredClone(reference)
+  reference = {
+    names: { ...reference.names },
+    intercepted: { ...reference.intercepted },
+  }
 
   for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
     const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
