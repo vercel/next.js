@@ -47,10 +47,6 @@ pub(crate) enum SinglePatternMapping {
     Unresolvable(String),
     /// Ignored request.
     Ignored,
-    /// Empty module request (alias set to `false`).
-    /// Generates `{}` for `require("...")` and `Promise.resolve({})` for
-    /// `import("...")`.
-    Empty,
     /// Constant request that always maps to the same module.
     ///
     /// ### Example
@@ -110,7 +106,7 @@ impl SinglePatternMapping {
                 )
             }
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored | Self::Empty => {
+            Self::Ignored => {
                 quote!("undefined" as Expr)
             }
             Self::Module(module_id) | Self::ModuleLoader(module_id) => module_id_to_lit(module_id),
@@ -122,7 +118,7 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored | Self::Empty => quote!("{}" as Expr),
+            Self::Ignored => quote!("{}" as Expr),
             Self::Module(_) | Self::ModuleLoader(_) => quote!(
                 "$turbopack_require($arg)" as Expr,
                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
@@ -209,7 +205,7 @@ impl SinglePatternMapping {
                     id: Expr = module_id_to_lit(module_id)
                 )
             }
-            Self::Ignored | Self::Empty => {
+            Self::Ignored => {
                 quote!("Promise.resolve({})" as Expr)
             }
             Self::Module(_) => Expr::Call(CallExpr {
@@ -333,7 +329,8 @@ async fn to_single_pattern_mapping(
                 issue.title().await?.to_unstyled_string(),
             ));
         }
-        ModuleResolveResultItem::Empty => return Ok(SinglePatternMapping::Empty),
+        // `false` alias — no backing asset, produces the same empty-stub code as Ignored.
+        ModuleResolveResultItem::Empty => return Ok(SinglePatternMapping::Ignored),
         ModuleResolveResultItem::OutputAsset(_) | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {

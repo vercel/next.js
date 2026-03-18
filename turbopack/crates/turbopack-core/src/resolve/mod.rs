@@ -120,9 +120,6 @@ impl ModuleResolveResultItem {
                 // TODO emit error?
                 None
             }
-            // Empty resolves to an empty module (alias set to `false`)
-            // — no backing module asset, handled at code-generation time.
-            ModuleResolveResultItem::Empty => None,
             _ => None,
         })
     }
