@@ -33,6 +33,8 @@ export function getPathnameFromUrl(url: string | undefined): string {
  * constructing a URL or URLSearchParams object.
  *
  * Only returns the *first* occurrence. Returns `null` when the param is absent.
+ * Value-less parameters (e.g. `?_rsc` without `=`) return `''`, matching
+ * URLSearchParams behavior.
  */
 export function getQueryParamFromUrl(
   url: string | undefined,
@@ -45,11 +47,11 @@ export function getQueryParamFromUrl(
   const search = url.substring(qIdx + 1)
   const target = param + '='
 
-  // Walk through the search string looking for the param
+  // Walk through the search string looking for the param with a value (param=value)
   let start = 0
   while (start <= search.length) {
     const idx = search.indexOf(target, start)
-    if (idx < 0) return null
+    if (idx < 0) break
 
     // Make sure we matched at a parameter boundary (start of string or after '&')
     if (idx === 0 || search.charCodeAt(idx - 1) === 38 /* '&' */) {
@@ -68,6 +70,28 @@ export function getQueryParamFromUrl(
     }
 
     // Not at a boundary, keep searching
+    start = idx + 1
+  }
+
+  // Check for value-less parameter (e.g. `?_rsc` or `?a&_rsc&b`)
+  // This matches URLSearchParams behavior which returns '' for value-less params
+  start = 0
+  while (start <= search.length) {
+    const idx = search.indexOf(param, start)
+    if (idx < 0) return null
+
+    if (idx === 0 || search.charCodeAt(idx - 1) === 38 /* '&' */) {
+      const afterParam = idx + param.length
+      // Must be at end of search, followed by '&', or followed by '#'
+      if (
+        afterParam === search.length ||
+        search.charCodeAt(afterParam) === 38 /* '&' */ ||
+        search.charCodeAt(afterParam) === 35 /* '#' */
+      ) {
+        return ''
+      }
+    }
+
     start = idx + 1
   }
 

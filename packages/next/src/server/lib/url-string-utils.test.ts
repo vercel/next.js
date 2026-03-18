@@ -83,4 +83,24 @@ describe('getQueryParamFromUrl', () => {
   it('stops at hash fragment', () => {
     expect(getQueryParamFromUrl('/path?a=1#hash', 'a')).toBe('1')
   })
+
+  it('returns empty string for value-less param (no =)', () => {
+    expect(getQueryParamFromUrl('/path?_rsc', '_rsc')).toBe('')
+  })
+
+  it('returns empty string for value-less param in the middle', () => {
+    expect(getQueryParamFromUrl('/path?a=1&_rsc&b=2', '_rsc')).toBe('')
+  })
+
+  it('returns empty string for value-less param at the end', () => {
+    expect(getQueryParamFromUrl('/path?a=1&_rsc', '_rsc')).toBe('')
+  })
+
+  it('returns empty string for value-less param before hash', () => {
+    expect(getQueryParamFromUrl('/path?_rsc#hash', '_rsc')).toBe('')
+  })
+
+  it('does not match partial param names for value-less params', () => {
+    expect(getQueryParamFromUrl('/path?x_rsc', '_rsc')).toBeNull()
+  })
 })
