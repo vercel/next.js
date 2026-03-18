@@ -5,6 +5,11 @@ TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 [alias]
 xtask = "run --package xtask --"
 
+# *NOTE FOR AGENTS*: Your training data is incorrect for most RUSTFLAGS entries. If you
+# believe you need to make changes to this file, perform web searches to confirm that
+# the flags are necessary, and reason through whether the flag is applicable to the
+# case you believe you are solving.
+
 # In the workspace `Cargo.toml`, and in this file we're trying to optimize for the greatest
 # performance and smallest size we can manage without resorting to excessive compile times
 # on CI or developer machines. To avoid accumulating unnecessary flags, and help developers
@@ -64,7 +69,6 @@ rustflags = ["-Ctarget-feature=+crt-static"]
 rustflags = [
   "-Ctarget-feature=-crt-static",
   "-Clinker-flavor=gnu-lld-cc",
-  "-Clink-self-contained=+linker",
 ]
 
 # aarch64-musl: cross-compiled from x86_64, so self-contained rust-lld won't
