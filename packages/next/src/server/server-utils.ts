@@ -216,10 +216,26 @@ export function getServerUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
+  // Precompute whether any rewrites are configured to enable fast path
+  const hasRewrites =
+    (rewrites.beforeFiles && rewrites.beforeFiles.length > 0) ||
+    (rewrites.afterFiles && rewrites.afterFiles.length > 0) ||
+    (rewrites.fallback && rewrites.fallback.length > 0)
+
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
   ) {
+    // Fast path: when no rewrites are configured, skip the deep clone,
+    // closure creation, and array iteration entirely. The caller never
+    // mutates the returned URL in a way that would require a separate copy.
+    if (!hasRewrites) {
+      return {
+        rewriteParams: {} as Record<string, string>,
+        rewrittenParsedUrl: parsedUrl as NextUrlWithParsedQuery,
+      }
+    }
+
     // Here we deep clone the parsedUrl to avoid mutating the original. We also
     // cast this to a mutable type so we can mutate it within this scope.
     const rewrittenParsedUrl = structuredClone(
@@ -419,6 +435,7 @@ export function getServerUtils({
 
   return {
     handleRewrites,
+    hasRewrites: !!hasRewrites,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
