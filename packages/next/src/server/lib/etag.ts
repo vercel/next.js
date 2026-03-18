@@ -43,9 +43,87 @@ export const fnv1a52 = (str: string) => {
   )
 }
 
+/**
+ * LRU cache for computed ETags.
+ *
+ * Pre-rendered pages are served from the incremental cache's in-memory LRU,
+ * which hands back the *same* string instance on every request. Hashing it
+ * again per request is pure repeated work: `fnv1a52` walks the whole body one
+ * `charCodeAt` at a time, which is the dominant cost of serving a static page.
+ *
+ * The cache is keyed by `payload.length` rather than by the payload itself.
+ * That matters: a `Map` keyed by the payload string has to hash the entire
+ * string on every lookup, so responses that are *never* repeated (API route
+ * JSON, per-request SSR output) would pay a full extra hash and get nothing
+ * back. Keying by length makes the lookup a cheap numeric hash, and the stored
+ * payload is then compared with `===`, which is a pointer comparison for the
+ * repeated-string case and bails at the first differing character otherwise.
+ *
+ * Two different strings with equal content are still a legitimate hit — equal
+ * content means an equal ETag — so the identity check is a fast path, not a
+ * correctness requirement.
+ *
+ * Distinct payloads that happen to share a length collide on one slot and
+ * simply evict each other, degrading to the uncached behaviour. Nothing is
+ * served incorrectly; the slot just stops paying off.
+ */
+const MAX_ETAG_CACHE_ENTRIES = 256
+/** Skip caching individual payloads above this size. */
+const MAX_CACHED_PAYLOAD_LENGTH = 256 * 1024 // 256 KB
+/** Ceiling on the total payload bytes the cache may retain. */
+const MAX_CACHED_TOTAL_LENGTH = 4 * 1024 * 1024 // 4 MB
+
+type ETagCacheEntry = {
+  payload: string
+  etag: string
+  weak: boolean
+}
+
+// `Map` iteration order is insertion order, so it doubles as an LRU: a hit
+// re-inserts the entry at the end, and eviction removes the first key.
+const etagCache = new Map<number, ETagCacheEntry>()
+let etagCacheTotalLength = 0
+
 export const generateETag = (payload: string, weak = false) => {
+  const key = payload.length
+
+  const entry = etagCache.get(key)
+  if (entry !== undefined && entry.weak === weak && entry.payload === payload) {
+    // Move to the end to mark it most-recently-used.
+    etagCache.delete(key)
+    etagCache.set(key, entry)
+    return entry.etag
+  }
+
   const prefix = weak ? 'W/"' : '"'
-  return (
+  const etag =
     prefix + fnv1a52(payload).toString(36) + payload.length.toString(36) + '"'
-  )
+
+  if (payload.length <= MAX_CACHED_PAYLOAD_LENGTH) {
+    // Replacing the occupant of this slot releases its bytes.
+    if (entry !== undefined) {
+      etagCacheTotalLength -= entry.payload.length
+      etagCache.delete(key)
+    }
+
+    etagCache.set(key, { payload, etag, weak })
+    etagCacheTotalLength += payload.length
+
+    // Evict oldest-first until both the entry count and the retained byte
+    // total are back within bounds.
+    while (
+      etagCache.size > MAX_ETAG_CACHE_ENTRIES ||
+      etagCacheTotalLength > MAX_CACHED_TOTAL_LENGTH
+    ) {
+      const oldestKey = etagCache.keys().next().value
+      if (oldestKey === undefined) break
+      const oldest = etagCache.get(oldestKey)!
+      // Never evict the entry we just inserted, or the loop cannot converge.
+      if (oldestKey === key) break
+      etagCacheTotalLength -= oldest.payload.length
+      etagCache.delete(oldestKey)
+    }
+  }
+
+  return etag
 }
