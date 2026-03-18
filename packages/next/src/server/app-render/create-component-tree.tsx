@@ -55,7 +55,7 @@ import { RenderStage, type StagedRenderingController } from './staged-rendering'
  * segments in a layout tree. For a tree with 5+ segments and parallel
  * routes, this can eliminate 30+ unnecessary Set allocations per request.
  */
-class CopyOnWriteSet<T> implements Set<T> {
+class CopyOnWriteSet<T> {
   private _parent: Set<T>
   private _own: Set<T> | null
 
@@ -234,11 +234,15 @@ async function createComponentTreeInternal(
     unauthorized,
   } = modules
 
-  const injectedCSSWithCurrentLayout = new CopyOnWriteSet(injectedCSS)
-  const injectedJSWithCurrentLayout = new CopyOnWriteSet(injectedJS)
+  const injectedCSSWithCurrentLayout = new CopyOnWriteSet(
+    injectedCSS
+  ) as Set<string>
+  const injectedJSWithCurrentLayout = new CopyOnWriteSet(
+    injectedJS
+  ) as Set<string>
   const injectedFontPreloadTagsWithCurrentLayout = new CopyOnWriteSet(
     injectedFontPreloadTags
-  )
+  ) as Set<string>
 
   const layerAssets = getLayerAssets({
     preloadCallbacks,
