@@ -196,7 +196,7 @@ export interface TurbopackOptions {
    */
   resolveAlias?: Record<
     string,
-    string | string[] | Record<string, string | string[]>
+    false | string | string[] | Record<string, false | string | string[]>
   >
 
   /**
