@@ -187,6 +187,21 @@ describe('createInlinedDataNodeStream', () => {
     expect(result).toBe('<html>content</html>')
   })
 
+  it('does not hang when HTML stream is empty and delay is true', async () => {
+    const dataStream = readableFrom(['<script>data</script>'])
+    const transform = createInlinedDataNodeStream(dataStream, true)
+
+    // An empty HTML stream: ends immediately without emitting any chunks.
+    const htmlStream = readableFrom([])
+    const output = htmlStream.pipe(transform)
+
+    // Without the fix, this would hang forever because startPulling() was
+    // never called (no HTML chunk arrived) and flush() waited on
+    // dataComplete.promise which never resolved.
+    const result = await collectString(output)
+    expect(result).toContain('<script>data</script>')
+  })
+
   it('handles data arriving after HTML finishes', async () => {
     // Create a data stream that emits after a delay.
     const dataPassthrough = new PassThrough()

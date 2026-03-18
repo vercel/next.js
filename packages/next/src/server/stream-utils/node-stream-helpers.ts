@@ -312,6 +312,13 @@ export function createInlinedDataNodeStream(
     ) {
       htmlStreamFinished = true
 
+      // If data pulling was delayed and no HTML chunk ever arrived, start
+      // pulling now so we don't hang waiting for a promise that will never
+      // resolve.
+      if (!dataPullingStarted) {
+        startPulling(this)
+      }
+
       // Flush any remaining pending data chunks.
       for (const dataChunk of pendingDataChunks) {
         this.push(dataChunk)
