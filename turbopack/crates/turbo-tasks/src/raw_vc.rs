@@ -19,7 +19,7 @@ use crate::{
     id::{ExecutionId, LocalTaskId},
     manager::{
         ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
-        TurboTasksApi, read_local_output, read_task_output, with_turbo_tasks,
+        TurboTasksApi, read_local_output, with_turbo_tasks,
     },
     registry::{self, get_value_type},
     turbo_tasks,
@@ -153,44 +153,13 @@ impl RawVc {
     }
 
     /// See [`crate::Vc::to_resolved`].
-    pub(crate) async fn resolve(self) -> Result<RawVc> {
-        self.resolve_inner(ReadOutputOptions {
-            consistency: ReadConsistency::Eventual,
-            ..Default::default()
-        })
-        .await
+    pub(crate) fn resolve(self) -> ResolveRawVcFuture {
+        ResolveRawVcFuture::new(self, false)
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
-    pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
-        SuppressTopLevelTaskCheckFuture {
-            inner: self.resolve_inner(ReadOutputOptions {
-                consistency: ReadConsistency::Strong,
-                ..Default::default()
-            }),
-        }
-        .await
-    }
-
-    async fn resolve_inner(self, mut options: ReadOutputOptions) -> Result<RawVc> {
-        let tt = turbo_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, options).await?;
-                    // We no longer need to read strongly consistent, as any Vc returned
-                    // from the first task will be inside of the scope of the first
-                    // task. So it's already strongly consistent.
-                    options.consistency = ReadConsistency::Eventual;
-                }
-                RawVc::TaskCell(_, _) => return Ok(current),
-                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
-                    debug_assert_eq!(options.consistency, ReadConsistency::Eventual);
-                    current = read_local_output(&*tt, execution_id, local_task_id).await?;
-                }
-            }
-        }
+    pub(crate) fn resolve_strongly_consistent(self) -> ResolveRawVcFuture {
+        ResolveRawVcFuture::new(self, true)
     }
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
@@ -297,27 +266,108 @@ impl CollectiblesSource for RawVc {
     }
 }
 
-/// A future wrapper that suppresses the top-level task eventual consistency check
-/// during each [`poll`][Future::poll] call. The suppression is applied via
-/// [`sync_scope`][tokio::task_local!] so it is only active during the synchronous
-/// execution of the inner future's `poll`, and is never held across await points.
-struct SuppressTopLevelTaskCheckFuture<F> {
-    inner: F,
+#[must_use]
+pub struct ResolveRawVcFuture {
+    current: RawVc,
+    read_output_options: ReadOutputOptions,
+    /// This flag is redundant with `read_output_options`, but `read_output_options` is mutated
+    /// during the resolve. This flag indicates that the initial read was strongly consistent.
+    strongly_consistent: bool,
+    listener: Option<EventListener>,
 }
 
-impl<F: Future> Future for SuppressTopLevelTaskCheckFuture<F> {
-    type Output = F::Output;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        // SAFETY: we are only projecting the pin to the inner field, not moving it
-        let inner = unsafe { self.map_unchecked_mut(|this| &mut this.inner) };
-        if cfg!(debug_assertions) {
-            SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, || inner.poll(cx))
-        } else {
-            inner.poll(cx)
+impl ResolveRawVcFuture {
+    fn new(vc: RawVc, strongly_consistent: bool) -> Self {
+        ResolveRawVcFuture {
+            current: vc,
+            read_output_options: ReadOutputOptions {
+                consistency: if strongly_consistent {
+                    ReadConsistency::Strong
+                } else {
+                    ReadConsistency::Eventual
+                },
+                ..Default::default()
+            },
+            strongly_consistent,
+            listener: None,
         }
     }
 }
+
+impl Future for ResolveRawVcFuture {
+    type Output = Result<RawVc>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+
+        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+            'outer: loop {
+                if let Some(listener) = &mut this.listener {
+                    // SAFETY: listener is from previous pinned this
+                    let listener = unsafe { Pin::new_unchecked(listener) };
+                    if listener.poll(cx).is_pending() {
+                        return Poll::Pending;
+                    }
+                    this.listener = None;
+                }
+                let mut listener = match this.current {
+                    RawVc::TaskOutput(task) => {
+                        let read_result = tt.try_read_task_output(task, this.read_output_options);
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                // We no longer need to read strongly consistent, as any Vc
+                                // returned from the first task will be inside of the scope of
+                                // the first task. So it's already strongly consistent.
+                                this.read_output_options.consistency = ReadConsistency::Eventual;
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::TaskCell(_, _) => return Poll::Ready(Ok(this.current)),
+                    RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                        debug_assert_eq!(
+                            this.read_output_options.consistency,
+                            ReadConsistency::Eventual
+                        );
+                        let read_result = tt.try_read_local_output(execution_id, local_task_id);
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                };
+                // SAFETY: listener is from previous pinned this
+                match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
+                    Poll::Ready(_) => continue,
+                    Poll::Pending => {
+                        this.listener = Some(listener);
+                        return Poll::Pending;
+                    }
+                };
+            }
+        };
+
+        fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
+            if cfg!(debug_assertions) && strongly_consistent {
+                SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
+            } else {
+                f()
+            }
+        }
+
+        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
+    }
+}
+
+impl Unpin for ResolveRawVcFuture {}
 
 #[must_use]
 pub struct ReadRawVcFuture {
