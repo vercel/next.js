@@ -96,6 +96,13 @@ export class IncrementalCache implements IncrementalCacheType {
 
   private static readonly debug: boolean =
     !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+  // Cache env lookups that are checked per-request but never change.
+  private static readonly _disableForTestmode: boolean =
+    process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
+  private static readonly _testMaxIsrCache: number | undefined =
+    process.env.__NEXT_TEST_MAX_ISR_CACHE
+      ? parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
+      : undefined
   private readonly locks = new Map<string, Promise<void>>()
 
   /**
@@ -162,12 +169,12 @@ export class IncrementalCache implements IncrementalCacheType {
       )
     }
 
-    if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
+    if (IncrementalCache._testMaxIsrCache !== undefined) {
       // Allow cache size to be overridden for testing purposes
-      maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
+      maxMemoryCacheSize = IncrementalCache._testMaxIsrCache
     }
     this.dev = dev
-    this.disableForTestmode = process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
+    this.disableForTestmode = IncrementalCache._disableForTestmode
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
     const minimalModeKey = 'minimalMode'

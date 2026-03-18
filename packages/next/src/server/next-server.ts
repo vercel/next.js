@@ -412,15 +412,21 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  protected async getIncrementalCache({
-    requestHeaders,
-  }: {
-    requestHeaders: IncrementalCache['requestHeaders']
-  }) {
-    const dev = !!this.dev
+  // Cache the resolved CacheHandler class so we skip the dynamic import
+  // and loadCustomCacheHandlers() on every request. The handler class never
+  // changes after the first resolution.
+  private _resolvedCacheHandlerPromise: Promise<any> | undefined = undefined
+
+  private async resolveCacheHandler(): Promise<any> {
+    if (this._resolvedCacheHandlerPromise) return this._resolvedCacheHandlerPromise
+
+    this._resolvedCacheHandlerPromise = this._doResolveCacheHandler()
+    return this._resolvedCacheHandlerPromise
+  }
+
+  private async _doResolveCacheHandler(): Promise<any> {
     let CacheHandler: any
     const { cacheHandler } = this.nextConfig
-
     if (cacheHandler) {
       CacheHandler = interopDefault(
         await dynamicImportEsmDefault(
@@ -430,6 +436,16 @@ export default class NextNodeServer extends BaseServer<
     }
 
     await this.loadCustomCacheHandlers()
+    return CacheHandler
+  }
+
+  protected async getIncrementalCache({
+    requestHeaders,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+  }) {
+    const dev = !!this.dev
+    const CacheHandler = await this.resolveCacheHandler()
 
     // incremental-cache is request specific
     // although can have shared caches in module scope

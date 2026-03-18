@@ -9,6 +9,13 @@ import type { WebNextRequest, WebNextResponse } from './web'
  * elimination.
  */
 
+// Cache the runtime check at module level. process.env access in Node.js
+// involves a property lookup on a special object that is not free, and
+// NEXT_RUNTIME never changes after process start. These guards are called
+// multiple times per request (5+), so caching avoids repeated overhead.
+const _isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+const _isNodeRuntime = !_isEdgeRuntime
+
 /**
  * Type guard to determine if a request is a WebNextRequest. This does not
  * actually check the type of the request, but rather the runtime environment.
@@ -16,7 +23,7 @@ import type { WebNextRequest, WebNextResponse } from './web'
  * base request is a WebNextRequest.
  */
 export const isWebNextRequest = (req: BaseNextRequest): req is WebNextRequest =>
-  process.env.NEXT_RUNTIME === 'edge'
+  _isEdgeRuntime
 
 /**
  * Type guard to determine if a response is a WebNextResponse. This does not
@@ -26,7 +33,7 @@ export const isWebNextRequest = (req: BaseNextRequest): req is WebNextRequest =>
  */
 export const isWebNextResponse = (
   res: BaseNextResponse
-): res is WebNextResponse => process.env.NEXT_RUNTIME === 'edge'
+): res is WebNextResponse => _isEdgeRuntime
 
 /**
  * Type guard to determine if a request is a NodeNextRequest. This does not
@@ -36,7 +43,7 @@ export const isWebNextResponse = (
  */
 export const isNodeNextRequest = (
   req: BaseNextRequest
-): req is NodeNextRequest => process.env.NEXT_RUNTIME !== 'edge'
+): req is NodeNextRequest => _isNodeRuntime
 
 /**
  * Type guard to determine if a response is a NodeNextResponse. This does not
@@ -46,4 +53,4 @@ export const isNodeNextRequest = (
  */
 export const isNodeNextResponse = (
   res: BaseNextResponse
-): res is NodeNextResponse => process.env.NEXT_RUNTIME !== 'edge'
+): res is NodeNextResponse => _isNodeRuntime
