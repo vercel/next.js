@@ -250,7 +250,9 @@ class NextTracerImpl implements NextTracer {
     getter?: TextMapGetter<C>,
     force = false
   ): T {
-    if (this.isNoopTracer()) {
+    // Only bypass when not forcing — force mode needs context extraction
+    // even without a real tracer, for propagation correctness.
+    if (!force && this.isNoopTracer()) {
       return fn()
     }
 
@@ -333,7 +335,9 @@ class NextTracerImpl implements NextTracer {
     // context.with() + startActiveSpan() + rootSpanAttributesStore overhead.
     // This eliminates ~3.6% CPU overhead (ALS context switches, Map ops,
     // span counter increments) on every traced call.
-    if (this.isNoopTracer()) {
+    // Only bypass when not forcing — force mode needs context extraction
+    // even without a real tracer, for propagation correctness.
+    if (!force && this.isNoopTracer()) {
       return fn()
     }
 
@@ -477,7 +481,9 @@ class NextTracerImpl implements NextTracer {
       return fn
     }
 
-    if (this.isNoopTracer()) {
+    // Only bypass when not forcing — force mode needs context extraction
+    // even without a real tracer, for propagation correctness.
+    if (!force && this.isNoopTracer()) {
       return fn
     }
 
@@ -539,7 +545,9 @@ class NextTracerImpl implements NextTracer {
   }
 
   public withSpan<T>(span: Span, fn: () => T): T {
-    if (this.isNoopTracer()) {
+    // Only bypass when not forcing — force mode needs context extraction
+    // even without a real tracer, for propagation correctness.
+    if (!force && this.isNoopTracer()) {
       return fn()
     }
     const spanContext = trace.setSpan(context.active(), span)
