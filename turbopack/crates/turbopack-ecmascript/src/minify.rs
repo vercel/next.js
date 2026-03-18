@@ -179,12 +179,12 @@ fn print_program(
     let src = {
         let mut buf = vec![];
         {
-            let wr = Box::new(text_writer::omit_trailing_semi(Box::new(JsWriter::new(
+            let wr = Box::new(text_writer::omit_trailing_semi(JsWriter::new(
                 cm.clone(),
                 "\n",
                 &mut buf,
                 source_maps.then_some(&mut src_map_buf),
-            )))) as Box<dyn WriteJs>;
+            ))) as Box<dyn WriteJs>;
 
             let mut emitter = make_emitter(
                 cm.clone(),
