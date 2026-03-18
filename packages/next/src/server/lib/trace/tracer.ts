@@ -205,8 +205,9 @@ class NextTracerImpl implements NextTracer {
    * Since wrap / trace can be defined in any place prior to actual trace subscriber initialization,
    * This should be lazily evaluated.
    */
+  private _cachedTracer: Tracer | undefined
   private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', '0.0.1')
+    return (this._cachedTracer ??= trace.getTracer('next.js', '0.0.1'))
   }
 
   public getContext(): ContextAPI {
@@ -277,33 +278,23 @@ class NextTracerImpl implements NextTracer {
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
 
-    // coerce options form overload
-    const {
-      fn,
-      options,
-    }: {
-      fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
-      options: TracerSpanOptions
-    } =
-      typeof fnOrOptions === 'function'
-        ? {
-            fn: fnOrOptions,
-            options: {},
-          }
-        : {
-            fn: fnOrEmpty,
-            options: { ...fnOrOptions },
-          }
-
-    const spanName = options.spanName ?? type
+    // Early exit for non-traced spans — avoid options parsing overhead
+    const fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T> =
+      typeof fnOrOptions === 'function' ? fnOrOptions : fnOrEmpty
 
     if (
       (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
-      options.hideSpan
+      (typeof fnOrOptions !== 'function' && fnOrOptions?.hideSpan)
     ) {
       return fn()
     }
+
+    // Only parse options for spans that will actually be created
+    const options: TracerSpanOptions =
+      typeof fnOrOptions === 'function' ? {} : fnOrOptions
+
+    const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
@@ -324,11 +315,9 @@ class NextTracerImpl implements NextTracer {
 
     const spanId = getSpanId()
 
-    options.attributes = {
-      'next.span_name': spanName,
-      'next.span_type': type,
-      ...options.attributes,
-    }
+    if (!options.attributes) options.attributes = {}
+    options.attributes['next.span_name'] = spanName
+    options.attributes['next.span_type'] = type
 
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
