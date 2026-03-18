@@ -2164,13 +2164,13 @@ impl CurrentCellRef {
     where
         T: PartialEq + Hash + VcValueType,
     {
-        let content_hash = FxBuildHasher.hash_one(&new_value);
         self.conditional_update(|old_value| {
             if let Some(old_value) = old_value
                 && old_value == &new_value
             {
                 return None;
             }
+            let content_hash = FxBuildHasher.hash_one(&new_value);
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2186,7 +2186,6 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq + Hash,
     {
-        let content_hash = FxBuildHasher.hash_one(extract_sr_value::<T>(&new_shared_reference));
         self.conditional_update_with_shared_reference(move |old_sr| {
             if let Some(old_sr) = old_sr {
                 let old_value = extract_sr_value::<T>(old_sr);
@@ -2195,6 +2194,7 @@ impl CurrentCellRef {
                     return None;
                 }
             }
+            let content_hash = FxBuildHasher.hash_one(extract_sr_value::<T>(&new_shared_reference));
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }
