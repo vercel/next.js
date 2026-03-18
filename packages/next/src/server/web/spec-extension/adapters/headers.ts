@@ -123,6 +123,38 @@ export class HeadersAdapter extends Headers {
     // calling the super constructor to ensure that the instanceof check works.
     super()
 
+    // Build a fast lookup map from lowercase key to original key. This replaces
+    // the O(n) Object.keys().find() on every proxy trap with an O(1) Map.get().
+    // The map is kept in sync by set and deleteProperty, and handles
+    // out-of-band mutations on the original headers object by falling back to
+    // a linear scan (and caching the result) on cache misses.
+    const keyMap = new Map<string, string>()
+    for (const key of Object.keys(headers)) {
+      const lowercased = key.toLowerCase()
+      // `Object.keys().find()` returns the *first* matching key, so only
+      // record the first one here too. Mixed-case duplicates are already
+      // documented as unsupported, but this keeps which one wins unchanged.
+      if (!keyMap.has(lowercased)) keyMap.set(lowercased, key)
+    }
+
+    // Resolves the original-cased header key for a given lowercased key.
+    // Checks the fast map first (O(1)). On a miss, which can happen when the
+    // underlying headers object is mutated directly, falls back to a linear
+    // scan and updates the map so subsequent accesses are O(1) again.
+    function resolveOriginalKey(lowercased: string): string | undefined {
+      let original = keyMap.get(lowercased)
+      if (typeof original !== 'undefined') return original
+
+      // Fallback: the headers object may have been mutated out of band.
+      original = Object.keys(headers).find(
+        (o) => o.toLowerCase() === lowercased
+      )
+      if (typeof original !== 'undefined') {
+        keyMap.set(lowercased, original)
+      }
+      return original
+    }
+
     this.headers = new Proxy(headers, {
       get(target, prop, receiver) {
         // Because this is just an object, we expect that all "get" operations
@@ -133,13 +165,7 @@ export class HeadersAdapter extends Headers {
         }
 
         const lowercased = prop.toLowerCase()
-
-        // Let's find the original casing of the key. This assumes that there is
-        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
-        // headers object.
-        const original = Object.keys(headers).find(
-          (o) => o.toLowerCase() === lowercased
-        )
+        const original = resolveOriginalKey(lowercased)
 
         // If the original casing doesn't exist, return undefined.
         if (typeof original === 'undefined') return
@@ -153,28 +179,21 @@ export class HeadersAdapter extends Headers {
         }
 
         const lowercased = prop.toLowerCase()
+        const original = resolveOriginalKey(lowercased)
+        const key = original ?? prop
 
-        // Let's find the original casing of the key. This assumes that there is
-        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
-        // headers object.
-        const original = Object.keys(headers).find(
-          (o) => o.toLowerCase() === lowercased
-        )
+        // Keep the map in sync with the new key.
+        if (typeof original === 'undefined') {
+          keyMap.set(lowercased, prop)
+        }
 
-        // If the original casing doesn't exist, use the prop as the key.
-        return ReflectAdapter.set(target, original ?? prop, value, receiver)
+        return ReflectAdapter.set(target, key, value, receiver)
       },
       has(target, prop) {
         if (typeof prop === 'symbol') return ReflectAdapter.has(target, prop)
 
         const lowercased = prop.toLowerCase()
-
-        // Let's find the original casing of the key. This assumes that there is
-        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
-        // headers object.
-        const original = Object.keys(headers).find(
-          (o) => o.toLowerCase() === lowercased
-        )
+        const original = resolveOriginalKey(lowercased)
 
         // If the original casing doesn't exist, return false.
         if (typeof original === 'undefined') return false
@@ -187,16 +206,13 @@ export class HeadersAdapter extends Headers {
           return ReflectAdapter.deleteProperty(target, prop)
 
         const lowercased = prop.toLowerCase()
-
-        // Let's find the original casing of the key. This assumes that there is
-        // no mixed case keys (e.g. "Content-Type" and "content-type") in the
-        // headers object.
-        const original = Object.keys(headers).find(
-          (o) => o.toLowerCase() === lowercased
-        )
+        const original = resolveOriginalKey(lowercased)
 
         // If the original casing doesn't exist, return true.
         if (typeof original === 'undefined') return true
+
+        // Remove from the lookup map to keep it in sync.
+        keyMap.delete(lowercased)
 
         // If the original casing exists, delete the property.
         return ReflectAdapter.deleteProperty(target, original)
