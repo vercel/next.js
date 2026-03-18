@@ -61,6 +61,20 @@ rustflags = ["-Ctarget-feature=+crt-static"]
 # Not yet default on aarch64-unknown-linux-gnu or any musl target.
 # https://blog.rust-lang.org/2025/09/01/rust-lld-on-1.90.0-stable/
 
+# Linux (all targets): use lld for linking and enable Identical Code Folding
+# to merge monomorphized functions with identical machine code.
+# -fuse-ld=lld is needed because CI docker containers ship ancient ld (GCC 4.8.5)
+# that doesn't support --icf. The nightly default gnu-lld-cc doesn't reliably
+# activate in these containers, so we explicitly request lld.
+# ICF reduces binary size and improves i-cache utilization.
+# Not available on macOS (Apple linker). Windows lld enables /OPT:ICF by default.
+# https://github.com/rust-lang/rust/pull/99062
+[target.'cfg(target_os = "linux")']
+rustflags = [
+  "-Clink-arg=-fuse-ld=lld",
+  "-Clink-arg=-Wl,--icf=all",
+]
+
 # Musl targets: disable static CRT linking (we produce dynamic .node shared
 # libraries, not static binaries) and use rust-lld via the cc linker driver.
 # Like GNU targets, `linker = "rust-lld"` doesn't work (can't find -lc, -lgcc_s,
@@ -79,8 +93,6 @@ linker = "aarch64-linux-musl-gcc"
 rustflags = [
   # Link libgcc (needed for unwinding support in musl cross-compilation)
   "-Clink-arg=-lgcc",
-  # Tell the gcc linker driver to use lld for fast linking
-  "-Clink-arg=-fuse-ld=lld",
 ]
 
 # WASM: configure getrandom to use the wasm_js backend (Math.random / crypto).

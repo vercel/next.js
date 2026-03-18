@@ -54,9 +54,30 @@ debug = true
 
 [profile.release]
 lto = "thin"
-# More codegen units = faster compilation at the cost of some optimization quality.
-# Thin LTO recovers most cross-CGU optimizations at link time.
+# https://github.com/davidlattimore/duplicate-function-checker suggests that fat LTO + share-generics + codegen-units = 1
+# is the best way to reduce overall function duplication in the binary, and by extension, size. We only do thin LTO, but
+# this _should_ have similar effect.
+codegen-units = 1
+
+# Use a custom profile for CI or local testing where we are somewhat performance
+# sensitive but we still want the additional validation of debug-assertions.
+#
+# This is not suitable for benchmarking, as debug assertions worsen performance
+# and we disable LTO.
+[profile.release-with-assertions]
+inherits = "release"
+debug-assertions = true
+overflow-checks = true
+# Thin-LTO can make the binary ~5-10% faster, but it can make our build take a
+# couple more minutes, so it's not worth it for most test scenarios.
+lto = false
+# More codegen units = faster compilation. Without LTO there's no cross-CGU
+# optimization recovery, but this profile prioritizes build speed over perf.
 codegen-units = 64
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
 
 # Size-optimized crates: determined via `cargo bloat --release --crates -p next-napi-bindings`.
 # Wasmer/cranelift crates are used by the plugin feature (wasm builds).
@@ -125,23 +146,6 @@ opt-level = "s"
 
 [profile.release.package.wasmer-compiler]
 opt-level = "s"
-
-# Use a custom profile for CI or local testing where we are somewhat performance
-# sensitive but we still want the additional validation of debug-assertions.
-#
-# This is not suitable for benchmarking, as debug assertions worsen performance
-# and we disable LTO.
-[profile.release-with-assertions]
-inherits = "release"
-debug-assertions = true
-overflow-checks = true
-# Thin-LTO can make the binary ~5-10% faster, but it can make our build take a
-# couple more minutes, so it's not worth it for most test scenarios.
-lto = false
-
-[profile.release-with-debug]
-inherits = "release"
-debug = true
 
 [workspace.dependencies]
 # Workspace crates

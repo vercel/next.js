@@ -149,7 +149,7 @@ jobs:
           config: |
             deployTarget: ${{ needs.deploy-target.outputs.value }}
           input: |
-            $if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
+            #$if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
             target:
               $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
             build_task: build-native-release
@@ -294,6 +294,12 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends pkg-config dav1d libdav1d-dev ${{ matrix.extra_apt_packages }}
 
+            # Ensure ld.lld is available for -fuse-ld=lld (these docker images
+            # ship ancient GNU ld that doesn't support --icf=all or other modern flags).
+            if command -v lld >/dev/null 2>&1 && ! command -v ld.lld >/dev/null 2>&1; then
+              ln -sf "$(command -v lld)" /usr/local/bin/ld.lld
+            fi
+
             # Cross-compilation toolchain for musl/aarch64
             if [ "${{ matrix.abi }}" = "musl" ] && [ "${{ matrix.arch }}" = "aarch64" ]; then
               wget -qO- "https://github.com/napi-rs/napi-rs/releases/download/linux-musl-cross%4010/aarch64-linux-musl-cross.tgz" | tar xz -C /
@@ -358,6 +364,14 @@ jobs:
       - name: 'check build cache status'
         id: check-did-build
         run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
+
+      - name: 'Report binary size'
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        run: |
+          shopt -s nullglob
+          for f in packages/next-swc/native/next-swc.*.node; do
+            FILE="$f" node -e "const s=require('fs').statSync(process.env.FILE).size; console.log('::notice title=${{ matrix.target }} binary size::' + (s/1048576).toFixed(1) + ' MB (' + s + ' bytes)')"
+          done
 
       # Try to upload metrics for Turbopack to datadog's CI pipeline execution
       - name: 'Collect turbopack build metrics'
