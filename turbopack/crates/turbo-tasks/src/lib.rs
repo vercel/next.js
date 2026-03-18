@@ -99,7 +99,7 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
@@ -114,10 +114,10 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
+        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, Upcast, UpcastStrict, ValueDefault,
+        Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead,
+        VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
