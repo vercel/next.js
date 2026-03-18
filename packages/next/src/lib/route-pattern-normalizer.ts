@@ -17,6 +17,14 @@ import type { Token } from 'next/dist/compiled/path-to-regexp'
 export const PARAM_SEPARATOR = '_NEXTSEP_'
 
 /**
+ * Pre-compiled regexes for stripping PARAM_SEPARATOR.
+ * These are derived from the constant above and reused across calls
+ * to avoid repeated RegExp construction inside hot loops.
+ */
+const PARAM_SEPARATOR_LEADING_RE = new RegExp(`^${PARAM_SEPARATOR}`)
+const PARAM_SEPARATOR_AFTER_PAREN_RE = new RegExp(`\\)${PARAM_SEPARATOR}`, 'g')
+
+/**
  * Detects if a route pattern needs normalization for path-to-regexp compatibility.
  */
 export function hasAdjacentParameterIssues(route: string): boolean {
@@ -112,7 +120,7 @@ export function stripNormalizedSeparators(pathname: string): string {
   // Remove separator after interception route markers
   // Pattern: (.)_NEXTSEP_ -> (.), (..)_NEXTSEP_ -> (..), etc.
   // The separator appears after the closing paren of interception markers
-  return pathname.replace(new RegExp(`\\)${PARAM_SEPARATOR}`, 'g'), ')')
+  return pathname.replace(PARAM_SEPARATOR_AFTER_PAREN_RE, ')')
 }
 
 /**
@@ -127,12 +135,12 @@ export function stripParameterSeparators(
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === 'string') {
       // Remove the separator if it appears at the start of parameter values
-      cleaned[key] = value.replace(new RegExp(`^${PARAM_SEPARATOR}`), '')
+      cleaned[key] = value.replace(PARAM_SEPARATOR_LEADING_RE, '')
     } else if (Array.isArray(value)) {
       // Handle array parameters (from repeated route segments)
       cleaned[key] = value.map((item) =>
         typeof item === 'string'
-          ? item.replace(new RegExp(`^${PARAM_SEPARATOR}`), '')
+          ? item.replace(PARAM_SEPARATOR_LEADING_RE, '')
           : item
       )
     } else {
