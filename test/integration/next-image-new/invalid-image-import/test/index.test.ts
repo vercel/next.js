@@ -45,11 +45,7 @@ function runTests({ isDev }) {
          Caused by:
          - Source code does not contain a <svg> root element
 
-         Import traces:
-           Browser:
-             ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
-             ./test/integration/next-image-new/invalid-image-import/pages/index.js
-
+         Import trace:
            SSR:
              ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
              ./test/integration/next-image-new/invalid-image-import/pages/index.js"
