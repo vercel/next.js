@@ -74,4 +74,26 @@ describe('escheck-output', () => {
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
   })
+
+  describe('ancient', () => {
+    let browserslist = ['ios >= 9']
+
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      packageJson: {
+        browserslist,
+      },
+    })
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}" --noCache`,
+        { cwd: next.testDir, encoding: 'utf8' }
+      )
+
+      console.log(esCheckOutput)
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+  })
 })
