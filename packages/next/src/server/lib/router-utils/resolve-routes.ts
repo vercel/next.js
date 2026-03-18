@@ -533,15 +533,29 @@ export function getResolveRoutes(
             /* non-fatal we can't decode so can't match it */
           }
 
+          // Remove basePath before matching, as middleware matchers are defined
+          // relative to the application root, not including the basePath.
+          let normalizedPathname = maybeDecodedPathname
+          if (normalizers.basePath?.match(maybeDecodedPathname)) {
+            normalizedPathname = normalizers.basePath.normalize(
+              maybeDecodedPathname,
+              true
+            )
+          }
+
+          // Also normalize the non-decoded pathname for the first check
+          let normalizedNonDecodedPathname = parsedUrl.pathname || '/'
+          if (normalizers.basePath?.match(parsedUrl.pathname || '')) {
+            normalizedNonDecodedPathname = normalizers.basePath.normalize(
+              parsedUrl.pathname || '/',
+              true
+            )
+          }
+
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
-            match?.(
-              maybeDecodedPathname,
-              // @ts-expect-error BaseNextRequest stuff
-              req,
-              parsedUrl.query
-            )
+            match?.(normalizedNonDecodedPathname, req, parsedUrl.query) ||
+            match?.(normalizedPathname, req, parsedUrl.query)
           ) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
