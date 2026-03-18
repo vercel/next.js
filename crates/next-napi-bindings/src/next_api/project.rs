@@ -963,7 +963,7 @@ impl NapiEntrypoints {
     }
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -998,14 +998,14 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1798,7 +1798,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1937,7 +1937,7 @@ struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,

@@ -901,7 +901,7 @@ impl Display for IssueStage {
     }
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
@@ -919,7 +919,7 @@ pub struct PlainIssue {
     pub import_traces: Vec<PlainTrace>,
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainAdditionalIssueSource {
     pub description: RcStr,
@@ -1033,14 +1033,14 @@ impl PlainIssue {
     }
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,

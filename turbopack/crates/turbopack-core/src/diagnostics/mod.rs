@@ -6,7 +6,7 @@ use auto_hash_map::AutoSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{CollectiblesSource, FxIndexMap, ResolvedVc, Upcast, Vc, emit};
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainDiagnostic {
     pub category: RcStr,

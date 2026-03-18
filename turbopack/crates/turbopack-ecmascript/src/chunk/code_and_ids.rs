@@ -12,10 +12,10 @@ use crate::chunk::{
     EcmascriptChunkItemWithAsyncInfo,
 };
 
-#[turbo_tasks::value(transparent, serialization = "none", cell = "compare")]
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>); 1]>);
 
-#[turbo_tasks::value(transparent, serialization = "none", cell = "compare")]
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct BatchGroupCodeAndIds(
     FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeAndIds>>,
 );

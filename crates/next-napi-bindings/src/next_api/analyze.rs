@@ -15,7 +15,7 @@ use turbopack_core::{
 
 use crate::next_api::utils::strongly_consistent_catch_collectables;
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 pub struct WriteAnalyzeResult {
     pub issues: Arc<Vec<ReadRef<PlainIssue>>>,
     pub diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,

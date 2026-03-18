@@ -2484,7 +2484,7 @@ impl FileJsonContent {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FileLine {
     pub content: String,
     pub bytes_offset: u32,

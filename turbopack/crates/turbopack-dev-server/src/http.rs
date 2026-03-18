@@ -28,7 +28,7 @@ use crate::source::{
     resolve::{ResolveSourceRequestResult, resolve_source_request},
 };
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 enum GetFromSourceResult {
     Static {
         content: ReadRef<FileContent>,

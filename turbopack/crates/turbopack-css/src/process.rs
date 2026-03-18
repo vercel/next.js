@@ -187,7 +187,7 @@ pub enum CssWithPlaceholderResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", cell = "compare")]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]

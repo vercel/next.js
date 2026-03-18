@@ -114,7 +114,7 @@ async fn issue_filter_from_endpoint(
     }
 }
 
-#[turbo_tasks::value(serialization = "none", cell = "compare")]
+#[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
