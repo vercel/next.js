@@ -5,9 +5,10 @@ use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::FxHashSet;
 use swc_core::{
-    common::{DUMMY_SP, SyntaxContext},
+    common::DUMMY_SP,
     ecma::ast::{
-        ArrayLit, AssignTarget, Expr, ExprStmt, Ident, Lit, Number, SimpleAssignTarget, Stmt, Str,
+        ArrayLit, AssignTarget, Expr, ExprOrSpread, ExprStmt, Ident, Lit, Number,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -30,7 +31,6 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    magic_identifier,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::part::module::EcmascriptModulePartAsset,
@@ -687,61 +687,100 @@ impl EsmExports {
 
         #[derive(Eq, PartialEq)]
         enum ExportBinding {
+            /// Export as a getter function: `[name, getter_fn]`
             Getter(Box<Expr>),
+            /// Export as a getter+setter pair: `[name, getter_fn, setter_fn]`
             GetterSetter(Box<Expr>, Box<Expr>),
+            /// Export as a plain value: `[name, 0, value]` (discriminator `0` marks a value)
             Value(Box<Expr>),
+            /// Not exported (skip)
             None,
+        }
+
+        impl ExportBinding {
+            fn getter(expr: Expr) -> Self {
+                ExportBinding::Getter(Box::new(expr))
+            }
+
+            fn getter_setter(getter: Expr, setter: Expr) -> Self {
+                ExportBinding::GetterSetter(Box::new(getter), Box::new(setter))
+            }
+
+            fn value(expr: Expr) -> Self {
+                ExportBinding::Value(Box::new(expr))
+            }
+
+            /// Appends this binding's elements to the `getters` array literal.
+            ///
+            /// Encoding per variant:
+            ///   - `Getter(f)`:          `[name, f]`
+            ///   - `GetterSetter(g, s)`: `[name, g, s]`
+            ///   - `Value(v)`:           `[name, 0, v]`  (discriminator `0` marks a plain value)
+            ///   - `None`:               *(nothing pushed)*
+            fn push_to(self, exported: &str, getters: &mut Vec<Option<ExprOrSpread>>) {
+                if self == ExportBinding::None {
+                    return;
+                }
+                getters.push(Some(
+                    Expr::Lit(Lit::Str(Str {
+                        span: DUMMY_SP,
+                        value: exported.into(),
+                        raw: None,
+                    }))
+                    .into(),
+                ));
+                match self {
+                    ExportBinding::Getter(getter) => {
+                        getters.push(Some((*getter).into()));
+                    }
+                    ExportBinding::GetterSetter(getter, setter) => {
+                        getters.push(Some((*getter).into()));
+                        getters.push(Some((*setter).into()));
+                    }
+                    ExportBinding::Value(value) => {
+                        // Discriminator `0` distinguishes a value binding from a getter function.
+                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
+                        getters.push(Some((*value).into()));
+                    }
+                    ExportBinding::None => {}
+                }
+            }
         }
 
         let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
             let exprs: ExportBinding = match local {
-                EsmExport::Error => ExportBinding::Getter(Box::new(quote!(
+                EsmExport::Error => ExportBinding::getter(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
-                ))),
+                )),
                 EsmExport::LocalBinding(name, liveness) => {
                     // TODO ideally, this information would just be stored in
-                    // EsmExport::LocalBinding and we wouldn't have to re-correlated this
+                    // EsmExport::LocalBinding and we wouldn't have to re-correlate this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding =
-                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
-                            Some((Cow::Borrowed(local.as_str()), *ctxt))
-                        } else {
-                            bail!(
-                                "Expected export to be in eval context {:?} {:?}",
-                                exported,
-                                eval_context.imports,
-                            )
-                        };
-                    let (local, ctxt) = binding.unwrap_or_else(|| {
-                        // Fallback, shouldn't happen in practice
-                        (
-                            if name == "default" {
-                                Cow::Owned(magic_identifier::mangle("default export"))
-                            } else {
-                                Cow::Borrowed(name.as_str())
-                            },
-                            SyntaxContext::empty(),
+                    let Some((local, ctxt)) = eval_context.imports.exports.get(exported) else {
+                        bail!(
+                            "Expected export to be in eval context {:?} {:?}",
+                            exported,
+                            eval_context.imports,
                         )
-                    });
+                    };
+                    let (local, ctxt) = (Cow::Borrowed(local.as_str()), *ctxt);
 
                     let local = Ident::new(local.into(), DUMMY_SP, ctxt);
                     match (liveness, export_usage_info.is_circuit_breaker) {
-                        (Liveness::Constant, false) => {
-                            ExportBinding::Value(Box::new(Expr::Ident(local)))
-                        }
+                        (Liveness::Constant, false) => ExportBinding::value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
                         // getter to avoid capturing the value at the wrong time.
-                        (Liveness::Live, _) | (Liveness::Constant, true) => ExportBinding::Getter(
-                            Box::new(quote!("() => $local" as Expr, local = local)),
-                        ),
-                        (Liveness::Mutable, _) => ExportBinding::GetterSetter(
-                            Box::new(quote!("() => $local" as Expr, local = local.clone())),
-                            Box::new(quote!(
+                        (Liveness::Live, _) | (Liveness::Constant, true) => {
+                            ExportBinding::getter(quote!("() => $local" as Expr, local = local))
+                        }
+                        (Liveness::Mutable, _) => ExportBinding::getter_setter(
+                            quote!("() => $local" as Expr, local = local.clone()),
+                            quote!(
                                 "($new) => $local = $new" as Expr,
                                 local: AssignTarget = AssignTarget::Simple(local.into()),
                                 new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
-                            )),
+                            ),
                         ),
                     }
                 }
@@ -754,61 +793,91 @@ impl EsmExports {
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
+                            // Closure to build an AssignTarget from this ident (used in setters).
+                            let make_assign_target = || {
+                                AssignTarget::Simple(
+                                    ident
+                                        .as_expr_individual(DUMMY_SP)
+                                        .map_either(
+                                            |i| SimpleAssignTarget::Ident(i.into()),
+                                            SimpleAssignTarget::Member,
+                                        )
+                                        .into_inner(),
+                                )
+                            };
                             use crate::references::esm::base::ReferencedAssetIdent;
                             match &ident {
-                                ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
-                                    debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
-                                    // If we are re-exporting something but got merged with it we can treat it like a local export
-                                     match (liveness, export_usage_info.is_circuit_breaker) {
+                                ReferencedAssetIdent::LocalBinding { ctxt, liveness, .. } => {
+                                    debug_assert!(
+                                        *mutable == (*liveness == Liveness::Mutable),
+                                        "If the re-export is mutable, the merged local must be too"
+                                    );
+                                    // Re-exporting a merged local — treat like a local export.
+                                    match (liveness, export_usage_info.is_circuit_breaker) {
                                         (Liveness::Constant, false) => {
-                                            ExportBinding::Value(Box::new(read_expr))
+                                            ExportBinding::value(read_expr)
                                         }
-                                        // If the value might change or we are a circuit breaker we must bind a
-                                        // getter to avoid capturing the value at the wrong time.
+                                        // If the value might change or we are a circuit breaker we
+                                        // must bind a getter to avoid capturing the value too
+                                        // early.
                                         (Liveness::Live, _) | (Liveness::Constant, true) => {
-                                            // In the constant case, we could still export as a value if we knew that the module
-                                            // came _before_ us, but we don't at this point.
-                                            ExportBinding::Getter(Box::new(quote!("() => $local" as Expr, local: Expr = read_expr)))
+                                            // In the constant case, we could still export as a
+                                            // value if we knew the module came _before_ us, but
+                                            // we don't at this point.
+                                            ExportBinding::getter(quote!(
+                                                "() => $local" as Expr,
+                                                local: Expr = read_expr
+                                            ))
                                         }
                                         (Liveness::Mutable, _) => {
-                                            let assign_target = AssignTarget::Simple(
-                                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
-                                            ExportBinding::GetterSetter(
-                                                Box::new(quote!("() => $local" as Expr, local: Expr= read_expr.clone())),
-                                                Box::new(quote!(
+                                            let assign_target = make_assign_target();
+                                            ExportBinding::getter_setter(
+                                                quote!(
+                                                    "() => $local" as Expr,
+                                                    local: Expr = read_expr.clone()
+                                                ),
+                                                quote!(
                                                     "($new) => $lhs = $new" as Expr,
                                                     lhs: AssignTarget = assign_target,
-                                                    new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
-                                                ))
+                                                    new = Ident::new(
+                                                        format!("new_{name}").into(),
+                                                        DUMMY_SP,
+                                                        *ctxt,
+                                                    ),
+                                                ),
                                             )
                                         }
                                     }
-                                },
-                                ReferencedAssetIdent::Module { namespace_ident:_, ctxt:_, export:_ } => {
-                                    // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
-                                    // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
-                                    // since that would reduce allocations and optimize access. We could do this by passing the module-id up.
-                                    let getter = Box::new(quote!("() => $expr" as Expr, expr: Expr = read_expr));
-                                    let assign_target = AssignTarget::Simple(
-                                                    ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
+                                }
+                                ReferencedAssetIdent::Module { .. } => {
+                                    // Bind as getter to preserve 'liveness' of the other module's
+                                    // bindings.
+                                    // TODO: If this becomes important it might be faster to use the
+                                    // runtime to copy PropertyDescriptors across modules, passing
+                                    // the module-id up.
+                                    let getter_expr =
+                                        quote!("() => $expr" as Expr, expr: Expr = read_expr);
+                                    let assign_target = make_assign_target();
                                     if *mutable {
-                                        ExportBinding::GetterSetter(
-                                            getter,
-                                            Box::new(quote!(
+                                        ExportBinding::getter_setter(
+                                            getter_expr,
+                                            quote!(
                                                 "($new) => $lhs = $new" as Expr,
                                                 lhs: AssignTarget = assign_target,
                                                 new = Ident::new(
                                                     format!("new_{name}").into(),
                                                     DUMMY_SP,
-                                                    Default::default()
+                                                    Default::default(),
                                                 ),
-                                            )))
+                                            ),
+                                        )
                                     } else {
-                                        ExportBinding::Getter(getter)
+                                        ExportBinding::getter(getter_expr)
                                     }
                                 }
                             }
-                        }).unwrap_or(ExportBinding::None)
+                        })
+                        .unwrap_or(ExportBinding::None)
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
@@ -819,43 +888,18 @@ impl EsmExports {
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
                             if export_usage_info.is_circuit_breaker {
-                                ExportBinding::Getter(Box::new(quote!(
+                                ExportBinding::getter(quote!(
                                     "(() => $imported)" as Expr,
                                     imported: Expr = imported
-                                )))
+                                ))
                             } else {
-                                ExportBinding::Value(Box::new(imported))
+                                ExportBinding::value(imported)
                             }
                         })
                         .unwrap_or(ExportBinding::None)
                 }
             };
-            if exprs != ExportBinding::None {
-                getters.push(Some(
-                    Expr::Lit(Lit::Str(Str {
-                        span: DUMMY_SP,
-                        value: exported.as_str().into(),
-                        raw: None,
-                    }))
-                    .into(),
-                ));
-                match exprs {
-                    ExportBinding::Getter(getter) => {
-                        getters.push(Some((*getter).into()));
-                    }
-                    ExportBinding::GetterSetter(getter, setter) => {
-                        getters.push(Some((*getter).into()));
-                        getters.push(Some((*setter).into()));
-                    }
-                    ExportBinding::Value(value) => {
-                        // We need to push a discriminator in this case to make the fact that we are
-                        // binding a value unambiguous to the runtime.
-                        getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
-                        getters.push(Some((*value).into()));
-                    }
-                    ExportBinding::None => {}
-                };
-            }
+            exprs.push_to(exported.as_str(), &mut getters);
         }
         let getters = Expr::Array(ArrayLit {
             span: DUMMY_SP,
