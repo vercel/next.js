@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+mod dyn_source_mapper;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;
@@ -111,6 +112,7 @@ use crate::{
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    dyn_source_mapper::DynSourceMapper,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -2086,9 +2088,10 @@ async fn emit_content(
 
         let comments = comments.consumable();
 
+        let dyn_sm = Arc::new(DynSourceMapper(source_map.clone() as Arc<dyn SourceMapper>));
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
+            cm: dyn_sm,
             comments: Some(&comments as &dyn Comments),
             wr,
         };

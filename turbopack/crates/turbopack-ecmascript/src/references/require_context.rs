@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SourceMapper},
     ecma::{
         ast::{
             Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
@@ -41,6 +41,7 @@ use crate::{
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
+    dyn_source_mapper::DynSourceMapper,
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
@@ -526,7 +527,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
 
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default(),
-            cm: source_map.clone(),
+            cm: Arc::new(DynSourceMapper(source_map.clone() as Arc<dyn SourceMapper>)),
             comments: None,
             wr,
         };

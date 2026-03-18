@@ -161,7 +161,7 @@ mod tests {
     use std::sync::Arc;
 
     use swc_core::{
-        common::{FileName, Mark, SourceFile, SourceMap, errors::HANDLER},
+        common::{FileName, Mark, SourceFile, SourceMap, SourceMapper, errors::HANDLER},
         ecma::{
             ast::*,
             codegen::{Emitter, text_writer::JsWriter},
@@ -173,6 +173,7 @@ mod tests {
     };
 
     use super::{ApplyVisitors, AstModifier};
+    use crate::dyn_source_mapper::DynSourceMapper;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -212,7 +213,7 @@ mod tests {
         let mut bytes = Vec::new();
         let mut emitter = Emitter {
             cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
-            cm: cm.clone(),
+            cm: Arc::new(DynSourceMapper(cm.clone() as Arc<dyn SourceMapper>)),
             comments: None,
             wr: JsWriter::new(cm.clone(), "\n", &mut bytes, None),
         };

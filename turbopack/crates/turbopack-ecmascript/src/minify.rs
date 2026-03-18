@@ -7,6 +7,7 @@ use swc_core::{
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
+        SourceMapper,
         comments::{Comments, SingleThreadedComments},
     },
     ecma::{
@@ -31,7 +32,10 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
 };
 
-use crate::parse::{IdentCollector, generate_js_source_map};
+use crate::{
+    dyn_source_mapper::DynSourceMapper,
+    parse::{IdentCollector, generate_js_source_map},
+};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
 pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
@@ -189,7 +193,7 @@ fn print_program(
             let mut emitter = Emitter {
                 cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
                 comments: None,
-                cm: cm.clone(),
+                cm: Arc::new(DynSourceMapper(cm.clone() as Arc<dyn SourceMapper>)),
                 wr,
             };
 
