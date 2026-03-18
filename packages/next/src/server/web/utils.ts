@@ -42,10 +42,17 @@ export function fromNodeOutgoingHttpHeaders(
   Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
 */
 
-// Inline charCode whitespace check — avoids regex allocation per character.
+// Matches the `\s` character class the original used, without allocating a
+// per-character string. ASCII is handled by comparison; anything above it
+// defers to the regex so the Unicode whitespace `\s` covers (U+00A0,
+// U+2000-U+200A, U+2028, U+2029, U+FEFF, ...) keeps behaving identically.
+const NON_ASCII_WHITESPACE_RE = /\s/
+
 function isWhitespace(code: number): boolean {
-  // space, tab, newline, carriage return, form feed
-  return code === 32 || code === 9 || code === 10 || code === 13 || code === 12
+  // space, or tab/newline/vertical tab/form feed/carriage return (9-13)
+  if (code === 32 || (code >= 9 && code <= 13)) return true
+  if (code < 128) return false
+  return NON_ASCII_WHITESPACE_RE.test(String.fromCharCode(code))
 }
 
 export function splitCookiesString(cookiesString: string) {
@@ -58,7 +65,10 @@ export function splitCookiesString(cookiesString: string) {
   var cookiesSeparatorFound
 
   function skipWhitespace() {
-    while (pos < cookiesString.length && isWhitespace(cookiesString.charCodeAt(pos))) {
+    while (
+      pos < cookiesString.length &&
+      isWhitespace(cookiesString.charCodeAt(pos))
+    ) {
       pos += 1
     }
     return pos < cookiesString.length
@@ -89,7 +99,10 @@ export function splitCookiesString(cookiesString: string) {
         }
 
         // currently special character
-        if (pos < cookiesString.length && cookiesString.charCodeAt(pos) === 61 /* = */) {
+        if (
+          pos < cookiesString.length &&
+          cookiesString.charCodeAt(pos) === 61 /* = */
+        ) {
           // we found cookies separator
           cookiesSeparatorFound = true
           // pos is inside the next cookie, so back up and return it.
