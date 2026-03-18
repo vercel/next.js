@@ -226,6 +226,7 @@ import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
 import { getRequestMeta } from '../request-meta'
+import { getPathnameFromUrl } from '../lib/url-string-utils'
 import {
   getDynamicParam,
   interpolateParallelRouteParams,
@@ -2117,7 +2118,7 @@ async function renderToHTMLOrFlightImpl(
 
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
-    const { pathname } = new URL(req.url || '/', 'http://n')
+    const pathname = getPathnameFromUrl(req.url)
     setIsrStatus(
       pathname,
       // Only pages using the Node runtime can use ISR, Edge is always dynamic.
@@ -2396,7 +2397,7 @@ async function renderToHTMLOrFlightImpl(
       isNodeNextRequest(req)
     ) {
       req.originalRequest.on('end', () => {
-        const { pathname } = new URL(req.url || '/', 'http://n')
+        const pathname = getPathnameFromUrl(req.url)
         const isStatic = !requestStore.usedDynamic && !workStore.forceDynamic
         setIsrStatus(pathname, isStatic)
       })

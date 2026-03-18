@@ -145,6 +145,10 @@ import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
+import {
+  getPathnameFromUrl,
+  getQueryParamFromUrl,
+} from './lib/url-string-utils'
 import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache-busting-search-param'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
@@ -1514,9 +1518,9 @@ export default abstract class Server<
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
-        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
+        const matchedPathname = getPathnameFromUrl(invokePath)
         const invokePathnameInfo = getNextPathnameInfo(
-          parsedMatchedPath.pathname,
+          matchedPathname,
           {
             nextConfig: this.nextConfig,
             parseData: false,
@@ -1527,8 +1531,8 @@ export default abstract class Server<
           addRequestMeta(req, 'locale', invokePathnameInfo.locale)
         }
 
-        if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
-          parsedUrl.pathname = parsedMatchedPath.pathname
+        if (parsedUrl.pathname !== matchedPathname) {
+          parsedUrl.pathname = matchedPathname
           addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
@@ -2090,9 +2094,7 @@ export default abstract class Server<
       )
       const actualHash =
         getRequestMeta(req, 'cacheBustingSearchParam') ??
-        new URL(req.url || '', 'http://localhost').searchParams.get(
-          NEXT_RSC_UNION_QUERY
-        )
+        getQueryParamFromUrl(req.url, NEXT_RSC_UNION_QUERY)
 
       if (expectedHash !== actualHash) {
         // The hash sent by the client does not match the expected value.
