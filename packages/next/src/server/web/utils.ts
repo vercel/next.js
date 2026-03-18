@@ -37,10 +37,17 @@ export function fromNodeOutgoingHttpHeaders(
   This is uncommon, but explicitly allowed - see https://tools.ietf.org/html/rfc2616#section-4.2
   Node.js does this for every header *except* set-cookie - see https://github.com/nodejs/node/blob/d5e363b77ebaf1caf67cd7528224b651c86815c1/lib/_http_incoming.js#L128
   React Native's fetch does this for *every* header, including set-cookie.
-  
+
   Based on: https://github.com/google/j2objc/commit/16820fdbc8f76ca0c33472810ce0cb03d20efe25
   Credits to: https://github.com/tomball for original and https://github.com/chrusart for JavaScript implementation
 */
+
+// Inline charCode whitespace check — avoids regex allocation per character.
+function isWhitespace(code: number): boolean {
+  // space, tab, newline, carriage return, form feed
+  return code === 32 || code === 9 || code === 10 || code === 13 || code === 12
+}
+
 export function splitCookiesString(cookiesString: string) {
   var cookiesStrings = []
   var pos = 0
@@ -51,16 +58,16 @@ export function splitCookiesString(cookiesString: string) {
   var cookiesSeparatorFound
 
   function skipWhitespace() {
-    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
+    while (pos < cookiesString.length && isWhitespace(cookiesString.charCodeAt(pos))) {
       pos += 1
     }
     return pos < cookiesString.length
   }
 
   function notSpecialChar() {
-    ch = cookiesString.charAt(pos)
+    ch = cookiesString.charCodeAt(pos)
 
-    return ch !== '=' && ch !== ';' && ch !== ','
+    return ch !== 61 /* = */ && ch !== 59 /* ; */ && ch !== 44 /* , */
   }
 
   while (pos < cookiesString.length) {
@@ -68,8 +75,8 @@ export function splitCookiesString(cookiesString: string) {
     cookiesSeparatorFound = false
 
     while (skipWhitespace()) {
-      ch = cookiesString.charAt(pos)
-      if (ch === ',') {
+      ch = cookiesString.charCodeAt(pos)
+      if (ch === 44 /* , */) {
         // ',' is a cookie separator if we have later first '=', not ';' or ','
         lastComma = pos
         pos += 1
@@ -82,7 +89,7 @@ export function splitCookiesString(cookiesString: string) {
         }
 
         // currently special character
-        if (pos < cookiesString.length && cookiesString.charAt(pos) === '=') {
+        if (pos < cookiesString.length && cookiesString.charCodeAt(pos) === 61 /* = */) {
           // we found cookies separator
           cookiesSeparatorFound = true
           // pos is inside the next cookie, so back up and return it.
