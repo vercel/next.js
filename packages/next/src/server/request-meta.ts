@@ -414,7 +414,10 @@ export function removeRequestMeta<K extends keyof RequestMeta>(
   key: K
 ) {
   const meta = getRequestMeta(request)
-  delete meta[key]
+  // Set to undefined instead of delete to preserve V8 hidden class.
+  // All consumers use getRequestMeta(req, key) which returns meta[key],
+  // so undefined is semantically equivalent to a missing key.
+  meta[key] = undefined as RequestMeta[K]
   return setRequestMeta(request, meta)
 }
 

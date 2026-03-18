@@ -196,7 +196,10 @@ class LoadableSubscription {
       if (typeof opts.delay === 'number') {
         if (opts.delay === 0) {
           this._state.pastDelay = true
-        } else {
+        } else if (typeof window !== 'undefined') {
+          // Skip timers during SSR — the render is synchronous,
+          // there are no subscribers to notify, and the timers
+          // would leak in the Node.js process.
           this._delay = setTimeout(() => {
             this._update({
               pastDelay: true,
@@ -205,7 +208,7 @@ class LoadableSubscription {
         }
       }
 
-      if (typeof opts.timeout === 'number') {
+      if (typeof opts.timeout === 'number' && typeof window !== 'undefined') {
         this._timeout = setTimeout(() => {
           this._update({ timedOut: true })
         }, opts.timeout)
