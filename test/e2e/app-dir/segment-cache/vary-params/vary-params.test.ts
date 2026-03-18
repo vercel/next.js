@@ -669,9 +669,16 @@ describe('segment cache - vary params', () => {
     // Root params accessed via rootParams() are tracked in varyParams.
     // Different param values require separate prefetches.
     let act: ReturnType<typeof createRouterAct>
+    const segmentPrefetchBodies: Array<Promise<string>> = []
     const browser = await next.browser('/root-params', {
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
+        p.on('response', (response) => {
+          const request = response.request()
+          if (request.headers()['next-router-segment-prefetch']) {
+            segmentPrefetchBodies.push(response.text().catch(() => ''))
+          }
+        })
       },
     })
 
@@ -696,5 +703,16 @@ describe('segment cache - vary params', () => {
       },
       { includes: 'Root param page content - param: bbb' }
     )
+
+    const settledSegmentPrefetchBodies = await Promise.all(
+      segmentPrefetchBodies
+    )
+
+    expect(settledSegmentPrefetchBodies.length).toBeGreaterThan(0)
+    expect(
+      settledSegmentPrefetchBodies.some((body) =>
+        body.includes('%5BrootParam%5D')
+      )
+    ).toBe(false)
   })
 })
