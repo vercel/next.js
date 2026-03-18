@@ -647,12 +647,21 @@ async function createComponentTreeInternal(
           createElement(RenderFromTemplateContext, null)
         )
 
-        const templateFilePath = getConventionPathByType(tree, dir, 'template')
-        const errorFilePath = getConventionPathByType(tree, dir, 'error')
-        const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
-        const globalErrorFilePath = isRoot
-          ? getConventionPathByType(tree, dir, 'global-error')
+        // Only resolve convention file paths when the segment explorer is
+        // active (dev mode). In production these are unused.
+        const templateFilePath = isSegmentViewEnabled && template
+          ? getConventionPathByType(tree, dir, 'template')
           : undefined
+        const errorFilePath = isSegmentViewEnabled && error
+          ? getConventionPathByType(tree, dir, 'error')
+          : undefined
+        const loadingFilePath = isSegmentViewEnabled && loading
+          ? getConventionPathByType(tree, dir, 'loading')
+          : undefined
+        const globalErrorFilePath =
+          isSegmentViewEnabled && isRoot
+            ? getConventionPathByType(tree, dir, 'global-error')
+            : undefined
 
         const wrappedErrorStyles =
           isSegmentViewEnabled && errorFilePath
@@ -764,7 +773,10 @@ async function createComponentTreeInternal(
         key: 'l',
       })
     : null
-  const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
+  const loadingFilePath =
+    isSegmentViewEnabled && Loading
+      ? getConventionPathByType(tree, dir, 'loading')
+      : undefined
   if (isSegmentViewEnabled && loadingElement) {
     if (loadingFilePath) {
       loadingElement = createElement(
@@ -896,9 +908,10 @@ async function createComponentTreeInternal(
     }
 
     const isDefaultSegment = segment === DEFAULT_SEGMENT_KEY
-    const pageFilePath =
-      getConventionPathByType(tree, dir, 'page') ??
-      getConventionPathByType(tree, dir, 'defaultPage')
+    const pageFilePath = isSegmentViewEnabled
+      ? (getConventionPathByType(tree, dir, 'page') ??
+         getConventionPathByType(tree, dir, 'defaultPage'))
+      : undefined
     const segmentType = isDefaultSegment ? 'default' : 'page'
     const wrappedPageElement =
       isSegmentViewEnabled && pageFilePath
@@ -1123,7 +1136,9 @@ async function createComponentTreeInternal(
       }
     }
 
-    const layoutFilePath = getConventionPathByType(tree, dir, 'layout')
+    const layoutFilePath = isSegmentViewEnabled
+      ? getConventionPathByType(tree, dir, 'layout')
+      : undefined
     const wrappedSegmentNode =
       isSegmentViewEnabled && layoutFilePath
         ? createElement(
@@ -1271,7 +1286,10 @@ async function createBoundaryConventionElement({
     ? createElement(Fragment, null, createElement(Component, null), styles)
     : undefined
 
-  const pagePath = getConventionPathByType(tree, dir, conventionName)
+  const pagePath =
+    isSegmentViewEnabled && Component
+      ? getConventionPathByType(tree, dir, conventionName)
+      : undefined
 
   const wrappedElement =
     isSegmentViewEnabled && element
