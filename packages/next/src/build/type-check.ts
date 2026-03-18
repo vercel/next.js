@@ -77,7 +77,7 @@ function verifyAndRunTypeScript(
     rootParams,
   })
     .then((result) => {
-      typeCheckWorker?.end()
+      typeCheckWorker?.shutdown()
       return result
     })
     .catch(() => {

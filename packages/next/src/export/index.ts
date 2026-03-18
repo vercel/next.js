@@ -1038,7 +1038,7 @@ async function exportAppImpl(
   }
 
   if (!staticWorker && worker) {
-    await worker.end()
+    await worker.shutdown()
   }
 
   return collector

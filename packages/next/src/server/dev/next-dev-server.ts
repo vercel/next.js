@@ -824,7 +824,7 @@ export default class DevServer extends Server {
         return pathsResult
       } finally {
         // we don't re-use workers so destroy the used one
-        staticPathsWorker.end()
+        staticPathsWorker.shutdown()
       }
     }
     const result = this.staticPathsCache.get(pathname)

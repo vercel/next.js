@@ -193,9 +193,9 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
 
     // Register an exit handler to ensure workers are cleaned up.
-    // We keep a reference so it can be removed when end()/close() is called.
+    // We keep a reference so it can be removed when shutdown()/shutdownNow() is called.
     this._exitHandler = () => {
-      this.close()
+      this.shutdownNow()
     }
     process.on('exit', this._exitHandler)
 
@@ -303,7 +303,7 @@ export class Worker {
     }
   }
 
-  end(): Promise<{ forceExited: boolean }> {
+  shutdown(): Promise<{ forceExited: boolean }> {
     const pool = this._pool
     if (!pool) {
       throw new Error('Worker is ended, no more calls can be done to it')
@@ -316,7 +316,7 @@ export class Worker {
   /**
    * Quietly end the worker if it exists
    */
-  close(): void {
+  shutdownNow(): void {
     if (this._pool) {
       this._pool.shutdownNow()
       this._pool = undefined

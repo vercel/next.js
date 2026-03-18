@@ -77,7 +77,7 @@ async function webpackBuildWithWorker(
       recordTraceEvents(curResult.debugTraceEvents)
     }
     // destroy worker so it's not sticking around using memory
-    await worker.end()
+    await worker.shutdown()
 
     // Update plugin state
     pluginState = deepMerge(pluginState, curResult.pluginState)

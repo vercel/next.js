@@ -50,7 +50,7 @@ async function turbopackBuildWithWorker(): ReturnType<
         if (debugTraceEvents) {
           recordTraceEvents(debugTraceEvents)
         }
-        worker.end()
+        worker.shutdown()
       }),
       buildTraceContext,
       duration,

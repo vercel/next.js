@@ -161,9 +161,9 @@ The `Worker` class wraps `WorkerPool` and adds retry logic, NODE_OPTIONS managem
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `end()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown; removes process exit handler; throws if called twice |
-| `close()` | `void` | Immediate shutdown; idempotent |
+| `shutdown()` | `Promise<{ forceExited: boolean }>` | Graceful shutdown; removes process exit handler; throws if called twice |
+| `shutdownNow()` | `void` | Immediate shutdown; idempotent |
 | `setOnActivity(cb)` | `void` | Replace the activity callback |
 | `setOnActivityAbort(cb)` | `void` | Replace the activity-abort callback |
 
-The Worker class registers a `process.on('exit')` handler that calls `close()` to clean up workers when the parent exits. This handler is removed on `end()`/`close()` to prevent listener leaks. Internally, `end()` calls `pool.shutdown()` and `close()` calls `pool.shutdownNow()`.
+The Worker class registers a `process.on('exit')` handler that calls `shutdownNow()` to clean up workers when the parent exits. This handler is removed on `shutdown()`/`shutdownNow()` to prevent listener leaks. Internally, `shutdown()` calls `pool.shutdown()` and `shutdownNow()` calls `pool.shutdownNow()`.
