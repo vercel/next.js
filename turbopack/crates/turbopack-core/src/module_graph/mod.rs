@@ -406,7 +406,7 @@ impl SingleModuleGraph {
                     for (key, debug, parents) in duplicate_modules {
                         map.entry(key).or_default().push((debug, parents));
                     }
-                    panic!("Duplicate module idents in graph: {map:#?}",);
+                    bail!("Duplicate module idents in graph: {map:#?}",);
                 }
             }
         }
