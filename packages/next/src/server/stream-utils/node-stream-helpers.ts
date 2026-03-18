@@ -56,7 +56,7 @@ function safePipe<T extends Transform>(
   dest: T,
   opts?: { end?: boolean }
 ): T {
-  source.on('error', (err) => {
+  source.once('error', (err) => {
     if (!dest.destroyed) dest.destroy(err)
   })
   return source.pipe(dest, opts)
@@ -291,7 +291,7 @@ export function createInlinedDataNodeStream(
 
       // Start pulling data on the first HTML chunk if delayed, or
       // immediately on construction if not delayed.
-      if (delayDataUntilFirstHtmlChunk) {
+      if (delayDataUntilFirstHtmlChunk && !dataPullingStarted) {
         startPulling(this)
       }
 
@@ -374,11 +374,8 @@ export function pipeNodeReadableToResponse(
     return
   }
 
-  const done = new DetachedPromise<void>()
-
   const onFinish = bindSnapshot(() => {
     cleanup()
-    done.resolve()
     onEnd?.()
   })
 
@@ -387,7 +384,6 @@ export function pipeNodeReadableToResponse(
     if (!res.destroyed) {
       res.destroy(err)
     }
-    done.resolve()
     // Do not call onEnd on error -- the response is already destroyed.
   })
 
@@ -397,7 +393,6 @@ export function pipeNodeReadableToResponse(
       readable.destroy()
     }
     cleanup()
-    done.resolve()
     // Call onEnd so the caller knows piping has finished and can clean up
     // resources (e.g. abort pending work).
     onEnd?.()
