@@ -506,8 +506,9 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // Collected key hashes for deferred AMQF construction via sorted Builder in close().
-    collected_hashes: Vec<u64>,
+    // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
+    // in close(). Fingerprint size is always ≤32 bits, so the lower 32 bits suffice.
+    collected_hashes: Vec<u32>,
 
     // Index block data: (first_hash, block_index) for each key block written
     key_block_boundaries: Vec<(u64, u16)>,
@@ -624,7 +625,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         self.entry_count += 1;
 
         // Collect hash for deferred AMQF construction in close()
-        self.collected_hashes.push(key_hash);
+        self.collected_hashes.push(key_hash as u32);
 
         // Track key size for fullness and block capacity
         self.total_key_size += key_len;
@@ -948,19 +949,14 @@ impl<E: Entry> StreamingSstWriter<E> {
         let actual_count = self.collected_hashes.len() as u64;
         let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
             .expect("Filter can't be constructed");
-        // Sort by fingerprint (masked hash). insert_fingerprint expects fingerprints
-        // in non-decreasing (quotient, remainder) order, which corresponds to sorting
-        // the masked values. insert_fingerprint internally masks, so raw hashes are fine.
         let fp_size = builder.fingerprint_size();
-        let fp_mask = if fp_size >= 64 {
-            u64::MAX
-        } else {
-            (1u64 << fp_size) - 1
-        };
-        self.collected_hashes.sort_unstable_by_key(|h| *h & fp_mask);
-        for &hash in &self.collected_hashes {
+        assert!(fp_size <= 32, "fp_size {fp_size} exceeds u32");
+        let fp_mask = (1u32 << fp_size) - 1;
+        // Mask in-place to fingerprint size and sort.
+        self.collected_hashes.sort_unstable_by_key(|&h| h & fp_mask);
+        for &h in &self.collected_hashes {
             builder
-                .insert_fingerprint(false, hash)
+                .insert_fingerprint(false, h as u64)
                 .expect("AMQF insert failed");
         }
         let filter = builder.into_filter();
