@@ -59,7 +59,7 @@ jobs:
           if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
-          elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
+          elif [ '${{ github.ref }}' == 'refs/heads/next-16-2' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
@@ -618,7 +618,7 @@ jobs:
 
   publish-turbopack-npm-packages:
     # Matches the commit message written by turbopack/xtask/src/publish.rs:377
-    if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
+    if: "${{(github.ref == 'refs/heads/next-16-2') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
     runs-on: ubuntu-latest
     permissions:
       contents: write
