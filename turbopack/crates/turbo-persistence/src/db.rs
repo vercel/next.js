@@ -1085,9 +1085,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                             let iter = MergeIter::new(iters.into_iter())?;
 
-                            // TODO figure out how to delete blobs when they are no longer
-                            // referenced
-                            let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
+                            let mut blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
 
                             struct Collector {
                                 /// The active writer and its sequence number. `None` if no
@@ -1241,6 +1239,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         sequence_number,
                                         &mut keys_written,
                                     )?;
+                                } else {
+                                    // Entry is being dropped (superseded by newer entry or
+                                    // pruned by tombstone). If it references a blob file,
+                                    // mark that blob for deletion.
+                                    if let LazyLookupValue::Eager(LookupValue::Blob {
+                                        sequence_number,
+                                    }) = &entry.value
+                                    {
+                                        blob_seq_numbers_to_delete.push(*sequence_number);
+                                    }
                                 }
                             }
 

@@ -68,6 +68,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::ChunkingType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
@@ -541,6 +542,7 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
+        // ast-grep-ignore: no-context-turbofmt
         Err(err) => Err(err
             .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }
@@ -818,7 +820,7 @@ async fn analyze_ecmascript_module_internal(
                 RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
-                r.annotations.clone(),
+                r.annotations.as_ref().map(|a| (**a).clone()),
                 match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         should_add_evaluation = true;
@@ -1508,8 +1510,22 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
+                        let chunking_type = r
+                            .await?
+                            .annotations
+                            .as_ref()
+                            .and_then(|a| a.chunking_type())
+                            .map_or_else(
+                                || {
+                                    Some(ChunkingType::Parallel {
+                                        inherit_async: true,
+                                        hoisted: true,
+                                    })
+                                },
+                                |c| c.as_chunking_type(true, true),
+                            );
                         analysis.add_reference_code_gen(
-                            EsmModuleIdAssetReference::new(*r),
+                            EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
                         )
                     } else {
@@ -2251,6 +2267,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2304,6 +2321,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -4256,7 +4274,7 @@ pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-    annotations.get(&TURBOPACK_HELPER_WTF8).is_some()
+    annotations.is_some_and(|a| a.get(&TURBOPACK_HELPER_WTF8).is_some())
 }
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {

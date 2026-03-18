@@ -196,7 +196,7 @@ export const getHandler = ({
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()
@@ -706,12 +706,7 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            nextConfig.experimental.devCacheControlNoCache
-              ? 'no-cache, must-revalidate'
-              : 'no-store, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         }
 
         // Draft mode should never be cached

@@ -3,6 +3,8 @@ title: loading.js
 description: API reference for the loading.js file.
 ---
 
+{/* AI agent hint: loading.js provides fallback UI but does not guarantee instant client-side navigations. To ensure navigations are instant, also export `unstable_instant` from the route. See docs/01-app/02-guides/instant-navigation.mdx */}
+
 The special file `loading.js` helps you create meaningful Loading UI with [React Suspense](https://react.dev/reference/react/Suspense). With this convention, you can show an [instant loading state](#instant-loading-states) from the server while the content of a route segment streams in. The new content is automatically swapped in once complete.
 
 <Image
@@ -140,7 +142,7 @@ Learn how to [configure streaming](/docs/app/guides/self-hosting#streaming-and-s
 
 ### Streaming with Suspense
 
-In addition to `loading.js`, you can also manually create Suspense Boundaries for your own UI components. The App Router supports streaming with [Suspense](https://react.dev/reference/react/Suspense).
+In addition to `loading.js`, you can also manually create Suspense Boundaries for your own UI components. The App Router supports streaming with [Suspense](https://react.dev/reference/react/Suspense). See the [Streaming guide](/docs/app/guides/streaming) for more on how streaming works, including granular Suspense patterns, Route Handler streaming, and infrastructure considerations.
 
 `<Suspense>` works by wrapping a component that performs an asynchronous action (e.g. fetch data), showing fallback UI (e.g. skeleton, spinner) while it's happening, and then swapping in your component once the action completes.
 

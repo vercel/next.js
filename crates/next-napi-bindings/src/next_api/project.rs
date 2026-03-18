@@ -212,7 +212,7 @@ pub struct NapiProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
 }
 
@@ -421,7 +421,7 @@ pub fn project_new(
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<JsObject> {
-    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
@@ -2152,6 +2152,16 @@ pub fn project_compilation_events_subscribe(
                 break;
             }
         }
+        // Signal the JS side that the subscription has ended (e.g. after
+        // project shutdown drops all senders).  This allows the async
+        // iterator to exit promptly instead of hanging forever.
+        let _ = tsfn.call(
+            Err(napi::Error::new(
+                Status::Cancelled,
+                "compilation events subscription closed",
+            )),
+            ThreadsafeFunctionCallMode::Blocking,
+        );
     });
 
     Ok(())

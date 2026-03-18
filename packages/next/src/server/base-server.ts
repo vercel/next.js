@@ -584,6 +584,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
         typeof this.nextConfig.logging === 'object' &&
@@ -1802,12 +1803,7 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          this.nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         cacheControl = undefined
       }
 

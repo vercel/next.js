@@ -43,7 +43,7 @@ use turbopack_core::{
     source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     EcmascriptOptions, TreeShakingMode,
@@ -249,18 +249,23 @@ async fn apply_module_type(
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
+            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
 
-        ModuleType::Css { ty, environment } => ResolvedVc::upcast(
-            CssModuleAsset::new(
+        ModuleType::Css {
+            ty,
+            environment,
+            lightningcss_features,
+        } => ResolvedVc::upcast(
+            CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
+                *lightningcss_features,
             )
             .to_resolved()
             .await?,
@@ -753,6 +758,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
+                    Default::default(),
                 )
                 .await?;
             match effect {

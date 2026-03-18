@@ -175,6 +175,12 @@ impl Source for PostCssTransformedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -284,6 +290,11 @@ impl JsonSource {
 
 #[turbo_tasks::value_impl]
 impl Source for JsonSource {
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("JSON content of {}", self.path).into())
+    }
+
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         match &*self.key.await? {

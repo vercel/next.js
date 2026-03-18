@@ -91,7 +91,7 @@ describe('Prerender', () => {
   }
 
   function isCachingHeader(cacheControl) {
-    return !cacheControl || !/no-store/.test(cacheControl)
+    return !cacheControl || !/no-store|no-cache/.test(cacheControl)
   }
 
   const allowHeader = [

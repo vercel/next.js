@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{}],
+  samples: [{ cookies: [] }],
 }
 
 // This page HAS runtime prefetch enabled. cookies() is passed as a promise

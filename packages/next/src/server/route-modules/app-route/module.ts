@@ -1243,6 +1243,8 @@ function trackDynamic(
           workUnitStore.usedDynamic = true
         }
         break
+      case 'generate-static-params':
+        break
       default:
         workUnitStore satisfies never
     }

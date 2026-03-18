@@ -44,6 +44,7 @@ describe('getDynamicHTMLPostponedState', () => {
         },
         hasExplicitRevalidate: true,
         hasExplicitExpire: true,
+        readRootParamNames: undefined,
       })
     )
 

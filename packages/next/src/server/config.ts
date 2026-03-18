@@ -380,6 +380,24 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
+  // resolved object with concrete defaults, so consumers don't have to
+  // resolve the values themselves.
+  if (result.experimental.prefetchInlining) {
+    const raw = result.experimental.prefetchInlining
+    const maxSize = typeof raw === 'object' ? (raw.maxSize ?? 2_048) : 2_048
+    const maxBundleSize =
+      typeof raw === 'object' ? (raw.maxBundleSize ?? 10_240) : 10_240
+    result.experimental.prefetchInlining = {
+      // Clamp Infinity to a finite value so the config survives
+      // JSON.stringify (used by output: standalone).
+      maxSize: Number.isFinite(maxSize) ? maxSize : Number.MAX_SAFE_INTEGER,
+      maxBundleSize: Number.isFinite(maxBundleSize)
+        ? maxBundleSize
+        : Number.MAX_SAFE_INTEGER,
+    }
+  }
+
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true
@@ -777,6 +795,13 @@ function assignDefaultsAndValidate(
     result,
     'cacheHandlers',
     'cacheHandlers',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'adapterPath',
+    'adapterPath',
     configFileName,
     silent
   )
@@ -1434,11 +1459,9 @@ async function applyModifyConfig(
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
-  if (config.experimental?.adapterPath) {
+  if (config.adapterPath) {
     const adapterMod = interopDefault(
-      await import(
-        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
-      )
+      await import(pathToFileURL(require.resolve(config.adapterPath)).href)
     ) as NextAdapter
 
     if (typeof adapterMod.modifyConfig === 'function') {
@@ -1760,6 +1783,17 @@ export default async function loadConfig(
 
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
+    }
+
+    if (
+      userConfig.experimental?.lightningCssFeatures &&
+      !userConfig.experimental?.useLightningcss &&
+      bundler !== Bundler.Turbopack
+    ) {
+      curLog.warn(
+        `experimental.lightningCssFeatures is set but experimental.useLightningcss is not enabled. ` +
+          `The lightningCssFeatures option has no effect without useLightningcss.`
+      )
     }
 
     if (userConfig.experimental?.useLightningcss) {

@@ -24,6 +24,7 @@ import {
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
   type RequestStore,
+  type ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -59,9 +60,13 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
-      case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
-        return makeUntrackedSearchParams(underlyingSearchParams)
+      case 'validation-client': {
+        return createClientSearchParamsInValidation(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore
+        )
+      }
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -71,6 +76,10 @@ export function createSearchParamsFromClient(
       case 'unstable-cache':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called inside generateStaticParams.'
         )
       case 'request':
         // Client searchParams are not runtime prefetchable
@@ -127,6 +136,10 @@ export function createServerSearchParamsForServerPage(
       case 'unstable-cache':
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
@@ -185,6 +198,10 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'unstable-cache':
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -266,6 +283,19 @@ function createRenderSearchParams(
         isRuntimePrefetchable
       )
     } else if (requestStore.asyncApiPromises) {
+      if (requestStore.validationSamples) {
+        const { createExhaustiveSearchParamsProxy } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        const declaredKeys = new Set(
+          Object.keys(requestStore.validationSamples.searchParams ?? {})
+        )
+        underlyingSearchParams = createExhaustiveSearchParamsProxy(
+          underlyingSearchParams,
+          declaredKeys,
+          workStore.route
+        )
+      }
+
       return (
         isRuntimePrefetchable
           ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
@@ -673,4 +703,22 @@ function createSearchAccessError(
       `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
+}
+
+function createClientSearchParamsInValidation(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  workUnitStore: ValidationStoreClient
+) {
+  const { createExhaustiveSearchParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredKeys = new Set(
+    Object.keys(workUnitStore.validationSamples?.searchParams ?? {})
+  )
+  underlyingSearchParams = createExhaustiveSearchParamsProxy(
+    underlyingSearchParams,
+    declaredKeys,
+    workStore.route
+  )
+  return Promise.resolve(underlyingSearchParams)
 }

@@ -40,7 +40,6 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
-import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 
 export enum HmrTarget {
   Client = 'client',
@@ -1243,7 +1242,9 @@ function bindingToApi(
         await rustifyProjectOptions(options),
         turboEngineOptions || {},
         {
-          throwTurbopackInternalError,
+          throwTurbopackInternalError: (
+            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+          ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
@@ -1343,6 +1344,11 @@ async function loadWasm(importPath = '') {
         transformStyleAttr: function (_options: any) {
           throw new Error(
             '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
+          )
+        },
+        featureNamesToMask: function (_names: string[]) {
+          throw new Error(
+            '`css.lightning.featureNamesToMask` is not supported by the wasm bindings.'
           )
         },
       },
@@ -1649,6 +1655,9 @@ function loadNative(importPath?: string): Binding {
             return bindings.lightningCssTransformStyleAttribute(
               transformAttrOptions
             )
+          },
+          featureNamesToMask(names: string[]) {
+            return bindings.lightningcssFeatureNamesToMaskNapi(names)
           },
         },
       },

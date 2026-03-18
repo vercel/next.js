@@ -63,7 +63,7 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, SnapshotItem},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -183,7 +183,8 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     storage: Storage,
 
     /// When true, the backing_storage has data that is not in the local storage.
-    local_is_partial: AtomicBool,
+    /// This is determined once at startup and never changes.
+    local_is_partial: bool,
 
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the
@@ -258,7 +259,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ),
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: FxDashMap::default(),
-            local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
+            local_is_partial: next_task_id != TaskId::MIN,
             storage: Storage::new(shard_amount, small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -949,7 +950,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = get_value_type(cell.type_id).global_name,
+            cell_type = get_value_type(cell.type_id).ty.global_name,
             cell_index = cell.index
         )
         .entered();
@@ -1110,125 +1111,107 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        let preprocess = |task_id: TaskId, inner: &TaskStorage| {
-            if task_id.is_transient() {
-                return (None, None);
-            }
-
-            let meta_restored = inner.flags.meta_restored();
-            let data_restored = inner.flags.data_restored();
-
-            // Encode meta/data directly from TaskStorage
-            let meta = meta_restored.then(|| inner.clone_meta_snapshot());
-            let data = data_restored.then(|| inner.clone_data_snapshot());
-
-            (meta, data)
-        };
-        let process = |task_id: TaskId,
-                       (meta, data): (Option<TaskStorage>, Option<TaskStorage>),
-                       buffer: &mut TurboBincodeBuffer| {
-            #[cfg(feature = "print_cache_item_size")]
-            if let Some(ref m) = meta {
-                task_cache_stats
-                    .lock()
-                    .entry(self.get_task_name(task_id, turbo_tasks))
-                    .or_default()
-                    .add_counts(m);
-            }
-            (
-                task_id,
-                meta.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Meta, buffer)),
-                data.map(|d| encode_task_data(task_id, &d, SpecificTaskDataCategory::Data, buffer)),
-            )
-        };
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+        // Helper to encode a TaskStorage into a SnapshotItem
+        // encode_meta/encode_data control whether to encode each category
+        let encode_snapshot_item =
+            |task_id: TaskId,
+             inner: &TaskStorage,
+             encode_meta: bool,
+             encode_data: bool,
+             buffer: &mut TurboBincodeBuffer| {
+                let encode_category = |task_id: TaskId,
+                                       data: &TaskStorage,
+                                       category: SpecificTaskDataCategory,
+                                       buffer: &mut TurboBincodeBuffer|
+                 -> Option<TurboBincodeBuffer> {
+                    match encode_task_data(task_id, data, category, buffer) {
+                        Ok(encoded) => {
+                            #[cfg(feature = "print_cache_item_size")]
+                            {
+                                let mut stats = task_cache_stats.lock();
+                                let entry = stats
+                                    .entry(self.get_task_name(task_id, turbo_tasks))
+                                    .or_default();
+                                match category {
+                                    SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
+                                    SpecificTaskDataCategory::Data => entry.add_data(&encoded),
+                                }
+                            }
+                            Some(encoded)
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "Serializing task {} failed ({:?}): {:?}",
+                                self.debug_get_task_description(task_id),
+                                category,
+                                err
+                            );
+                            None
+                        }
+                    }
+                };
                 if task_id.is_transient() {
-                    return (task_id, None, None);
+                    return SnapshotItem {
+                        task_id,
+                        data: None,
+                        meta: None,
+                    };
                 }
 
                 #[cfg(feature = "print_cache_item_size")]
-                if inner.flags.meta_modified() {
+                if encode_meta {
                     task_cache_stats
                         .lock()
                         .entry(self.get_task_name(task_id, turbo_tasks))
                         .or_default()
-                        .add_counts(&inner);
+                        .add_counts(inner);
                 }
 
-                // Encode meta/data directly from TaskStorage snapshot
-                (
+                let meta = if encode_meta {
+                    encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
+                } else {
+                    None
+                };
+
+                let data = if encode_data {
+                    encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
+                } else {
+                    None
+                };
+
+                SnapshotItem {
                     task_id,
-                    inner.flags.meta_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Meta, buffer)
-                    }),
-                    inner.flags.data_modified().then(|| {
-                        encode_task_data(task_id, &inner, SpecificTaskDataCategory::Data, buffer)
-                    }),
+                    meta,
+                    data,
+                }
+            };
+
+        // Process tasks from the main storage map (uses restored flags)
+        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            encode_snapshot_item(
+                task_id,
+                inner,
+                inner.flags.meta_restored(),
+                inner.flags.data_restored(),
+                buffer,
+            )
+        };
+
+        // Process tasks that were accessed during snapshot mode (uses modified flags)
+        let process_snapshot =
+            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
+                encode_snapshot_item(
+                    task_id,
+                    &inner,
+                    inner.flags.meta_modified(),
+                    inner.flags.data_modified(),
+                    buffer,
                 )
             };
 
-        let snapshot = self
-            .storage
-            .take_snapshot(&preprocess, &process, &process_snapshot);
-
-        let task_snapshots = snapshot
-            .into_iter()
-            .filter_map(|iter| {
-                let mut iter = iter
-                    .filter_map(
-                        |(task_id, meta, data): (
-                            _,
-                            Option<Result<SmallVec<_>>>,
-                            Option<Result<SmallVec<_>>>,
-                        )| {
-                            let meta = match meta {
-                                Some(Ok(meta)) => {
-                                    #[cfg(feature = "print_cache_item_size")]
-                                    task_cache_stats
-                                        .lock()
-                                        .entry(self.get_task_name(task_id, turbo_tasks))
-                                        .or_default()
-                                        .add_meta(&meta);
-                                    Some(meta)
-                                }
-                                None => None,
-                                Some(Err(err)) => {
-                                    println!(
-                                        "Serializing task {} failed (meta): {:?}",
-                                        self.debug_get_task_description(task_id),
-                                        err
-                                    );
-                                    None
-                                }
-                            };
-                            let data = match data {
-                                Some(Ok(data)) => {
-                                    #[cfg(feature = "print_cache_item_size")]
-                                    task_cache_stats
-                                        .lock()
-                                        .entry(self.get_task_name(task_id, turbo_tasks))
-                                        .or_default()
-                                        .add_data(&data);
-                                    Some(data)
-                                }
-                                None => None,
-                                Some(Err(err)) => {
-                                    println!(
-                                        "Serializing task {} failed (data): {:?}",
-                                        self.debug_get_task_description(task_id),
-                                        err
-                                    );
-                                    None
-                                }
-                            };
-                            (meta.is_some() || data.is_some()).then_some((task_id, meta, data))
-                        },
-                    )
-                    .peekable();
-                iter.peek().is_some().then_some(iter)
-            })
-            .collect::<Vec<_>>();
+        // take_snapshot filters empty shards (no modified/snapshot entries) in parallel.
+        // Individual empty SnapshotItems are filtered by the iterator.
+        let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
@@ -2815,6 +2798,32 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
+
+                            // Compact while idle (up to limit), regardless of
+                            // whether the snapshot had new data.
+                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
+                                let idle_ended = tokio::select! {
+                                    biased;
+                                    _ = &mut idle_end_listener => {
+                                        idle_end_listener = self.idle_end_event.listen();
+                                        true
+                                    },
+                                    _ = std::future::ready(()) => false,
+                                };
+                                if idle_ended {
+                                    break;
+                                }
+                                match self.backing_storage.compact() {
+                                    Ok(true) => {}
+                                    Ok(false) => break,
+                                    Err(err) => {
+                                        eprintln!("Compaction failed: {err:?}");
+                                        break;
+                                    }
+                                }
+                            }
+
                             if !new_data {
                                 fresh_idle = false;
                                 continue;
@@ -3633,7 +3642,11 @@ impl DebugTraceTransientTask {
             cell_type_id: Option<ValueTypeId>,
         ) -> fmt::Result {
             if let Some(ty) = cell_type_id {
-                write!(f, " (read cell of type {})", get_value_type(ty).global_name)
+                write!(
+                    f,
+                    " (read cell of type {})",
+                    get_value_type(ty).ty.global_name
+                )
             } else {
                 Ok(())
             }

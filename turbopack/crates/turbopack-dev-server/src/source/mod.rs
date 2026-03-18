@@ -1,12 +1,11 @@
 pub mod asset_graph;
 pub mod combined;
-pub mod conditional;
 pub mod headers;
 pub mod issue_context;
 pub mod lazy_instantiated;
 pub mod query;
 pub mod request;
-pub(crate) mod resolve;
+pub mod resolve;
 pub mod route_tree;
 pub mod router;
 pub mod static_assets;
@@ -62,17 +61,16 @@ impl Version for ProxyResult {
     }
 }
 
-/// A functor to receive the actual content of a content source result.
+/// Receives the actual content for a [`ContentSource`].
 #[turbo_tasks::value_trait]
 pub trait GetContentSourceContent {
-    /// Specifies data requirements for the get function. Restricting data
-    /// passed allows to cache the get method.
+    /// Specifies data requirements for the [`get`][Self::get] function. Restricting data passed
+    /// allows improved caching of the [`get`][Self::get] method.
     #[turbo_tasks::function]
     fn vary(self: Vc<Self>) -> Vc<ContentSourceDataVary> {
         ContentSourceDataVary::default().cell()
     }
 
-    /// Get the content
     #[turbo_tasks::function]
     fn get(self: Vc<Self>, path: RcStr, data: ContentSourceData) -> Vc<ContentSourceContent>;
 }
@@ -88,8 +86,8 @@ pub struct StaticContent {
 }
 
 #[turbo_tasks::value(shared)]
-// TODO add Dynamic variant in future to allow streaming and server responses
-/// The content of a result that is returned by a content source.
+/// The content of a result that is returned by [`GetContentSourceContent::get`].
+// TODO: add a `Dynamic` variant in future to allow streaming and server responses
 pub enum ContentSourceContent {
     NotFound,
     Static(ResolvedVc<StaticContent>),
@@ -156,12 +154,10 @@ impl HeaderList {
     }
 }
 
-/// Additional info passed to the ContentSource. It was extracted from the http
-/// request.
+/// Additional info passed to the [`ContentSource`]. It was extracted from the http request.
 ///
 /// Note that you might not receive information that has not been requested via
-/// `ContentSource::vary()`. So make sure to request all information that's
-/// needed.
+/// [`GetContentSourceContent::vary`]. So make sure to request all information that's needed.
 #[derive(
     PartialEq,
     Eq,
@@ -263,7 +259,8 @@ impl ContentSourceDataFilter {
     }
 
     /// Merges the filtering to get a filter that covers both filters. Works on
-    /// Option<DataFilter> where None is considers as empty filter.
+    /// [`Option<ContentSourceDataFilter>`][ContentSourceDataFilter] where [`None`] behaves as a
+    /// no-op empty filter.
     pub fn extend_options(
         this: &mut Option<ContentSourceDataFilter>,
         other: &Option<ContentSourceDataFilter>,
@@ -305,9 +302,9 @@ impl ContentSourceDataFilter {
     }
 }
 
-/// Describes additional information that need to be sent to requests to
-/// ContentSource. By sending these information ContentSource responses are
-/// cached-keyed by them and they can access them.
+/// Describes additional information that need to be sent to requests to [`ContentSource`]. By
+/// sending these information [`ContentSource`] responses are cached-keyed by them and they can
+/// access them.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone, Hash)]
 pub struct ContentSourceDataVary {
@@ -327,8 +324,8 @@ pub struct ContentSourceDataVary {
 }
 
 impl ContentSourceDataVary {
-    /// Merges two vary specification to create a combination of both that cover
-    /// all information requested by either one
+    /// Merges two vary specification to create a combination of both that cover all information
+    /// requested by either one
     pub fn extend(&mut self, other: &ContentSourceDataVary) {
         let ContentSourceDataVary {
             method,
@@ -353,8 +350,7 @@ impl ContentSourceDataVary {
         ContentSourceDataFilter::extend_options(headers, &other.headers);
     }
 
-    /// Returns true if `self` at least contains all values that the
-    /// argument would contain.
+    /// Returns true if `self` at least contains all values that the argument would contain.
     pub fn fulfills(&self, other: &ContentSourceDataVary) -> bool {
         // All fields must be used!
         let ContentSourceDataVary {

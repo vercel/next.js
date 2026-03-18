@@ -94,7 +94,10 @@ import {
   type RouteInfo,
   type SlotInfo,
 } from '../../../build/file-classifier'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
@@ -114,7 +117,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -238,7 +241,7 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.experimentalServerFastRefresh
+          opts.serverFastRefresh
         )
       })()
     : await (async () => {
@@ -951,7 +954,7 @@ async function startWatcher(
 
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
       await propagateServerField(
         opts,

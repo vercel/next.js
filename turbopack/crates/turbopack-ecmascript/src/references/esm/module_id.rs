@@ -5,7 +5,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -25,11 +25,15 @@ use crate::{
 #[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
+    chunking_type: Option<ChunkingType>,
 }
 
 impl EsmModuleIdAssetReference {
-    pub fn new(inner: ResolvedVc<EsmAssetReference>) -> Self {
-        EsmModuleIdAssetReference { inner }
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, chunking_type: Option<ChunkingType>) -> Self {
+        EsmModuleIdAssetReference {
+            inner,
+            chunking_type,
+        }
     }
 }
 
@@ -40,9 +44,8 @@ impl ModuleReference for EsmModuleIdAssetReference {
         self.inner.resolve_reference()
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type.clone()
     }
 }
 

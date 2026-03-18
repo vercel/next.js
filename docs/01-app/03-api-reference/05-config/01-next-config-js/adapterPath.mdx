@@ -1,7 +1,6 @@
 ---
 title: adapterPath
 description: Configure a custom adapter for Next.js to hook into the build process.
-version: experimental
 ---
 
 Next.js provides a built-in adapters API. It allows deployment platforms or build systems to integrate with the Next.js build process.
@@ -10,14 +9,12 @@ For a full reference implementation, see the [`nextjs/adapter-vercel`](https://g
 
 ## Configuration
 
-To use an adapter, specify the path to your adapter module in `experimental.adapterPath`:
+To use an adapter, specify the path to your adapter module in `adapterPath`:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    adapterPath: require.resolve('./my-adapter.js'),
-  },
+  adapterPath: require.resolve('./my-adapter.js'),
 }
 
 module.exports = nextConfig
@@ -444,7 +441,21 @@ const result = await resolveRoutes({
     return {}
   },
 })
+
+if (result.resolvedPathname) {
+  console.log('Resolved pathname:', result.resolvedPathname)
+  console.log('Resolved query:', result.resolvedQuery)
+  console.log('Invocation target:', result.invocationTarget)
+}
 ```
+
+`resolveRoutes()` returns:
+
+- `resolvedPathname`: The route pathname selected by Next.js routing. For dynamic routes, this is the matched route template such as `/blog/[slug]`.
+- `resolvedQuery`: The final query after rewrites or middleware have added or replaced search params.
+- `invocationTarget`: The concrete pathname and query to invoke for the matched route.
+
+For example, if `/blog/post-1?draft=1` matches `/blog/[slug]?slug=post-1`, `resolvedPathname` is `/blog/[slug]` while `invocationTarget.pathname` is `/blog/post-1`.
 
 ## Implementing PPR in an Adapter
 
@@ -576,6 +587,28 @@ handler(
 ): Promise<void>
 ```
 
+When invoking Node.js entrypoints directly, adapters can pass helpers directly on `requestMeta` instead of relying on internals. Some of the supported fields are `hostname`,
+`revalidate`, and `render404`:
+
+```ts
+await handler(req, res, {
+  requestMeta: {
+    // Relative path from process.cwd() to the Next.js project directory.
+    relativeProjectDir: '.',
+    // Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+    // Optional internal revalidate function to avoid revalidating over the network
+    revalidate: async ({ urlPath, headers, opts }) => {
+      // platform-specific revalidate implementation
+    },
+    // Optional function to render the 404 page for pages router `notFound: true`
+    render404: async (req, res, parsedUrl, setHeaders) => {
+      // platform-specific 404 rendering implementation
+    },
+  },
+})
+```
+
 Relevant files in the Next.js core:
 
 - [`packages/next/src/build/templates/app-page.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/app-page.ts)
@@ -599,6 +632,26 @@ handler(
 
 The shape is aligned around `handler(..., ctx)`, but Node.js and Edge runtimes use different request/response primitives.
 
+For outputs with `runtime: 'edge'`, Next.js also provides `output.edgeRuntime` with the canonical metadata needed to invoke the entrypoint:
+
+```typescript
+{
+  modulePath: string // Absolute path to the module registered in the edge runtime
+  entryKey: string // Canonical key used by the edge entry registry
+  handlerExport: string // Export name to invoke, currently 'handler'
+}
+```
+
+After your edge runtime loads and evaluates the chunks for `modulePath`, use `entryKey` to read the registered entry from the global edge entry registry (`globalThis._ENTRIES`), then invoke `handlerExport` from that entry:
+
+```ts
+const entry = await globalThis._ENTRIES[output.edgeRuntime.entryKey]
+const handler = entry[output.edgeRuntime.handlerExport]
+await handler(request, ctx)
+```
+
+Use `edgeRuntime` instead of deriving registry keys or handler names from filenames.
+
 Relevant files in the Next.js core:
 
 - [`packages/next/src/build/templates/edge-ssr.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/edge-ssr.ts)
@@ -620,6 +673,8 @@ The `outputs` object contains arrays of build output types:
 
 > **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
+For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime.
+
 ### Pages (`outputs.pages`)
 
 React pages from the `pages/` directory:
@@ -634,6 +689,11 @@ React pages from the `pages/` directory:
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -656,6 +716,11 @@ API routes from `pages/api/`:
   runtime: 'nodejs' | 'edge'
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -678,6 +743,11 @@ React pages from the `app/` directory:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -700,6 +770,11 @@ API and metadata routes from the `app/` directory:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region
@@ -770,6 +845,11 @@ Static assets and auto-statically optimized pages:
   runtime: 'nodejs' | 'edge' // Runtime the route is built for
   assets: Record<string, string>  // Traced dependencies (key: relative path from repo root, value: absolute path)
   wasmAssets?: Record<string, string>  // Bundled wasm files (key: name, value: absolute path)
+  edgeRuntime?: {
+    modulePath: string    // Absolute path to the module registered in the edge runtime
+    entryKey: string      // Canonical key used by the edge entry registry
+    handlerExport: string // Export name to invoke, currently 'handler'
+  }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
     preferredRegion?: string | string[]  // Preferred deployment region

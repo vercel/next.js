@@ -49,6 +49,12 @@ use crate::{
 /// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
 ///
 ///
+/// ## Reading a `ResolvedVc`
+///
+/// Even though a `Vc` may be resolved as a `ResolvedVc`, we must still use `.await?` to read it's
+/// value, as the value could be invalidated or cache-evicted.
+///
+///
 /// ## Equality & Hashing
 ///
 /// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
@@ -271,7 +277,9 @@ where
             <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
             "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
              instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id())
+                .ty
+                .global_name
         );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
