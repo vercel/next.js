@@ -197,6 +197,14 @@ export default class NextNodeServer extends BaseServer<
   private isDev: boolean
   private sriEnabled: boolean
 
+  /**
+   * Cache for loadComponents results keyed by `pagePath:isAppPath`. In
+   * production, component modules and their manifests are immutable between
+   * deploys, so we can avoid repeated manifest loading and module resolution
+   * on every request.
+   */
+  private componentsCache?: Map<string, LoadComponentsReturnType>
+
   constructor(options: Options) {
     // Initialize super class
     super(options)
@@ -861,14 +869,30 @@ export default class NextNodeServer extends BaseServer<
 
     for (const pagePath of pagePaths) {
       try {
-        const components = await loadComponents({
-          distDir: this.distDir,
-          page: pagePath,
-          isAppPath,
-          isDev: this.isDev,
-          sriEnabled: this.sriEnabled,
-          needsManifestsForLegacyReasons: false,
-        })
+        // In production, component modules and manifests are immutable so we
+        // cache the result to avoid repeated manifest loading and module
+        // resolution on every request.
+        const cacheKey = `${pagePath}:${isAppPath}`
+        let components = !this.isDev
+          ? this.componentsCache?.get(cacheKey)
+          : undefined
+
+        if (!components) {
+          components = await loadComponents({
+            distDir: this.distDir,
+            page: pagePath,
+            isAppPath,
+            isDev: this.isDev,
+            sriEnabled: this.sriEnabled,
+            needsManifestsForLegacyReasons: false,
+          })
+          if (!this.isDev) {
+            if (!this.componentsCache) {
+              this.componentsCache = new Map()
+            }
+            this.componentsCache.set(cacheKey, components)
+          }
+        }
 
         if (
           locale &&

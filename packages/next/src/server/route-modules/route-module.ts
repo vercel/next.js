@@ -68,6 +68,27 @@ import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-traili
 import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
 
 /**
+ * The result of loading all manifests for a route. Extracted as a named type so
+ * the per-route cache can reference it without relying on ReturnType of a
+ * private method.
+ */
+type LoadedManifests = {
+  buildId: string
+  buildManifest: BuildManifest
+  fallbackBuildManifest: BuildManifest
+  routesManifest: DeepReadonly<DevRoutesManifest>
+  nextFontManifest: DeepReadonly<NextFontManifest>
+  prerenderManifest: DeepReadonly<PrerenderManifest>
+  serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
+  reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+  subresourceIntegrityManifest: any
+  clientReferenceManifest: any
+  serverActionsManifest: any
+  dynamicCssManifest: any
+  interceptionRoutePatterns: RegExp[]
+}
+
+/**
  * RouteModuleOptions is the options that are passed to the route module, other
  * route modules should extend this class to add specific options for their
  * route.
@@ -128,6 +149,14 @@ export abstract class RouteModule<
   public relativeProjectDir: string
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
+
+  /**
+   * Cache for loadManifests results keyed by srcPage. In production, manifests
+   * are immutable between deploys so the per-request overhead of 10+
+   * path.join() calls and loadManifestFromRelativePath invocations can be
+   * eliminated by caching the assembled result object.
+   */
+  private manifestsCache?: Map<string, LoadedManifests>
 
   constructor({
     userland,
@@ -200,21 +229,7 @@ export abstract class RouteModule<
   private loadManifests(
     srcPage: string,
     projectDir?: string
-  ): {
-    buildId: string
-    buildManifest: BuildManifest
-    fallbackBuildManifest: BuildManifest
-    routesManifest: DeepReadonly<DevRoutesManifest>
-    nextFontManifest: DeepReadonly<NextFontManifest>
-    prerenderManifest: DeepReadonly<PrerenderManifest>
-    serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
-    reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
-    subresourceIntegrityManifest: any
-    clientReferenceManifest: any
-    serverActionsManifest: any
-    dynamicCssManifest: any
-    interceptionRoutePatterns: RegExp[]
-  } {
+  ): LoadedManifests {
     let result
     if (process.env.NEXT_RUNTIME === 'edge') {
       const { getEdgePreviewProps } =
@@ -648,7 +663,22 @@ export abstract class RouteModule<
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
+    // In production, manifests are immutable so we can cache the entire
+    // assembled result to avoid 10+ path.join() + loadManifestFromRelativePath
+    // calls on every request.
+    let manifests: LoadedManifests | undefined
+    if (!this.isDev) {
+      manifests = this.manifestsCache?.get(srcPage)
+    }
+    if (!manifests) {
+      manifests = this.loadManifests(srcPage, absoluteProjectDir)
+      if (!this.isDev) {
+        if (!this.manifestsCache) {
+          this.manifestsCache = new Map()
+        }
+        this.manifestsCache.set(srcPage, manifests)
+      }
+    }
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
