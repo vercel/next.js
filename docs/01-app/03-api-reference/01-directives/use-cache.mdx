@@ -191,13 +191,13 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 
 Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
 
-### Runtime APIs
+### Request-time APIs
 
 Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
 
 ### Runtime caching considerations
 
-While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
+While `use cache` is designed primarily to include uncached data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
 Runtime cache behavior depends on your hosting environment:
 
@@ -307,7 +307,7 @@ Both `cacheLife` and `cacheTag` integrate across client and server caching layer
 
 ### Caching an entire route with `use cache`
 
-To pre-render an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
@@ -570,11 +570,11 @@ In development, console logs from cached functions appear with a `Cache` prefix.
 
 ### Build Hangs (Cache Timeout)
 
-If your build hangs, you're accessing Promises that resolve to dynamic or runtime data, created outside a `use cache` boundary. The cached function waits for data that can't resolve during the build, causing a timeout after 50 seconds.
+If your build hangs, you're accessing Promises that resolve to uncached or runtime data, created outside a `use cache` boundary. The cached function waits for data that can't resolve during the build, causing a timeout after 50 seconds.
 
 When the build timeouts you'll see this error message:
 
-> Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+> Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or uncached data were used inside "use cache".
 
 Common ways this happens: passing such Promises as props, accessing them via closure, or retrieving them from shared storage (Maps).
 

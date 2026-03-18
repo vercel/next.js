@@ -3,14 +3,15 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{State, Vc};
+use turbo_tasks::{State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn hidden_mutate() {
+async fn test_hidden_mutate() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = create_input().resolve().await?;
         input.await?.state.set(1);
         let changing_value = compute(input);

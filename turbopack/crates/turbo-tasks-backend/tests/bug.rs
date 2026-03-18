@@ -25,157 +25,169 @@ struct TaskSpec {
 struct TasksSpec(Vec<TaskSpec>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn graph_bug() {
-    // see https://github.com/vercel/next.js/pull/79451
-    run_once(&REGISTRATION, || async {
-        let spec = vec![
-            TaskSpec {
-                references: vec![
-                    TaskReferenceSpec {
-                        task: 3,
-                        read: false,
-                        read_strongly_consistent: true,
-                    },
-                    TaskReferenceSpec {
-                        task: 1,
-                        read: true,
-                        read_strongly_consistent: false,
-                    },
-                    TaskReferenceSpec {
-                        task: 12,
-                        read: false,
-                        read_strongly_consistent: true,
-                    },
-                ],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 2,
-                    read: true,
-                    read_strongly_consistent: true,
-                }],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 4,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 6,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec {
-                references: vec![
-                    TaskReferenceSpec {
-                        task: 5,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                    TaskReferenceSpec {
-                        task: 13,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                ],
-            },
-            TaskSpec {
-                references: vec![
-                    TaskReferenceSpec {
-                        task: 11,
-                        read: false,
-                        read_strongly_consistent: true,
-                    },
-                    TaskReferenceSpec {
-                        task: 14,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                    TaskReferenceSpec {
-                        task: 7,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                    TaskReferenceSpec {
-                        task: 8,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                ],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 9,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec { references: vec![] },
-            TaskSpec {
-                references: vec![
-                    TaskReferenceSpec {
-                        task: 12,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                    TaskReferenceSpec {
-                        task: 11,
-                        read: false,
-                        read_strongly_consistent: false,
-                    },
-                ],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 10,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 12,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec { references: vec![] },
-            TaskSpec {
-                references: vec![TaskReferenceSpec {
-                    task: 14,
-                    read: false,
-                    read_strongly_consistent: false,
-                }],
-            },
-            TaskSpec { references: vec![] },
-            TaskSpec {
-                references: vec![
-                    TaskReferenceSpec {
-                        task: 16,
-                        read: false,
-                        read_strongly_consistent: true,
-                    },
-                    TaskReferenceSpec {
-                        task: 15,
-                        read: false,
-                        read_strongly_consistent: true,
-                    },
-                ],
-            },
-            TaskSpec { references: vec![] },
-            TaskSpec { references: vec![] },
-        ];
-        let spec: Vc<TasksSpec> = Vc::cell(spec);
-        run_task(spec, 0).await?;
-
-        anyhow::Ok(())
+async fn test_graph_bug() {
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || async move {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        test_graph_bug_operation(nonce)
+            .read_strongly_consistent()
+            .await
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
+    // see https://github.com/vercel/next.js/pull/79451
+    let spec = vec![
+        TaskSpec {
+            references: vec![
+                TaskReferenceSpec {
+                    task: 3,
+                    read: false,
+                    read_strongly_consistent: true,
+                },
+                TaskReferenceSpec {
+                    task: 1,
+                    read: true,
+                    read_strongly_consistent: false,
+                },
+                TaskReferenceSpec {
+                    task: 12,
+                    read: false,
+                    read_strongly_consistent: true,
+                },
+            ],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 2,
+                read: true,
+                read_strongly_consistent: true,
+            }],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 4,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 6,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec {
+            references: vec![
+                TaskReferenceSpec {
+                    task: 5,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+                TaskReferenceSpec {
+                    task: 13,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+            ],
+        },
+        TaskSpec {
+            references: vec![
+                TaskReferenceSpec {
+                    task: 11,
+                    read: false,
+                    read_strongly_consistent: true,
+                },
+                TaskReferenceSpec {
+                    task: 14,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+                TaskReferenceSpec {
+                    task: 7,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+                TaskReferenceSpec {
+                    task: 8,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+            ],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 9,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec { references: vec![] },
+        TaskSpec {
+            references: vec![
+                TaskReferenceSpec {
+                    task: 12,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+                TaskReferenceSpec {
+                    task: 11,
+                    read: false,
+                    read_strongly_consistent: false,
+                },
+            ],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 10,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 12,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec { references: vec![] },
+        TaskSpec {
+            references: vec![TaskReferenceSpec {
+                task: 14,
+                read: false,
+                read_strongly_consistent: false,
+            }],
+        },
+        TaskSpec { references: vec![] },
+        TaskSpec {
+            references: vec![
+                TaskReferenceSpec {
+                    task: 16,
+                    read: false,
+                    read_strongly_consistent: true,
+                },
+                TaskReferenceSpec {
+                    task: 15,
+                    read: false,
+                    read_strongly_consistent: true,
+                },
+            ],
+        },
+        TaskSpec { references: vec![] },
+        TaskSpec { references: vec![] },
+    ];
+    let spec: Vc<TasksSpec> = Vc::cell(spec);
+    run_task(spec, 0).await?;
+
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function]

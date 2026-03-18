@@ -1,7 +1,10 @@
 import { getLayoutOrPageModule } from '../../lib/app-dir-module'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-tree'
-import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  InstantSample,
+} from '../../../build/segment-config/app/app-segment-config'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -78,25 +81,41 @@ type FoundSegmentWithConfig = {
  * Checks if any segments in the loader tree have `instant` configs that need validating.
  * NOTE: Client navigations call this multiple times, so we cache it.
  * */
-export const anySegmentNeedsInstantValidation = cacheScopedToWorkStore(
-  async (rootTree: LoaderTree): Promise<boolean> => {
-    const segments = await findSegmentsWithInstantConfig(rootTree)
+// Shared helper (not exported, not cached — called by the cached wrappers)
+async function anySegmentNeedsInstantValidation(
+  rootTree: LoaderTree,
+  mode: 'dev' | 'build'
+): Promise<boolean> {
+  const segments = await findSegmentsWithInstantConfig(rootTree)
 
-    // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
-    // (If there's only `false`, there's no need to run validation).
-    // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
-    let needsValidation = false
-    for (const { config } of segments) {
-      if (typeof config === 'object') {
-        if (config.unstable_disableValidation) {
-          return false
-        }
-        // do not short-circuit, some other segment might still have `unstable_disableValidation`
-        needsValidation = true
+  // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
+  // (If there's only `false`, there's no need to run validation).
+  // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
+  let needsValidation = false
+  for (const { config } of segments) {
+    if (typeof config === 'object') {
+      if (
+        config.unstable_disableValidation === true ||
+        (mode === 'dev' && config.unstable_disableDevValidation === true) ||
+        (mode === 'build' && config.unstable_disableBuildValidation === true)
+      ) {
+        return false
       }
+      // do not short-circuit, some other segment might still have `unstable_disableValidation`
+      needsValidation = true
     }
-    return needsValidation
   }
+  return needsValidation
+}
+
+export const anySegmentNeedsInstantValidationInDev = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'dev')
+)
+
+export const anySegmentNeedsInstantValidationInBuild = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'build')
 )
 
 export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(
@@ -128,6 +147,43 @@ export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(
     return results
   }
 )
+
+export const resolveInstantConfigSamplesForPage = async (
+  tree: LoaderTree
+): Promise<InstantSample[] | null> => {
+  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    : undefined
+
+  let samples: InstantSample[] | null = null
+  if (
+    instantConfig !== undefined &&
+    typeof instantConfig === 'object' &&
+    instantConfig.samples
+  ) {
+    samples = instantConfig.samples
+  }
+
+  // The samples from inner segments override samples from outer segments,
+  // i.e. a page overrides the samples from a layout.
+  // We do not perform any merging logic.
+  const { parallelRoutes } = parseLoaderTree(tree)
+  for (const parallelRouteKey in parallelRoutes) {
+    if (parallelRouteKey !== 'children') {
+      // TODO(instant-validation-build): do something with with samples from non-children slots?
+      continue
+    }
+    const childTree = parallelRoutes[parallelRouteKey]
+    const childSamples = await resolveInstantConfigSamplesForPage(childTree)
+    if (childSamples !== null) {
+      samples = childSamples
+    }
+  }
+
+  return samples
+}
 
 /**
  * A simple cache wrapper for 1-argument functions.

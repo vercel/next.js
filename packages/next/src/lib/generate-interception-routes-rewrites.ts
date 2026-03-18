@@ -4,7 +4,6 @@ import {
   isInterceptionRouteAppPath,
 } from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
-import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export function generateInterceptionRoutesRewrites(
@@ -58,9 +57,4 @@ export function generateInterceptionRoutesRewrites(
   }
 
   return rewrites
-}
-
-export function isInterceptionRouteRewrite(route: DeepReadonly<Rewrite>) {
-  // When we generate interception rewrites in the above implementation, we always do so with only a single `has` condition.
-  return route.has?.[0]?.key === NEXT_URL
 }

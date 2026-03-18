@@ -1,12 +1,17 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
 
 describe('css-url-deployment-id', () => {
-  const deploymentId = 'test-deployment-id'
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: { sass: '1.54.0' },
+    env: {
+      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+      __NEXT_IMMUTABLE_ASSET_TOKEN: isNextStart
+        ? 'imm-deployment-id'
+        : undefined,
+    },
+    disableAutoSkewProtection: true,
   })
 
   it('should include dpl query in CSS url() references for images and fonts', async () => {
@@ -28,7 +33,7 @@ describe('css-url-deployment-id', () => {
     // Fetch all CSS files and collect their contents
     let allCssContent = ''
     for (const cssUrl of cssUrls) {
-      const res = await next.fetch(cssUrl.split('?')[0])
+      const res = await next.fetch(cssUrl)
       const cssText = await res.text()
       allCssContent += cssText + '\n'
     }
@@ -57,7 +62,7 @@ describe('css-url-deployment-id', () => {
     expect(assetUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const assetUrl of assetUrls) {
-      expect(assetUrl).toContain('dpl=' + deploymentId)
+      expect(assetUrl).toContain('dpl=' + next.assetToken)
     }
   })
 
@@ -77,7 +82,7 @@ describe('css-url-deployment-id', () => {
 
     let allCssContent = ''
     for (const cssUrl of cssUrls) {
-      const res = await next.fetch(cssUrl.split('?')[0])
+      const res = await next.fetch(cssUrl)
       const cssText = await res.text()
       allCssContent += cssText + '\n'
     }
@@ -98,7 +103,7 @@ describe('css-url-deployment-id', () => {
     expect(imageUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const imageUrl of imageUrls) {
-      expect(imageUrl).toContain('dpl=' + deploymentId)
+      expect(imageUrl).toContain('dpl=' + next.assetToken)
     }
 
     // Find font references from CSS modules
@@ -106,7 +111,7 @@ describe('css-url-deployment-id', () => {
     expect(fontUrls.length).toBeGreaterThanOrEqual(1)
 
     for (const fontUrl of fontUrls) {
-      expect(fontUrl).toContain('dpl=' + deploymentId)
+      expect(fontUrl).toContain('dpl=' + next.assetToken)
     }
   })
 })

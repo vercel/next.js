@@ -28,7 +28,6 @@ use turbopack_core::{
         resolve,
     },
     source::{OptionSource, Source},
-    source_pos::SourcePos,
 };
 
 use crate::ecmascript::get_condition_maps;
@@ -69,29 +68,7 @@ pub async fn read_tsconfigs(
         match &*parsed_data.await? {
             FileJsonContent::Unparsable(e) => {
                 let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
-                let source = match (e.start_location, e.end_location) {
-                    (None, None) => IssueSource::from_source_only(tsconfig),
-                    (Some((line, column)), None) | (None, Some((line, column))) => {
-                        IssueSource::from_line_col(
-                            tsconfig,
-                            SourcePos { line, column },
-                            SourcePos { line, column },
-                        )
-                    }
-                    (Some((start_line, start_column)), Some((end_line, end_column))) => {
-                        IssueSource::from_line_col(
-                            tsconfig,
-                            SourcePos {
-                                line: start_line,
-                                column: start_column,
-                            },
-                            SourcePos {
-                                line: end_line,
-                                column: end_column,
-                            },
-                        )
-                    }
-                };
+                let source = IssueSource::from_unparsable_json(tsconfig, e);
                 TsConfigIssue {
                     severity: IssueSeverity::Error,
                     source,

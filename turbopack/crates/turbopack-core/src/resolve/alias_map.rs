@@ -17,7 +17,7 @@ use turbo_tasks::{
 
 use crate::resolve::pattern::Pattern;
 
-/// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
+/// A map of [`AliasPattern`]s as keys implemented using [`PatriciaMap`].
 ///
 /// If a pattern has a wildcard character (*) within it, it will capture any
 /// number of characters, including path separators. The result of the capture
@@ -578,7 +578,10 @@ where
     }
 }
 
-/// An alias pattern.
+/// An alias pattern commonly used for import paths. This should support [the functionality used in
+/// Typescript's tsconfig file][tsconfig].
+///
+/// [tsconfig]: https://www.typescriptlang.org/tsconfig/#paths
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum AliasPattern {
     /// Will match an exact string.

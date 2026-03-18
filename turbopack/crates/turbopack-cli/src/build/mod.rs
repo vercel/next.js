@@ -16,12 +16,12 @@ use turbo_tasks_backend::{
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
 use turbopack::global_module_ids::get_global_module_id_strategy;
-use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
+use turbopack_browser::{BrowserChunkingContext, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
         MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -44,7 +44,7 @@ use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
@@ -224,7 +224,9 @@ async fn build_internal(
         NodeEnv::Production => RuntimeType::Production,
     };
 
-    let compile_time_info = get_client_compile_time_info(browserslist_query.clone(), node_env);
+    let compile_time_info =
+        get_client_compile_time_info(browserslist_query.clone(), node_env, false);
+    let node_backend = child_process_backend();
     let execution_context = ExecutionContext::new(
         root_path.clone(),
         Vc::upcast(
@@ -245,6 +247,7 @@ async fn build_internal(
             .build(),
         ),
         load_env(root_path.clone()),
+        node_backend,
     );
 
     let asset_context = get_client_asset_context(
@@ -372,7 +375,8 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .chunk_content_hashing(ContentHashing::Direct { length: 13 })
+                        .asset_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }
@@ -468,7 +472,7 @@ async fn build_internal(
                                                         .unwrap(),
                                                 )?
                                                 .with_extension("entry.js"),
-                                            EvaluatableAssets::one(*ecmascript),
+                                            ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)]),
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),

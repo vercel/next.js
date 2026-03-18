@@ -285,6 +285,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
+    pub entrypoint: RcStr,
     pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
@@ -383,8 +384,6 @@ pub struct ActionManifestEntry<'a> {
     /// A mapping from the page that uses the server action to the runtime
     /// module that exports it.
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
-
-    pub layer: FxIndexMap<&'a str, ActionLayer>,
 
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,

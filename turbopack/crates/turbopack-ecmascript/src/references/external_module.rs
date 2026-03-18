@@ -323,7 +323,15 @@ impl Module for CachedExternalModule {
                 let references = external_result
                     .affecting_sources
                     .iter()
-                    .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
+                    .map(|s| {
+                        // Add a modifier
+                        // it is possible to reference a module as an affecting source and as Module
+                        // so this will distinguish them
+                        Vc::upcast::<Box<dyn Module>>(RawModule::new_with_modifier(
+                            **s,
+                            rcstr!("affecting source"),
+                        ))
+                    })
                     .chain(
                         external_result
                             .primary_modules_raw_iter()

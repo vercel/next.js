@@ -80,6 +80,12 @@ on:
         type: string
         default: ''
 
+      testTimingsArtifact:
+        description: 'Name of an uploaded artifact containing test-timings.json. When set, download it instead of fetching via turbo.'
+        required: false
+        type: string
+        default: ''
+
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -87,7 +93,7 @@ on:
         default: 'chromium'
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.8.11
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
@@ -294,20 +300,27 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      # Some packages e.g. `devlow-bench` depend on `pnpm build` to generate
-      # their `dist` directory. The first run of `pnpm install` will generate
-      # warnings because these don't exist yet.
-      #
-      # We need to run `pnpm install` a _second_ time to fix this. Fortunately,
-      # this second run is very fast and cheap.
-      - name: Re-run pnpm install to link built packages into node_modules/.bin
-        run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
-
       - run: pnpm playwright install --with-deps ${{ inputs.browser }}
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
+      - name: Download pre-built test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.testTimingsArtifact }}
+
+      - name: Verify test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "::error::test-timings.json not found"
+            exit 1
+          fi
+          echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Fetch test timings via turbo
+        if: ${{ inputs.testTimingsArtifact == '' }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
@@ -324,7 +337,8 @@ jobs:
         if: ${{ always() }}
         run: rm -f /tmp/package-lock.json
 
-      - name: Upload artifact
+      - name: Upload Turborepo summary
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}

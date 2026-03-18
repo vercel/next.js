@@ -34,7 +34,7 @@ describe('app dir - metadata missing metadataBase', () => {
     return isNextDev ? next.cliOutput.slice(logStartPosition) : next.cliOutput
   }
 
-  it('should not show warning in vercel deployment output in default build output mode', async () => {
+  it('should not show warning in output in default build output mode', async () => {
     const logStartPosition = next.cliOutput.length
     await next.fetch('/og-image-convention')
     const output = getCliOutput(logStartPosition)

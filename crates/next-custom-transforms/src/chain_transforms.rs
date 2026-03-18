@@ -8,12 +8,12 @@ use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     common::{
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         comments::{Comments, NoopComments},
         pass::Optional,
-        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{fn_pass, noop_pass, EsVersion, Pass},
+        ast::{EsVersion, Pass, fn_pass, noop_pass},
         parser::parse_file_as_module,
         visit::visit_mut_pass,
     },
@@ -23,7 +23,7 @@ use crate::{
     linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
-        dynamic::{next_dynamic, NextDynamicMode},
+        dynamic::{NextDynamicMode, next_dynamic},
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
@@ -136,6 +136,7 @@ where
     C: Clone + Comments + 'a,
 {
     let file_path_str = file.name.to_string();
+    let file_path_for_instant_stack = file_path_str.clone();
 
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
@@ -329,6 +330,7 @@ where
                 true => Either::Left(
                     crate::transforms::track_dynamic_imports::track_dynamic_imports(
                         unresolved_mark,
+                        comments.clone(),
                     ),
                 ),
                 false => Either::Right(noop_pass()),
@@ -345,6 +347,15 @@ where
             Optional::new(
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
+            ),
+            crate::transforms::debug_instant_stack::debug_instant_stack(
+                file_path_for_instant_stack,
+                match &opts.server_components {
+                    Some(react_server_components::Config::WithOptions(options)) => {
+                        options.page_extensions.clone()
+                    }
+                    _ => vec![],
+                },
             ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(

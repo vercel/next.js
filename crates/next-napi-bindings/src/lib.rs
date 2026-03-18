@@ -42,6 +42,7 @@ use swc_core::{
     common::{FilePathMapping, SourceMap},
 };
 
+pub mod code_frame;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;

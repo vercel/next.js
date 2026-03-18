@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Ok, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbofmt};
 
 use super::pattern::Pattern;
 
@@ -652,7 +652,7 @@ impl Request {
                 encoding,
                 data,
             } => {
-                let data = ResolvedVc::cell(format!("{}{}", data.await?, suffix).into());
+                let data = ResolvedVc::cell(turbofmt!("{}{suffix}", *data).await?);
                 Self::DataUri {
                     media_type: media_type.clone(),
                     encoding: encoding.clone(),

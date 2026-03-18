@@ -293,6 +293,10 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// Returns whether this module should be split into separate locals and facade modules.
+    ///
+    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
+    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {

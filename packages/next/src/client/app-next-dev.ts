@@ -11,11 +11,12 @@ import { isRecoverableError } from './react-client-callbacks/on-recoverable-erro
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
 appBootstrap((assetPrefix) => {
+  const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
+
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
     hydrate(instrumentationHooks, assetPrefix)
   } finally {
-    const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
     renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }
 })

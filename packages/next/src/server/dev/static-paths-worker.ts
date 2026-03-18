@@ -30,6 +30,7 @@ import { parseAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacks: boolean
   configFileName: string
   cacheComponents: boolean
 }
@@ -147,6 +148,7 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      partialFallbacksEnabled: config.partialFallbacks,
       buildId,
       authInterrupts,
       rootParamKeys,

@@ -5,6 +5,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     context::AssetContext,
+    file_source::FileSource,
     module::Module,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -113,6 +114,7 @@ pub async fn get_app_route_entry(
             project_root,
             rsc_entry,
             page,
+            next_config,
         );
     }
 
@@ -131,21 +133,78 @@ async fn wrap_edge_route(
     project_root: FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
+    let mut cache_handler_imports = String::new();
+    let mut cache_handler_map_entries = String::new();
+    let mut incremental_cache_handler_import = None;
+    let mut cache_handler_inner_assets = fxindexmap! {};
+
+    let cache_handlers = next_config.cache_handlers_map().owned().await?;
+    for (index, (kind, handler_path)) in cache_handlers.iter().enumerate() {
+        let cache_handler_inner: RcStr = format!("INNER_CACHE_HANDLER_{index}").into();
+        let cache_handler_var = format!("cacheHandler{index}");
+        cache_handler_imports.push_str(&format!(
+            "import {cache_handler_var} from {};\n",
+            serde_json::to_string(&*cache_handler_inner)?
+        ));
+        cache_handler_map_entries.push_str(&format!(
+            "  {}: {cache_handler_var},\n",
+            serde_json::to_string(kind.as_str())?
+        ));
+
+        let cache_handler_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(project_root.join(handler_path)?)),
+                ReferenceType::Undefined,
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+    }
+
+    for cache_handler_path in next_config
+        .cache_handler(project_root.clone())
+        .await?
+        .into_iter()
+    {
+        let cache_handler_inner: RcStr = "INNER_INCREMENTAL_CACHE_HANDLER".into();
+        incremental_cache_handler_import = Some(cache_handler_inner.clone());
+        let cache_handler_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                ReferenceType::Undefined,
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+    }
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
         [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
-        [],
-        [],
+        [
+            ("cacheHandlerImports", cache_handler_imports.as_str()),
+            (
+                "edgeCacheHandlersRegistration",
+                cache_handler_map_entries.as_str(),
+            ),
+        ],
+        [(
+            "incrementalCacheHandler",
+            incremental_cache_handler_import.as_deref(),
+        )],
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let mut inner_assets = fxindexmap! {
         inner => entry
     };
+    inner_assets.extend(cache_handler_inner_assets);
 
     let wrapped = asset_context
         .process(

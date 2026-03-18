@@ -26,7 +26,7 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
-import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { buildDataRoute } from './build-data-route'
@@ -87,7 +87,6 @@ import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
 import {
@@ -95,7 +94,10 @@ import {
   type RouteInfo,
   type SlotInfo,
 } from '../../../build/file-classifier'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
@@ -115,7 +117,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -150,13 +152,13 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  const verifyResult = await verifyTypeScriptSetup({
+  const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    distDirRoot: opts.nextConfig.distDirRoot,
     strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
@@ -239,7 +241,7 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.experimentalServerFastRefresh
+          opts.serverFastRefresh
         )
       })()
     : await (async () => {
@@ -288,21 +290,9 @@ async function startWatcher(
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
     },
-    path.join(distTypesDir, 'route-types.d.ts'),
+    path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
-
-  // Write the entry file at {distDirRoot}/types/routes.d.ts for initial state
-  const initialEntryFilePath = path.join(
-    opts.dir,
-    opts.nextConfig.distDirRoot,
-    'types',
-    'routes.d.ts'
-  )
-  await writeRouteTypesEntryFile(initialEntryFilePath, distTypesDir, {
-    strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
-    typedRoutes: Boolean(nextConfig.typedRoutes),
-  })
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -423,9 +413,7 @@ async function startWatcher(
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
-    // Actual type files go to route-types.d.ts (not routes.d.ts)
-    // routes.d.ts is reserved for the entry file
-    const routeTypesFilePath = path.join(distDir, 'types', 'route-types.d.ts')
+    const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
@@ -966,7 +954,7 @@ async function startWatcher(
 
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
       await propagateServerField(
         opts,
@@ -1203,19 +1191,6 @@ async function startWatcher(
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
-
-          // Write the entry file at {distDirRoot}/types/routes.d.ts
-          // This ensures next-env.d.ts has a consistent import path
-          const entryFilePath = path.join(
-            opts.dir,
-            opts.nextConfig.distDirRoot,
-            'types',
-            'routes.d.ts'
-          )
-          await writeRouteTypesEntryFile(entryFilePath, distTypesDir, {
-            strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
-            typedRoutes: Boolean(nextConfig.typedRoutes),
-          })
         }
 
         if (!resolved) {
@@ -1321,6 +1296,12 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Set up code frame renderer for error formatting
+  const { installCodeFrameSupport } =
+    require('../install-code-frame') as typeof import('../install-code-frame')
+  installCodeFrameSupport()
+
   const result = await startWatcher({
     ...opts,
     isSrcDir,

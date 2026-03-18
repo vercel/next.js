@@ -3,7 +3,9 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks::{
+    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
 use turbo_tasks_testing::{Registration, register, run, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -11,6 +13,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -61,6 +64,7 @@ async fn recompute() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -146,6 +150,7 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute_dependency() {
     run(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = get_dependency_input().resolve().await?;
         // Reset state to 1 at the start of each iteration (important for multi-run tests)
         input.await?.state.set(1);

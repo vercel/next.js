@@ -14,6 +14,7 @@ use indexmap::{IndexMap, IndexSet};
 use smallvec::SmallVec;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
+use turbo_tasks_hash::HashAlgorithm;
 
 use crate::RawVc;
 
@@ -81,6 +82,7 @@ ignore!(
 ignore!((), str, String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
 ignore!(serde_json::Value, serde_json::Map<String, serde_json::Value>);
+ignore!(HashAlgorithm);
 
 impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}

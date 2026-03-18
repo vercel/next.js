@@ -1,15 +1,12 @@
 declare const __webpack_require__: any
 declare let __webpack_public_path__: string
 
-import {
-  getDeploymentId,
-  getDeploymentIdQueryOrEmptyString,
-} from '../shared/lib/deployment-id'
+import { getAssetToken, getAssetTokenQuery } from '../shared/lib/deployment-id'
 
-// If we have a deployment ID, we need to append it to the webpack chunk names
+// If we have a deployment ID query string, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized
-if (getDeploymentId()) {
-  const suffix = getDeploymentIdQueryOrEmptyString()
+if (getAssetToken()) {
+  const suffix = getAssetTokenQuery()
   const getChunkScriptFilename = __webpack_require__.u
   __webpack_require__.u = (...args: any[]) =>
     // We enode the chunk filename because our static server matches against and encoded

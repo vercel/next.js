@@ -200,6 +200,22 @@ export function fetchViaHTTP(
   return fetch(getFullUrl(appPort, url), opts)
 }
 
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
+}
+
 /**
  * Creates request options with a unique x-invocation-id header for testing
  * cache deduplication in minimal mode. Use this when you need to ensure each
@@ -265,6 +281,7 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+  disableAutoSkewProtection?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -283,7 +300,7 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
@@ -390,6 +407,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  disableAutoSkewProtection?: boolean
 
   stderr?: false
   stdout?: false
@@ -517,6 +535,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -539,6 +563,12 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+  }
+
   return runNextCommandDev(
     ['start', '-p', port as string, '--hostname', '::', dir],
     undefined,
@@ -896,11 +926,14 @@ export async function waitForNoRedbox(
   }
 }
 
-export async function waitForNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(
+  browser: Playwright,
+  { waitInMs }: { waitInMs?: number } = {}
+): Promise<void> {
   let didOpenRedbox = false
 
   try {
-    await browser.waitForElementByCss('[data-issues]').click()
+    await browser.waitForElementByCss('[data-issues]', waitInMs).click()
     didOpenRedbox = true
   } catch {
     // We expect this to fail.
@@ -1186,6 +1219,22 @@ export function getRedboxDescription(
     const root = portal.shadowRoot
     return (
       root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxErrorCode(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root
+        .querySelector('[data-nextjs-error-code]')
+        ?.getAttribute('data-nextjs-error-code') ?? null
     )
   })
 }
@@ -1487,12 +1536,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
   'InnerScrollAndFocusHandlerOld',
-  'InnerScrollAndFocusHandlerNew',
+  'InnerScrollHandlerNew',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndFocusHandler',
+  'ScrollAndMaybeFocusHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -1855,33 +1904,6 @@ export const checkLink = (
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
-export async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const file = fileEl ? await fileEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${file})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
-}
-
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
   const button = await browser.elementByCss(
     '[data-nextjs-call-stack-ignored-list-toggle-button]'
@@ -2048,3 +2070,36 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+export function getDeploymentId(appDir: string, isDev: boolean) {
+  let requiredServerFiles
+  if (!isDev) {
+    // File isn't written in dev, but it might still exist because it was created by a prior
+    // production build.
+    try {
+      requiredServerFiles = JSON.parse(
+        readFileSync(
+          path.join(appDir, getDistDir(), 'required-server-files.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
+  const deploymentId: string | undefined =
+    requiredServerFiles?.config?.deploymentId
+  const immutableAssetToken: string | undefined =
+    requiredServerFiles?.config?.experimental?.immutableAssetToken
+  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  return {
+    deploymentId,
+    getDeploymentIdQuery(ampersand = false) {
+      return deploymentId ? `${ampersand ? '&' : '?'}dpl=${deploymentId}` : ''
+    },
+    assetToken,
+    getAssetQuery(ampersand = false) {
+      return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
+    },
+  }
+}

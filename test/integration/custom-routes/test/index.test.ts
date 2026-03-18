@@ -2653,12 +2653,15 @@ describe('Custom routes', () => {
           {
             stdout: true,
             stderr: true,
+            disableAutoSkewProtection: true,
           }
         )
         stdout = buildStdout
         stderr = buildStderr
         appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        app = await nextStart(appDir, appPort, {
+          disableAutoSkewProtection: true,
+        })
         buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
       })
       afterAll(() => killApp(app))

@@ -179,11 +179,12 @@ describe('react-dom/server in React Server environment', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Ecmascript file had an error",
+         "description": "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
-       Ecmascript file had an error
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
          "stack": [],
@@ -322,9 +323,10 @@ describe('react-dom/server in React Server environment', () => {
     if (isTurbopack) {
       expect(redbox).toMatchInlineSnapshot(`
        {
-         "description": "Ecmascript file had an error",
+         "description": "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js (3:1)
-       Ecmascript file had an error
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering
          1 | import * as ReactDOMServerNode from 'react-dom/server'
          2 | // Fine to drop once React is on ESM
        > 3 | import ReactDOMServerNodeDefault from 'react-dom/server'
@@ -333,8 +335,7 @@ describe('react-dom/server in React Server environment', () => {
          5 | export const runtime = 'nodejs'
          6 |
 
-       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+       Ecmascript file had an error",
        }
       `)
     } else if (isRspack) {

@@ -37,6 +37,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
@@ -47,9 +48,7 @@ import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
-import { makeIgnoreFn } from '../collect-build-traces'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 
@@ -90,6 +89,26 @@ interface SharedRouteFields {
    * to filePath on disk
    */
   wasmAssets?: Record<string, string>
+
+  /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
 
   /**
    * config related to the route
@@ -236,6 +255,11 @@ export interface AdapterOutput {
        * renderingMode signals PPR or not for a prerender
        */
       renderingMode?: RenderingMode
+      /**
+       * partialFallback signals this prerender serves a partial fallback shell
+       * and should be upgraded to a full route in the background.
+       */
+      partialFallback?: boolean
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -255,6 +279,11 @@ export interface AdapterOutput {
     filePath: string
     pathname: string
     type: AdapterOutputType.STATIC_FILE
+    /**
+     * If this static file is immutable (because its filename contains a content hash), then this
+     * field contains the untruncated content hash.
+     */
+    immutableHash: string | undefined
   }
 
   /**
@@ -332,6 +361,10 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
@@ -480,43 +513,38 @@ export async function handleBuildComplete({
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
+          immutableHash: undefined,
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
+      const clientHashes: Record<string, string> | undefined =
+        bundler === Bundler.Turbopack && config.experimental.immutableAssetToken
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(distDir, 'immutable-static-hashes.json'),
+                'utf8'
+              )
+            )
+          : undefined
+
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)
+        const id = path.join('static', file)
         outputs.staticFiles.push({
           type: AdapterOutputType.STATIC_FILE,
-          id: path.join('static', file),
+          id,
           pathname,
           filePath,
+          immutableHash: clientHashes?.[id],
         })
       }
 
       const sharedNodeAssets: Record<string, string> = {}
       const pagesSharedNodeAssets: Record<string, string> = {}
       const appPagesSharedNodeAssets: Record<string, string> = {}
-
-      const sharedTraceIgnores = [
-        '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/next/dist/compiled/webpack/*',
-        '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-        '**/*.d.ts',
-        '**/*.map',
-        '**/next/dist/pages/**/*',
-        '**/node_modules/sharp/**/*',
-        '**/@img/sharp-libvips*/**/*',
-        '**/next/dist/compiled/edge-runtime/**/*',
-        '**/next/dist/server/web/sandbox/**/*',
-        '**/next/dist/server/post-process.js',
-      ]
-      const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
 
       for (const file of requiredServerFiles) {
         // add to shared node assets
@@ -576,6 +604,29 @@ export async function handleBuildComplete({
       }
 
       if (bundler !== Bundler.Turbopack) {
+        const { nodeFileTrace } =
+          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        const { makeIgnoreFn } =
+          require('../collect-build-traces') as typeof import('../collect-build-traces')
+
+        const sharedTraceIgnores = [
+          '**/next/dist/compiled/next-server/**/*.dev.js',
+          '**/next/dist/compiled/webpack/*',
+          '**/node_modules/webpack5/**/*',
+          '**/next/dist/server/lib/route-resolver*',
+          'next/dist/compiled/semver/semver/**/*.js',
+          '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+          '**/*.d.ts',
+          '**/*.map',
+          '**/next/dist/pages/**/*',
+          '**/node_modules/sharp/**/*',
+          '**/@img/sharp-libvips*/**/*',
+          '**/next/dist/compiled/edge-runtime/**/*',
+          '**/next/dist/server/web/sandbox/**/*',
+          '**/next/dist/server/post-process.js',
+        ]
+        const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
+
         // These are modules that are necessary for bootstrapping node env
         const necessaryNodeDependencies = [
           require.resolve('next/dist/server/node-environment'),
@@ -674,6 +725,16 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        const pathname = isAppPrefix
+          ? normalizeAppPath(route)
+          : route === '/index'
+            ? '/'
+            : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -682,20 +743,13 @@ export async function handleBuildComplete({
           id: page.name,
           runtime: 'edge',
           sourcePage: route,
-          pathname: isAppPrefix ? normalizeAppPath(route) : route,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          pathname,
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
           wasmAssets: {},
           config: {
@@ -763,16 +817,18 @@ export async function handleBuildComplete({
             pathname: rscPathname,
             id: page.name + '.rsc',
           })
-        } else if (serverPropsPages.has(route === '/index' ? '/' : route)) {
+        } else if (
+          type !== AdapterOutputType.MIDDLEWARE &&
+          serverPropsPages.has(pathname)
+        ) {
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            normalizePagePath(output.pathname) + '.json'
+            normalizePagePath(pathname) + '.json'
           )
-          outputs.appPages.push({
+          outputs.pages.push({
             ...output,
             pathname: nextDataPath,
-            id: page.name,
           })
         }
       }
@@ -828,6 +884,7 @@ export async function handleBuildComplete({
                   pagesDistDir,
                   `${normalizePagePath(localePage)}.html`
                 ),
+                immutableHash: undefined,
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
@@ -838,6 +895,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -847,6 +905,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
+              immutableHash: undefined,
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
@@ -857,6 +916,7 @@ export async function handleBuildComplete({
                 pathname: `${route}.rsc`,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -919,6 +979,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -950,6 +1011,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -1167,6 +1229,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
+                partialFallback: undefined,
               },
 
               fallback: {
@@ -1311,6 +1374,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: staticMetadataFilePath,
+              immutableHash: undefined,
             })
             continue
           }
@@ -1435,6 +1499,7 @@ export async function handleBuildComplete({
             pathname: rscPage,
             type: AdapterOutputType.STATIC_FILE,
             filePath: rscFallbackPath,
+            immutableHash: undefined,
           })
         }
 
@@ -1527,6 +1592,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1538,11 +1604,32 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
-        const allowQuery = Object.values(
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
+        const allowQuery = Object.values(routeKeys)
+        const partialFallbacksEnabled =
+          config.experimental.partialFallbacks === true
+        const partialFallback =
+          partialFallbacksEnabled &&
+          isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          typeof fallback === 'string' &&
+          Boolean(meta.postponed)
+
+        // Today, consumers of this build output can only upgrade a fallback shell
+        // when all remaining route params become concrete in the upgraded entry.
+        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
+        // because we do not emit which fallback params should remain deferred after
+        // the upgrade. Until that contract exists, only emit `partialFallback` for
+        // the conservative case where the upgraded entry can become fully concrete.
+        const canEmitPartialFallback =
+          partialFallback &&
+          fallbackRootParams?.length === 0 &&
+          allowQuery.length === remainingPrerenderableParams?.length
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1550,14 +1637,29 @@ export async function handleBuildComplete({
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
             htmlAllowQuery = fallbackRootParams as string[]
-          } // We additionally vary based on if there's a postponed prerender
+          }
+
+          // We additionally vary based on if there's a postponed prerender
           // because if there isn't, then that means that we generated an
           // empty shell, and producing an empty RSC shell would be a waste.
           // If there is a postponed prerender, then the RSC shell would be
           // non-empty, and it would be valuable to also generate an empty
           // RSC shell.
           else if (meta.postponed) {
-            htmlAllowQuery = []
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For opt-in partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
+            htmlAllowQuery =
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
+                : []
           }
         }
 
@@ -1602,6 +1704,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
+            partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
@@ -1622,6 +1725,7 @@ export async function handleBuildComplete({
               pathname: rscPage,
               type: AdapterOutputType.STATIC_FILE,
               filePath: rscFallbackPath,
+              immutableHash: undefined,
             })
           }
 
@@ -1679,6 +1783,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 allowQuery: dataAllowQuery,
+                partialFallback: undefined,
               },
             })
           } else if (dataRoute) {
@@ -1687,6 +1792,10 @@ export async function handleBuildComplete({
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
+              config: {
+                ...initialOutput.config,
+                partialFallback: undefined,
+              },
             })
           }
           prerenderGroupId += 1
@@ -1729,6 +1838,7 @@ export async function handleBuildComplete({
                 pathname: rscPage,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
 
@@ -1745,6 +1855,10 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
+                config: {
+                  ...initialOutput.config,
+                  partialFallback: undefined,
+                },
                 groupId: prerenderGroupId,
               })
             }
@@ -1783,6 +1897,7 @@ export async function handleBuildComplete({
                 id: currentDocPath,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: currentFilePath,
+                immutableHash: undefined,
               })
             }
           }

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -58,6 +59,14 @@ impl Source for WebAssemblySource {
                 .ident()
                 .with_path(self.source.ident().path().await?.append("_.wasm")?),
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(
+            format!("WebAssembly transform of {}", inner).into(),
+        ))
     }
 }
 

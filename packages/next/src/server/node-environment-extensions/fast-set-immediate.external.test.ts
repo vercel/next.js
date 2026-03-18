@@ -1,3 +1,4 @@
+import '../node-environment-baseline'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {

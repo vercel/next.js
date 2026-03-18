@@ -91,9 +91,11 @@ describe('app dir - with output export', () => {
       it('should correctly emit exported assets to config.distDir', async () => {
         let { exitCode } = await next.build()
         expect(exitCode).toBe(0)
-        expect(await getFiles(join(next.testDir, 'output'))).toEqual(
-          expectedWhenTrailingSlashTrue
+        const actualFiles = await getFiles(join(next.testDir, 'output'))
+        expect(actualFiles).toEqual(
+          expect.arrayContaining(expectedWhenTrailingSlashTrue)
         )
+        expect(actualFiles).toHaveLength(expectedWhenTrailingSlashTrue.length)
       })
     })
   } else {

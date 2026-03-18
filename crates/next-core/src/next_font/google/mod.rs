@@ -741,6 +741,7 @@ async fn get_mock_stylesheet(
         env,
         project_path: _,
         chunking_context,
+        node_backend,
     } = *execution_context.await?;
     let asset_context = node_evaluate_asset_context(
         execution_context,
@@ -770,7 +771,7 @@ async fn get_mock_stylesheet(
         )
         .module();
 
-    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
     let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
         entries.graph_entries().to_resolved().await?,
         false,
@@ -783,6 +784,7 @@ async fn get_mock_stylesheet(
         entries,
         root,
         *env,
+        *node_backend,
         loader_source,
         *chunking_context,
         module_graph,

@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-err-anyhow
+message: Use `bail!()` instead of `Err(anyhow!())`.
+note: The `bail!` macro from anyhow is more concise and idiomatic.
+severity: error
+language: Rust
+rule:
+  all:
+    - any:
+        - pattern: Err(anyhow!($$$ARGS))
+        - pattern: Err(anyhow::anyhow!($$$ARGS))
+    - not:
+        inside:
+          kind: arguments
+          stopBy:
+            any:
+              - kind: block
+              - kind: closure_expression
+    - not:
+        inside:
+          kind: assignment_expression
+          stopBy:
+            any:
+              - kind: block
+              - kind: closure_expression
+    - not:
+        inside:
+          kind: let_declaration
+          stopBy:
+            any:
+              - kind: block
+              - kind: closure_expression
+    - not:
+        inside:
+          kind: field_expression
+          stopBy:
+            kind: call_expression

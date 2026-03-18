@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{}],
+  samples: [{ cookies: [{ name: 'test', value: null }] }],
 }
 
 export default async function Page() {

@@ -528,10 +528,6 @@ declare module 'next/dist/compiled/async-sema' {
   export = m
 }
 
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
-}
-
 declare module 'next/dist/compiled/@next/font/dist/google' {
   export * from '@next/font/google'
 }
