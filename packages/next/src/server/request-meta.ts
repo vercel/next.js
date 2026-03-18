@@ -378,9 +378,14 @@ export function addRequestMeta<K extends keyof RequestMeta>(
   key: K,
   value: RequestMeta[K]
 ) {
-  const meta = getRequestMeta(request)
-  meta[key] = value
-  return setRequestMeta(request, meta)
+  let meta = request[NEXT_REQUEST_META]
+  if (meta) {
+    meta[key] = value
+  } else {
+    meta = { [key]: value } as RequestMeta
+    request[NEXT_REQUEST_META] = meta
+  }
+  return meta
 }
 
 /**

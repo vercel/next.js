@@ -34,6 +34,11 @@ import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage } from 'http'
 import { normalizeAppPageRequestUrl } from './normalize-request-url'
 
+// Pre-compute Vary header strings at module level to avoid repeated string
+// concatenation on every request.
+const STATIC_VARY_HEADER = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
+const STATIC_VARY_HEADER_WITH_NEXT_URL = `${STATIC_VARY_HEADER}, ${NEXT_URL}`
+
 let vendoredReactRSC
 let vendoredReactSSR
 
@@ -180,18 +185,16 @@ export class AppPageRouteModule extends RouteModule<
     resolvedPathname: string,
     interceptionRoutePatterns: RegExp[]
   ): string {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
-
     if (
       this.pathCouldBeIntercepted(resolvedPathname, interceptionRoutePatterns)
     ) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      return `${baseVaryHeader}, ${NEXT_URL}`
+      return STATIC_VARY_HEADER_WITH_NEXT_URL
     } else {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      return baseVaryHeader
+      return STATIC_VARY_HEADER
     }
   }
 }

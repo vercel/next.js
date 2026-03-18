@@ -32,6 +32,11 @@ export function sendEtagResponse(
   return false
 }
 
+// Pre-computed constant header name/value pairs to avoid repeated string
+// allocation on every response.
+const X_POWERED_BY_HEADER = 'X-Powered-By' as const
+const X_POWERED_BY_VALUE = 'Next.js' as const
+
 export async function sendRenderResult({
   req,
   res,
@@ -52,7 +57,7 @@ export async function sendRenderResult({
   }
 
   if (poweredByHeader && result.contentType === HTML_CONTENT_TYPE_HEADER) {
-    res.setHeader('X-Powered-By', 'Next.js')
+    res.setHeader(X_POWERED_BY_HEADER, X_POWERED_BY_VALUE)
   }
 
   // If cache control is already set on the response we don't
