@@ -7,16 +7,12 @@ use swc_core::{
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
-        SourceMapper,
         comments::{Comments, SingleThreadedComments},
     },
     ecma::{
         self,
         ast::{EsVersion, Program},
-        codegen::{
-            Emitter,
-            text_writer::{self, JsWriter, WriteJs},
-        },
+        codegen::text_writer::{self, JsWriter, WriteJs},
         minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
         parser::{Parser, StringInput, Syntax, lexer::Lexer},
         transforms::base::{
@@ -33,7 +29,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    dyn_source_mapper::DynSourceMapper,
+    dyn_source_mapper::make_emitter,
     parse::{IdentCollector, generate_js_source_map},
 };
 
@@ -190,12 +186,12 @@ fn print_program(
                 source_maps.then_some(&mut src_map_buf),
             )))) as Box<dyn WriteJs>;
 
-            let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
-                comments: None,
-                cm: Arc::new(DynSourceMapper(cm.clone() as Arc<dyn SourceMapper>)),
+            let mut emitter = make_emitter(
+                cm.clone(),
+                swc_core::ecma::codegen::Config::default().with_minify(true),
+                None,
                 wr,
-            };
+            );
 
             emitter
                 .emit_program(&program)

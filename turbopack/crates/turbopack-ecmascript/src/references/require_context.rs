@@ -3,13 +3,13 @@ use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::{DUMMY_SP, SourceMapper},
+    common::DUMMY_SP,
     ecma::{
         ast::{
             Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
             Stmt, {self},
         },
-        codegen::{Emitter, text_writer::JsWriter},
+        codegen::text_writer::JsWriter,
     },
     quote, quote_expr,
 };
@@ -41,7 +41,7 @@ use crate::{
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    dyn_source_mapper::DynSourceMapper,
+    dyn_source_mapper::make_emitter,
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
@@ -525,12 +525,12 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
             wr.set_indent_str("");
         }
 
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: Arc::new(DynSourceMapper(source_map.clone() as Arc<dyn SourceMapper>)),
-            comments: None,
+        let mut emitter = make_emitter(
+            source_map.clone(),
+            swc_core::ecma::codegen::Config::default(),
+            None,
             wr,
-        };
+        );
 
         emitter.emit_module(&module)?;
 

@@ -4,10 +4,7 @@ use anyhow::Error;
 use serde::Deserialize;
 use swc_core::{
     atoms::{Wtf8Atom, atom},
-    common::{
-        Mark, SourceMap, SourceMapper, SyntaxContext, comments::SingleThreadedComments,
-        util::take::Take,
-    },
+    common::{Mark, SourceMap, SyntaxContext, comments::SingleThreadedComments, util::take::Take},
     ecma::{
         ast::{EsVersion, Id, Module},
         codegen::text_writer::JsWriter,
@@ -25,7 +22,7 @@ use super::{
     },
     merge::Merger,
 };
-use crate::dyn_source_mapper::DynSourceMapper;
+use crate::dyn_source_mapper::make_emitter;
 
 #[fixture("tests/tree-shaker/analyzer/**/input.js")]
 fn test_fixture(input: PathBuf) {
@@ -285,13 +282,12 @@ fn print<N: swc_core::ecma::codegen::Node>(cm: &Arc<SourceMap>, nodes: &[&N]) ->
     let mut buf = vec![];
 
     {
-        let mut emitter = swc_core::ecma::codegen::Emitter {
-            cfg: swc_core::ecma::codegen::Config::default()
-                .with_emit_assert_for_import_attributes(true),
-            cm: Arc::new(DynSourceMapper(cm.clone() as Arc<dyn SourceMapper>)),
-            comments: None,
-            wr: Box::new(JsWriter::new(cm.clone(), "\n", &mut buf, None)),
-        };
+        let mut emitter = make_emitter(
+            cm.clone(),
+            swc_core::ecma::codegen::Config::default().with_emit_assert_for_import_attributes(true),
+            None,
+            Box::new(JsWriter::new(cm.clone(), "\n", &mut buf, None)),
+        );
 
         for n in nodes {
             n.emit_with(&mut emitter).unwrap();

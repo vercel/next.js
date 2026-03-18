@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use swc_core::{
     common::{
-        BytePos, FileName, Loc, SourceMapper, Span, SpanSnippetError, source_map::FileLinesResult,
+        BytePos, FileName, Loc, SourceMapper, Span, SpanSnippetError, comments::Comments,
+        source_map::FileLinesResult,
     },
-    ecma::ast::SourceMapperExt,
+    ecma::{
+        ast::SourceMapperExt,
+        codegen::{Config, Emitter, text_writer::WriteJs},
+    },
 };
 
 /// A concrete, `Sized` wrapper around `Arc<dyn SourceMapper>`.
@@ -53,5 +57,24 @@ impl SourceMapper for DynSourceMapper {
 impl SourceMapperExt for DynSourceMapper {
     fn get_code_map(&self) -> &dyn SourceMapper {
         self.0.as_ref()
+    }
+}
+
+/// Creates an [`Emitter`] with [`DynSourceMapper`] as the source mapper.
+///
+/// Using this helper ensures all `Emitter` instances in the crate share the
+/// `S = DynSourceMapper` type parameter, reducing binary size by collapsing
+/// otherwise separate monomorphizations of emit methods.
+pub(crate) fn make_emitter<'a, W: WriteJs>(
+    cm: Arc<dyn SourceMapper>,
+    cfg: Config,
+    comments: Option<&'a dyn Comments>,
+    wr: W,
+) -> Emitter<'a, W, DynSourceMapper> {
+    Emitter {
+        cfg,
+        cm: Arc::new(DynSourceMapper(cm)),
+        comments,
+        wr,
     }
 }

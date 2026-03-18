@@ -70,7 +70,7 @@ use swc_core::{
             self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
             Program, Script, SourceMapperExt, Stmt,
         },
-        codegen::{Emitter, text_writer::JsWriter},
+        codegen::text_writer::JsWriter,
         utils::StmtLikeInjector,
         visit::{VisitMut, VisitMutWith, VisitMutWithAstPath, VisitWith},
     },
@@ -112,7 +112,7 @@ use crate::{
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
-    dyn_source_mapper::DynSourceMapper,
+    dyn_source_mapper::make_emitter,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -2088,13 +2088,12 @@ async fn emit_content(
 
         let comments = comments.consumable();
 
-        let dyn_sm = Arc::new(DynSourceMapper(source_map.clone() as Arc<dyn SourceMapper>));
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
-            cm: dyn_sm,
-            comments: Some(&comments as &dyn Comments),
+        let mut emitter = make_emitter(
+            source_map.clone(),
+            swc_core::ecma::codegen::Config::default(),
+            Some(&comments as &dyn Comments),
             wr,
-        };
+        );
 
         emitter.emit_program(&program)?;
         // Drop the AST eagerly so we don't keep it in memory while generating source maps

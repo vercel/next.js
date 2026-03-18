@@ -161,10 +161,10 @@ mod tests {
     use std::sync::Arc;
 
     use swc_core::{
-        common::{FileName, Mark, SourceFile, SourceMap, SourceMapper, errors::HANDLER},
+        common::{FileName, Mark, SourceFile, SourceMap, errors::HANDLER},
         ecma::{
             ast::*,
-            codegen::{Emitter, text_writer::JsWriter},
+            codegen::text_writer::JsWriter,
             parser::parse_file_as_module,
             transforms::base::resolver,
             visit::{AstParentKind, VisitMutWith, VisitMutWithAstPath, fields::*},
@@ -173,7 +173,7 @@ mod tests {
     };
 
     use super::{ApplyVisitors, AstModifier};
-    use crate::dyn_source_mapper::DynSourceMapper;
+    use crate::dyn_source_mapper::make_emitter;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -211,12 +211,12 @@ mod tests {
 
     fn to_js(m: &Module, cm: &Arc<SourceMap>) -> String {
         let mut bytes = Vec::new();
-        let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default().with_minify(true),
-            cm: Arc::new(DynSourceMapper(cm.clone() as Arc<dyn SourceMapper>)),
-            comments: None,
-            wr: JsWriter::new(cm.clone(), "\n", &mut bytes, None),
-        };
+        let mut emitter = make_emitter(
+            cm.clone(),
+            swc_core::ecma::codegen::Config::default().with_minify(true),
+            None,
+            JsWriter::new(cm.clone(), "\n", &mut bytes, None),
+        );
 
         emitter.emit_module(m).unwrap();
 
