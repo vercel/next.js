@@ -374,7 +374,7 @@ where
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     pub async fn resolve_strongly_consistent(self) -> Result<Self> {
         Ok(Self {
-            node: self.node.resolve_strongly_consistent().await?,
+            node: self.node.resolve().strongly_consistent().await?,
             _t: PhantomData,
         })
     }

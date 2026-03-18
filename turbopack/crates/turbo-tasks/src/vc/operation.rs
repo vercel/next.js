@@ -119,7 +119,7 @@ impl<T: ?Sized> OperationVc<T> {
     pub async fn resolve_strongly_consistent(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {
             node: Vc {
-                node: self.connect().node.resolve_strongly_consistent().await?,
+                node: self.connect().node.resolve().strongly_consistent().await?,
                 _t: PhantomData,
             },
         })

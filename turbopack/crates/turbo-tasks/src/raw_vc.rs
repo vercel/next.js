@@ -157,11 +157,6 @@ impl RawVc {
         ResolveRawVcFuture::new(self)
     }
 
-    /// See [`crate::Vc::resolve_strongly_consistent`].
-    pub(crate) fn resolve_strongly_consistent(self) -> ResolveRawVcFuture {
-        self.resolve().strongly_consistent()
-    }
-
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
     pub(crate) async fn to_non_local(self) -> Result<RawVc> {
