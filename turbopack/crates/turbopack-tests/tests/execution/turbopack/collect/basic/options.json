@@ -1,4 +1,3 @@
 {
-  "inferModuleSideEffects": false,
-  "removeUnusedExports": false
+  "scopeHoisting": false
 }

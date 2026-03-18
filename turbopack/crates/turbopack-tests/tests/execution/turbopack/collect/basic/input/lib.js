@@ -3,7 +3,12 @@ __turbopack_emit__('./a.js', {
   data: 'data-for-a',
 })
 
-console.log('this is lib.js')
+__turbopack_emit__('./c.js', {
+  namespace: 'my-test',
+  data: 'data-for-c',
+  exports: ['c'],
+})
+
 export default function () {
   import('./async')
 }
