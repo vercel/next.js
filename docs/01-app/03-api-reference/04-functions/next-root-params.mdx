@@ -67,18 +67,18 @@ module.exports = nextConfig
 > **Good to know:**
 >
 > - If you have [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `rootParams` is automatically enabled as well.
-> - With Cache Components, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. This is required for prerendering the fallback shell.
+> - With Cache Components, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. Providing values makes it a static route parameter, which is required for prerendering static shells.
 
-## Root parameters vs dynamic parameters
+## Root parameters and other route parameters
 
-Root parameters are the [dynamic segments](/docs/app/glossary#dynamic-route-segments) that appear in the path up to the root layout file. Other dynamic segments deeper in the route tree are accessed through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) as usual.
+Root parameters are the route parameters from [dynamic segments](/docs/app/glossary#dynamic-route-segments) that appear in the path up to the root layout file. Other route parameters deeper in the route tree are accessed through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) as usual.
 
 Given this file structure:
 
 - `app/[lang]/layout.tsx` (root layout)
 - `app/[lang]/posts/[slug]/page.tsx`
 
-Only `lang` is a root parameter. `slug` is a regular dynamic parameter:
+Only `lang` is a root parameter. `slug` is a regular route parameter:
 
 ```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,5} switcher
 import { lang } from 'next/root-params'
@@ -218,7 +218,7 @@ export default async function Page({ params }) {
 }
 ```
 
-> **Good to know:** To prevent blocking routes during prerendering, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. See [Why root parameters are special](#why-root-parameters-are-special) for more on how root parameters differ from other dynamic APIs.
+> **Good to know:** To enable prerendering of static shells, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter, making it a static route parameter. See [Why root parameters are special](#why-root-parameters-are-special) for more on how root parameters differ from other route parameters.
 
 ## Multiple root layouts
 
@@ -357,7 +357,7 @@ async function submitForm() {
 
 ## Why root parameters are special
 
-The [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) is the top-level rendering boundary. Dynamic segments before it are shared by all routes under that root layout, which is what makes them safe to access from any Server Component in that tree. Parameters deeper in the route vary depending on which child page is being rendered, so they are only available through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) in the page or layout that defines them.
+The [root layout](/docs/app/api-reference/file-conventions/layout#root-layout) is the top-level rendering boundary. The route parameters before it are shared by all routes under that root layout, which is what makes them safe to access from any Server Component in that tree. Route parameters deeper in the route vary depending on which child page is being rendered, so they are only available through the [`params` prop](/docs/app/api-reference/file-conventions/page#params-optional) in the page or layout that defines them.
 
 ```txt
 app/
@@ -365,16 +365,16 @@ app/
     layout.tsx         ← root layout
     page.tsx           ← has no slug, doesn't know about blog or store
     blog/
-      [slug]/          ← regular dynamic segment
+      [slug]/          ← route parameter
         page.tsx
     store/
-      [...slug]/       ← catch-all segment with the same name
+      [...slug]/       ← catch-all route parameter with the same name
         page.tsx
 ```
 
-In this example, `lang` is the only root parameter. The `page.tsx` directly under the root layout has no `slug` at all. The blog and store branches both define `slug`, but with different segment types (`[slug]` vs `[...slug]`). Each route only knows about its own parameters. The same name can have different types, different meanings, or not exist at all depending on the route. This is why parameters below the root layout are accessed through the `params` prop rather than as global getters.
+In this example, `lang` is the only root parameter. The `page.tsx` directly under the root layout has no `slug` at all. The blog and store branches both define `slug`, but with different segment types (`[slug]` vs `[...slug]`). Each route only knows about its own route parameters. The same name can have different types, different meanings, or not exist at all depending on the route. This is why route parameters below the root layout are accessed through the `params` prop rather than as global getters.
 
-The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist.
+The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different route parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist.
 
 ## Version History
 
