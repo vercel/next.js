@@ -503,212 +503,227 @@ async function createComponentTreeInternal(
       tree,
     })
 
-  const [forbiddenElement] = await createBoundaryConventionElement({
-    ctx,
-    conventionName: 'forbidden',
-    Component: Forbidden,
-    styles: forbiddenStyles,
-    tree,
-  })
+  // Skip createBoundaryConventionElement entirely when the convention
+  // component doesn't exist. The function would just return [undefined, path]
+  // and the caller only uses the element (not the path) for these two.
+  const [forbiddenElement] = Forbidden
+    ? await createBoundaryConventionElement({
+        ctx,
+        conventionName: 'forbidden',
+        Component: Forbidden,
+        styles: forbiddenStyles,
+        tree,
+      })
+    : []
 
-  const [unauthorizedElement] = await createBoundaryConventionElement({
-    ctx,
-    conventionName: 'unauthorized',
-    Component: Unauthorized,
-    styles: unauthorizedStyles,
-    tree,
-  })
+  const [unauthorizedElement] = Unauthorized
+    ? await createBoundaryConventionElement({
+        ctx,
+        conventionName: 'unauthorized',
+        Component: Unauthorized,
+        styles: unauthorizedStyles,
+        tree,
+      })
+    : []
 
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
-  const parallelRouteMap = await Promise.all(
-    Object.keys(parallelRoutes).map(
-      async (
-        parallelRouteKey
-      ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
-        const isChildrenRouteKey = parallelRouteKey === 'children'
-        const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const notFoundComponent = isChildrenRouteKey
-          ? notFoundElement
-          : undefined
+  // Shared logic for processing a single parallel route entry. Hoisted to avoid
+  // re-creating the closure per key inside the map callback below.
+  const processParallelRoute = async (
+    parallelRouteKey: string
+  ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
+    const isChildrenRouteKey = parallelRouteKey === 'children'
+    const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const forbiddenComponent = isChildrenRouteKey
-          ? forbiddenElement
-          : undefined
+    const notFoundComponent = isChildrenRouteKey ? notFoundElement : undefined
 
-        const unauthorizedComponent = isChildrenRouteKey
-          ? unauthorizedElement
-          : undefined
+    const forbiddenComponent = isChildrenRouteKey ? forbiddenElement : undefined
 
-        // if we're prefetching and that there's a Loading component, we bail out
-        // otherwise we keep rendering for the prefetch.
-        // We also want to bail out if there's no Loading component in the tree.
-        let childCacheNodeSeedData: CacheNodeSeedData | null = null
+    const unauthorizedComponent = isChildrenRouteKey
+      ? unauthorizedElement
+      : undefined
 
-        if (
-          // Before PPR, the way instant navigations work in Next.js is we
-          // prefetch everything up to the first route segment that defines a
-          // loading.tsx boundary. (We do the same if there's no loading
-          // boundary in the entire tree, because we don't want to prefetch too
-          // much) The rest of the tree is deferred until the actual navigation.
-          // It does not take into account whether the data is dynamic — even if
-          // the tree is completely static, it will still defer everything
-          // inside the loading boundary.
-          //
-          // This behavior predates PPR and is only relevant if the
-          // PPR flag is not enabled.
-          isPrefetch &&
-          (Loading || !hasLoadingComponentInTree(parallelRoute)) &&
-          // The approach with PPR is different — loading.tsx behaves like a
-          // regular Suspense boundary and has no special behavior.
-          //
-          // With PPR, we prefetch as deeply as possible, and only defer when
-          // dynamic data is accessed. If so, we only defer the nearest parent
-          // Suspense boundary of the dynamic data access, regardless of whether
-          // the boundary is defined by loading.tsx or a normal <Suspense>
-          // component in userspace.
-          //
-          // NOTE: In practice this usually means we'll end up prefetching more
-          // than we were before PPR, which may or may not be considered a
-          // performance regression by some apps. The plan is to address this
-          // before General Availability of PPR by introducing granular
-          // per-segment fetching, so we can reuse as much of the tree as
-          // possible during both prefetches and dynamic navigations. But during
-          // the beta period, we should be clear about this trade off in our
-          // communications.
-          !experimental.isRoutePPREnabled
-        ) {
-          // Don't prefetch this child. This will trigger a lazy fetch by the
-          // client router.
-        } else {
-          // Create the child component
+    // if we're prefetching and that there's a Loading component, we bail out
+    // otherwise we keep rendering for the prefetch.
+    // We also want to bail out if there's no Loading component in the tree.
+    let childCacheNodeSeedData: CacheNodeSeedData | null = null
 
-          if (process.env.NODE_ENV === 'development' && missingSlots) {
-            // When we detect the default fallback (which triggers a 404), we collect the missing slots
-            // to provide more helpful debug information during development mode.
-            const parsedTree = parseLoaderTree(parallelRoute)
-            if (
-              parsedTree.conventionPath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)
-            ) {
-              missingSlots.add(parallelRouteKey)
-            }
-          }
+    if (
+      // Before PPR, the way instant navigations work in Next.js is we
+      // prefetch everything up to the first route segment that defines a
+      // loading.tsx boundary. (We do the same if there's no loading
+      // boundary in the entire tree, because we don't want to prefetch too
+      // much) The rest of the tree is deferred until the actual navigation.
+      // It does not take into account whether the data is dynamic — even if
+      // the tree is completely static, it will still defer everything
+      // inside the loading boundary.
+      //
+      // This behavior predates PPR and is only relevant if the
+      // PPR flag is not enabled.
+      isPrefetch &&
+      (Loading || !hasLoadingComponentInTree(parallelRoute)) &&
+      // The approach with PPR is different — loading.tsx behaves like a
+      // regular Suspense boundary and has no special behavior.
+      //
+      // With PPR, we prefetch as deeply as possible, and only defer when
+      // dynamic data is accessed. If so, we only defer the nearest parent
+      // Suspense boundary of the dynamic data access, regardless of whether
+      // the boundary is defined by loading.tsx or a normal <Suspense>
+      // component in userspace.
+      //
+      // NOTE: In practice this usually means we'll end up prefetching more
+      // than we were before PPR, which may or may not be considered a
+      // performance regression by some apps. The plan is to address this
+      // before General Availability of PPR by introducing granular
+      // per-segment fetching, so we can reuse as much of the tree as
+      // possible during both prefetches and dynamic navigations. But during
+      // the beta period, we should be clear about this trade off in our
+      // communications.
+      !experimental.isRoutePPREnabled
+    ) {
+      // Don't prefetch this child. This will trigger a lazy fetch by the
+      // client router.
+    } else {
+      // Create the child component
 
-          const seedData = await createComponentTreeInternal(
-            {
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              parentOptionalCatchAllParamName: optionalCatchAllParamName,
-              parentRuntimePrefetchable: isRuntimePrefetchable,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              ctx,
-              missingSlots,
-              preloadCallbacks,
-              authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-            },
-            false
+      if (process.env.NODE_ENV === 'development' && missingSlots) {
+        // When we detect the default fallback (which triggers a 404), we collect the missing slots
+        // to provide more helpful debug information during development mode.
+        const parsedTree = parseLoaderTree(parallelRoute)
+        if (parsedTree.conventionPath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)) {
+          missingSlots.add(parallelRouteKey)
+        }
+      }
+
+      const seedData = await createComponentTreeInternal(
+        {
+          loaderTree: parallelRoute,
+          parentParams: currentParams,
+          parentOptionalCatchAllParamName: optionalCatchAllParamName,
+          parentRuntimePrefetchable: isRuntimePrefetchable,
+          rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+          injectedCSS: injectedCSSWithCurrentLayout,
+          injectedJS: injectedJSWithCurrentLayout,
+          injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+          ctx,
+          missingSlots,
+          preloadCallbacks,
+          authInterrupts,
+          // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+          // but we only want to throw on the first one.
+          MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+        },
+        false
+      )
+
+      childCacheNodeSeedData = seedData
+    }
+
+    // When there's no template.tsx, Template is Fragment. Skip the
+    // unnecessary Fragment wrapper and render RenderFromTemplateContext
+    // directly, saving one createElement call per segment.
+    const templateNode =
+      Template === Fragment
+        ? createElement(RenderFromTemplateContext, null)
+        : createElement(
+            Template,
+            null,
+            createElement(RenderFromTemplateContext, null)
           )
 
-          childCacheNodeSeedData = seedData
-        }
+    const templateFilePath = getConventionPathByType(tree, dir, 'template')
+    const errorFilePath = getConventionPathByType(tree, dir, 'error')
+    const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
+    const globalErrorFilePath = isRoot
+      ? getConventionPathByType(tree, dir, 'global-error')
+      : undefined
 
-        const templateNode = createElement(
-          Template,
+    const wrappedErrorStyles =
+      isSegmentViewEnabled && errorFilePath
+        ? createElement(
+            SegmentViewNode,
+            {
+              type: 'error',
+              pagePath: errorFilePath,
+            },
+            errorStyles
+          )
+        : errorStyles
+
+    // Add a suffix to avoid conflict with the segment view node representing rendered file.
+    // existence: not-found.tsx@boundary
+    // rendered: not-found.tsx
+    const fileNameSuffix = BOUNDARY_SUFFIX
+    const segmentViewBoundaries = isSegmentViewEnabled
+      ? createElement(
+          Fragment,
           null,
-          createElement(RenderFromTemplateContext, null)
+          notFoundFilePath &&
+            createElement(SegmentViewNode, {
+              type: `${BOUNDARY_PREFIX}not-found`,
+              pagePath: notFoundFilePath + fileNameSuffix,
+            }),
+          loadingFilePath &&
+            createElement(SegmentViewNode, {
+              type: `${BOUNDARY_PREFIX}loading`,
+              pagePath: loadingFilePath + fileNameSuffix,
+            }),
+          errorFilePath &&
+            createElement(SegmentViewNode, {
+              type: `${BOUNDARY_PREFIX}error`,
+              pagePath: errorFilePath + fileNameSuffix,
+            }),
+          globalErrorFilePath &&
+            createElement(SegmentViewNode, {
+              type: `${BOUNDARY_PREFIX}global-error`,
+              pagePath: isNextjsBuiltinFilePath(globalErrorFilePath)
+                ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
+                : globalErrorFilePath,
+            })
         )
+      : null
 
-        const templateFilePath = getConventionPathByType(tree, dir, 'template')
-        const errorFilePath = getConventionPathByType(tree, dir, 'error')
-        const loadingFilePath = getConventionPathByType(tree, dir, 'loading')
-        const globalErrorFilePath = isRoot
-          ? getConventionPathByType(tree, dir, 'global-error')
-          : undefined
-
-        const wrappedErrorStyles =
-          isSegmentViewEnabled && errorFilePath
+    return [
+      parallelRouteKey,
+      createElement(LayoutRouter, {
+        parallelRouterKey: parallelRouteKey,
+        error: ErrorComponent,
+        errorStyles: wrappedErrorStyles,
+        errorScripts: errorScripts,
+        template:
+          isSegmentViewEnabled && templateFilePath
             ? createElement(
                 SegmentViewNode,
                 {
-                  type: 'error',
-                  pagePath: errorFilePath,
+                  type: 'template',
+                  pagePath: templateFilePath,
                 },
-                errorStyles
+                templateNode
               )
-            : errorStyles
+            : templateNode,
+        templateStyles: templateStyles,
+        templateScripts: templateScripts,
+        notFound: notFoundComponent,
+        forbidden: forbiddenComponent,
+        unauthorized: unauthorizedComponent,
+        ...(isSegmentViewEnabled && {
+          segmentViewBoundaries,
+        }),
+      }),
+      childCacheNodeSeedData,
+    ]
+  }
 
-        // Add a suffix to avoid conflict with the segment view node representing rendered file.
-        // existence: not-found.tsx@boundary
-        // rendered: not-found.tsx
-        const fileNameSuffix = BOUNDARY_SUFFIX
-        const segmentViewBoundaries = isSegmentViewEnabled
-          ? createElement(
-              Fragment,
-              null,
-              notFoundFilePath &&
-                createElement(SegmentViewNode, {
-                  type: `${BOUNDARY_PREFIX}not-found`,
-                  pagePath: notFoundFilePath + fileNameSuffix,
-                }),
-              loadingFilePath &&
-                createElement(SegmentViewNode, {
-                  type: `${BOUNDARY_PREFIX}loading`,
-                  pagePath: loadingFilePath + fileNameSuffix,
-                }),
-              errorFilePath &&
-                createElement(SegmentViewNode, {
-                  type: `${BOUNDARY_PREFIX}error`,
-                  pagePath: errorFilePath + fileNameSuffix,
-                }),
-              globalErrorFilePath &&
-                createElement(SegmentViewNode, {
-                  type: `${BOUNDARY_PREFIX}global-error`,
-                  pagePath: isNextjsBuiltinFilePath(globalErrorFilePath)
-                    ? `${BUILTIN_PREFIX}global-error.js${fileNameSuffix}`
-                    : globalErrorFilePath,
-                })
-            )
-          : null
-
-        return [
-          parallelRouteKey,
-          createElement(LayoutRouter, {
-            parallelRouterKey: parallelRouteKey,
-            error: ErrorComponent,
-            errorStyles: wrappedErrorStyles,
-            errorScripts: errorScripts,
-            template:
-              isSegmentViewEnabled && templateFilePath
-                ? createElement(
-                    SegmentViewNode,
-                    {
-                      type: 'template',
-                      pagePath: templateFilePath,
-                    },
-                    templateNode
-                  )
-                : templateNode,
-            templateStyles: templateStyles,
-            templateScripts: templateScripts,
-            notFound: notFoundComponent,
-            forbidden: forbiddenComponent,
-            unauthorized: unauthorizedComponent,
-            ...(isSegmentViewEnabled && {
-              segmentViewBoundaries,
-            }),
-          }),
-          childCacheNodeSeedData,
-        ]
-      }
-    )
-  )
+  // Fast path: most routes only have a single 'children' slot. Avoid
+  // Object.keys() array allocation, .map() closure+array, and Promise.all()
+  // microtask overhead for this common case.
+  const parallelRouteKeys = Object.keys(parallelRoutes)
+  const parallelRouteMap: Awaited<ReturnType<typeof processParallelRoute>>[] =
+    parallelRouteKeys.length === 1
+      ? [await processParallelRoute(parallelRouteKeys[0])]
+      : await Promise.all(parallelRouteKeys.map(processParallelRoute))
 
   // Convert the parallel route map into an object after all promises have been resolved.
   let parallelRouteProps: { [key: string]: React.ReactNode } = {}
