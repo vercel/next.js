@@ -7,7 +7,10 @@ use std::{
 
 use memmap2::Mmap;
 
-use crate::shared_bytes::SharedBytes;
+use crate::{
+    compression::decompress_into_rc,
+    shared_bytes::{SharedBytes, is_subslice_of},
+};
 
 /// The backing storage for an `RcBytes`.
 ///
@@ -72,11 +75,10 @@ impl Debug for RcBytes {
 
 impl Eq for RcBytes {}
 
-use crate::shared_bytes::is_subslice_of;
+impl SharedBytes for RcBytes {
+    type MmapHandle = Rc<Mmap>;
 
-impl RcBytes {
-    /// Returns a new `RcBytes` that points to a sub-range of the current slice.
-    pub fn slice(self, range: Range<usize>) -> RcBytes {
+    fn slice(self, range: Range<usize>) -> Self {
         let data = &*self;
         let data = &data[range] as *const [u8];
         Self {
@@ -85,13 +87,7 @@ impl RcBytes {
         }
     }
 
-    /// Creates a sub-slice from a slice reference that points into this RcBytes' backing data.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `subslice` points to memory within this RcBytes'
-    /// backing storage.
-    pub unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> RcBytes {
+    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(
                 subslice,
@@ -108,12 +104,7 @@ impl RcBytes {
         }
     }
 
-    /// Creates an `RcBytes` backed by a memory-mapped file.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `subslice` points to memory within the given `mmap`.
-    pub unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> RcBytes {
+    unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),
             "from_mmap: subslice is not within the mmap"
@@ -125,25 +116,9 @@ impl RcBytes {
             },
         }
     }
-}
-
-impl SharedBytes for RcBytes {
-    type MmapHandle = Rc<Mmap>;
-
-    fn slice(self, range: Range<usize>) -> Self {
-        self.slice(range)
-    }
-
-    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
-        unsafe { self.slice_from_subslice(subslice) }
-    }
-
-    unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
-        unsafe { RcBytes::from_mmap(mmap, subslice) }
-    }
 
     fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
-        Ok(RcBytes::from(crate::compression::decompress_into_rc(
+        Ok(RcBytes::from(decompress_into_rc(
             uncompressed_length,
             block,
         )?))
