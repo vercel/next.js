@@ -1302,6 +1302,11 @@ fn export_value_to_import_mapping(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
+    // `false` in resolveAlias means "resolve to an empty module"
+    if matches!(value, SubpathValue::Empty) {
+        return Some(ImportMapping::Empty.resolved_cell());
+    }
+
     let mut result = Vec::new();
     value.add_results(
         conditions,

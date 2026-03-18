@@ -167,9 +167,13 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .record(
       z.string(),
       z.union([
+        z.literal(false),
         z.string(),
         z.array(z.string()),
-        z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+        z.record(
+          z.string(),
+          z.union([z.literal(false), z.string(), z.array(z.string())])
+        ),
       ])
     )
     .optional(),
