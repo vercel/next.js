@@ -291,6 +291,7 @@ impl ResolveRawVcFuture {
 impl Future for ResolveRawVcFuture {
     type Output = Result<RawVc>;
 
+    #[inline(never)]
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
@@ -425,6 +426,7 @@ impl ReadRawVcFuture {
 impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
+    #[inline(never)]
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
