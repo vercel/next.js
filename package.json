@@ -242,7 +242,7 @@
     "ky-universal": "0.6.0",
     "lerna": "9.0.3",
     "lint-staged": "15.2.2",
-    "lodash": "4.17.20",
+    "lodash": "4.17.23",
     "lost": "8.3.1",
     "minimatch": "3.0.4",
     "moment": "^2.24.0",
