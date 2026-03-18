@@ -24,11 +24,17 @@ pub enum HashAlgorithm {
     Xxh3Hash64Base40,
     /// xxh3 128-bit hash encoded as a 25-character base40 string (0-9 a-z _ - ~ .)
     Xxh3Hash128Base40,
-    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
+    /// Used for [Subresource Integrity (SRI)][sri].
+    ///
+    /// [sri]: https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha256Base64,
-    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
+    /// Used for [Subresource Integrity (SRI)][sri].
+    ///
+    /// [sri]: https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha384Base64,
-    /// Used for https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
+    /// Used for [Subresource Integrity (SRI)][sri].
+    ///
+    /// [sri]: https://nextjs.org/docs/app/guides/content-security-policy#enabling-sri
     Sha512Base64,
 }
 

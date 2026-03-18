@@ -36,9 +36,12 @@ use crate::{
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
+/// A [CSS Module, as in `.module.css`][spec]. For a global CSS module, see [`CssModule`].
+///
+/// [spec]: https://github.com/css-modules/css-modules
+/// [`CssModule`]: crate::CssModule
 #[turbo_tasks::value]
 #[derive(Clone)]
-/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModule`].
 pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,

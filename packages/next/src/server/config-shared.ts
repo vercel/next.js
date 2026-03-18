@@ -393,7 +393,6 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
-  adapterPath?: string
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
@@ -1040,18 +1039,6 @@ export interface ExperimentalConfig {
   immutableAssetToken?: string
 
   /**
-   * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
-   * This allows conditional requests to the server, which can help with development
-   * workflows that benefit from caching validation.
-   *
-   * When enabled, the Cache-Control header changes from 'no-store, must-revalidate'
-   * to 'no-cache, must-revalidate'.
-   *
-   * @default false
-   */
-  devCacheControlNoCache?: boolean
-
-  /**
    * An array of paths in app or pages directories that should wait to be processed
    * until all other entries have been processed. This is useful for deferring
    * compilation of certain routes during development and build.
@@ -1269,6 +1256,12 @@ export interface NextConfig {
    * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
+
+  /**
+   * Path to a custom adapter module for deployment platform integration.
+   * Can also be set via the `NEXT_ADAPTER_PATH` environment variable.
+   */
+  adapterPath?: string
 
   cacheHandlers?: {
     default?: string
@@ -1719,8 +1712,8 @@ export const defaultConfig = Object.freeze({
     remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
+  adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -1812,7 +1805,6 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1871,6 +1863,7 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  adapterPath?: NextConfigComplete['adapterPath']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1885,7 +1878,6 @@ export interface NextConfigRuntime {
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
-    | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
@@ -1911,7 +1903,6 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
-    | 'devCacheControlNoCache'
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
@@ -1952,10 +1943,6 @@ export function getNextConfigRuntime(
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
-        // at runtime, as it's only used to determine whether the adapter was used or not, not to
-        // execute it again. So replace it with a placeholder if it's set.
-        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -1982,7 +1969,6 @@ export function getNextConfigRuntime(
         testProxy: ex.testProxy,
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
-        devCacheControlNoCache: ex.devCacheControlNoCache,
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
@@ -2017,6 +2003,9 @@ export function getNextConfigRuntime(
     poweredByHeader: config.poweredByHeader,
     cacheHandler: config.cacheHandler,
     cacheHandlers: config.cacheHandlers,
+    // The full adapterPath might be non-deterministic across builds and doesn't
+    // actually matter at runtime, so replace it with a placeholder if it's set.
+    adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
     compress: config.compress,
     i18n: config.i18n,

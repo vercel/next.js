@@ -136,7 +136,34 @@
       "outputs": ["native/*.node", "native/index.d.ts"],
     },
     "rust-check": {
-      "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"],
+      "dependsOn": [
+        "rust-check-clippy",
+        "rust-check-doc",
+        "rust-check-fmt",
+        "rust-check-napi",
+      ],
+    },
+    "rust-check-clippy": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain.toml",
+      ],
+    },
+    "rust-check-doc": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain.toml",
+      ],
     },
     "rust-check-fmt": {
       "inputs": [
@@ -149,17 +176,6 @@
         "../../rust-toolchain.toml",
       ],
       "cache": false,
-    },
-    "rust-check-clippy": {
-      "inputs": [
-        "../../.cargo/**",
-        "../../crates/**",
-        "../../turbopack/crates/**",
-        "../../**/Cargo.toml",
-        "../../**/Cargo.lock",
-        "../../.github/workflows/build_and_deploy.yml",
-        "../../rust-toolchain.toml",
-      ],
     },
     "rust-check-napi": {
       "inputs": [

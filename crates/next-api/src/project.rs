@@ -368,7 +368,7 @@ pub struct ProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
 }
 
@@ -960,7 +960,7 @@ pub struct Project {
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
 }
 
@@ -1219,13 +1219,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn no_mangling(&self) -> Vc<bool> {
         Vc::cell(self.no_mangling)
-    }
-
-    #[turbo_tasks::function]
-    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.env.read(rcstr!("TURBOPACK_STATS")).await?.is_some(),
-        ))
     }
 
     #[turbo_tasks::function]

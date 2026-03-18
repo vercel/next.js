@@ -256,7 +256,7 @@ export interface NapiProjectOptions {
   isPersistentCachingEnabled: boolean
   /** The version of Next.js that is running. */
   nextVersion: RcStr
-  /** Whether server-side HMR is enabled (--experimental-server-fast-refresh). */
+  /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
@@ -519,12 +519,19 @@ export interface NapiIssue {
   description?: any
   detail?: any
   source?: NapiIssueSource
+  additionalSources: Array<NapiAdditionalIssueSource>
   documentationLink: string
   importTraces: any
   /**
    * Pre-rendered code frame for the issue's source location, if available.
    * Rendered in Rust to avoid transferring full source file content to JS.
    */
+  codeFrame?: string
+}
+export interface NapiAdditionalIssueSource {
+  description: string
+  source: NapiIssueSource
+  /** Pre-rendered code frame for this additional source location, if available. */
   codeFrame?: string
 }
 export interface NapiIssueSource {
@@ -537,6 +544,7 @@ export interface NapiIssueSourceRange {
 }
 export interface NapiSource {
   ident: string
+  filePath: string
 }
 export interface NapiSourcePos {
   line: number

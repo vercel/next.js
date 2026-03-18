@@ -348,7 +348,7 @@ export async function newBrowserSession(options: {
 }): Promise<BrowserSession> {
   const browser = await chromium.launch({
     headless: options.headless ?? process.env.HEADLESS !== 'false',
-    devtools: true,
+    args: options.headless ? undefined : ['--auto-open-devtools-for-tabs'],
     timeout: 60000,
   })
   const context = await browser.newContext({

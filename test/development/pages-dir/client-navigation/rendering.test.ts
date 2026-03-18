@@ -396,7 +396,7 @@ describe('Client Navigation rendering', () => {
       responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
-            'no-store, must-revalidate'
+            'no-cache, must-revalidate'
           )
         } catch (err) {
           err.message = res.url + ' ' + err.message

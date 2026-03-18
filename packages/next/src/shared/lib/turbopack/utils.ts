@@ -91,6 +91,13 @@ export function processIssues(
   }
 }
 
+function formatFilePath(filePath: string): string {
+  return filePath
+    .replace('[project]/', './')
+    .replaceAll('/./', '/')
+    .replace('\\\\?\\', '')
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
@@ -107,10 +114,7 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  const formattedFilePath = filePath
-    .replace('[project]/', './')
-    .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
+  const formattedFilePath = formatFilePath(filePath)
 
   let message = ''
 
@@ -147,6 +151,19 @@ export function formatIssue(issue: Issue) {
   // TODO: make it easier to enable this for debugging
   if (VERBOSE_ISSUES && detail) {
     message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+  }
+
+  // Render additional sources (e.g., generated code from a loader)
+  for (const additional of issue.additionalSources ?? []) {
+    if (additional.codeFrame) {
+      const additionalFilePath = formatFilePath(
+        additional.source.source.filePath
+      )
+      const loc = additional.source.range
+        ? `:${additional.source.range.start.line + 1}:${additional.source.range.start.column + 1}`
+        : ''
+      message += `${additional.description}:\n${additionalFilePath}${loc}\n${additional.codeFrame.trimEnd()}\n\n`
+    }
   }
 
   if (importTraces?.length) {

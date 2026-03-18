@@ -8,7 +8,8 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    reference::{ModuleReference, ModuleReferences},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+    resolve::ExportUsage,
     source::OptionSource,
 };
 use turbopack_ecmascript::{
@@ -20,8 +21,6 @@ use turbopack_ecmascript::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
-
-use super::server_component_reference::NextServerComponentModuleReference;
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
@@ -62,11 +61,11 @@ impl NextServerComponentModule {
 }
 
 impl NextServerComponentModule {
-    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
-        Ok(ResolvedVc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
+    fn module_reference(&self) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(SingleChunkableModuleReference::new(
+            Vc::upcast(*self.module),
+            rcstr!("Next.js Server Component"),
+            ExportUsage::all(),
         ))
     }
 }
@@ -87,8 +86,9 @@ impl Module for NextServerComponentModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![self.module_reference().await?]))
+        Ok(Vc::cell(vec![self.module_reference().to_resolved().await?]))
     }
+
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
@@ -112,9 +112,7 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        let module_reference: Vc<Box<dyn ModuleReference>> = Vc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module)),
-        );
+        let module_reference = self.module_reference();
         EsmExports::reexport_including_default(module_reference)
     }
 

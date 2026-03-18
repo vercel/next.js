@@ -160,7 +160,7 @@ export async function handler(
 
     if (prerenderInfo) {
       if (prerenderInfo.fallback === false && !isPrerendered) {
-        if (nextConfig.experimental.adapterPath) {
+        if (nextConfig.adapterPath) {
           return await render404()
         }
         throw new NoFallbackError()

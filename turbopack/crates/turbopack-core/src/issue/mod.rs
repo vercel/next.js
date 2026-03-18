@@ -28,6 +28,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     condition::ContextCondition,
+    generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
@@ -180,6 +181,15 @@ pub trait Issue {
     #[turbo_tasks::function]
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
         Vc::cell(None)
+    }
+
+    /// Additional source locations related to this issue (e.g., generated code
+    /// from a loader). Each source includes a description and location.
+    /// These are displayed alongside the primary source to give users full
+    /// context about the error.
+    #[turbo_tasks::function]
+    fn additional_sources(self: Vc<Self>) -> Vc<AdditionalIssueSources> {
+        AdditionalIssueSources::empty()
     }
 }
 
@@ -395,8 +405,7 @@ impl IssueFilter {
     }
 }
 
-/// A list of issues captured with [`Issue::peek_issues_with_path`] and
-/// [`Issue::take_issues`].
+/// A list of issues captured with [`CollectibleIssuesExt::peek_issues`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
@@ -404,26 +413,7 @@ pub struct CapturedIssues {
     tracer: ResolvedVc<DelegatingImportTracer>,
 }
 
-#[turbo_tasks::value_impl]
 impl CapturedIssues {
-    #[turbo_tasks::function]
-    pub fn is_empty(&self) -> Vc<bool> {
-        Vc::cell(self.is_empty_ref())
-    }
-}
-
-impl CapturedIssues {
-    /// Returns true if there are no issues.
-    pub fn is_empty_ref(&self) -> bool {
-        self.issues.is_empty()
-    }
-
-    /// Returns the number of issues.
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.issues.len()
-    }
-
     /// Returns an iterator over the issues.
     pub fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
         self.issues.iter().copied()
@@ -620,6 +610,31 @@ impl IssueSource {
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
+
+    /// If this source implements `GenerateSourceMap`, returns an
+    /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
+    /// (stripping source-map support) so the generated code is shown alongside
+    /// the original in error messages. Returns `None` otherwise.
+    pub async fn to_generated_code_source(&self) -> Result<Option<AdditionalIssueSource>> {
+        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source).is_some() {
+            let description = self.source.description().await?;
+            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*self.source))
+                .to_resolved()
+                .await?;
+            return Ok(Some(AdditionalIssueSource {
+                description: format!("Generated code of {}", description).into(),
+                source: IssueSource {
+                    source: generated,
+                    // The range is intentionally copied verbatim: the offsets
+                    // are already in generated-source coordinates (they came
+                    // from parsing the loader output), so no remapping is
+                    // needed here.
+                    range: self.range,
+                },
+            }));
+        }
+        Ok(None)
+    }
 }
 
 impl IssueSource {
@@ -700,6 +715,26 @@ pub struct OptionIssueSource(Option<IssueSource>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
+
+/// A labeled issue source used to provide additional context in error messages.
+/// For example, when a webpack loader produces broken code, the primary source
+/// shows the original file, while an additional source shows the generated code.
+#[turbo_tasks::value(shared)]
+pub struct AdditionalIssueSource {
+    pub description: RcStr,
+    pub source: IssueSource,
+}
+
+#[turbo_tasks::value(shared, transparent)]
+pub struct AdditionalIssueSources(Vec<AdditionalIssueSource>);
+
+#[turbo_tasks::value_impl]
+impl AdditionalIssueSources {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
 
 // A structured reference to a file with module level details for displaying in an import trace
 #[derive(
@@ -880,7 +915,15 @@ pub struct PlainIssue {
     pub documentation_link: RcStr,
 
     pub source: Option<PlainIssueSource>,
+    pub additional_sources: Vec<PlainAdditionalIssueSource>,
     pub import_traces: Vec<PlainTrace>,
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
+pub struct PlainAdditionalIssueSource {
+    pub description: RcStr,
+    pub source: PlainIssueSource,
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -901,20 +944,25 @@ fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: boo
         hasher.write_value(0_u8);
     }
 
+    // `additional_sources` is intentionally not hashed: it carries supplementary
+    // display info (e.g. generated code from a loader) that does not change the
+    // identity of the underlying problem.  Two issues that differ only in their
+    // generated-code snippet still represent the same root cause and should be
+    // deduplicated.
+
     if full {
         hasher.write_ref(&issue.import_traces);
     }
 }
 
 impl PlainIssue {
-    /// We need deduplicate issues that can come from unique paths, but
-    /// represent the same underlying problem. Eg, a parse error for a file
-    /// that is compiled in both client and server contexts.
+    /// We need deduplicate issues that can come from unique paths, but represent the same
+    /// underlying problem. E.g., a parse error for a file that is compiled in both client and
+    /// server contexts.
     ///
-    /// Passing [full] will also hash any sub-issues and processing paths. While
-    /// useful for generating exact matching hashes, it's possible for the
-    /// same issue to pass from multiple processing paths, making for overly
-    /// verbose logging.
+    /// Passing `full` will also hash any sub-issues and processing paths. While useful for
+    /// generating exact matching hashes, it's possible for the same issue to pass from multiple
+    /// processing paths, making for overly verbose logging.
     pub fn internal_hash_ref(&self, full: bool) -> u64 {
         let mut hasher = Xxh3Hash64Hasher::new();
         hash_plain_issue(self, &mut hasher, full);
@@ -958,6 +1006,17 @@ impl PlainIssue {
                     None
                 }
             },
+            additional_sources: {
+                let sources = issue.additional_sources().await?;
+                let mut result = Vec::new();
+                for s in sources.iter() {
+                    result.push(PlainAdditionalIssueSource {
+                        description: s.description.clone(),
+                        source: s.source.into_plain().await?,
+                    });
+                }
+                result
+            },
             import_traces: match import_tracer {
                 Some(tracer) => {
                     into_plain_trace(
@@ -985,6 +1044,7 @@ pub struct PlainIssueSource {
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
+    pub file_path: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1001,6 +1061,7 @@ impl PlainSource {
 
         Ok(PlainSource {
             ident: asset.ident().to_string().await?,
+            file_path: asset.ident().path().to_string().await?,
             content,
         }
         .cell())

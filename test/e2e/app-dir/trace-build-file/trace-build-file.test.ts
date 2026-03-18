@@ -1,67 +1,20 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { join } from 'path'
-import { existsSync, readFileSync } from 'fs'
-import type { TraceEvent } from 'next/dist/trace'
-
-interface TraceStructure {
-  events: TraceEvent[]
-  eventsByName: Map<string, TraceEvent[]>
-  eventsById: Map<string, TraceEvent>
-  rootEvents: TraceEvent[]
-  orphanedEvents: TraceEvent[]
-}
-
-function parseTraceFile(traceBuildPath: string): TraceStructure {
-  const traceContent = readFileSync(traceBuildPath, 'utf8')
-  const traceLines = traceContent
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim())
-
-  const allEvents: TraceEvent[] = []
-
-  for (const line of traceLines) {
-    const events = JSON.parse(line) as TraceEvent[]
-    allEvents.push(...events)
-  }
-
-  const eventsByName = new Map<string, TraceEvent[]>()
-  const eventsById = new Map<string, TraceEvent>()
-  const rootEvents: TraceEvent[] = []
-  const orphanedEvents: TraceEvent[] = []
-
-  // Index all events
-  for (const event of allEvents) {
-    if (!eventsByName.has(event.name)) {
-      eventsByName.set(event.name, [])
-    }
-    eventsByName.get(event.name).push(event)
-    eventsById.set(event.id.toString(), event)
-  }
-
-  // Categorize events as root or orphaned
-  for (const event of allEvents) {
-    if (!event.parentId) {
-      rootEvents.push(event)
-    } else if (!eventsById.has(event.parentId.toString())) {
-      orphanedEvents.push(event)
-    }
-  }
-
-  return {
-    events: allEvents,
-    eventsByName,
-    eventsById,
-    rootEvents,
-    orphanedEvents,
-  }
-}
+import { existsSync } from 'fs'
+import { parseTraceFile } from '../../../lib/parse-trace-file'
 
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      // Enable persistent caching even when the git working directory is
+      // dirty (e.g. when developing Next.js itself). Without this, the
+      // cache falls back to a temp directory and persistence/compaction
+      // spans are not emitted.
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
+    },
   })
 
   if (isNextStart) {
@@ -133,6 +86,8 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
+                  "turbopack-build-events",
+                  "turbopack-persistence",
                 ]
               `)
       } else {

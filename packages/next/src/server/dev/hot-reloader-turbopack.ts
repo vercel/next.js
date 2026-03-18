@@ -309,7 +309,7 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -413,7 +413,7 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
-      serverHmr: experimentalServerFastRefresh,
+      serverHmr: serverFastRefresh,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -616,9 +616,7 @@ export async function createHotReloaderTurbopack(
     //   - Middleware
     //   - App Router route handlers (route.ts)
     const usesServerHmr =
-      experimentalServerFastRefresh &&
-      isAppPage &&
-      writtenEndpoint.type !== 'edge'
+      serverFastRefresh && isAppPage && writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
@@ -1840,7 +1838,7 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  if (experimentalServerFastRefresh) {
+  if (serverFastRefresh) {
     serverHmrSubscriptions = setupServerHmr(project, {
       clear: async () => {
         // Clear Node's require cache of all Turbopack-built modules

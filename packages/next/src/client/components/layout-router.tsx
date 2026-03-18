@@ -877,9 +877,9 @@ function getBoundaryDebugNameFromSegment(segment: Segment): string | undefined {
 
 function isVirtualLayout(segment: string): boolean {
   return (
-    // This is inserted by the loader. We should consider encoding these
-    // in a more special way instead of checking the name, to distinguish them
-    // from app-defined groups.
-    segment === '(slot)'
+    // This is inserted by the loader. Uses double-underscore convention
+    // (like __PAGE__ and __DEFAULT__) to avoid collisions with
+    // user-defined route groups.
+    segment === '(__SLOT__)'
   )
 }
