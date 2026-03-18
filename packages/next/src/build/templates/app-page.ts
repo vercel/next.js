@@ -73,6 +73,7 @@ import {
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body'
+import { parseUrl } from '../../lib/url'
 
 // These are injected by the loader afterwards.
 
@@ -1572,9 +1573,15 @@ export async function handler(
           getRequestMeta(req, 'onCacheEntry'))
         : getRequestMeta(req, 'onCacheEntry')
       if (onCacheEntry) {
+        const rawCacheEntryUrl = getRequestMeta(req, 'initURL') ?? req.url
+        const cacheEntryUrl = rawCacheEntryUrl
+          ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
+          : undefined
+
         const finished = await onCacheEntry(cacheEntry, {
-          url: getRequestMeta(req, 'initURL') ?? req.url,
+          url: cacheEntryUrl,
         })
+
         if (finished) return null
       }
 
