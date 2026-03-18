@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-identical-title */
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'

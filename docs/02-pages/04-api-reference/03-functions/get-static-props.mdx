@@ -3,7 +3,7 @@ title: getStaticProps
 description: API reference for `getStaticProps`. Learn how to use `getStaticProps` to generate static pages with Next.js.
 ---
 
-Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
+Exporting a function called `getStaticProps` will prerender a page at build time using the props returned from the function:
 
 ```tsx filename="pages/index.tsx" switcher
 import type { InferGetStaticPropsType, GetStaticProps } from 'next'
@@ -126,7 +126,7 @@ export async function getStaticProps(context) {
 }
 ```
 
-> **Good to know**: `notFound` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+> **Good to know**: `notFound` is not needed for [`fallback: false`](/docs/pages/api-reference/functions/get-static-paths#fallback-false) mode as only paths returned from `getStaticPaths` will be prerendered.
 
 ### `redirect`
 
@@ -220,7 +220,7 @@ export default Blog
 
 | Version   | Changes                                                                                                                                                  |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v13.4.0` | [App Router](/docs/app/building-your-application/data-fetching) is now stable with simplified data fetching                                              |
+| `v13.4.0` | [App Router](/docs/app/getting-started/fetching-data) is now stable with simplified data fetching                                                        |
 | `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) is stable.    |
 | `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/pages/guides/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath) added (beta). |
 | `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                                                                      |

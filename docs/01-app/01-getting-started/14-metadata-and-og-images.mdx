@@ -1,6 +1,5 @@
 ---
-title: How to add metadata and create OG images
-nav_title: Metadata and OG images
+title: Metadata and OG images
 description: Learn how to add metadata to your pages and create dynamic OG images.
 related:
   title: API Reference
@@ -14,6 +13,7 @@ related:
     - app/api-reference/file-conventions/metadata/opengraph-image
     - app/api-reference/file-conventions/metadata/robots
     - app/api-reference/file-conventions/metadata/sitemap
+    - app/api-reference/config/next-config-js/htmlLimitedBots
 ---
 
 The Metadata APIs can be used to define your application metadata for improved SEO and web shareability and include:
@@ -23,6 +23,8 @@ The Metadata APIs can be used to define your application metadata for improved S
 3. Special [file conventions](/docs/app/api-reference/file-conventions/metadata) that can be used to add static or dynamically generated [favicons](#favicons) and [OG images](#static-open-graph-images).
 
 With all the options above, Next.js will automatically generate the relevant `<head>` tags for your page, which can be inspected in the browser's developer tools.
+
+The `metadata` object and `generateMetadata` function exports are only supported in Server Components.
 
 ## Default fields
 
@@ -50,16 +52,16 @@ export const metadata: Metadata = {
   description: '...',
 }
 
-export default function Page() {}
+export default function Layout() {}
 ```
 
-```jsx filename="app/blog/layout.tsx" switcher
+```jsx filename="app/blog/layout.js" switcher
 export const metadata = {
   title: 'My Blog',
   description: '...',
 }
 
-export default function Page() {}
+export default function Layout() {}
 ```
 
 You can view a full list of available options, in the [`generateMetadata` documentation](/docs/app/api-reference/functions/generate-metadata#metadata-fields).
@@ -114,13 +116,25 @@ export async function generateMetadata({ params, searchParams }, parent) {
 export default function Page({ params, searchParams }) {}
 ```
 
-Behind-the-scenes, Next.js will stream metadata separately from the UI and inject the metadata into the HTML as soon as it's resolved.
+### Streaming metadata
+
+For dynamically rendered pages, Next.js streams metadata separately, injecting it into the HTML once `generateMetadata` resolves, without blocking UI rendering.
+
+Streaming metadata improves perceived performance by allowing visual content to stream first.
+
+Streaming metadata is **disabled for bots and crawlers** that expect metadata to be in the `<head>` tag (e.g. `Twitterbot`, `Slackbot`, `Bingbot`). These are detected by using the User Agent header from the incoming request.
+
+You can customize or **disable** streaming metadata completely, with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots#disabling) option in your Next.js config file.
+
+Prerendered pages don’t use streaming since metadata is resolved at build time.
+
+Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
 ### Memoizing data requests
 
 There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
 
-```tsx filename="app/lib/data.ts" highlight={5} switcher
+```ts filename="app/lib/data.ts" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -131,7 +145,7 @@ export const getPost = cache(async (slug: string) => {
 })
 ```
 
-```jsx filename="app/lib/data.js" highlight={5} switcher
+```js filename="app/lib/data.js" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -207,7 +221,7 @@ Favicons are small icons that represent your site in bookmarks and search result
 
 ## Static Open Graph images
 
-Open Graph (OG) images are images that represent your site in social media. To add a static OG image to your application, create a `opengraph-image.png` file in the root of the app folder.
+Open Graph (OG) images are images that represent your site in social media. To add a static OG image to your application, create a `opengraph-image.jpg` file in the root of the app folder.
 
 <Image
   alt="OG image special file inside the App folder with sibling layout and page files"
@@ -217,7 +231,7 @@ Open Graph (OG) images are images that represent your site in social media. To a
   height="444"
 />
 
-You can also add OG images for specific routes by creating a `opengraph-image.png` deeper down the folder structure. For example, to create an OG image specific to the `/blog` route, add a `opengraph-image.jpg` file inside the `blog` folder.
+You can also add OG images for specific routes by creating a `opengraph-image.jpg` deeper down the folder structure. For example, to create an OG image specific to the `/blog` route, add a `opengraph-image.jpg` file inside the `blog` folder.
 
 <Image
   alt="OG image special file inside the blog folder"
@@ -229,15 +243,15 @@ You can also add OG images for specific routes by creating a `opengraph-image.pn
 
 The more specific image will take precedence over any OG images above it in the folder structure.
 
-> Other image formats such as `jpeg`, `png`, and `webp` are also supported. See the [Open Graph Image docs](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for more information.
+> Other image formats such as `jpeg`, `png`, and `gif` are also supported. See the [Open Graph Image docs](/docs/app/api-reference/file-conventions/metadata/opengraph-image) for more information.
 
 ## Generated Open Graph images
 
 The [`ImageResponse` constructor](/docs/app/api-reference/functions/image-response) allows you to generate dynamic images using JSX and CSS. This is useful for OG images that depend on data.
 
-For example, to generate a unique OG image for each blog post, add a `opengraph-image.ts` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
+For example, to generate a unique OG image for each blog post, add a `opengraph-image.tsx` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
 
-```tsx filename="app/blog/[slug]/opengraph-image.ts" switcher
+```tsx filename="app/blog/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 import { getPost } from '@/app/lib/data'
 

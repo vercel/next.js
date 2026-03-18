@@ -1,7 +1,10 @@
+use std::sync::LazyLock;
+
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{FileSystemPath, json::parse_json_with_source_context};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
@@ -68,10 +71,7 @@ struct HasPath {
     path: RcStr,
 }
 
-pub(crate) async fn can_use_next_font(
-    project_path: Vc<FileSystemPath>,
-    query: &RcStr,
-) -> Result<bool> {
+pub(crate) async fn can_use_next_font(project_path: FileSystemPath, query: &RcStr) -> Result<bool> {
     let query_map = qstring::QString::from(query.as_str());
     let request: HasPath = parse_json_with_source_context(
         query_map
@@ -81,12 +81,13 @@ pub(crate) async fn can_use_next_font(
             .0,
     )?;
 
-    let document_re = lazy_regex::regex!("^(src/)?_document\\.[^/]+$");
-    let path = project_path.join(request.path.clone());
-    let can_use = !document_re.is_match(&request.path);
+    static DOCUMENT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("^(src/)?_document\\.[^/]+$").unwrap());
+    let path = project_path.join(&request.path)?;
+    let can_use = !DOCUMENT_RE.is_match(&request.path);
     if !can_use {
         NextFontIssue {
-            path: path.to_resolved().await?,
+            path: path.clone(),
             title: StyledString::Line(vec![
                 StyledString::Code(rcstr!("next/font:")),
                 StyledString::Text(rcstr!(" error:")),
@@ -97,7 +98,7 @@ pub(crate) async fn can_use_next_font(
                 StyledString::Code(request.path),
             ])
             .resolved_cell(),
-            severity: IssueSeverity::Error.resolved_cell(),
+            severity: IssueSeverity::Error,
         }
         .resolved_cell()
         .emit();

@@ -23,15 +23,13 @@ struct Finder {
 
 impl Visit for Finder {
     fn visit_callee(&mut self, node: &Callee) {
-        if self.is_interested {
-            if let Callee::Expr(e) = node {
-                if let Expr::Ident(c) = &**e {
-                    if c.sym.starts_with("use") {
-                        self.found = true;
-                        return;
-                    }
-                }
-            }
+        if self.is_interested
+            && let Callee::Expr(e) = node
+            && let Expr::Ident(c) = &**e
+            && c.sym.starts_with("use")
+        {
+            self.found = true;
+            return;
         }
 
         node.visit_children_with(self);
@@ -130,7 +128,7 @@ impl Visit for Finder {
 mod tests {
     use swc_core::{
         common::FileName,
-        ecma::parser::{parse_file_as_program, EsSyntax},
+        ecma::parser::{EsSyntax, parse_file_as_program},
     };
     use testing::run_test2;
 
@@ -138,7 +136,8 @@ mod tests {
 
     fn assert_required(code: &str, required: bool) {
         run_test2(false, |cm, _| {
-            let fm = cm.new_source_file(FileName::Custom("test.tsx".into()).into(), code.into());
+            let fm =
+                cm.new_source_file(FileName::Custom("test.tsx".into()).into(), code.to_string());
 
             let program = parse_file_as_program(
                 &fm,

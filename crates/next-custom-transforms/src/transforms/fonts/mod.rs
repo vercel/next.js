@@ -1,11 +1,12 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::Wtf8Atom,
     common::{BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem, Pass},
         atoms::Atom,
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
+        visit::{VisitMut, VisitWith, noop_visit_mut_type, visit_mut_pass},
     },
 };
 
@@ -16,7 +17,7 @@ mod font_imports_generator;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
-    pub font_loaders: Vec<Atom>,
+    pub font_loaders: Vec<Wtf8Atom>,
     pub relative_file_path_from_root: Atom,
 }
 
@@ -31,13 +32,13 @@ pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
 
 #[derive(Debug)]
 pub struct FontFunction {
-    loader: Atom,
+    loader: Wtf8Atom,
     function_name: Option<Atom>,
 }
 #[derive(Debug, Default)]
 pub struct State {
     font_functions: FxHashMap<Id, FontFunction>,
-    removeable_module_items: FxHashSet<BytePos>,
+    removable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,
     font_functions_in_allowed_scope: FxHashSet<BytePos>,
@@ -59,7 +60,7 @@ impl VisitMut for NextFontLoaders {
         };
         items.visit_with(&mut functions_collector);
 
-        if !self.state.removeable_module_items.is_empty() {
+        if !self.state.removable_module_items.is_empty() {
             // Generate imports from font function calls
             let mut import_generator = font_imports_generator::FontImportsGenerator {
                 state: &mut self.state,
@@ -75,7 +76,7 @@ impl VisitMut for NextFontLoaders {
             items.visit_with(&mut wrong_scope);
 
             fn is_removable(ctx: &NextFontLoaders, item: &ModuleItem) -> bool {
-                ctx.state.removeable_module_items.contains(&item.span_lo())
+                ctx.state.removable_module_items.contains(&item.span_lo())
             }
 
             let first_removable_index = items

@@ -5,8 +5,9 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
-  displayName: process.env.TURBOPACK ? 'turbopack' : 'default',
+  displayName: process.env.IS_WEBPACK_TEST ? 'webpack' : 'Turbopack',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
+  globalSetup: '<rootDir>/jest-global-setup.ts',
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
@@ -16,8 +17,29 @@ const customJestConfig = {
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
+    '<rootDir>/../packages/next-routing/',
   ],
-  modulePathIgnorePatterns: ['/\\.next/'],
+  haste: {
+    // Throwing to avoid warnings creeping up over time polluting log output.
+    throwOnModuleCollision: true,
+  },
+  modulePathIgnorePatterns: [
+    '/\\.next/',
+    // Prevents jest-haste-map warnings due to multiple versions of the same
+    // package being vendored. Also means tests in `compiled` will be ignored.
+    // Jest does not normalize/resolve paths in modulePathIgnorePatterns so we can't
+    // prefix with <rootDir>/../ like we do in roots.
+    'packages/next/src/compiled/',
+    '<rootDir>/development/app-dir/ssr-in-rsc/internal-pkg/',
+    '<rootDir>/e2e/app-dir/self-importing-package/internal-pkg',
+    '<rootDir>/e2e/app-dir/self-importing-package-monorepo/internal-pkg',
+    '<rootDir>/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg',
+    '<rootDir>/e2e/transpile-packages-typescript-foreign/pkg',
+    '<rootDir>/production/standalone-mode/tracing-side-effects-false/foo',
+    '<rootDir>/production/standalone-mode/tracing-static-files/foo',
+    '<rootDir>/production/standalone-mode/tracing-unparsable/foo',
+    '<rootDir>/production/supports-module-resolution-nodenext/pkg',
+  ],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   moduleNameMapper: {

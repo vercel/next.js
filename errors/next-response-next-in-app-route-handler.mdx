@@ -4,9 +4,9 @@ title: '`NextResponse.next()` used in a Route Handler in the App Router'
 
 ## Why This Error Occurred
 
-Route Handlers in the Next.js App Router do not support using the `NextResponse.next()` method to forward to the next Middleware.
+Route Handlers in the Next.js App Router do not support using the `NextResponse.next()` method to forward to the next Proxy.
 
-The Route Handler is considered the end of the middleware "chain". Handlers must always return a `Response` object instead.
+The Route Handler is considered the end of the proxy "chain". Handlers must always return a `Response` object instead.
 
 ## Possible Ways to Fix It
 
@@ -14,5 +14,5 @@ Remove the `NextResponse.next()` and replace it with a correct response handler.
 
 ## Useful Links
 
-- [Route Handlers](/docs/app/building-your-application/routing/route-handlers)
+- [Route Handlers](/docs/app/api-reference/file-conventions/route)
 - [`NextResponse`](/docs/app/api-reference/functions/next-response)

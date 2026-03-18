@@ -6,6 +6,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
+  getCacheHeader,
   normalizeRegEx,
   retry,
   waitFor,
@@ -40,6 +41,18 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  if (!process.env.__NEXT_CACHE_COMPONENTS) {
+    it('should respond correctly for dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/another')
+      expect(res.status).toBe(200)
+    })
+
+    it('should respond correctly for partially dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/static')
+      expect(res.status).toBe(200)
+    })
+  }
+
   it('should use auto no cache when no fetch config', async () => {
     const res = await next.fetch('/no-config-fetch')
     expect(res.status).toBe(200)
@@ -56,10 +69,9 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      // custom cache handler is in memory only
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -83,12 +95,10 @@ describe('app-dir static/dynamic handling', () => {
 
     if (isNextDev) {
       expect(data).not.toBe(data2)
-    } else {
+    } else if (!process.env.CUSTOM_CACHE_HANDLER) {
       // "default" cache does not impact ISR handling on a page, similar to the above test
       // case for no fetch config
-      const pageCache = (
-        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
-      ).toLowerCase()
+      const pageCache = getCacheHeader(res)
 
       expect(pageCache).toBeTruthy()
       expect(pageCache).not.toBe('MISS')
@@ -157,7 +167,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toBe(data2)
       })
 
-      it('should not fetch from memory cache after unstable_expireTag is used', async () => {
+      it('should not fetch from memory cache after revalidateTag is used', async () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
@@ -771,7 +781,7 @@ describe('app-dir static/dynamic handling', () => {
 
   if (isNextStart) {
     it('should not encode dynamic parameters as search parameters in RSC data', async () => {
-      const data = process.env.__NEXT_EXPERIMENTAL_PPR
+      const data = process.env.__NEXT_CACHE_COMPONENTS
         ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
         : await next.readFile('.next/server/app/blog/seb.rsc')
 
@@ -807,112 +817,523 @@ describe('app-dir static/dynamic handling', () => {
        [
          "_not-found.html",
          "_not-found.rsc",
+         "_not-found.segments/_full.segment.rsc",
+         "_not-found.segments/_head.segment.rsc",
+         "_not-found.segments/_index.segment.rsc",
+         "_not-found.segments/_not-found.segment.rsc",
+         "_not-found.segments/_not-found/__PAGE__.segment.rsc",
+         "_not-found.segments/_tree.segment.rsc",
          "articles/works.html",
          "articles/works.rsc",
+         "articles/works.segments/_full.segment.rsc",
+         "articles/works.segments/_head.segment.rsc",
+         "articles/works.segments/_index.segment.rsc",
+         "articles/works.segments/_tree.segment.rsc",
+         "articles/works.segments/articles.segment.rsc",
+         "articles/works.segments/articles/$d$slug.segment.rsc",
+         "articles/works.segments/articles/$d$slug/__PAGE__.segment.rsc",
          "blog/seb.html",
          "blog/seb.rsc",
+         "blog/seb.segments/_full.segment.rsc",
+         "blog/seb.segments/_head.segment.rsc",
+         "blog/seb.segments/_index.segment.rsc",
+         "blog/seb.segments/_tree.segment.rsc",
+         "blog/seb.segments/blog.segment.rsc",
+         "blog/seb.segments/blog/$d$author.segment.rsc",
+         "blog/seb.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/seb/second-post.html",
          "blog/seb/second-post.rsc",
+         "blog/seb/second-post.segments/_full.segment.rsc",
+         "blog/seb/second-post.segments/_head.segment.rsc",
+         "blog/seb/second-post.segments/_index.segment.rsc",
+         "blog/seb/second-post.segments/_tree.segment.rsc",
+         "blog/seb/second-post.segments/blog.segment.rsc",
+         "blog/seb/second-post.segments/blog/$d$author.segment.rsc",
+         "blog/seb/second-post.segments/blog/$d$author/$d$slug.segment.rsc",
+         "blog/seb/second-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/styfle.html",
          "blog/styfle.rsc",
+         "blog/styfle.segments/_full.segment.rsc",
+         "blog/styfle.segments/_head.segment.rsc",
+         "blog/styfle.segments/_index.segment.rsc",
+         "blog/styfle.segments/_tree.segment.rsc",
+         "blog/styfle.segments/blog.segment.rsc",
+         "blog/styfle.segments/blog/$d$author.segment.rsc",
+         "blog/styfle.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/styfle/first-post.html",
          "blog/styfle/first-post.rsc",
+         "blog/styfle/first-post.segments/_full.segment.rsc",
+         "blog/styfle/first-post.segments/_head.segment.rsc",
+         "blog/styfle/first-post.segments/_index.segment.rsc",
+         "blog/styfle/first-post.segments/_tree.segment.rsc",
+         "blog/styfle/first-post.segments/blog.segment.rsc",
+         "blog/styfle/first-post.segments/blog/$d$author.segment.rsc",
+         "blog/styfle/first-post.segments/blog/$d$author/$d$slug.segment.rsc",
+         "blog/styfle/first-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/styfle/second-post.html",
          "blog/styfle/second-post.rsc",
+         "blog/styfle/second-post.segments/_full.segment.rsc",
+         "blog/styfle/second-post.segments/_head.segment.rsc",
+         "blog/styfle/second-post.segments/_index.segment.rsc",
+         "blog/styfle/second-post.segments/_tree.segment.rsc",
+         "blog/styfle/second-post.segments/blog.segment.rsc",
+         "blog/styfle/second-post.segments/blog/$d$author.segment.rsc",
+         "blog/styfle/second-post.segments/blog/$d$author/$d$slug.segment.rsc",
+         "blog/styfle/second-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/tim.html",
          "blog/tim.rsc",
+         "blog/tim.segments/_full.segment.rsc",
+         "blog/tim.segments/_head.segment.rsc",
+         "blog/tim.segments/_index.segment.rsc",
+         "blog/tim.segments/_tree.segment.rsc",
+         "blog/tim.segments/blog.segment.rsc",
+         "blog/tim.segments/blog/$d$author.segment.rsc",
+         "blog/tim.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/tim/first-post.html",
          "blog/tim/first-post.rsc",
+         "blog/tim/first-post.segments/_full.segment.rsc",
+         "blog/tim/first-post.segments/_head.segment.rsc",
+         "blog/tim/first-post.segments/_index.segment.rsc",
+         "blog/tim/first-post.segments/_tree.segment.rsc",
+         "blog/tim/first-post.segments/blog.segment.rsc",
+         "blog/tim/first-post.segments/blog/$d$author.segment.rsc",
+         "blog/tim/first-post.segments/blog/$d$author/$d$slug.segment.rsc",
+         "blog/tim/first-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "default-config-fetch.html",
          "default-config-fetch.rsc",
+         "default-config-fetch.segments/!KG5ldyk.segment.rsc",
+         "default-config-fetch.segments/!KG5ldyk/default-config-fetch.segment.rsc",
+         "default-config-fetch.segments/!KG5ldyk/default-config-fetch/__PAGE__.segment.rsc",
+         "default-config-fetch.segments/_full.segment.rsc",
+         "default-config-fetch.segments/_head.segment.rsc",
+         "default-config-fetch.segments/_index.segment.rsc",
+         "default-config-fetch.segments/_tree.segment.rsc",
          "force-cache.html",
          "force-cache.rsc",
+         "force-cache.segments/_full.segment.rsc",
+         "force-cache.segments/_head.segment.rsc",
+         "force-cache.segments/_index.segment.rsc",
+         "force-cache.segments/_tree.segment.rsc",
+         "force-cache.segments/force-cache.segment.rsc",
+         "force-cache.segments/force-cache/__PAGE__.segment.rsc",
          "force-static-fetch-no-store.html",
          "force-static-fetch-no-store.rsc",
+         "force-static-fetch-no-store.segments/_full.segment.rsc",
+         "force-static-fetch-no-store.segments/_head.segment.rsc",
+         "force-static-fetch-no-store.segments/_index.segment.rsc",
+         "force-static-fetch-no-store.segments/_tree.segment.rsc",
+         "force-static-fetch-no-store.segments/force-static-fetch-no-store.segment.rsc",
+         "force-static-fetch-no-store.segments/force-static-fetch-no-store/__PAGE__.segment.rsc",
          "force-static/first.html",
          "force-static/first.rsc",
+         "force-static/first.segments/_full.segment.rsc",
+         "force-static/first.segments/_head.segment.rsc",
+         "force-static/first.segments/_index.segment.rsc",
+         "force-static/first.segments/_tree.segment.rsc",
+         "force-static/first.segments/force-static.segment.rsc",
+         "force-static/first.segments/force-static/$d$slug.segment.rsc",
+         "force-static/first.segments/force-static/$d$slug/__PAGE__.segment.rsc",
          "force-static/second.html",
          "force-static/second.rsc",
+         "force-static/second.segments/_full.segment.rsc",
+         "force-static/second.segments/_head.segment.rsc",
+         "force-static/second.segments/_index.segment.rsc",
+         "force-static/second.segments/_tree.segment.rsc",
+         "force-static/second.segments/force-static.segment.rsc",
+         "force-static/second.segments/force-static/$d$slug.segment.rsc",
+         "force-static/second.segments/force-static/$d$slug/__PAGE__.segment.rsc",
          "gen-params-catch-all-unique/foo/bar.html",
          "gen-params-catch-all-unique/foo/bar.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/_full.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/_head.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/_index.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/_tree.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/gen-params-catch-all-unique.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/gen-params-catch-all-unique/$c$slug.segment.rsc",
+         "gen-params-catch-all-unique/foo/bar.segments/gen-params-catch-all-unique/$c$slug/__PAGE__.segment.rsc",
          "gen-params-catch-all-unique/foo/foo.html",
          "gen-params-catch-all-unique/foo/foo.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/_full.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/_head.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/_index.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/_tree.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/gen-params-catch-all-unique.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/gen-params-catch-all-unique/$c$slug.segment.rsc",
+         "gen-params-catch-all-unique/foo/foo.segments/gen-params-catch-all-unique/$c$slug/__PAGE__.segment.rsc",
          "gen-params-dynamic-revalidate/one.html",
          "gen-params-dynamic-revalidate/one.rsc",
+         "gen-params-dynamic-revalidate/one.segments/_full.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/_head.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/_index.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/_tree.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/gen-params-dynamic-revalidate.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/gen-params-dynamic-revalidate/$d$slug.segment.rsc",
+         "gen-params-dynamic-revalidate/one.segments/gen-params-dynamic-revalidate/$d$slug/__PAGE__.segment.rsc",
          "hooks/use-pathname/slug.html",
          "hooks/use-pathname/slug.rsc",
+         "hooks/use-pathname/slug.segments/_full.segment.rsc",
+         "hooks/use-pathname/slug.segments/_head.segment.rsc",
+         "hooks/use-pathname/slug.segments/_index.segment.rsc",
+         "hooks/use-pathname/slug.segments/_tree.segment.rsc",
+         "hooks/use-pathname/slug.segments/hooks.segment.rsc",
+         "hooks/use-pathname/slug.segments/hooks/use-pathname.segment.rsc",
+         "hooks/use-pathname/slug.segments/hooks/use-pathname/$d$slug.segment.rsc",
+         "hooks/use-pathname/slug.segments/hooks/use-pathname/$d$slug/__PAGE__.segment.rsc",
          "hooks/use-search-params/force-static.html",
          "hooks/use-search-params/force-static.rsc",
+         "hooks/use-search-params/force-static.segments/_full.segment.rsc",
+         "hooks/use-search-params/force-static.segments/_head.segment.rsc",
+         "hooks/use-search-params/force-static.segments/_index.segment.rsc",
+         "hooks/use-search-params/force-static.segments/_tree.segment.rsc",
+         "hooks/use-search-params/force-static.segments/hooks.segment.rsc",
+         "hooks/use-search-params/force-static.segments/hooks/use-search-params.segment.rsc",
+         "hooks/use-search-params/force-static.segments/hooks/use-search-params/force-static.segment.rsc",
+         "hooks/use-search-params/force-static.segments/hooks/use-search-params/force-static/__PAGE__.segment.rsc",
          "hooks/use-search-params/with-suspense.html",
          "hooks/use-search-params/with-suspense.rsc",
+         "hooks/use-search-params/with-suspense.segments/_full.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/_head.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/_index.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/_tree.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/hooks.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/hooks/use-search-params.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/hooks/use-search-params/with-suspense.segment.rsc",
+         "hooks/use-search-params/with-suspense.segments/hooks/use-search-params/with-suspense/__PAGE__.segment.rsc",
          "index.html",
          "index.rsc",
+         "index.segments/__PAGE__.segment.rsc",
+         "index.segments/_full.segment.rsc",
+         "index.segments/_head.segment.rsc",
+         "index.segments/_index.segment.rsc",
+         "index.segments/_tree.segment.rsc",
          "isr-error-handling.html",
          "isr-error-handling.rsc",
+         "isr-error-handling.segments/_full.segment.rsc",
+         "isr-error-handling.segments/_head.segment.rsc",
+         "isr-error-handling.segments/_index.segment.rsc",
+         "isr-error-handling.segments/_tree.segment.rsc",
+         "isr-error-handling.segments/isr-error-handling.segment.rsc",
+         "isr-error-handling.segments/isr-error-handling/__PAGE__.segment.rsc",
          "no-config-fetch.html",
          "no-config-fetch.rsc",
+         "no-config-fetch.segments/!KG5ldyk.segment.rsc",
+         "no-config-fetch.segments/!KG5ldyk/no-config-fetch.segment.rsc",
+         "no-config-fetch.segments/!KG5ldyk/no-config-fetch/__PAGE__.segment.rsc",
+         "no-config-fetch.segments/_full.segment.rsc",
+         "no-config-fetch.segments/_head.segment.rsc",
+         "no-config-fetch.segments/_index.segment.rsc",
+         "no-config-fetch.segments/_tree.segment.rsc",
          "no-store/static.html",
          "no-store/static.rsc",
+         "no-store/static.segments/_full.segment.rsc",
+         "no-store/static.segments/_head.segment.rsc",
+         "no-store/static.segments/_index.segment.rsc",
+         "no-store/static.segments/_tree.segment.rsc",
+         "no-store/static.segments/no-store.segment.rsc",
+         "no-store/static.segments/no-store/static.segment.rsc",
+         "no-store/static.segments/no-store/static/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/RAND.html",
          "partial-gen-params-no-additional-lang/en/RAND.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/first.html",
          "partial-gen-params-no-additional-lang/en/first.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/second.html",
          "partial-gen-params-no-additional-lang/en/second.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/en/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/RAND.html",
          "partial-gen-params-no-additional-lang/fr/RAND.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/first.html",
          "partial-gen-params-no-additional-lang/fr/first.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/second.html",
          "partial-gen-params-no-additional-lang/fr/second.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/partial-gen-params-no-additional-lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/partial-gen-params-no-additional-lang/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-lang/fr/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/RAND.html",
          "partial-gen-params-no-additional-slug/en/RAND.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/first.html",
          "partial-gen-params-no-additional-slug/en/first.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/second.html",
          "partial-gen-params-no-additional-slug/en/second.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/en/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/RAND.html",
          "partial-gen-params-no-additional-slug/fr/RAND.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/first.html",
          "partial-gen-params-no-additional-slug/fr/first.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/second.html",
          "partial-gen-params-no-additional-slug/fr/second.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/_full.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/_head.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/_index.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/_tree.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/partial-gen-params-no-additional-slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/partial-gen-params-no-additional-slug/$d$lang.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug.segment.rsc",
+         "partial-gen-params-no-additional-slug/fr/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
+         "partial-params-false/en/static.html",
+         "partial-params-false/en/static.rsc",
+         "partial-params-false/en/static.segments/_full.segment.rsc",
+         "partial-params-false/en/static.segments/_head.segment.rsc",
+         "partial-params-false/en/static.segments/_index.segment.rsc",
+         "partial-params-false/en/static.segments/_tree.segment.rsc",
+         "partial-params-false/en/static.segments/partial-params-false.segment.rsc",
+         "partial-params-false/en/static.segments/partial-params-false/$d$locale.segment.rsc",
+         "partial-params-false/en/static.segments/partial-params-false/$d$locale/static.segment.rsc",
+         "partial-params-false/en/static.segments/partial-params-false/$d$locale/static/__PAGE__.segment.rsc",
+         "partial-params-false/fr/static.html",
+         "partial-params-false/fr/static.rsc",
+         "partial-params-false/fr/static.segments/_full.segment.rsc",
+         "partial-params-false/fr/static.segments/_head.segment.rsc",
+         "partial-params-false/fr/static.segments/_index.segment.rsc",
+         "partial-params-false/fr/static.segments/_tree.segment.rsc",
+         "partial-params-false/fr/static.segments/partial-params-false.segment.rsc",
+         "partial-params-false/fr/static.segments/partial-params-false/$d$locale.segment.rsc",
+         "partial-params-false/fr/static.segments/partial-params-false/$d$locale/static.segment.rsc",
+         "partial-params-false/fr/static.segments/partial-params-false/$d$locale/static/__PAGE__.segment.rsc",
          "prerendered-not-found/first.html",
          "prerendered-not-found/first.rsc",
+         "prerendered-not-found/first.segments/_full.segment.rsc",
+         "prerendered-not-found/first.segments/_head.segment.rsc",
+         "prerendered-not-found/first.segments/_index.segment.rsc",
+         "prerendered-not-found/first.segments/_tree.segment.rsc",
+         "prerendered-not-found/first.segments/prerendered-not-found.segment.rsc",
+         "prerendered-not-found/first.segments/prerendered-not-found/$d$slug.segment.rsc",
+         "prerendered-not-found/first.segments/prerendered-not-found/$d$slug/__PAGE__.segment.rsc",
          "prerendered-not-found/second.html",
          "prerendered-not-found/second.rsc",
+         "prerendered-not-found/second.segments/_full.segment.rsc",
+         "prerendered-not-found/second.segments/_head.segment.rsc",
+         "prerendered-not-found/second.segments/_index.segment.rsc",
+         "prerendered-not-found/second.segments/_tree.segment.rsc",
+         "prerendered-not-found/second.segments/prerendered-not-found.segment.rsc",
+         "prerendered-not-found/second.segments/prerendered-not-found/$d$slug.segment.rsc",
+         "prerendered-not-found/second.segments/prerendered-not-found/$d$slug/__PAGE__.segment.rsc",
          "prerendered-not-found/segment-revalidate.html",
          "prerendered-not-found/segment-revalidate.rsc",
+         "prerendered-not-found/segment-revalidate.segments/_full.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/_head.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/_index.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/_tree.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/prerendered-not-found.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/prerendered-not-found/segment-revalidate.segment.rsc",
+         "prerendered-not-found/segment-revalidate.segments/prerendered-not-found/segment-revalidate/__PAGE__.segment.rsc",
          "ssg-draft-mode.html",
          "ssg-draft-mode.rsc",
+         "ssg-draft-mode.segments/_full.segment.rsc",
+         "ssg-draft-mode.segments/_head.segment.rsc",
+         "ssg-draft-mode.segments/_index.segment.rsc",
+         "ssg-draft-mode.segments/_tree.segment.rsc",
+         "ssg-draft-mode.segments/ssg-draft-mode.segment.rsc",
+         "ssg-draft-mode.segments/ssg-draft-mode/$oc$route.segment.rsc",
+         "ssg-draft-mode.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "ssg-draft-mode/test-2.html",
          "ssg-draft-mode/test-2.rsc",
+         "ssg-draft-mode/test-2.segments/_full.segment.rsc",
+         "ssg-draft-mode/test-2.segments/_head.segment.rsc",
+         "ssg-draft-mode/test-2.segments/_index.segment.rsc",
+         "ssg-draft-mode/test-2.segments/_tree.segment.rsc",
+         "ssg-draft-mode/test-2.segments/ssg-draft-mode.segment.rsc",
+         "ssg-draft-mode/test-2.segments/ssg-draft-mode/$oc$route.segment.rsc",
+         "ssg-draft-mode/test-2.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "ssg-draft-mode/test.html",
          "ssg-draft-mode/test.rsc",
+         "ssg-draft-mode/test.segments/_full.segment.rsc",
+         "ssg-draft-mode/test.segments/_head.segment.rsc",
+         "ssg-draft-mode/test.segments/_index.segment.rsc",
+         "ssg-draft-mode/test.segments/_tree.segment.rsc",
+         "ssg-draft-mode/test.segments/ssg-draft-mode.segment.rsc",
+         "ssg-draft-mode/test.segments/ssg-draft-mode/$oc$route.segment.rsc",
+         "ssg-draft-mode/test.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "strip-w3c-trace-context-headers.html",
          "strip-w3c-trace-context-headers.rsc",
+         "strip-w3c-trace-context-headers.segments/_full.segment.rsc",
+         "strip-w3c-trace-context-headers.segments/_head.segment.rsc",
+         "strip-w3c-trace-context-headers.segments/_index.segment.rsc",
+         "strip-w3c-trace-context-headers.segments/_tree.segment.rsc",
+         "strip-w3c-trace-context-headers.segments/strip-w3c-trace-context-headers.segment.rsc",
+         "strip-w3c-trace-context-headers.segments/strip-w3c-trace-context-headers/__PAGE__.segment.rsc",
          "unstable-cache/fetch/no-cache.html",
          "unstable-cache/fetch/no-cache.rsc",
+         "unstable-cache/fetch/no-cache.segments/_full.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/_head.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/_index.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/_tree.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/unstable-cache.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/unstable-cache/fetch.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/unstable-cache/fetch/no-cache.segment.rsc",
+         "unstable-cache/fetch/no-cache.segments/unstable-cache/fetch/no-cache/__PAGE__.segment.rsc",
          "unstable-cache/fetch/no-store.html",
          "unstable-cache/fetch/no-store.rsc",
+         "unstable-cache/fetch/no-store.segments/_full.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/_head.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/_index.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/_tree.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/unstable-cache.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/unstable-cache/fetch.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store.segment.rsc",
+         "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store/__PAGE__.segment.rsc",
+         "update-tag-test.html",
+         "update-tag-test.rsc",
+         "update-tag-test.segments/_full.segment.rsc",
+         "update-tag-test.segments/_head.segment.rsc",
+         "update-tag-test.segments/_index.segment.rsc",
+         "update-tag-test.segments/_tree.segment.rsc",
+         "update-tag-test.segments/update-tag-test.segment.rsc",
+         "update-tag-test.segments/update-tag-test/__PAGE__.segment.rsc",
          "variable-config-revalidate/revalidate-3.html",
          "variable-config-revalidate/revalidate-3.rsc",
+         "variable-config-revalidate/revalidate-3.segments/_full.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/_head.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/_index.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/_tree.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/variable-config-revalidate.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/variable-config-revalidate/revalidate-3.segment.rsc",
+         "variable-config-revalidate/revalidate-3.segments/variable-config-revalidate/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate-stable/revalidate-3.html",
          "variable-revalidate-stable/revalidate-3.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/_full.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/_head.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/_index.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/_tree.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/variable-revalidate-stable.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/variable-revalidate-stable/revalidate-3.segment.rsc",
+         "variable-revalidate-stable/revalidate-3.segments/variable-revalidate-stable/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate/authorization.html",
          "variable-revalidate/authorization.rsc",
+         "variable-revalidate/authorization.segments/_full.segment.rsc",
+         "variable-revalidate/authorization.segments/_head.segment.rsc",
+         "variable-revalidate/authorization.segments/_index.segment.rsc",
+         "variable-revalidate/authorization.segments/_tree.segment.rsc",
+         "variable-revalidate/authorization.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/authorization.segments/variable-revalidate/authorization.segment.rsc",
+         "variable-revalidate/authorization.segments/variable-revalidate/authorization/__PAGE__.segment.rsc",
          "variable-revalidate/cookie.html",
          "variable-revalidate/cookie.rsc",
+         "variable-revalidate/cookie.segments/_full.segment.rsc",
+         "variable-revalidate/cookie.segments/_head.segment.rsc",
+         "variable-revalidate/cookie.segments/_index.segment.rsc",
+         "variable-revalidate/cookie.segments/_tree.segment.rsc",
+         "variable-revalidate/cookie.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/cookie.segments/variable-revalidate/cookie.segment.rsc",
+         "variable-revalidate/cookie.segments/variable-revalidate/cookie/__PAGE__.segment.rsc",
          "variable-revalidate/encoding.html",
          "variable-revalidate/encoding.rsc",
+         "variable-revalidate/encoding.segments/_full.segment.rsc",
+         "variable-revalidate/encoding.segments/_head.segment.rsc",
+         "variable-revalidate/encoding.segments/_index.segment.rsc",
+         "variable-revalidate/encoding.segments/_tree.segment.rsc",
+         "variable-revalidate/encoding.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/encoding.segments/variable-revalidate/encoding.segment.rsc",
+         "variable-revalidate/encoding.segments/variable-revalidate/encoding/__PAGE__.segment.rsc",
          "variable-revalidate/headers-instance.html",
          "variable-revalidate/headers-instance.rsc",
-         "variable-revalidate/post-method.html",
-         "variable-revalidate/post-method.rsc",
+         "variable-revalidate/headers-instance.segments/_full.segment.rsc",
+         "variable-revalidate/headers-instance.segments/_head.segment.rsc",
+         "variable-revalidate/headers-instance.segments/_index.segment.rsc",
+         "variable-revalidate/headers-instance.segments/_tree.segment.rsc",
+         "variable-revalidate/headers-instance.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/headers-instance.segments/variable-revalidate/headers-instance.segment.rsc",
+         "variable-revalidate/headers-instance.segments/variable-revalidate/headers-instance/__PAGE__.segment.rsc",
          "variable-revalidate/revalidate-3.html",
          "variable-revalidate/revalidate-3.rsc",
+         "variable-revalidate/revalidate-3.segments/_full.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/_head.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/_index.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/_tree.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/variable-revalidate/revalidate-3.segment.rsc",
+         "variable-revalidate/revalidate-3.segments/variable-revalidate/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate/revalidate-360-isr.html",
          "variable-revalidate/revalidate-360-isr.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/_full.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/_head.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/_index.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/_tree.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/variable-revalidate.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/variable-revalidate/revalidate-360-isr.segment.rsc",
+         "variable-revalidate/revalidate-360-isr.segments/variable-revalidate/revalidate-360-isr/__PAGE__.segment.rsc",
        ]
       `)
     })
@@ -961,7 +1382,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/index.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -972,6 +1393,31 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/",
+         },
+         "/_not-found": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/_not-found.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "initialStatus": 404,
+           "srcRoute": "/_not-found",
          },
          "/api/large-data": {
            "allowHeader": [
@@ -985,7 +1431,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1013,7 +1459,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/articles/works.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1038,7 +1484,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/seb.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1063,7 +1509,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/seb/second-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1087,7 +1533,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1112,7 +1558,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle/first-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1136,7 +1582,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle/second-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1160,7 +1606,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/tim.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1185,7 +1631,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/tim/first-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1209,7 +1655,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/default-config-fetch.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1233,7 +1679,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-cache.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1258,7 +1704,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static-fetch-no-store.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1282,7 +1728,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1306,7 +1752,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1330,7 +1776,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-catch-all-unique/foo/bar.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1354,7 +1800,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-catch-all-unique/foo/foo.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1378,7 +1824,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1403,7 +1849,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-pathname/slug.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1427,7 +1873,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-search-params/force-static.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1451,7 +1897,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1475,7 +1921,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/isr-error-handling.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1500,7 +1946,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/no-config-fetch.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1524,7 +1970,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/no-store/static.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1548,7 +1994,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1572,7 +2018,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1596,7 +2042,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1620,7 +2066,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1644,7 +2090,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1668,7 +2114,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1692,7 +2138,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1716,7 +2162,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1740,7 +2186,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1764,7 +2210,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1788,7 +2234,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1812,7 +2258,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1823,6 +2269,54 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+         },
+         "/partial-params-false/en/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/en/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
+         },
+         "/partial-params-false/fr/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/fr/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/prerendered-not-found/first": {
            "allowHeader": [
@@ -1836,7 +2330,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1860,7 +2354,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1884,7 +2378,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/segment-revalidate.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1909,7 +2403,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1938,7 +2432,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1967,7 +2461,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1995,7 +2489,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2019,7 +2513,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode/test.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2043,7 +2537,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode/test-2.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2067,7 +2561,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/strip-w3c-trace-context-headers.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2092,7 +2586,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2116,7 +2610,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2127,6 +2621,30 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/unstable-cache/fetch/no-store",
+         },
+         "/update-tag-test": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/update-tag-test.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/update-tag-test",
          },
          "/variable-config-revalidate/revalidate-3": {
            "allowHeader": [
@@ -2140,7 +2658,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2165,7 +2683,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2190,7 +2708,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/authorization.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2215,7 +2733,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/cookie.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2240,7 +2758,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/encoding.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2265,7 +2783,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/headers-instance.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2277,31 +2795,6 @@ describe('app-dir static/dynamic handling', () => {
            "initialExpireSeconds": 31536000,
            "initialRevalidateSeconds": 10,
            "srcRoute": "/variable-revalidate/headers-instance",
-         },
-         "/variable-revalidate/post-method": {
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token",
-           ],
-           "dataRoute": "/variable-revalidate/post-method.rsc",
-           "experimentalBypassFor": [
-             {
-               "key": "Next-Action",
-               "type": "header",
-             },
-             {
-               "key": "content-type",
-               "type": "header",
-               "value": "multipart/form-data;.*",
-             },
-           ],
-           "initialExpireSeconds": 31536000,
-           "initialRevalidateSeconds": 10,
-           "srcRoute": "/variable-revalidate/post-method",
          },
          "/variable-revalidate/revalidate-3": {
            "allowHeader": [
@@ -2315,7 +2808,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2340,7 +2833,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2370,7 +2863,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2380,6 +2873,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/articles\\/([^\\/]+?)(?:\\/)?$",
          },
          "/blog/[author]": {
@@ -2395,7 +2891,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2405,6 +2901,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/blog\\/([^\\/]+?)(?:\\/)?$",
          },
          "/blog/[author]/[slug]": {
@@ -2420,7 +2919,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2430,6 +2929,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
          },
          "/dynamic-error/[id]": {
@@ -2445,7 +2947,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2455,6 +2957,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/dynamic\\-error\\/([^\\/]+?)(?:\\/)?$",
          },
          "/force-static/[slug]": {
@@ -2470,7 +2975,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2480,6 +2985,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
          },
          "/gen-params-catch-all-unique/[...slug]": {
@@ -2495,7 +3003,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2505,6 +3013,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)(?:\\/)?$",
          },
          "/gen-params-dynamic-revalidate/[slug]": {
@@ -2520,7 +3031,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2530,6 +3041,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)(?:\\/)?$",
          },
          "/hooks/use-pathname/[slug]": {
@@ -2545,7 +3059,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2555,6 +3069,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)(?:\\/)?$",
          },
          "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
@@ -2570,7 +3087,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2580,6 +3097,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
          },
          "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
@@ -2595,7 +3115,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2605,7 +3125,38 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": false,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+         },
+         "/partial-params-false/[locale]/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/[locale]/static.rsc",
+           "dataRouteRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static\\.rsc$",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "fallback": false,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
+           "routeRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static(?:\\/)?$",
          },
          "/prerendered-not-found/[slug]": {
            "allowHeader": [
@@ -2620,7 +3171,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2630,6 +3181,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)(?:\\/)?$",
          },
          "/ssg-draft-mode/[[...route]]": {
@@ -2645,7 +3199,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2655,6 +3209,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?(?:\\/)?$",
          },
          "/static-to-dynamic-error-forced/[id]": {
@@ -2670,7 +3227,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2680,6 +3237,9 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "fallback": null,
+           "fallbackRootParams": [],
+           "fallbackRouteParams": [],
+           "prefetchDataRoute": null,
            "routeRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)(?:\\/)?$",
          },
        }
@@ -2790,27 +3350,51 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 6; i++) {
       await waitFor(1000)
 
-      const timings = {
-        start: Date.now(),
-        startedStreaming: 0,
-      }
-
       res = await next.fetch(path)
 
-      // eslint-disable-next-line no-loop-func
-      await new Promise<void>((resolve) => {
-        res.body.on('data', () => {
-          if (!timings.startedStreaming) {
-            timings.startedStreaming = Date.now()
-          }
-        })
-
-        res.body.on('end', () => {
-          resolve()
-        })
+      let data: any
+      let startedStreaming: number = -1
+      res.body.on('data', () => {
+        if (startedStreaming === -1) {
+          startedStreaming = Date.now()
+        }
       })
+      if (res.headers.get('content-type').includes('application/json')) {
+        data = await res.json()
+      } else {
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        const dataJSON = $('#data').text()
+        try {
+          data = JSON.parse(dataJSON)
+        } catch (cause) {
+          throw new Error(
+            `Failed to parse JSON from data-start attribute: "${dataJSON}"`,
+            { cause }
+          )
+        }
+      }
 
-      expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
+      const startedResponding = +data.start
+      if (Number.isNaN(startedResponding)) {
+        throw new Error(
+          `Expected start to be a number. Received: "${data.start}"`
+        )
+      }
+      if (startedStreaming === -1) {
+        throw new Error(
+          'Expected startedStreaming to be set. This is a bug in the test.'
+        )
+      }
+
+      // We just want to ensure the response isn't blocked on revalidating the fetch.
+      // So we use the start time when route started processing not when we
+      // send off the response because that includes cold boots of the infra.
+      if (startedStreaming - startedResponding >= 3000) {
+        throw new Error(
+          `Response #${i} took too long to complete: ${startedStreaming - startedResponding}ms`
+        )
+      }
     }
   })
 
@@ -2818,7 +3402,7 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+      if (process.env.__NEXT_CACHE_COMPONENTS && !isNextDev) {
         expect(res.status).toBe(200)
       } else {
         expect(res.status).toBe(404)
@@ -3033,7 +3617,7 @@ describe('app-dir static/dynamic handling', () => {
     })
   } else {
     // TODO: re-implement this in a way that'll support PFPR
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_CACHE_COMPONENTS) {
       it('should not error with dynamic server usage with force-static', async () => {
         const res = await next.fetch(
           '/static-to-dynamic-error-forced/static-bailout-1'
@@ -3074,7 +3658,7 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
-    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    if (!process.env.__NEXT_CACHE_COMPONENTS) {
       it('should properly error when dynamic = "error" page uses dynamic', async () => {
         const res = await next.fetch('/dynamic-error/static-bailout-1')
         const outputIndex = next.cliOutput.length
@@ -3451,10 +4035,12 @@ describe('app-dir static/dynamic handling', () => {
       const dataBody2 = $('#data-body2').text()
       const dataBody3 = $('#data-body3').text()
       const dataBody4 = $('#data-body4').text()
+      const dataBody5 = $('#data-body5').text()
 
       expect(dataBody1).not.toBe(dataBody2)
       expect(dataBody2).not.toBe(dataBody3)
       expect(dataBody3).not.toBe(dataBody4)
+      expect(dataBody4).not.toBe(dataBody5)
 
       const res2 = await fetchViaHTTP(
         next.url,
@@ -3469,6 +4055,8 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body1').text()).toBe(dataBody1)
       expect($2('#data-body2').text()).toBe(dataBody2)
       expect($2('#data-body3').text()).toBe(dataBody3)
+      expect($2('#data-body4').text()).toBe(dataBody4)
+      expect($2('#data-body5').text()).toBe(dataBody5)
       return 'success'
     }, 'success')
   })
@@ -3967,7 +4555,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(html).toInclude('"noindex"')
     expect(html).toInclude('This page could not be found.')
 
-    if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+    if (process.env.__NEXT_CACHE_COMPONENTS && !isNextDev) {
       expect(res.status).toBe(200)
     } else {
       expect(res.status).toBe(404)
@@ -4042,7 +4630,11 @@ describe('app-dir static/dynamic handling', () => {
         expect(await browser.elementByCss('#params-second').text()).toBe(
           'other'
         )
-        expect(await browser.elementByCss('#params-third').text()).toBe('')
+        expect(
+          await browser
+            .elementByCss('#params-third', { state: 'attached' })
+            .text()
+        ).toBe('')
         expect(await browser.elementByCss('#params-not-real').text()).toBe(
           'N/A'
         )
@@ -4386,5 +4978,96 @@ describe('app-dir static/dynamic handling', () => {
   it('should build dynamic param with edge runtime correctly', async () => {
     const browser = await next.browser('/dynamic-param-edge/hello')
     expect(await browser.elementByCss('#slug').text()).toBe('hello')
+  })
+
+  describe('updateTag/revalidateTag', () => {
+    it('should throw error when updateTag is called in route handler', async () => {
+      const res = await next.fetch('/api/update-tag-error')
+      const data = await res.json()
+
+      expect(data.error).toContain(
+        'updateTag can only be called from within a Server Action'
+      )
+    })
+
+    it('should successfully update tag when called from server action', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      await retry(async () => {
+        // Click update button to trigger server action with updateTag
+        await browser.elementByCss('#update-button').click()
+
+        // Refresh the page to see if cache was invalidated
+        await browser.refresh()
+        const newData = JSON.parse(await browser.elementByCss('#data').text())
+
+        // Data should be different after updateTag (immediate expiration)
+        expect(newData).not.toEqual(initialData)
+      })
+    })
+
+    it('revalidateTag work with max profile in server actions', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      // Click revalidate button to trigger server action with revalidateTag(..., 'max')
+      await browser.elementByCss('#revalidate-button').click()
+
+      // The behavior with 'max' profile would be stale-while-revalidate
+      // Initial request after revalidation might still show stale data
+      let dataAfterRevalidate
+      await retry(async () => {
+        await browser.refresh()
+        dataAfterRevalidate = JSON.parse(
+          await browser.elementByCss('#data').text()
+        )
+
+        expect(dataAfterRevalidate).toBeDefined()
+        expect(dataAfterRevalidate).not.toBe(initialData)
+      })
+
+      if (isNextStart) {
+        // give second so tag isn't still stale state
+        await waitFor(1000)
+
+        const res1 = await next.fetch('/update-tag-test')
+        const body1 = await res1.text()
+        const cacheHeader1 = res1.headers.get('x-nextjs-cache')
+
+        expect(res1.status).toBe(200)
+        expect(cacheHeader1).toBeDefined()
+        expect(cacheHeader1).not.toBe('MISS')
+
+        const res2 = await next.fetch('/update-tag-test')
+        const body2 = await res2.text()
+        const cacheHeader2 = res2.headers.get('x-nextjs-cache')
+
+        expect(res2.status).toBe(200)
+        expect(cacheHeader2).toBeDefined()
+        expect(cacheHeader2).not.toBe('MISS')
+        expect(body1).toBe(body2)
+      }
+    })
+
+    // Runtime logs aren't queryable in deploy mode
+    if (!isNextDeploy) {
+      it('should show deprecation warning for revalidateTag without second argument', async () => {
+        const cliOutputStart = next.cliOutput.length
+
+        const browser = await next.browser('/update-tag-test')
+
+        await retry(async () => {
+          // Click deprecated button to trigger server action with revalidateTag (no second arg)
+          await browser.elementByCss('#deprecated-button').click()
+          const output = next.cliOutput.substring(cliOutputStart)
+          expect(output).toContain(
+            '"revalidateTag" without the second argument is now deprecated'
+          )
+        })
+      })
+    }
   })
 })

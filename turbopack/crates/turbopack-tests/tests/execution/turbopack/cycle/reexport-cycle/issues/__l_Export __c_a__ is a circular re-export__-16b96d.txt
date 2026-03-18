@@ -1,0 +1,18 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/b.js  Export a is a circular re-export
+  
+  
+  The export
+  
+  a of module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/b.js [test] (ecmascript)
+  
+  is a re-export of the export
+  
+  a of module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js [test] (ecmascript).
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/b.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/a.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/cycle/reexport-cycle/input/index.js

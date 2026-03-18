@@ -7,14 +7,14 @@
 export interface DeprecatedMetadataFields {
   /**
    * Deprecated options that have a preferred method
-   * @deprecated Use appWebApp to configure mobile-web-app-capable which provides
+   * @deprecated Use appleWebApp instead
    */
   'apple-touch-fullscreen'?: never | undefined
 
   /**
    * Obsolete since iOS 7.
    * @see https://web.dev/apple-touch-icon/
-   * @deprecated use icons.apple or instead
+   * @deprecated Use icons.apple instead
    */
   'apple-touch-icon-precomposed'?: never | undefined
 }

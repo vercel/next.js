@@ -10,19 +10,43 @@ description: Upgrade your Next.js Application from Version 14 to 15.
 
 To update to Next.js version 15, you can use the `upgrade` codemod:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="npm"
 npx @next/codemod@canary upgrade latest
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="bun"
+bunx @next/codemod@canary upgrade latest
 ```
 
 If you prefer to do it manually, ensure that you're installing the latest Next & React versions:
 
-```bash filename="Terminal"
-npm i next@latest react@latest react-dom@latest eslint-config-next@latest
+```bash package="pnpm"
+pnpm add next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="npm"
+npm install next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest eslint-config-next@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 ```
 
 > **Good to know:**
 >
-> - If you see a peer dependencies warning, you may need to update `react` and `react-dom` to the suggested versions, or you use the `--force` or `--legacy-peer-deps` flag to ignore the warning. This won't be necessary once both Next.js 15 and React 19 are stable.
+> - If you see a peer dependencies warning, you may need to update `react` and `react-dom` to the suggested versions, or use the `--force` or `--legacy-peer-deps` flag to ignore the warning. This won't be necessary once both Next.js 15 and React 19 are stable.
 
 ## React 19
 
@@ -35,7 +59,7 @@ npm i next@latest react@latest react-dom@latest eslint-config-next@latest
 
 ## Async Request APIs (Breaking change)
 
-Previously synchronous Dynamic APIs that rely on runtime information are now **asynchronous**:
+Previously synchronous Request-time APIs that rely on request information are now **asynchronous**:
 
 - [`cookies`](/docs/app/api-reference/functions/cookies)
 - [`headers`](/docs/app/api-reference/functions/headers)
@@ -416,7 +440,7 @@ export default function Page(props) {
 
 #### Route Handlers
 
-```tsx filename="app/api/route.ts"
+```tsx filename="app/api/route.ts" switcher
 // Before
 type Params = { slug: string }
 
@@ -434,7 +458,7 @@ export async function GET(request: Request, segmentData: { params: Params }) {
 }
 ```
 
-```js filename="app/api/route.js"
+```js filename="app/api/route.js" switcher
 // Before
 export async function GET(request, segmentData) {
   const params = segmentData.params
@@ -452,7 +476,7 @@ export async function GET(request, segmentData) {
 
 ## `runtime` configuration (Breaking change)
 
-The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config#runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
+The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config/runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
 
 </AppOnly>
 
@@ -496,9 +520,9 @@ export const dynamic = 'force-static'
 export async function GET() {}
 ```
 
-## Client-side Router Cache
+## Client Cache
 
-When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the client-side router cache. However, they are still reused during browser backward and forward navigation and for shared layouts.
+When navigating between pages via `<Link>` or `useRouter`, [page](/docs/app/api-reference/file-conventions/page) segments are no longer reused from the [Client Cache](/docs/app/glossary#client-cache). However, they are still reused during browser backward and forward navigation and for shared layouts.
 
 To opt page segments into caching, you can use the [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) config option:
 

@@ -10,41 +10,53 @@ use crate::{
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
-pub struct AfterResolvePluginCondition {
-    root: ResolvedVc<FileSystemPath>,
-    glob: ResolvedVc<Glob>,
+#[turbo_tasks::value(shared)]
+pub enum AfterResolvePluginCondition {
+    Glob {
+        root: FileSystemPath,
+        glob: ResolvedVc<Glob>,
+    },
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn new(root: ResolvedVc<FileSystemPath>, glob: ResolvedVc<Glob>) -> Vc<Self> {
-        AfterResolvePluginCondition { root, glob }.cell()
+    pub fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Vc<Self> {
+        AfterResolvePluginCondition::Glob { root, glob }.cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-        let root = self.root.await?;
-        let glob = self.glob.await?;
+    pub async fn matches(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
+        match self {
+            AfterResolvePluginCondition::Glob { root, glob } => {
+                let path = fs_path;
 
-        let path = fs_path.await?;
+                if let Some(path) = root.get_path_to(&path)
+                    && glob.await?.matches(path)
+                {
+                    return Ok(Vc::cell(true));
+                }
 
-        if let Some(path) = root.get_path_to(&path)
-            && glob.matches(path)
-        {
-            return Ok(Vc::cell(true));
+                Ok(Vc::cell(false))
+            }
+            AfterResolvePluginCondition::Always => Ok(Vc::cell(true)),
+            AfterResolvePluginCondition::Never => Ok(Vc::cell(false)),
         }
-
-        Ok(Vc::cell(false))
     }
 }
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum BeforeResolvePluginCondition {
     Request(ResolvedVc<Glob>),
     Modules(FxHashSet<RcStr>),
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
@@ -71,22 +83,26 @@ impl BeforeResolvePluginCondition {
             },
             BeforeResolvePluginCondition::Modules(modules) => {
                 if let Request::Module { module, .. } = &*request.await? {
-                    modules.contains(module)
+                    modules.iter().any(|m| module.is_match(m))
                 } else {
                     false
                 }
             }
+            BeforeResolvePluginCondition::Always => true,
+            BeforeResolvePluginCondition::Never => false,
         }))
     }
 }
 
 #[turbo_tasks::value_trait]
 pub trait BeforeResolvePlugin {
+    #[turbo_tasks::function]
     fn before_resolve_condition(self: Vc<Self>) -> Vc<BeforeResolvePluginCondition>;
 
+    #[turbo_tasks::function]
     fn before_resolve(
         self: Vc<Self>,
-        lookup_path: Vc<FileSystemPath>,
+        lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;
@@ -95,15 +111,17 @@ pub trait BeforeResolvePlugin {
 #[turbo_tasks::value_trait]
 pub trait AfterResolvePlugin {
     /// A condition which determines if the hooks gets called.
+    #[turbo_tasks::function]
     fn after_resolve_condition(self: Vc<Self>) -> Vc<AfterResolvePluginCondition>;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve
     /// result.
+    #[turbo_tasks::function]
     fn after_resolve(
         self: Vc<Self>,
-        fs_path: Vc<FileSystemPath>,
-        lookup_path: Vc<FileSystemPath>,
+        fs_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Vc<ResolveResultOption>;

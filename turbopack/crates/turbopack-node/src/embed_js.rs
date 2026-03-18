@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
@@ -8,11 +9,11 @@ pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
 }
 
 #[turbo_tasks::function]
-pub(crate) fn embed_file(path: RcStr) -> Vc<FileContent> {
-    embed_fs().root().join(path).read()
+pub(crate) async fn embed_file(path: RcStr) -> Result<Vc<FileContent>> {
+    Ok(embed_fs().root().await?.join(&path)?.read())
 }
 
 #[turbo_tasks::function]
-pub(crate) fn embed_file_path(path: RcStr) -> Vc<FileSystemPath> {
-    embed_fs().root().join(path)
+pub(crate) async fn embed_file_path(path: RcStr) -> Result<Vc<FileSystemPath>> {
+    Ok(embed_fs().root().await?.join(&path)?.cell())
 }

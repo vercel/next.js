@@ -98,9 +98,9 @@ describe('app-dir - metadata-streaming', () => {
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(await browser.elementByCss('body title').text()).toMatch(
-          /Dynamic api \d+/
-        )
+        expect(
+          await browser.elementByCss('body title', { state: 'attached' }).text()
+        ).toMatch(/Dynamic api \d+/)
       })
     })
   })
@@ -176,6 +176,21 @@ describe('app-dir - metadata-streaming', () => {
         {
           headers: {
             'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
+    })
+
+    it('should still render blocking metadata for Google speed insights bot (special case)', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent':
+              'UA Mozilla/5.0 (Linux; Android 7.0; Moto G (4)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4590.2 Mobile Safari/537.36 Chrome-Lighthouse',
           },
         }
       )

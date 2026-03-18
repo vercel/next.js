@@ -6,6 +6,8 @@ import send from 'next/dist/compiled/send'
 send.mime.define({
   'image/avif': ['avif'],
   'image/x-icns': ['icns'],
+  'image/jxl': ['jxl'],
+  'image/heic': ['heic'],
 })
 
 export function serveStatic(

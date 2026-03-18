@@ -1,17 +1,12 @@
 #![cfg_attr(not(codspeed), allow(unused))]
 
-extern crate turbo_tasks_malloc;
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
-use std::{
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::path::{Path, PathBuf};
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use turbopack_cli::{
-    arguments::{BuildArguments, CommonArguments},
-    register,
-};
+use turbopack_cli::arguments::{BuildArguments, CommonArguments};
 
 fn list_apps() -> (PathBuf, Vec<PathBuf>) {
     // We need to rely on `CARGO_MANIFEST_DIR` because we are running it via `cargo codspeed`
@@ -42,8 +37,6 @@ fn list_apps() -> (PathBuf, Vec<PathBuf>) {
 
 fn bench_small_apps(c: &mut Criterion) {
     use turbo_tasks_malloc::TurboMalloc;
-
-    register();
 
     let (apps_dir, apps) = list_apps();
     let mut g = c.benchmark_group("turbopack/build/apps");
@@ -78,10 +71,12 @@ fn bench_small_apps(c: &mut Criterion) {
                                 log_detail: false,
                                 full_stats: false,
                                 target: None,
+                                worker_threads: None,
                             },
                             no_sourcemap: false,
                             no_minify: false,
                             force_memory_cleanup: true,
+                            no_scope_hoist: false,
                         })
                         .await
                     })

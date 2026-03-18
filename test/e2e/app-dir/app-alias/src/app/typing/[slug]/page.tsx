@@ -5,8 +5,8 @@ export default function page() {
 export async function generateStaticParams({
   params,
 }: {
-  params: { slug: 'a' | 'b' }
+  params: { slug: string }
 }) {
   console.log(params)
-  return []
+  return [{ slug: 'foo' }]
 }

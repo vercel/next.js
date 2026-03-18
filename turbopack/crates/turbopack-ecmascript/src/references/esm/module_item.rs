@@ -1,7 +1,7 @@
 use std::mem::replace;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -11,7 +11,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
@@ -22,7 +22,9 @@ use crate::{
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
 pub struct EsmModuleItem {
     pub path: AstPath,
 }
@@ -34,13 +36,12 @@ impl EsmModuleItem {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
         visitors.push(
-            create_visitor!(self.path, visit_mut_module_item(module_item: &mut ModuleItem) {
+            create_visitor!(self.path, visit_mut_module_item, |module_item: &mut ModuleItem| {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {

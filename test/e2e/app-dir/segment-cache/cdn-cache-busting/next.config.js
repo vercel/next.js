@@ -3,7 +3,6 @@
  */
 const nextConfig = {
   experimental: {
-    clientSegmentCache: true,
     validateRSCRequestHeaders: true,
   },
 }

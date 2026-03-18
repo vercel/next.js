@@ -1,4 +1,6 @@
-export default (props) => <div id="from-middleware">{props.fromMiddleware}</div>
+export default (props) => (
+  <div id="from-middleware">{String(props.fromMiddleware)}</div>
+)
 
 export async function getServerSideProps({ req, res }) {
   return {

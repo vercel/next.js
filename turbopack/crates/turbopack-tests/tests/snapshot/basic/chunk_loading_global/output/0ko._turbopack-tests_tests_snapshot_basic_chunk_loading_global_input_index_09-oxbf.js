@@ -1,0 +1,8 @@
+(globalThis["myApp"] || (globalThis["myApp"] = [])).push(["output/0ko._turbopack-tests_tests_snapshot_basic_chunk_loading_global_input_index_09-oxbf.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/chunk_loading_global/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+console.log('ChunkingLoadingGlobal test');
+}),
+]);
+
+//# sourceMappingURL=0ko._turbopack-tests_tests_snapshot_basic_chunk_loading_global_input_index_09-oxbf.js.map

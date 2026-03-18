@@ -1,5 +1,5 @@
 import React from 'react'
-import { unstable_expirePath } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 
 export default async function HomePage() {
   await new Promise((resolve) => setTimeout(resolve, 200))
@@ -9,7 +9,7 @@ export default async function HomePage() {
       <form
         action={async () => {
           'use server'
-          unstable_expirePath('/test')
+          revalidatePath('/test')
         }}
       >
         <button>Submit</button>

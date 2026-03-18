@@ -6,6 +6,7 @@ import type {
   InstrumentationOnRequestError,
 } from '../../instrumentation/types'
 import { interopDefault } from '../../../lib/interop-default'
+import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
 
 let cachedInstrumentationModule: InstrumentationModule
 
@@ -55,6 +56,7 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
+      extendInstrumentationAfterRegistration()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err

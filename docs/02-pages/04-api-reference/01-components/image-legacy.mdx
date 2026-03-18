@@ -6,7 +6,7 @@ version: legacy
 
 Starting with Next.js 13, the `next/image` component was rewritten to improve both the performance and developer experience. In order to provide a backwards compatible upgrade solution, the old `next/image` was renamed to `next/legacy/image`.
 
-View the **new** [`next/image` API Reference](/docs/pages/api-reference/components/image)
+> **Warning**: `next/legacy/image` is deprecated and will be removed in a future version of Next.js. Please use [`next/image`](/docs/app/api-reference/components/image) instead.
 
 ## Comparison
 
@@ -441,6 +441,18 @@ module.exports = {
 }
 ```
 
+#### Customizing the Built-in Image Path
+
+If you want to change or prefix the default path for the built-in Next.js image optimization, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    path: '/my-prefix/_next/image',
+  },
+}
+```
+
 ### Built-in Loaders
 
 The following Image Optimization cloud providers are included:
@@ -454,7 +466,7 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](#loader) prop with `next/legacy/image`.
 
-> Images can not be optimized at build time using [`output: 'export'`](/docs/pages/guides/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
+> Images cannot be optimized at build time using [`output: 'export'`](/docs/pages/guides/static-exports), only on-demand. To use `next/legacy/image` with `output: 'export'`, you will need to use a different loader than the default. [Read more in the discussion.](https://github.com/vercel/next.js/discussions/19065)
 
 ## Advanced
 
@@ -485,7 +497,7 @@ If no configuration is provided, the default below is used.
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    imageSizes: [32, 48, 64, 96, 128, 256, 384],
   },
 }
 ```
@@ -516,10 +528,21 @@ module.exports = {
 }
 ```
 
+You can also enable both AVIF and WebP formats together. AVIF will be preferred for browsers that support it, with WebP as a fallback:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
 > **Good to know**:
 >
 > - We still recommend using WebP for most use cases.
 > - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - When using multiple formats, Next.js will cache each format separately. This means increased storage requirements compared to using a single format, as both AVIF and WebP versions of images will be stored for different browser support.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
@@ -549,12 +572,12 @@ If no configuration is provided, the default below is used.
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    minimumCacheTTL: 60, // 1 minute
+    minimumCacheTTL: 14400, // 4 hours
   },
 }
 ```
 
-You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+You can increase the TTL to reduce the number of revalidations and potentially lower cost:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -630,6 +653,7 @@ Auto-detection for animated files is best-effort and supports GIF, APNG, and Web
 
 ## Version History
 
-| Version   | Changes                                     |
-| --------- | ------------------------------------------- |
-| `v13.0.0` | `next/image` renamed to `next/legacy/image` |
+| Version   | Changes                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `next/legacy/image` deprecated and will be removed in a future version of Next.js. Please use `next/image` instead. |
+| `v13.0.0` | `next/image` renamed to `next/legacy/image`                                                                         |

@@ -16,7 +16,7 @@ describe('no-mangling', () => {
 
       expect(next.cliOutput).toInclude(`
 Error: Kaputt!
-    at `) // mangled function name omitted because it's undeterministic
+    at `) // mangled function name omitted because it's not deterministic
 
       // `Page` is the original function name that is mangled because `next
       // build` was called without `--no-mangling`.
@@ -29,7 +29,7 @@ Error: Kaputt!
   describe('with `next build --no-mangling`', () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      buildOptions: ['--no-mangling'],
+      buildArgs: ['--no-mangling'],
       skipStart: true,
     })
 

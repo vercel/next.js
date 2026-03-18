@@ -1,0 +1,1 @@
+require('path-platform')

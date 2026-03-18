@@ -15,24 +15,24 @@ describe('interception-middleware-rewrite', () => {
   it('should support intercepting routes with a middleware rewrite', async () => {
     const browser = await next.browser('/')
 
-    await check(() => browser.waitForElementByCss('#children').text(), 'root')
+    await check(() => browser.elementByCss('#children').text(), 'root')
 
     await check(
       () =>
         browser
           .elementByCss('[href="/feed"]')
           .click()
-          .waitForElementByCss('#modal')
+          .elementByCss('#modal')
           .text(),
       'intercepted'
     )
 
     await check(
-      () => browser.refresh().waitForElementByCss('#children').text(),
+      () => browser.refresh().elementByCss('#children').text(),
       'not intercepted'
     )
 
-    await check(() => browser.waitForElementByCss('#modal').text(), '')
+    await check(() => browser.elementByCss('#modal').text(), 'default')
   })
 
   it('should continue to work after using browser back button and following another intercepting route', async () => {
@@ -73,7 +73,7 @@ describe('interception-middleware-rewrite', () => {
     )
 
     // modal should no longer be showing
-    await check(() => browser.elementById('modal').text(), '')
+    await check(() => browser.elementById('modal').text(), 'default')
 
     await browser.back()
 

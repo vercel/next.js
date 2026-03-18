@@ -55,11 +55,13 @@ macro_rules! impl_auto_marker_trait {
         unsafe impl<T: $trait, S, const I: usize> $trait for ::auto_hash_map::AutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::std::collections::BTreeSet<T> {}
         unsafe impl<T: $trait, S> $trait for ::indexmap::IndexSet<T, S> {}
+        unsafe impl<T: $trait> $trait for ::turbo_frozenmap::FrozenSet<T> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::std::collections::HashMap<K, V, S> {}
         unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
             for ::auto_hash_map::AutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::std::collections::BTreeMap<K, V> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::indexmap::IndexMap<K, V, S> {}
+        unsafe impl<K: $trait, V: $trait> $trait for ::turbo_frozenmap::FrozenMap<K, V> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::boxed::Box<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Arc<T> {}
         unsafe impl<B: $trait + ::std::borrow::ToOwned + ?Sized> $trait
@@ -121,7 +123,7 @@ macro_rules! impl_marker_trait_fn_ptr {
 
 /// Create an implementation for every possible tuple where every element implements `$trait`.
 ///
-/// Must be passed a sequence of identifier fo the tuple's generic parameters. This will only
+/// Must be passed a sequence of identifier to the tuple's generic parameters. This will only
 /// generate implementations up to the length of the passed in sequence.
 ///
 /// Based on stdlib's internal `tuple_impls!` macro.

@@ -13,24 +13,33 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
+import type { FallbackRouteParam } from '../build/static-paths/types'
 
-export type NextConfigComplete = Required<NextConfig> & {
+/**
+ * Resolved form of the prefetchInlining config after normalization in
+ * config.ts. User input (true, partial objects) is converted to this shape.
+ */
+export type PrefetchInliningConfig =
+  | false
+  | { maxSize: number; maxBundleSize: number }
+
+export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
-  typescript: Required<TypeScriptConfig>
-  configOrigin?: string
-  configFile?: string
+  typescript: TypeScriptConfig
+  configFile: string | undefined
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: Omit<ExperimentalConfig, 'turbo'>
-}
-
-export interface NextAdapter {
-  name: string
-  modifyConfig(
-    config: NextConfigComplete
-  ): Promise<NextConfigComplete> | NextConfigComplete
+  experimental: ExperimentalConfig & {
+    // Normalized by config.ts: true and partial objects become resolved objects
+    prefetchInlining?: PrefetchInliningConfig
+  }
+  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
+  // traverse into the output directory.
+  distDirRoot: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -47,13 +56,6 @@ export interface DomainLocale {
   domain: string
   http?: true
   locales?: readonly string[]
-}
-
-export interface ESLintConfig {
-  /** Only run ESLint on these directories with `next lint` and `next build`. */
-  dirs?: string[]
-  /** Do not run ESLint during production builds (`next build`). */
-  ignoreDuringBuilds?: boolean
 }
 
 export interface TypeScriptConfig {
@@ -94,47 +96,103 @@ export interface StyledComponentsConfig {
   cssProp?: boolean
 }
 
-type JSONValue =
+export type JSONValue =
   | string
   | number
   | boolean
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-/**
- * @deprecated Use `TurbopackRuleConfigItem` instead.
- */
+// At the moment, Turbopack options must be JSON-serializable, so restrict values.
+export type TurbopackLoaderOptions = Record<string, JSONValue>
+
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
-      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
+      options?: TurbopackLoaderOptions
     }
 
-export type TurbopackRuleCondition = {
-  path: string | RegExp
-}
+export type TurbopackLoaderBuiltinCondition =
+  | 'browser'
+  | 'foreign'
+  | 'development'
+  | 'production'
+  | 'node'
+  | 'edge-light'
 
-export type TurbopackRuleConfigItemOrShortcut =
-  | TurbopackLoaderItem[]
-  | TurbopackRuleConfigItem
+export type TurbopackRuleCondition =
+  | { all: TurbopackRuleCondition[] }
+  | { any: TurbopackRuleCondition[] }
+  | { not: TurbopackRuleCondition }
+  | TurbopackLoaderBuiltinCondition
+  | {
+      path?: string | RegExp
+      content?: RegExp
+      query?: string | RegExp
+      contentType?: string | RegExp
+    }
 
-export type TurbopackRuleConfigItemOptions = {
-  loaders: TurbopackLoaderItem[]
+/**
+ * The module type to use for matched files. This determines how files are
+ * processed without requiring a custom loader.
+ *
+ * - `'asset'` - Emit the file and return its URL (like webpack's `asset/resource`)
+ * - `'ecmascript'` - Process as JavaScript module
+ * - `'typescript'` - Process as TypeScript module
+ * - `'css'` - Process as CSS file
+ * - `'css-module'` - Process as CSS module
+ * - `'wasm'` - Process as WebAssembly module
+ * - `'raw'` - Return raw file contents as a string
+ * - `'node'` - Process as native Node.js addon
+ * - `'bytes'` - Inline file contents as bytes in JavaScript
+ *
+ * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+ */
+export type TurbopackModuleType =
+  | 'asset'
+  | 'ecmascript'
+  | 'typescript'
+  | 'css'
+  | 'css-module'
+  | 'wasm'
+  | 'raw'
+  | 'node'
+  | 'bytes'
+  | 'text'
+
+export type TurbopackRuleConfigItem = {
+  /** Loaders to apply to matched files. */
+  loaders?: TurbopackLoaderItem[]
+  /** Rename the file extension for loader output (e.g., `'*.js'`). */
   as?: string
+  /** Additional conditions for when this rule applies. */
+  condition?: TurbopackRuleCondition
+  /**
+   * Set the module type directly without using a loader.
+   * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
+   */
+  type?: TurbopackModuleType
 }
 
-export type TurbopackRuleConfigItem =
-  | TurbopackRuleConfigItemOptions
-  | { [condition: string]: TurbopackRuleConfigItem }
-  | false
+/**
+ * This can be an object representing a single configuration, or a list of
+ * loaders and/or rule configuration objects.
+ *
+ * - A list of loader path strings or objects is the "shorthand" syntax.
+ * - A list of rule configuration objects can be useful when each configuration
+ *   object has different `condition` fields, but still match the same top-level
+ *   path glob.
+ */
+export type TurbopackRuleConfigCollection =
+  | TurbopackRuleConfigItem
+  | (TurbopackLoaderItem | TurbopackRuleConfigItem)[]
 
 export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -144,70 +202,43 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
   /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
-  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
-
-  /**
-   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
-   *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
-   */
-  conditions?: Record<string, TurbopackRuleCondition>
-
-  /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
+  rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
-}
 
-export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
   /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
+   * Enables generation of debug IDs in JavaScript bundles and source maps.
+   * These debug IDs help with debugging and error tracking by providing stable identifiers.
    *
-   * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md TC39 Debug ID Proposal
    */
-  loaders?: Record<string, TurbopackLoaderItem[]>
+  debugIds?: boolean
 
   /**
-   * A target memory limit for turbo, in bytes.
-   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
+   * An array of issue filter rules to ignore specific Turbopack issues.
+   * Each rule must have a `path` field (mandatory) and optionally `title`
+   * and `description`. String paths are treated as glob patterns. String
+   * titles/descriptions are exact matches. RegExp values match anywhere
+   * within the string (use `^` and `$` anchors for full-string matching).
    */
-  memoryLimit?: number
-
-  /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
-   * @deprecated Use `experimental.turbopackMinify` instead.
-   */
-  minify?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   * @deprecated Use `experimental.turbopackTreeShaking` instead.
-   */
-  treeShaking?: boolean
-
-  /**
-   * Enable source maps. Defaults to true.
-   * @deprecated Use `experimental.turbopackSourceMaps` instead.
-   */
-  sourceMaps?: boolean
+  ignoreIssue?: Array<{
+    path: string | RegExp
+    title?: string | RegExp
+    description?: string | RegExp
+  }>
 }
 
 export interface WebpackConfigContext {
@@ -243,15 +274,36 @@ export interface NextJsWebpackConfig {
 }
 
 /**
- * Set of options for the react compiler next.js
- * currently supports.
+ * Set of options for React Compiler that Next.js currently supports.
  *
- * This can be changed without breaking changes while supporting
- * react compiler in the experimental phase.
+ * These options may be changed in breaking ways at any time without notice
+ * while support for React Compiler is experimental.
+ *
+ * @see https://react.dev/reference/react-compiler/configuration
  */
 export interface ReactCompilerOptions {
+  /**
+   * Controls the strategy for determining which functions the React Compiler
+   * will optimize.
+   *
+   * The default is `'infer'`, which uses intelligent heuristics to identify
+   * React components and hooks.
+   *
+   * When using `infer`, Next.js applies its own heuristics before calling
+   * `react-compiler`. This improves compilation performance by avoiding extra
+   * invocations of Babel and reducing redundant parsing of code.
+   *
+   * @see https://react.dev/reference/react-compiler/compilationMode
+   */
   compilationMode?: 'infer' | 'annotation' | 'all'
-  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+  /**
+   * Controls how the React Compiler handles errors during compilation.
+   *
+   * The default is `'none'`, which skips components which cannot be compiled.
+   *
+   * @see https://react.dev/reference/react-compiler/panicThreshold
+   */
+  panicThreshold?: 'none' | 'critical_errors' | 'all_errors'
 }
 
 export interface IncomingRequestLoggingConfig {
@@ -277,29 +329,101 @@ export interface LoggingConfig {
    * You can specify a pattern to match incoming requests that should not be logged.
    */
   incomingRequests?: boolean | IncomingRequestLoggingConfig
+
+  /**
+   * If false, Server Function invocation logging is disabled.
+   * @default true
+   */
+  serverFunctions?: boolean
+
+  /**
+   * Forward browser console logs to terminal.
+   * - `false`: Disable browser log forwarding
+   * - `true`: Forward all browser console output to terminal
+   * - `'warn'`: Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   */
+  browserToTerminal?: boolean | 'error' | 'warn'
+}
+
+/**
+ * All recognized lightningcss feature names.
+ * Individual features map 1:1 to lightningcss `Features` bitflags.
+ * Composite names (`selectors`, `media-queries`, `colors`) enable a group of
+ * related individual features at once.
+ *
+ * The name→bitmask mapping is duplicated in:
+ * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
+ */
+export const LIGHTNINGCSS_FEATURE_NAMES = [
+  // Individual features (bit 0–20)
+  'nesting',
+  'not-selector-list',
+  'dir-selector',
+  'lang-selector-list',
+  'is-selector',
+  'text-decoration-thickness-percent',
+  'media-interval-syntax',
+  'media-range-syntax',
+  'custom-media-queries',
+  'clamp-function',
+  'color-function',
+  'oklab-colors',
+  'lab-colors',
+  'p3-colors',
+  'hex-alpha-colors',
+  'space-separated-color-notation',
+  'font-family-system-ui',
+  'double-position-gradients',
+  'vendor-prefixes',
+  'logical-properties',
+  'light-dark',
+  // Composite groups
+  'selectors',
+  'media-queries',
+  'colors',
+] as const
+
+export type LightningCssFeature = (typeof LIGHTNINGCSS_FEATURE_NAMES)[number]
+
+export interface LightningCssFeatures {
+  include?: LightningCssFeature[]
+  exclude?: LightningCssFeature[]
 }
 
 export interface ExperimentalConfig {
-  adapterPath?: string
+  appNewScrollHandler?: boolean
   useSkewCookie?: boolean
-  nodeMiddleware?: boolean
-  cacheHandlers?: {
-    default?: string
-    remote?: string
-    static?: string
-    [handlerName: string]: string | undefined
-  }
+  /** @deprecated use top-level `cacheHandlers` instead */
+  cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
-  clientSegmentCache?: boolean | 'client-only'
+  /**
+   * The origins that are allowed to write the rewritten headers when
+   * performing a non-relative rewrite. When undefined, no non-relative
+   * rewrites will get the rewrite headers.
+   */
+  clientParamParsingOrigins?: string[]
+  cachedNavigations?: boolean
+  /**
+   * Enables partial fallback shells for cache-components routes while the
+   * feature stabilizes.
+   */
+  partialFallbacks?: boolean
   dynamicOnHover?: boolean
-  appDocumentPreloading?: boolean
+  optimisticRouting?: boolean
+  varyParams?: boolean
+  prefetchInlining?:
+    | boolean
+    | {
+        maxSize?: number
+        maxBundleSize?: number
+      }
   preloadEntriesOnStart?: boolean
-  /** @default true */
-  strictNextHead?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
   /**
@@ -310,26 +434,40 @@ export interface ExperimentalConfig {
    */
   staleTimes?: {
     dynamic?: number
+    /** Must be greater than or equal to 30 seconds, to ensure prefetching is not completely wasteful */
     static?: number
   }
-  cacheLife?: {
-    [profile: string]: {
-      // How long the client can cache a value without checking with the server.
-      stale?: number
-      // How frequently you want the cache to refresh on the server.
-      // Stale values may be served while revalidating.
-      revalidate?: number
-      // In the worst case scenario, where you haven't had traffic in a while,
-      // how stale can a value be until you prefer deopting to dynamic.
-      // Must be longer than revalidate.
-      expire?: number
-    }
-  }
+  /**
+   * @deprecated use top-level `cacheLife` instead
+   */
+  cacheLife?: NextConfig['cacheLife']
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
   clientRouterFilterAllowedRate?: number
+  /**
+   * @deprecated Use `externalProxyRewritesResolve` instead.
+   */
   externalMiddlewareRewritesResolve?: boolean
+  externalProxyRewritesResolve?: boolean
+  /**
+   * Exposes the Instant Navigation Testing API in production builds. This
+   * API is always available in development mode.
+   *
+   * The testing API allows e2e tests to control navigation timing, enabling
+   * deterministic assertions on prefetched/cached UI before dynamic data
+   * streams in.
+   *
+   * WARNING: This flag is intended for profiling and testing purposes only.
+   * Do not enable in user-facing production deployments.
+   */
+  exposeTestingApiInProductionBuild?: boolean
+  /**
+   * Show the Instant Navigation Mode toggle in the dev tools indicator.
+   * When enabled, a menu item lets you lock navigations to only show
+   * the cached/prefetched state.
+   */
+  instantNavigationDevToolsToggle?: boolean
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
@@ -337,12 +475,17 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
+  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
    */
   expireTime?: number
+  /**
+   * @deprecated Use `proxyPrefetch` instead.
+   */
   middlewarePrefetch?: 'strict' | 'flexible'
+  proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
    * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
@@ -364,12 +507,9 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
-  amp?: {
-    optimizer?: any
-    validator?: string
-    skipValidation?: boolean
-  }
   disableOptimizedLoading?: boolean
+
+  /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
@@ -403,9 +543,22 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
-   * @deprecated Use `config.turbopack` instead.
+   * Type-checks props and return values of pages.
+   * Requires literal values for segment config (e.g. `export const dynamic = 'force-static' as const`).
    */
-  turbo?: DeprecatedExperimentalTurboOptions
+  strictRouteTypes?: boolean
+
+  /**
+   * Displays an indicator when a React Transition has no other indicator rendered.
+   * This includes displaying an indicator on client-side navigations.
+   */
+  transitionIndicator?: boolean
+
+  /**
+   * Enables experimental gesture transition APIs for optimistic client
+   * navigations. Requires experimental React.
+   */
+  gestureTransition?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -413,14 +566,55 @@ export interface ExperimentalConfig {
   turbopackMemoryLimit?: number
 
   /**
+   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   */
+  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+
+  /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
 
   /**
-   * Enable persistent caching for the turbopack dev server and build.
+   * Enable support for `with {type: "bytes"}` for ESM imports.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackImportTypeBytes?: boolean
+
+  /**
+   * Enable support for `with {type: "text"}` for ESM imports.
+   */
+  turbopackImportTypeText?: boolean
+
+  /**
+   * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
+   */
+  turbopackScopeHoisting?: boolean
+
+  /**
+   * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackClientSideNestedAsyncChunking?: boolean
+
+  /**
+   * Enable nested async chunking for server side assets. Defaults to false in dev and build mode.
+   * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
+   */
+  turbopackServerSideNestedAsyncChunking?: boolean
+
+  /**
+   * Enable filesystem cache for the turbopack dev server.
+   *
+   * Defaults to `true`.
+   */
+  turbopackFileSystemCacheForDev?: boolean
+
+  /**
+   * Enable filesystem cache for the turbopack build.
+   *
+   * Defaults to `false`.
+   */
+  turbopackFileSystemCacheForBuild?: boolean
 
   /**
    * Enable source maps. Defaults to true.
@@ -428,9 +622,57 @@ export interface ExperimentalConfig {
   turbopackSourceMaps?: boolean
 
   /**
+   * Enable extraction of source maps from input files. Defaults to true.
+   */
+  turbopackInputSourceMaps?: boolean
+
+  /**
    * Enable tree shaking for the turbopack dev server and build.
    */
   turbopackTreeShaking?: boolean
+
+  /**
+   * Enable removing unused imports for turbopack dev server and build.
+   */
+  turbopackRemoveUnusedImports?: boolean
+
+  /**
+   * Enable removing unused exports for turbopack dev server and build.
+   */
+  turbopackRemoveUnusedExports?: boolean
+
+  /**
+   * Enable local analysis to infer side effect free modules. When enabled, Turbopack will
+   * analyze module code to determine if it has side effects. This can improve tree shaking
+   * and bundle size at the cost of some additional analysis.
+   *
+   * Defaults to `true`
+   */
+  turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
+   * configuration file is present. This option is enabled by default.
+   *
+   * If this is set to `false`, but `reactCompiler` is `true`, the built-in Babel will
+   * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
+   * use React Compiler with a different manually-configured `babel-loader`, you should disable both
+   * this and `reactCompiler`.
+   */
+  turbopackUseBuiltinBabel?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the sass loader. The sass loader
+   * configuration is enabled by default.
+   */
+  turbopackUseBuiltinSass?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -448,8 +690,9 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Generate Route types and enable type checking for Link and Router.push, etc.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   * Enable type checking for Link and Router.push, etc.
+   * @deprecated Use `typedRoutes` instead — this feature is now stable.
+   * @see https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
    */
   typedRoutes?: boolean
 
@@ -513,8 +756,8 @@ export interface ExperimentalConfig {
   clientTraceMetadata?: string[]
 
   /**
-   * Enables experimental Partial Prerendering feature of Next.js.
-   * Using this feature will enable the `react@experimental` for the `app` directory.
+   * @deprecated This configuration option has been merged into `cacheComponents`.
+   * The Partial Prerendering feature is still available via `cacheComponents`.
    */
   ppr?: ExperimentalPPRConfig
 
@@ -523,11 +766,6 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
-
-  /**
-   * Enables the Back/Forward Cache for the router.
-   */
-  routerBFCache?: boolean
 
   /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
@@ -561,15 +799,17 @@ export interface ExperimentalConfig {
   }
 
   /**
+   * Allows adjusting the maximum size of the postponed state body for PPR
+   * resume requests. This includes the Resume Data Cache (RDC) which may grow
+   * large for some applications.
+   * @default '100 MB'
+   */
+  maxPostponedStateSize?: SizeLimit
+
+  /**
    * enables the minification of server code.
    */
   serverMinification?: boolean
-
-  /**
-   * Enables source maps while generating static pages.
-   * Helps with errors during the prerender phase in `next build`.
-   */
-  enablePrerenderSourceMaps?: boolean
 
   /**
    * Enables source maps generation for the server production bundle.
@@ -593,7 +833,14 @@ export interface ExperimentalConfig {
   useLightningcss?: boolean
 
   /**
-   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   * Configure which CSS features lightningcss should always transpile
+   * (include) or never transpile (exclude), regardless of browser targets.
+   * Requires `useLightningcss: true`.
+   */
+  lightningCssFeatures?: LightningCssFeatures
+
+  /**
+   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
    */
   viewTransition?: boolean
 
@@ -620,12 +867,17 @@ export interface ExperimentalConfig {
    *
    */
   serverComponentsExternalPackages?: string[]
+
   /**
-   * Enable experimental React compiler optimization.
-   * Configuration accepts partial config object to the compiler, if provided
-   * compiler will be enabled.
+   * When enabled, in dev mode, Next.js will send React's debug info through the
+   * WebSocket connection, instead of including it in the main RSC payload.
    */
-  reactCompiler?: boolean | ReactCompilerOptions
+  reactDebugChannel?: boolean
+
+  /**
+   * @deprecated use top-level `cacheComponents` instead
+   */
+  cacheComponents?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -646,14 +898,6 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
-
-  /**
-   * When enabled, will cause IO in App Router to be excluded from prerenders,
-   * unless explicitly cached. This also enables the experimental Partial
-   * Prerendering feature of Next.js, and it enables `react@experimental` being
-   * used for the `app` directory.
-   */
-  dynamicIO?: boolean
 
   /**
    * Render <style> tags inline in the HTML for imported CSS assets.
@@ -691,9 +935,127 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
-   * Enable segment viewer for the app directory in dev tool.
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr.
+   *
+   * - `'warn'` (default): Forward warnings and errors to terminal
+   * - `'error'`: Forward only errors to terminal
+   * - `'verbose'`: Forward all browser console output to terminal
+   * - `true`: Same as 'verbose' - forward all browser console output to terminal
+   * - `false`: Disable browser log forwarding to terminal
+   * - Object: Enable with custom configuration
+   *
+   * @deprecated Use `logging.browserToTerminal` instead.
    */
-  devtoolSegmentExplorer?: boolean
+  browserDebugInfoInTerminal?:
+    | boolean
+    | 'error'
+    | 'warn'
+    | 'verbose'
+    | {
+        /**
+         * Minimum log level to show in terminal.
+         * @default 'verbose' (for object config, to preserve backward compatibility)
+         */
+        level?: 'error' | 'warn' | 'verbose'
+
+        /**
+         * Option to limit stringification at a specific nesting depth when logging circular objects.
+         * @default 5
+         */
+        depthLimit?: number
+
+        /**
+         * Maximum number of properties/elements to stringify when logging objects/arrays with circular references.
+         * @default 100
+         */
+        edgeLimit?: number
+        /**
+         * Whether to include source location information in debug output when available
+         */
+        showSourceLocation?: boolean
+      }
+
+  /**
+   * Enable accessing root params via the `next/root-params` module.
+   */
+  rootParams?: boolean
+
+  /**
+   * Body size limit for request bodies with middleware configured.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   *
+   * @deprecated Use `proxyClientMaxBodySize` instead.
+   */
+  middlewareClientMaxBodySize?: SizeLimit
+
+  /**
+   * Body size limit for request bodies with proxy configured.
+   * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
+   */
+  proxyClientMaxBodySize?: SizeLimit
+
+  /**
+   * Enable the Model Context Protocol (MCP) server for AI-assisted development.
+   * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
+   * code intelligence and project context to AI assistants.
+   *
+   * @default true
+   */
+  mcpServer?: boolean
+
+  /**
+   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
+   * build`. Failing to acquire the lock causes the process to exit with an
+   * error message.
+   *
+   * This is because if multiple processes write to the same `distDir` at the
+   * same time, it can mangle the state of the directory. Disabling this option
+   * is not recommended.
+   *
+   * @default true
+   */
+  lockDistDir?: boolean
+
+  /**
+   * Hide logs that occur after a render has already aborted.
+   * This can help reduce noise in the console when dealing with aborted renders.
+   *
+   * @default false
+   */
+  hideLogsAfterAbort?: boolean
+
+  /**
+   * Whether `process.env.NEXT_DEPLOYMENT_ID` is available at runtime in the server (and `next
+   * build` doesn't need to embed the deployment ID value into the build output).
+   *
+   * @default false
+   */
+  runtimeServerDeploymentId?: boolean
+
+  /**
+   * A different token to use for static assets (as opposed to config.deploymentId) which
+   * doesn't have to be unique per deployment.
+   */
+  immutableAssetToken?: string
+
+  /**
+   * An array of paths in app or pages directories that should wait to be processed
+   * until all other entries have been processed. This is useful for deferring
+   * compilation of certain routes during development and build.
+   */
+  deferredEntries?: string[]
+
+  /**
+   * An async function that is called and awaited before processing deferred entries.
+   * This callback runs after all non-deferred entries have been compiled.
+   */
+  onBeforeDeferredEntries?: () => Promise<void>
+
+  /**
+   * Whether to report inlined system environment variables as warnings or errors.
+   * Only supported for Turbopack.
+   */
+  reportSystemEnvInlining?: 'error' | 'warn'
 }
 
 export type ExportPathMap = {
@@ -728,7 +1090,7 @@ export type ExportPathMap = {
      *
      * @internal
      */
-    _fallbackRouteParams?: readonly string[]
+    _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
      * @internal
@@ -748,13 +1110,23 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `experimental.dynamicIO` enabled, and
+     * the app has `experimental.ppr` and `cacheComponents` enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
      * @internal
      */
     _allowEmptyStaticShell?: boolean
+
+    /**
+     * When true, run build-time instant validation for this export path.
+     * Only set on the first export entry per page, since validation uses
+     * unstable_instant.samples (not actual params from generateStaticParams),
+     * so the result is the same for all param combinations.
+     *
+     * @internal
+     */
+    _runInstantValidation?: boolean
   }
 }
 
@@ -765,7 +1137,7 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfig {
   allowedDevOrigins?: string[]
 
   exportPathMap?: (
@@ -787,43 +1159,52 @@ export interface NextConfig extends Record<string, any> {
   i18n?: I18NConfig | null
 
   /**
-   * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
-   */
-  eslint?: ESLintConfig
-
-  /**
    * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
+
+  /**
+   * Enable type checking for Link and Router.push, etc.
+   * This feature requires TypeScript in your project.
+   *
+   * @see [Typed Links documentation](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links)
+   */
+  typedRoutes?: boolean
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
    * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
-  headers?: () => Promise<Header[]>
+  headers?: () => Promise<Header[]> | Header[]
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
    * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
-  rewrites?: () => Promise<
+  rewrites?: () =>
+    | Promise<
+        | Rewrite[]
+        | {
+            beforeFiles?: Rewrite[]
+            afterFiles?: Rewrite[]
+            fallback?: Rewrite[]
+          }
+      >
     | Rewrite[]
     | {
         beforeFiles?: Rewrite[]
         afterFiles?: Rewrite[]
         fallback?: Rewrite[]
       }
-  >
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
    * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
-  redirects?: () => Promise<Redirect[]>
+  redirects?: () => Promise<Redirect[]> | Redirect[]
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -877,6 +1258,19 @@ export interface NextConfig extends Record<string, any> {
   cacheHandler?: string | undefined
 
   /**
+   * Path to a custom adapter module for deployment platform integration.
+   * Can also be set via the `NEXT_ADAPTER_PATH` environment variable.
+   */
+  adapterPath?: string
+
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
+
+  /**
    * Configure the in-memory cache size in bytes. Defaults to 50 MB.
    * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
    *
@@ -918,28 +1312,6 @@ export interface NextConfig extends Record<string, any> {
     | false
     | {
         /**
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         * */
-        appIsrStatus?: boolean
-
-        /**
-         * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         */
-        buildActivity?: boolean
-
-        /**
-         * Position of "building..." indicator in browser
-         * @default "bottom-right"
-         * @deprecated Renamed as `position`.
-         */
-        buildActivityPosition?:
-          | 'top-left'
-          | 'top-right'
-          | 'bottom-left'
-          | 'bottom-right'
-
-        /**
          * Position of the development tools indicator in the browser window.
          * @default "bottom-left"
          * */
@@ -956,11 +1328,6 @@ export interface NextConfig extends Record<string, any> {
     maxInactiveAge?: number
     /** number of pages that should be kept simultaneously without being disposed */
     pagesBufferLength?: number
-  }
-
-  /** @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp) */
-  amp?: {
-    canonicalBase?: string
   }
 
   /**
@@ -989,6 +1356,13 @@ export interface NextConfig extends Record<string, any> {
   productionBrowserSourceMaps?: boolean
 
   /**
+   * Enable {@link https://nextjs.org/docs/app/api-reference/config/next-config-js/reactCompiler React Compiler in Next.js}.
+   * Configuration accepts partial config object of the Compiler.
+   * If provided, the Compiler will be enabled.
+   */
+  reactCompiler?: boolean | ReactCompilerOptions
+
+  /**
    * Enable react profiling in production
    *
    */
@@ -1008,20 +1382,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [React Max Headers Length](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactMaxHeadersLength)
    */
   reactMaxHeadersLength?: number
-
-  /**
-   * Add public (in browser) runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
-   */
-  publicRuntimeConfig?: { [key: string]: any }
-
-  /**
-   * Add server runtime configuration to your app
-   *
-   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
-   */
-  serverRuntimeConfig?: { [key: string]: any }
 
   /**
    * Next.js enables HTTP Keep-Alive by default.
@@ -1128,7 +1488,12 @@ export interface NextConfig extends Record<string, any> {
    */
   turbopack?: TurbopackOptions
 
+  /**
+   * @deprecated Use `skipProxyUrlNormalize` instead.
+   */
   skipMiddlewareUrlNormalize?: boolean
+
+  skipProxyUrlNormalize?: boolean
 
   skipTrailingSlashRedirect?: boolean
 
@@ -1145,6 +1510,35 @@ export interface NextConfig extends Record<string, any> {
    * Logging configuration. Set to `false` to disable logging.
    */
   logging?: LoggingConfig | false
+
+  /**
+   * Enables source maps while generating static pages.
+   * Helps with errors during the prerender phase in `next build`.
+   */
+  enablePrerenderSourceMaps?: boolean
+
+  /**
+   * When enabled, in development and build, Next.js will automatically cache
+   * page-level components and functions for faster builds and rendering. This
+   * includes Partial Prerendering support.
+   *
+   * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
+   */
+  cacheComponents?: boolean
+
+  cacheLife?: {
+    [profile: string]: {
+      // How long the client can cache a value without checking with the server.
+      stale?: number
+      // How frequently you want the cache to refresh on the server.
+      // Stale values may be served while revalidating.
+      revalidate?: number
+      // In the worst case scenario, where you haven't had traffic in a while,
+      // how stale can a value be until you prefer deopting to dynamic.
+      // Must be longer than revalidate.
+      expire?: number
+    }
+  }
 
   /**
    * period (in seconds) where the server allow to serve stale cache
@@ -1198,18 +1592,36 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * @internal
+   */
+  configFile?: string | undefined
+
+  /**
+   * @internal
+   */
+  configOrigin?: string | undefined
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: any
+
+  /**
+   * @internal
+   */
+  _originalRewrites?: any
 }
 
-export const defaultConfig = {
+export const defaultConfig = Object.freeze({
   env: {},
   webpack: null,
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
-    tsconfigPath: 'tsconfig.json',
+    tsconfigPath: undefined,
   },
+  typedRoutes: false,
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
@@ -1231,24 +1643,21 @@ export const defaultConfig = {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,
   },
-  amp: {
-    canonicalBase: '',
-  },
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
   excludeDefaultMomentLocales: true,
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
   reactProductionProfiling: false,
   reactStrictMode: null,
   reactMaxHeadersLength: 6000,
   httpAgentOptions: {
     keepAlive: true,
   },
-  logging: {},
+  logging: {
+    serverFunctions: true,
+  } satisfies LoggingConfig,
   compiler: {},
   expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
     ? undefined
@@ -1258,69 +1667,73 @@ export const defaultConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   allowedDevOrigins: undefined,
+  // Will default to cacheComponents value.
+  enablePrerenderSourceMaps: undefined,
+  cacheComponents: false,
+  cacheLife: {
+    default: {
+      stale: undefined, // defaults to staleTimes.static
+      revalidate: 60 * 15, // 15 minutes
+      expire: INFINITE_CACHE,
+    },
+    seconds: {
+      stale: 30, // 30 seconds
+      revalidate: 1, // 1 second
+      expire: 60, // 1 minute
+    },
+    minutes: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60, // 1 minute
+      expire: 60 * 60, // 1 hour
+    },
+    hours: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60, // 1 hour
+      expire: 60 * 60 * 24, // 1 day
+    },
+    days: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24, // 1 day
+      expire: 60 * 60 * 24 * 7, // 1 week
+    },
+    weeks: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 7, // 1 week
+      expire: 60 * 60 * 24 * 30, // 1 month
+    },
+    max: {
+      stale: 60 * 5, // 5 minutes
+      revalidate: 60 * 60 * 24 * 30, // 1 month
+      expire: 60 * 60 * 24 * 365, // 1 year
+    },
+  },
+  cacheHandlers: {
+    default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+    remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+    static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
+  },
+  adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+    appNewScrollHandler: false,
     useSkewCookie: false,
-    nodeMiddleware: false,
-    cacheLife: {
-      default: {
-        stale: undefined, // defaults to staleTimes.static
-        revalidate: 60 * 15, // 15 minutes
-        expire: INFINITE_CACHE,
-      },
-      seconds: {
-        stale: undefined, // defaults to staleTimes.dynamic
-        revalidate: 1, // 1 second
-        expire: 60, // 1 minute
-      },
-      minutes: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60, // 1 minute
-        expire: 60 * 60, // 1 hour
-      },
-      hours: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60, // 1 hour
-        expire: 60 * 60 * 24, // 1 day
-      },
-      days: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24, // 1 day
-        expire: 60 * 60 * 24 * 7, // 1 week
-      },
-      weeks: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 7, // 1 week
-        expire: 60 * 60 * 24 * 30, // 1 month
-      },
-      max: {
-        stale: 60 * 5, // 5 minutes
-        revalidate: 60 * 60 * 24 * 30, // 1 month
-        expire: INFINITE_CACHE, // Unbounded.
-      },
-    },
-    cacheHandlers: {
-      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
-      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
-      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
-    },
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
-    enablePrerenderSourceMaps: false,
-    serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: false,
+    clientParamParsingOrigins: undefined,
+    cachedNavigations: false,
+    partialFallbacks: false,
     dynamicOnHover: false,
-    appDocumentPreloading: undefined,
+    varyParams: false,
+    prefetchInlining: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
     fetchCacheKeyPrefix: '',
-    middlewarePrefetch: 'flexible',
+    proxyPrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
     cpus: Math.max(
@@ -1333,6 +1746,7 @@ export const defaultConfig = {
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
+    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -1350,51 +1764,51 @@ export const defaultConfig = {
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,
-    amp: undefined,
     urlImports: undefined,
-    turbo: undefined,
-    typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
-    ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
+    strictRouteTypes: false,
     viewTransition: false,
-    routerBFCache: false,
     removeUncaughtErrorAndRejectionListeners: false,
-    validateRSCRequestHeaders: false,
+    validateRSCRequestHeaders: !!(
+      process.env.__NEXT_TEST_MODE || !isStableBuild()
+    ),
     staleTimes: {
       dynamic: 0,
       static: 300,
     },
     allowDevelopmentBuild: undefined,
-    reactCompiler: undefined,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
-    dynamicIO: false,
+    transitionIndicator: false,
+    gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: false,
+    browserDebugInfoInTerminal: 'warn',
+    lockDistDir: true,
+    proxyClientMaxBodySize: 10_485_760, // 10MB
+    hideLogsAfterAbort: false,
+    mcpServer: true,
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: false,
+    turbopackInferModuleSideEffects: true,
+    turbopackPluginRuntimeStrategy: 'childProcesses',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
-} satisfies NextConfig
+} satisfies NextConfig)
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
@@ -1403,3 +1817,216 @@ export async function normalizeConfig(phase: string, config: any) {
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
 }
+
+// This should be a supertype of NextConfigComplete
+//
+// The Vercel builder needs these fields (read `config` in required-server-files.json)
+// {
+//   pageExtensions: string[];
+//   experimental?: {
+//     cacheComponents?: boolean;
+//     clientParamParsingOrigins?: string[];
+//     clientSegmentCache?: boolean;
+//     ppr?: boolean | 'incremental';
+//     serverActions?: Record<string, never>;
+//   };
+// };
+export interface NextConfigRuntime {
+  // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
+  deploymentId?: NextConfigComplete['deploymentId']
+
+  configFileName?: string
+  // Should only be included when using isExperimentalCompile
+  env?: NextConfigComplete['env']
+
+  distDir: NextConfigComplete['distDir']
+  cacheComponents: NextConfigComplete['cacheComponents']
+  htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
+  assetPrefix: NextConfigComplete['assetPrefix']
+  output: NextConfigComplete['output']
+  crossOrigin: NextConfigComplete['crossOrigin']
+  trailingSlash: NextConfigComplete['trailingSlash']
+  images: NextConfigComplete['images']
+  reactMaxHeadersLength: NextConfigComplete['reactMaxHeadersLength']
+  cacheLife: NextConfigComplete['cacheLife']
+  basePath: NextConfigComplete['basePath']
+  expireTime: NextConfigComplete['expireTime']
+  generateEtags: NextConfigComplete['generateEtags']
+  poweredByHeader: NextConfigComplete['poweredByHeader']
+  cacheHandler: NextConfigComplete['cacheHandler']
+  cacheHandlers: NextConfigComplete['cacheHandlers']
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize']
+  compress: NextConfigComplete['compress']
+  i18n: NextConfigComplete['i18n']
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  skipProxyUrlNormalize: NextConfigComplete['skipProxyUrlNormalize']
+  pageExtensions: NextConfigComplete['pageExtensions']
+  useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
+  logging?: NextConfigComplete['logging']
+  adapterPath?: NextConfigComplete['adapterPath']
+
+  experimental: Pick<
+    NextConfigComplete['experimental'],
+    | 'ppr'
+    | 'taint'
+    | 'serverActions'
+    | 'staleTimes'
+    | 'dynamicOnHover'
+    | 'optimisticRouting'
+    | 'inlineCss'
+    | 'prefetchInlining'
+    | 'authInterrupts'
+    | 'clientTraceMetadata'
+    | 'clientParamParsingOrigins'
+    | 'allowedRevalidateHeaderKeys'
+    | 'fetchCacheKeyPrefix'
+    | 'isrFlushToDisk'
+    | 'optimizeCss'
+    | 'nextScriptWorkers'
+    | 'disableOptimizedLoading'
+    | 'largePageDataBytes'
+    | 'serverComponentsHmrCache'
+    | 'caseSensitiveRoutes'
+    | 'validateRSCRequestHeaders'
+    | 'sri'
+    | 'useSkewCookie'
+    | 'preloadEntriesOnStart'
+    | 'hideLogsAfterAbort'
+    | 'removeUncaughtErrorAndRejectionListeners'
+    | 'imgOptConcurrency'
+    | 'imgOptMaxInputPixels'
+    | 'imgOptSequentialRead'
+    | 'imgOptSkipMetadata'
+    | 'imgOptTimeoutInSeconds'
+    | 'proxyClientMaxBodySize'
+    | 'proxyTimeout'
+    | 'testProxy'
+    | 'runtimeServerDeploymentId'
+    | 'maxPostponedStateSize'
+    | 'cachedNavigations'
+    | 'partialFallbacks'
+    | 'exposeTestingApiInProductionBuild'
+    | 'immutableAssetToken'
+  > & {
+    // Pick on @internal fields generates invalid .d.ts files
+    /** @internal */
+    trustHostHeader?: NextConfigComplete['experimental']['trustHostHeader']
+    /** @internal */
+    isExperimentalCompile?: NextConfigComplete['experimental']['isExperimentalCompile']
+  }
+}
+
+export function getNextConfigRuntime(
+  config: NextConfigComplete | NextConfigRuntime
+): NextConfigRuntime {
+  // This config filter is a breaking change, so only do it if experimental.runtimeServerDeploymentId is enabled
+  if (!config.experimental.runtimeServerDeploymentId) {
+    return config
+  }
+
+  let ex = config.experimental
+
+  type Requiredish<T> = {
+    [K in keyof Required<T>]: T[K]
+  }
+
+  let experimental = ex
+    ? ({
+        ppr: ex.ppr,
+        taint: ex.taint,
+        serverActions: ex.serverActions,
+        staleTimes: ex.staleTimes,
+        dynamicOnHover: ex.dynamicOnHover,
+        optimisticRouting: ex.optimisticRouting,
+        inlineCss: ex.inlineCss,
+        prefetchInlining: ex.prefetchInlining,
+        authInterrupts: ex.authInterrupts,
+        clientTraceMetadata: ex.clientTraceMetadata,
+        clientParamParsingOrigins: ex.clientParamParsingOrigins,
+        allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
+        fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
+        isrFlushToDisk: ex.isrFlushToDisk,
+        optimizeCss: ex.optimizeCss,
+        nextScriptWorkers: ex.nextScriptWorkers,
+        disableOptimizedLoading: ex.disableOptimizedLoading,
+        largePageDataBytes: ex.largePageDataBytes,
+        serverComponentsHmrCache: ex.serverComponentsHmrCache,
+        caseSensitiveRoutes: ex.caseSensitiveRoutes,
+        validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
+        sri: ex.sri,
+        useSkewCookie: ex.useSkewCookie,
+        preloadEntriesOnStart: ex.preloadEntriesOnStart,
+        hideLogsAfterAbort: ex.hideLogsAfterAbort,
+        removeUncaughtErrorAndRejectionListeners:
+          ex.removeUncaughtErrorAndRejectionListeners,
+        imgOptConcurrency: ex.imgOptConcurrency,
+        imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
+        imgOptSequentialRead: ex.imgOptSequentialRead,
+        imgOptSkipMetadata: ex.imgOptSkipMetadata,
+        imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+        proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
+        proxyTimeout: ex.proxyTimeout,
+        testProxy: ex.testProxy,
+        runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
+        maxPostponedStateSize: ex.maxPostponedStateSize,
+        cachedNavigations: ex.cachedNavigations,
+        partialFallbacks: ex.partialFallbacks,
+        exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
+        immutableAssetToken: ex.immutableAssetToken,
+
+        trustHostHeader: ex.trustHostHeader,
+        isExperimentalCompile: ex.isExperimentalCompile,
+      } satisfies Requiredish<NextConfigRuntime['experimental']>)
+    : {}
+
+  let runtimeConfig: Requiredish<NextConfigRuntime> = {
+    deploymentId: config.experimental.runtimeServerDeploymentId
+      ? ''
+      : config.deploymentId,
+
+    configFileName: undefined,
+    env: undefined,
+
+    distDir: config.distDir,
+    cacheComponents: config.cacheComponents,
+    htmlLimitedBots: config.htmlLimitedBots,
+    assetPrefix: config.assetPrefix,
+    output: config.output,
+    crossOrigin: config.crossOrigin,
+    trailingSlash: config.trailingSlash,
+    images: config.images,
+    reactMaxHeadersLength: config.reactMaxHeadersLength,
+    cacheLife: config.cacheLife,
+    basePath: config.basePath,
+    expireTime: config.expireTime,
+    generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
+    cacheHandler: config.cacheHandler,
+    cacheHandlers: config.cacheHandlers,
+    // The full adapterPath might be non-deterministic across builds and doesn't
+    // actually matter at runtime, so replace it with a placeholder if it's set.
+    adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
+    cacheMaxMemorySize: config.cacheMaxMemorySize,
+    compress: config.compress,
+    i18n: config.i18n,
+    httpAgentOptions: config.httpAgentOptions,
+    skipProxyUrlNormalize: config.skipProxyUrlNormalize,
+    pageExtensions: config.pageExtensions,
+    useFileSystemPublicRoutes: config.useFileSystemPublicRoutes,
+    logging: config.logging,
+
+    experimental,
+  }
+
+  if (config.experimental.isExperimentalCompile) {
+    runtimeConfig.env = config.env
+  }
+
+  return runtimeConfig
+}
+
+// Re-export from shared lib for backwards compatibility
+export {
+  DEFAULT_MAX_POSTPONED_STATE_SIZE,
+  parseMaxPostponedStateSize,
+} from '../shared/lib/size-limit'

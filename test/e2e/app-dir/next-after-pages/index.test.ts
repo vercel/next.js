@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource, retry } from 'next-test-utils'
 import * as Log from './utils/log'
 
 // using after is a compile-time error in build mode.
@@ -60,9 +60,9 @@ _describe('after() - pages', () => {
       ])('$title', async ({ path }) => {
         const browser = await next.browser(path)
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toMatch(
-          /You're importing a component that needs "?after"?\. That only works in a Server Component which is not supported in the pages\/ directory\./
+          /You're importing a module that depends on "?after"?\. This API is only available in Server Components in the App Router, but you are using it in the Pages Router\./
         )
         expect(getLogs()).toHaveLength(0)
       })

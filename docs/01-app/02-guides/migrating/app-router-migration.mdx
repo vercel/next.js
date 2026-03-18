@@ -20,16 +20,40 @@ The minimum Node.js version is now **v18.17**. See the [Node.js documentation](h
 
 To update to Next.js version 13, run the following command using your preferred package manager:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add next@latest react@latest react-dom@latest
+```
+
+```bash package="npm"
 npm install next@latest react@latest react-dom@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest
 ```
 
 ### ESLint Version
 
 If you're using ESLint, you need to upgrade your ESLint version:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D eslint-config-next@latest
+```
+
+```bash package="npm"
 npm install -D eslint-config-next@latest
+```
+
+```bash package="yarn"
+yarn add -D eslint-config-next@latest
+```
+
+```bash package="bun"
+bun add -D eslint-config-next@latest
 ```
 
 > **Good to know**: You may need to restart the ESLint server in VS Code for the ESLint changes to take effect. Open the Command Palette (`cmd+shift+p` on Mac; `ctrl+shift+p` on Windows) and search for `ESLint: Restart ESLint Server`.
@@ -43,7 +67,7 @@ After you've updated, see the following sections for next steps:
 
 ## Upgrading New Features
 
-Next.js 13 introduced the new [App Router](/docs/app/building-your-application/routing) with new features and conventions. The new Router is available in the `app` directory and co-exists with the `pages` directory.
+Next.js 13 introduced the new [App Router](/docs/app) with new features and conventions. The new Router is available in the `app` directory and co-exists with the `pages` directory.
 
 Upgrading to Next.js 13 does **not** require using the App Router. You can continue using `pages` with new features that work in both directories, such as the updated [Image component](#image-component), [Link component](#link-component), [Script component](#script-component), and [Font optimization](#font-optimization).
 
@@ -104,14 +128,14 @@ Moving to the App Router may be the first time using React features that Next.js
 
 We recommend reducing the combined complexity of these updates by breaking down your migration into smaller steps. The `app` directory is intentionally designed to work simultaneously with the `pages` directory to allow for incremental page-by-page migration.
 
-- The `app` directory supports nested routes _and_ layouts. [Learn more](/docs/app/building-your-application/routing).
+- The `app` directory supports nested routes _and_ layouts. [Learn more](/docs/app/getting-started/layouts-and-pages).
 - Use nested folders to define routes and a special `page.js` file to make a route segment publicly accessible. [Learn more](#step-4-migrating-pages).
 - [Special file conventions](/docs/app/api-reference/file-conventions) are used to create UI for each route segment. The most common special files are `page.js` and `layout.js`.
   - Use `page.js` to define UI unique to a route.
   - Use `layout.js` to define UI that is shared across multiple routes.
   - `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
-- You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app/building-your-application/routing).
-- Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/building-your-application/data-fetching) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+- You can colocate other files inside the `app` directory such as components, styles, tests, and more. [Learn more](/docs/app).
+- Data fetching functions like `getServerSideProps` and `getStaticProps` have been replaced with [a new API](/docs/app/getting-started/fetching-data) inside `app`. `getStaticPaths` has been replaced with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 - `pages/_app.js` and `pages/_document.js` have been replaced with a single `app/layout.js` root layout. [Learn more](/docs/app/api-reference/file-conventions/layout#root-layout).
 - `pages/_error.js` has been replaced with more granular `error.js` special files. [Learn more](/docs/app/getting-started/error-handling).
 - `pages/404.js` has been replaced with the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file.
@@ -121,8 +145,20 @@ We recommend reducing the combined complexity of these updates by breaking down 
 
 Update to the latest Next.js version (requires 13.4 or greater):
 
-```bash
+```bash package="pnpm"
+pnpm add next@latest
+```
+
+```bash package="npm"
 npm install next@latest
+```
+
+```bash package="yarn"
+yarn add next@latest
+```
+
+```bash package="bun"
+bun add next@latest
 ```
 
 Then, create a new `app` directory at the root of your project (or `src/` directory).
@@ -325,8 +361,8 @@ export default function Page() {
 
 ### Step 4: Migrating Pages
 
-- Pages in the [`app` directory](/docs/app/building-your-application/routing) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
-- [Data fetching](/docs/app/building-your-application/data-fetching) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
+- Pages in the [`app` directory](/docs/app) are [Server Components](/docs/app/getting-started/server-and-client-components) by default. This is different from the `pages` directory where pages are [Client Components](/docs/app/getting-started/server-and-client-components).
+- [Data fetching](/docs/app/getting-started/fetching-data) has changed in `app`. `getServerSideProps`, `getStaticProps` and `getInitialProps` have been replaced with a simpler API.
 - The `app` directory uses nested folders to define routes and a special `page.js` file to make a route segment publicly accessible.
 - | `pages` Directory | `app` Directory       | Route          |
   | ----------------- | --------------------- | -------------- |
@@ -473,7 +509,7 @@ In addition, the new `useRouter` hook has the following changes:
 - The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
-- `isReady` has been removed because it is no longer necessary. During [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
+- `isReady` has been removed because it is no longer necessary. During [prerendering](/docs/app/glossary#prerendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
@@ -485,7 +521,7 @@ This is the `useRouter` hook from the `pages` directory, but intended to be used
 
 ### Step 6: Migrating Data Fetching Methods
 
-The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/building-your-application/data-fetching) built on top of `fetch()` and `async` React Server Components.
+The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch data for pages. Inside the `app` directory, these previous data fetching functions are replaced with a [simpler API](/docs/app/getting-started/fetching-data) built on top of `fetch()` and `async` React Server Components.
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
@@ -672,7 +708,7 @@ export default async function Page() {
 
 #### Static Site Generation (`getStaticProps`)
 
-In the `pages` directory, the `getStaticProps` function is used to pre-render a page at build time. This function can be used to fetch data from an external API or directly from a database, and pass this data down to the entire page as it's being generated during the build.
+In the `pages` directory, the `getStaticProps` function is used to prerender a page at build time. This function can be used to fetch data from an external API or directly from a database, and pass this data down to the entire page as it's being generated during the build.
 
 ```jsx filename="pages/index.js"
 // `pages` directory
@@ -711,7 +747,7 @@ export default async function Index() {
 
 #### Dynamic paths (`getStaticPaths`)
 
-In the `pages` directory, the `getStaticPaths` function is used to define the dynamic paths that should be pre-rendered at build time.
+In the `pages` directory, the `getStaticPaths` function is used to define the dynamic paths that should be prerendered at build time.
 
 ```jsx filename="pages/posts/[id].js"
 // `pages` directory
@@ -767,7 +803,7 @@ Using the name `generateStaticParams` is more appropriate than `getStaticPaths` 
 
 #### Replacing `fallback`
 
-In the `pages` directory, the `fallback` property returned from `getStaticPaths` is used to define the behavior of a page that isn't pre-rendered at build time. This property can be set to `true` to show a fallback page while the page is being generated, `false` to show a 404 page, or `blocking` to generate the page at request time.
+In the `pages` directory, the `fallback` property returned from `getStaticPaths` is used to define the behavior of a page that isn't prerendered at build time. This property can be set to `true` to show a fallback page while the page is being generated, `false` to show a 404 page, or `blocking` to generate the page at request time.
 
 ```jsx filename="pages/posts/[id].js"
 // `pages` directory
@@ -788,7 +824,7 @@ export default function Post({ post }) {
 }
 ```
 
-In the `app` directory the [`config.dynamicParams` property](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) controls how params outside of [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are handled:
+In the `app` directory the [`config.dynamicParams` property](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) controls how params outside of [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are handled:
 
 - **`true`**: (default) Dynamic segments not included in `generateStaticParams` are generated on demand.
 - **`false`**: Dynamic segments not included in `generateStaticParams` will return a 404.
@@ -815,7 +851,7 @@ export default async function Post({ params }) {
 }
 ```
 
-With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached.
+With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached.
 
 #### Incremental Static Regeneration (`getStaticProps` with `revalidate`)
 
@@ -864,7 +900,7 @@ export default async function PostList() {
 
 #### API Routes
 
-API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/building-your-application/routing/route-handlers) in the `app` directory.
+API Routes continue to work in the `pages/api` directory without any changes. However, they have been replaced by [Route Handlers](/docs/app/api-reference/file-conventions/route) in the `app` directory.
 
 Route Handlers allow you to create custom request handlers for a given route using the Web [Request](https://developer.mozilla.org/docs/Web/API/Request) and [Response](https://developer.mozilla.org/docs/Web/API/Response) APIs.
 
@@ -887,7 +923,7 @@ If you are also migrating to Next.js from a Single-Page Application (SPA) at the
 In the `pages` directory, global stylesheets are restricted to only `pages/_app.js`. With the `app` directory, this restriction has been lifted. Global styles can be added to any layout, page, or component.
 
 - [CSS Modules](/docs/app/getting-started/css#css-modules)
-- [Tailwind CSS](/docs/app/guides/tailwind-css)
+- [Tailwind CSS](/docs/app/getting-started/css#tailwind-css)
 - [Global Styles](/docs/app/getting-started/css#global-css)
 - [CSS-in-JS](/docs/app/guides/css-in-js)
 - [External Stylesheets](/docs/app/getting-started/css#external-stylesheets)
@@ -921,7 +957,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Learn more about [styling with Tailwind CSS](/docs/app/guides/tailwind-css)
+Learn more about [styling with Tailwind CSS](/docs/app/getting-started/css#tailwind-css)
 
 ## Using App Router together with Pages Router
 

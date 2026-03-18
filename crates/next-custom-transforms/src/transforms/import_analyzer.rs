@@ -1,31 +1,27 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, Wtf8Atom, atom},
     ecma::{
         ast::{
             Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
-            Module, ModuleExportName,
+            Module,
         },
-        visit::{noop_visit_type, Visit, VisitWith},
+        visit::{Visit, VisitWith, noop_visit_type},
     },
 };
 
 #[derive(Debug, Default)]
 pub(crate) struct ImportMap {
     /// Map from module name to (module path, exported symbol)
-    imports: FxHashMap<Id, (Atom, Atom)>,
+    imports: FxHashMap<Id, (Wtf8Atom, Atom)>,
 
-    namespace_imports: FxHashMap<Id, Atom>,
+    namespace_imports: FxHashMap<Id, Wtf8Atom>,
 
-    imported_modules: FxHashSet<Atom>,
+    imported_modules: FxHashSet<Wtf8Atom>,
 }
 
 #[allow(unused)]
 impl ImportMap {
-    pub fn is_module_imported(&mut self, module: &Atom) -> bool {
-        self.imported_modules.contains(module)
-    }
-
     /// Returns true if `e` is an import of `orig_name` from `module`.
     pub fn is_import(&self, e: &Expr, module: &str, orig_name: &str) -> bool {
         match e {
@@ -77,10 +73,10 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), orig_name(imported)),
+                    Some(imported) => (local.to_id(), imported.atom().into_owned()),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data
                         .namespace_imports
@@ -93,12 +89,5 @@ impl Visit for Analyzer<'_> {
                 .imports
                 .insert(local, (import.src.value.clone(), orig_sym));
         }
-    }
-}
-
-fn orig_name(n: &ModuleExportName) -> Atom {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
     }
 }

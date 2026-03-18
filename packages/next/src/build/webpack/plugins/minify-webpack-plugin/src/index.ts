@@ -75,11 +75,9 @@ export class MinifyPlugin {
         assetsList
           .filter((name) => {
             if (
-              !ModuleFilenameHelpers.matchObject.bind(
-                // eslint-disable-next-line no-undefined
-                undefined,
-                { test: /\.[cm]?js(\?.*)?$/i }
-              )(name)
+              !ModuleFilenameHelpers.matchObject.bind(undefined, {
+                test: /\.[cm]?js(\?.*)?$/i,
+              })(name)
             ) {
               return false
             }
@@ -123,7 +121,6 @@ export class MinifyPlugin {
 
       let initializedWorker: any
 
-      // eslint-disable-next-line consistent-return
       const getWorker = () => {
         return {
           minify: async (options: {
@@ -274,7 +271,6 @@ export class MinifyPlugin {
             .tap(
               'minify-webpack-plugin',
               (minimized: any, { green, formatFlag }: any) =>
-                // eslint-disable-next-line no-undefined
                 minimized ? green(formatFlag('minimized')) : undefined
             )
         })

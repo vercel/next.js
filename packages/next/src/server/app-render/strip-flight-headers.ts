@@ -9,6 +9,6 @@ import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
  */
 export function stripFlightHeaders(headers: IncomingHttpHeaders) {
   for (const header of FLIGHT_HEADERS) {
-    delete headers[header.toLowerCase()]
+    delete headers[header]
   }
 }

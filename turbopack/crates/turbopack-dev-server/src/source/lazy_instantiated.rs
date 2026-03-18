@@ -3,13 +3,14 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
-use super::{ContentSource, route_tree::RouteTree};
+use crate::source::{ContentSource, route_tree::RouteTree};
 
 /// A functor to get a [ContentSource]. Will be invoked when needed when using
 /// [LazyInstantiatedContentSource].
 #[turbo_tasks::value_trait]
 pub trait GetContentSource {
     /// Returns the [ContentSource]
+    #[turbo_tasks::function]
     fn content_source(self: Vc<Self>) -> Vc<Box<dyn ContentSource>>;
 }
 

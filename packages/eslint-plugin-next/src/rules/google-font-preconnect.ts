@@ -3,7 +3,7 @@ import NodeAttributes from '../utils/node-attributes'
 
 const url = 'https://nextjs.org/docs/messages/google-font-preconnect'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description: 'Ensure `preconnect` is used with Google Fonts.',

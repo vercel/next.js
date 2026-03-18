@@ -19,7 +19,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
-import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { getAssetTokenQuery } from '../../../shared/lib/deployment-id'
 import {
   formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
@@ -41,7 +41,7 @@ interface Options {
 type ModuleId = string | number /*| null*/
 
 // double indexed chunkId, filename
-export type ManifestChunks = Array<string>
+export type ManifestChunks = ReadonlyArray<string>
 
 const pluginState = getProxiedPluginState({
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
@@ -119,7 +119,7 @@ function getAppPathRequiredChunks(
   chunkGroup: webpack.ChunkGroup,
   excludedFiles: Set<string>
 ) {
-  const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
+  const assetTokenQuery = getAssetTokenQuery()
 
   const chunks: Array<string> = []
   chunkGroup.chunks.forEach((chunk) => {
@@ -142,10 +142,7 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(
-          chunkId,
-          encodeURIPath(file) + deploymentIdChunkQuery
-        )
+        return chunks.push(chunkId, encodeURIPath(file) + assetTokenQuery)
       })
     }
   })
@@ -578,13 +575,27 @@ export class ClientReferenceManifestPlugin {
         edgeRscModuleMapping: {},
       }
 
-      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
-      let group = ''
-      for (const segment of segments) {
-        for (const manifest of manifestsPerGroup.get(group) || []) {
+      // Route handlers don't render React components and don't need
+      // client component references from parent layouts/pages.
+      // They only need their own entry's manifest (for 'use cache' support).
+      const isRouteHandler = /\/route$/.test(pageName)
+
+      if (isRouteHandler) {
+        // Route handlers only get their own manifest, not parent manifests
+        const groupName = entryNameToGroupName(pageName)
+        for (const manifest of manifestsPerGroup.get(groupName) || []) {
           mergeManifest(mergedManifest, manifest)
         }
-        group += (group ? '/' : '') + segment
+      } else {
+        // Pages need manifests merged from parent layouts
+        const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
+        let group = ''
+        for (const segment of segments) {
+          for (const manifest of manifestsPerGroup.get(group) || []) {
+            mergeManifest(mergedManifest, manifest)
+          }
+          group += (group ? '/' : '') + segment
+        }
       }
 
       const json = JSON.stringify(mergedManifest)
@@ -596,7 +607,7 @@ export class ClientReferenceManifestPlugin {
         new sources.RawSource(
           `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
             pagePath.slice('app'.length)
-          )}]=${json}`
+          )}]=${json};`
         ) as unknown as webpack.sources.RawSource
       )
     }

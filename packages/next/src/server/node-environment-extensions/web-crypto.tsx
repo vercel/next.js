@@ -1,13 +1,13 @@
 /**
  * We extend Web Crypto APIs during builds and revalidates to ensure that prerenders don't observe random bytes
- * When dynamicIO is enabled. Random bytes are a form of IO even if they resolve synchronously. When dyanmicIO is
+ * When cacheComponents is enabled. Random bytes are a form of IO even if they resolve synchronously. When cacheComponents is
  * enabled we need to ensure that random bytes are excluded from prerenders unless they are cached.
  *
  *
  * The extensions here never error nor alter the underlying return values and thus should be transparent to callers.
  */
 
-import { io } from './utils'
+import { io } from './io-utils'
 
 let webCrypto: typeof crypto
 if (process.env.NEXT_RUNTIME === 'edge') {
@@ -31,7 +31,7 @@ try {
   }
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }
 
@@ -44,6 +44,6 @@ try {
   } as typeof _randomUUID
 } catch {
   console.error(
-    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+    `Failed to install ${getRandomValuesExpression} extension. When using \`cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
   )
 }

@@ -1,9 +1,9 @@
-use std::{mem::take, sync::LazyLock};
+use std::mem::take;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     base::SwcComments,
     common::{
         DUMMY_SP, Span, Spanned,
@@ -24,21 +24,23 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{AstModifier, CodeGen, CodeGeneration},
     utils::AstPathRange,
 };
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
-
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
 pub struct Unreachable {
     range: AstPathRange,
 }
 
-static UNREACHABLE_ATOM: LazyLock<Atom> = LazyLock::new(|| "TURBOPACK unreachable".into());
-
+fn unreachable_atom() -> Atom {
+    atom!("TURBOPACK unreachable")
+}
 struct UnreachableModifier {
     comments: SwcComments,
 }
@@ -51,7 +53,7 @@ impl AstModifier for UnreachableModifier {
 
         *node = Expr::Lit(Lit::Str(Str {
             span,
-            value: UNREACHABLE_ATOM.clone(),
+            value: unreachable_atom().into(),
             raw: None,
         }));
     }
@@ -66,7 +68,7 @@ impl AstModifier for UnreachableModifier {
             Comment {
                 kind: CommentKind::Line,
                 span: DUMMY_SP,
-                text: UNREACHABLE_ATOM.clone(),
+                text: unreachable_atom(),
             },
         );
 
@@ -113,7 +115,7 @@ impl UnreachableRangeModifier {
                 Comment {
                     kind: CommentKind::Line,
                     span: DUMMY_SP,
-                    text: UNREACHABLE_ATOM.clone(),
+                    text: unreachable_atom(),
                 },
             );
 
@@ -139,7 +141,6 @@ impl Unreachable {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();

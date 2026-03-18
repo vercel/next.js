@@ -1,12 +1,16 @@
 ---
-title: Cannot access Request information or uncached data in `generateMetadata()` in an otherwise entirely static route
+title: Cannot access Runtime data or uncached data in `generateMetadata()` or file-based Metadata in an otherwise entirely static route
 ---
 
 ## Why This Error Occurred
 
-When `dynamicIO` is enabled, Next.js requires that `generateMetadata()` not depend on uncached data or Request data unless some other part of the page also has similar requirements. The reason for this is that while you normally control your intention for what is allowed to be dynamic by adding or removing Suspense boundaries in your Layout and Page components you are not in control of rendering metadata itself.
+When `cacheComponents` is enabled, Next.js requires that Document Metadata not depend on uncached data or Runtime data (`cookies()`, `headers()`, `params`, `searchParams`) unless some other part of the page also has similar requirements.
 
-The heuristic Next.js uses to understand your intent with `generateMetadata()` is to look at the data requirements of the rest of the route. If other components depend on Request data or uncached data, then we allow `generateMetadata()` to have similar data requirements. If the rest of your page has no dependence on this type of data, we require that `generateMetadata()` also not have this type of data dependence.
+Next.js determines if a page is entirely static or partially static by looking at whether any part of the page cannot be prerendered.
+
+You control which parts of a page can be prerendered by adding `"use cache"` to components or data functions and by avoiding Runtime data like `cookies()` or `searchParams`. Metadata, though, can be defined in functions (`generateMetadata()`) far from your Page content. It can also implicitly depend on Runtime data when using file-based Metadata such as an icon inside a route with a dynamic param. This makes it easy for Metadata to accidentally make an otherwise entirely static page partially dynamic.
+
+To prevent unwanted partially dynamic pages, Next.js expects pages that are otherwise entirely prerenderable to also have prerenderable Metadata.
 
 ## Possible Ways to Fix It
 
@@ -76,7 +80,7 @@ export default async function Page() {
 
 ### If you must access Request Data or your external data is uncacheable
 
-If your metadata requires Request data or depends on external data which is not cacheable then Next.js will need to render this page dynamically on every request. However if you got this error, the rest of your page is able to be completely static. This is generally pretty rare, but if this is your actual constraint, you can indicate to Next.js that the page should be allowed to be dynamic by rendering any other component that is dynamic. Since your route doesn't have any genuine need for Request data, you can indicate an intentional dependency on a Request with `await connection()`. This is like telling Next.js that this component is never prerenderable and must be rendered on every user request.
+If your metadata requires Request data or depends on external data that is not cacheable, Next.js will need to render this page dynamically on every request. That said, if you got this error, the rest of your page is able to be completely static. This is generally pretty rare, but if this is your actual constraint, you can indicate to Next.js that the page should be allowed to be dynamic by rendering any other component that is dynamic. Since your route doesn't have any genuine need for Request data, you can indicate an intentional dependency on a Request with `await connection()`. This is like telling Next.js that this component is never prerenderable and must be rendered on every user request.
 
 Before:
 
@@ -87,7 +91,7 @@ import { getPersonalizedTitle } from './my-api'
 export async function generateMetadata() {
   // In this example, we are assuming we must fetch our title
   // from a protected external API. While the response is potentially
-  // cacheable, the it still requires accessing a token from the Request cookies.
+  // cacheable, it still requires accessing a token from the Request cookies.
   const token = (await cookies()).get('token')
   const response = await getPersonalizedTitle(token)
   return {
@@ -141,7 +145,7 @@ export default function Page() {
 }
 ```
 
-Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered. When Partial Prerendering is enabled alongside `dynamicIO`, the static shell will still contain all of the prerenderable content, and only the metadata will stream in dynamically.
+Note: The reason to structure this `DynamicMarker` as a self-contained Suspense boundary is to avoid blocking the actual content of the page from being prerendered.
 
 ## Useful Links
 

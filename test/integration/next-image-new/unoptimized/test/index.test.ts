@@ -21,16 +21,16 @@ function runTests(url: string, mode: 'dev' | 'server') {
     const browser = await webdriver(appPort, url)
     expect(
       await browser.elementById('internal-image').getAttribute('src')
-    ).toBe('/test.png')
+    ).toMatch(/\/test.png(\?dpl=.*)?/)
     expect(
       await browser.elementById('static-image').getAttribute('src')
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
     ).toBe('https://image-optimization-test.vercel.app/test.jpg')
-    expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
-      '/test.webp'
-    )
+    expect(
+      await browser.elementById('eager-image').getAttribute('src')
+    ).toMatch(/\/test.webp(\?dpl=.*)?/)
 
     expect(
       await browser.elementById('internal-image').getAttribute('srcset')
@@ -66,16 +66,16 @@ function runTests(url: string, mode: 'dev' | 'server') {
 
     expect(
       await browser.elementById('internal-image').getAttribute('src')
-    ).toBe('/test.png')
+    ).toMatch(/\/test.png(\?dpl=.*)?/)
     expect(
       await browser.elementById('static-image').getAttribute('src')
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
     ).toBe('https://image-optimization-test.vercel.app/test.jpg')
-    expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
-      '/test.webp'
-    )
+    expect(
+      await browser.elementById('eager-image').getAttribute('src')
+    ).toMatch(/\/test.webp(\?dpl=.*)?/)
 
     expect(
       await browser.elementById('internal-image').getAttribute('srcset')
@@ -100,24 +100,34 @@ function runTests(url: string, mode: 'dev' | 'server') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
-          localPatterns: undefined,
-          minimumCacheTTL: 60,
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
+          minimumCacheTTL: 14400,
           path: '/_next/image',
-          qualities: undefined,
+          qualities: [75],
           sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
-            128, 256, 384,
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
           ],
           unoptimized: true,
+          customCacheHandler: false,
         },
       })
     })

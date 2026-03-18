@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 import { findPort, nextBuild } from 'next-test-utils'
 import { isNextStart } from 'e2e-utils'
 import { server } from './server.mjs'
@@ -22,7 +22,10 @@ describe('segment cache (output: "export")', () => {
 
   beforeAll(async () => {
     const appDir = __dirname
-    await nextBuild(appDir, undefined, { cwd: appDir })
+    await nextBuild(appDir, undefined, {
+      cwd: appDir,
+      disableAutoSkewProtection: true,
+    })
     port = await findPort()
     server.listen(port)
   })

@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { type LinkProps } from 'next/link'
 import { useState } from 'react'
 
 export function LinkAccordion({
@@ -10,7 +10,7 @@ export function LinkAccordion({
 }: {
   href: string
   children: React.ReactNode
-  prefetch?: boolean
+  prefetch?: LinkProps['prefetch']
 }) {
   const [isVisible, setIsVisible] = useState(false)
   return (

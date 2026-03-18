@@ -9,6 +9,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
@@ -16,7 +24,7 @@ use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, new_atom},
+    dynamic::{deref_from, hash_bytes, new_atom},
     tagged_value::TaggedValue,
 };
 
@@ -37,7 +45,7 @@ mod tagged_value;
 ///
 /// ## Conversion
 ///
-/// Converting a `String` or `&str` to an `RcStr` can be perfomed using `.into()`,
+/// Converting a `String` or `&str` to an `RcStr` can be performed using `.into()`,
 /// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
@@ -70,33 +78,59 @@ pub struct RcStr {
     unsafe_data: TaggedValue,
 }
 
+const _: () = {
+    // Enforce that RcStr triggers the non-zero size optimization.
+    assert!(std::mem::size_of::<RcStr>() == std::mem::size_of::<Option<RcStr>>());
+};
+
 unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
+// Marks a payload that is stored in an Arc
 const DYNAMIC_TAG: u8 = 0b_00;
+const PREHASHED_STRING_LOCATION: u8 = 0b_0;
+// Marks a payload that has been leaked since it has a static lifetime
+const STATIC_TAG: u8 = 0b_10;
+// The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
+const INLINE_LOCATION: u8 = 0b_1;
 const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
+const LOCATION_MASK: u8 = 0b_1;
+// For inline tags the length is stored in the upper 4 bits of the tag byte
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
     #[inline(always)]
     fn tag(&self) -> u8 {
-        self.unsafe_data.tag() & TAG_MASK
+        self.unsafe_data.tag_byte() & TAG_MASK
+    }
+    #[inline(always)]
+    fn location(&self) -> u8 {
+        self.unsafe_data.tag_byte() & LOCATION_MASK
     }
 
     #[inline(never)]
     pub fn as_str(&self) -> &str {
-        match self.tag() {
-            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() },
-            INLINE_TAG => {
-                let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
-                let src = self.unsafe_data.data();
-                unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-            }
+        match self.location() {
+            PREHASHED_STRING_LOCATION => self.prehashed_string_as_str(),
+            INLINE_LOCATION => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
+    }
+
+    fn inline_as_str(&self) -> &str {
+        debug_assert!(self.location() == INLINE_LOCATION);
+        let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
+        let src = self.unsafe_data.data();
+        unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
+    }
+
+    // Extract the str reference from a string stored in a PrehashedString
+    fn prehashed_string_as_str(&self) -> &str {
+        debug_assert!(self.location() == PREHASHED_STRING_LOCATION);
+        unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
     /// Returns an owned mutable [`String`].
@@ -112,30 +146,18 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v.value,
-                    Err(arc) => arc.value.to_string(),
+                    Ok(v) => v.value.into_string(),
+                    Err(arc) => arc.value.as_str().to_string(),
                 }
             }
-            INLINE_TAG => self.as_str().to_string(),
+            INLINE_TAG => self.inline_as_str().to_string(),
+            STATIC_TAG => self.prehashed_string_as_str().to_string(),
             _ => unsafe { debug_unreachable!() },
         }
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
         RcStr::from(Cow::Owned(f(self.into_owned())))
-    }
-
-    #[inline]
-    pub(crate) fn from_alias(alias: TaggedValue) -> Self {
-        if alias.tag() & TAG_MASK == DYNAMIC_TAG {
-            unsafe {
-                let arc = dynamic::restore_arc(alias);
-                forget(arc.clone());
-                forget(arc);
-            }
-        }
-
-        Self { unsafe_data: alias }
     }
 }
 
@@ -157,6 +179,22 @@ impl Deref for RcStr {
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
         self.as_str()
+    }
+}
+
+impl AsRef<str> for RcStr {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl From<BytesStr> for RcStr {
+    fn from(s: BytesStr) -> Self {
+        let bytes: Vec<u8> = s.into_bytes().into();
+        RcStr::from(unsafe {
+            // Safety: BytesStr are valid utf-8
+            String::from_utf8_unchecked(bytes)
+        })
     }
 }
 
@@ -208,6 +246,12 @@ impl AsRef<[u8]> for RcStr {
     }
 }
 
+impl From<RcStr> for BytesStr {
+    fn from(value: RcStr) -> Self {
+        Self::from_str_slice(value.as_str())
+    }
+}
+
 impl PartialEq<str> for RcStr {
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
@@ -253,7 +297,18 @@ impl From<RcStr> for PathBuf {
 impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
-        Self::from_alias(self.unsafe_data)
+        let alias = self.unsafe_data;
+        // We only need to increment the ref count for DYNAMIC_TAG values
+        // For STATIC_TAG and INLINE_TAG we can just copy the value.
+        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+            unsafe {
+                let arc = dynamic::restore_arc(alias);
+                forget(arc.clone());
+                forget(arc);
+            }
+        }
+
+        RcStr { unsafe_data: alias }
     }
 }
 
@@ -265,13 +320,20 @@ impl Default for RcStr {
 
 impl PartialEq for RcStr {
     fn eq(&self, other: &Self) -> bool {
-        match (self.tag(), other.tag()) {
-            (DYNAMIC_TAG, DYNAMIC_TAG) => {
+        // For inline RcStrs this is sufficient and for out of line values it handles a simple
+        // identity cases
+        if self.unsafe_data == other.unsafe_data {
+            return true;
+        }
+        // They can still be equal if they are both stored on the heap
+        match (self.location(), other.location()) {
+            (PREHASHED_STRING_LOCATION, PREHASHED_STRING_LOCATION) => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 let r = unsafe { deref_from(other.unsafe_data) };
                 l.hash == r.hash && l.value == r.value
             }
-            (INLINE_TAG, INLINE_TAG) => self.unsafe_data == other.unsafe_data,
+            // NOTE: it is never possible for an inline storage string to compare equal to a dynamic
+            // allocated string, the construction routines separate the strings based on length.
             _ => false,
         }
     }
@@ -293,14 +355,14 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.tag() {
-            DYNAMIC_TAG => {
+        match self.location() {
+            PREHASHED_STRING_LOCATION => {
                 let l = unsafe { deref_from(self.unsafe_data) };
                 state.write_u64(l.hash);
-                state.write_u8(0xff);
+                state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
-            INLINE_TAG => {
-                self.as_str().hash(state);
+            INLINE_LOCATION => {
+                self.inline_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
         }
@@ -320,17 +382,55 @@ impl<'de> Deserialize<'de> for RcStr {
     }
 }
 
+impl Encode for RcStr {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.as_str().encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for RcStr {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(RcStr::from(String::decode(decoder)?))
+    }
+}
+
+impl_borrow_decode!(RcStr);
+
 impl Drop for RcStr {
     fn drop(&mut self) {
-        if self.tag() == DYNAMIC_TAG {
-            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
+        match self.tag() {
+            DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
+            STATIC_TAG => {
+                // do nothing, these are never deallocated
+            }
+            INLINE_TAG => {
+                // do nothing, these payloads need no drop logic
+            }
+            _ => unsafe { debug_unreachable!() },
         }
     }
 }
 
+// Exports for our macro
 #[doc(hidden)]
 pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
+}
+
+#[doc(hidden)]
+#[inline(always)]
+pub fn from_static(s: &'static PrehashedString) -> RcStr {
+    dynamic::new_static_atom(s)
+}
+#[doc(hidden)]
+pub use dynamic::PrehashedString;
+
+#[doc(hidden)]
+pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString {
+    PrehashedString {
+        value: dynamic::Payload::Ref(text),
+        hash: hash_bytes(text.as_bytes()),
+    }
 }
 
 /// Create an rcstr from a string literal.
@@ -339,16 +439,17 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 macro_rules! rcstr {
     ($s:expr) => {{
         const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
-        // this condition should be able to be compile time evaluated and inlined.
+        // This condition can be compile time evaluated and inlined.
         if INLINE.is_some() {
             INLINE.unwrap()
         } else {
-            #[inline(never)]
             fn get_rcstr() -> $crate::RcStr {
-                static CACHE: std::sync::LazyLock<$crate::RcStr> =
-                    std::sync::LazyLock::new(|| $crate::RcStr::from($s));
-
-                (*CACHE).clone()
+                // Allocate static storage for the PrehashedString
+                static RCSTR_STORAGE: $crate::PrehashedString =
+                    $crate::make_const_prehashed_string($s);
+                // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
+                // should be fast enough to do every time.
+                $crate::from_static(&RCSTR_STORAGE)
             }
             get_rcstr()
         }
@@ -361,7 +462,10 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
-#[cfg(feature = "napi")]
+#[cfg(all(feature = "napi", target_family = "wasm"))]
+compile_error!("The napi feature cannot be enabled for wasm targets");
+
+#[cfg(all(feature = "napi", not(target_family = "wasm")))]
 mod napi_impl {
     use napi::{
         bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},
@@ -447,6 +551,15 @@ mod tests {
     }
 
     #[test]
+    fn test_static_atom() {
+        const LONG: &str = "a very long string that lives forever";
+        let leaked = rcstr!(LONG);
+        let not_leaked = RcStr::from(LONG);
+        assert_ne!(leaked.tag(), not_leaked.tag());
+        assert_eq!(leaked, not_leaked);
+    }
+
+    #[test]
     fn test_inline_atom() {
         // This is a silly test, just asserts that we can evaluate this in a constant context.
         const STR: RcStr = {
@@ -458,5 +571,57 @@ mod tests {
             }
         };
         assert_eq!(STR, RcStr::from("hello"));
+    }
+
+    #[test]
+    fn test_hash_matches_str() {
+        use std::hash::{Hash, Hasher};
+
+        use rustc_hash::FxHasher;
+
+        fn fxhash<T: Hash>(value: T) -> u64 {
+            let mut hasher = FxHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        }
+
+        // Test various string lengths covering inline and prehashed storage
+        let test_strings = [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "abcdef",  // max inline (6 chars)
+            "abcdefg", // just beyond inline (7 chars)
+            "abcdefgh",
+            "a very long string that exceeds sixteen bytes",
+        ];
+
+        // Test RcStr vs &str
+        for s in test_strings {
+            let rcstr = RcStr::from(s);
+            assert_eq!(
+                fxhash(&rcstr),
+                fxhash(s),
+                "Hash mismatch for string of length {}: {:?}",
+                s.len(),
+                s
+            );
+        }
+
+        // Test (RcStr, RcStr) vs (&str, &str)
+        for s1 in test_strings {
+            for s2 in test_strings {
+                let rcstr1 = RcStr::from(s1);
+                let rcstr2 = RcStr::from(s2);
+                assert_eq!(
+                    fxhash((&rcstr1, &rcstr2)),
+                    fxhash((s1, s2)),
+                    "Tuple hash mismatch for ({:?}, {:?})",
+                    s1,
+                    s2
+                );
+            }
+        }
     }
 }

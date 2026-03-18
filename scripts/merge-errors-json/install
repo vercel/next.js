@@ -1,0 +1,4 @@
+#!/bin/sh
+driver_name='errors-json'
+git config merge."$driver_name".name 'Automatically merge packages/next/errors.json'
+git config merge."$driver_name".driver 'node scripts/merge-errors-json/merge.mjs %A %O %B'

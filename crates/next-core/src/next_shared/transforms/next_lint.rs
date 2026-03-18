@@ -6,9 +6,14 @@ use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
+use crate::next_shared::transforms::EcmascriptTransformStage;
 
 pub fn get_next_lint_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
-    get_ecma_transform_rule(Box::new(LintTransformer {}), enable_mdx_rs, true)
+    get_ecma_transform_rule(
+        Box::new(LintTransformer {}),
+        enable_mdx_rs,
+        EcmascriptTransformStage::Preprocess,
+    )
 }
 
 #[derive(Debug)]

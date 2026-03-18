@@ -12,7 +12,7 @@ use anyhow::Result;
 /// information must be computed in the top-level crate for cargo incremental compilation to work
 /// correctly.
 ///
-/// See `crates/napi/build.rs` for details.
+/// See `crates/next-napi-bindings/build.rs` for details.
 pub struct GitVersionInfo<'a> {
     /// Output of `git describe --match 'v[0-9]' --dirty`.
     pub describe: &'a str,
@@ -33,9 +33,9 @@ const DELETION_PREFIX: &str = "__stale_";
 /// Given a base path, creates a version directory for the given `version_info`. Automatically
 /// cleans up old/stale databases.
 ///
-/// **Envrionment Variables**
+/// **Environment Variables**
 /// - `TURBO_ENGINE_VERSION`: Forces use of a specific database version.
-/// - `TURBO_ENGINE_IGNORE_DIRTY`: Enable persistent caching in a dirty git repository. Otherwise a
+/// - `TURBO_ENGINE_IGNORE_DIRTY`: Enable filesystem cache in a dirty git repository. Otherwise a
 ///   temporary directory is created.
 /// - `TURBO_ENGINE_DISABLE_VERSIONING`: Ignores versioning and always uses the same "unversioned"
 ///   database when set.
@@ -51,7 +51,7 @@ pub fn handle_db_versioning(
     let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
     let version = if disabled_versioning {
         println!(
-            "WARNING: Persistent Caching versioning is disabled. Manual removal of the persistent \
+            "WARNING: File System Cache versioning is disabled. Manual removal of the filesystem \
              caching database might be required."
         );
         Some("unversioned")
@@ -59,14 +59,14 @@ pub fn handle_db_versioning(
         Some(version_info.describe)
     } else if ignore_dirty {
         println!(
-            "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
-             Manual removal of the persistent caching database might be required."
+            "WARNING: The git repository is dirty, but File System Cache is still enabled. Manual \
+             removal of the filesystem cache database might be required."
         );
         Some(version_info.describe)
     } else {
         println!(
-            "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
-             TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtyness of the repository."
+            "WARNING: The git repository is dirty: File System Cache is disabled. Use \
+             TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtiness of the repository."
         );
         None
     };
@@ -143,8 +143,11 @@ pub fn handle_db_versioning(
         }
     } else {
         path = base_path.join("temp");
-        // propagate errors: if this fails we may have stale files left over in the temp directory
-        remove_dir_all(&path)?;
+        if path.exists() {
+            // propagate errors: if this fails we may have stale files left over in the temp
+            // directory
+            remove_dir_all(&path)?;
+        }
     }
 
     Ok(path)

@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -14,33 +14,31 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        MinifyType, ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
+    reference_type::CommonJsReferenceSubType,
+    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     EcmascriptChunkPlaceable,
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
-    },
+    chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -54,29 +52,31 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub(crate) enum DirListEntry {
-    File(ResolvedVc<FileSystemPath>),
+    File(FileSystemPath),
     Dir(ResolvedVc<DirList>),
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
+pub(crate) struct DirList(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, DirListEntry>,
+);
 
 #[turbo_tasks::value_impl]
 impl DirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
-        Self::read_internal(dir, dir, recursive, filter)
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
+        Self::read_internal(dir.clone(), dir, recursive, filter)
     }
 
     #[turbo_tasks::function]
     pub(crate) async fn read_internal(
-        root: Vc<FileSystemPath>,
-        dir: Vc<FileSystemPath>,
+        root: FileSystemPath,
+        dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
     ) -> Result<Vc<Self>> {
-        let root_val = &root.await?;
-        let dir_val = &dir.await?;
+        let root_val = root.clone();
+        let dir_val = dir.clone();
         let regex = &filter.await?;
 
         let mut list = FxIndexMap::default();
@@ -90,20 +90,25 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?)
+                    if let Some(relative_path) = root_val.get_relative_path_to(path)
                         && regex.is_match(&relative_path)
                     {
-                        list.insert(relative_path, DirListEntry::File(*path));
+                        list.insert(relative_path, DirListEntry::File(path.clone()));
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
-                    if let Some(relative_path) = dir_val.get_relative_path_to(&*path.await?) {
+                    if let Some(relative_path) = dir_val.get_relative_path_to(path) {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(
-                                DirList::read_internal(root, **path, recursive, filter)
-                                    .to_resolved()
-                                    .await?,
+                                DirList::read_internal(
+                                    root.clone(),
+                                    path.clone(),
+                                    recursive,
+                                    filter,
+                                )
+                                .to_resolved()
+                                .await?,
                             ),
                         );
                     }
@@ -130,7 +135,7 @@ impl DirList {
             for (k, entry) in &*dir {
                 match entry {
                     DirListEntry::File(path) => {
-                        list.insert(k.clone(), *path);
+                        list.insert(k.clone(), path.clone());
                     }
                     DirListEntry::Dir(d) => {
                         queue.push_back(d.await?);
@@ -144,12 +149,14 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(FxIndexMap<RcStr, ResolvedVc<FileSystemPath>>);
+pub(crate) struct FlatDirList(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FileSystemPath>,
+);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
     #[turbo_tasks::function]
-    pub(crate) fn read(dir: Vc<FileSystemPath>, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
+    pub(crate) fn read(dir: FileSystemPath, recursive: bool, filter: Vc<EsRegex>) -> Vc<Self> {
         DirList::read(dir, recursive, filter).flatten()
     }
 }
@@ -164,36 +171,44 @@ pub struct RequireContextMapEntry {
 
 /// The resolved context map for a `require.context(..)` call.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(FxIndexMap<RcStr, RequireContextMapEntry>);
+pub struct RequireContextMap(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RequireContextMapEntry>,
+);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin: Vc<Box<dyn ResolveOrigin>>,
-        dir: Vc<FileSystemPath>,
+        dir: FileSystemPath,
         recursive: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        is_optional: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = &*origin.origin_path().parent().await?;
+        let origin_path = origin.origin_path().await?.parent();
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) else {
+            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
             let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
-            let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
-                .to_resolved()
-                .await?;
+            let result = cjs_resolve(
+                origin,
+                *request,
+                CommonJsReferenceSubType::Undefined,
+                issue_source,
+                error_mode,
+            )
+            .to_resolved()
+            .await?;
 
             map.insert(
                 context_relative.clone(),
@@ -212,14 +227,25 @@ impl RequireContextMap {
 /// A reference for `require.context()`, will replace it with an inlined map
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
 pub struct RequireContextAssetReference {
     pub inner: ResolvedVc<RequireContextAsset>,
     pub dir: RcStr,
     pub include_subdirs: bool,
 
     pub issue_source: Option<IssueSource>,
-    pub in_try: bool,
+    pub error_mode: ResolveErrorMode,
+}
+
+impl std::fmt::Display for RequireContextAssetReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "require.context {}/{}",
+            self.dir,
+            if self.include_subdirs { "**" } else { "*" },
+        )
+    }
 }
 
 impl RequireContextAssetReference {
@@ -230,15 +256,15 @@ impl RequireContextAssetReference {
         include_subdirs: bool,
         filter: Vc<EsRegex>,
         issue_source: Option<IssueSource>,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
-            origin.origin_path().parent().join(dir.clone()),
+            origin.origin_path().await?.parent().join(&dir)?,
             include_subdirs,
             filter,
-            issue_source.clone(),
-            in_try,
+            issue_source,
+            error_mode,
         )
         .to_resolved()
         .await?;
@@ -257,7 +283,7 @@ impl RequireContextAssetReference {
             dir,
             include_subdirs,
             issue_source,
-            in_try,
+            error_mode,
         })
     }
 }
@@ -268,25 +294,14 @@ impl ModuleReference for RequireContextAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for RequireContextAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(
-            format!(
-                "require.context {}/{}",
-                self.dir,
-                if self.include_subdirs { "**" } else { "*" },
-            )
-            .into(),
-        )
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for RequireContextAssetReference {}
 
 impl IntoCodeGenReference for RequireContextAssetReference {
     fn into_code_gen_reference(
@@ -304,7 +319,9 @@ impl IntoCodeGenReference for RequireContextAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
     reference: ResolvedVc<RequireContextAssetReference>,
@@ -313,34 +330,39 @@ pub struct RequireContextAssetReferenceCodeGen {
 impl RequireContextAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let module_id = self
             .reference
             .await?
             .inner
-            .chunk_item_id(Vc::upcast(chunking_context))
+            .chunk_item_id(chunking_context)
             .await?;
 
         let mut visitors = Vec::new();
 
-        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
-            if let Expr::Call(_) = expr {
-                *expr = quote!(
-                    "$turbopack_module_context($turbopack_require($id))" as Expr,
-                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
-                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                    id: Expr = module_id_to_lit(&module_id)
-                );
+        visitors.push(create_visitor!(
+            self.path,
+            visit_mut_expr,
+            |expr: &mut Expr| {
+                if let Expr::Call(_) = expr {
+                    *expr = quote!(
+                        "$turbopack_module_context($turbopack_require($id))" as Expr,
+                        turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
+                        turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
+                        id: Expr = module_id_to_lit(&module_id)
+                    );
+                }
             }
-        }));
+        ));
 
         Ok(CodeGeneration::visitors(visitors))
     }
 }
 
 #[turbo_tasks::value(transparent)]
+#[derive(ValueToString)]
+#[value_to_string("resolved reference")]
 pub struct ResolvedModuleReference(ResolvedVc<ModuleResolveResult>);
 
 #[turbo_tasks::value_impl]
@@ -349,18 +371,14 @@ impl ModuleReference for ResolvedModuleReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         *self.0
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ResolvedModuleReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("resolved reference"))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ResolvedModuleReference {}
 
 #[turbo_tasks::value]
 pub struct RequireContextAsset {
@@ -392,6 +410,11 @@ impl Module for RequireContextAsset {
     }
 
     #[turbo_tasks::function]
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let map = &*self.map.await?;
 
@@ -403,36 +426,22 @@ impl Module for RequireContextAsset {
                 .collect(),
         ))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RequireContextAsset {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unimplemented!()
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for RequireContextAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let this = self.await?;
-        Ok(Vc::upcast(
-            RequireContextChunkItem {
-                module_graph,
-                chunking_context,
-                inner: self,
-
-                origin: this.origin,
-                map: this.map,
-            }
-            .cell(),
-        ))
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -442,24 +451,17 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
-}
 
-#[turbo_tasks::value]
-pub struct RequireContextChunkItem {
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    inner: ResolvedVc<RequireContextAsset>,
-
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    map: ResolvedVc<RequireContextMap>,
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn chunk_item_content(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
-        let minify = self.chunking_context.minify_type().await?;
+        let minify = chunking_context.minify_type().await?;
 
         let mut context_map = ObjectLit {
             span: DUMMY_SP,
@@ -470,7 +472,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *ResolvedVc::upcast(self.chunking_context),
+                chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
             )
@@ -536,30 +538,5 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             ..Default::default()
         }
         .cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for RequireContextChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.inner.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        *ResolvedVc::upcast(self.inner)
     }
 }

@@ -2,8 +2,9 @@
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import url from 'node:url'
 import execa from 'execa'
-import { NEXT_DIR, logCommand, execFn } from './pack-util'
+import { NEXT_DIR, logCommand } from './pack-util'
 
 const nextSwcDir = path.join(NEXT_DIR, 'packages/next-swc')
 
@@ -24,14 +25,11 @@ export default async function buildNative(
     stdio: 'inherit',
   })
 
-  await execFn(
-    'Copy generated types to `next/src/build/swc/generated-native.d.ts`',
-    () => writeTypes()
-  )
+  await writeTypes()
 }
 
 // Check if this file is being run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === url.pathToFileURL(process.argv[1]).toString()) {
   buildNative(process.argv.slice(2)).catch((err) => {
     console.error(err)
     process.exit(1)
@@ -55,17 +53,31 @@ async function writeTypes() {
   const generatedTypes = await fs.readFile(generatedTypesPath, 'utf8')
   let vendoredTypes = await fs.readFile(vendoredTypesPath, 'utf8')
 
+  const existingContent = vendoredTypes
   vendoredTypes = vendoredTypes.split(generatedTypesMarker)[0]
   vendoredTypes =
     vendoredTypes + generatedTypesMarker + generatedNotice + generatedTypes
 
-  await fs.writeFile(vendoredTypesPath, vendoredTypes)
-
-  const prettifyCommand = ['prettier', '--write', vendoredTypesPath]
+  const prettifyCommand = ['prettier', '--stdin-filepath', vendoredTypesPath]
   logCommand('Prettify generated types', prettifyCommand)
-  await execa(prettifyCommand[0], prettifyCommand.slice(1), {
-    cwd: NEXT_DIR,
-    stdio: 'inherit',
-    preferLocal: true,
-  })
+  const prettierResult = await execa(
+    prettifyCommand[0],
+    prettifyCommand.slice(1),
+    {
+      cwd: NEXT_DIR,
+      input: vendoredTypes,
+      preferLocal: true,
+    }
+  )
+  vendoredTypes = prettierResult.stdout
+  if (!vendoredTypes.endsWith('\n')) {
+    vendoredTypes += '\n'
+  }
+
+  if (vendoredTypes === existingContent) {
+    return
+  }
+
+  logCommand('Write generated types', `write file`)
+  await fs.writeFile(vendoredTypesPath, vendoredTypes)
 }

@@ -73,7 +73,7 @@ pub enum TraceRow<'a> {
     Allocation {
         /// Timestamp
         ts: u64,
-        /// The thread id of the thread where allocations happend.
+        /// The thread id of the thread where allocations happened.
         thread_id: u64,
         /// Allocations
         allocations: u64,
@@ -89,7 +89,7 @@ pub enum TraceRow<'a> {
     AllocationCounters {
         /// Timestamp
         ts: u64,
-        /// The thread id of the thread where allocations happend.
+        /// The thread id of the thread where allocations happened.
         thread_id: u64,
         /// Allocations
         allocations: u64,
@@ -99,6 +99,13 @@ pub enum TraceRow<'a> {
         deallocations: u64,
         /// Deallocation count
         deallocation_count: u64,
+    },
+    /// A snapshot of the process memory usage at a point in time.
+    MemorySample {
+        /// Timestamp
+        ts: u64,
+        /// Memory usage in bytes (from TurboMalloc::memory_usage())
+        memory: u64,
     },
 }
 

@@ -2,25 +2,27 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::atom,
     common::{FileName, Mark},
     ecma::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
 use testing::fixture;
+use turbo_rcstr::rcstr;
 
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
@@ -88,24 +90,35 @@ fn next_ssg_errors(input: PathBuf) {
 }
 
 #[fixture("tests/errors/react-server-components/**/input.js")]
+#[fixture("tests/errors/react-server-components/**/page.js")]
+#[fixture("tests/errors/react-server-components/**/route.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
-    let dynamic_io_enabled = input.iter().any(|s| s.to_str() == Some("dynamic-io"));
+    let cache_components_enabled = input.iter().any(|s| s.to_str() == Some("cache-components"));
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
+    let taint_enabled = input.iter().any(|s| s.to_str() == Some("taint-enabled"));
+
+    let app_dir = input
+        .iter()
+        .position(|s| s.to_str() == Some("app-dir"))
+        .map(|pos| input.iter().take(pos + 1).collect());
+
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
-                FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
+                FileName::Real(input.clone()).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
-                    dynamic_io_enabled,
+                    cache_components_enabled,
                     use_cache_enabled,
+                    taint_enabled,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
-                None,
+                app_dir.clone(),
             )
         },
         &input,
@@ -125,8 +138,11 @@ fn next_font_loaders_errors(input: PathBuf) {
         syntax(),
         &|_tr| {
             next_font_loaders(FontLoaderConfig {
-                relative_file_path_from_root: "pages/test.tsx".into(),
-                font_loaders: vec!["@next/font/google".into(), "cool-fonts".into()],
+                relative_file_path_from_root: atom!("pages/test.tsx"),
+                font_loaders: vec![
+                    atom!("@next/font/google").into(),
+                    atom!("cool-fonts").into(),
+                ],
             })
         },
         &input,
@@ -147,14 +163,19 @@ fn react_server_actions_errors(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                resolver(unresolved_mark, Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer,
-                        dynamic_io_enabled: true,
+                        cache_components_enabled: true,
                         use_cache_enabled: true,
+                        taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -170,6 +191,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
@@ -211,14 +233,19 @@ fn use_cache_not_allowed(input: PathBuf) {
     test_fixture(
         syntax(),
         &|tr| {
+            let unresolved_mark = Mark::new();
             (
-                resolver(Mark::new(), Mark::new(), false),
+                // The transforms are intentionally declared in the same order as in
+                // crates/next-custom-transforms/src/chain_transforms.rs
+                resolver(unresolved_mark, Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: false,
+                        cache_components_enabled: false,
                         use_cache_enabled: false,
+                        taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -231,9 +258,10 @@ fn use_cache_not_allowed(input: PathBuf) {
                         is_development: true,
                         use_cache_enabled: false,
                         hash_salt: "".into(),
-                        cache_kinds: FxHashSet::from_iter(["x".into()]),
+                        cache_kinds: FxHashSet::from_iter([rcstr!("x")]),
                     },
                     tr.comments.as_ref().clone(),
+                    unresolved_mark,
                     tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,

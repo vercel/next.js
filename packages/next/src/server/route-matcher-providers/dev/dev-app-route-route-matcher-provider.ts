@@ -8,6 +8,7 @@ import { DevAppNormalizers } from '../../normalizers/built/app'
 import {
   isMetadataRouteFile,
   isStaticMetadataRoute,
+  isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
@@ -39,6 +40,11 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
+      // Skip static metadata files as they are served from filesystem.
+      if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
+        continue
+      }
+
       let page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
@@ -114,7 +120,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           matchers.push(matcher)
         }
       } else {
-        // Normal app routes and static metadata routes.
+        // Normal app routes.
         matchers.push(
           new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,

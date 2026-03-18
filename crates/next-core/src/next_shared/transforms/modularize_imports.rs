@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use modularize_imports::{Config, PackageConfig, modularize_imports};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
@@ -9,7 +10,7 @@ use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, trace::
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
-use super::module_rule_match_js_no_url;
+use crate::next_shared::transforms::module_rule_match_js_no_url;
 
 #[derive(
     Clone,
@@ -22,6 +23,8 @@ use super::module_rule_match_js_no_url;
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
@@ -43,6 +46,8 @@ pub struct ModularizeImportPackageConfig {
     TraceRawVcs,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 #[serde(untagged)]
 pub enum Transform {
@@ -63,8 +68,9 @@ pub fn get_next_modularize_imports_rule(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }
@@ -99,6 +105,7 @@ impl ModularizeImportsTransformer {
                                 skip_default_conversion: v.skip_default_conversion,
                                 handle_default_import: false,
                                 handle_namespace_import: false,
+                                style: None,
                             }),
                         )
                     })

@@ -1,7 +1,7 @@
-*arrow function 19* = (...) => false
+*arrow function 19* (const after eval) = (...) => false
 
-run = (...) => ("should not run" | "should run")
+run (const after eval) = (...) => ("should not run" | "should run")
 
-shouldRun = *arrow function 19*
+shouldRun (const after eval) = *arrow function 19*
 
 x = (true | undefined)

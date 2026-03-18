@@ -1,22 +1,29 @@
 use std::{
+    cell::SyncUnsafeCell,
     error::Error as StdError,
     fmt::{Debug, Display},
     future::Future,
     hash::{Hash, Hasher},
+    mem::ManuallyDrop,
     ops::Deref,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, LazyLock},
     task::{Context, Poll},
+    thread::available_parallelism,
     time::Duration,
 };
 
 use anyhow::{Error, anyhow};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
 use pin_project_lite::pin_project;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub use super::{
+pub use crate::{
     id_factory::{IdFactory, IdFactoryWithReuse},
-    no_move_vec::NoMoveVec,
     once_map::*,
 };
 
@@ -71,32 +78,33 @@ impl PartialEq for SharedError {
 
 impl Eq for SharedError {}
 
-impl Serialize for SharedError {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for SharedError {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         let mut v = vec![self.to_string()];
         let mut source = self.source();
         while let Some(s) = source {
             v.push(s.to_string());
             source = s.source();
         }
-        Serialize::serialize(&v, serializer)
+        Encode::encode(&v, encoder)
     }
 }
 
-impl<'de> Deserialize<'de> for SharedError {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let mut messages = <Vec<String>>::deserialize(deserializer)?;
-        let mut e = match messages.pop() {
-            Some(e) => anyhow!(e),
-            None => return Err(Error::custom("expected at least 1 error message")),
-        };
+impl<Context> Decode<Context> for SharedError {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let mut messages = <Vec<String>>::decode(decoder)?;
+        let msg = messages
+            .pop()
+            .ok_or(DecodeError::Other("expected at least 1 error message"))?;
+        let mut e = anyhow!(msg);
         while let Some(message) = messages.pop() {
             e = e.context(message);
         }
         Ok(SharedError::new(e))
     }
 }
+
+bincode::impl_borrow_decode!(SharedError);
 
 impl Deref for SharedError {
     type Target = Arc<Error>;
@@ -258,5 +266,168 @@ impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>>
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
         (this.wrapper)(this.future, cx)
+    }
+}
+
+/// Calculates a good chunk size for parallel processing based on the number of available threads.
+/// This is used to ensure that the workload is evenly distributed across the threads.
+pub fn good_chunk_size(len: usize) -> usize {
+    static GOOD_CHUNK_COUNT: LazyLock<usize> =
+        LazyLock::new(|| available_parallelism().map_or(16, |c| c.get() * 4));
+    let min_chunk_count = *GOOD_CHUNK_COUNT;
+    len.div_ceil(min_chunk_count)
+}
+
+/// Similar to slice::chunks but for owned data. Chunks are Send and Sync to allow to use it for
+/// parallelism.
+pub fn into_chunks<T>(data: Vec<T>, chunk_size: usize) -> IntoChunks<T> {
+    let (ptr, length, capacity) = data.into_raw_parts();
+    // SAFETY: changing a pointer from T to SyncUnsafeCell<ManuallyDrop<..>> is safe as both types
+    // have repr(transparent).
+    let ptr = ptr as *mut SyncUnsafeCell<ManuallyDrop<T>>;
+    // SAFETY: The ptr, length and capacity were from into_raw_parts(). This is the only place where
+    // we use ptr.
+    let data =
+        unsafe { Vec::<SyncUnsafeCell<ManuallyDrop<T>>>::from_raw_parts(ptr, length, capacity) };
+    IntoChunks {
+        data: Arc::new(data),
+        index: 0,
+        chunk_size,
+    }
+}
+
+pub struct IntoChunks<T> {
+    data: Arc<Vec<SyncUnsafeCell<ManuallyDrop<T>>>>,
+    index: usize,
+    chunk_size: usize,
+}
+
+impl<T> IntoChunks<T> {
+    pub fn len(&self) -> usize {
+        (self.data.len() - self.index).div_ceil(self.chunk_size)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.index >= self.data.len()
+    }
+}
+
+impl<T> Iterator for IntoChunks<T> {
+    type Item = Chunk<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.data.len() {
+            let end = self.data.len().min(self.index + self.chunk_size);
+            let item = Chunk {
+                data: Arc::clone(&self.data),
+                index: self.index,
+                end,
+            };
+            self.index = end;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> IntoChunks<T> {
+    fn next_item(&mut self) -> Option<T> {
+        if self.index < self.data.len() {
+            // SAFETY: We are the only owner of this chunk of data and we make sure that this item
+            // is no longer dropped by moving the index
+            let item = unsafe { ManuallyDrop::take(&mut *self.data[self.index].get()) };
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+}
+
+impl<T> Drop for IntoChunks<T> {
+    fn drop(&mut self) {
+        // To avoid leaking memory we need to drop the remaining items
+        while self.next_item().is_some() {}
+    }
+}
+
+pub struct Chunk<T> {
+    data: Arc<Vec<SyncUnsafeCell<ManuallyDrop<T>>>>,
+    index: usize,
+    end: usize,
+}
+
+impl<T> Iterator for Chunk<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < self.end {
+            // SAFETY: We are the only owner of this chunk of data and we make sure that this item
+            // is no longer dropped by moving the index
+            let item = unsafe { ManuallyDrop::take(&mut *self.data[self.index].get()) };
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<T> ExactSizeIterator for Chunk<T> {
+    fn len(&self) -> usize {
+        self.end - self.index
+    }
+}
+
+impl<T> Drop for Chunk<T> {
+    fn drop(&mut self) {
+        // To avoid leaking memory we need to drop the remaining items
+        while self.next().is_some() {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_into_chunks_len() {
+        assert_eq!(into_chunks::<i32>(vec![], 2).len(), 0);
+        assert_eq!(into_chunks(vec![1], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2], 2).len(), 1);
+        assert_eq!(into_chunks(vec![1, 2, 3], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4], 2).len(), 2);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6], 2).len(), 3);
+        assert_eq!(into_chunks(vec![1, 2, 3, 4, 5, 6, 7], 2).len(), 4);
+    }
+
+    #[test]
+    fn test_chunk_iterator() {
+        let data = [(); 10]
+            .into_iter()
+            .enumerate()
+            .map(|(i, _)| Arc::new(i))
+            .collect::<Vec<_>>();
+        let mut chunks = into_chunks(data.clone(), 3);
+        let mut first_chunk = chunks.next().unwrap();
+        let second_chunk = chunks.next().unwrap();
+        drop(chunks);
+        assert_eq!(
+            second_chunk.into_iter().map(|a| *a).collect::<Vec<_>>(),
+            vec![3, 4, 5]
+        );
+        assert_eq!(*first_chunk.next().unwrap(), 0);
+        assert_eq!(*first_chunk.next().unwrap(), 1);
+        drop(first_chunk);
+        for arc in data {
+            assert_eq!(Arc::strong_count(&arc), 1);
+        }
     }
 }

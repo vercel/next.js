@@ -253,8 +253,12 @@ class ReactFlightWebpackPlugin {
                 try {
                   for (_iterator.s(); !(_step = _iterator.n()).done; ) {
                     const file = _step.value;
-                    if (!file.endsWith(".js")) break;
-                    if (file.endsWith(".hot-update.js")) break;
+                    if (!file.endsWith(".js") && !file.endsWith(".mjs")) break;
+                    if (
+                      file.endsWith(".hot-update.js") ||
+                      file.endsWith(".hot-update.mjs")
+                    )
+                      break;
                     chunks.push(c.id, file);
                     break;
                   }

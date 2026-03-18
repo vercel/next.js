@@ -1,0 +1,26 @@
+moduleRequire = module*0*
+- *0* module: The Node.js `module` module: https://nodejs.org/api/module.html
+
+req_fail1 = ???*0*
+- *0* module.createRequire*1*(???*2*)
+  ⚠️  createRequire() non constant
+  ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename
+- *2* ???*3*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(globalThis)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+req_ok1 = require*0*
+- *0* require: The require method from CommonJS
+
+req_ok2 = require*0*
+- *0* require: The require method from CommonJS
+
+req_ok3 = ???*0*
+- *0* module.createRequire*1*("__filename")
+  ⚠️  createRequire() non constant
+  ⚠️  This value might have side effects
+- *1* module.createRequire: The Node.js module.createRequire method: https://nodejs.org/api/module.html#modulecreaterequirefilename

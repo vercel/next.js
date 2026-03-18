@@ -7,19 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../../shared/require-type.d.ts" />
 
 declare var BACKEND: RuntimeBackend
-declare var loadWebAssembly: (
-  source: SourceInfo,
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) => Exports
-declare var loadWebAssemblyModule: (
-  source: SourceInfo,
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-) => WebAssembly.Module
-declare var relativeURL: (inputUrl: string) => void

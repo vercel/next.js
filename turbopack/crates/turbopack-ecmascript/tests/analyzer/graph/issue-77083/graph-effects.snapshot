@@ -76,7 +76,6 @@
                             ),
                         ],
                         span: 108..114,
-                        in_try: false,
                     },
                     Call {
                         func: Member(
@@ -84,9 +83,7 @@
                             Module(
                                 ModuleValue {
                                     module: "./assert",
-                                    annotations: ImportAnnotations {
-                                        map: {},
-                                    },
+                                    annotations: None,
                                 },
                             ),
                             Constant(
@@ -102,7 +99,9 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            1.0,
+                                            TotalOrderF64(
+                                                1.0,
+                                            ),
                                         ),
                                     ),
                                 ),
@@ -111,7 +110,9 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            1.0,
+                                            TotalOrderF64(
+                                                1.0,
+                                            ),
                                         ),
                                     ),
                                 ),
@@ -298,7 +299,6 @@
             ),
         ],
         span: 91..192,
-        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -362,7 +362,6 @@
             ),
         ],
         span: 201..207,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -370,9 +369,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -388,7 +385,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -397,7 +396,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -508,7 +509,6 @@
             ),
         ],
         span: 222..228,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -516,9 +516,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -534,7 +532,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -543,7 +543,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),

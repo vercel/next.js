@@ -2,6 +2,8 @@
 title: 'Link `passHref`'
 ---
 
+> **Note**: Starting with version `16`, Next.js does not support the `passHref` and `legacyBehavior` props for a `Link` component anymore.
+
 > Ensure `passHref` is used with custom `Link` components.
 
 ## Why This Error Occurred
@@ -30,7 +32,3 @@ function NavLink({ href, name }) {
 
 export default NavLink
 ```
-
-## Useful Links
-
-- [next/link - Custom Component](/docs/pages/api-reference/components/link#if-the-child-is-a-custom-component-that-wraps-an-a-tag)

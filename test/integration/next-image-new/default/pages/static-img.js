@@ -25,6 +25,16 @@ export const getStaticProps = () => ({
   props: { testImgProp },
 })
 
+function FillContainer({ children }) {
+  // Optimized to accept the square test images. Subtracting 16px to account for
+  // the default 8px body margin.
+  return (
+    <div style={{ position: 'relative', height: 'calc(100vw - 16px)' }}>
+      {children}
+    </div>
+  )
+}
+
 const Page = ({ testImgProp }) => {
   return (
     <div>
@@ -74,23 +84,41 @@ const Page = ({ testImgProp }) => {
       <Image id="static-bmp" src={testBMP} />
       <Image id="static-ico" src={testICO} />
       <br />
-      <Image id="static-svg-fill" src={testSVG} fill />
-      <Image id="static-gif-fill" src={testGIF} fill />
-      <Image id="static-bmp-fill" src={testBMP} fill />
-      <Image id="static-ico-fill" src={testICO} fill />
+      <FillContainer>
+        <Image id="static-svg-fill" src={testSVG} fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="static-gif-fill" src={testGIF} fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="static-bmp-fill" src={testBMP} fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="static-ico-fill" src={testICO} fill />
+      </FillContainer>
       <br />
-      <Image id="blur-png-fill" src={testPNG} placeholder="blur" fill />
-      <Image id="blur-jpg-fill" src={testJPG} placeholder="blur" fill />
-      <Image id="blur-webp-fill" src={testWEBP} placeholder="blur" fill />
-      <Image id="blur-avif-fill" src={testAVIF} placeholder="blur" fill />
+      <FillContainer>
+        <Image id="blur-png-fill" src={testPNG} placeholder="blur" fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="blur-jpg-fill" src={testJPG} placeholder="blur" fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="blur-webp-fill" src={testWEBP} placeholder="blur" fill />
+      </FillContainer>
+      <FillContainer>
+        <Image id="blur-avif-fill" src={testAVIF} placeholder="blur" fill />
+      </FillContainer>
       <br />
-      <Image
-        id="blurdataurl-fill"
-        src="/test.jpg"
-        placeholder="blur"
-        blurDataURL={blurDataURL}
-        fill
-      />
+      <FillContainer>
+        <Image
+          id="blurdataurl-fill"
+          src="/test.jpg"
+          placeholder="blur"
+          blurDataURL={blurDataURL}
+          fill
+        />
+      </FillContainer>
       <Image
         id="blurdataurl-ratio"
         src="/test.png"

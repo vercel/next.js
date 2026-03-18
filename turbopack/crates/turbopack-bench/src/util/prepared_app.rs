@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use chromiumoxide::{
     Browser, Page,
     cdp::{
@@ -153,7 +153,7 @@ impl<'a> PreparedApp<'a> {
         // be completed.
         page.evaluate_expression(format!("window.location='{destination}'"))
             .await
-            .context("Unable to evaluate javascript to naviagate to target page")?;
+            .context("Unable to evaluate javascript to navigate to target page")?;
 
         // Wait for HTML response completed
         loop {
@@ -163,7 +163,7 @@ impl<'a> PreparedApp<'a> {
                         break;
                     }
                 }
-                None => return Err(anyhow!("event stream ended too early")),
+                None => bail!("event stream ended too early"),
             }
         }
 

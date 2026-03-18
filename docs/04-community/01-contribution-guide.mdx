@@ -79,17 +79,17 @@ For example, in the [functions API Reference](/docs/app/api-reference/functions)
 └── ...
 ```
 
-But, in the [routing section](/docs/app/building-your-application/routing), the files are prefixed with a two-digit number, sorted in the order developers should learn these concepts:
+But, in the [app router section](/docs/app), the files are prefixed with a two-digit number, sorted in the order developers should learn these concepts:
 
 ```txt
-01-routing
-├── 01-defining-routes.mdx
-├── 02-pages.mdx
-├── 03-layouts-and-templates.mdx
+01-getting-started
+├── 01-installation.mdx
+├── 02-project-structure.mdx
+├── 03-layouts-and-pages.mdx
 └── ...
 ```
 
-To quickly find a page, you can use `⌘ + P` (Mac) or `Ctrl + P` (Windows) to open the search bar on VSCode. Then, type the slug of the page you're looking for. E.g. `defining-routes`
+To quickly find a page, you can use `⌘ + P` (Mac) or `Ctrl + P` (Windows) to open the search bar on VSCode. Then, type the slug of the page you're looking for. E.g. `installation`
 
 > **Why not use a manifest?**
 >
@@ -209,11 +209,33 @@ Always run examples locally before committing them. This will ensure that the co
 
 ### Language and Filename
 
-Code blocks should have a header that includes the language and the `filename`. Add a `filename` prop to render a special Terminal icon that helps orientate users where to input the command. For example:
+Code blocks should have a header that includes the language and the `filename`. For example:
 
 ````mdx filename="code-example.mdx"
-```bash filename="Terminal"
-npx create-next-app
+```tsx filename="app/page.tsx"
+export default function Page() {
+  return <h1>Hello, Next.js!</h1>
+}
+```
+````
+
+For CLI commands, use the `package` prop to show the command for each package manager:
+
+````mdx filename="code-example.mdx"
+```bash package="pnpm"
+pnpm create next-app
+```
+
+```bash package="npm"
+npx create-next-app@latest
+```
+
+```bash package="yarn"
+yarn create next-app
+```
+
+```bash package="bun"
+bun create next-app
 ```
 ````
 
@@ -230,7 +252,7 @@ When writing JavaScript code blocks, we use the following language and extension
 
 > **Good to know**:
 >
-> - Make sure to use **`js`** extension with **JSX** code at JavaScript files.
+> - Make sure to use **`.js`** extension for JavaScript files with **JSX** code.
 > - For example, ```jsx filename="app/layout.js"
 
 ### TS and JS Switcher

@@ -14,13 +14,12 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
 import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
@@ -180,7 +179,7 @@ class Container extends React.Component<{
       return this.props.children
     } else {
       const { PagesDevOverlayBridge } =
-        require('./components/react-dev-overlay/pages/pages-dev-overlay-bridge') as typeof import('./components/react-dev-overlay/pages/pages-dev-overlay-bridge')
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
       return (
         <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
       )
@@ -210,13 +209,7 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   const prefix: string = initialData.assetPrefix || ''
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
-  ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
-
-  // Initialize next/config with the environment configuration
-  setConfig({
-    serverRuntimeConfig: {},
-    publicRuntimeConfig: initialData.runtimeConfig || {},
-  })
+  ;(self as any).__next_set_public_path__(`${prefix}/_next/`)
 
   asPath = getURL()
 
@@ -310,8 +303,6 @@ function AppContainer({
   return (
     <Container
       fn={(error) =>
-        // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         renderError({ App: CachedApp, err: error }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
@@ -371,8 +362,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
-    // TODO: Fix disabled eslint rule
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     return doRender({
       App: () => null,
       props: {},
@@ -427,8 +416,6 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
           ? renderErrorProps.props
           : loadGetInitialProps(App, appCtx)
       ).then((initProps) =>
-        // TODO: Fix disabled eslint rule
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         doRender({
           ...renderErrorProps,
           err,
@@ -770,7 +757,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
     if (input.scroll) {
       const { x, y } = input.scroll
-      handleSmoothScroll(() => {
+      disableSmoothScrollDuringRouteTransition(() => {
         window.scrollTo(x, y)
       })
     }
@@ -917,10 +904,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
-      (
-        require('./components/react-dev-overlay/pages/client') as typeof import('./components/react-dev-overlay/pages/client')
-      ).getServerError
+    const getServerError = (
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
+    ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {

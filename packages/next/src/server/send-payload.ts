@@ -6,7 +6,7 @@ import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
 import fresh from 'next/dist/compiled/fresh'
 import { getCacheControlHeader } from './lib/cache-control'
-import { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
+import { HTML_CONTENT_TYPE_HEADER } from '../lib/constants'
 
 export function sendEtagResponse(
   req: IncomingMessage,
@@ -36,7 +36,6 @@ export async function sendRenderResult({
   req,
   res,
   result,
-  type,
   generateEtags,
   poweredByHeader,
   cacheControl,
@@ -44,7 +43,6 @@ export async function sendRenderResult({
   req: IncomingMessage
   res: ServerResponse
   result: RenderResult
-  type: 'html' | 'json' | 'rsc'
   generateEtags: boolean
   poweredByHeader: boolean
   cacheControl: CacheControl | undefined
@@ -53,7 +51,7 @@ export async function sendRenderResult({
     return
   }
 
-  if (poweredByHeader && type === 'html') {
+  if (poweredByHeader && result.contentType === HTML_CONTENT_TYPE_HEADER) {
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
@@ -72,17 +70,8 @@ export async function sendRenderResult({
     }
   }
 
-  if (!res.getHeader('Content-Type')) {
-    res.setHeader(
-      'Content-Type',
-      result.contentType
-        ? result.contentType
-        : type === 'rsc'
-          ? RSC_CONTENT_TYPE_HEADER
-          : type === 'json'
-            ? 'application/json'
-            : 'text/html; charset=utf-8'
-    )
+  if (!res.getHeader('Content-Type') && result.contentType) {
+    res.setHeader('Content-Type', result.contentType)
   }
 
   if (payload) {

@@ -310,21 +310,21 @@ describe('next/font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
     })
   })
 
@@ -640,6 +640,35 @@ describe('next/font', () => {
         )
         expect(sizeAdjust).toBe('115.45%')
       })
+    })
+  })
+
+  describe('custom declarations', () => {
+    test('local font with custom declarations', async () => {
+      const browser = await webdriver(next.url, '/with-local-fonts')
+
+      // Get all stylesheets
+      const stylesheets = await browser.eval(`
+        Array.from(document.styleSheets)
+          .flatMap(sheet => {
+            try {
+              return Array.from(sheet.cssRules || sheet.rules || [])
+                .map(rule => rule.cssText)
+            } catch (e) {
+              return ''
+            }
+          })
+      `)
+
+      // Check that the custom declaration is included in the CSS
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
+
+      // Check that the custom declaration is included in the CSS and overrides the default family
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
     })
   })
 })

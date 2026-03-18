@@ -1,10 +1,10 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
-use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
@@ -17,7 +17,7 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::value]
 pub struct ProcessEnvAsset {
     /// The root path which we can construct our env asset path.
-    root: ResolvedVc<FileSystemPath>,
+    root: FileSystemPath,
 
     /// A HashMap filled with the env key/values.
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -26,10 +26,7 @@ pub struct ProcessEnvAsset {
 #[turbo_tasks::value_impl]
 impl ProcessEnvAsset {
     #[turbo_tasks::function]
-    pub async fn new(
-        root: ResolvedVc<FileSystemPath>,
-        env: ResolvedVc<Box<dyn ProcessEnv>>,
-    ) -> Result<Vc<Self>> {
+    pub fn new(root: FileSystemPath, env: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
         Ok(ProcessEnvAsset { root, env }.cell())
     }
 }
@@ -37,8 +34,13 @@ impl ProcessEnvAsset {
 #[turbo_tasks::value_impl]
 impl Source for ProcessEnvAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.root.join(rcstr!(".env.js")))
+    fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(AssetIdent::from_path(self.root.join(".env.js")?))
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("process environment"))
     }
 }
 
@@ -63,6 +65,8 @@ impl Asset for ProcessEnvAsset {
             writeln!(code, "env[{}] = {};", StringifyJs(name), val)?;
         }
 
-        Ok(AssetContent::file(File::from(code.build()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(code.build())).cell(),
+        ))
     }
 }

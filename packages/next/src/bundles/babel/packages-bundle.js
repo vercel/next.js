@@ -36,6 +36,10 @@ function pluginSyntaxJsx() {
   return require('@babel/plugin-syntax-jsx')
 }
 
+function pluginSyntaxTypescript() {
+  return require('@babel/plugin-syntax-typescript')
+}
+
 function pluginTransformDefine() {
   return require('babel-plugin-transform-define')
 }
@@ -74,6 +78,7 @@ module.exports = {
   pluginSyntaxDynamicImport,
   pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
+  pluginSyntaxTypescript,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,
   pluginTransformReactRemovePropTypes,

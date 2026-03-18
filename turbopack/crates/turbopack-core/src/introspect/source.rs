@@ -11,7 +11,7 @@ pub struct IntrospectableSource(ResolvedVc<Box<dyn Source>>);
 #[turbo_tasks::value_impl]
 impl IntrospectableSource {
     #[turbo_tasks::function]
-    pub async fn new(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Box<dyn Introspectable>>> {
+    pub fn new(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Box<dyn Introspectable>>> {
         Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
             .unwrap_or_else(|| ResolvedVc::upcast(IntrospectableSource(asset).resolved_cell())))
     }

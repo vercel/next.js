@@ -22,6 +22,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -32,9 +34,12 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -47,6 +52,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -57,9 +64,12 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -72,6 +82,8 @@ describe('find config', () => {
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
         : '') +
+      `import "./.next/types/routes.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -80,9 +92,12 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -90,9 +105,12 @@ describe('find config', () => {
   it('should include navigation types if app directory is enabled', async () => {
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -101,9 +119,12 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
+      distDir: '.next',
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,
+      strictRouteTypes: false,
+      typedRoutes: true,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(

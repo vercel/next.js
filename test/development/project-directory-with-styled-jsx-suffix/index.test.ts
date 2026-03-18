@@ -14,7 +14,7 @@ describe('project directory with styled-jsx suffix', () => {
           } 
         `,
       },
-      dirSuffix: '-styled-jsx',
+      subDir: 'test-styled-jsx',
     })
   })
   afterAll(() => next.destroy())

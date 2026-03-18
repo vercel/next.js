@@ -4,14 +4,14 @@ use proc_macro2::{Group, Ident, Span, TokenStream, TokenTree};
 use quote::{ToTokens, quote, quote_spanned};
 use rustc_hash::FxHashSet;
 use syn::{
-    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
-    GenericArgument, Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments,
-    PathSegment, Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath,
-    TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, FnArg, GenericArgument,
+    Local, LocalInit, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
+    ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
     parse::{Parse, ParseStream},
     parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
+    token,
     visit_mut::VisitMut,
 };
 
@@ -27,11 +27,10 @@ pub struct TurboFn<'a> {
 
     output: Type,
     this: Option<Input>,
+    is_self_used: bool,
     exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
-    /// Should this function use `TaskPersistence::LocalCells`?
-    local: bool,
 }
 
 #[derive(Debug)]
@@ -45,7 +44,8 @@ impl TurboFn<'_> {
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-    ) -> Option<TurboFn> {
+        is_self_used: bool,
+    ) -> Option<TurboFn<'_>> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
                 .generics
@@ -108,46 +108,8 @@ impl TurboFn<'_> {
                         _ => &definition_context,
                     };
 
-                    match self_type.as_ref() {
-                        // we allow `&Self` but not `&mut Self`
-                        syn::Type::Reference(type_reference) => {
-                            if let Some(m) = type_reference.mutability {
-                                m.span()
-                                    .unwrap()
-                                    .error(format!(
-                                        "{} cannot take self by mutable reference, use &self or \
-                                         self: Vc<Self> instead",
-                                        definition_context.function_type(),
-                                    ))
-                                    .emit();
-                                return None;
-                            }
-
-                            match type_reference.elem.as_ref() {
-                                syn::Type::Path(TypePath { qself: None, path })
-                                    if path.is_ident("Self") => {}
-                                _ => {
-                                    self_type
-                                        .span()
-                                        .unwrap()
-                                        .error(
-                                            "Unexpected `self` type, use `&self` or `self: \
-                                             Vc<Self>",
-                                        )
-                                        .emit();
-                                    return None;
-                                }
-                            }
-                        }
-                        syn::Type::Path(_) => {}
-                        _ => {
-                            self_type
-                                .span()
-                                .unwrap()
-                                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
-                                .emit();
-                            return None;
-                        }
+                    if get_receiver_style(self_type, definition_context) == ReceiverStyle::Error {
+                        return None;
                     }
                     // We don't validate that the user provided a valid `turbo_tasks::Vc<Self>`
                     // here. We'll rely on the compiler to emit an error if the user provided an
@@ -242,42 +204,32 @@ impl TurboFn<'_> {
             ident: orig_ident,
             output,
             this,
+            is_self_used,
             exposed_inputs,
             operation: args.operation.is_some(),
-            local: args.local.is_some(),
             inline_ident,
         })
     }
 
     /// The signature of the exposed function. This is the original signature
     /// converted to a standard turbo_tasks function signature.
-    pub fn signature(&self) -> Signature {
-        let exposed_inputs: Punctuated<_, Token![,]> = self
+    pub fn signature(&self) -> TokenStream {
+        let exposed_inputs = self
             .this
             .as_ref()
             .into_iter()
             .chain(self.exposed_inputs.iter())
             .map(|input| {
-                FnArg::Typed(PatType {
-                    attrs: Vec::new(),
-                    pat: Box::new(Pat::Ident(PatIdent {
-                        attrs: Default::default(),
-                        by_ref: None,
-                        mutability: None,
-                        ident: input.ident.clone(),
-                        subpat: None,
-                    })),
-                    colon_token: Default::default(),
-                    ty: if self.operation {
-                        // operations shouldn't have their arguments rewritten, they require all
-                        // arguments are explicitly `NonLocalValue`s
-                        Box::new(input.ty.clone())
-                    } else {
-                        Box::new(expand_task_input_type(&input.ty).into_owned())
-                    },
-                })
-            })
-            .collect();
+                let ident = &input.ident;
+                let ty = if self.operation {
+                    // operations shouldn't have their arguments rewritten, they require all
+                    // arguments are explicitly `NonLocalValue`s
+                    input.ty.to_token_stream()
+                } else {
+                    expand_task_input_type(&input.ty).to_token_stream()
+                };
+                quote! { #ident: #ty }
+            });
 
         let ident = &self.ident;
         let orig_output = &self.output;
@@ -287,15 +239,15 @@ impl TurboFn<'_> {
                 .then(|| parse_quote!(turbo_tasks::OperationVc)),
         );
 
-        parse_quote! {
-            fn #ident(#exposed_inputs) -> #new_output
+        quote! {
+            fn #ident(#(#exposed_inputs),*) -> #new_output
         }
     }
 
-    pub fn trait_signature(&self) -> Signature {
+    pub fn trait_signature(&self) -> TokenStream {
         let signature = self.signature();
 
-        parse_quote! {
+        quote! {
             #signature where Self: Sized
         }
     }
@@ -312,7 +264,6 @@ impl TurboFn<'_> {
     pub fn inline_signature_and_block<'a>(
         &self,
         orig_block: &'a Block,
-        is_self_used: bool,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
@@ -321,7 +272,7 @@ impl TurboFn<'_> {
             .iter()
             .filter(|arg| {
                 let FnArg::Typed(pat_type) = arg else {
-                    return is_self_used;
+                    return self.is_self_used;
                 };
                 let Pat::Ident(pat_id) = &*pat_type.pat else {
                     return true;
@@ -532,32 +483,20 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence(&self) -> impl ToTokens {
-        if self.local {
-            quote! {
-                turbo_tasks::TaskPersistence::Local
-            }
-        } else {
-            quote! {
-                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs(&*inputs)
-            }
+        quote! {
+            turbo_tasks::macro_helpers::get_persistence_from_inputs(&*inputs)
         }
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
-        if self.local {
-            quote! {
-                turbo_tasks::TaskPersistence::Local
-            }
-        } else {
-            quote! {
-                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs_and_this(this, &*inputs)
-            }
+        quote! {
+            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &*inputs)
         }
     }
 
-    fn converted_this(&self) -> Option<Expr> {
+    fn converted_this(&self) -> Option<TokenStream> {
         self.this.as_ref().map(|Input { ty: _, ident }| {
-            parse_quote! {
+            quote! {
                 turbo_tasks::Vc::into_raw(#ident)
             }
         })
@@ -596,11 +535,10 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a dynamic dispatch call to the
-    /// given trait.
-    pub fn dynamic_block(&self, trait_type_id_ident: &Ident) -> Block {
+    /// The block of the exposed function for a dynamic dispatch call to the given trait.
+    pub fn dynamic_block(&self, trait_type_ident: &Ident) -> TokenStream {
         let Some(converted_this) = self.converted_this() else {
-            return parse_quote! {
+            return quote! {
                 {
                     unimplemented!("trait methods without self are not yet supported")
                 }
@@ -612,16 +550,17 @@ impl TurboFn<'_> {
         let assertions = self.get_assertions();
         let inputs = self.exposed_input_idents();
         let persistence = self.persistence_with_this();
-        parse_quote! {
+        quote! {
             {
                 #assertions
                 let inputs = std::boxed::Box::new((#(#inputs,)*));
                 let this = #converted_this;
                 let persistence = #persistence;
+                static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
+                        turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
-                        *#trait_type_id_ident,
-                        std::borrow::Cow::Borrowed(stringify!(#ident)),
+                        *TRAIT_METHOD,
                         this,
                         inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                         persistence,
@@ -631,15 +570,16 @@ impl TurboFn<'_> {
         }
     }
 
-    /// The block of the exposed function for a static dispatch call to the
-    /// given native function.
-    pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
+    /// The block of the exposed function for a static dispatch call to the given native function.
+    pub fn static_block(&self, native_function_ident: &Ident) -> TokenStream {
         let output = &self.output;
         let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
-        let mut block = if let Some(converted_this) = self.converted_this() {
+        let mut block = if self.is_self_used
+            && let Some(converted_this) = self.converted_this()
+        {
             let persistence = self.persistence_with_this();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
@@ -647,7 +587,7 @@ impl TurboFn<'_> {
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
-                            *#native_function_id_ident,
+                            &#native_function_ident,
                             Some(this),
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
@@ -657,14 +597,14 @@ impl TurboFn<'_> {
             }
         } else {
             let persistence = self.persistence();
-            parse_quote! {
+            quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
-                            *#native_function_id_ident,
+                            &#native_function_ident,
                             None,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
@@ -674,7 +614,7 @@ impl TurboFn<'_> {
             }
         };
         if self.operation {
-            block = parse_quote! {
+            block = quote! {
                 {
                     let vc_output = #block;
                     // Assumption: The turbo-tasks manager will not create a local task for a
@@ -692,6 +632,62 @@ impl TurboFn<'_> {
     pub(crate) fn is_method(&self) -> bool {
         self.this.is_some()
     }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum ReceiverStyle {
+    // A reference like &self or self: &Self
+    Reference,
+    // A Vc<> type, this is optimistic
+    Vc,
+    Error,
+}
+
+pub(crate) fn get_receiver_style(
+    self_type: &Type,
+    definition_context: &DefinitionContext,
+) -> ReceiverStyle {
+    match self_type {
+        // we allow `&Self` but not `&mut Self`
+        syn::Type::Reference(type_reference) => {
+            if let Some(m) = type_reference.mutability {
+                m.span()
+                    .unwrap()
+                    .error(format!(
+                        "{} cannot take self by mutable reference, use &self or self: Vc<Self> \
+                         instead",
+                        definition_context.function_type(),
+                    ))
+                    .emit();
+                return ReceiverStyle::Error;
+            }
+
+            match type_reference.elem.as_ref() {
+                syn::Type::Path(TypePath { qself: None, path }) if path.is_ident("Self") => {}
+                _ => {
+                    self_type
+                        .span()
+                        .unwrap()
+                        .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                        .emit();
+                    return ReceiverStyle::Error;
+                }
+            }
+            return ReceiverStyle::Reference;
+        }
+        syn::Type::Path(_) => {}
+        _ => {
+            self_type
+                .span()
+                .unwrap()
+                .error("Unexpected `self` type, use `&self` or `self: Vc<Self>")
+                .emit();
+            return ReceiverStyle::Error;
+        }
+    }
+    // All other cases are assumed to be a VC, this is not guaranteed but we are happy to just have
+    // compiler errors when this assumption is wrong.
+    ReceiverStyle::Vc
 }
 
 /// An indication of what kind of IO this function does. Currently only used for
@@ -729,10 +725,9 @@ pub struct FunctionArguments {
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     pub operation: Option<Span>,
-    /// Does not run the function as a real task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: Option<Span>,
+    /// Should the task be marked as a root in the aggregation graph on initial creation?
+    /// Root tasks start with aggregation number `u32::MAX`.
+    pub root: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -757,31 +752,29 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
-                ("local", Meta::Path(_)) => {
-                    parsed_args.local = Some(meta.span());
+                ("root", Meta::Path(_)) => {
+                    parsed_args.root = Some(meta.span());
                 }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\"",
+                         or \"root\"",
                     ));
                 }
             }
         }
-        if let (Some(_), Some(span)) = (parsed_args.local, parsed_args.operation) {
-            return Err(syn::Error::new(
-                span,
-                "\"operation\" is mutually exclusive with the \"local\" option",
-            ));
-        }
+
         Ok(parsed_args)
     }
 }
 
 fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
-        ReturnType::Default => parse_quote! { () },
+        ReturnType::Default => Type::Tuple(TypeTuple {
+            paren_token: token::Paren::default(),
+            elems: Punctuated::new(),
+        }),
         ReturnType::Type(_, return_type) => (**return_type).clone(),
     }
 }
@@ -1085,98 +1078,67 @@ pub struct FilterTraitCallArgsTokens {
 
 #[derive(Debug)]
 pub struct NativeFn {
+    pub function_global_name: TokenStream,
     pub function_path_string: String,
-    pub function_path: ExprPath,
+    pub function_path: TokenStream,
     pub is_method: bool,
     /// Used only if `is_method` is true.
     pub is_self_used: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
-    pub local: bool,
+    pub is_root: bool,
 }
 
 impl NativeFn {
-    pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::NativeFunction }
+    pub fn ty(&self) -> TokenStream {
+        quote! { turbo_tasks::macro_helpers::NativeFunction }
     }
 
     pub fn definition(&self) -> TokenStream {
         let Self {
+            function_global_name,
             function_path_string,
             function_path,
             is_method,
             is_self_used,
             filter_trait_call_args,
-            local,
+            is_root,
         } = self;
 
-        if *is_method {
-            let arg_filter = if let Some(filter) = filter_trait_call_args {
-                let FilterTraitCallArgsTokens {
-                    filter_owned,
-                    filter_and_resolve,
-                } = filter;
-                quote! {
-                    ::std::option::Option::Some((
-                        #filter_owned,
-                        #filter_and_resolve,
-                    ))
-                }
-            } else {
-                quote! { ::std::option::Option::None }
-            };
+        let task_fn = if *is_method && *is_self_used {
+            quote! { turbo_tasks::macro_helpers::into_task_fn_with_this(#function_path) }
+        } else {
+            quote! { turbo_tasks::macro_helpers::into_task_fn(#function_path) }
+        };
 
-            if *is_self_used {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method(
-                            #function_path_string.to_owned(),
-                            turbo_tasks::macro_helpers::FunctionMeta {
-                                local: #local,
-                            },
-                            #arg_filter,
-                            #function_path,
-                        )
-                    }
-                }
-            } else {
-                quote! {
-                    {
-                        #[allow(deprecated)]
-                        turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
-                            #function_path_string.to_owned(),
-                            turbo_tasks::macro_helpers::FunctionMeta {
-                                local: #local,
-                            },
-                            #arg_filter,
-                            #function_path,
-                        )
-                    }
-                }
+        let arg_meta = if let Some(filter) = filter_trait_call_args {
+            let FilterTraitCallArgsTokens {
+                filter_owned,
+                filter_and_resolve,
+            } = filter;
+            quote! {
+                turbo_tasks::macro_helpers::ArgMeta::with_filter_trait_call_from(
+                    &#task_fn,
+                    #filter_owned,
+                    #filter_and_resolve,
+                )
             }
         } else {
             quote! {
-                {
-                    #[allow(deprecated)]
-                    turbo_tasks::macro_helpers::NativeFunction::new_function(
-                        #function_path_string.to_owned(),
-                        turbo_tasks::macro_helpers::FunctionMeta {
-                            local: #local,
-                        },
-                        #function_path,
-                    )
-                }
+                turbo_tasks::macro_helpers::ArgMeta::new_from(&#task_fn)
             }
-        }
-    }
+        };
 
-    pub fn id_ty(&self) -> Type {
-        parse_quote! { turbo_tasks::FunctionId }
-    }
-
-    pub fn id_definition(&self, native_function_id_path: &Path) -> TokenStream {
         quote! {
-            turbo_tasks::registry::get_function_id(&*#native_function_id_path)
+            {
+                #[allow(deprecated)]
+                turbo_tasks::macro_helpers::NativeFunction::new(
+                    #function_path_string,
+                    #function_global_name,
+                    #arg_meta,
+                    &#task_fn,
+                    #is_root,
+                )
+            }
         }
     }
 }
@@ -1194,4 +1156,45 @@ pub fn filter_inline_attributes<'a>(
 pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
     // filter out underscore-prefixed (unused) arguments, we don't need to cache these
     !arg_ident.to_string().starts_with('_')
+}
+
+/// Returns true if this attribute is a turbo_tasks attribute with the given name.
+fn is_attribute(attr: &Attribute, name: &str) -> bool {
+    let path = &attr.path();
+    if path.leading_colon.is_some() {
+        return false;
+    }
+    let mut iter = path.segments.iter();
+    match iter.next() {
+        Some(seg) if seg.arguments.is_empty() && seg.ident == "turbo_tasks" => match iter.next() {
+            Some(seg) if seg.arguments.is_empty() && seg.ident == name => iter.next().is_none(),
+            _ => false,
+        },
+        _ => false,
+    }
+}
+
+/// Parses a `turbo_tasks::function` attribute out of the given attributes and then returns the
+/// remaining attributes.
+pub fn split_function_attributes(
+    attrs: &[Attribute],
+) -> (syn::Result<Option<FunctionArguments>>, Vec<&Attribute>) {
+    let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
+        .iter()
+        // TODO(alexkirsz) Replace this with function
+        .partition(|attr| is_attribute(attr, "function"));
+    let func_args = if let Some(func_attr) = func_attrs_vec.first() {
+        if func_attrs_vec.len() == 1 {
+            parse_with_optional_parens::<FunctionArguments>(func_attr).map(Some)
+        } else {
+            Err(syn::Error::new(
+                // Report the error on the second annotation.
+                func_attrs_vec[1].span(),
+                "Only one #[turbo_tasks::function] attribute is allowed per method",
+            ))
+        }
+    } else {
+        Ok(None)
+    };
+    (func_args, attrs)
 }

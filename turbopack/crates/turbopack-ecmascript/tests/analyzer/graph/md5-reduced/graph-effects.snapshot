@@ -39,12 +39,9 @@
             ),
         ],
         span: 1622..1636,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -80,12 +77,9 @@
             ),
         ],
         span: 1622..1628,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "md5",
-        ),
+        var: "md5",
         ast_path: [
             Program(
                 Script,
@@ -112,7 +106,6 @@
             ),
         ],
         span: 1639..1642,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -172,7 +165,6 @@
             ),
         ],
         span: 138..149,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -192,7 +184,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -244,7 +238,6 @@
             ),
         ],
         span: 173..206,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -303,7 +296,6 @@
             ),
         ],
         span: 380..388,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -386,7 +378,6 @@
             ),
         ],
         span: 484..488,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -449,7 +440,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -541,7 +534,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),
@@ -615,7 +610,6 @@
             ),
         ],
         span: 532..540,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -678,7 +672,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -690,7 +686,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -782,7 +780,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -856,7 +856,6 @@
             ),
         ],
         span: 585..593,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -919,7 +918,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        2.0,
+                                        TotalOrderF64(
+                                            2.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -931,7 +932,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -940,7 +943,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            606105819.0,
+                            TotalOrderF64(
+                                606105819.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1025,7 +1030,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1099,7 +1106,6 @@
             ),
         ],
         span: 637..645,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1162,7 +1168,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        3.0,
+                                        TotalOrderF64(
+                                            3.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -1174,7 +1182,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1266,7 +1276,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            4.0,
+                            TotalOrderF64(
+                                4.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1340,7 +1352,6 @@
             ),
         ],
         span: 691..699,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1403,7 +1414,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        4.0,
+                                        TotalOrderF64(
+                                            4.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -1415,7 +1428,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1507,7 +1522,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            5.0,
+                            TotalOrderF64(
+                                5.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1581,7 +1598,6 @@
             ),
         ],
         span: 743..751,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1644,7 +1660,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        5.0,
+                                        TotalOrderF64(
+                                            5.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -1656,7 +1674,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1665,7 +1685,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1200080426.0,
+                            TotalOrderF64(
+                                1200080426.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1750,7 +1772,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            6.0,
+                            TotalOrderF64(
+                                6.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1824,7 +1848,6 @@
             ),
         ],
         span: 796..804,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1887,7 +1910,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        6.0,
+                                        TotalOrderF64(
+                                            6.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -1899,7 +1924,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -1991,7 +2018,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2065,7 +2094,6 @@
             ),
         ],
         span: 850..858,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2128,7 +2156,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        7.0,
+                                        TotalOrderF64(
+                                            7.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -2140,7 +2170,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2232,7 +2264,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            8.0,
+                            TotalOrderF64(
+                                8.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2306,7 +2340,6 @@
             ),
         ],
         span: 902..910,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2369,7 +2402,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        8.0,
+                                        TotalOrderF64(
+                                            8.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -2381,7 +2416,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2390,7 +2427,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1770035416.0,
+                            TotalOrderF64(
+                                1770035416.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2475,7 +2514,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            9.0,
+                            TotalOrderF64(
+                                9.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2549,7 +2590,6 @@
             ),
         ],
         span: 954..962,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2612,7 +2652,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        9.0,
+                                        TotalOrderF64(
+                                            9.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -2624,7 +2666,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2716,7 +2760,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            10.0,
+                            TotalOrderF64(
+                                10.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2790,7 +2836,6 @@
             ),
         ],
         span: 1008..1017,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2853,7 +2898,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        10.0,
+                                        TotalOrderF64(
+                                            10.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -2865,7 +2912,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -2957,7 +3006,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            11.0,
+                            TotalOrderF64(
+                                11.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3031,7 +3082,6 @@
             ),
         ],
         span: 1058..1067,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3094,7 +3144,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        11.0,
+                                        TotalOrderF64(
+                                            11.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3106,7 +3158,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3198,7 +3252,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3272,7 +3328,6 @@
             ),
         ],
         span: 1113..1122,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3335,7 +3390,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        12.0,
+                                        TotalOrderF64(
+                                            12.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3347,7 +3404,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            7.0,
+                            TotalOrderF64(
+                                7.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3356,7 +3415,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1804603682.0,
+                            TotalOrderF64(
+                                1804603682.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3441,7 +3502,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            13.0,
+                            TotalOrderF64(
+                                13.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3515,7 +3578,6 @@
             ),
         ],
         span: 1166..1175,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3578,7 +3640,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        13.0,
+                                        TotalOrderF64(
+                                            13.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3590,7 +3654,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            12.0,
+                            TotalOrderF64(
+                                12.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3682,7 +3748,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            14.0,
+                            TotalOrderF64(
+                                14.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3756,7 +3824,6 @@
             ),
         ],
         span: 1219..1228,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -3819,7 +3886,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        14.0,
+                                        TotalOrderF64(
+                                            14.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3831,7 +3900,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            17.0,
+                            TotalOrderF64(
+                                17.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3923,7 +3994,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            15.0,
+                            TotalOrderF64(
+                                15.0,
+                            ),
                         ),
                     ),
                 ),
@@ -3997,7 +4070,6 @@
             ),
         ],
         span: 1274..1283,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -4060,7 +4132,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        15.0,
+                                        TotalOrderF64(
+                                            15.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -4072,7 +4146,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            22.0,
+                            TotalOrderF64(
+                                22.0,
+                            ),
                         ),
                     ),
                 ),
@@ -4081,7 +4157,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1236535329.0,
+                            TotalOrderF64(
+                                1236535329.0,
+                            ),
                         ),
                     ),
                 ),
@@ -4180,9 +4258,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4229,12 +4305,9 @@
             ),
         ],
         span: 1459..1466,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "bitRotateLeft",
-        ),
+        var: "bitRotateLeft",
         ast_path: [
             Program(
                 Script,
@@ -4292,12 +4365,9 @@
             ),
         ],
         span: 1467..1480,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4366,12 +4436,9 @@
             ),
         ],
         span: 1481..1488,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4451,7 +4518,6 @@
             ),
         ],
         span: 1489..1496,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -4549,9 +4615,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4631,7 +4695,6 @@
             ),
         ],
         span: 1504..1511,
-        in_try: false,
     },
     Call {
         func: FreeVar(

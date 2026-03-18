@@ -4,11 +4,11 @@ import React, { createContext, useContext, useOptimistic, useRef } from 'react'
 import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { ScrollBehavior } from '../components/router-reducer/router-reducer-types'
 import type { PENDING_LINK_STATUS } from '../components/links'
 import {
   IDLE_LINK_STATUS,
@@ -19,7 +19,10 @@ import {
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
-import { dispatchNavigateAction } from '../components/app-router-instance'
+import {
+  FetchStrategy,
+  type PrefetchTaskFetchStrategy,
+} from '../components/segment-cache/types'
 import { errorOnce } from '../../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
@@ -117,7 +120,7 @@ type InternalLinkProps = {
    *
    * @example
    * ```tsx
-   * <Link href="/dashboard" passHref>
+   * <Link href="/dashboard" passHref legacyBehavior>
    *   <MyStyledAnchor>Dashboard</MyStyledAnchor>
    * </Link>
    * ```
@@ -154,7 +157,7 @@ type InternalLinkProps = {
   prefetch?: boolean | 'auto' | null
 
   /**
-   * (unstable) Switch to a dynamic prefetch on hover. Effectively the same as
+   * (unstable) Switch to a full prefetch on hover. Effectively the same as
    * updating the prefetch prop to `true` in a mouse event.
    */
   unstable_dynamicOnHover?: boolean
@@ -182,10 +185,9 @@ type InternalLinkProps = {
   locale?: string | false
 
   /**
-   * Enable legacy link behavior, requiring an `<a>` tag to wrap the child content
-   * if the child is a string or number.
+   * Enable legacy link behavior.
    *
-   * @deprecated This will be removed in v16
+   * @deprecated This will be removed in a future version
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -210,13 +212,27 @@ type InternalLinkProps = {
    * Optional event handler for when the `<Link>` is navigated.
    */
   onNavigate?: OnNavigateEventHandler
+
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   *
+   * @example
+   * ```tsx
+   * <Link href="/about" transitionTypes={['slide-in']}>About</Link>
+   * ```
+   */
+  transitionTypes?: string[]
 }
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
@@ -238,61 +254,66 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 function linkClicked(
   e: React.MouseEvent,
   href: string,
-  as: string,
   linkInstanceRef: React.RefObject<LinkInstance | null>,
   replace?: boolean,
   scroll?: boolean,
-  onNavigate?: OnNavigateEventHandler
+  onNavigate?: OnNavigateEventHandler,
+  transitionTypes?: string[]
 ): void {
-  const { nodeName } = e.currentTarget
+  if (typeof window !== 'undefined') {
+    const { nodeName } = e.currentTarget
 
-  // anchors inside an svg have a lowercase nodeName
-  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
-
-  if (
-    (isAnchorNodeName && isModifiedEvent(e)) ||
-    e.currentTarget.hasAttribute('download')
-  ) {
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  if (!isLocalURL(href)) {
-    if (replace) {
-      // browser default behavior does not replace the history state
-      // so we need to do it manually
-      e.preventDefault()
-      location.replace(href)
-    }
-
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  e.preventDefault()
-
-  if (onNavigate) {
-    let isDefaultPrevented = false
-
-    onNavigate({
-      preventDefault: () => {
-        isDefaultPrevented = true
-      },
-    })
-
-    if (isDefaultPrevented) {
+    // anchors inside an svg have a lowercase nodeName
+    const isAnchorNodeName = nodeName.toUpperCase() === 'A'
+    if (
+      (isAnchorNodeName && isModifiedEvent(e)) ||
+      e.currentTarget.hasAttribute('download')
+    ) {
+      // ignore click for browser’s default behavior
       return
     }
-  }
 
-  React.startTransition(() => {
-    dispatchNavigateAction(
-      as || href,
-      replace ? 'replace' : 'push',
-      scroll ?? true,
-      linkInstanceRef.current
-    )
-  })
+    if (!isLocalURL(href)) {
+      if (replace) {
+        // browser default behavior does not replace the history state
+        // so we need to do it manually
+        e.preventDefault()
+        location.replace(href)
+      }
+
+      // ignore click for browser’s default behavior
+      return
+    }
+
+    e.preventDefault()
+
+    if (onNavigate) {
+      let isDefaultPrevented = false
+
+      onNavigate({
+        preventDefault: () => {
+          isDefaultPrevented = true
+        },
+      })
+
+      if (isDefaultPrevented) {
+        return
+      }
+    }
+
+    const { dispatchNavigateAction } =
+      require('../components/app-router-instance') as typeof import('../components/app-router-instance')
+
+    React.startTransition(() => {
+      dispatchNavigateAction(
+        href,
+        replace ? 'replace' : 'push',
+        scroll === false ? ScrollBehavior.NoScroll : ScrollBehavior.Default,
+        linkInstanceRef.current,
+        transitionTypes
+      )
+    })
+  }
 }
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
@@ -339,6 +360,7 @@ export default function LinkComponent(
     onTouchStart: onTouchStartProp,
     legacyBehavior = false,
     onNavigate,
+    transitionTypes,
     ref: forwardedRef,
     unstable_dynamicOnHover,
     ...restProps
@@ -356,17 +378,12 @@ export default function LinkComponent(
   const router = React.useContext(AppRouterContext)
 
   const prefetchEnabled = prefetchProp !== false
-  /**
-   * The possible states for prefetch are:
-   * - null: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport
-   * - true: we will prefetch if the link is visible and prefetch the full page, not just partially
-   * - false: we will not prefetch if in the viewport at all
-   * - 'unstable_dynamicOnHover': this starts in "auto" mode, but switches to "full" when the link is hovered
-   */
-  const appPrefetchKind =
-    prefetchProp === null || prefetchProp === 'auto'
-      ? PrefetchKind.AUTO
-      : PrefetchKind.FULL
+
+  const fetchStrategy =
+    prefetchProp !== false
+      ? getFetchStrategyFromPrefetchProp(prefetchProp)
+      : // TODO: it makes no sense to assign a fetchStrategy when prefetching is disabled.
+        FetchStrategy.PPR
 
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
@@ -403,7 +420,6 @@ export default function LinkComponent(
         }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })
@@ -422,6 +438,7 @@ export default function LinkComponent(
       onTouchStart: true,
       legacyBehavior: true,
       onNavigate: true,
+      transitionTypes: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
@@ -477,13 +494,23 @@ export default function LinkComponent(
             actual: valType,
           })
         }
+      } else if (key === 'transitionTypes') {
+        if (props[key] != null && !Array.isArray(props[key])) {
+          throw createPropError({
+            key,
+            expected: '`string[]`',
+            actual: valType,
+          })
+        }
       } else {
         // TypeScript trick for type-guarding:
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const _: never = key
       }
     })
   }
+
+  const resolvedHref = asProp || hrefProp
+  const formattedHref = formatStringOrUrl(resolvedHref)
 
   if (process.env.NODE_ENV !== 'production') {
     if (props.locale) {
@@ -493,13 +520,13 @@ export default function LinkComponent(
     }
     if (!asProp) {
       let href: string | undefined
-      if (typeof hrefProp === 'string') {
-        href = hrefProp
+      if (typeof resolvedHref === 'string') {
+        href = resolvedHref
       } else if (
-        typeof hrefProp === 'object' &&
-        typeof hrefProp.pathname === 'string'
+        typeof resolvedHref === 'object' &&
+        typeof resolvedHref.pathname === 'string'
       ) {
-        href = hrefProp.pathname
+        href = resolvedHref.pathname
       }
 
       if (href) {
@@ -516,26 +543,24 @@ export default function LinkComponent(
     }
   }
 
-  const { href, as } = React.useMemo(() => {
-    const resolvedHref = formatStringOrUrl(hrefProp)
-    return {
-      href: resolvedHref,
-      as: asProp ? formatStringOrUrl(asProp) : resolvedHref,
-    }
-  }, [hrefProp, asProp])
-
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
   if (legacyBehavior) {
+    if ((children as any)?.$$typeof === Symbol.for('react.lazy')) {
+      throw new Error(
+        `\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.`
+      )
+    }
+
     if (process.env.NODE_ENV === 'development') {
       if (onClick) {
         console.warn(
-          `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
+          `"onClick" was passed to <Link> with \`href\` of \`${formattedHref}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
         )
       }
       if (onMouseEnterProp) {
         console.warn(
-          `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
+          `"onMouseEnter" was passed to <Link> with \`href\` of \`${formattedHref}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
         )
       }
       try {
@@ -543,11 +568,11 @@ export default function LinkComponent(
       } catch (err) {
         if (!children) {
           throw new Error(
-            `No children were passed to <Link> with \`href\` of \`${hrefProp}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
+            `No children were passed to <Link> with \`href\` of \`${formattedHref}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
           )
         }
         throw new Error(
-          `Multiple children were passed to <Link> with \`href\` of \`${hrefProp}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+          `Multiple children were passed to <Link> with \`href\` of \`${formattedHref}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
             (typeof window !== 'undefined'
               ? " \nOpen your browser's console to view the Component stack trace."
               : '')
@@ -579,9 +604,9 @@ export default function LinkComponent(
       if (router !== null) {
         linkInstanceRef.current = mountLinkInstance(
           element,
-          href,
+          formattedHref,
           router,
-          appPrefetchKind,
+          fetchStrategy,
           prefetchEnabled,
           setOptimisticLinkStatus
         )
@@ -595,7 +620,13 @@ export default function LinkComponent(
         unmountPrefetchableInstance(element)
       }
     },
-    [prefetchEnabled, href, router, appPrefetchKind, setOptimisticLinkStatus]
+    [
+      prefetchEnabled,
+      formattedHref,
+      router,
+      fetchStrategy,
+      setOptimisticLinkStatus,
+    ]
   )
 
   const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
@@ -632,12 +663,18 @@ export default function LinkComponent(
       if (!router) {
         return
       }
-
       if (e.defaultPrevented) {
         return
       }
-
-      linkClicked(e, href, as, linkInstanceRef, replace, scroll, onNavigate)
+      linkClicked(
+        e,
+        formattedHref,
+        linkInstanceRef,
+        replace,
+        scroll,
+        onNavigate,
+        transitionTypes
+      )
     },
     onMouseEnter(e) {
       if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
@@ -655,7 +692,6 @@ export default function LinkComponent(
       if (!router) {
         return
       }
-
       if (!prefetchEnabled || process.env.NODE_ENV === 'development') {
         return
       }
@@ -684,7 +720,6 @@ export default function LinkComponent(
           if (!router) {
             return
           }
-
           if (!prefetchEnabled) {
             return
           }
@@ -697,17 +732,15 @@ export default function LinkComponent(
         },
   }
 
-  // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-  // defined, we specify the current 'href', so that repetition is not needed by the user.
   // If the url is absolute, we can bypass the logic to prepend the basePath.
-  if (isAbsoluteUrl(as)) {
-    childProps.href = as
+  if (isAbsoluteUrl(formattedHref)) {
+    childProps.href = formattedHref
   } else if (
     !legacyBehavior ||
     passHref ||
     (child.type === 'a' && !('href' in child.props))
   ) {
-    childProps.href = addBasePath(as)
+    childProps.href = addBasePath(formattedHref)
   }
 
   let link: React.ReactNode
@@ -743,4 +776,28 @@ const LinkStatusContext = createContext<
 
 export const useLinkStatus = () => {
   return useContext(LinkStatusContext)
+}
+
+function getFetchStrategyFromPrefetchProp(
+  prefetchProp: Exclude<LinkProps['prefetch'], undefined | false>
+): PrefetchTaskFetchStrategy {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    if (prefetchProp === true) {
+      return FetchStrategy.Full
+    }
+
+    // `null` or `"auto"`: this is the default "auto" mode, where we will prefetch partially if the link is in the viewport.
+    // This will also include invalid prop values that don't match the types specified here.
+    // (although those should've been filtered out by prop validation in dev)
+    prefetchProp satisfies null | 'auto'
+    return FetchStrategy.PPR
+  } else {
+    return prefetchProp === null || prefetchProp === 'auto'
+      ? // We default to PPR, and we'll discover whether or not the route supports it with the initial prefetch.
+        FetchStrategy.PPR
+      : // In the old implementation without runtime prefetches, `prefetch={true}` forces all dynamic data to be prefetched.
+        // To preserve backwards-compatibility, anything other than `false`, `null`, or `"auto"` results in a full prefetch.
+        // (although invalid values should've been filtered out by prop validation in dev)
+        FetchStrategy.Full
+  }
 }

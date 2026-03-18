@@ -1,0 +1,39 @@
+diff --git a/module.d.ts b/module.d.ts
+index 3b40061a67ccb5a65071d29a3a8d7134d8851158..d733cde7cee76a389379f187f08c455c1b67b1e8 100644
+--- a/module.d.ts
++++ b/module.d.ts
+@@ -49,7 +49,25 @@ declare module "module" {
+          * @return Returns `module.SourceMap` if a source map is found, `undefined` otherwise.
+          */
+         function findSourceMap(path: string, error?: Error): SourceMap;
+-        interface SourceMapPayload {
++        /**
++         * https://tc39.es/source-map/#index-map
++         */
++        interface IndexSourceMapSection {
++        offset: {
++            line: number
++            column: number
++        }
++        map: BasicSourceMapPayload
++        }
++
++        // TODO(veil): Upstream types
++        /** https://tc39.es/ecma426/#sec-index-source-map */
++        interface IndexSourceMap {
++        version: number
++        file: string
++        sections: IndexSourceMapSection[]
++        }
++        interface BasicSourceMapPayload {
+             file: string;
+             version: number;
+             sources: string[];
+@@ -58,6 +76,7 @@ declare module "module" {
+             mappings: string;
+             sourceRoot: string;
+         }
++        type SourceMapPayload = BasicSourceMapPayload | IndexSourceMap;
+         interface SourceMapping {
+             generatedLine: number;
+             generatedColumn: number;

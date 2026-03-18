@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import webdriver from 'next-webdriver'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 import { findPort, nextBuild } from 'next-test-utils'
 import { isNextDeploy, isNextDev } from 'e2e-utils'
 import { start } from './server.mjs'
@@ -10,6 +10,8 @@ describe('segment cache (CDN cache busting)', () => {
     test('should not run during dev or deploy test runs', () => {})
     return
   }
+
+  // TODO(runtime-ppr): add tests for runtime prefetches
 
   // To debug these tests locally, run:
   //   node start.mjs
@@ -74,23 +76,30 @@ describe('segment cache (CDN cache busting)', () => {
   )
 
   it(
-    'prevent cache poisoning attacks by responding with an error if a custom ' +
-      'header is sent during a prefetch without a corresponding cache-busting ' +
-      'search param',
+    'prevent cache poisoning attacks by responding with a redirect to correct ' +
+      'cache busting query param if a custom header is sent during a prefetch ' +
+      'without a corresponding cache-busting search param',
     async () => {
       const browser = await webdriver(port, '/')
-      const { status } = await browser.eval(async () => {
-        const res = await fetch('/target-page', {
-          headers: {
-            RSC: '1',
-            'Next-Router-Prefetch': '1',
-            'Next-Router-Segment-Prefetch': '/_tree',
-          },
-        })
-        return { status: res.status, text: await res.text() }
-      })
-
-      expect(status).toBe(400)
+      const { status, responseUrl, redirected } = await browser.eval(
+        async () => {
+          const res = await fetch('/target-page', {
+            headers: {
+              rsc: '1',
+              'next-router-prefetch': '1',
+              'next-router-segment-prefetch': '/_tree',
+            },
+          })
+          return {
+            status: res.status,
+            responseUrl: res.url,
+            redirected: res.redirected,
+          }
+        }
+      )
+      expect(status).toBe(200)
+      expect(responseUrl).toContain('_rsc=')
+      expect(redirected).toBe(true)
     }
   )
 

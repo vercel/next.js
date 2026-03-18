@@ -34,8 +34,11 @@ describe('parallel-routes-catchall-css', () => {
     // the slot's background color should be red
     expect(await getSlotBackgroundColor(browser)).toBe('rgb(255, 0, 0)')
 
-    // there should no longer be a main element
-    expect(await browser.hasElementByCssSelector('#main')).toBeFalsy()
+    // the main element should either not exist or not be visible
+    const mainDisplay = await browser.eval(
+      `document.querySelector('#main') ? window.getComputedStyle(document.querySelector('#main')).display : null`
+    )
+    expect(mainDisplay === null || mainDisplay === 'none').toBe(true)
 
     // the slot background should still be red on a fresh load
     await browser.refresh()

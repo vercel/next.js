@@ -1,17 +1,14 @@
-/* eslint-disable jest/no-standalone-expect */
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   retry,
-  check,
   waitFor,
   getRedboxSource,
+  getDistDir,
 } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
-import fs from 'fs-extra'
-import nodeFs from 'fs'
-import path, { join } from 'path'
-import { outdent } from 'outdent'
+import fs from 'node:fs/promises'
+import { join } from 'node:path'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -32,13 +29,45 @@ describe('app-dir action handling', () => {
     })
 
   if (isNextStart) {
-    it('should trace server action imported by client correctly', async () => {
-      const traceData = await next.readJSON(
-        path.join('.next', 'server', 'app', 'client', 'page.js.nft.json')
+    it('should output exportName and filename info in manifest', async () => {
+      const referenceManifest = await next.readJSON(
+        `${getDistDir()}/server/server-reference-manifest.json`
       )
-      expect(traceData.files.some((file) => file.includes('data.txt'))).toBe(
-        true
-      )
+      let foundExportNames = []
+
+      for (const item in referenceManifest.node) {
+        try {
+          const itemInfo = referenceManifest.node[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          // can be outside app dir but this test suite has them all in app
+          expect(itemInfo.filename).toStartWith('app/')
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+      for (const item in referenceManifest.edge) {
+        try {
+          const itemInfo = referenceManifest.edge[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+
+      expect(foundExportNames).toContain('setCookie')
+      expect(foundExportNames).toContain('getCookie')
+      expect(foundExportNames).toContain('getHeader')
+      expect(foundExportNames).toContain('setCookieWithMaxAge')
     })
   }
 
@@ -163,12 +192,33 @@ describe('app-dir action handling', () => {
     )
   })
 
+  it('should error if server action arguments list is too long', async () => {
+    const browser = await next.browser('/too-many-args')
+    const cliOutputIndex = next.cliOutput.length
+    await browser.elementById('submit').click()
+    const expectedError =
+      'Error: Server Action arguments list is too long (1001). Maximum allowed is 1000.'
+
+    const error = await browser.waitForElementByCss('#error-text')
+    if (isNextDev) {
+      expect(await error.text()).toBe(expectedError)
+    } else {
+      expect(await error.text()).toBe(GENERIC_RSC_ERROR)
+    }
+
+    if (!isNextDeploy) {
+      const cliOutput = next.cliOutput.slice(cliOutputIndex)
+      expect(cliOutput).toInclude(expectedError)
+      expect(cliOutput).not.toInclude('Action was called')
+    }
+  })
+
   it('should support headers and cookies', async () => {
     const browser = await next.browser('/header')
 
     await browser.elementByCss('#cookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1', { state: 'attached' }).text()
       const id = res.split(':', 2)
       expect(id[0]).toBeDefined()
       expect(id[0]).toBe(id[1])
@@ -176,14 +226,14 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#header').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       expect(res).toContain('Mozilla')
     })
 
     // Set cookies
     await browser.elementByCss('#setCookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       const id = res.split(':', 3)
 
       expect(id[0]).toBeDefined()
@@ -201,7 +251,7 @@ describe('app-dir action handling', () => {
       const browser = await next.browser('/mutate-cookie-with-redirect', {
         disableJavaScript,
       })
-      expect(await browser.elementByCss('#value').text()).toBe('')
+      expect(await browser.elementByCss('#value').text()).toBe('<null>')
 
       await browser.elementByCss('#update-cookie').click()
       await browser.elementByCss('#redirect-target')
@@ -497,8 +547,14 @@ describe('app-dir action handling', () => {
 
     // navigate to server
     await browser.elementByCss('#navigate-server').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/server`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/server`)
+      },
+      2000,
+      1000
+    )
 
     browser = await next.browser('/server')
 
@@ -506,8 +562,14 @@ describe('app-dir action handling', () => {
 
     // navigate to client
     await browser.elementByCss('#navigate-client').click()
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/client`, true, 2)
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/client`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should not block router.back() while a server action is in flight', async () => {
@@ -519,29 +581,14 @@ describe('app-dir action handling', () => {
 
     await browser.back()
 
-    // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
-    await check(() => browser.url(), `${next.url}/`, true, 2)
-  })
-
-  it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
-    let browser = await next.browser('/client')
-    const initialRandomNumber = await browser
-      .elementByCss('#random-number')
-      .text()
-
-    await browser.elementByCss('#slow-inc').click()
-
-    // navigate to server
-    await browser.elementByCss('#navigate-server').click()
-
-    // wait for the action to be completed
-    await retry(async () => {
-      const newRandomNumber = await browser
-        .elementByCss('#random-number')
-        .text()
-
-      expect(newRandomNumber).not.toBe(initialRandomNumber)
-    })
+    // intentionally bailing after 2s so we don't retry to the point where the async function resolves
+    await retry(
+      async () => {
+        expect(await browser.url()).toEqual(`${next.url}/`)
+      },
+      2000,
+      1000
+    )
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
@@ -551,10 +598,10 @@ describe('app-dir action handling', () => {
     // this triggers a revalidate + redirect in a client component
     await browser.elementById('redirect-revalidate-client').click()
     await retry(async () => {
+      expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
+
       const newJustPutIt = await browser.elementById('justputit').text()
       expect(newJustPutIt).not.toBe(initialJustPutit)
-
-      expect(await browser.url()).toBe(`${next.url}/revalidate?foo=bar`)
     })
 
     // this triggers a revalidate + redirect in a server component
@@ -604,7 +651,8 @@ describe('app-dir action handling', () => {
       beforePageLoad(page) {
         page.on('request', (request) => {
           const url = new URL(request.url())
-          if (url.pathname === '/server') {
+          // Only count POST requests to /server (form submissions)
+          if (url.pathname === '/server' && request.method() === 'POST') {
             requestCount++
           }
         })
@@ -740,7 +788,8 @@ describe('app-dir action handling', () => {
     expect(newRandom).not.toBe(initialRandom)
   })
 
-  it('should reset the form state when the action redirects to itself', async () => {
+  // TODO(client-segment-cache): re-enable when this optimization is added back
+  it.skip('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
     const requests = []
     browser.on('request', async (req) => {
@@ -787,51 +836,6 @@ describe('app-dir action handling', () => {
       expect(requests.length).toBe(0)
     }
   })
-
-  // This is disabled when deployed because the 404 page will be served as a static route
-  // which will not support POST requests, and will return a 405 instead.
-  if (!isNextDeploy) {
-    it('should 404 when POSTing an invalid server action', async () => {
-      const cliOutputPosition = next.cliOutput.length
-      const res = await next.fetch('/non-existent-route', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-        body: 'foo=bar',
-      })
-
-      const cliOutput = next.cliOutput.slice(cliOutputPosition)
-
-      expect(cliOutput).not.toContain('TypeError')
-      expect(cliOutput).not.toContain(
-        'Missing `origin` header from a forwarded Server Actions request'
-      )
-      expect(res.status).toBe(404)
-    })
-  }
-
-  // This is disabled when deployed because it relies on checking runtime logs,
-  // and only build time logs will be available.
-  if (!isNextDeploy) {
-    it('should log a warning when a server action is not found but an id is provided', async () => {
-      await next.fetch('/server', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          'next-action': 'abc123',
-        },
-        body: 'foo=bar',
-      })
-
-      await retry(async () =>
-        expect(next.cliOutput).toInclude(outdent`
-          Failed to find Server Action "abc123". This request might be from an older or newer deployment.
-          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
-        `)
-      )
-    })
-  }
 
   it('should be possible to catch network errors', async () => {
     const browser = await next.browser('/catching-error', {
@@ -899,7 +903,9 @@ describe('app-dir action handling', () => {
       const browser = await next.browser(`/delayed-action/${runtime}`)
 
       // confirm there's no data yet
-      expect(await browser.elementById('delayed-action-result').text()).toBe('')
+      expect(await browser.elementById('delayed-action-result').text()).toBe(
+        '<null>'
+      )
 
       // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
       await browser.elementById('run-action').click()
@@ -908,7 +914,8 @@ describe('app-dir action handling', () => {
       await browser
         .elementByCss(`[href='/delayed-action/${runtime}/other']`)
         .click()
-        .waitForElementByCss('#other-page')
+
+      await browser.waitForElementByCss('#other-page')
 
       await retry(async () => {
         expect(
@@ -966,16 +973,21 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
       // We check all sourcemaps in the `static` folder for sensitive information given that chunking
-      const sourcemaps = nodeFs
-        .readdirSync(join(next.testDir, '.next', 'static'), {
+      const sourcemaps = await fs
+        .readdir(join(next.testDir, getDistDir(), 'static'), {
           recursive: true,
           encoding: 'utf8',
         })
-        .filter((f) => f.endsWith('.js.map'))
-        .map((f) =>
-          nodeFs.readFileSync(join(next.testDir, '.next', 'static', f), {
-            encoding: 'utf8',
-          })
+        .then((files) =>
+          Promise.all(
+            files
+              .filter((f) => f.endsWith('.js.map'))
+              .map((f) =>
+                fs.readFile(join(next.testDir, getDistDir(), 'static', f), {
+                  encoding: 'utf8',
+                })
+              )
+          )
         )
 
       expect(sourcemaps).not.toBeEmpty()
@@ -1004,7 +1016,7 @@ describe('app-dir action handling', () => {
             origContent + '\n\nexport const foo = 1'
           )
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           expect(await getRedboxSource(browser)).toContain(
             'Only async functions are allowed to be exported in a "use server" file.'
           )
@@ -1049,23 +1061,22 @@ describe('app-dir action handling', () => {
     it('should bundle external libraries if they are on the action layer', async () => {
       await next.fetch('/client')
       const pageBundle = await fs.readFile(
-        join(next.testDir, '.next', 'server', 'app', 'client', 'page.js')
+        join(next.testDir, getDistDir(), 'server', 'app', 'client', 'page.js'),
+        { encoding: 'utf8' }
       )
       if (isTurbopack) {
-        const chunkPaths = pageBundle
-          .toString()
-          .matchAll(/loadChunk\("([^"]*)"\)/g)
-        // @ts-ignore
+        const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, '.next', ...match[1].split(/[\\/]/g))
+            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
+            { encoding: 'utf8' }
           )
-          return bundle.toString().includes('node_modules/nanoid/index.js')
+          return bundle.includes('node_modules/nanoid/index.js')
         })
 
         expect(await Promise.all(reads)).toContain(true)
       } else {
-        expect(pageBundle.toString()).toContain('node_modules/nanoid/index.js')
+        expect(pageBundle).toContain('node_modules/nanoid/index.js')
       }
     })
   }
@@ -1327,7 +1338,7 @@ describe('app-dir action handling', () => {
       }, 5000)
     })
 
-    it('should handle unstable_expirePath', async () => {
+    it('should handle revalidatePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1350,7 +1361,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle unstable_expireTag', async () => {
+    it('should handle revalidateTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1374,7 +1385,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle unstable_expireTag + redirect', async () => {
+    it.skip('should handle revalidateTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1425,7 +1436,9 @@ describe('app-dir action handling', () => {
 
     it('should revalidate when cookies.set is called', async () => {
       const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-cookie').text()
+      const randomNumber = await browser
+        .elementByCss('#random-cookie', { state: 'attached' })
+        .text()
 
       await browser.elementByCss('#set-cookie').click()
 
@@ -1476,11 +1489,8 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         randomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
-        expect(randomCookie).toBeDefined()
+        ).cookie.value
       })
-
-      console.log(123, await browser.elementByCss('body').text())
 
       await browser.elementByCss('#another').click()
       await retry(async () => {
@@ -1491,7 +1501,7 @@ describe('app-dir action handling', () => {
 
       const newRandomCookie = JSON.parse(
         await browser.elementByCss('#random-cookie').text()
-      ).value
+      ).cookie.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1508,7 +1518,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         revalidatedRandomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1518,7 +1528,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).toBe(newRandomCookie)
       })
     })
@@ -1529,7 +1539,7 @@ describe('app-dir action handling', () => {
         const browser = await next.browser('/revalidate')
         await browser.refresh()
 
-        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+        const original = await browser.elementByCss('#thankyounext').text()
 
         await browser.elementByCss('#another').click()
         await retry(async () => {
@@ -1538,47 +1548,45 @@ describe('app-dir action handling', () => {
           )
         })
 
-        const newThankYouNext = await browser
-          .elementByCss('#thankyounext')
-          .text()
-
-        // Should be the same number although in serverless
-        // it might be eventually consistent
-        if (!isNextDeploy) {
-          expect(thankYouNext).toEqual(newThankYouNext)
-        }
+        await retry(async () => {
+          const another = await browser.elementByCss('#thankyounext').text()
+          expect(another).toEqual(original)
+        })
 
         await browser.elementByCss('#back').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#title').text()).toBe('revalidate')
+        })
+
+        switch (type) {
+          case 'tag':
+            await browser.elementByCss('#revalidate-thankyounext').click()
+            break
+          case 'path':
+            await browser.elementByCss('#revalidate-path').click()
+            break
+          default:
+            throw new Error(`Invalid type: ${type}`)
+        }
 
         // Should be different
-        let revalidatedThankYouNext
+        let revalidated
         await retry(async () => {
-          switch (type) {
-            case 'tag':
-              await browser.elementByCss('#revalidate-thankyounext').click()
-              break
-            case 'path':
-              await browser.elementByCss('#revalidate-path').click()
-              break
-            default:
-              throw new Error(`Invalid type: ${type}`)
-          }
-
-          revalidatedThankYouNext = await browser
-            .elementByCss('#thankyounext')
-            .text()
-
-          expect(thankYouNext).not.toBe(revalidatedThankYouNext)
+          revalidated = await browser.elementByCss('#thankyounext').text()
+          expect(revalidated).not.toBe(original)
         })
 
         await browser.elementByCss('#another').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#title').text()).toBe(
+            'another route'
+          )
+        })
 
         // The other page should be revalidated too
         await retry(async () => {
-          const newThankYouNext = await browser
-            .elementByCss('#thankyounext')
-            .text()
-          expect(revalidatedThankYouNext).toBe(newThankYouNext)
+          const another = await browser.elementByCss('#thankyounext').text()
+          expect(another).toBe(revalidated)
         })
       }
     )
@@ -1654,7 +1662,7 @@ describe('app-dir action handling', () => {
   })
 
   describe('redirects', () => {
-    it('redirects properly when server action handler uses `redirect`', async () => {
+    it('redirects properly when route handler uses `redirect`', async () => {
       const postRequests = []
       const responseCodes = []
 
@@ -1683,12 +1691,12 @@ describe('app-dir action handling', () => {
         expect(await browser.url()).toContain('success=true')
       })
 
-      // verify that the POST request was only made to the action handler
+      // verify that the POST request was only made to the route handler
       expect(postRequests).toEqual(['/redirects/api-redirect'])
       expect(responseCodes).toEqual([303])
     })
 
-    it('redirects properly when server action handler uses `permanentRedirect`', async () => {
+    it('redirects properly when route handler uses `permanentRedirect`', async () => {
       const postRequests = []
       const responseCodes = []
 
@@ -1716,7 +1724,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         expect(await browser.url()).toContain('success=true')
       })
-      // verify that the POST request was only made to the action handler
+      // verify that the POST request was only made to the route handler
       expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
       expect(responseCodes).toEqual([303])
     })
@@ -1781,7 +1789,7 @@ describe('app-dir action handling', () => {
     })
 
     it.each(['307', '308'])(
-      `redirects properly when server action handler redirects with a %s status code`,
+      `redirects properly when route handler redirects with a %s status code`,
       async (statusCode) => {
         const postRequests = []
         const responseCodes = []
@@ -1812,7 +1820,7 @@ describe('app-dir action handling', () => {
         })
         expect(await browser.elementById('redirect-page')).toBeTruthy()
 
-        // since a 307/308 status code follows the redirect, the POST request should be made to both the action handler and the redirect target
+        // since a 307/308 status code follows the redirect, the POST request should be made to both the route handler and the redirect target
         expect(postRequests).toEqual([
           `/redirects/api-redirect-${statusCode}`,
           `/redirects?success=true`,
@@ -1936,5 +1944,58 @@ describe('app-dir action handling', () => {
         )
       }
     )
+  })
+
+  describe('action discarding', () => {
+    // TODO: Investigate flaky behavior when deployed
+    if (!isNextDeploy) {
+      it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
+        let browser = await next.browser('/action-discarding')
+        await browser.waitForIdleNetwork()
+        const initialRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        await browser.elementByCss('#slow-action').click()
+
+        // navigate to destination
+        await browser.elementByCss('#navigate-destination').click()
+
+        // wait for the 2s action to finish
+        await waitFor(2000)
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#cached-random')
+            .text()
+
+          expect(newRandomNumber).toBe(initialRandomNumber)
+        })
+      })
+    }
+
+    it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
+      let browser = await next.browser('/action-discarding')
+      await browser.waitForIdleNetwork()
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
+        .text()
+
+      await browser.elementByCss('#slow-action-revalidate').click()
+
+      // navigate to destination
+      await browser.elementByCss('#navigate-destination').click()
+
+      // wait for the 2s action to finish
+      await waitFor(2000)
+
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        expect(newRandomNumber).not.toBe(initialRandomNumber)
+      })
+    })
   })
 })

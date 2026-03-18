@@ -1,0 +1,102 @@
+[
+    (
+        "computeAsyncValue",
+        Function(
+            3,
+            222,
+            Promise(
+                2,
+                Constant(
+                    Str(
+                        Atom(
+                            "async result",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "ensureAsyncProcessStarted",
+        Function(
+            2,
+            606,
+            Variable(
+                (
+                    "lasyInitAsyncProcess",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "getLasyInitAsyncValue",
+        Function(
+            2,
+            294,
+            Variable(
+                (
+                    "lasyInitAsyncValue",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "initLasyInitAsyncProcess",
+        Function(
+            3,
+            509,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
+            ),
+        ),
+    ),
+    (
+        "lasyInitAsyncProcess",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Constant(
+                    Null,
+                ),
+                Call(
+                    2,
+                    Variable(
+                        (
+                            "initLasyInitAsyncProcess",
+                            #2,
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "lasyInitAsyncValue",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Constant(
+                    Null,
+                ),
+                Call(
+                    2,
+                    Variable(
+                        (
+                            "computeAsyncValue",
+                            #2,
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

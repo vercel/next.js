@@ -11,7 +11,7 @@ pub use self::{
     base::EsmAssetReference,
     binding::EsmBinding,
     dynamic::EsmAsyncAssetReference,
-    export::{EsmExport, EsmExports, FoundExportType},
+    export::{EsmExport, EsmExports, FoundExportType, Liveness},
     meta::{ImportMetaBinding, ImportMetaRef},
     module_item::EsmModuleItem,
     url::{UrlAssetReference, UrlRewriteBehavior},

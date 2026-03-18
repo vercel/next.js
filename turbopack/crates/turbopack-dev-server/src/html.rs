@@ -1,12 +1,12 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{File, FileSystemPath};
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -15,12 +15,12 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
 
 #[derive(
-    Clone, Debug, Deserialize, Eq, Hash, NonLocalValue, PartialEq, Serialize, TaskInput, TraceRawVcs,
+    Clone, Debug, Eq, Hash, NonLocalValue, PartialEq, TaskInput, TraceRawVcs, Encode, Decode,
 )]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
@@ -35,21 +35,24 @@ pub struct DevHtmlEntry {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct DevHtmlAsset {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     entries: Vec<DevHtmlEntry>,
     body: Option<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for DevHtmlAsset {
+    #[turbo_tasks::function]
+    fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
+        self.chunk_group()
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.chunks()
+        self.path.clone().cell()
     }
 }
 
@@ -68,7 +71,7 @@ impl Asset for DevHtmlAsset {
 
 impl DevHtmlAsset {
     /// Create a new dev HTML asset.
-    pub fn new(path: ResolvedVc<FileSystemPath>, entries: Vec<DevHtmlEntry>) -> Vc<Self> {
+    pub fn new(path: FileSystemPath, entries: Vec<DevHtmlEntry>) -> Vc<Self> {
         DevHtmlAsset {
             path,
             entries,
@@ -79,7 +82,7 @@ impl DevHtmlAsset {
 
     /// Create a new dev HTML asset.
     pub fn new_with_body(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         entries: Vec<DevHtmlEntry>,
         body: RcStr,
     ) -> Vc<Self> {
@@ -95,7 +98,7 @@ impl DevHtmlAsset {
 #[turbo_tasks::value_impl]
 impl DevHtmlAsset {
     #[turbo_tasks::function]
-    pub async fn with_path(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Result<Vc<Self>> {
+    pub async fn with_path(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<Self>> {
         let mut html: DevHtmlAsset = self.owned().await?;
         html.path = path;
         Ok(html.cell())
@@ -114,9 +117,9 @@ impl DevHtmlAsset {
     #[turbo_tasks::function]
     async fn html_content(self: Vc<Self>) -> Result<Vc<DevHtmlAssetContent>> {
         let this = self.await?;
-        let context_path = this.path.parent().await?;
+        let context_path = this.path.parent();
         let mut chunk_paths = vec![];
-        for chunk in &*self.chunks().await? {
+        for chunk in &*self.chunk_group().await?.assets.await? {
             let chunk_path = &*chunk.path().await?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                 chunk_paths.push(format!("/{relative_path}").into());
@@ -127,8 +130,8 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
-        let all_assets = self
+    async fn chunk_group(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let all_chunk_groups = self
             .entries
             .iter()
             .map(|entry| async move {
@@ -139,7 +142,7 @@ impl DevHtmlAsset {
                     runtime_entries,
                 } = entry;
 
-                let assets = if let Some(runtime_entries) = runtime_entries {
+                let asset_with_referenced = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries =
                         if let Some(evaluatable) = ResolvedVc::try_downcast(chunkable_module) {
                             runtime_entries
@@ -149,36 +152,54 @@ impl DevHtmlAsset {
                         } else {
                             runtime_entries
                         };
-                    chunking_context.evaluated_chunk_group_assets(
-                        chunkable_module.ident(),
-                        ChunkGroup::Entry(
-                            runtime_entries
-                                .await?
-                                .iter()
-                                .map(|v| ResolvedVc::upcast(*v))
-                                .collect(),
-                        ),
-                        *module_graph,
-                        AvailabilityInfo::Root,
-                    )
+                    chunking_context
+                        .evaluated_chunk_group_assets(
+                            chunkable_module.ident(),
+                            ChunkGroup::Entry(
+                                runtime_entries
+                                    .await?
+                                    .iter()
+                                    .map(|v| ResolvedVc::upcast(*v))
+                                    .collect(),
+                            ),
+                            *module_graph,
+                            AvailabilityInfo::root(),
+                        )
+                        .await?
                 } else {
-                    chunking_context.root_chunk_group_assets(
-                        chunkable_module.ident(),
-                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
-                        *module_graph,
-                    )
+                    chunking_context
+                        .root_chunk_group_assets(
+                            chunkable_module.ident(),
+                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            *module_graph,
+                        )
+                        .await?
                 };
 
-                assets.await
+                Ok((
+                    asset_with_referenced.assets.await?,
+                    asset_with_referenced.referenced_assets.await?,
+                    asset_with_referenced.references.await?,
+                ))
             })
             .try_join()
-            .await?
-            .iter()
-            .flatten()
-            .copied()
-            .collect();
+            .await?;
 
-        Ok(Vc::cell(all_assets))
+        let mut all_assets = Vec::new();
+        let mut all_referenced_assets = Vec::new();
+        let mut all_references = Vec::new();
+        for (asset, referenced_asset, reference) in all_chunk_groups {
+            all_assets.extend(asset);
+            all_referenced_assets.extend(referenced_asset);
+            all_references.extend(reference);
+        }
+
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(all_assets),
+            referenced_assets: ResolvedVc::cell(all_referenced_assets),
+            references: ResolvedVc::cell(all_references),
+        }
+        .cell())
     }
 }
 
@@ -197,7 +218,7 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<AssetContent>> {
+    fn content(&self) -> Result<Vc<AssetContent>> {
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
@@ -227,7 +248,7 @@ impl DevHtmlAssetContent {
         .into();
 
         Ok(AssetContent::file(
-            File::from(html).with_content_type(TEXT_HTML_UTF_8).into(),
+            FileContent::Content(File::from(html).with_content_type(TEXT_HTML_UTF_8)).cell(),
         ))
     }
 
@@ -268,7 +289,7 @@ impl Version for DevHtmlAssetVersion {
             hasher.write_ref(body);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        let hash = encode_base64(hash);
+        Vc::cell(hash.into())
     }
 }

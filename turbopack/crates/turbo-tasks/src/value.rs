@@ -9,7 +9,7 @@ use crate::{
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
-/// Doesn't require serialization, and won't be stored in the persistent cache
+/// Doesn't require serialization, and won't be stored in the filesystem cache
 /// in the future.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct TransientValue<T> {
@@ -44,7 +44,7 @@ impl<T: TraceRawVcs> TraceRawVcs for TransientValue<T> {
 ///
 /// Equality and hash is implemented as pointer comparison.
 ///
-/// Doesn't require serialization, and won't be stored in the persistent cache
+/// Doesn't require serialization, and won't be stored in the filesystem cache
 /// in the future, so we don't include the `ValueTypeId` in the
 /// `SharedReference`.
 pub struct TransientInstance<T> {

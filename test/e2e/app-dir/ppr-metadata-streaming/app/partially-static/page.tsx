@@ -1,4 +1,4 @@
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 

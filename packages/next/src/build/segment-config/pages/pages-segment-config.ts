@@ -21,11 +21,6 @@ const PagesSegmentConfigSchema = z.object({
   config: z
     .object({
       /**
-       * Enables AMP for the page.
-       */
-      amp: z.union([z.boolean(), z.literal('hybrid')]).optional(),
-
-      /**
        * The runtime to use for the page.
        */
       runtime: z.enum(['edge', 'experimental-edge', 'nodejs']).optional(),
@@ -68,11 +63,6 @@ export const PagesSegmentConfigSchemaKeys =
   PagesSegmentConfigSchema.keyof().options
 
 export type PagesSegmentConfigConfig = {
-  /**
-   * Enables AMP for the page.
-   */
-  amp?: boolean | 'hybrid'
-
   /**
    * The maximum duration for the page render.
    */

@@ -10,7 +10,7 @@ describe('rsc layers transform', () => {
 
     expect(json).toEqual({
       textValue: 'text-value',
-      clientReference: 'Symbol(react.client.reference)',
+      linkType: 'function',
     })
   })
 

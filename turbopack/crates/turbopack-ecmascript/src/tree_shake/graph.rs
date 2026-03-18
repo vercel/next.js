@@ -10,6 +10,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::atom,
     common::{BytePos, DUMMY_SP, Spanned, SyntaxContext, comments::Comments, util::take::Take},
     ecma::{
         ast::{
@@ -100,7 +101,7 @@ pub(crate) struct ItemData {
     /// Is the module item hoisted?
     pub is_hoisted: bool,
 
-    /// TOOD(PACK-3166): We can use this field to optimize tree shaking
+    /// TODO(PACK-3166): We can use this field to optimize tree shaking
     #[allow(unused)]
     pub pure: bool,
 
@@ -695,7 +696,7 @@ impl DepGraph {
                                     is_type_only: false,
                                 })],
                                 src: if cfg!(test) {
-                                    Some(Box::new("__TURBOPACK_VAR__".into()))
+                                    Some(Box::new(atom!("__TURBOPACK_VAR__").into()))
                                 } else {
                                     None
                                 },
@@ -929,7 +930,7 @@ impl DepGraph {
                                 ),
                                 ExportSpecifier::Default(s) => (
                                     Some(ModuleExportName::Ident(Ident::new(
-                                        "default".into(),
+                                        atom!("default"),
                                         DUMMY_SP,
                                         Default::default(),
                                     ))),
@@ -953,7 +954,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.atom().clone()));
+                            exports.push((local.to_id(), exported.atom().into_owned()));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -1076,7 +1077,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((default_var.to_id(), "default".into()));
+                        exports.push((default_var.to_id(), atom!("default")));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         // Mirror what `EsmModuleItem::code_generation` does, these are live
@@ -1140,7 +1141,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((default_var.to_id(), "default".into()));
+                            exports.push((default_var.to_id(), atom!("default")));
                         }
                     }
 
@@ -1526,12 +1527,12 @@ impl DepGraph {
         has_path_connecting(&self.g.idx_graph, from, to, None)
     }
 
-    /// Workaround for implcit export issue of server actions.
+    /// Workaround for implicit export issue of server actions.
     ///
     /// Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
     ///
     /// But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
-    /// is cleary not used from the external module as it does not exist at all
+    /// is clearly not used from the external module as it does not exist at all
     /// in the user code.
     ///
     /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
@@ -1687,16 +1688,18 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
             value: box Expr::Lit(Lit::Str(s)),
-        })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
+        })) if &*key.sym == ASSERT_CHUNK_KEY => match s.value.as_str()? {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
-            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
+            _ if s.value.starts_with("export ") => {
+                Some(PartId::Export(s.value.as_str()?[7..].into()))
+            }
             _ => None,
         },
         _ => None,
     })
 }
-/// givin a number, return a base54 encoded string
+/// given a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
 pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =

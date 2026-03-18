@@ -9,11 +9,19 @@ autobenches = false
 [lib]
 bench = false
 
-[target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
-mimalloc = { version = "0.1.42", features = [], optional = true }
+[dependencies]
 
-[target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
-mimalloc = { version = "0.1.42", features = [
+
+[target.'cfg(not(any(target_os = "linux", target_family = "wasm")))'.dependencies]
+mimalloc = { version = "0.1.48", features = [
+  "v3",
+  "extended",
+], optional = true }
+
+[target.'cfg(all(target_os = "linux", not(target_family = "wasm")))'.dependencies]
+mimalloc = { version = "0.1.48", features = [
+  "v3",
+  "extended",
   "local_dynamic_tls",
 ], optional = true }
 

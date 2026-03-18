@@ -6,7 +6,7 @@ title: Cannot access Request information synchronously with `cookies()`, `header
 
 In Next.js 15 global functions that provide access to Request Header information such as `cookies()`, `headers()`, and `draftMode()` are each now `async` and return a `Promise` rather than the associated object directly.
 
-To support migrating to the async APIs Next.js 15 still supports accessing properties of the underlying object directly on the returned Promise. However when `dynamicIO` is enabled it is an error to do so.
+To support migrating to the async APIs Next.js 15 still supports accessing properties of the underlying object directly on the returned Promise. However when `cacheComponents` is enabled it is an error to do so.
 
 ## Possible Ways to Fix It
 
@@ -86,7 +86,7 @@ export default async function Page() {
 }
 ```
 
-Note that with `await connection()` and `dynamicIO` it is still required that there is a Suspense boundary somewhere above the component that uses `await connection()`. If you do not have any Suspense boundary parent you will need to add one where is appropriate to describe a fallback UI.
+Note that with `await connection()` and `cacheComponents` it is still required that there is a Suspense boundary somewhere above the component that uses `await connection()`. If you do not have any Suspense boundary parent you will need to add one where is appropriate to describe a fallback UI.
 
 ## Useful Links
 

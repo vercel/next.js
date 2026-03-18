@@ -13,7 +13,7 @@ export default async function Page(props) {
   return (
     <>
       <p id="data">
-        {JSON.stringify({ fetchDuration, data, now: Date.now() })}
+        {JSON.stringify({ fetchDuration, data, now: Date.now(), start })}
       </p>
     </>
   )

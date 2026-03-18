@@ -115,7 +115,7 @@ export class NextResponse<Body = unknown> extends Response {
   }
 
   static redirect(url: string | NextURL | URL, init?: number | ResponseInit) {
-    const status = typeof init === 'number' ? init : init?.status ?? 307
+    const status = typeof init === 'number' ? init : (init?.status ?? 307)
     if (!REDIRECTS.has(status)) {
       throw new RangeError(
         'Failed to execute "redirect" on "response": Invalid status code'

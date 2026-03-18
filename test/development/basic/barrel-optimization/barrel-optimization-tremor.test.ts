@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('optimizePackageImports - mui', () => {
   const { next } = nextTestSetup({
@@ -20,6 +20,6 @@ describe('optimizePackageImports - mui', () => {
   it('should work', async () => {
     // Without barrel optimization, the reproduction breaks.
     const browser = await next.browser('/')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

@@ -6,5 +6,6 @@
       "@lib/*": ["lib/a/*", "lib/b/*"],
       "@mycomponent": ["components/hello.js"]
     }
-  }
+  },
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
 }

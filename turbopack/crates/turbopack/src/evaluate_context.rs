@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystem;
@@ -9,14 +9,15 @@ use turbopack_core::{
     condition::ContextCondition,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_ecmascript::TreeShakingMode;
+use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    ModuleAssetContext,
+    ModuleAssetContext, externals_tracing_module_context,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     transition::TransitionOptions,
 };
@@ -28,12 +29,20 @@ pub fn node_build_environment() -> Vc<Environment> {
     ))
 }
 
+async fn node_env_value(env: Vc<Box<dyn ProcessEnv>>) -> Result<RcStr> {
+    if let Some(node_env) = &*env.read(rcstr!("NODE_ENV")).await? {
+        Ok(node_env.clone())
+    } else {
+        Ok(rcstr!("development"))
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn node_evaluate_asset_context(
     execution_context: Vc<ExecutionContext>,
     import_map: Option<Vc<ImportMap>>,
     transitions: Option<Vc<TransitionOptions>>,
-    layer: RcStr,
+    layer: Layer,
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
     let mut import_map = if let Some(import_map) = import_map {
@@ -42,25 +51,15 @@ pub async fn node_evaluate_asset_context(
         ImportMap::empty()
     };
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-node/",
+        rcstr!("@vercel/turbopack-node/"),
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
-            Some(
-                turbopack_node::embed_js::embed_fs()
-                    .root()
-                    .to_resolved()
-                    .await?,
-            ),
+            rcstr!("./*"),
+            Some(turbopack_node::embed_js::embed_fs().root().owned().await?),
         )
         .resolved_cell(),
     );
     let import_map = import_map.resolved_cell();
-    let node_env: RcStr =
-        if let Some(node_env) = &*execution_context.env().read("NODE_ENV".into()).await? {
-            node_env.as_str().into()
-        } else {
-            "development".into()
-        };
+    let node_env = node_env_value(execution_context.env()).await?;
 
     // base context used for node_modules (and context for app code will be derived
     // from this)
@@ -68,13 +67,14 @@ pub async fn node_evaluate_asset_context(
         enable_node_modules: Some(
             execution_context
                 .project_path()
+                .await?
                 .root()
-                .to_resolved()
+                .owned()
                 .await?,
         ),
         enable_node_externals: true,
         enable_node_native_modules: true,
-        custom_conditions: vec![node_env.clone(), "node".into()],
+        custom_conditions: vec![node_env.clone(), rcstr!("node")],
         ..Default::default()
     };
     // app code context, includes a rule to switch to the node_modules context
@@ -82,7 +82,7 @@ pub async fn node_evaluate_asset_context(
         enable_typescript: true,
         import_map: Some(import_map),
         rules: vec![(
-            ContextCondition::InDirectory("node_modules".to_string()),
+            ContextCondition::InNodeModules,
             resolve_options_context.clone().resolved_cell(),
         )],
         ..resolve_options_context
@@ -96,7 +96,7 @@ pub async fn node_evaluate_asset_context(
                 compile_time_defines!(
                     process.turbopack = true,
                     process.env.NODE_ENV = node_env.into_owned(),
-                    process.env.TURBOPACK = true
+                    process.env.TURBOPACK = "1"
                 )
                 .resolved_cell(),
             )
@@ -105,6 +105,7 @@ pub async fn node_evaluate_asset_context(
         ModuleOptionsContext {
             tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
             ecmascript: EcmascriptOptionsContext {
+                esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
@@ -116,5 +117,27 @@ pub async fn node_evaluate_asset_context(
         .cell(),
         resolve_options_context,
         layer,
+    )))
+}
+
+#[turbo_tasks::function]
+pub async fn config_tracing_module_context(
+    execution_context: Vc<ExecutionContext>,
+) -> Result<Vc<Box<dyn AssetContext>>> {
+    let node_env = node_env_value(execution_context.env()).await?;
+
+    Ok(Vc::upcast(externals_tracing_module_context(
+        CompileTimeInfo::builder(node_build_environment().to_resolved().await?)
+            .defines(
+                compile_time_defines!(
+                    process.turbopack = true,
+                    process.env.NODE_ENV = node_env.into_owned(),
+                    process.env.TURBOPACK = "1"
+                )
+                .resolved_cell(),
+            )
+            .cell()
+            .await?,
+        true,
     )))
 }

@@ -1,0 +1,46 @@
+@import './normalize.css';
+@import './styles/default-theme.css';
+@import './styles/dark-theme.css';
+@import './styles/colors.css';
+
+/* devtool global css variables */
+:host {
+  /* variables */
+  --top-z-index: 2147483647;
+}
+
+/* global styles */
+* {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* global reset for draggable content scrollbar styles */
+[data-nextjs-scrollable-content],
+[data-nextjs-scrollable-content] * {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    border-radius: 0 0 1rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  &::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 0 0 1rem 1rem;
+    background-color: var(--color-background-100);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 1rem;
+    background-color: var(--color-gray-500);
+  }
+}
+
+/* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
+[data-nextjs-scrollable-content] {
+  overflow: hidden;
+  border-radius: inherit;
+}

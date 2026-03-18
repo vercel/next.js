@@ -1,9 +1,7 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{Completion, ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{Completion, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-
-use super::register;
 
 pub fn scope_stress(c: &mut Criterion) {
     if matches!(
@@ -12,8 +10,6 @@ pub fn scope_stress(c: &mut Criterion) {
     ) {
         return;
     }
-
-    register();
 
     let mut group = c.benchmark_group("turbo_tasks_backend_scope_stress");
     group.sample_size(20);
@@ -51,12 +47,14 @@ pub fn scope_stress(c: &mut Criterion) {
                             .map(|(a, b)| {
                                 let tt = &tt;
                                 async move {
-                                    let task = tt.spawn_once_task(async move {
-                                        rectangle(a, b).strongly_consistent().await?;
-                                        Ok::<Vc<()>, _>(Default::default())
-                                    });
-                                    tt.wait_task_completion(task, ReadConsistency::Eventual)
-                                        .await
+                                    Ok(tt
+                                        .run(async move {
+                                            rectangle_operation(a, b)
+                                                .read_strongly_consistent()
+                                                .await?;
+                                            Ok(())
+                                        })
+                                        .await?)
                                 }
                             })
                             .try_join()
@@ -73,13 +71,13 @@ pub fn scope_stress(c: &mut Criterion) {
 
 /// This fills a rectagle from (0, 0) to (a, b) by
 /// first filling (0, 0) to (a - 1, b) and then (0, 0) to (a, b - 1) recursively
-#[turbo_tasks::function]
-async fn rectangle(a: u32, b: u32) -> Result<Vc<Completion>> {
+#[turbo_tasks::function(operation)]
+async fn rectangle_operation(a: u32, b: u32) -> Result<Vc<Completion>> {
     if a > 0 {
-        rectangle(a - 1, b).await?;
+        rectangle_operation(a - 1, b).connect().await?;
     }
     if b > 0 {
-        rectangle(a, b - 1).await?;
+        rectangle_operation(a, b - 1).connect().await?;
     }
     Ok(Completion::new())
 }

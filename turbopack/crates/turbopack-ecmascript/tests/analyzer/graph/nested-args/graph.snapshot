@@ -86,14 +86,11 @@
     (
         "r",
         Function(
-            11,
+            10,
             87,
             Alternatives {
-                total_nodes: 10,
+                total_nodes: 9,
                 values: [
-                    Constant(
-                        Undefined,
-                    ),
                     Variable(
                         (
                             "a",
@@ -124,7 +121,9 @@
                                             Constant(
                                                 Num(
                                                     ConstantNumber(
-                                                        1.0,
+                                                        TotalOrderF64(
+                                                            1.0,
+                                                        ),
                                                     ),
                                                 ),
                                             ),
@@ -135,7 +134,9 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        1.0,
+                                        TotalOrderF64(
+                                            1.0,
+                                        ),
                                     ),
                                 ),
                             ),
@@ -162,7 +163,9 @@
                     Constant(
                         Num(
                             ConstantNumber(
-                                1.0,
+                                TotalOrderF64(
+                                    1.0,
+                                ),
                             ),
                         ),
                     ),
@@ -172,7 +175,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -193,7 +198,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
