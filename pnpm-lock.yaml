@@ -21,7 +21,6 @@ overrides:
   react-dom: npm:react-dom@19.3.0-canary-5e9eedb5-20260312
   react-is: npm:react-is@19.3.0-canary-5e9eedb5-20260312
   scheduler: npm:scheduler@0.28.0-canary-5e9eedb5-20260312
-  lodash: 4.17.23
 
 packageExtensionsChecksum: 2c0398c5f3e8ad5816061c5823d227e9
 
@@ -13203,6 +13202,9 @@ packages:
   lodash.uniq@4.5.0:
     resolution: {integrity: sha512-xfBaXQd9ryd9dlSDvnvI0lvxfLJlYAZzXomUYzLKtUeOQvOP5piqAWuGtrhWeqaXK9hhoM/iyJc5AV+XfsX3HQ==}
 
+  lodash@3.10.1:
+    resolution: {integrity: sha512-9mDDwqVIma6OZX79ZlDACZl8sBm0TEnkf99zV3iMA4GzkIT/9hiqP5mY0HoT1iNLCrKc/R1HByV+yJfRWVJryQ==}
+
   lodash@4.17.23:
     resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
 
@@ -26332,7 +26334,7 @@ snapshots:
       dom-serializer: 0.1.1
       entities: 1.1.2
       htmlparser2: 3.8.3
-      lodash: 4.17.23
+      lodash: 3.10.1
 
   cheerio@0.22.0:
     dependencies:
@@ -32556,6 +32558,8 @@ snapshots:
   lodash.truncate@4.4.2: {}
 
   lodash.uniq@4.5.0: {}
+
+  lodash@3.10.1: {}
 
   lodash@4.17.23: {}
 

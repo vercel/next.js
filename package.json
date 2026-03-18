@@ -335,8 +335,7 @@
       "react": "npm:react@19.3.0-canary-5e9eedb5-20260312",
       "react-dom": "npm:react-dom@19.3.0-canary-5e9eedb5-20260312",
       "react-is": "npm:react-is@19.3.0-canary-5e9eedb5-20260312",
-      "scheduler": "npm:scheduler@0.28.0-canary-5e9eedb5-20260312",
-      "lodash": "4.17.23"
+      "scheduler": "npm:scheduler@0.28.0-canary-5e9eedb5-20260312"
     },
     "packageExtensions": {
       "eslint-plugin-react-hooks@0.0.0-experimental-6de32a5a-20250822": {
