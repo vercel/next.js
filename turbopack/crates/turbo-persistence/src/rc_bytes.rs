@@ -7,6 +7,8 @@ use std::{
 
 use memmap2::Mmap;
 
+use crate::shared_bytes::SharedBytes;
+
 /// The backing storage for an `RcBytes`.
 ///
 /// Uses `Rc` for all refcounting, eliminating atomic operations.
@@ -127,5 +129,28 @@ impl RcBytes {
                 _backing: mmap.clone(),
             },
         }
+    }
+}
+
+impl SharedBytes for RcBytes {
+    type MmapHandle = Rc<Mmap>;
+
+    fn slice(self, range: Range<usize>) -> Self {
+        self.slice(range)
+    }
+
+    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
+        unsafe { self.slice_from_subslice(subslice) }
+    }
+
+    unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
+        unsafe { RcBytes::from_mmap(mmap, subslice) }
+    }
+
+    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+        Ok(RcBytes::from(crate::compression::decompress_into_rc(
+            uncompressed_length,
+            block,
+        )?))
     }
 }

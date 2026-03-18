@@ -9,6 +9,8 @@ use std::{
 
 use memmap2::Mmap;
 
+use crate::shared_bytes::SharedBytes;
+
 /// The backing storage for an `ArcBytes`.
 ///
 /// The inner values are never read directly — they exist solely to keep the
@@ -150,5 +152,28 @@ impl ArcBytes {
     /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
     pub fn is_mmap_backed(&self) -> bool {
         matches!(self.backing, Backing::Mmap { .. })
+    }
+}
+
+impl SharedBytes for ArcBytes {
+    type MmapHandle = Arc<Mmap>;
+
+    fn slice(self, range: Range<usize>) -> Self {
+        self.slice(range)
+    }
+
+    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
+        unsafe { self.slice_from_subslice(subslice) }
+    }
+
+    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
+        unsafe { ArcBytes::from_mmap(mmap.clone(), subslice) }
+    }
+
+    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+        Ok(ArcBytes::from(crate::compression::decompress_into_arc(
+            uncompressed_length,
+            block,
+        )?))
     }
 }
