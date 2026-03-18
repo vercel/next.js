@@ -4,16 +4,23 @@ import {
 } from '../../shared/lib/router/utils/is-bot'
 import type { BaseNextRequest } from '../base-http'
 
+// Cache compiled RegExp per pattern string to avoid re-creating it on every
+// request. The pattern comes from `nextConfig.htmlLimitedBots` which is a
+// static config value, so the cache will hold at most 1-2 entries.
+let cachedPattern: string | undefined
+let cachedRegex: RegExp | undefined
+
 export function shouldServeStreamingMetadata(
   userAgent: string,
   htmlLimitedBots: string | undefined
 ): boolean {
-  const blockingMetadataUARegex = new RegExp(
-    htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
-    'i'
-  )
+  const pattern = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+  if (pattern !== cachedPattern) {
+    cachedPattern = pattern
+    cachedRegex = new RegExp(pattern, 'i')
+  }
   // Only block metadata for HTML-limited bots
-  if (userAgent && blockingMetadataUARegex.test(userAgent)) {
+  if (userAgent && cachedRegex!.test(userAgent)) {
     return false
   }
   return true

@@ -11,7 +11,10 @@ export const INTERCEPTION_ROUTE_MARKERS = [
 export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
 
 export function isInterceptionRouteAppPath(path: string): boolean {
-  // TODO-APP: add more serious validation
+  // Fast path: interception markers always start with '(' — skip the
+  // split + find for the vast majority of paths that have no parentheses.
+  if (!path.includes('(')) return false
+
   return (
     path
       .split('/')
