@@ -90,6 +90,11 @@ import {
   type CacheHandler as ICacheHandler,
 } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  StaticResponseCache,
+  buildCacheKey,
+  createCapturingResponse,
+} from './static-response-cache'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
@@ -197,6 +202,19 @@ export default class NextNodeServer extends BaseServer<
   private isDev: boolean
   private sriEnabled: boolean
 
+  /**
+   * In-memory cache for complete HTTP responses of static pre-rendered pages.
+   * Only initialized in production (non-dev, non-minimal) mode.
+   */
+  private staticResponseCache: StaticResponseCache | undefined
+
+  /**
+   * Set of pathname prefixes (from prerender manifest) that are eligible
+   * for static response caching. Routes must have initialRevalidateSeconds === false
+   * (truly static, no ISR revalidation).
+   */
+  private staticCacheableRoutes: Set<string> | undefined
+
   constructor(options: Options) {
     // Initialize super class
     super(options)
@@ -225,6 +243,35 @@ export default class NextNodeServer extends BaseServer<
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
+    }
+
+    // Initialize the in-memory static response cache for production mode.
+    // This caches complete HTTP responses for truly static pre-rendered pages
+    // (initialRevalidateSeconds === false) to skip the framework pipeline.
+    if (!isDev && !this.minimalMode) {
+      this.staticResponseCache = new StaticResponseCache({
+        maxEntries: 128,
+        maxBodySize: 2 * 1024 * 1024, // 2MB
+      })
+
+      // Build the set of cacheable routes from the prerender manifest.
+      // Only routes with initialRevalidateSeconds === false are eligible
+      // (truly static pages that never revalidate via ISR).
+      try {
+        const prerenderManifest = this.getPrerenderManifest()
+        this.staticCacheableRoutes = new Set<string>()
+        for (const [route, config] of Object.entries(
+          prerenderManifest.routes
+        )) {
+          if (config.initialRevalidateSeconds === false) {
+            this.staticCacheableRoutes.add(route)
+          }
+        }
+      } catch {
+        // If the manifest can't be loaded, disable the cache
+        this.staticResponseCache = undefined
+        this.staticCacheableRoutes = undefined
+      }
     }
 
     if (
@@ -1273,6 +1320,40 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  /**
+   * Determine the normalized pathname from a raw URL for cache-key lookup.
+   * Strips query string, basePath, .rsc suffix, and trailing slash for
+   * consistency with the prerender manifest route keys.
+   */
+  private getStaticCachePathname(url: string): string | null {
+    const qIndex = url.indexOf('?')
+    let pathname = qIndex === -1 ? url : url.slice(0, qIndex)
+
+    // Strip basePath prefix (prerender manifest routes don't include it)
+    const basePath = this.nextConfig.basePath
+    if (basePath && pathname.startsWith(basePath)) {
+      pathname = pathname.slice(basePath.length) || '/'
+    }
+
+    // Strip .rsc suffix to match manifest route keys
+    if (pathname.endsWith('.rsc')) {
+      pathname = pathname.slice(0, -4)
+    }
+
+    // Strip segment prefetch suffixes (.segments/...)
+    const segIdx = pathname.indexOf('.segments/')
+    if (segIdx !== -1) {
+      pathname = pathname.slice(0, segIdx)
+    }
+
+    // Normalize: remove trailing slash (but keep '/')
+    if (pathname.length > 1 && pathname.endsWith('/')) {
+      pathname = pathname.slice(0, -1)
+    }
+
+    return pathname || null
+  }
+
   private makeRequestHandler(): NodeRequestHandler {
     // This is just optimization to fire prepare as soon as possible. It will be
     // properly awaited later. We add the catch here to ensure that it does not
@@ -1284,8 +1365,75 @@ export default class NextNodeServer extends BaseServer<
 
     const handler = super.getRequestHandler()
 
-    return (req, res, parsedUrl) =>
-      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    return (req, res, parsedUrl) => {
+      // Fast path: serve from in-memory static response cache.
+      // Only applies to GET/HEAD requests for truly static pages.
+      if (
+        this.staticResponseCache &&
+        this.staticCacheableRoutes &&
+        (req.method === 'GET' || req.method === 'HEAD')
+      ) {
+        const incomingReq: IncomingMessage =
+          req instanceof NodeNextRequest ? req.originalRequest : req
+        const url = incomingReq.url
+        const headers = incomingReq.headers
+
+        // Skip cache for on-demand revalidation and preview/draft mode
+        const hasRevalidateHeader = !!headers['x-prerender-revalidate']
+        const hasBypassCookie =
+          typeof headers.cookie === 'string' &&
+          headers.cookie.includes('__prerender_bypass')
+
+        if (url && !hasRevalidateHeader && !hasBypassCookie) {
+          const cacheKey = buildCacheKey(url)
+
+          // Try serving from cache
+          const served = this.staticResponseCache.serve(
+            cacheKey,
+            incomingReq,
+            res instanceof NodeNextResponse ? res.originalResponse : res
+          )
+          if (served) {
+            return Promise.resolve()
+          }
+
+          // Check if this request is for a cacheable static route.
+          // Only attempt to populate the cache for eligible routes.
+          const pathname = this.getStaticCachePathname(url)
+          if (pathname && this.staticCacheableRoutes.has(pathname)) {
+            // Wrap the response to capture the output for caching.
+            // We wrap the raw ServerResponse before normalizeRes creates
+            // a NodeNextResponse around it.
+            const rawRes =
+              res instanceof NodeNextResponse ? res.originalResponse : res
+            const captureRes = createCapturingResponse(
+              rawRes,
+              (captured) => {
+                // Only cache successful responses (2xx)
+                if (
+                  captured.statusCode >= 200 &&
+                  captured.statusCode < 300 &&
+                  captured.body.length > 0
+                ) {
+                  this.staticResponseCache!.set(cacheKey, captured)
+                }
+              }
+            )
+            return handler(
+              this.normalizeReq(req),
+              this.normalizeRes(captureRes),
+              parsedUrl
+            )
+          }
+        }
+      }
+
+      return handler(
+        this.normalizeReq(req),
+        this.normalizeRes(res),
+        parsedUrl
+      )
+    }
   }
 
   public async revalidate({
@@ -1297,6 +1445,12 @@ export default class NextNodeServer extends BaseServer<
     headers: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
+    // Invalidate the static response cache for this path so the next
+    // request re-populates it with fresh content.
+    if (this.staticResponseCache) {
+      this.staticResponseCache.invalidate(urlPath)
+    }
+
     const mocked = createRequestResponseMocks({
       url: urlPath,
       headers,
