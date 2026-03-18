@@ -677,33 +677,44 @@ async function createComponentTreeInternal(
             )
           : null
 
+        // Build LayoutRouter props conditionally to avoid serializing
+        // undefined values as "$undefined" in the RSC Flight payload.
+        // For a 10-layout route this eliminates ~100 redundant
+        // "$undefined" references (~1.4 KB savings per response).
+        const layoutRouterProps: Record<string, unknown> = {
+          parallelRouterKey: parallelRouteKey,
+          template:
+            isSegmentViewEnabled && templateFilePath
+              ? createElement(
+                  SegmentViewNode,
+                  {
+                    type: 'template',
+                    pagePath: templateFilePath,
+                  },
+                  templateNode
+                )
+              : templateNode,
+        }
+        if (ErrorComponent) layoutRouterProps.error = ErrorComponent
+        if (wrappedErrorStyles)
+          layoutRouterProps.errorStyles = wrappedErrorStyles
+        if (errorScripts) layoutRouterProps.errorScripts = errorScripts
+        if (templateStyles) layoutRouterProps.templateStyles = templateStyles
+        if (templateScripts)
+          layoutRouterProps.templateScripts = templateScripts
+        if (notFoundComponent)
+          layoutRouterProps.notFound = notFoundComponent
+        if (forbiddenComponent)
+          layoutRouterProps.forbidden = forbiddenComponent
+        if (unauthorizedComponent)
+          layoutRouterProps.unauthorized = unauthorizedComponent
+        if (isSegmentViewEnabled) {
+          layoutRouterProps.segmentViewBoundaries = segmentViewBoundaries
+        }
+
         return [
           parallelRouteKey,
-          createElement(LayoutRouter, {
-            parallelRouterKey: parallelRouteKey,
-            error: ErrorComponent,
-            errorStyles: wrappedErrorStyles,
-            errorScripts: errorScripts,
-            template:
-              isSegmentViewEnabled && templateFilePath
-                ? createElement(
-                    SegmentViewNode,
-                    {
-                      type: 'template',
-                      pagePath: templateFilePath,
-                    },
-                    templateNode
-                  )
-                : templateNode,
-            templateStyles: templateStyles,
-            templateScripts: templateScripts,
-            notFound: notFoundComponent,
-            forbidden: forbiddenComponent,
-            unauthorized: unauthorizedComponent,
-            ...(isSegmentViewEnabled && {
-              segmentViewBoundaries,
-            }),
-          }),
+          createElement(LayoutRouter, layoutRouterProps),
           childCacheNodeSeedData,
         ]
       }
