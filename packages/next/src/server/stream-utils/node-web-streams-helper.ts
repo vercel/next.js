@@ -115,6 +115,12 @@ async function streamToChunks(
 }
 
 function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
+  // Buffer.concat uses a native C++ implementation that avoids the
+  // intermediate JS-heap allocation + copy loop. ~2-3x faster on Node.js.
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.concat(chunks as Buffer[])
+  }
+  // Fallback for edge runtime where Buffer is not available.
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
   const result = new Uint8Array(totalLength)
   let offset = 0
@@ -123,6 +129,18 @@ function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
     offset += chunk.length
   }
   return result
+}
+
+/**
+ * Allocate a Uint8Array of `size` bytes. On Node.js this uses
+ * Buffer.allocUnsafe which skips zero-filling — safe when the caller
+ * immediately overwrites every byte (e.g. via .set()).
+ */
+function allocUint8Array(size: number): Uint8Array {
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.allocUnsafe(size)
+  }
+  return new Uint8Array(size)
 }
 
 export async function streamToUint8Array(
@@ -179,14 +197,12 @@ export function createBufferedTransformStream(
         return
       }
 
-      const chunk = new Uint8Array(bufferByteLength)
-      let copiedBytes = 0
+      // Fast path: single chunk needs no merging at all.
+      const chunk =
+        bufferedChunks.length === 1
+          ? bufferedChunks[0]
+          : concatUint8Arrays(bufferedChunks)
 
-      for (let i = 0; i < bufferedChunks.length; i++) {
-        const bufferedChunk = bufferedChunks[i]
-        chunk.set(bufferedChunk, copiedBytes)
-        copiedBytes += bufferedChunk.byteLength
-      }
       // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
       // and our bufferByteLength to prepare for the next round of buffered chunks
       bufferedChunks.length = 0
@@ -326,7 +342,7 @@ function createMetadataTransformStream(
           // We do not need to insert the script tag in this case because it's in the head.
           // Just remove the icon mark from the chunk.
           if (iconMarkIndex < closedHeadIndex) {
-            const replaced = new Uint8Array(chunk.length - iconMarkLength)
+            const replaced = allocUint8Array(chunk.length - iconMarkLength)
 
             // Remove the icon mark from the chunk.
             replaced.set(chunk.subarray(0, iconMarkIndex))
@@ -340,7 +356,7 @@ function createMetadataTransformStream(
             const insertion = await insert()
             const encodedInsertion = encoder.encode(insertion)
             const insertionLength = encodedInsertion.length
-            const replaced = new Uint8Array(
+            const replaced = allocUint8Array(
               chunk.length - iconMarkLength + insertionLength
             )
             replaced.set(chunk.subarray(0, iconMarkIndex))
@@ -361,7 +377,7 @@ function createMetadataTransformStream(
         const encodedInsertion = encoder.encode(insertion)
         const insertionLength = encodedInsertion.length
         // Replace the icon mark with the hoist script or empty string.
-        const replaced = new Uint8Array(
+        const replaced = allocUint8Array(
           chunk.length - iconMarkLength + insertionLength
         )
         // Set the first part of the chunk, before the icon mark.
@@ -415,16 +431,16 @@ function createHeadInsertionTransformStream(
             // chunk = <head><meta charset="utf-8"></head>
             // insertion = <script>...</script>
             // output = <head><meta charset="utf-8"> [ <script>...</script> ] </head>
-            const insertedHeadContent = new Uint8Array(
+            const insertedHeadContent = allocUint8Array(
               chunk.length + encodedInsertion.length
             )
             // Append the first part of the chunk, before the head tag
-            insertedHeadContent.set(chunk.slice(0, index))
+            insertedHeadContent.set(chunk.subarray(0, index))
             // Append the server inserted content
             insertedHeadContent.set(encodedInsertion, index)
             // Append the rest of the chunk
             insertedHeadContent.set(
-              chunk.slice(index),
+              chunk.subarray(index),
               index + encodedInsertion.length
             )
             controller.enqueue(insertedHeadContent)
@@ -473,6 +489,9 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
   const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
+  // Cache the encoded script — it's a static string computed once per stream.
+  const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
+
   let didAlreadyInsert = false
   return new TransformStream({
     transform(chunk, controller) {
@@ -494,22 +513,21 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
         return
       }
 
-      const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
       // Get the total count of the bytes in the chunk and the insertion
       // e.g.
       // chunk = <head><meta charset="utf-8"></head>
       // insertion = <script>...</script>
       // output = <head><meta charset="utf-8"> [ <script>...</script> ] </head>
-      const insertedHeadContent = new Uint8Array(
+      const insertedHeadContent = allocUint8Array(
         chunk.length + encodedInsertion.length
       )
       // Append the first part of the chunk, before the head tag
-      insertedHeadContent.set(chunk.slice(0, headClosingTagIndex))
+      insertedHeadContent.set(chunk.subarray(0, headClosingTagIndex))
       // Append the server inserted content
       insertedHeadContent.set(encodedInsertion, headClosingTagIndex)
       // Append the rest of the chunk
       insertedHeadContent.set(
-        chunk.slice(headClosingTagIndex),
+        chunk.subarray(headClosingTagIndex),
         headClosingTagIndex + encodedInsertion.length
       )
 
@@ -551,6 +569,9 @@ export function createInstantTestScriptInsertionTransformStream(
     requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
   const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
 
+  // Cache the encoded script — it's a static string computed once per stream.
+  const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
+
   let didAlreadyInsert = false
   return new TransformStream({
     transform(chunk, controller) {
@@ -578,19 +599,18 @@ export function createInstantTestScriptInsertionTransformStream(
         return
       }
 
-      const encodedInsertion = encoder.encode(INSTANT_TEST_SCRIPT)
       const insertionPoint = headCloseAngle + 1
       // e.g.
       // chunk = <!DOCTYPE html><html><head><meta charset="utf-8">...
       // insertion = <script>self.__next_instant_test=fetch(...)</script>
       // output = <!DOCTYPE html><html><head> [ <script>...</script> ] <meta charset="utf-8">...
-      const insertedHeadContent = new Uint8Array(
+      const insertedHeadContent = allocUint8Array(
         chunk.length + encodedInsertion.length
       )
-      insertedHeadContent.set(chunk.slice(0, insertionPoint))
+      insertedHeadContent.set(chunk.subarray(0, insertionPoint))
       insertedHeadContent.set(encodedInsertion, insertionPoint)
       insertedHeadContent.set(
-        chunk.slice(insertionPoint),
+        chunk.subarray(insertionPoint),
         insertionPoint + encodedInsertion.length
       )
 
@@ -816,6 +836,9 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
 function createHtmlDataDplIdTransformStream(
   dplId: string
 ): TransformStream<Uint8Array, Uint8Array> {
+  // Cache the encoded attribute — dplId is constant for the lifetime of the stream.
+  const encodedAttribute = encoder.encode(` data-dpl-id="${dplId}"`)
+
   let didTransform = false
 
   return new TransformStream({
@@ -833,9 +856,7 @@ function createHtmlDataDplIdTransformStream(
 
       // Insert the data-dpl-id attribute right after "<html "
       const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
-      const attribute = ` data-dpl-id="${dplId}"`
-      const encodedAttribute = encoder.encode(attribute)
-      const modifiedChunk = new Uint8Array(
+      const modifiedChunk = allocUint8Array(
         chunk.length + encodedAttribute.length
       )
 
