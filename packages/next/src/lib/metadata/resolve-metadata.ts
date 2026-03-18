@@ -231,7 +231,9 @@ async function mergeMetadata(
     leafSegmentStaticIcons: StaticIcons
   }
 ): Promise<ResolvedMetadata> {
-  const newResolvedMetadata = structuredClone(resolvedMetadata)
+  // Use a shallow copy instead of structuredClone. This is safe because
+  // every property below is fully replaced (never mutated in-place).
+  const newResolvedMetadata: ResolvedMetadata = { ...resolvedMetadata }
 
   const metadataBase = normalizeMetadataBase(
     metadata?.metadataBase !== undefined
@@ -455,7 +457,9 @@ function mergeViewport({
   resolvedViewport: ResolvedViewport
   viewport: Viewport | null
 }): ResolvedViewport {
-  const newResolvedViewport = structuredClone(resolvedViewport)
+  // Use a shallow copy instead of structuredClone. This is safe because
+  // every property below is fully replaced (never mutated in-place).
+  const newResolvedViewport: ResolvedViewport = { ...resolvedViewport }
 
   if (viewport) {
     for (const key_ in viewport) {
