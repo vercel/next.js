@@ -431,12 +431,23 @@ export class IncrementalCache implements IncrementalCacheType {
     cacheKey: string,
     ctx: GetIncrementalFetchCacheContext | GetIncrementalResponseCacheContext
   ): Promise<IncrementalCacheEntry | null> {
+    // Cache the store lookups once for FETCH requests, avoiding redundant
+    // AsyncLocalStorage.getStore() calls across the RDC check and cache
+    // handler result processing below.
+    const fetchWorkUnitStore =
+      ctx.kind === IncrementalCacheKind.FETCH
+        ? workUnitAsyncStorage.getStore()
+        : undefined
+    const fetchWorkStore =
+      ctx.kind === IncrementalCacheKind.FETCH
+        ? workAsyncStorage.getStore()
+        : undefined
+
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      const resumeDataCache = workUnitStore
-        ? getRenderResumeDataCache(workUnitStore)
+      const resumeDataCache = fetchWorkUnitStore
+        ? getRenderResumeDataCache(fetchWorkUnitStore)
         : null
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
@@ -444,12 +455,11 @@ export class IncrementalCache implements IncrementalCacheType {
           // Check if any tags were recently revalidated before returning RDC entry.
           // When a server action calls updateTag(), the re-render should see fresh
           // data instead of stale RDC data.
-          const workStore = workAsyncStorage.getStore()
           const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
           const hasRevalidatedTag = combinedTags.some(
             (tag) =>
               this.revalidatedTags?.includes(tag) ||
-              workStore?.pendingRevalidatedTags?.some(
+              fetchWorkStore?.pendingRevalidatedTags?.some(
                 (item) => item.tag === tag
               )
           )
@@ -505,14 +515,15 @@ export class IncrementalCache implements IncrementalCacheType {
         )
       }
 
-      const workStore = workAsyncStorage.getStore()
       const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
       // if a tag was revalidated we don't return stale data
       if (
         combinedTags.some(
           (tag) =>
             this.revalidatedTags?.includes(tag) ||
-            workStore?.pendingRevalidatedTags?.some((item) => item.tag === tag)
+            fetchWorkStore?.pendingRevalidatedTags?.some(
+              (item) => item.tag === tag
+            )
         )
       ) {
         if (IncrementalCache.debug) {
@@ -530,10 +541,9 @@ export class IncrementalCache implements IncrementalCacheType {
       //
       // We add it to the RDC so that the next fetch call will be able to use it
       // and it won't have to reach into the fetch cache implementation.
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
+      if (fetchWorkUnitStore) {
         const prerenderResumeDataCache =
-          getPrerenderResumeDataCache(workUnitStore)
+          getPrerenderResumeDataCache(fetchWorkUnitStore)
         if (prerenderResumeDataCache) {
           if (IncrementalCache.debug) {
             console.log('IncrementalCache: rdc:set', cacheKey)

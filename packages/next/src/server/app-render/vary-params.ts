@@ -1,6 +1,9 @@
 import type { Params } from '../request/params'
 import type { SearchParams } from '../request/search-params'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from './work-unit-async-storage.external'
 import type {
   VaryParamsThenable,
   VaryParams,
@@ -111,9 +114,14 @@ export function createResponseVaryParamsAccumulator(): ResponseVaryParamsAccumul
  * Returns a thenable that resolves to the segment's vary params once rendering
  * is complete. The thenable can be passed directly to React Flight for
  * serialization.
+ *
+ * @param cachedWorkUnitStore - Optional pre-fetched WorkUnitStore to avoid
+ * a redundant AsyncLocalStorage.getStore() call when the caller already has it.
  */
-export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
-  const workUnitStore = workUnitAsyncStorage.getStore()
+export function createVaryParamsAccumulator(
+  cachedWorkUnitStore?: WorkUnitStore
+): VaryParamsAccumulator | null {
+  const workUnitStore = cachedWorkUnitStore ?? workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':

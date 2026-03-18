@@ -311,10 +311,13 @@ async function createComponentTreeInternal(
     validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
 
+  // Cache the work unit store lookup once for use across the revalidate check,
+  // stale time check, and vary params accumulator below, avoiding redundant
+  // AsyncLocalStorage.getStore() calls per segment.
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
-
-    const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
@@ -365,7 +368,6 @@ async function createComponentTreeInternal(
     typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
   ) {
     const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
-    const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore) {
       switch (workUnitStore.type) {
@@ -816,7 +818,7 @@ async function createComponentTreeInternal(
       ? // Client components with Cache Components enabled don't receive params
         // from the server, so they have an empty vary params set.
         emptyVaryParamsAccumulator
-      : createVaryParamsAccumulator()
+      : createVaryParamsAccumulator(workUnitStore)
 
   if (
     process.env.NODE_ENV === 'development' &&
