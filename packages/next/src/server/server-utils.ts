@@ -238,6 +238,10 @@ export function getServerUtils({
   let dynamicRouteMatcher: RouteMatchFn | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
+  // Pre-compute basePath regex so we don't allocate a new RegExp on every
+  // rewrite check inside handleRewrites.
+  const basePathRegex = basePath ? new RegExp(`^${basePath}`) : null
+
   if (pageIsDynamic) {
     defaultRouteRegex = getNamedRouteRegex(page, {
       prefixRouteKeys: false,
@@ -250,11 +254,14 @@ export function getServerUtils({
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
   ) {
-    // Here we deep clone the parsedUrl to avoid mutating the original. We also
-    // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(
-      parsedUrl
-    ) as NextUrlWithParsedQuery
+    // Shallow copy with a separate query copy to avoid mutating the original.
+    // structuredClone was the #1 non-React CPU hotspot (8.6% of CPU time)
+    // in production profiles — overkill for this flat URL object whose
+    // properties are all primitives plus a single-level query record.
+    const rewrittenParsedUrl = {
+      ...parsedUrl,
+      query: { ...parsedUrl.query },
+    } as NextUrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
     let fsPathname = rewrittenParsedUrl.pathname
 
@@ -317,8 +324,8 @@ export function getServerUtils({
         fsPathname = rewrittenParsedUrl.pathname
         if (!fsPathname) return false
 
-        if (basePath) {
-          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
+        if (basePathRegex) {
+          fsPathname = fsPathname.replace(basePathRegex, '') || '/'
         }
 
         if (i18n) {
