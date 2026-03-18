@@ -82,6 +82,7 @@ struct ValueArguments {
     shared: bool,
     cell_mode: CellMode,
     manual_eq: bool,
+    manual_hash: bool,
     transparent: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
@@ -94,6 +95,7 @@ impl Parse for ValueArguments {
             shared: false,
             cell_mode: CellMode::Compare,
             manual_eq: false,
+            manual_hash: false,
             transparent: false,
             operation: None,
         };
@@ -150,6 +152,22 @@ impl Parse for ValueArguments {
                         return Err(Error::new_spanned(&str, "expected \"manual\""));
                     };
                 }
+                (
+                    "hash",
+                    Meta::NameValue(MetaNameValue {
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
+                    }),
+                ) => {
+                    result.manual_hash = if str.value() == "manual" {
+                        true
+                    } else {
+                        return Err(Error::new_spanned(&str, "expected \"manual\""));
+                    };
+                }
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
@@ -161,7 +179,7 @@ impl Parse for ValueArguments {
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
-                             \"serialization\", \"cell\", \"eq\", \"transparent\", or \
+                             \"serialization\", \"cell\", \"eq\", \"hash\", \"transparent\", or \
                              \"operation\""
                         ),
                     ));
@@ -180,6 +198,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         shared,
         cell_mode,
         manual_eq,
+        manual_hash,
         transparent,
         operation,
     } = parse_macro_input!(args as ValueArguments);
@@ -191,6 +210,16 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         return syn::Error::new(
             proc_macro2::Span::call_site(),
             "serialization = \"hash\" only makes sense with cell = \"compare\" (or default)",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // `hash = "manual"` only makes sense with `serialization = "hash"`.
+    if manual_hash && !matches!(serialization_mode, SerializationMode::Hash) {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "hash = \"manual\" only makes sense with serialization = \"hash\"",
         )
         .to_compile_error()
         .into();
@@ -352,6 +381,11 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     if !manual_eq {
         struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
+        });
+    }
+    if matches!(serialization_mode, SerializationMode::Hash) && !manual_hash {
+        struct_attributes.push(quote! {
+            #[derive(std::hash::Hash)]
         });
     }
     if let Some(span) = operation {
