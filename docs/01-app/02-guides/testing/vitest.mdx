@@ -218,7 +218,7 @@ test('Page', () => {
 
 Vitest does not natively render `async` Server Components. To test them, `await` the component and render the result:
 
-> **Good to know:** `PageProps` and `LayoutProps` are generated types. Run `next typegen` to generate them (both `next dev` and `next build` also run typegen internally). If you see type errors for these types, make sure you've run one of these commands at least once. See [TypeScript](/docs/app/guides/typescript) for more information.
+> **Good to know:** `PageProps` and `LayoutProps` are generated types. Run `next typegen` to generate them (both `next dev` and `next build` also run typegen internally). If you see type errors for these types, make sure you've run one of these commands at least once. See [TypeScript](/docs/app/api-reference/config/typescript) for more information.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
