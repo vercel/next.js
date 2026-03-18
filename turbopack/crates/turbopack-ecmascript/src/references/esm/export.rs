@@ -687,18 +687,18 @@ impl EsmExports {
 
         #[derive(Eq, PartialEq)]
         enum ExportBinding {
-            Getter(Expr),
-            GetterSetter(Expr, Expr),
-            Value(Expr),
+            Getter(Box<Expr>),
+            GetterSetter(Box<Expr>, Box<Expr>),
+            Value(Box<Expr>),
             None,
         }
 
         let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
             let exprs: ExportBinding = match local {
-                EsmExport::Error => ExportBinding::Getter(quote!(
+                EsmExport::Error => ExportBinding::Getter(Box::new(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
-                )),
+                ))),
                 EsmExport::LocalBinding(name, liveness) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
@@ -727,19 +727,21 @@ impl EsmExports {
 
                     let local = Ident::new(local.into(), DUMMY_SP, ctxt);
                     match (liveness, export_usage_info.is_circuit_breaker) {
-                        (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
+                        (Liveness::Constant, false) => {
+                            ExportBinding::Value(Box::new(Expr::Ident(local)))
+                        }
                         // If the value might change or we are a circuit breaker we must bind a
                         // getter to avoid capturing the value at the wrong time.
-                        (Liveness::Live, _) | (Liveness::Constant, true) => {
-                            ExportBinding::Getter(quote!("() => $local" as Expr, local = local))
-                        }
+                        (Liveness::Live, _) | (Liveness::Constant, true) => ExportBinding::Getter(
+                            Box::new(quote!("() => $local" as Expr, local = local)),
+                        ),
                         (Liveness::Mutable, _) => ExportBinding::GetterSetter(
-                            quote!("() => $local" as Expr, local = local.clone()),
-                            quote!(
+                            Box::new(quote!("() => $local" as Expr, local = local.clone())),
+                            Box::new(quote!(
                                 "($new) => $local = $new" as Expr,
                                 local: AssignTarget = AssignTarget::Simple(local.into()),
                                 new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
-                            ),
+                            )),
                         ),
                     }
                 }
@@ -759,25 +761,25 @@ impl EsmExports {
                                     // If we are re-exporting something but got merged with it we can treat it like a local export
                                      match (liveness, export_usage_info.is_circuit_breaker) {
                                         (Liveness::Constant, false) => {
-                                            ExportBinding::Value(read_expr)
+                                            ExportBinding::Value(Box::new(read_expr))
                                         }
                                         // If the value might change or we are a circuit breaker we must bind a
                                         // getter to avoid capturing the value at the wrong time.
                                         (Liveness::Live, _) | (Liveness::Constant, true) => {
                                             // In the constant case, we could still export as a value if we knew that the module
                                             // came _before_ us, but we don't at this point.
-                                            ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
+                                            ExportBinding::Getter(Box::new(quote!("() => $local" as Expr, local: Expr = read_expr)))
                                         }
                                         (Liveness::Mutable, _) => {
                                             let assign_target = AssignTarget::Simple(
                                                         ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
                                             ExportBinding::GetterSetter(
-                                                quote!("() => $local" as Expr, local: Expr= read_expr.clone()),
-                                                quote!(
+                                                Box::new(quote!("() => $local" as Expr, local: Expr= read_expr.clone())),
+                                                Box::new(quote!(
                                                     "($new) => $lhs = $new" as Expr,
                                                     lhs: AssignTarget = assign_target,
                                                     new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
-                                                )
+                                                ))
                                             )
                                         }
                                     }
@@ -786,13 +788,13 @@ impl EsmExports {
                                     // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
                                     // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
                                     // since that would reduce allocations and optimize access. We could do this by passing the module-id up.
-                                    let getter = quote!("() => $expr" as Expr, expr: Expr = read_expr);
+                                    let getter = Box::new(quote!("() => $expr" as Expr, expr: Expr = read_expr));
                                     let assign_target = AssignTarget::Simple(
                                                     ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
                                     if *mutable {
                                         ExportBinding::GetterSetter(
                                             getter,
-                                            quote!(
+                                            Box::new(quote!(
                                                 "($new) => $lhs = $new" as Expr,
                                                 lhs: AssignTarget = assign_target,
                                                 new = Ident::new(
@@ -800,7 +802,7 @@ impl EsmExports {
                                                     DUMMY_SP,
                                                     Default::default()
                                                 ),
-                                            ))
+                                            )))
                                     } else {
                                         ExportBinding::Getter(getter)
                                     }
@@ -817,12 +819,12 @@ impl EsmExports {
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);
                             if export_usage_info.is_circuit_breaker {
-                                ExportBinding::Getter(quote!(
+                                ExportBinding::Getter(Box::new(quote!(
                                     "(() => $imported)" as Expr,
                                     imported: Expr = imported
-                                ))
+                                )))
                             } else {
-                                ExportBinding::Value(imported)
+                                ExportBinding::Value(Box::new(imported))
                             }
                         })
                         .unwrap_or(ExportBinding::None)
@@ -839,17 +841,17 @@ impl EsmExports {
                 ));
                 match exprs {
                     ExportBinding::Getter(getter) => {
-                        getters.push(Some(getter.into()));
+                        getters.push(Some((*getter).into()));
                     }
                     ExportBinding::GetterSetter(getter, setter) => {
-                        getters.push(Some(getter.into()));
-                        getters.push(Some(setter.into()));
+                        getters.push(Some((*getter).into()));
+                        getters.push(Some((*setter).into()));
                     }
                     ExportBinding::Value(value) => {
                         // We need to push a discriminator in this case to make the fact that we are
                         // binding a value unambiguous to the runtime.
                         getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
-                        getters.push(Some(value.into()));
+                        getters.push(Some((*value).into()));
                     }
                     ExportBinding::None => {}
                 };
