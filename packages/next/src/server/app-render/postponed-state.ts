@@ -12,6 +12,8 @@ import {
 } from '../resume-data-cache/resume-data-cache'
 import { stringifyResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
+const LEADING_DIGITS_RE = /^(\d+)/
+
 export enum DynamicState {
   /**
    * The dynamic access occurred during the RSC render phase.
@@ -120,24 +122,23 @@ export function parsePostponedState(
   maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
-    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
-    if (!postponedStringLengthMatch) {
+    const colonIdx = state.indexOf(':')
+    if (colonIdx <= 0) {
       throw new Error(`Invariant: invalid postponed state ${state}`)
     }
 
-    const postponedStringLength = parseInt(postponedStringLengthMatch)
+    const postponedStringLengthStr = state.substring(0, colonIdx)
+    const postponedStringLength = parseInt(postponedStringLengthStr, 10)
 
     // We add a `:` to the end of the length as the first character of the
     // postponed string is the length of the replacement entries.
     const postponedString = state.slice(
-      postponedStringLengthMatch.length + 1,
-      postponedStringLengthMatch.length + postponedStringLength + 1
+      colonIdx + 1,
+      colonIdx + 1 + postponedStringLength
     )
 
     const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(
-        postponedStringLengthMatch.length + postponedStringLength + 1
-      ),
+      state.slice(colonIdx + 1 + postponedStringLength),
       maxPostponedStateSizeBytes
     )
 
@@ -146,13 +147,9 @@ export function parsePostponedState(
         return { type: DynamicState.DATA, renderResumeDataCache }
       }
 
-      if (/^[0-9]/.test(postponedString)) {
-        const match = postponedString.match(/^([0-9]*)/)?.[1]
-        if (!match) {
-          throw new Error(
-            `Invariant: invalid postponed state ${JSON.stringify(postponedString)}`
-          )
-        }
+      const leadingDigitsMatch = LEADING_DIGITS_RE.exec(postponedString)
+      if (leadingDigitsMatch) {
+        const match = leadingDigitsMatch[1]
 
         // This is the length of the replacements entries.
         const length = parseInt(match)

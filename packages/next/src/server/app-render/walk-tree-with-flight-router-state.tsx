@@ -61,8 +61,6 @@ export async function walkTreeWithFlightRouterState({
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
-  const parallelRoutesKeys = Object.keys(parallelRoutes)
-
   const { layout } = modules
   const isLayout = typeof layout !== 'undefined'
 
@@ -273,7 +271,7 @@ export async function walkTreeWithFlightRouterState({
   const paths: FlightDataPath[] = []
 
   // Walk through all parallel routes.
-  for (const parallelRouteKey of parallelRoutesKeys) {
+  for (const parallelRouteKey in parallelRoutes) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
 
     const subPaths = await walkTreeWithFlightRouterState({
