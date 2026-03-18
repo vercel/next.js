@@ -929,6 +929,13 @@ export interface ExperimentalConfig {
   }
 
   /**
+   * Use Node.js native streams instead of WhatWG web streams in the
+   * server render pipeline. This can significantly reduce CPU overhead
+   * in SSR workloads by avoiding the web-to-node stream conversion layer.
+   */
+  useNodeStreams?: boolean
+
+  /**
    * Enables using the global-not-found.js file in the app directory
    *
    */
@@ -1794,6 +1801,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useNodeStreams: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
