@@ -2097,9 +2097,7 @@ export default abstract class Server<
     if (!addedNextUrlToVary) {
       // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
       // This is to avoid any dependency on the `Next-URL` header being present when preparing the response.
-      // Use undefined assignment instead of delete to preserve V8 hidden class.
-      // Downstream code checks this header by value, not with the `in` operator.
-      req.headers[NEXT_URL] = undefined
+      delete req.headers[NEXT_URL]
     }
   }
 
