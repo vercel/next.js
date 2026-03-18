@@ -3184,6 +3184,7 @@ where
                 let mut data = None;
                 let mut emit_scope = None;
                 let mut with = None;
+                let mut exports = None;
 
                 for part in options {
                     if let ObjectPart::KeyValue(
@@ -3196,6 +3197,7 @@ where
                             "data" => data = Some(value.clone()),
                             "scope" => emit_scope = Some(value.clone()),
                             "with" => with = Some(value.clone()),
+                            "exports" => exports = Some(value.clone()),
                             v => return invalid_args(v),
                         }
                     }
@@ -3221,6 +3223,28 @@ where
                     None => false,
                     _ => return invalid_args("scope"),
                 };
+                let exports = match exports {
+                    Some(JsValue::Constant(JsConstantValue::Str(export))) => {
+                        ExportUsage::Named(export.as_rcstr())
+                    }
+                    Some(JsValue::Array { items, .. }) => {
+                        let mut result = vec![];
+                        for item in items {
+                            if let JsValue::Constant(JsConstantValue::Str(export)) = item {
+                                result.push(export.as_rcstr());
+                            } else {
+                                return invalid_args("exports");
+                            }
+                        }
+                        match result.len() {
+                            0 => ExportUsage::All,
+                            1 => ExportUsage::Named(result.into_iter().next().unwrap()),
+                            _ => ExportUsage::PartialNamespaceObject(result.into()),
+                        }
+                    }
+                    None => ExportUsage::All,
+                    _ => return invalid_args("exports"),
+                };
 
                 analysis.add_reference_code_gen(
                     EmitReference::new(
@@ -3231,7 +3255,7 @@ where
                         issue_source(source, span),
                         annotations,
                         ResolveErrorMode::Error,
-                        ExportUsage::All,
+                        exports,
                         namespace.as_rcstr(),
                         match data {
                             Some(JsValue::Constant(JsConstantValue::Str(data))) => {
