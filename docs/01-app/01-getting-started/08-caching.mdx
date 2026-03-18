@@ -280,9 +280,9 @@ export default async function Layout({
 
 If this param is dynamic (not provided by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), it is runtime data and the layout cannot be prerendered.
 
-However, it is often possible to read the parameter value further down the tree. Instead of awaiting at the layout level, narrow the promise to the specific param you need and pass it down without awaiting:
+However, it is often possible to read the parameter value further down the tree. Instead of awaiting at the layout level, pass the params promise down and await there:
 
-```tsx filename="app/shop/[slug]/layout.tsx" highlight={3,10,15-16}
+```tsx filename="app/shop/[slug]/layout.tsx" highlight={3,13-16}
 import { Suspense } from 'react'
 
 export default function Layout({
@@ -292,21 +292,21 @@ export default function Layout({
   children: React.ReactNode
   params: Promise<{ slug: string }>
 }) {
-  const slug = params.then((p) => p.slug)
-
   return (
     <div>
       <Sidebar />
       <Suspense fallback={<h1>Loading...</h1>}>
-        <SlugHeading slug={slug} />
+        {params.then(({ slug }) => (
+          <SlugHeading slug={slug} />
+        ))}
       </Suspense>
       {children}
     </div>
   )
 }
 
-async function SlugHeading({ slug }: { slug: Promise<string> }) {
-  return <h1>{await slug}</h1>
+function SlugHeading({ slug }: { slug: string }) {
+  return <h1>{slug}</h1>
 }
 ```
 
