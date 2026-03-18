@@ -178,9 +178,8 @@ export function getDefineEnv({
     'process.env.__NEXT_INSTANT_NAV_TOGGLE':
       !!config.experimental.instantNavigationDevToolsToggle,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
-    'process.env.__NEXT_USE_NODE_STREAMS': JSON.stringify(
-      config.experimental?.useNodeStreams ?? false
-    ),
+    'process.env.__NEXT_USE_NODE_STREAMS':
+      !!config.experimental?.useNodeStreams,
 
     'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
       config.experimental.immutableAssetToken || '',
