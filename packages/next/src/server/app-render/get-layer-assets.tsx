@@ -21,25 +21,27 @@ export function getLayerAssets({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
 }): React.ReactNode {
+  // Fast path: when there is no layout or page file for this segment,
+  // there are no CSS/JS assets to inject. Skip all manifest lookups.
+  if (!layoutOrPagePath) {
+    return null
+  }
+
   const {
     componentMod: { createElement },
   } = ctx
-  const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
-    ? getLinkAndScriptTags(
-        layoutOrPagePath,
-        injectedCSSWithCurrentLayout,
-        injectedJSWithCurrentLayout,
-        true
-      )
-    : { styles: [], scripts: [] }
+  const { styles: styleTags, scripts: scriptTags } = getLinkAndScriptTags(
+    layoutOrPagePath,
+    injectedCSSWithCurrentLayout,
+    injectedJSWithCurrentLayout,
+    true
+  )
 
-  const preloadedFontFiles = layoutOrPagePath
-    ? getPreloadableFonts(
-        ctx.renderOpts.nextFontManifest,
-        layoutOrPagePath,
-        injectedFontPreloadTagsWithCurrentLayout
-      )
-    : null
+  const preloadedFontFiles = getPreloadableFonts(
+    ctx.renderOpts.nextFontManifest,
+    layoutOrPagePath,
+    injectedFontPreloadTagsWithCurrentLayout
+  )
 
   if (preloadedFontFiles) {
     if (preloadedFontFiles.length) {
