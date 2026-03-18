@@ -2141,7 +2141,10 @@ describe('Prerender', () => {
 
       it('should handle revalidating HTML correctly with blocking and seed', async () => {
         const route = '/blocking-fallback/a'
-        const initialHtml = await renderViaHTTP(next.url, route)
+        const initialRes = await fetchViaHTTP(next.url, route)
+        const initialHtml = await initialRes.text()
+        expect(initialRes.headers.get('Content-Length')).toBeDefined()
+        expect(initialRes.headers.get('ETag')).toBeDefined()
         const $initial = cheerio.load(initialHtml)
         expect($initial('p').text()).toBe('Post: a')
 
@@ -2156,7 +2159,10 @@ describe('Prerender', () => {
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
+          const newRes = await fetchViaHTTP(next.url, route)
+          expect(newRes.headers.get('Content-Length')).toBeDefined()
+          expect(newRes.headers.get('ETag')).toBeDefined()
+          newHtml = await newRes.text()
           return newHtml !== initialHtml ? 'success' : newHtml
         }, 'success')
 
