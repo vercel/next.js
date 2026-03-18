@@ -16,7 +16,7 @@ use crate::{
     mmap_helper::advise_mmap_for_persistence,
     rc_bytes::RcBytes,
     shared_bytes::SharedBytes,
-    static_sorted_file_builder::BLOCK_HEADER_SIZE,
+    static_sorted_file_builder::{BLOCK_HEADER_SIZE, INDEX_BLOCK_ENTRY_SIZE},
 };
 
 /// The block header for an index block.
@@ -254,8 +254,7 @@ impl StaticSortedFile {
     fn lookup_index_block(&self, block: &[u8], hash: u64) -> Result<u16> {
         ensure!(block.len() >= 3, "index block too short");
         let first_block = be::read_u16(&block[1..]);
-        // Each entry is 10 bytes: 8 bytes for the hash, 2 bytes for the block index
-        let (entries, remainder) = block[3..].as_chunks::<10>();
+        let (entries, remainder) = block[3..].as_chunks::<INDEX_BLOCK_ENTRY_SIZE>();
         if entries.is_empty() {
             return Ok(first_block);
         }
@@ -285,6 +284,10 @@ impl StaticSortedFile {
         ensure!(block.len() >= 4, "key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let data = &block[4..];
+        ensure!(
+            data.len() >= entry_count * 4,
+            "key block too short for {entry_count} entries"
+        );
         let offsets = &data[..entry_count * 4];
         let entries = &data[entry_count * 4..];
 
@@ -318,6 +321,10 @@ impl StaticSortedFile {
         let val_size = entry_val_size(value_type)?;
         let stride = hash_len as usize + key_size + val_size;
         let entries = &block[6..];
+        ensure!(
+            entries.len() == entry_count * stride,
+            "fixed key block for {entry_count} entries must is the wrong size"
+        );
 
         self.lookup_block_inner::<K, FIND_ALL>(
             &block,
@@ -673,8 +680,8 @@ pub struct StaticSortedFileIter {
     /// The root index block entries (body bytes starting after the type byte).
     /// SST files have exactly one index level.
     index_entries: RcBytes,
-    /// Total number of key block references in the index block.
-    index_block_count: usize,
+    /// Total key block references in the index block (first_child + boundary entries).
+    num_index_entries: usize,
     /// Next index entry to read from the index block.
     index_pos: usize,
     current_key_block: CurrentKeyBlock,
@@ -747,16 +754,22 @@ impl StaticSortedFileIter {
         }
         let block_len = block.len();
         ensure!(block_len >= 3, "index block too short");
-        let block_indices_count = (block_len - 1 + 8) / 10;
-        let first_child = be::read_u16(&block[1..]);
         let index_entries = block.slice(1..block_len);
+        let first_child = be::read_u16(&index_entries);
+        // Index block body layout: [first_child: u16] [hash: u64, block: u16]*
+        // Compute total key block references (first_child + N boundary entries)
+        // using ceil division: (body_len - sizeof(first_child) + ENTRY_SIZE - 1) / ENTRY_SIZE + 1
+        // simplified to (body_len + ENTRY_SIZE - 2) / ENTRY_SIZE
+        let num_index_entries: usize = (index_entries.len() + INDEX_BLOCK_ENTRY_SIZE
+            - size_of::<u16>())
+            / INDEX_BLOCK_ENTRY_SIZE;
 
         let current_key_block = Self::parse_key_block(&mmap, &meta, first_child)?;
         Ok(StaticSortedFileIter {
             mmap,
             meta,
             index_entries,
-            index_block_count: block_indices_count,
+            num_index_entries,
             index_pos: 1,
             current_key_block,
             value_block_cache: None,
@@ -803,6 +816,7 @@ impl StaticSortedFileIter {
                 let value_type = data[5];
                 let val_size = entry_val_size(value_type)?;
                 let stride = hash_len as usize + key_size + val_size;
+                // Header is 6 bytes for fixed-size blocks
                 let entries_range = 6..block.len();
                 let entries = block.slice(entries_range);
                 Ok(CurrentKeyBlock {
@@ -881,8 +895,8 @@ impl StaticSortedFileIter {
                 kb.index += 1;
                 return Ok(Some(entry));
             }
-            if self.index_pos < self.index_block_count {
-                let base = self.index_pos * 10;
+            if self.index_pos < self.num_index_entries {
+                let base = self.index_pos * INDEX_BLOCK_ENTRY_SIZE;
                 let block_index = be::read_u16(&self.index_entries[base..]);
                 self.index_pos += 1;
                 self.current_key_block =

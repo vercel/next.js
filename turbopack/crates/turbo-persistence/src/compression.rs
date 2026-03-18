@@ -5,6 +5,11 @@ use lzzzz::lz4::{self, decompress};
 
 /// Decompresses `block` into `dest`, verifying the output length matches `expected_len`.
 fn decompress_block(block: &[u8], dest: &mut [u8], expected_len: u32) -> Result<()> {
+    debug_assert!(
+        expected_len > 0,
+        "decompress_block called with uncompressed_length=0; uncompressed blocks should use \
+         zero-copy mmap path"
+    );
     let bytes_written = decompress(block, dest).with_context(|| {
         format!(
             "Failed to decompress block ({} bytes compressed, {} bytes uncompressed)",
@@ -24,12 +29,6 @@ fn decompress_block(block: &[u8], dest: &mut [u8], expected_len: u32) -> Result<
 /// The caller must ensure `uncompressed_length > 0` (i.e., the block is actually compressed).
 /// Uncompressed blocks should be handled via zero-copy mmap slices before calling this.
 pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc<[u8]>> {
-    debug_assert!(
-        uncompressed_length > 0,
-        "decompress_into_arc called with uncompressed_length=0; uncompressed blocks should use \
-         zero-copy mmap path"
-    );
-
     // Allocate directly into an Arc to avoid a copy. The buffer is uninitialized;
     // decompression will overwrite it completely (verified by decompress_block).
     let buffer: Arc<[MaybeUninit<u8>]> = Arc::new_uninit_slice(uncompressed_length as usize);
@@ -44,12 +43,6 @@ pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc
 
 /// Like [`decompress_into_arc`] but returns an `Rc<[u8]>` for thread-local use.
 pub fn decompress_into_rc(uncompressed_length: u32, block: &[u8]) -> Result<Rc<[u8]>> {
-    debug_assert!(
-        uncompressed_length > 0,
-        "decompress_into_rc called with uncompressed_length=0; uncompressed blocks should use \
-         zero-copy mmap path"
-    );
-
     let buffer: Rc<[MaybeUninit<u8>]> = Rc::new_uninit_slice(uncompressed_length as usize);
     // Safety: decompression will fully initialize the buffer (verified by the assert in
     // decompress_block).

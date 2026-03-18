@@ -16,9 +16,7 @@ pub fn read_u16(s: &[u8]) -> u16 {
 
 #[inline(always)]
 pub fn read_u24(s: &[u8]) -> u32 {
-    let &[a, b, c, ..] = s else {
-        panic!("slice too short for u24")
-    };
+    let &[a, b, c] = s.first_chunk().unwrap();
     u32::from_be_bytes([0, a, b, c])
 }
 

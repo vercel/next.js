@@ -2,7 +2,6 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
-    io::{self, Read},
     ops::{Deref, Range},
     sync::Arc,
 };
@@ -82,16 +81,16 @@ impl Debug for ArcBytes {
 
 impl Eq for ArcBytes {}
 
-impl Read for ArcBytes {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let available = &**self;
-        let len = std::cmp::min(buf.len(), available.len());
-        buf[..len].copy_from_slice(&available[..len]);
-        // Advance the slice view
-        self.data = &available[len..] as *const [u8];
-        Ok(len)
-    }
-}
+// impl Read for ArcBytes {
+//     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+//         let available = &**self;
+//         let len = std::cmp::min(buf.len(), available.len());
+//         buf[..len].copy_from_slice(&available[..len]);
+//         // Advance the slice view
+//         self.data = &available[len..] as *const [u8];
+//         Ok(len)
+//     }
+// }
 
 impl ArcBytes {
     /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
