@@ -115,9 +115,9 @@ pub use crate::{
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
+        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
@@ -192,6 +192,10 @@ pub use turbo_tasks_macros::function;
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
+/// - **`"hashed"`:** Like `"compare"`, but also stores a hash of the value. When the cell's
+///   transient data is evicted from memory, the stored hash is used to detect whether the value
+///   changed—avoiding unnecessary downstream invalidation. Requires the value to implement both
+///   [`Eq`] and [`Hash`][std::hash::Hash].
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
 /// depend on this cell's value.

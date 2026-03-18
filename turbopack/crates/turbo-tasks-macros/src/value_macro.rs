@@ -18,6 +18,7 @@ enum CellMode {
     KeyedCompare,
     Compare,
     New,
+    Hashed,
 }
 
 impl Parse for CellMode {
@@ -35,9 +36,10 @@ impl TryFrom<LitStr> for CellMode {
             "keyed" => Ok(CellMode::KeyedCompare),
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
+            "hashed" => Ok(CellMode::Hashed),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"new\", \"keyed\", or \"compare\"",
+                "expected \"new\", \"keyed\", \"compare\", or \"hashed\"",
             )),
         }
     }
@@ -282,6 +284,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
         CellMode::KeyedCompare => quote! {
             turbo_tasks::VcCellKeyedCompareMode<#ident>
+        },
+        CellMode::Hashed => quote! {
+            turbo_tasks::VcCellHashedCompareMode<#ident>
         },
     };
 
