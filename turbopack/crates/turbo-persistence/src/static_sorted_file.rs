@@ -340,7 +340,6 @@ impl StaticSortedFile {
         entry_count: usize,
         key_hash: u64,
         key: &K,
-
         value_block_cache: &BlockCache,
         get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'a>>,
     ) -> Result<SstLookupResult> {

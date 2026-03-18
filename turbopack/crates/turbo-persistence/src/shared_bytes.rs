@@ -38,3 +38,10 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     /// Creates an instance from a decompressed block.
     fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self>;
 }
+
+/// Returns `true` if `subslice` lies entirely within `backing`.
+pub(crate) fn is_subslice_of(subslice: &[u8], backing: &[u8]) -> bool {
+    let backing = backing.as_ptr_range();
+    let sub = subslice.as_ptr_range();
+    sub.start >= backing.start && sub.end <= backing.end
+}
