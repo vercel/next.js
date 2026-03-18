@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
-use crate::{EnvMap, ProcessEnv};
+use crate::{ProcessEnv, TransientEnvMap};
 
 /// Filters env variables by some prefix. Casing of the env vars is ignored for
 /// filtering.
@@ -30,7 +30,7 @@ impl FilterProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for FilterProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<Vc<EnvMap>> {
+    async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
         let prior = self.prior.read_all().await?;
         let mut filtered = FxIndexMap::default();
         for (key, value) in &*prior {

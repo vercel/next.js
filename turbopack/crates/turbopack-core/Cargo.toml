@@ -24,6 +24,7 @@ const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
+num-bigint = "0.4"
 once_cell = { workspace = true }
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
@@ -47,7 +48,6 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
-twox-hash = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true}

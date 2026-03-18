@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -19,10 +19,6 @@ use crate::{
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
     },
 };
-
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct LockedVersions {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
@@ -514,16 +510,11 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
-                    let path = path.value_to_string().await?;
-                    format!(
-                        "aliased to {} inside of {}",
-                        request.to_string().await?,
-                        path
-                    )
+                    turbofmt!("aliased to {} inside of {path}", *request).await?
                 } else {
-                    format!("aliased to {}", request.to_string().await?)
+                    turbofmt!("aliased to {}", *request).await?
                 };
-                Ok(Vc::cell(s.into()))
+                Ok(Vc::cell(s))
             }
             ImportMapResult::Alternatives(alternatives) => {
                 // The .cell() calls happen synchronously during iteration, before try_join()
@@ -667,8 +658,8 @@ pub struct ResolveOptions {
 
 #[turbo_tasks::value_impl]
 impl ResolveOptions {
-    /// Returns a new [Vc<ResolveOptions>] with its import map extended to
-    /// include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its import map extended to include the given import
+    /// map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -686,8 +677,8 @@ impl ResolveOptions {
         Ok(resolve_options.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptions>] with its fallback import map extended
-    /// to include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its fallback import map extended to include the
+    /// given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,

@@ -48,7 +48,6 @@ import type {
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
-import { getDeploymentId } from '../../../shared/lib/deployment-id'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -146,6 +145,8 @@ export const getHandler = ({
       nextConfig,
       resolvedPathname,
       encodedResolvedPathname,
+      deploymentId,
+      clientAssetToken,
     } = prepareResult
 
     const isExperimentalCompile =
@@ -195,7 +196,7 @@ export const getHandler = ({
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()
@@ -235,6 +236,7 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
+      let parentSpan: Span | undefined
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -266,7 +268,8 @@ export const getHandler = ({
                     buildId,
                     customServer:
                       Boolean(routerServerContext?.isCustomServer) || undefined,
-                    deploymentId: getDeploymentId() || '',
+                    deploymentId,
+                    clientAssetToken,
                   },
                   renderOpts: {
                     params,
@@ -420,6 +423,14 @@ export const getHandler = ({
                       'next.span_name': name,
                     })
                     span.updateName(name)
+
+                    // Propagate http.route to the parent span if one exists
+                    // (e.g. a platform-created HTTP span in adapter
+                    // deployments).
+                    if (parentSpan && parentSpan !== span) {
+                      parentSpan.setAttribute('http.route', route)
+                      parentSpan.updateName(name)
+                    }
                   } else {
                     span.updateName(`${method} ${srcPage}`)
                   }
@@ -634,7 +645,6 @@ export const getHandler = ({
           res.statusCode = 404
 
           if (isNextDataRequest) {
-            const deploymentId = getDeploymentId()
             if (deploymentId) {
               res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
@@ -646,7 +656,6 @@ export const getHandler = ({
 
         if (result.value.kind === CachedRouteKind.REDIRECT) {
           if (isNextDataRequest) {
-            const deploymentId = getDeploymentId()
             if (deploymentId) {
               res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
             }
@@ -697,12 +706,7 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            nextConfig.experimental.devCacheControlNoCache
-              ? 'no-cache, must-revalidate'
-              : 'no-store, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         }
 
         // Draft mode should never be cached
@@ -724,7 +728,6 @@ export const getHandler = ({
 
         // Add deployment ID header for data requests
         if (isNextDataRequest && !isErrorPage && !is500Page) {
-          const deploymentId = getDeploymentId()
           if (deploymentId) {
             res.setHeader(NEXT_NAV_DEPLOYMENT_ID_HEADER, deploymentId)
           }
@@ -756,6 +759,7 @@ export const getHandler = ({
       if (activeSpan) {
         await handleResponse()
       } else {
+        parentSpan = tracer.getActiveScopeSpan()
         await tracer.withPropagatedContext(req.headers, () =>
           tracer.trace(
             BaseServerSpan.handleRequest,

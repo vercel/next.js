@@ -469,9 +469,11 @@ describe('basePath', () => {
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(
-      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
-    )
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
+      expect(text).toContain('This page could not be found')
+    }
   })
 
   it('should show the other-page page under the /docs prefix', async () => {

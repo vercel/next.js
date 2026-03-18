@@ -11,7 +11,10 @@ use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
-    asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    asset::Asset,
+    reference_type::{ReferenceType, ReferenceTypeCondition},
+    source::Source,
+    virtual_source::VirtualSource,
 };
 
 #[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
@@ -21,7 +24,7 @@ pub enum RuleCondition {
     Not(Box<RuleCondition>),
     True,
     False,
-    ReferenceType(ReferenceType),
+    ReferenceType(ReferenceTypeCondition),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
@@ -477,13 +480,13 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_leaves_test().await })
+        tt.run_once(async { run_leaves_test_operation().read_strongly_consistent().await })
             .await
             .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_leaves_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
@@ -500,7 +503,7 @@ pub mod tests {
                 .await?;
 
         {
-            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
                 condition
                     .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
@@ -610,13 +613,17 @@ pub mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_rule_condition_tree_test().await })
-            .await
-            .unwrap();
+        tt.run_once(async {
+            run_rule_condition_tree_test_operation()
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_rule_condition_tree_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(

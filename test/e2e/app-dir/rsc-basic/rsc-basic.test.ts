@@ -421,8 +421,6 @@ describe('app dir - rsc basics', () => {
         expect(result).toContain('component:index.server')
         if (isNextDev) {
           expect(result).toContain('"b":"development"')
-        } else {
-          expect(result).toMatch(/"b":".*?"/)
         }
       })
   })

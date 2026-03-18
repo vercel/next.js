@@ -4,6 +4,7 @@ import {
   type ServerPatchAction,
   type ReducerState,
   type ReadonlyReducerState,
+  ScrollBehavior,
 } from '../router-reducer-types'
 import {
   completeHardNavigation,
@@ -23,8 +24,7 @@ export function serverPatchReducer(
   const retryMpa = action.mpa
   const retryUrl = new URL(action.url, location.origin)
   const retrySeed = action.seed
-  // A retry should not create a new history entry.
-  const navigateType = 'replace'
+  const navigateType = action.navigateType
   if (retryMpa || retrySeed === null) {
     // If the server did not send back data during the mismatch, fall back to
     // an MPA navigation.
@@ -42,7 +42,7 @@ export function serverPatchReducer(
   // using the tree we just received from the server.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
-  const shouldScroll = true
+  const scrollBehavior = ScrollBehavior.Default
   const now = Date.now()
   return navigateToKnownRoute(
     now,
@@ -56,7 +56,7 @@ export function serverPatchReducer(
     state.tree,
     FreshnessPolicy.RefreshAll,
     retryNextUrl,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
     null,
     // Server patch (retry) navigations don't use route prediction. This is

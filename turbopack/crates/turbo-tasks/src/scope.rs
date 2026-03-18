@@ -155,10 +155,10 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     handle: Handle,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
-    /// Invariance over 'env, to make sure 'env cannot shrink,
-    /// which is necessary for soundness.
+    /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
     ///
-    /// see https://doc.rust-lang.org/src/std/thread/scoped.rs.html#12-29
+    /// See the comment in the stdlib implementation:
+    /// <https://github.com/rust-lang/rust/blob/3b1b0ef4d8/library/std/src/thread/scoped.rs#L12-L33>
     env: PhantomData<&'env mut &'env ()>,
 }
 

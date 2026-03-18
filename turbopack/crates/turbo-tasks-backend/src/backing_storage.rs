@@ -1,8 +1,9 @@
-use std::{any::type_name, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
@@ -10,12 +11,24 @@ use crate::{
     utils::chunked_vec::ChunkedVec,
 };
 
+pub struct SnapshotItem {
+    pub task_id: TaskId,
+    pub data: Option<TurboBincodeBuffer>,
+    pub meta: Option<TurboBincodeBuffer>,
+}
+
+impl SnapshotItem {
+    pub fn is_empty(&self) -> bool {
+        self.meta.is_none() && self.data.is_none()
+    }
+}
+
 /// Represents types accepted by [`TurboTasksBackend::new`]. Typically this is the value returned by
-/// [`default_backing_storage`] or [`noop_backing_storage`].
+/// [`turbo_backing_storage`] or [`noop_backing_storage`].
 ///
 /// This trait is [sealed]. External crates are not allowed to implement it.
 ///
-/// [`default_backing_storage`]: crate::default_backing_storage
+/// [`turbo_backing_storage`]: crate::turbo_backing_storage
 /// [`noop_backing_storage`]: crate::noop_backing_storage
 /// [`TurboTasksBackend::new`]: crate::TurboTasksBackend::new
 /// [sealed]: https://predr.ag/blog/definitive-guide-to-sealed-traits-in-rust/
@@ -24,13 +37,12 @@ pub trait BackingStorage: BackingStorageSealed {
     ///
     /// This typically means that we'll restart the process or `turbo-tasks` soon with a fresh
     /// database. If this happens, there's no point in writing anything else to disk, or flushing
-    /// during [`KeyValueDatabase::shutdown`].
+    /// during [`TurboTasksBackend::stop`].
     ///
-    /// This can be implemented by calling [`invalidate_db`] with
-    /// the database's non-versioned base path.
-    ///
-    /// [`KeyValueDatabase::shutdown`]: crate::database::key_value_database::KeyValueDatabase::shutdown
-    /// [`invalidate_db`]: crate::database::db_invalidation::invalidate_db
+    /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
+    //
+    // This can be implemented by calling `database::db_invalidation::invalidate_db` with the
+    // database's non-versioned base path.
     fn invalidate(&self, reason_code: &str) -> Result<()>;
 }
 
@@ -40,7 +52,6 @@ pub trait BackingStorage: BackingStorageSealed {
 /// [`BackingStorage`] is exported for documentation reasons and to expose the public
 /// [`BackingStorage::invalidate`] method.
 pub trait BackingStorageSealed: 'static + Send + Sync {
-    type ReadTransaction<'l>;
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
 
@@ -51,29 +62,17 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync;
-    fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
-    /// # Safety
+        I: IntoIterator<Item = SnapshotItem> + Send + Sync;
+    /// Returns all task IDs that match the given task type (hash collision candidates).
     ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn forward_lookup_task_cache(
+    /// Since TaskCache uses hash-based keys, multiple task types may (rarely) hash to the same key.
+    /// The caller must verify each returned TaskId by comparing the stored task type which will
+    /// require a second database read
+    fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>>;
+    /// Looks up and decodes persisted data for a single task, updating the provided storage with
+    /// data from the database in the given category.
+    fn lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        key: &CachedTaskType,
-    ) -> Result<Option<TaskId>>;
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
@@ -81,15 +80,15 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
 
     /// Batch lookup and decode data for multiple tasks directly into TypedStorage instances.
     /// Returns a vector of TypedStorage, one for each task_id in the input slice.
-    /// # Safety
-    ///
-    /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn batch_lookup_data(
+    fn batch_lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>>;
+
+    fn compact(&self) -> Result<bool> {
+        Ok(false)
+    }
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
@@ -111,8 +110,6 @@ where
     L: BackingStorageSealed,
     R: BackingStorageSealed,
 {
-    type ReadTransaction<'l> = Either<L::ReadTransaction<'l>, R::ReadTransaction<'l>>;
-
     fn next_free_task_id(&self) -> Result<TaskId> {
         either::for_both!(self, this => this.next_free_task_id())
     }
@@ -128,14 +125,7 @@ where
         snapshots: Vec<I>,
     ) -> Result<()>
     where
-        I: Iterator<
-                Item = (
-                    TaskId,
-                    Option<SmallVec<[u8; 16]>>,
-                    Option<SmallVec<[u8; 16]>>,
-                ),
-            > + Send
-            + Sync,
+        I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
         either::for_both!(self, this => this.save_snapshot(
             operations,
@@ -144,94 +134,32 @@ where
         ))
     }
 
-    fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>> {
-        Some(match self {
-            Either::Left(this) => Either::Left(this.start_read_transaction()?),
-            Either::Right(this) => Either::Right(this.start_read_transaction()?),
-        })
+    fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>> {
+        either::for_both!(self, this => this.lookup_task_candidates(key))
     }
 
-    unsafe fn forward_lookup_task_cache(
+    fn lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
-        key: &CachedTaskType,
-    ) -> Result<Option<TaskId>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.forward_lookup_task_cache(tx, key) }
-            }
-        }
-    }
-
-    unsafe fn lookup_data(
-        &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
         storage: &mut TaskStorage,
     ) -> Result<()> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category, storage) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.lookup_data(tx, task_id, category, storage) }
-            }
-        }
+        either::for_both!(self, this => this.lookup_data(task_id, category, storage))
     }
 
-    unsafe fn batch_lookup_data(
+    fn batch_lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'_>>,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
     ) -> Result<Vec<TaskStorage>> {
-        match self {
-            Either::Left(this) => {
-                let tx = tx.map(|tx| read_transaction_left_or_panic(tx.as_ref()));
-                unsafe { this.batch_lookup_data(tx, task_ids, category) }
-            }
-            Either::Right(this) => {
-                let tx = tx.map(|tx| read_transaction_right_or_panic(tx.as_ref()));
-                unsafe { this.batch_lookup_data(tx, task_ids, category) }
-            }
-        }
+        either::for_both!(self, this => this.batch_lookup_data(task_ids, category))
+    }
+
+    fn compact(&self) -> Result<bool> {
+        either::for_both!(self, this => this.compact())
     }
 
     fn shutdown(&self) -> Result<()> {
         either::for_both!(self, this => this.shutdown())
-    }
-}
-
-// similar to `Either::unwrap_left`, but does not require `R: Debug`.
-fn read_transaction_left_or_panic<L, R>(either: Either<L, R>) -> L {
-    match either {
-        Either::Left(l) => l,
-        Either::Right(_) => panic!(
-            "expected ReadTransaction of Either::Left containing {}, received Either::Right type \
-             of {}",
-            type_name::<L>(),
-            type_name::<R>(),
-        ),
-    }
-}
-
-// similar to `Either::unwrap_right`, but does not require `R: Debug`.
-fn read_transaction_right_or_panic<L, R>(either: Either<L, R>) -> R {
-    match either {
-        Either::Left(_) => panic!(
-            "expected ReadTransaction of Either::Right containing {}, received Either::Left type \
-             of {}",
-            type_name::<R>(),
-            type_name::<L>(),
-        ),
-        Either::Right(r) => r,
     }
 }

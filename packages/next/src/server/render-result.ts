@@ -1,6 +1,7 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import {
   chainStreams,
@@ -48,6 +49,13 @@ export type AppPageRenderResultMetadata = {
   segmentData?: Map<string, Buffer>
 
   /**
+   * Per-route prefetch hints computed at build time (e.g. segment inlining
+   * decisions based on gzip sizes). Written to prefetch-hints.json by the
+   * build pipeline.
+   */
+  prefetchHints?: PrefetchHints
+
+  /**
    * In development, the resume data cache is warmed up before the render. This
    * is attached to the metadata so that it can be used during the render. When
    * prerendering, the filled resume data cache is also attached to the metadata
@@ -60,6 +68,7 @@ export type PagesRenderResultMetadata = {
   pageData?: any
   cacheControl?: CacheControl
   assetQueryString?: string
+  mutableAssetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
 }
@@ -247,6 +256,17 @@ export default class RenderResult<
     } else {
       return [this.response]
     }
+  }
+
+  /**
+   * Pipes the response through a transform stream. This converts the response
+   * to a single readable stream (chaining if needed) and pipes it through the
+   * provided transform.
+   *
+   * @param transform The transform stream to pipe through
+   */
+  public pipeThrough(transform: TransformStream<Uint8Array, Uint8Array>): void {
+    this.response = this.readable.pipeThrough(transform)
   }
 
   /**

@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result};
 use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
@@ -90,6 +90,7 @@ impl MiddlewareEndpoint {
             self.project.project_path().owned().await?,
             userland_module,
             is_proxy,
+            self.project.next_config(),
         );
 
         if matches!(self.runtime, NextRuntime::NodeJs) {
@@ -130,17 +131,13 @@ impl MiddlewareEndpoint {
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
-            bail!("Entry module must be evaluatable");
-        };
-
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                Vc::cell(vec![module]),
+                ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
@@ -257,10 +254,18 @@ impl MiddlewareEndpoint {
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
+            let edge_chunk_group_ref = edge_chunk_group.await?;
+            let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
-                    .await?;
+                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+            let entrypoint_asset = *edge_assets
+                .last()
+                .context("expected assets for edge middleware endpoint")?;
+            let entrypoint = node_root_value
+                .get_path_to(&*entrypoint_asset.path().await?)
+                .context("expected edge middleware asset to be within node root")?
+                .into();
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
@@ -288,6 +293,7 @@ impl MiddlewareEndpoint {
                 assets: paths_to_bindings(all_assets),
                 name: rcstr!("middleware"),
                 page: rcstr!("/"),
+                entrypoint,
                 regions,
                 matchers: matchers.clone(),
                 env: this.project.edge_env().owned().await?,

@@ -19,6 +19,7 @@ pub mod debug_id;
 pub mod diagnostics;
 pub mod environment;
 pub mod file_source;
+pub mod generated_code_source;
 pub mod ident;
 pub mod introspect;
 pub mod issue;
@@ -50,6 +51,12 @@ pub mod virtual_source;
 pub mod virtual_fs {
     pub use turbo_tasks_fs::VirtualFileSystem;
 }
+
+#[doc = include_str!("../chunking.md")]
+pub mod _chunking {}
+
+#[doc = include_str!("../layers.md")]
+pub mod _layers {}
 
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
 pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";

@@ -7,8 +7,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, Vc,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};

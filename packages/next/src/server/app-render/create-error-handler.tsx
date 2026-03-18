@@ -12,6 +12,7 @@ import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
+import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -45,6 +46,8 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
 
   // If this is a prerender interrupted error, we don't need to log the error.
   if (isPrerenderInterruptedError(error)) return error.digest
+
+  if (isInstantValidationError(error)) return error.digest
 
   return undefined
 }

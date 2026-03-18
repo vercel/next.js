@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use either::Either;
+use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
@@ -37,61 +38,6 @@ use crate::{
     util::NextRuntime,
 };
 
-/// List of node.js internals that are not supported by edge runtime.
-/// If these imports are used & user does not provide alias for the polyfill,
-/// runtime error will be thrown.
-/// This is not identical to the list of entire node.js internals, refer
-/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
-/// for the allowed imports.
-static EDGE_UNSUPPORTED_NODE_INTERNALS: LazyLock<[RcStr; 44]> = LazyLock::new(|| {
-    [
-        rcstr!("child_process"),
-        rcstr!("cluster"),
-        rcstr!("console"),
-        rcstr!("constants"),
-        rcstr!("crypto"),
-        rcstr!("dgram"),
-        rcstr!("diagnostics_channel"),
-        rcstr!("dns"),
-        rcstr!("dns/promises"),
-        rcstr!("domain"),
-        rcstr!("fs"),
-        rcstr!("fs/promises"),
-        rcstr!("http"),
-        rcstr!("http2"),
-        rcstr!("https"),
-        rcstr!("inspector"),
-        rcstr!("module"),
-        rcstr!("net"),
-        rcstr!("os"),
-        rcstr!("path"),
-        rcstr!("path/posix"),
-        rcstr!("path/win32"),
-        rcstr!("perf_hooks"),
-        rcstr!("process"),
-        rcstr!("punycode"),
-        rcstr!("querystring"),
-        rcstr!("readline"),
-        rcstr!("repl"),
-        rcstr!("stream"),
-        rcstr!("stream/promises"),
-        rcstr!("stream/web"),
-        rcstr!("string_decoder"),
-        rcstr!("sys"),
-        rcstr!("timers"),
-        rcstr!("timers/promises"),
-        rcstr!("tls"),
-        rcstr!("trace_events"),
-        rcstr!("tty"),
-        rcstr!("v8"),
-        rcstr!("vm"),
-        rcstr!("wasi"),
-        rcstr!("worker_threads"),
-        rcstr!("zlib"),
-        rcstr!("pnpapi"),
-    ]
-});
-
 // Make sure to not add any external requests here.
 /// Computes the Next-specific client import map.
 #[turbo_tasks::function]
@@ -125,7 +71,16 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match &ty {
-        ClientContextType::Pages { .. } => {}
+        ClientContextType::Pages { .. } => {
+            // Resolve next/error to the ESM entry point so the bundler can
+            // tree-shake the error-boundary dependency chain from Pages
+            // Router bundles that only use the default Error component.
+            insert_exact_alias_or_js(
+                &mut import_map,
+                rcstr!("next/error"),
+                request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/error")),
+            );
+        }
         ClientContextType::App { app_dir } => {
             // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
             let taint = *next_config.enable_taint().await?;
@@ -458,6 +413,7 @@ pub async fn get_next_edge_import_map(
             rcstr!("next/app") => rcstr!("next/dist/api/app"),
             rcstr!("next/document") => rcstr!("next/dist/api/document"),
             rcstr!("next/dynamic") => rcstr!("next/dist/api/dynamic"),
+            rcstr!("next/error") => rcstr!("next/dist/api/error"),
             rcstr!("next/form") => rcstr!("next/dist/api/form"),
             rcstr!("next/head") => rcstr!("next/dist/api/head"),
             rcstr!("next/headers") => rcstr!("next/dist/api/headers"),
@@ -603,9 +559,13 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
     ))
     .resolved_cell();
 
-    EDGE_UNSUPPORTED_NODE_INTERNALS.iter().for_each(|module| {
-        import_map.insert_alias(AliasPattern::exact(module.clone()), unsupported_replacer);
-    });
+    for module in NODE_EXTERNALS {
+        if EDGE_NODE_EXTERNALS.binary_search(&module).is_ok() {
+            continue;
+        }
+        import_map.insert_alias(AliasPattern::exact(module), unsupported_replacer);
+    }
+
     Ok(())
 }
 
@@ -1003,6 +963,7 @@ async fn apply_vendored_react_aliases_server(
     if react_condition == "server" {
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
+            rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
             rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });
@@ -1033,6 +994,7 @@ async fn rsc_aliases(
     if ty.should_use_react_server_condition() {
         // This is used in the server runtime to import React Server Components.
         alias.extend(fxindexmap! {
+            rcstr!("next/error") => rcstr!("next/dist/api/error.react-server"),
             rcstr!("next/navigation") => rcstr!("next/dist/api/navigation.react-server"),
             rcstr!("next/link") => rcstr!("next/dist/client/app-dir/link.react-server"),
         });

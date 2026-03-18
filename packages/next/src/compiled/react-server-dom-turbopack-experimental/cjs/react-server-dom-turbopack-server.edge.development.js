@@ -4178,7 +4178,9 @@
           (cachedPromise = requireModule(serverReference)),
           (id = blockedPromise),
           (id.status = "fulfilled"),
-          (id.value = cachedPromise)
+          (id.value = cachedPromise),
+          (id.reason = null),
+          cachedPromise
         );
       if (initializingHandler) {
         var handler = initializingHandler;
@@ -5066,10 +5068,11 @@
               arrayRoot
             );
           case "B":
-            return (
-              (obj = parseInt(value.slice(2), 16)),
-              response._formData.get(response._prefix + obj)
-            );
+            obj = parseInt(value.slice(2), 16);
+            response = response._formData.get(response._prefix + obj);
+            if (!(response instanceof Blob))
+              throw Error("Referenced Blob is not a Blob.");
+            return response;
           case "R":
             return parseReadableStream(response, value, void 0);
           case "r":

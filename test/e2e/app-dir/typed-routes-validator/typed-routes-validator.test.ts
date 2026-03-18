@@ -43,29 +43,30 @@ describe('typed-routes-validator', () => {
     }
     try {
       if (isNextDev) {
-        // In dev mode, next-env.d.ts and the route type definitions it
-        // references (.next/types/routes.d.ts) are generated asynchronously
-        // after the server starts. Wait for both files to be ready with
-        // actual route data before running tsc.
+        // In dev mode, route types are generated asynchronously after the server starts.
+        // Might take a few tries before all the relevant types exist.
         await retry(async () => {
-          const envDts = await next.readFile('next-env.d.ts')
-          expect(envDts).toContain('reference types="next"')
-          const routesDts = await next.readFile(
-            `${getDistDir()}/types/routes.d.ts`
-          )
-          expect(routesDts).toContain('AppRoutes = "/"')
+          const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+            cwd: next.testDir,
+            reject: false,
+          })
+
+          expect({ stdout, stderr }).toEqual({
+            stdout: '',
+            stderr: '',
+          })
+        })
+      } else {
+        const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+          cwd: next.testDir,
+          reject: false,
+        })
+
+        expect({ stdout, stderr }).toEqual({
+          stdout: '',
+          stderr: '',
         })
       }
-
-      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
-        cwd: next.testDir,
-        reject: false,
-      })
-
-      expect({ stdout, stderr }).toEqual({
-        stdout: '',
-        stderr: '',
-      })
     } finally {
       if (isNextDev) {
         await next.stop()

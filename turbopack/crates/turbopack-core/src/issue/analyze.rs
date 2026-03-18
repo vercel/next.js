@@ -3,7 +3,10 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString, StyledString};
+use super::{
+    AdditionalIssueSources, Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString,
+    StyledString,
+};
 use crate::{ident::AssetIdent, issue::OptionIssueSource};
 
 #[turbo_tasks::value(shared)]
@@ -78,5 +81,15 @@ impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Vc<OptionIssueSource> {
         Vc::cell(self.source)
+    }
+
+    #[turbo_tasks::function]
+    async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
+        if let Some(issue_source) = &self.source
+            && let Some(source) = issue_source.to_generated_code_source().await?
+        {
+            return Ok(Vc::cell(vec![source]));
+        }
+        Ok(AdditionalIssueSources::empty())
     }
 }

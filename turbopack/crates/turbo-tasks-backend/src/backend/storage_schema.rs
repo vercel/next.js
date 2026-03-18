@@ -524,14 +524,6 @@ impl TaskStorage {
         }
     }
 
-    /// Clone only the fields for the specified category
-    pub fn clone_category_snapshot(&self, category: SpecificTaskDataCategory) -> TaskStorage {
-        match category {
-            SpecificTaskDataCategory::Meta => self.clone_meta_snapshot(),
-            SpecificTaskDataCategory::Data => self.clone_data_snapshot(),
-        }
-    }
-
     /// Initialize a transient task with the given root type and activeness tracking.
     ///
     /// This sets up the activeness state for root/once tasks.

@@ -425,19 +425,9 @@ pub fn value_type_and_register(
     };
 
     quote! {
-        static #value_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueType> =
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                let mut value_type = #new_value_type;
-                turbo_tasks::macro_helpers::register_trait_methods(
-                    ::std::any::TypeId::of::<#ty>(),
-                    &mut value_type,
-                );
-                value_type
-             });
-
-        turbo_tasks::macro_helpers::inventory_submit! {
-            turbo_tasks::macro_helpers::CollectableValueType(&#value_type_ident)
-        }
+        turbo_tasks::macro_helpers::turbo_register!(
+            #ty => #value_type_ident: turbo_tasks::ValueType = #new_value_type
+        );
 
         #[automatically_derived]
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
@@ -445,12 +435,7 @@ pub fn value_type_and_register(
             type CellMode = #cell_mode;
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
-                static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-                    turbo_tasks::macro_helpers::Lazy::new(|| {
-                        turbo_tasks::registry::get_value_type_id(&#value_type_ident)
-                    });
-
-                *ident
+                turbo_tasks::registry::get_value_type_id(&#value_type_ident)
             }
 
             fn has_serialization() -> bool {

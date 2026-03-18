@@ -298,7 +298,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_error")?,
             page_extensions,
-            Some(next_package.join("error.js")?),
+            Some(next_package.join("dist/pages/_error.js")?),
             error_router_path.clone(),
             error_router_path,
         )

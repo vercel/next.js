@@ -25,6 +25,7 @@ import {
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -49,7 +50,7 @@ import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
-import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
+import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -95,6 +96,8 @@ function HistoryUpdater({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
+
+    setLastCommittedTree(tree)
   }, [appRouterState])
 
   useEffect(() => {
@@ -630,12 +633,12 @@ function RuntimeStylesForWebpack() {
     }
   }, [renderedStylesSize, forceUpdate])
 
-  const dplId = getDeploymentIdQueryOrEmptyString()
+  const query = getAssetTokenQuery()
   return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
-      href={`${href}${dplId}`}
+      href={`${href}${query}`}
       // @ts-ignore
       precedence="next"
       // TODO figure out crossOrigin and nonce

@@ -75,6 +75,7 @@ function getBaseSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -97,6 +98,7 @@ function getBaseSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -220,6 +222,7 @@ function getBaseSWCOptions({
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
             taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -407,6 +410,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -435,6 +439,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -457,6 +462,7 @@ export function getLoaderSWCOptions({
     useCacheEnabled,
     taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

@@ -177,7 +177,7 @@ export function discoverKnownRoute(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean,
+  supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
@@ -195,7 +195,7 @@ export function discoverKnownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
     if (hasDynamicRewrite) {
       fulfilledEntry.hasDynamicRewrite = true
@@ -216,7 +216,7 @@ export function discoverKnownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled,
+      supportsPerSegmentPrefetching,
       hasDynamicRewrite
     )
     return fulfilledEntry
@@ -237,7 +237,7 @@ export function discoverKnownRoute(
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    isPPREnabled,
+    supportsPerSegmentPrefetching,
     hasDynamicRewrite
   )
 }
@@ -293,7 +293,7 @@ function discoverKnownRoutePart(
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean,
+  supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
@@ -334,7 +334,7 @@ function discoverKnownRoutePart(
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        isPPREnabled
+        supportsPerSegmentPrefetching
       )
     }
 
@@ -413,7 +413,7 @@ function discoverKnownRoutePart(
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        isPPREnabled,
+        supportsPerSegmentPrefetching,
         hasDynamicRewrite
       )
       // All parallel route branches share the same URL, so they should all
@@ -436,7 +436,7 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
   }
 
@@ -466,7 +466,7 @@ function discoverKnownRoutePart(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
   }
 
@@ -557,7 +557,7 @@ export function matchKnownRoute(
     tree: reifiedTree,
     metadata: reifiedMetadata,
     couldBeIntercepted: pattern.couldBeIntercepted,
-    isPPREnabled: pattern.isPPREnabled,
+    supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
     hasDynamicRewrite: false,
     renderedSearch: search,
     ref: null,
@@ -644,8 +644,12 @@ function matchKnownRoutePart(
       if (match !== null) {
         return match
       }
-      // Static child exists but didn't match (e.g., wrong depth).
-      // Fall through to try dynamic.
+      // Static child is a real node (not a placeholder) but its subtree
+      // didn't match the remaining URL parts. This means the route exists
+      // in the static subtree but hasn't been fully discovered yet. Do not
+      // fall through to try the dynamic child — the static match is
+      // authoritative. Bail out to server resolution.
+      return null
     }
   }
 

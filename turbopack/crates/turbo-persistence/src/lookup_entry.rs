@@ -5,6 +5,7 @@ use crate::{
 };
 
 /// A value from a SST file lookup.
+#[derive(PartialEq)]
 pub enum LookupValue {
     /// The value was deleted.
     Deleted,
@@ -17,17 +18,18 @@ pub enum LookupValue {
 }
 
 /// A value from a SST file lookup.
-pub enum LazyLookupValue<'l> {
+pub enum LazyLookupValue {
     /// A LookupValue
     Eager(LookupValue),
     /// A medium sized value that is still compressed.
     Medium {
         uncompressed_size: u32,
-        block: &'l [u8],
+        checksum: u32,
+        block: ArcBytes,
     },
 }
 
-impl LazyLookupValue<'_> {
+impl LazyLookupValue {
     /// Returns the size of the value in the SST file.
     pub fn uncompressed_size_in_sst(&self) -> usize {
         match self {
@@ -37,6 +39,7 @@ impl LazyLookupValue<'_> {
             LazyLookupValue::Medium {
                 uncompressed_size,
                 block,
+                ..
             } => {
                 if *uncompressed_size == 0 {
                     block.len()
@@ -74,16 +77,16 @@ impl LazyLookupValue<'_> {
 }
 
 /// An entry from a SST file lookup.
-pub struct LookupEntry<'l> {
+pub struct LookupEntry {
     /// The hash of the key.
     pub hash: u64,
     /// The key.
     pub key: ArcBytes,
     /// The value.
-    pub value: LazyLookupValue<'l>,
+    pub value: LazyLookupValue,
 }
 
-impl Entry for LookupEntry<'_> {
+impl Entry for LookupEntry {
     fn key_hash(&self) -> u64 {
         self.hash
     }
@@ -113,10 +116,12 @@ impl Entry for LookupEntry<'_> {
             },
             LazyLookupValue::Medium {
                 uncompressed_size,
+                checksum,
                 block,
             } => EntryValue::MediumRaw {
                 uncompressed_size: *uncompressed_size,
-                block,
+                checksum: *checksum,
+                block: block.as_ref(),
             },
         }
     }

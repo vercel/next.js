@@ -47,7 +47,9 @@ test/traces
 
 # examples
 examples/**/out/*
-examples/**/.env*.local
+
+# env
+.env*.local
 
 pr-stats.md
 test-timings.json
@@ -68,6 +70,7 @@ test-timings.json
 .claude/settings.local.json
 .claude/plans/
 .claude/todos.json
+.claude/worktrees
 CLAUDE.local.md
 
 # Conductor (worktrees created by Conductor app, but keep scripts/)
@@ -75,3 +78,9 @@ CLAUDE.local.md
 !.conductor/scripts/
 
 index.scip
+
+# Evals
+evals/.tarballs/
+evals/experiments/
+evals/results/
+evals/agent-results.json

@@ -15,9 +15,24 @@ export function getDeploymentId(): string | undefined {
   return deploymentId
 }
 
-export function getDeploymentIdQueryOrEmptyString(): string {
-  if (deploymentId) {
-    return `?dpl=${deploymentId}`
+export function getDeploymentIdQuery(ampersand = false): string {
+  let id = getDeploymentId()
+  if (id) {
+    return `${ampersand ? '&' : '?'}dpl=${id}`
+  }
+  return ''
+}
+
+export function getAssetToken(): string | undefined {
+  return (
+    process.env.NEXT_IMMUTABLE_ASSET_TOKEN || process.env.NEXT_DEPLOYMENT_ID
+  )
+}
+
+export function getAssetTokenQuery(ampersand = false): string {
+  let id = getAssetToken()
+  if (id) {
+    return `${ampersand ? '&' : '?'}dpl=${id}`
   }
   return ''
 }

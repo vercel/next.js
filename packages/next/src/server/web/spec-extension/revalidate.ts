@@ -147,6 +147,10 @@ function revalidate(
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
         )
+      case 'generate-static-params':
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside \`generateStaticParams\` which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        )
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender

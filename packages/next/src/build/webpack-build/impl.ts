@@ -44,6 +44,7 @@ import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
 import { durationToString, hrtimeToSeconds } from '../duration-to-string'
 import { installBindings } from '../swc/install-bindings'
+import { Bundler } from '../../lib/bundler'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -425,6 +426,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: process.env.NEXT_RSPACK ? Bundler.Rspack : Bundler.Webpack,
     }
   ))
   await installBindings(config.experimental?.useWasmBinary)

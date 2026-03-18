@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -196,7 +196,7 @@ impl TurboTasksApi for VcStorage {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
                 Ok(vc) => Ok(Ok(*vc)),
-                Err(err) => Err(anyhow!(err.clone())),
+                Err(err) => bail!(err.clone()),
             },
         }
     }
@@ -295,10 +295,6 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn mark_own_task_as_session_dependent(&self, _task: TaskId) {
-        // no-op
-    }
-
-    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
         // no-op
     }
 

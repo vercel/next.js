@@ -9,7 +9,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::{ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
         ResolveResultOption, find_context_file,
@@ -155,8 +155,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         let is_esm = self.import_externals
-            && ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-                .includes(&reference_type);
+            && ReferenceTypeCondition::EcmaScriptModules(None).includes(&reference_type);
 
         #[derive(Debug, Copy, Clone)]
         enum FileType {
