@@ -80,6 +80,46 @@ impl<T: ?Sized> Future for ResolveVcFuture<T> {
 
 impl<T: ?Sized> Unpin for ResolveVcFuture<T> {}
 
+/// A future returned by [`Vc::to_resolved`] that resolves a [`Vc<T>`] to a [`ResolvedVc<T>`].
+///
+/// Use [`.strongly_consistent()`][Self::strongly_consistent] to opt into strong consistency.
+#[must_use]
+pub struct ToResolvedVcFuture<T>
+where
+    T: ?Sized,
+{
+    inner: ResolveRawVcFuture,
+    _t: PhantomData<T>,
+}
+
+impl<T: ?Sized> ToResolvedVcFuture<T> {
+    /// Make the resolution strongly consistent.
+    pub fn strongly_consistent(mut self) -> Self {
+        self.inner = self.inner.strongly_consistent();
+        self
+    }
+}
+
+impl<T: ?Sized> Future for ToResolvedVcFuture<T> {
+    type Output = Result<ResolvedVc<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+        // ResolveRawVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner).poll(cx).map(|r| {
+            r.map(|node| ResolvedVc {
+                node: Vc {
+                    node,
+                    _t: PhantomData,
+                },
+            })
+        })
+    }
+}
+
+impl<T: ?Sized> Unpin for ToResolvedVcFuture<T> {}
+
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 #[doc = include_str!("README.md")]
@@ -390,13 +430,11 @@ where
     /// Resolve the reference until it points to a cell directly, and wrap the
     /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
-    pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
-        Ok(ResolvedVc {
-            node: Vc {
-                node: self.node.resolve().await?,
-                _t: PhantomData,
-            },
-        })
+    pub fn to_resolved(self) -> ToResolvedVcFuture<T> {
+        ToResolvedVcFuture {
+            inner: self.node.resolve(),
+            _t: PhantomData,
+        }
     }
 
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
