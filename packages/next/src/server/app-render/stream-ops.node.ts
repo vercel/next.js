@@ -3,11 +3,11 @@
  *
  * When `experimental.useNodeStreams` is enabled, stream-ops.ts loads this
  * module instead of stream-ops.web.ts. Functions that can be cleanly
- * implemented with Node.js native streams are implemented here; complex
- * functions that rely on the web transform chain delegate to the web
- * implementation.
+ * implemented with Node.js native streams are implemented here; the
+ * remaining functions delegate to the web implementation.
  *
  * Native implementations:
+ *   - continueFizzStream (via Node.js Transform pipeline — the hot path)
  *   - chainStreams       (via chainNodeStreams)
  *   - streamToBuffer     (via nodeStreamToBuffer)
  *   - streamToString     (via nodeStreamToString)
@@ -15,9 +15,8 @@
  *   - nodeReadableToWeb  (Readable.toWeb)
  *
  * Delegates to web:
- *   - continueFizzStream, continueStaticPrerender, continueDynamicPrerender,
+ *   - continueStaticPrerender, continueDynamicPrerender,
  *     continueStaticFallbackPrerender, continueDynamicHTMLResume
- *     (these use a chain of web TransformStreams for metadata/suffix/etc.)
  *   - resumeAndAbort, resumeToFizzStream (use react-dom/server.resume)
  *   - renderToFlightStream (RSC always produces web ReadableStream)
  *   - processPrelude (uses .tee()/.getReader())
@@ -35,7 +34,18 @@ import {
   chainNodeStreams,
   nodeStreamToBuffer,
   nodeStreamToString,
+  safePipe,
+  createBufferedTransformNode,
+  createInlinedDataNodeStream,
+  createDeferredSuffixTransformNode,
+  createHeadInsertionTransformNode,
+  createMoveSuffixTransformNode,
+  createHtmlDataDplIdTransformNode,
+  createMetadataTransformNode,
+  createRootLayoutValidatorTransformNode,
 } from '../stream-utils/node-stream-helpers'
+
+import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 
 // Re-export the same types so stream-ops.ts can re-export them.
 export type {
@@ -107,10 +117,91 @@ export {
 
 export { processPrelude } from './app-render-prerender-utils'
 
-// continueFizzStream delegates to the web implementation since it uses
-// a chain of ~8 web TransformStreams for metadata, suffix, head insertion,
-// etc. Making these native is a follow-up.
-export { continueFizzStream } from './stream-ops.web'
+// ---------------------------------------------------------------------------
+// continueFizzStream — NATIVE via Node.js Transform pipeline
+//
+// This is the Node.js native equivalent of the web continueFizzStream.
+// Instead of chaining ~8 web TransformStreams (which creates 6-8
+// TransformStream objects + their internal ReadableStream/WritableStream
+// pairs per request), we chain native Node.js Transforms using pipe().
+// ---------------------------------------------------------------------------
+
+const CLOSE_TAG = '</body></html>'
+
+export async function continueFizzStream(
+  renderStream: AnyStream,
+  {
+    suffix,
+    inlinedDataStream,
+    isStaticGeneration,
+    allReady,
+    deploymentId,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    validateRootLayout,
+  }: ContinueFizzStreamOptions
+): Promise<AnyStream> {
+  const { Readable: NodeReadable } = getNodeStream()
+
+  // Suffix itself might contain close tags at the end, so we need to split it.
+  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
+
+  if (isStaticGeneration) {
+    // For static generation, wait for React to finish all work.
+    // Use the explicit allReady promise if provided (from renderToPipeableStream),
+    // otherwise fall back to renderStream.allReady (ReactDOMServerReadableStream).
+    if (allReady) {
+      await allReady
+    } else {
+      await (renderStream as any).allReady
+    }
+  } else {
+    // Ensure Fizz is done with microtask work before pulling.
+    await waitAtLeastOneReactRenderTask()
+  }
+
+  // Convert the render stream to a Node.js Readable.
+  let stream: Readable = NodeReadable.fromWeb(renderStream as any)
+
+  // 1. Buffer everything to avoid flushing too frequently.
+  stream = safePipe(stream, createBufferedTransformNode())
+
+  // 2. Insert data-dpl-id attribute on the <html> tag.
+  if (deploymentId) {
+    stream = safePipe(stream, createHtmlDataDplIdTransformNode(deploymentId))
+  }
+
+  // 3. Transform metadata (remove icon mark, insert metadata).
+  stream = safePipe(stream, createMetadataTransformNode(getServerInsertedMetadata))
+
+  // 4. Insert suffix content after first chunk.
+  if (suffixUnclosed != null && suffixUnclosed.length > 0) {
+    stream = safePipe(stream, createDeferredSuffixTransformNode(suffixUnclosed))
+  }
+
+  // 5. Inline flight data (RSC data, form state, etc.) into the HTML.
+  if (inlinedDataStream) {
+    const nodeDataStream = NodeReadable.fromWeb(inlinedDataStream as any)
+    stream = safePipe(
+      stream,
+      createInlinedDataNodeStream(nodeDataStream, true)
+    )
+  }
+
+  // 6. Validate the root layout for missing <html> or <body> tags.
+  if (validateRootLayout) {
+    stream = safePipe(stream, createRootLayoutValidatorTransformNode())
+  }
+
+  // 7. Move closing </body></html> tags to the end.
+  stream = safePipe(stream, createMoveSuffixTransformNode())
+
+  // 8. Insert server-generated HTML into <head>.
+  stream = safePipe(stream, createHeadInsertionTransformNode(getServerInsertedHTML))
+
+  // Convert back to a web ReadableStream for the rest of the pipeline.
+  return nodeToWeb(stream)
+}
 
 // ---------------------------------------------------------------------------
 // chainStreams — NATIVE

@@ -27,6 +27,19 @@ import type { ServerResponse } from 'node:http'
 import { bindSnapshot } from '../app-render/async-local-storage'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { ENCODED_TAGS } from './encoded-tags'
+import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+
+// ---------------------------------------------------------------------------
+// Pre-computed Buffer versions of ENCODED_TAGS for fast C++ Buffer.indexOf()
+// (~1.3-3.2x faster than the JS indexOfUint8Array used by the web helpers).
+// ---------------------------------------------------------------------------
+
+const BUF_OPENING_HTML = Buffer.from(ENCODED_TAGS.OPENING.HTML)
+const BUF_OPENING_BODY = Buffer.from(ENCODED_TAGS.OPENING.BODY)
+const BUF_CLOSED_HEAD = Buffer.from(ENCODED_TAGS.CLOSED.HEAD)
+const BUF_CLOSED_BODY_AND_HTML = Buffer.from(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+const BUF_META_ICON_MARK = Buffer.from(ENCODED_TAGS.META.ICON_MARK)
 
 // ---------------------------------------------------------------------------
 // Lazy node:stream accessor (Edge/DCE-safe)
@@ -51,7 +64,7 @@ function getNodeStream(): typeof import('node:stream') {
  * errors, so without this helper an erroring source can leave the
  * destination hanging.
  */
-function safePipe<T extends Transform>(
+export function safePipe<T extends Transform>(
   source: Readable,
   dest: T,
   opts?: { end?: boolean }
@@ -234,10 +247,6 @@ export function createInlinedDataNodeStream(
   // A promise that resolves when all data has been consumed from
   // `dataStream`. Used in `flush()` to wait for remaining data.
   const dataComplete = new DetachedPromise<void>()
-
-  // TODO: For future tag-searching transforms, pre-compute Buffer versions
-  // of ENCODED_TAGS for fast C++ `Buffer.indexOf()` (~1.3-3.2x faster than
-  // the JS `indexOfUint8Array` used by the web helpers).
 
   function startPulling(transform: Transform) {
     if (dataPullingStarted) return
@@ -445,4 +454,422 @@ export async function nodeStreamToString(readable: Readable): Promise<string> {
   // Flush any remaining bytes in the decoder.
   result += decoder.decode()
   return result
+}
+
+// ---------------------------------------------------------------------------
+// createDeferredSuffixTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Appends a suffix string after the first HTML chunk arrives. This is the
+ * Node.js equivalent of `createDeferredSuffixStream()` in
+ * `node-web-streams-helper.ts`.
+ */
+export function createDeferredSuffixTransformNode(suffix: string): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let flushed = false
+  let pending: DetachedPromise<void> | undefined
+
+  const encodedSuffix = Buffer.from(suffix, 'utf-8')
+
+  return new NodeTransform({
+    transform: bindSnapshot(function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      this.push(chunk)
+
+      if (flushed) {
+        callback()
+        return
+      }
+
+      flushed = true
+      const detached = new DetachedPromise<void>()
+      pending = detached
+
+      scheduleImmediate(
+        bindSnapshot(() => {
+          try {
+            this.push(encodedSuffix)
+          } catch {
+            // Controller may be errored (stream cancelled).
+          } finally {
+            pending = undefined
+            detached.resolve()
+          }
+        })
+      )
+
+      callback()
+    }),
+
+    flush: bindSnapshot(function (
+      this: Transform,
+      callback: (error?: Error | null) => void
+    ) {
+      if (pending) {
+        pending.promise.then(() => callback())
+        return
+      }
+      if (flushed) {
+        callback()
+        return
+      }
+      this.push(encodedSuffix)
+      callback()
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// createHeadInsertionTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Inserts server-generated HTML before the closing </head> tag. This is the
+ * Node.js equivalent of `createHeadInsertionTransformStream()` in
+ * `node-web-streams-helper.ts`.
+ */
+export function createHeadInsertionTransformNode(
+  insert: () => Promise<string>
+): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let inserted = false
+  let hasBytes = false
+
+  return new NodeTransform({
+    transform: bindSnapshot(async function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      hasBytes = true
+
+      const insertion = await insert()
+      if (inserted) {
+        if (insertion) {
+          this.push(Buffer.from(insertion, 'utf-8'))
+        }
+        this.push(chunk)
+        callback()
+      } else {
+        const index = chunk.indexOf(BUF_CLOSED_HEAD)
+        if (index !== -1) {
+          if (insertion) {
+            const encodedInsertion = Buffer.from(insertion, 'utf-8')
+            const result = Buffer.allocUnsafe(
+              chunk.length + encodedInsertion.length
+            )
+            chunk.copy(result, 0, 0, index)
+            encodedInsertion.copy(result, index)
+            chunk.copy(result, index + encodedInsertion.length, index)
+            this.push(result)
+          } else {
+            this.push(chunk)
+          }
+          inserted = true
+        } else {
+          // No </head> found — PPR resume case: insert before the chunk.
+          if (insertion) {
+            this.push(Buffer.from(insertion, 'utf-8'))
+          }
+          this.push(chunk)
+          inserted = true
+        }
+        callback()
+      }
+    }),
+
+    flush: bindSnapshot(async function (
+      this: Transform,
+      callback: (error?: Error | null) => void
+    ) {
+      if (hasBytes) {
+        const insertion = await insert()
+        if (insertion) {
+          this.push(Buffer.from(insertion, 'utf-8'))
+        }
+      }
+      callback()
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// createMoveSuffixTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Moves `</body></html>` to the very end of the stream so that any content
+ * injected after the HTML body (scripts, data) appears before the closing
+ * tags. This is the Node.js equivalent of `createMoveSuffixStream()` in
+ * `node-web-streams-helper.ts`.
+ */
+export function createMoveSuffixTransformNode(): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let foundSuffix = false
+
+  return new NodeTransform({
+    transform: bindSnapshot(function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      if (foundSuffix) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const index = chunk.indexOf(BUF_CLOSED_BODY_AND_HTML)
+      if (index > -1) {
+        foundSuffix = true
+
+        // If the whole chunk is the suffix, skip it — it will be emitted in flush.
+        if (chunk.length === BUF_CLOSED_BODY_AND_HTML.length) {
+          callback()
+          return
+        }
+
+        // Emit the part before the suffix.
+        const before = chunk.subarray(0, index)
+        this.push(before)
+
+        // If there's content after the suffix, emit it too.
+        const afterStart = index + BUF_CLOSED_BODY_AND_HTML.length
+        if (chunk.length > afterStart) {
+          this.push(chunk.subarray(afterStart))
+        }
+      } else {
+        this.push(chunk)
+      }
+      callback()
+    }),
+
+    flush: bindSnapshot(function (
+      this: Transform,
+      callback: (error?: Error | null) => void
+    ) {
+      // Always append closing tags at the end.
+      this.push(BUF_CLOSED_BODY_AND_HTML)
+      callback()
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// createHtmlDataDplIdTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Inserts a `data-dpl-id` attribute on the opening `<html` tag. This is the
+ * Node.js equivalent of `createHtmlDataDplIdTransformStream()` in
+ * `node-web-streams-helper.ts`.
+ */
+export function createHtmlDataDplIdTransformNode(dplId: string): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let didTransform = false
+
+  return new NodeTransform({
+    transform: bindSnapshot(function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      if (didTransform) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const htmlTagIndex = chunk.indexOf(BUF_OPENING_HTML)
+      if (htmlTagIndex === -1) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const insertionPoint = htmlTagIndex + BUF_OPENING_HTML.length
+      const attribute = Buffer.from(` data-dpl-id="${dplId}"`, 'utf-8')
+      const result = Buffer.allocUnsafe(chunk.length + attribute.length)
+
+      chunk.copy(result, 0, 0, insertionPoint)
+      attribute.copy(result, insertionPoint)
+      chunk.copy(result, insertionPoint + attribute.length, insertionPoint)
+
+      this.push(result)
+      didTransform = true
+      callback()
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// createMetadataTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Removes the `<meta name="nxt-icon">` marker and inserts metadata HTML at
+ * that position. This is the Node.js equivalent of
+ * `createMetadataTransformStream()` in `node-web-streams-helper.ts`.
+ */
+export function createMetadataTransformNode(
+  insert: () => Promise<string> | string
+): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let chunkIndex = -1
+  let isMarkRemoved = false
+
+  return new NodeTransform({
+    transform: bindSnapshot(async function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      chunkIndex++
+
+      if (isMarkRemoved) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const iconMarkIndex = chunk.indexOf(BUF_META_ICON_MARK)
+      if (iconMarkIndex === -1) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      // Determine the full length of the icon mark tag (including closing > or />).
+      let iconMarkLength = BUF_META_ICON_MARK.length
+      // Check if next char is '/' (0x2F = 47) for XML self-closing.
+      if (chunk[iconMarkIndex + iconMarkLength] === 47) {
+        iconMarkLength += 2 // skip "/>"
+      } else {
+        iconMarkLength++ // skip ">"
+      }
+
+      if (chunkIndex === 0) {
+        const closedHeadIndex = chunk.indexOf(BUF_CLOSED_HEAD)
+        if (iconMarkIndex < closedHeadIndex) {
+          // Icon mark is before </head> in first chunk — just remove it.
+          const replaced = Buffer.allocUnsafe(chunk.length - iconMarkLength)
+          chunk.copy(replaced, 0, 0, iconMarkIndex)
+          chunk.copy(replaced, iconMarkIndex, iconMarkIndex + iconMarkLength)
+          chunk = replaced
+        } else {
+          // Icon mark is after </head> — replace with insertion.
+          const insertion = await insert()
+          const encodedInsertion = Buffer.from(insertion, 'utf-8')
+          const replaced = Buffer.allocUnsafe(
+            chunk.length - iconMarkLength + encodedInsertion.length
+          )
+          chunk.copy(replaced, 0, 0, iconMarkIndex)
+          encodedInsertion.copy(replaced, iconMarkIndex)
+          chunk.copy(
+            replaced,
+            iconMarkIndex + encodedInsertion.length,
+            iconMarkIndex + iconMarkLength
+          )
+          chunk = replaced
+        }
+      } else {
+        // Subsequent chunks — replace icon mark with insertion.
+        const insertion = await insert()
+        const encodedInsertion = Buffer.from(insertion, 'utf-8')
+        const replaced = Buffer.allocUnsafe(
+          chunk.length - iconMarkLength + encodedInsertion.length
+        )
+        chunk.copy(replaced, 0, 0, iconMarkIndex)
+        encodedInsertion.copy(replaced, iconMarkIndex)
+        chunk.copy(
+          replaced,
+          iconMarkIndex + encodedInsertion.length,
+          iconMarkIndex + iconMarkLength
+        )
+        chunk = replaced
+      }
+
+      isMarkRemoved = true
+      this.push(chunk)
+      callback()
+    }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// createRootLayoutValidatorTransformNode
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates that the root layout contains `<html>` and `<body>` tags.
+ * If either is missing, an error template is appended to the stream.
+ * This is the Node.js equivalent of `createRootLayoutValidatorStream()` in
+ * `node-web-streams-helper.ts`.
+ */
+export function createRootLayoutValidatorTransformNode(): Transform {
+  const { Transform: NodeTransform } = getNodeStream()
+
+  let foundHtml = false
+  let foundBody = false
+
+  return new NodeTransform({
+    transform: bindSnapshot(function (
+      this: Transform,
+      chunk: Buffer,
+      _encoding: string,
+      callback: (error?: Error | null) => void
+    ) {
+      if (!foundHtml && chunk.indexOf(BUF_OPENING_HTML) > -1) {
+        foundHtml = true
+      }
+      if (!foundBody && chunk.indexOf(BUF_OPENING_BODY) > -1) {
+        foundBody = true
+      }
+      this.push(chunk)
+      callback()
+    }),
+
+    flush: bindSnapshot(function (
+      this: Transform,
+      callback: (error?: Error | null) => void
+    ) {
+      const missingTags: ('html' | 'body')[] = []
+      if (!foundHtml) missingTags.push('html')
+      if (!foundBody) missingTags.push('body')
+
+      if (missingTags.length > 0) {
+        this.push(
+          Buffer.from(
+            `<html id="__next_error__">
+            <template
+              data-next-error-message="Missing ${missingTags
+                .map((c) => `<${c}>`)
+                .join(
+                  missingTags.length > 1 ? ' and ' : ''
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+              data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
+              data-next-error-stack=""
+            ></template>
+          `,
+            'utf-8'
+          )
+        )
+      }
+      callback()
+    }),
+  })
 }
