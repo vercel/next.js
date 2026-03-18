@@ -429,7 +429,7 @@ async function createTreeCodeFromPath(
       parallelSegmentKey =
         parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT ||
         parallelSegmentKey === PAGE_SEGMENT
-          ? '(slot)'
+          ? '(__SLOT__)'
           : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
