@@ -46,7 +46,7 @@ impl EsmModuleItem {
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {
                         ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { box expr, .. }) => {
-                            let stmt = quote!("const $name = $expr;" as Stmt,
+                            let stmt = quote!("var $name = $expr;" as Stmt,
                                 name = Ident::new(magic_identifier::mangle("default export").into(), DUMMY_SP, Default::default()),
                                 expr: Expr = expr
                             );

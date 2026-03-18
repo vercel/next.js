@@ -131,9 +131,9 @@ impl EcmascriptChunkItemContent {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
         if self.options.module_and_exports {
-            code += "((__turbopack_context__, module, exports) => {\n";
+            code += "(function(__turbopack_context__, module, exports) {\n";
         } else {
-            code += "((__turbopack_context__) => {\n";
+            code += "(function(__turbopack_context__) {\n";
         }
         if self.options.strict {
             code += "\"use strict\";\n\n";
@@ -144,8 +144,9 @@ impl EcmascriptChunkItemContent {
         if self.options.async_module.is_some() {
             writeln!(
                 code,
-                "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
-                 __turbopack_async_result__) => {{ try {{\n"
+                "return {TURBOPACK_ASYNC_MODULE}(async \
+                 function(__turbopack_handle_async_dependencies__, __turbopack_async_result__) {{ \
+                 try {{\n"
             )?;
         }
 
