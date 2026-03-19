@@ -4122,7 +4122,7 @@ export default async function build(
       // This should come after output: export handling but before
       // output: standalone, in the future output: standalone might
       // not be allowed if an adapter with onBuildComplete is configured
-      const adapterPath = config.experimental.adapterPath
+      const adapterPath = config.adapterPath
       if (adapterPath) {
         await nextBuildSpan
           .traceChild('adapter-handle-build-complete')

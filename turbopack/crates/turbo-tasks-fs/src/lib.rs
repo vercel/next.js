@@ -91,19 +91,6 @@ use crate::{
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 
-/// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
-///
-/// For the sake of consistency, this is a fixed constant that is likely to be safe across all
-/// platforms.
-///
-/// Different operating systems have different limits on file name and file path. See
-/// [`validate_path_length`] for details. Because this only accounts for a single path segment, and
-/// not the total path length, this cannot not guarantee a full file path is safe.
-///
-/// To ensure file names are kept within this limit, call
-/// [`FileSystemPath::truncate_file_name_with_hash`].
-pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
-
 /// Validate the path, returning the valid path, a modified-but-now-valid path, or bailing with an
 /// error.
 ///
@@ -1553,9 +1540,8 @@ impl FileSystemPath {
         FileSystemPath { fs, path }
     }
 
-    /// Adds a subpath to the current path. The /-separate path argument might
-    /// contain ".." or "." segments, but it must not leave the root of the
-    /// filesystem.
+    /// Adds a subpath to the current path. The /-separated `path` argument might contain ".." or
+    /// "." segments, but it must not leave the root of the filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
             Ok(Self::new_normalized(self.fs, path.into()))
@@ -1568,7 +1554,7 @@ impl FileSystemPath {
         }
     }
 
-    /// Adds a suffix to the filename. [path] must not contain `/`.
+    /// Adds a suffix to the filename. `path` must not contain `/`.
     pub fn append(&self, path: &str) -> Result<Self> {
         if path.contains('/') {
             bail!(
@@ -1583,12 +1569,12 @@ impl FileSystemPath {
         ))
     }
 
-    /// Adds a suffix to the basename of the filename. [appending] must not
-    /// contain `/`. Extension will stay intact.
+    /// Adds a suffix to the basename of the file path. `appending` must not contain `/`. The [file
+    /// extension][FileSystemPath::extension] will stay intact.
     pub fn append_to_stem(&self, appending: &str) -> Result<Self> {
         if appending.contains('/') {
             bail!(
-                "FileSystemPath(\"{}\").append_to_stem(\"{}\") must not append '/'",
+                "FileSystemPath({:?}).append_to_stem({:?}) must not append '/'",
                 self.path,
                 appending,
             )
@@ -1628,14 +1614,15 @@ impl FileSystemPath {
         None
     }
 
-    /// DETERMINISM: Result is in random order. Either sort result or do not depend
-    /// on the order.
+    /// DETERMINISM: Result is in random order. Either sort the result or do not depend on the
+    /// order.
     pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
         read_glob(self.clone(), glob)
     }
 
-    // Tracks all files and directories matching the glob
-    // Follows symlinks as though they were part of the original hierarchy.
+    // Tracks all files and directories matching the glob using the filesystem watcher. Follows
+    // symlinks as though they were part of the original hierarchy. The returned [`Vc`] will be
+    // invalidated if a file or directory changes.
     pub fn track_glob(&self, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
         track_glob(self.clone(), glob, include_dot_files)
     }
@@ -2046,7 +2033,7 @@ pub enum LinkContent {
     ///
     /// We don't use the [`FileSystemPath`] to store the target, because the [`FileSystemPath`] is
     /// always normalized. In [`FileSystemPath::write_symbolic_link_dir`] we need to compare
-    /// `target` with the value returned by [`sys::fs::read_link`].
+    /// `target` with the value returned by [`std::fs::read_link`].
     Link {
         target: RcStr,
         link_type: LinkType,
