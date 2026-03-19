@@ -1425,26 +1425,24 @@ impl AggregationUpdateQueue {
         jobs: SmallVec<[FindAndScheduleJob; 4]>,
         ctx: &mut impl ExecuteContext,
     ) {
-        // Pre-fetch all task data from backing storage in a single batch (keys are sorted by hash
-        // for cache-friendly sequential access to the storage layer).
-        // We still acquire each task individually below because `find_and_schedule_dirty_internal`
-        // drops the guard and then calls `ctx.schedule()` (which calls `ctx.task()` internally),
-        // requiring the lock counter to be zero at that point. `for_each_task_meta` keeps the
-        // counter elevated for the duration of the callback, which would cause a panic.
-        //
-        // For performance reasons this should stay `Meta` and not `All`.
-        ctx.prepare_tasks(jobs.iter().map(|job| (job.task_id, TaskDataCategory::Meta)));
-        for job in jobs {
-            let task_id = job.task_id;
+        #[cfg(feature = "trace_find_and_schedule")]
+        let mut spans: FxHashMap<TaskId, Option<Span>> = jobs
+            .iter()
+            .map(|job| (job.task_id, job.span.clone()))
+            .collect();
+        // For performance reasons this should stay `Meta` and not `All`
+        ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
+            let task_id = task.id();
+            // Enter the enqueue-time span and create a per-task child span with the
+            // task description. Both guards must live until the end of the closure.
             #[cfg(feature = "trace_find_and_schedule")]
-            let _enqueue_guard = job.span.map(|s| s.entered());
-            let task = ctx.task(task_id, TaskDataCategory::Meta);
-            #[cfg(feature = "trace_find_and_schedule")]
-            let _span =
+            let _trace = (
+                spans.remove(&task_id).flatten().map(|s| s.entered()),
                 trace_span!("find and schedule", %task_id, name = task.get_task_description())
-                    .entered();
+                    .entered(),
+            );
             self.find_and_schedule_dirty_internal(task_id, task, ctx);
-        }
+        });
     }
 
     fn find_and_schedule_dirty_internal(
