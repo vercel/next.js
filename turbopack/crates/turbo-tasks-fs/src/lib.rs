@@ -975,7 +975,7 @@ impl FileSystem for DiskFileSystem {
         // Since FileContent uses serialization = "hash", persisting it here ensures the full
         // content is available in the persistent cache (via PersistedFileContent) and does not
         // require recomputing the content on cache restore — avoiding unnecessary downstream
-        // invalidation.
+        // recomputation.
         let persisted_content = content.persist().await?;
         let content = content.await?;
 
@@ -1992,6 +1992,12 @@ impl From<File> for FileContent {
     }
 }
 
+/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
+///
+/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
+/// When reading the file content back from the cache, the hash is compared to detect changes, but
+/// the actual data is not available. `PersistedFileContent` provides the full data so that
+/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum PersistedFileContent {
