@@ -280,6 +280,7 @@ fn poll_listener(
 /// which would otherwise trigger the assertion in top-level tasks.
 fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
     if cfg!(debug_assertions) && strongly_consistent {
+        // Temporarily suppress the top-level task check
         SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
     } else {
         f()
@@ -343,9 +344,14 @@ impl Future for ResolveRawVcFuture {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
                             Ok(Ok(vc)) => {
-                                // We no longer need to read strongly consistent, as any Vc
-                                // returned from the first task will be inside of the scope of
-                                // the first task. So it's already strongly consistent.
+                                // turbo-tasks-backend doesn't currently have any sort of
+                                // "transaction" or global lock mechanism to group together chains
+                                // of `TaskOutput`/`TaskCell` reads.
+                                //
+                                // If we ignore the theoretical TOCTOU issues, we no longer need to
+                                // read strongly consistent, as any Vc returned from the first task
+                                // will be inside of the scope of the first task. So it's already
+                                // strongly consistent.
                                 this.read_output_options.consistency = ReadConsistency::Eventual;
                                 this.current = vc;
                                 continue 'outer;
@@ -372,10 +378,15 @@ impl Future for ResolveRawVcFuture {
                     }
                 };
                 this.listener = Some(listener);
-                ready!(poll_listener(&mut this.listener, cx));
             }
         };
 
+        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
+        //
+        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
+        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
+        // `TaskCell` could get mutated after the strongly consistent read of the outer
+        // `TaskOutput`.
         suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
     }
 }
@@ -487,7 +498,6 @@ impl Future for ReadRawVcFuture {
                     Err(err) => return Poll::Ready(Err(err)),
                 };
                 this.listener = Some(listener);
-                ready!(poll_listener(&mut this.listener, cx));
             }
         };
 
