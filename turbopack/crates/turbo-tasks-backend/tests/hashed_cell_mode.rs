@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 
 /// A value type using `serialization = "hash"` mode.
 /// Only `value` participates in Hash/Eq; `noise` does not.
-#[turbo_tasks::value(serialization = "hash", eq = "manual")]
+#[turbo_tasks::value(serialization = "hash", eq = "manual", hash = "manual")]
 #[derive(Debug)]
 struct HashedValue {
     value: u32,
