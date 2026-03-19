@@ -58,6 +58,7 @@ import { loadComponents } from '../server/load-components'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { recursiveCopy } from '../lib/recursive-copy'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { RouteKind } from '../server/route-kind'
@@ -1209,6 +1210,12 @@ export async function copyTracedFiles(
   } catch {}
   const copiedFiles = new Set()
 
+  const distNodeModules = path.join(distDir, 'node_modules')
+  const isTurbopackExternalsSymlink = (p: string) => {
+    const rel = path.relative(distNodeModules, p)
+    return !rel.startsWith('..') && !path.isAbsolute(rel)
+  }
+
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
@@ -1235,31 +1242,43 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
-            try {
-              await fs.symlink(symlink, fileOutputPath)
-            } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
-              // creating a junction point instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point or symlink), but
-              // there's no API in node.js to differentiate between a junction point and a symlink,
-              // so we just try making a symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
-              if (
-                process.platform === 'win32' &&
-                err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
-              ) {
-                try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
-                } catch (junctionErr: any) {
-                  if (junctionErr.code !== 'EEXIST') {
-                    throw junctionErr
+            const isExternalsSymlink = isTurbopackExternalsSymlink(tracedFilePath)
+            let dereferenced = false
+            if (isExternalsSymlink) {
+              const resolvedTarget = path.resolve(
+                path.dirname(tracedFilePath),
+                symlink
+              )
+              const stat = await fs.stat(resolvedTarget).catch(() => null)
+              if (stat?.isDirectory()) {
+                await recursiveCopy(resolvedTarget, fileOutputPath, {
+                  overwrite: true,
+                })
+                dereferenced = true
+              } else if (stat?.isFile()) {
+                await fs.copyFile(resolvedTarget, fileOutputPath)
+                dereferenced = true
+              }
+            }
+            if (!dereferenced) {
+              try {
+                await fs.symlink(symlink, fileOutputPath)
+              } catch (err: any) {
+                if (
+                  process.platform === 'win32' &&
+                  err.code === 'EPERM' &&
+                  path.isAbsolute(symlink)
+                ) {
+                  try {
+                    await fs.symlink(symlink, fileOutputPath, 'junction')
+                  } catch (junctionErr: any) {
+                    if (junctionErr.code !== 'EEXIST') {
+                      throw junctionErr
+                    }
                   }
+                } else if (err.code !== 'EEXIST') {
+                  throw err
                 }
-              } else if (err.code !== 'EEXIST') {
-                throw err
               }
             }
           } else {
