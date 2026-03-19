@@ -2,6 +2,7 @@ import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,
   type AppRouteRouteModuleOptions,
+  type AppRouteUserlandModule,
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
@@ -35,7 +36,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-
 import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
@@ -59,7 +59,17 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  userland,
+  // The static import is used for initialization (methods, dynamic, etc.).
+  userland: userland as AppRouteUserlandModule,
+  // In Turbopack dev mode, also provide a getter that calls require() on every
+  // request. This re-reads from devModuleCache so HMR updates are picked up,
+  // and the async wrapper unwraps async-module Promises (ESM-only
+  // serverExternalPackages) automatically.
+  ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
+    ? {
+        getUserland: () => import('VAR_USERLAND'),
+      }
+    : {}),
 })
 
 // Pull out the exports that we need to expose from the module. This should
