@@ -97,6 +97,30 @@ describe('normalizeDynamicRouteParams', () => {
     })
   })
 
+  it('should reject doubly encoded default placeholders for dynamic params', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: '%255BteamSlug%255D',
+        project: '%255Bproject%255D',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {},
+      hasValidParams: false,
+    })
+  })
+
   it('should continue accepting regular dynamic values', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
       page: '/[teamSlug]/[project]',

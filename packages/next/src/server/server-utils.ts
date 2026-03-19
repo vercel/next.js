@@ -112,6 +112,9 @@ export function normalizeDynamicRouteParams(
   defaultRouteMatches: ParsedUrlQuery,
   ignoreMissingOptional: boolean
 ) {
+  const tryDecodeParamValue = (candidateValue: string) =>
+    decodeQueryPathParameter(normalizeRscURL(candidateValue))
+
   const includesDefaultValue = (
     candidateValue: string | undefined,
     defaultValue: string
@@ -120,19 +123,24 @@ export function normalizeDynamicRouteParams(
       return false
     }
 
-    if (candidateValue.includes(defaultValue)) {
-      return true
+    let normalizedCandidateValue = candidateValue
+    for (let i = 0; i < 3; i++) {
+      if (normalizedCandidateValue.includes(defaultValue)) {
+        return true
+      }
+
+      const decodedCandidateValue = decodeQueryPathParameter(
+        normalizedCandidateValue
+      )
+
+      if (decodedCandidateValue === normalizedCandidateValue) {
+        break
+      }
+
+      normalizedCandidateValue = decodedCandidateValue
     }
 
-    if (!/%5b|%5d/i.test(candidateValue)) {
-      return false
-    }
-
-    try {
-      return decodeURIComponent(candidateValue).includes(defaultValue)
-    } catch {
-      return false
-    }
+    return false
   }
 
   let hasValidParams = true
@@ -142,9 +150,9 @@ export function normalizeDynamicRouteParams(
     let value: string | string[] | undefined = query[key]
 
     if (typeof value === 'string') {
-      value = normalizeRscURL(value)
+      value = tryDecodeParamValue(value)
     } else if (Array.isArray(value)) {
-      value = value.map(normalizeRscURL)
+      value = value.map(tryDecodeParamValue)
     }
 
     // if the value matches the default value we can't rely

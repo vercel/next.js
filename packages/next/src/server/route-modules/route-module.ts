@@ -846,24 +846,12 @@ export abstract class RouteModule<
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
-      const shouldStrictlyNormalizeAppPageParams =
-        this.definition.kind === RouteKind.APP_PAGE &&
-        typeof getRequestMeta(req, 'segmentPrefetchRSCRequest') === 'string'
-
       const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
 
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         params || {},
         true
       )
-
-      if (
-        shouldStrictlyNormalizeAppPageParams &&
-        params &&
-        !paramsResult.hasValidParams
-      ) {
-        params = undefined
-      }
 
       let paramsToInterpolate: ParsedUrlQuery
 
@@ -924,15 +912,7 @@ export abstract class RouteModule<
           // the literal slug matches here e.g. /blog/[slug]
           // actually being requested
           if (paramsMatch) {
-            if (shouldStrictlyNormalizeAppPageParams) {
-              const normalizedParamsMatch =
-                serverUtils.normalizeDynamicRouteParams(paramsMatch, true)
-              if (normalizedParamsMatch.hasValidParams) {
-                params = Object.assign({}, normalizedParamsMatch.params)
-              }
-            } else {
-              params = Object.assign({}, paramsMatch)
-            }
+            params = Object.assign({}, paramsMatch)
           }
         }
       }
