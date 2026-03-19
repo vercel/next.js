@@ -8,20 +8,26 @@ use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
-/// An asset. It also forms a graph when following [Asset::references].
+/// A file or intermediate result containing content as a [`Rope`] or a symlink.
+///
+/// This is a supertrait for [`Source`], [`OutputAsset`], and [`OutputChunk`].
+///
+/// [`Rope`]: turbo_tasks_fs::rope::Rope
+/// [`Source`]: crate::source::Source
+/// [`OutputAsset`]: crate::output::OutputAsset
+/// [`OutputChunk`]: crate::chunk::OutputChunk
 #[turbo_tasks::value_trait]
 pub trait Asset {
-    /// The content of the [Asset].
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
-    /// The content of the [Asset] alongside its version.
+    /// The content of the `Asset` alongside its version.
     #[turbo_tasks::function]
     fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 
-    /// Hash of the content of the [Asset]
+    /// Hash of the content of the `Asset`.
     #[turbo_tasks::function]
     fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
         self.content().content_hash(algorithm)

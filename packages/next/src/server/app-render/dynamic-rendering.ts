@@ -147,6 +147,7 @@ export function markCurrentScopeAsDynamic(
       case 'prerender-legacy':
       case 'prerender-ppr':
       case 'request':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -188,6 +189,8 @@ export function markCurrentScopeAsDynamic(
         if (process.env.NODE_ENV !== 'production') {
           workUnitStore.usedDynamic = true
         }
+        break
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -244,6 +247,7 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender-ppr':
     case 'prerender-client':
     case 'validation-client':
+    case 'generate-static-params':
       break
     case 'request':
       if (process.env.NODE_ENV !== 'production') {
@@ -564,6 +568,7 @@ export function createHangingInputAbortSignal(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return undefined
     default:
       workUnitStore satisfies never
@@ -633,6 +638,10 @@ export function useDynamicRouteParams(expression: string) {
         throw new InvariantError(
           `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
+        )
       case 'prerender-legacy':
       case 'request':
       case 'unstable-cache':
@@ -688,6 +697,10 @@ export function useDynamicSearchParams(expression: string) {
     case 'private-cache':
       throw new InvariantError(
         `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'generate-static-params':
+      throw new InvariantError(
+        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
       )
     case 'request':
       return

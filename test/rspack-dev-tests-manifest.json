@@ -1993,20 +1993,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/dev-cache-control-no-cache-disabled/dev-cache-control-no-cache-disabled.test.ts": {
-    "passed": [
-      "experimental.devCacheControlNoCache disabled (default) should use no-store for app router by default",
-      "experimental.devCacheControlNoCache disabled (default) should use no-store for pages router by default"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/dev-cache-control-no-cache/dev-cache-control-no-cache.test.ts": {
     "passed": [
-      "experimental.devCacheControlNoCache when enabled should use no-cache instead of no-store for app router",
-      "experimental.devCacheControlNoCache when enabled should use no-cache instead of no-store for pages router"
+      "dev Cache-Control header should use no-cache for app router",
+      "dev Cache-Control header should use no-cache for pages router"
     ],
     "failed": [],
     "pending": [],

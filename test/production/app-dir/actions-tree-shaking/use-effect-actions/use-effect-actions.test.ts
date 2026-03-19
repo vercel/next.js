@@ -12,13 +12,11 @@ describe('actions-tree-shaking - use-effect-actions', () => {
     const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
     expect(actionsRoutesState).toMatchInlineSnapshot(`
      {
-       "app/mixed/page": {
-         "action-browser": [
-           "app/mixed/actions.ts#action1",
-           "app/mixed/actions.ts#action2",
-           "app/mixed/actions.ts#action3",
-         ],
-       },
+       "app/mixed/page": [
+         "app/mixed/actions.ts#action1",
+         "app/mixed/actions.ts#action2",
+         "app/mixed/actions.ts#action3",
+       ],
      }
     `)
   })
