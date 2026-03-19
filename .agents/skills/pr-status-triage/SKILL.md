@@ -20,7 +20,7 @@ Use this skill when the user asks about PR status, CI failures, or review commen
 4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky.
 5. Reproduce locally with the same mode and env vars as CI.
 6. After addressing review comments, reply to the thread describing what was done, then resolve it. See `thread-N.md` files for ready-to-use commands.
-7. When the only remaining failures are known flaky tests and no code changes are needed, retrigger the failing CI jobs with `gh run rerun <run-id> --failed`.
+7. When the only remaining failures are known flaky tests and no code changes are needed, retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then wait 5 minutes and go back to step 1. Repeat this loop up to 5 times.
 
 ## Quick Commands
 
