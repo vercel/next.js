@@ -65,6 +65,7 @@ pub use alias_map::{
     AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
     AliasTemplate,
 };
+use remap::TerminalState;
 pub use remap::{
     ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
     ResolveAliasMap, SubpathValue,
@@ -3237,8 +3238,10 @@ async fn handle_exports_imports_field(
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
-        ) {
-            // Match found, stop (leveraging the lazy `lookup` iterator).
+        ) != TerminalState::Unset
+        {
+            // A definitive match was found (results added or import blocked);
+            // stop iterating over further alias entries.
             break;
         }
     }

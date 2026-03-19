@@ -176,6 +176,22 @@ pub struct ReplacedSubpathValueResult<'a, 'b> {
     pub map_key: &'b AliasKey,
 }
 
+/// Describes how definitively `add_results` resolved the value.
+///
+/// Used to decide whether callers should continue trying further alternatives.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TerminalState {
+    /// No result was produced; keep trying alternatives.
+    Unset,
+    /// A concrete path or empty result was added to `target`. The path might
+    /// not exist at runtime, so outer alternatives may still be collected, but
+    /// the current level is considered satisfied.
+    Result,
+    /// The import is definitively blocked (`null` / `Excluded`). No result was
+    /// added. Stop immediately — do not try further alternatives.
+    Stop,
+}
+
 impl ReplacedSubpathValue {
     /// Walks the [ReplacedSubpathValue] and appends results to `target`.
     ///
@@ -183,18 +199,14 @@ impl ReplacedSubpathValue {
     /// runtime-unknown condition overrides in `condition_overrides` so that
     /// callers can attach them to the resolved request key.
     ///
-    /// Returns `true` when [`Excluded`] is applied for all possible values of
-    /// any unknown conditions — i.e., the import is definitively blocked
-    /// regardless of runtime condition values. No item is added to `target` in
-    /// this case. Callers (particularly [`Alternatives`] and the outer lookup
-    /// loop) use this to stop trying further alternatives.
-    ///
-    /// Note: a concrete [`Result`] path does **not** return `true`, because
-    /// the path might not resolve successfully (the file may not exist), in
-    /// which case the next alternative should be tried.
+    /// Returns a [`TerminalState`] indicating what happened:
+    /// - [`TerminalState::Stop`] — the import is definitively blocked ([`Excluded`]); callers must
+    ///   stop immediately.
+    /// - [`TerminalState::Result`] — a concrete path or empty module result was added;
+    ///   [`Alternatives`] continues collecting but will return `Result` at the end.
+    /// - [`TerminalState::Unset`] — no result was produced; keep trying.
     ///
     /// [`Excluded`]: ReplacedSubpathValue::Excluded
-    /// [`Result`]: ReplacedSubpathValue::Result
     /// [`Alternatives`]: ReplacedSubpathValue::Alternatives
     pub fn add_results<'a, 'b>(
         self,
@@ -204,12 +216,12 @@ impl ReplacedSubpathValue {
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
         target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
-    ) -> bool {
+    ) -> TerminalState {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
-                // Try alternatives in order, stopping at the first definitive result.
+                let mut state = TerminalState::Unset;
                 for value in list {
-                    if value.add_results(
+                    match value.add_results(
                         prefix.clone(),
                         key,
                         conditions,
@@ -217,10 +229,14 @@ impl ReplacedSubpathValue {
                         condition_overrides,
                         target,
                     ) {
-                        return true;
+                        TerminalState::Stop => return TerminalState::Stop,
+                        TerminalState::Result => {
+                            state = TerminalState::Result;
+                        }
+                        TerminalState::Unset => {}
                     }
                 }
-                false
+                state
             }
             ReplacedSubpathValue::Conditional(list) => {
                 for (condition, value) in list {
@@ -234,7 +250,7 @@ impl ReplacedSubpathValue {
                     };
                     match condition_value {
                         ConditionValue::Set => {
-                            if value.add_results(
+                            match value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
@@ -242,7 +258,9 @@ impl ReplacedSubpathValue {
                                 condition_overrides,
                                 target,
                             ) {
-                                return true;
+                                TerminalState::Stop => return TerminalState::Stop,
+                                TerminalState::Result => return TerminalState::Result,
+                                TerminalState::Unset => {}
                             }
                         }
                         ConditionValue::Unset => {}
@@ -253,22 +271,24 @@ impl ReplacedSubpathValue {
                             // condition to collect results for the opposite case. This ensures
                             // all possible runtime values are represented in `target`.
                             condition_overrides.insert(condition.clone(), ConditionValue::Set);
-                            if value.add_results(
+                            let inner = value.add_results(
                                 prefix.clone(),
                                 key,
                                 conditions,
                                 unspecified_condition,
                                 condition_overrides,
                                 target,
-                            ) {
+                            );
+                            if inner != TerminalState::Unset {
                                 condition_overrides.insert(condition, ConditionValue::Unset);
                             } else {
                                 condition_overrides.remove(condition.as_str());
                             }
+                            // Don't break; always continue to explore other conditions.
                         }
                     }
                 }
-                false
+                TerminalState::Unset
             }
             ReplacedSubpathValue::Result(r) => {
                 target.push(ReplacedSubpathValueResult {
@@ -277,13 +297,11 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
-                // Don't stop: the path might not exist, so further alternatives may be needed.
-                false
+                TerminalState::Result
             }
             ReplacedSubpathValue::Excluded => {
-                // The import is blocked (null in the exports/imports field). Don't add a result;
-                // just signal to the caller that this is terminal.
-                true
+                // The import is blocked (null). Don't add a result; stop immediately.
+                TerminalState::Stop
             }
             ReplacedSubpathValue::Empty => {
                 target.push(ReplacedSubpathValueResult {
@@ -292,7 +310,7 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
-                true
+                TerminalState::Result
             }
         }
     }
