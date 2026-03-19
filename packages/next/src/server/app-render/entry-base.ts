@@ -73,17 +73,15 @@ export {
   collectPrefetchHints,
 } from './collect-segment-data'
 
-export let InstantValidation:
-  | typeof import('./instant-validation/instant-validation')
-  | undefined
-if (
-  process.env.NEXT_RUNTIME !== 'edge' &&
-  process.env.__NEXT_CACHE_COMPONENTS
-) {
-  InstantValidation =
-    require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
-} else {
-  InstantValidation = undefined
+export const InstantValidation = () => {
+  if (
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    return require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
+  } else {
+    return undefined
+  }
 }
 
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
