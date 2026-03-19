@@ -552,11 +552,11 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  const deferredFallbackRouteParamsHeader =
+    req.headers[NEXT_FALLBACK_ROUTE_PARAMS_HEADER]
   const deferredFallbackRouteParams =
     isOnDemandRevalidate && nextConfig.experimental.partialFallbacks === true
-      ? parseFallbackRouteParamsHeader(
-          req.headers[NEXT_FALLBACK_ROUTE_PARAMS_HEADER]
-        )
+      ? parseFallbackRouteParamsHeader(deferredFallbackRouteParamsHeader)
       : undefined
   const effectiveFallbackRouteParams =
     deferredFallbackRouteParams ?? prerenderInfo?.fallbackRouteParams
@@ -672,6 +672,25 @@ export async function handler(
             )
         ) ?? [])
       : []
+
+  if (
+    isOnDemandRevalidate &&
+    nextConfig.experimental.partialFallbacks === true
+  ) {
+    console.warn('[partial_fallback_debug] revalidate_header', {
+      resolvedPathname,
+      ssgCacheKey,
+      headerPresent: typeof deferredFallbackRouteParamsHeader === 'string',
+      headerLength:
+        typeof deferredFallbackRouteParamsHeader === 'string'
+          ? deferredFallbackRouteParamsHeader.length
+          : 0,
+      deferredFallbackRouteParams,
+      effectiveFallbackRouteParams,
+      remainingPrerenderableParams,
+      remainingFallbackRouteParams,
+    })
+  }
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -916,6 +935,23 @@ export async function handler(
       // responses.
       if (forceStaticRender) {
         context.renderOpts.supportsDynamicResponse = false
+      }
+
+      if (
+        isOnDemandRevalidate &&
+        nextConfig.experimental.partialFallbacks === true
+      ) {
+        console.warn('[partial_fallback_debug] do_render', {
+          resolvedPathname,
+          ssgCacheKey,
+          postponed: typeof postponed === 'string',
+          forceStaticRender,
+          fallbackRouteParamKeys: fallbackRouteParams
+            ? Array.from(fallbackRouteParams.keys())
+            : [],
+          remainingPrerenderableParams,
+          remainingFallbackRouteParams,
+        })
       }
 
       const result = await invokeRouteModule(span, context)
