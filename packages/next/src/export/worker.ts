@@ -74,6 +74,20 @@ class ExportPageError extends Error {
  */
 let isEarlyExiting = false
 
+/**
+ * Saved reference to the real console.error. When isEarlyExiting is set we
+ * replace console.error with a no-op so that render-time logging from
+ * concurrent pages (e.g. logDisallowedDynamicError) is silenced.
+ */
+let realConsoleError: typeof console.error = console.error
+
+function setEarlyExiting(): void {
+  isEarlyExiting = true
+  // Silence all further console.error output so concurrent pages don't
+  // produce noise after the first failure has been reported.
+  console.error = () => {}
+}
+
 async function exportPageImpl(
   input: ExportPageInput,
   fileWriter: MultiFileWriter
@@ -359,6 +373,8 @@ export async function exportPages(
 
   // Reset per-call so the flag doesn't leak across sequential batches.
   isEarlyExiting = false
+  realConsoleError = console.error
+  console.error = realConsoleError // restore in case a previous call silenced it
 
   const {
     exportPaths,
@@ -502,7 +518,7 @@ export async function exportPages(
             }
             // Suppress output from any concurrently-running pages so the user
             // only sees the error from the first failing page.
-            isEarlyExiting = true
+            setEarlyExiting()
             const exportError = new Error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
@@ -660,7 +676,7 @@ process.on('unhandledRejection', (err: unknown) => {
     return
   }
 
-  console.error(err)
+  realConsoleError(err)
 })
 
 process.on('rejectionHandled', () => {
@@ -673,15 +689,15 @@ const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
 
 process.on('uncaughtException', (err) => {
   if (isDynamicUsageError(err)) {
-    console.error(
+    realConsoleError(
       'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
     )
-    console.error(err)
+    realConsoleError(err)
     process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
   } else if (isEarlyExiting) {
     // Suppress uncaught exceptions (e.g. ERR_IPC_CHANNEL_CLOSED) from
     // concurrent pages when an early exit is already in progress.
   } else {
-    console.error(err)
+    realConsoleError(err)
   }
 })
