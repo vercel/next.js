@@ -432,15 +432,14 @@ impl StaticSortedFile {
         key_block_arc: &ArcBytes,
         value_block_cache: &BlockCache,
     ) -> Result<LookupValue> {
-        Ok(handle_key_match_generic(
+        handle_key_match_generic(
             &self.mmap,
             &self.meta,
             ty,
             val,
             key_block_arc,
             value_block_cache,
-        )?
-        .into())
+        )
     }
 
     /// Gets a key block from the cache or reads it from the file.
@@ -611,7 +610,7 @@ fn handle_key_match_generic<B: SharedBytes>(
     val: &[u8],
     key_block: &B,
     reader: impl ValueBlockCache<B>,
-) -> Result<GenericValue<B>> {
+) -> Result<LookupValue<B>> {
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => {
             let block = be::read_u16(val);
@@ -620,51 +619,33 @@ fn handle_key_match_generic<B: SharedBytes>(
             let value = reader
                 .get_or_read(mmap, meta, block)?
                 .slice(position..position + size);
-            GenericValue::Slice { value }
+            LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             let block = be::read_u16(val);
             let value = read_block_generic(mmap, meta, block)?;
-            GenericValue::Slice { value }
+            LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
             let sequence_number = be::read_u32(val);
-            GenericValue::Blob { sequence_number }
+            LookupValue::Blob { sequence_number }
         }
-        KEY_BLOCK_ENTRY_TYPE_DELETED => GenericValue::Deleted,
+        KEY_BLOCK_ENTRY_TYPE_DELETED => LookupValue::Deleted,
         _ => {
             // Inline value — val is already the correct slice
             // SAFETY: val points into key_block's data
             let value = unsafe { key_block.slice_from_subslice(val) };
-            GenericValue::Slice { value }
+            LookupValue::Slice { value }
         }
     })
 }
 
-/// Value type generic over the byte representation.
-/// Convertible to both `LookupValue` and `IterValue`.
-enum GenericValue<B> {
-    Deleted,
-    Slice { value: B },
-    Blob { sequence_number: u32 },
-}
-
-impl From<GenericValue<ArcBytes>> for LookupValue {
-    fn from(v: GenericValue<ArcBytes>) -> Self {
+impl From<LookupValue<RcBytes>> for IterValue {
+    fn from(v: LookupValue<RcBytes>) -> Self {
         match v {
-            GenericValue::Deleted => LookupValue::Deleted,
-            GenericValue::Slice { value } => LookupValue::Slice { value },
-            GenericValue::Blob { sequence_number } => LookupValue::Blob { sequence_number },
-        }
-    }
-}
-
-impl From<GenericValue<RcBytes>> for IterValue {
-    fn from(v: GenericValue<RcBytes>) -> Self {
-        match v {
-            GenericValue::Deleted => IterValue::Deleted,
-            GenericValue::Slice { value } => IterValue::Slice { value },
-            GenericValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
+            LookupValue::Deleted => IterValue::Deleted,
+            LookupValue::Slice { value } => IterValue::Slice { value },
+            LookupValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
         }
     }
 }

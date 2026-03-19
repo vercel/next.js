@@ -5,15 +5,17 @@ use crate::{
     static_sorted_file_builder::{Entry, EntryValue},
 };
 
-/// A value from a SST file lookup (lookup path, uses ArcBytes).
+/// A value from a SST file. Generic over the byte representation, defaulting to
+/// `ArcBytes` for the lookup path. The compaction/iteration path uses
+/// `LookupValue<RcBytes>` which is convertible to `IterValue`.
 #[derive(PartialEq)]
-pub enum LookupValue {
+pub enum LookupValue<B = ArcBytes> {
     /// The value was deleted.
     Deleted,
     /// The value is stored in the SST file.
     ///
-    /// The ArcBytes will be pointing either at a keyblock or a value block in the SST
-    Slice { value: ArcBytes },
+    /// The bytes will be pointing either at a keyblock or a value block in the SST
+    Slice { value: B },
     /// The value is stored in a blob file.
     Blob { sequence_number: u32 },
 }
@@ -34,7 +36,15 @@ pub enum IterValue {
         block: RcBytes,
     },
 }
-
+impl From<LookupValue<RcBytes>> for IterValue {
+    fn from(v: LookupValue<RcBytes>) -> Self {
+        match v {
+            LookupValue::Deleted => IterValue::Deleted,
+            LookupValue::Slice { value } => IterValue::Slice { value },
+            LookupValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
+        }
+    }
+}
 /// An entry from SST file iteration (compaction path, uses RcBytes).
 pub struct LookupEntry {
     /// The hash of the key.
