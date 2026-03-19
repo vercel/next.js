@@ -7,6 +7,9 @@ const exec = promisify(execOrig)
 
 const CHANGE_ITEM_GROUPS = {
   docs: [
+    '.agents',
+    '.claude',
+    '.cursor',
     'bench',
     'docs',
     'apps/docs',
