@@ -137,13 +137,6 @@ impl TaskLockCounter {
         }
     }
 
-    /// Increment the count by 1 without checking for concurrent access.
-    /// Used when the caller knows another guard already validated exclusive access.
-    fn reacquire(&self) {
-        #[cfg(debug_assertions)]
-        self.0.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-    }
-
     /// Decrement the count by 1.
     fn release(&self) {
         #[cfg(debug_assertions)]
@@ -297,10 +290,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 tasks_to_restore_for_meta_indicies.push(i);
                 ready = false;
             }
+            self.task_lock_counter.release();
             if ready {
                 prepared_task_callback(self, task_id, category, task);
             }
-            self.task_lock_counter.release();
         }
         if tasks_to_restore_for_meta.is_empty() && tasks_to_restore_for_data.is_empty() {
             return;
@@ -378,8 +371,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 task.restore_from(storage, TaskDataCategory::Meta);
                 task.flags.set_restored(TaskDataCategory::Meta);
             }
-            prepared_task_callback(self, task_id, category, task);
             self.task_lock_counter.release();
+            prepared_task_callback(self, task_id, category, task);
             if let Some(task_type) = task_type {
                 // Insert into the task cache to avoid future lookups
                 self.backend.task_cache.entry(task_type).or_insert(task_id);
@@ -463,9 +456,9 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     ) {
         let task_lock_counter = self.task_lock_counter.clone();
         self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
-            // The prepare_tasks_with_callback already checked for concurrent access
-            // but will also decrement, so we re-increment here since Drop will decrement.
-            task_lock_counter.reacquire();
+            // prepare_tasks_with_callback releases the counter before calling this callback,
+            // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on Drop.
+            task_lock_counter.acquire();
 
             let guard = TaskGuardImpl {
                 task,
