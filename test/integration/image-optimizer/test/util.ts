@@ -21,7 +21,7 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
-  imagesDir: string
+  imagesDir?: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -29,6 +29,8 @@ type SetupTestsCtx = {
 
 type RunTestsCtx = SetupTestsCtx & {
   w: number
+  q: number
+  imagesDir: string
   app?: import('child_process').ChildProcess
   appDir?: string
   appPort?: number
@@ -1585,7 +1587,7 @@ export function runTests(ctx: RunTestsCtx) {
         { url: '/animated.png', w: largeSize },
         { url: '/animated2.png', w: largeSize },
       ]
-      await cleanImagesDir(imagesDir)
+      await cleanImagesDir(ctx)
       const json1 = await fsToJson(ctx.imagesDir)
       expect(Object.keys(json1).length).toEqual(0)
       for (const { url, w } of requests) {
@@ -1594,7 +1596,7 @@ export function runTests(ctx: RunTestsCtx) {
         expect(res.status).toBe(200)
         await res.buffer() // consume response body
         await retry(async () => {
-          const size = await getDirSize(imagesDir)
+          const size = await getDirSize(ctx.imagesDir)
           expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
         })
       }
@@ -1624,7 +1626,7 @@ export function runTests(ctx: RunTestsCtx) {
           expect(json3Length).toBeGreaterThan(0)
           expect(json3).not.toStrictEqual(json2)
         }
-        const size = await getDirSize(imagesDir)
+        const size = await getDirSize(ctx.imagesDir)
         expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
       })
     })
@@ -1633,6 +1635,9 @@ export function runTests(ctx: RunTestsCtx) {
 
 export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
+  // Compute imagesDir if not provided
+  const imagesDir =
+    ctx.imagesDir || join(ctx.appDir, '.next', 'cache', 'images')
 
   describe('dev support w/o next.config.js', () => {
     if (ctx.nextConfigImages) {
@@ -1642,7 +1647,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: true,
     }
 
@@ -1661,7 +1668,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         },
         cwd: curCtx.appDir,
       })
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
     })
     afterAll(async () => {
       nextConfig.restore()
@@ -1675,7 +1682,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 400
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: true,
       nextConfigImages: {
         domains: [
@@ -1700,7 +1709,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1726,7 +1735,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: false,
     }
     beforeAll(async () => {
@@ -1738,7 +1749,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1760,7 +1771,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 399
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: false,
       nextConfigImages: {
         domains: [
@@ -1785,7 +1798,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
