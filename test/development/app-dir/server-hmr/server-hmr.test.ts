@@ -177,5 +177,33 @@ describe('server-hmr', () => {
         expect(updated).toBe('version: 1')
       })
     })
+
+    itTurbopackDev(
+      'does not re-evaluate an unmodified dependency when route changes',
+      async () => {
+        const initial = await next
+          .fetch('/api/with-dep')
+          .then((res) => res.json())
+        expect(initial.routeVersion).toBe('v1')
+        const initialDepEvaluatedAt = initial.depEvaluatedAt
+
+        // Change only the route module, not the dependency
+        await next.patchFile('app/api/with-dep/route.ts', (content) =>
+          content.replace("'v1'", "'v2'")
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/with-dep')
+            .then((res) => res.json())
+
+          // The route change should be reflected in the response
+          expect(updated.routeVersion).toBe('v2')
+
+          // The unmodified dependency should NOT have been re-evaluated
+          expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
+        })
+      }
+    )
   })
 })

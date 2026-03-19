@@ -602,21 +602,16 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType, page: entryPage } = splitEntryKey(key)
-    const isAppPage =
-      entryType === 'app' &&
-      currentEntrypoints.app.get(entryPage)?.type === 'app-page'
+    const { type: entryType } = splitEntryKey(key)
 
-    // Server HMR only applies to app router pages since these use the Turbopack runtime.
-    // Currently, this is only app router pages.
-    //
-    // This excludes:
-    //   - Pages Router pages
-    //   - Edge routes
-    //   - Middleware
-    //   - App Router route handlers (route.ts)
+    // Server HMR applies to all App Router entries built with the Turbopack
+    // Node.js runtime: both app pages and route handlers. Edge routes,
+    // Pages Router pages, and middleware/instrumentation do not use the
+    // Turbopack Node.js dev runtime and are excluded.
     const usesServerHmr =
-      serverFastRefresh && isAppPage && writtenEndpoint.type !== 'edge'
+      serverFastRefresh &&
+      entryType === 'app' &&
+      writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
@@ -624,9 +619,9 @@ export async function createHotReloaderTurbopack(
 
       const relativePath = relative(distDir, file)
       if (
-        // For Pages Router, edge routes, middleware, and manifest files
-        // (e.g., *_client-reference-manifest.js): clear the sharedCache in
-        // evalManifest(), Node.js require.cache, and edge runtime module contexts.
+        // For Pages Router, edge routes, middleware, and manifest files:
+        // clear the sharedCache in evalManifest(), Node.js require.cache,
+        // and edge runtime module contexts.
         force ||
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
