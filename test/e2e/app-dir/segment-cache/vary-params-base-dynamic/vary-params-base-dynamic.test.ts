@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -12,7 +13,7 @@ describe('segment cache - vary params base dynamic', () => {
     return
   }
 
-  it('keeps dynamic segment params valid before and after revalidation', async () => {
+  it('keeps dynamic segment params valid before and after time-based revalidation', async () => {
     const collectSegmentPrefetchResponses = async (href: string) => {
       let act: ReturnType<typeof createRouterAct>
       const segmentPrefetchResponses: Array<
@@ -57,11 +58,16 @@ describe('segment cache - vary params base dynamic', () => {
       return settledResponses
     }
 
-    const assertRouteResponse = async (path: string, expectedText: string) => {
+    const readRouteMarker = async (path: string, expectedText: string) => {
       const browser = await next.browser(path)
       const content = await browser.elementByCss('[data-team-project-content]')
-      expect(await content.text()).toContain(expectedText)
+      const text = await content.text()
       await browser.close()
+
+      expect(text).toContain(expectedText)
+      const markerMatch = text.match(/marker: (\d+)/)
+      expect(markerMatch).not.toBeNull()
+      return Number(markerMatch![1])
     }
 
     const assertValidSegmentResponses = (
@@ -91,15 +97,13 @@ describe('segment cache - vary params base dynamic', () => {
           (path) => path.includes('.segments/') && path.endsWith('.segment.rsc')
         )
       ).toBe(true)
-
-      return segmentPrefetchPaths
     }
 
-    await assertRouteResponse(
+    const initialAcmeMarker = await readRouteMarker(
       '/acme/dashboard',
       'Team project content - team: acme, project: dashboard'
     )
-    await assertRouteResponse(
+    const initialGlobexMarker = await readRouteMarker(
       '/globex/portal',
       'Team project content - team: globex, project: portal'
     )
@@ -108,32 +112,34 @@ describe('segment cache - vary params base dynamic', () => {
       ...(await collectSegmentPrefetchResponses('/acme/dashboard')),
       ...(await collectSegmentPrefetchResponses('/globex/portal')),
     ]
-    const segmentPrefetchPaths = assertValidSegmentResponses(initialResponses)
+    assertValidSegmentResponses(initialResponses)
 
-    const revalidateQuery = new URLSearchParams()
-    for (const path of segmentPrefetchPaths) {
-      revalidateQuery.append('path', path)
+    let lastAcmeMarker = initialAcmeMarker
+    let lastGlobexMarker = initialGlobexMarker
+
+    for (let checkIndex = 0; checkIndex < 5; checkIndex++) {
+      await waitFor(2_000)
+
+      const revalidatedResponses = [
+        ...(await collectSegmentPrefetchResponses('/acme/dashboard')),
+        ...(await collectSegmentPrefetchResponses('/globex/portal')),
+      ]
+      assertValidSegmentResponses(revalidatedResponses)
+
+      const revalidatedAcmeMarker = await readRouteMarker(
+        '/acme/dashboard',
+        'Team project content - team: acme, project: dashboard'
+      )
+      const revalidatedGlobexMarker = await readRouteMarker(
+        '/globex/portal',
+        'Team project content - team: globex, project: portal'
+      )
+
+      expect(revalidatedAcmeMarker).not.toBe(lastAcmeMarker)
+      expect(revalidatedGlobexMarker).not.toBe(lastGlobexMarker)
+
+      lastAcmeMarker = revalidatedAcmeMarker
+      lastGlobexMarker = revalidatedGlobexMarker
     }
-
-    const revalidateRes = await next.fetch(
-      `/api/revalidate?${revalidateQuery.toString()}`
-    )
-    expect(revalidateRes.status).toBe(200)
-    expect(await revalidateRes.json()).toEqual({ revalidated: true })
-
-    const revalidatedResponses = [
-      ...(await collectSegmentPrefetchResponses('/acme/dashboard')),
-      ...(await collectSegmentPrefetchResponses('/globex/portal')),
-    ]
-    assertValidSegmentResponses(revalidatedResponses)
-
-    await assertRouteResponse(
-      '/acme/dashboard',
-      'Team project content - team: acme, project: dashboard'
-    )
-    await assertRouteResponse(
-      '/globex/portal',
-      'Team project content - team: globex, project: portal'
-    )
   })
 })
