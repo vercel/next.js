@@ -26,7 +26,7 @@ There are two types of revalidation:
 
 When a route is revalidated, Next.js regenerates **both** the HTML response and the RSC payload (React Server Components payload) from the same React component tree. Both artifacts are stored together in the same cache entry.
 
-This consistency matters because the RSC payload carries the component tree structure, not just data.
+This consistency matters because the RSC payload is used for client-side navigations. Browser navigations and client-side navigations should hold the same content.
 
 ### What happens if they get out of sync
 
