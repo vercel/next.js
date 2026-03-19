@@ -2,7 +2,7 @@ use std::{
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
-    hash::{BuildHasher, BuildHasherDefault, Hash},
+    hash::{BuildHasher, BuildHasherDefault},
     mem::take,
     pin::Pin,
     sync::{
@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tracing::{Instrument, Span, instrument};
+use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -2159,10 +2160,10 @@ impl CurrentCellRef {
     /// whether the value actually changed without re-comparing values—avoiding unnecessary
     /// downstream invalidation.
     ///
-    /// Requires `T: Hash` in addition to `T: PartialEq`.
+    /// Requires `T: DeterministicHash` in addition to `T: PartialEq`.
     pub fn hashed_compare_and_update<T>(&self, new_value: T)
     where
-        T: PartialEq + Hash + VcValueType,
+        T: PartialEq + DeterministicHash + VcValueType,
     {
         self.conditional_update(|old_value| {
             if let Some(old_value) = old_value
@@ -2170,7 +2171,7 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = FxBuildHasher.hash_one(&new_value);
+            let content_hash = hash_xxh3_hash64(&new_value);
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2184,7 +2185,7 @@ impl CurrentCellRef {
         &self,
         new_shared_reference: SharedReference,
     ) where
-        T: VcValueType + PartialEq + Hash,
+        T: VcValueType + PartialEq + DeterministicHash,
     {
         self.conditional_update_with_shared_reference(move |old_sr| {
             if let Some(old_sr) = old_sr {
@@ -2194,7 +2195,7 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = FxBuildHasher.hash_one(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash = hash_xxh3_hash64(extract_sr_value::<T>(&new_shared_reference));
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }

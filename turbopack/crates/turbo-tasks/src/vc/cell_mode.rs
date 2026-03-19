@@ -1,4 +1,6 @@
-use std::{any::type_name, hash::Hash, marker::PhantomData};
+use std::{any::type_name, marker::PhantomData};
+
+use turbo_tasks_hash::DeterministicHash;
 
 use super::{read::VcRead, traits::VcValueType};
 use crate::{
@@ -130,7 +132,7 @@ pub struct VcCellHashedCompareMode<T> {
 
 impl<T> VcCellMode<T> for VcCellHashedCompareMode<T>
 where
-    T: VcValueType + PartialEq + Hash,
+    T: VcValueType + PartialEq + DeterministicHash,
 {
     fn cell(inner: VcReadTarget<T>) -> Vc<T> {
         let cell = find_cell_by_type::<T>();

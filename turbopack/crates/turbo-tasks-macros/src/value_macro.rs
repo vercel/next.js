@@ -385,7 +385,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
     if matches!(serialization_mode, SerializationMode::Hash) && !manual_hash {
         struct_attributes.push(quote! {
-            #[derive(std::hash::Hash)]
+            #[derive(turbo_tasks::DeterministicHash)]
         });
     }
     if let Some(span) = operation {

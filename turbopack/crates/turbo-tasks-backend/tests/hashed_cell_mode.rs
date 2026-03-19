@@ -2,16 +2,15 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use std::hash::Hash;
-
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
 /// A value type using `serialization = "hash"` mode.
-/// Only `value` participates in Hash/Eq; `noise` does not.
+/// Only `value` participates in DeterministicHash/Eq; `noise` does not.
 #[turbo_tasks::value(serialization = "hash", eq = "manual", hash = "manual")]
 #[derive(Debug)]
 struct HashedValue {
@@ -20,9 +19,9 @@ struct HashedValue {
     noise: u64,
 }
 
-impl Hash for HashedValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.value.hash(state);
+impl DeterministicHash for HashedValue {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        self.value.deterministic_hash(state);
     }
 }
 
@@ -114,7 +113,8 @@ async fn test_hashed_cell_mode_equal_value_no_invalidation() {
         // Re-trigger the producer with the same value.
         // State::set unconditionally invalidates, so the producer re-runs.
         // But it produces an equal HashedValue (same `value`, different `noise`).
-        // Since Hash and PartialEq only check `value`, the consumer should NOT re-execute.
+        // Since DeterministicHash and PartialEq only check `value`, the consumer should NOT
+        // re-execute.
         state.set(42);
         let result2 = consumer.read_strongly_consistent().await?;
         assert_eq!(result2.value, 42);
