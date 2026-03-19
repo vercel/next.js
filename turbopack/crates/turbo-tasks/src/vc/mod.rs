@@ -57,7 +57,7 @@ where
 impl<T: ?Sized> ResolveVcFuture<T> {
     /// Make the resolution strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.inner = self.inner.strongly_consistent();
+        self.inner.strongly_consistent();
         self
     }
 }
@@ -95,7 +95,7 @@ where
 impl<T: ?Sized> ToResolvedVcFuture<T> {
     /// Make the resolution strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.inner = self.inner.strongly_consistent();
+        self.inner.strongly_consistent();
         self
     }
 }
