@@ -34,6 +34,12 @@ impl Source for TextContentFileSource {
             .with_modifier(rcstr!("text content"))
             .rename_as(rcstr!("*.mjs"))
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("text content of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]

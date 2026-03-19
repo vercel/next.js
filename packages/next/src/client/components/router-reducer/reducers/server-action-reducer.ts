@@ -29,6 +29,7 @@ import type {
   ReducerState,
   ServerActionAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -67,7 +68,10 @@ import {
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
 import { processFetch } from '../fetch-server-response'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -416,7 +420,7 @@ export function serverActionReducer(
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
-      const shouldScroll = true
+      const scrollBehavior = ScrollBehavior.Default
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
@@ -436,12 +440,16 @@ export function serverActionReducer(
         // subset of the data needed to render the new page, we'll initiate a
         // new fetch, like we would for a normal navigation.
         const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+        const now = Date.now()
+        // TODO: Store the dynamic stale time on the top-level state so it's
+        // known during restores and refreshes.
         const redirectSeed = convertServerPatchToFullTree(
+          now,
           currentFlightRouterState,
           flightData,
-          flightDataRenderedSearch
+          flightDataRenderedSearch,
+          UnknownDynamicStaleTime
         )
-        const now = Date.now()
 
         // Learn the route pattern so we can predict it for future navigations.
         const metadataVaryPath = redirectSeed.metadataVaryPath
@@ -472,7 +480,7 @@ export function serverActionReducer(
           currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
-          shouldScroll,
+          scrollBehavior,
           navigateType,
           null,
           // Server action redirects don't use route prediction - we already
@@ -494,7 +502,7 @@ export function serverActionReducer(
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
-        shouldScroll,
+        scrollBehavior,
         navigateType
       )
     },

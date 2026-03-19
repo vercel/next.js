@@ -5,12 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{
-        BytePos, Span, Spanned, SyntaxContext,
-        comments::Comments,
-        errors::{DiagnosticId, HANDLER},
-        source_map::SmallPos,
-    },
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -20,15 +15,14 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{
-    chunk::ChunkingType, issue::IssueSource, loader::WebpackLoaderItem, source::Source,
-};
+use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
+    references::util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
@@ -46,15 +40,12 @@ pub struct ImportAnnotations {
     turbopack_loader: Option<WebpackLoaderItem>,
     turbopack_rename_as: Option<RcStr>,
     turbopack_module_type: Option<RcStr>,
+    chunking_type: Option<SpecifiedChunkingType>,
 }
 
 /// Enables a specified transition for the annotated import
 static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
-
-/// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
-    Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
 static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
@@ -69,6 +60,7 @@ impl ImportAnnotations {
             serde_json::Map::new();
         let mut turbopack_rename_as: Option<RcStr> = None;
         let mut turbopack_module_type: Option<RcStr> = None;
+        let mut chunking_type: Option<SpecifiedChunkingType> = None;
 
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
@@ -76,13 +68,13 @@ impl ImportAnnotations {
             };
 
             let key_str = match &kv.key {
-                PropName::Ident(ident) => ident.sym.to_string(),
-                PropName::Str(str) => str.value.to_string_lossy().into_owned(),
+                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
+                PropName::Str(str) => str.value.to_string_lossy(),
                 _ => continue,
             };
 
             // All turbopack* keys are extracted as string values (per TC39 import attributes spec)
-            match key_str.as_str() {
+            match &*key_str {
                 "turbopackLoader" => {
                     if let Some(Lit::Str(s)) = kv.value.as_lit() {
                         turbopack_loader_name =
@@ -110,6 +102,14 @@ impl ImportAnnotations {
                             Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                     }
                 }
+                "turbopack-chunking-type" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        chunking_type = parse_chunking_type_annotation(
+                            kv.value.span(),
+                            &s.value.to_string_lossy(),
+                        );
+                    }
+                }
                 _ => {
                     // For all other keys, only accept string values (per spec)
                     if let Some(Lit::Str(str)) = kv.value.as_lit() {
@@ -118,23 +118,6 @@ impl ImportAnnotations {
                             PropName::Str(s) => s.value.clone(),
                             _ => continue,
                         };
-                        // Validate known annotation values
-                        if key == *ANNOTATION_CHUNKING_TYPE {
-                            let value = str.value.to_string_lossy();
-                            if value != "parallel" && value != "none" {
-                                HANDLER.with(|handler| {
-                                    handler.span_warn_with_code(
-                                        kv.value.span(),
-                                        &format!(
-                                            "unknown turbopack-chunking-type: \"{value}\", \
-                                             expected \"parallel\" or \"none\""
-                                        ),
-                                        DiagnosticId::Error("turbopack-chunking-type".into()),
-                                    );
-                                });
-                                continue;
-                            }
-                        }
                         map.insert(key, str.value.clone());
                     }
                 }
@@ -150,12 +133,14 @@ impl ImportAnnotations {
             || turbopack_loader.is_some()
             || turbopack_rename_as.is_some()
             || turbopack_module_type.is_some()
+            || chunking_type.is_some()
         {
             Some(ImportAnnotations {
                 map,
                 turbopack_loader,
                 turbopack_rename_as,
                 turbopack_module_type,
+                chunking_type,
             })
         } else {
             None
@@ -193,6 +178,7 @@ impl ImportAnnotations {
                 turbopack_loader: None,
                 turbopack_rename_as: None,
                 turbopack_module_type: None,
+                chunking_type: None,
             })
         } else {
             None
@@ -205,23 +191,9 @@ impl ImportAnnotations {
             .map(|v| v.to_string_lossy())
     }
 
-    /// Returns the chunking type override from the `turbopack-chunking-type` annotation.
-    ///
-    /// - `None` — no annotation present
-    /// - `Some(None)` — annotation is `"none"` (opt out of chunking)
-    /// - `Some(Some(..))` — explicit chunking type (e.g. `"parallel"`)
-    ///
-    /// Unknown values are rejected during [`ImportAnnotations::parse`] and omitted.
-    pub fn chunking_type(&self) -> Option<Option<ChunkingType>> {
-        let chunking_type = self.get(&ANNOTATION_CHUNKING_TYPE)?;
-        if chunking_type == "none" {
-            Some(None)
-        } else {
-            Some(Some(ChunkingType::Parallel {
-                inherit_async: true,
-                hoisted: true,
-            }))
-        }
+    /// Returns the content on the chunking-type annotation
+    pub fn chunking_type(&self) -> Option<SpecifiedChunkingType> {
+        self.chunking_type
     }
 
     /// Returns the content on the type attribute
@@ -362,6 +334,15 @@ pub struct ImportAttributes {
     /// const { b } = await import(/* turbopackExports: "b" */ "module");
     /// ```
     pub export_names: Option<SmallVec<[RcStr; 1]>>,
+    /// Whether to use a specific chunking type for this import.
+    //
+    /// This is set by using a or `turbopackChunkingType` comment.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = require(/* turbopackChunkingType: parallel */ "a");
+    /// ```
+    pub chunking_type: Option<SpecifiedChunkingType>,
 }
 
 impl ImportAttributes {
@@ -370,6 +351,7 @@ impl ImportAttributes {
             ignore: false,
             optional: false,
             export_names: None,
+            chunking_type: None,
         }
     }
 
@@ -942,12 +924,13 @@ fn parse_directives(
     comments: &dyn Comments,
     value: Option<&ExprOrSpread>,
 ) -> Option<ImportAttributes> {
-    let comment_pos = value.map(|arg| arg.span_lo())?;
-    let leading_comments = comments.get_leading(comment_pos)?;
+    let value = value?;
+    let leading_comments = comments.get_leading(value.span_lo())?;
 
     let mut ignore = None;
     let mut optional = None;
     let mut export_names = None;
+    let mut chunking_type = None;
 
     // Process all comments, last one wins for each directive type
     for comment in leading_comments.iter() {
@@ -967,17 +950,21 @@ fn parse_directives(
                 "webpackExports" | "turbopackExports" => {
                     export_names = Some(parse_export_names(val));
                 }
+                "turbopackChunkingType" => {
+                    chunking_type = parse_chunking_type_annotation(value.span(), val);
+                }
                 _ => {} // ignore anything else
             }
         }
     }
 
     // Return Some only if at least one directive was found
-    if ignore.is_some() || optional.is_some() || export_names.is_some() {
+    if ignore.is_some() || optional.is_some() || export_names.is_some() || chunking_type.is_some() {
         Some(ImportAttributes {
             ignore: ignore.unwrap_or(false),
             optional: optional.unwrap_or(false),
             export_names,
+            chunking_type,
         })
     } else {
         None

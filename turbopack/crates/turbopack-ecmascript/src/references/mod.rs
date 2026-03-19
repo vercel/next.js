@@ -1515,10 +1515,15 @@ async fn analyze_ecmascript_module_internal(
                             .annotations
                             .as_ref()
                             .and_then(|a| a.chunking_type())
-                            .unwrap_or(Some(ChunkingType::Parallel {
-                                inherit_async: true,
-                                hoisted: true,
-                            }));
+                            .map_or_else(
+                                || {
+                                    Some(ChunkingType::Parallel {
+                                        inherit_async: true,
+                                        hoisted: true,
+                                    })
+                                },
+                                |c| c.as_chunking_type(true, true),
+                            );
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
@@ -2262,6 +2267,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2315,6 +2321,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );

@@ -1131,14 +1131,11 @@ impl NativeFn {
         quote! {
             {
                 #[allow(deprecated)]
-                const IMPL: &dyn turbo_tasks::task::TaskFn =
-                    const { &#task_fn as &dyn turbo_tasks::task::TaskFn };
-                #[allow(deprecated)]
                 turbo_tasks::macro_helpers::NativeFunction::new(
                     #function_path_string,
                     #function_global_name,
                     #arg_meta,
-                    IMPL,
+                    &#task_fn,
                     #is_root,
                 )
             }

@@ -24,7 +24,7 @@ use crate::utils::inline_source_map_comment;
 ///   { a } from './data.json'`). This matches webpack's historical behavior.
 ///
 /// For JSON files larger than 10KB, we use `JSON.parse()` for better performance.
-/// See: https://v8.dev/blog/cost-of-javascript-2019#json
+/// See: <https://v8.dev/blog/cost-of-javascript-2019#json>
 #[turbo_tasks::value]
 pub struct JsonSourceTransform {
     /// If true, generate spec-compliant ESM with only an esm default export.

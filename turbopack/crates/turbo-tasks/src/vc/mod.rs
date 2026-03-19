@@ -278,7 +278,7 @@ where
         let raw_vc: RawVc = resolved.node;
         if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
             let value_ty = registry::get_value_type(type_id);
-            Ok(format!("{}#{}: {}", value_ty.name, index, task_id))
+            Ok(format!("{}#{}: {}", value_ty.ty.name, index, task_id))
         } else {
             unreachable!()
         }

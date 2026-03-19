@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { HandleISRError } from '../handle-isr-error'
+import { handleISRError } from '../handle-isr-error'
 import { errorStyles, errorThemeCss, WarningIcon } from './error-styles'
 
 export type GlobalErrorComponent = React.ComponentType<{
@@ -18,13 +18,14 @@ function DefaultGlobalError({ error }: { error: any }) {
     ? 'A server error occurred. Reload to try again.'
     : 'Reload to try again, or go back.'
 
+  handleISRError({ error })
+
   return (
     <html id="__next_error__">
       <head>
         <style dangerouslySetInnerHTML={{ __html: errorThemeCss }} />
       </head>
       <body>
-        <HandleISRError error={error} />
         <div style={errorStyles.container}>
           <div style={errorStyles.card}>
             <WarningIcon />

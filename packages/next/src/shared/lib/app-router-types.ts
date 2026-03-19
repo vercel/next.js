@@ -49,7 +49,24 @@ export type CacheNode = {
   head: HeadData
 
   slots: Record<string, CacheNode> | null
+
+  /**
+   * A shared mutable ref that tracks whether this segment should be scrolled
+   * to. All new segments created during a single navigation share the same
+   * ref. When any segment's scroll handler fires, it sets `current` to
+   * `false` so no other segment scrolls for the same navigation.
+   *
+   * `null` means this segment is not a scroll target (e.g., a reused shared
+   * layout segment).
+   */
+  scrollRef: ScrollRef | null
 }
+
+/**
+ * A mutable ref shared across all new segments created during a single
+ * navigation. Used to ensure that only one segment scrolls per navigation.
+ */
+export type ScrollRef = { current: boolean }
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -297,6 +314,14 @@ export type InitialRSCPayload = {
   l?: Promise<number>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -319,6 +344,14 @@ export type NavigationFlightResponse = {
   h: VaryParamsThenable | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

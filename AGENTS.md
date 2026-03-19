@@ -148,13 +148,13 @@ pnpm test-dev-turbo test/development/
 Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
-# Use --args for non-interactive mode
-# Format: pnpm new-test --args <appDir> <name> <type>
+# Use --args for non-interactive mode (forward args to the script using `--`)
+# Format: pnpm new-test -- --args <appDir> <name> <type>
 # appDir: true/false (is this for app directory?)
 # name: test name (e.g. "my-feature")
 # type: e2e | production | development | unit
 
-pnpm new-test --args true my-feature e2e
+pnpm new-test -- --args true my-feature e2e
 ```
 
 **Analyzing test output efficiently:**
@@ -400,13 +400,14 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Test Gotchas
 
 - **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
+  -- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test -- --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
 - **`app-page.ts` is a build template compiled by the user's bundler**: Any `require()` in this file is traced by webpack/turbopack at `next build` time. You cannot require internal modules with relative paths because they won't be resolvable from the user's project. Instead, export new helpers from `entry-base.ts` and access them via `entryBase.*` in the template.
 - **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences: `IS_WEBPACK_TEST=1` forces webpack (turbopack is default), `NEXT_SKIP_ISOLATE=1` skips packing next.js (hides module resolution failures). Always run without `NEXT_SKIP_ISOLATE` when verifying module resolution fixes.
 - **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
+- **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
 
 ### Rust/Cargo
 

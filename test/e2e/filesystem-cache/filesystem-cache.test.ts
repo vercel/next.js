@@ -2,24 +2,9 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
-import { readFileSync, existsSync } from 'fs'
+import { existsSync } from 'fs'
 import path from 'path'
-import type { TraceEvent } from 'next/dist/trace'
-
-function parseTraceFile(tracePath: string): TraceEvent[] {
-  const traceContent = readFileSync(tracePath, 'utf8')
-  const traceLines = traceContent
-    .trim()
-    .split('\n')
-    .filter((line) => line.trim())
-
-  const allEvents: TraceEvent[] = []
-  for (const line of traceLines) {
-    const events = JSON.parse(line) as TraceEvent[]
-    allEvents.push(...events)
-  }
-  return allEvents
-}
+import { parseTraceEvents } from '../../lib/parse-trace-file'
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -440,7 +425,7 @@ for (const cacheEnabled of [false, true]) {
           const tracePath = path.join(next.testDir, traceDir, 'trace')
           expect(existsSync(tracePath)).toBe(true)
 
-          const events = parseTraceFile(tracePath)
+          const events = parseTraceEvents(tracePath)
           const persistenceEvents = events.filter(
             (e) => e.name === 'turbopack-persistence'
           )
