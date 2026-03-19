@@ -3230,16 +3230,14 @@ async fn handle_exports_imports_field(
     let values = exports_imports_field.lookup(&req);
     for value in values {
         let value = value?;
-        let prev_len = results.len();
-        value.output.add_results(
+        if value.output.add_results(
             value.prefix,
             value.key,
             conditions,
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
-        );
-        if results.len() > prev_len {
+        ) {
             // Match found, stop (leveraging the lazy `lookup` iterator).
             break;
         }
