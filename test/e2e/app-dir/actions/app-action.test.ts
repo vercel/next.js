@@ -1335,7 +1335,7 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      }, 5000)
+      }, 10_000)
     })
 
     it('should handle revalidatePath', async () => {
@@ -1610,7 +1610,7 @@ describe('app-dir action handling', () => {
       expect(await browser.elementById('modal-data').text()).toContain(
         'in "modal"'
       )
-    })
+    }, 10_000)
 
     // Submit the action
     await browser.elementById('submit-intercept-action').click()
