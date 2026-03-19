@@ -2001,8 +2001,6 @@ pub enum PersistedFileContent {
 
 impl PersistedFileContent {
     /// Performs a comparison of self's data against a disk file's streamed read.
-    ///
-    /// Mirrors [`FileContent::streaming_compare`] for use in [`DiskFileSystem::write`].
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
         let old_file =
             extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
