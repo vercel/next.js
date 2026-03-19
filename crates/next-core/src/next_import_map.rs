@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use either::Either;
@@ -11,7 +11,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType, ResolveAliasMap,
+        SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -1328,8 +1329,11 @@ fn export_value_to_import_mapping(
         return Some(ImportMapping::Empty.resolved_cell());
     }
 
+    let alias_key = AliasKey::Exact;
     let mut result = Vec::new();
-    value.add_results(
+    value.convert().add_results(
+        Cow::Borrowed(""),
+        &alias_key,
         conditions,
         &ConditionValue::Unset,
         &mut FxHashMap::default(),
@@ -1337,22 +1341,31 @@ fn export_value_to_import_mapping(
     );
     if result.is_empty() {
         None
+    } else if result.len() == 1 {
+        let path = result[0].result_path.as_constant_string()?;
+        Some(
+            ImportMapping::PrimaryAlternative(path.clone(), Some(project_path.clone()))
+                .resolved_cell(),
+        )
     } else {
-        Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
-                .resolved_cell()
-        } else {
+        Some(
             ImportMapping::Alternatives(
                 result
                     .iter()
-                    .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path.clone()))
-                            .resolved_cell()
+                    .filter_map(|r| {
+                        let m = r.result_path.as_constant_string()?;
+                        Some(
+                            ImportMapping::PrimaryAlternative(
+                                m.clone(),
+                                Some(project_path.clone()),
+                            )
+                            .resolved_cell(),
+                        )
                     })
                     .collect(),
             )
-            .resolved_cell()
-        })
+            .resolved_cell(),
+        )
     }
 }
 

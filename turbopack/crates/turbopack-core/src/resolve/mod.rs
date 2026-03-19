@@ -37,7 +37,6 @@ use crate::{
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
-        alias_map::AliasKey,
         error::{handle_resolve_error, resolve_error_severity},
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{
@@ -48,7 +47,7 @@ use crate::{
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
-        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
+        remap::{ExportsField, ImportsField},
     },
     source::{OptionSource, Source, Sources},
 };
@@ -64,9 +63,10 @@ pub mod plugin;
 pub(crate) mod remap;
 
 pub use alias_map::{
-    AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
+    AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
+    AliasTemplate,
 };
-pub use remap::{ResolveAliasMap, SubpathValue};
+pub use remap::{ReplacedSubpathValue, ReplacedSubpathValueResult, ResolveAliasMap, SubpathValue};
 
 /// Controls how resolve errors are handled.
 #[turbo_tasks::value(shared)]
