@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
@@ -11,6 +11,7 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
+const isStartMode = process.env.NEXT_TEST_MODE === 'start'
 
 describe('opentelemetry', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -1418,7 +1419,7 @@ describe('opentelemetry with custom server', () => {
   })
 })
 
-if (!isNextDev) {
+if (isStartMode) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
@@ -1456,25 +1457,93 @@ if (!isNextDev) {
       await collector.shutdown()
     })
 
-    it('should propagate incoming context without next-server wrapper', async () => {
-      await next.fetch('/app/param/rsc-fetch', {
-        headers: {
-          traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-        },
-      })
+    const directEntrypointCases = [
+      { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
+      { pathname: '/api/app/param/data', route: '/api/app/[param]/data' },
+      {
+        pathname: '/pages/param/getServerSideProps',
+        route: '/pages/[param]/getServerSideProps',
+      },
+      {
+        pathname: '/api/pages/param/basic',
+        route: '/api/pages/[param]/basic',
+      },
+    ] as const
 
-      await expectTrace(getCollector(), [
-        {
-          name: 'GET /app/[param]/rsc-fetch/page',
-          traceId: EXTERNAL.traceId,
-          parentId: EXTERNAL.spanId,
-          attributes: {
-            'http.target': '/app/param/rsc-fetch',
-            'next.span_type': 'BaseServer.handleRequest',
-          },
-        },
-      ])
-    })
+    describe.each(directEntrypointCases)(
+      'direct entrypoint $pathname',
+      ({ pathname, route }) => {
+        it(`should add route names to handleRequest and parent spans for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname)
+          expect(response.status).toBe(200)
+
+          await retry(
+            async () => {
+              const spans = collector.getSpans()
+              const handleRequestSpan = spans.find((span) => {
+                if (
+                  span.attributes?.['next.span_type'] !==
+                  'BaseServer.handleRequest'
+                ) {
+                  return false
+                }
+                const target = span.attributes?.['http.target'] as
+                  | string
+                  | undefined
+                return Boolean(target && target.includes(pathname))
+              })
+
+              expect(handleRequestSpan).toBeDefined()
+              expect(handleRequestSpan!.name).toBe(`GET ${route}`)
+              expect(handleRequestSpan!.attributes?.['http.target']).toContain(
+                pathname
+              )
+              expect(handleRequestSpan!.attributes?.['next.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['http.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['next.span_name']).toBe(
+                `GET ${route}`
+              )
+
+              const parentSpan = spans.find(
+                (span) =>
+                  span.traceId === handleRequestSpan!.traceId &&
+                  !span.parentId &&
+                  !span.attributes?.['next.span_type'] &&
+                  span.name === handleRequestSpan!.name
+              )
+              expect(parentSpan).toBeDefined()
+              expect(parentSpan!.name).toBe(`GET ${route}`)
+            },
+            30_000,
+            1_000,
+            `direct entrypoint span route naming ${pathname}`
+          )
+        })
+
+        it(`should propagate incoming context without next-server wrapper for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname, {
+            headers: {
+              traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+            },
+          })
+          expect(response.status).toBe(200)
+
+          await expectTrace(getCollector(), [
+            {
+              name: `GET ${route}`,
+              traceId: EXTERNAL.traceId,
+              parentId: EXTERNAL.spanId,
+              attributes: {
+                'http.target': pathname,
+                'next.span_type': 'BaseServer.handleRequest',
+                'http.route': route,
+                'next.route': route,
+              },
+            },
+          ])
+        })
+      }
+    )
   })
 }
 
