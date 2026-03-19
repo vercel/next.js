@@ -38,11 +38,35 @@ async function main() {
     'rsc-fetch',
     'page.js',
   ])
+  const appRouteHandler = loadEntrypointHandler([
+    'app',
+    'api',
+    'app',
+    '[param]',
+    'data',
+    'route.js',
+  ])
+  const pagesRouteHandler = loadEntrypointHandler([
+    'pages',
+    'pages',
+    '[param]',
+    'getServerSideProps.js',
+  ])
+  const pagesApiRouteHandler = loadEntrypointHandler([
+    'pages',
+    'api',
+    'pages',
+    '[param]',
+    'basic.js',
+  ])
 
   const tracer = trace.getTracer('custom-entrypoint-server', '1.0.0')
 
   const resolveHandler = (pathname: string): EntrypointHandler | undefined => {
     if (pathname.startsWith('/app/')) return appPageHandler
+    if (pathname.startsWith('/api/app/')) return appRouteHandler
+    if (pathname.startsWith('/pages/')) return pagesRouteHandler
+    if (pathname.startsWith('/api/pages/')) return pagesApiRouteHandler
     return undefined
   }
 

@@ -1457,68 +1457,93 @@ if (isStartMode) {
       await collector.shutdown()
     })
 
-    it('should add route names to handleRequest and parent spans for direct entrypoints', async () => {
-      await next.fetch('/app/param/rsc-fetch')
+    const directEntrypointCases = [
+      { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
+      { pathname: '/api/app/param/data', route: '/api/app/[param]/data' },
+      {
+        pathname: '/pages/param/getServerSideProps',
+        route: '/pages/[param]/getServerSideProps',
+      },
+      {
+        pathname: '/api/pages/param/basic',
+        route: '/api/pages/[param]/basic',
+      },
+    ] as const
 
-      await retry(
-        async () => {
-          const spans = collector.getSpans()
-          const handleRequestSpan = spans.find(
-            (span) =>
-              span.attributes?.['next.span_type'] ===
-                'BaseServer.handleRequest' && span.name?.includes('/app/')
-          )
+    describe.each(directEntrypointCases)(
+      'direct entrypoint $pathname',
+      ({ pathname, route }) => {
+        it(`should add route names to handleRequest and parent spans for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname)
+          expect(response.status).toBe(200)
 
-          expect(handleRequestSpan).toBeDefined()
-          expect(handleRequestSpan!.name).toContain(' /app/')
-          expect(handleRequestSpan!.attributes?.['http.target']).toContain(
-            '/app/param/rsc-fetch'
-          )
-          expect(handleRequestSpan!.attributes?.['next.route']).toContain(
-            '/app/'
-          )
-          expect(handleRequestSpan!.attributes?.['http.route']).toContain(
-            '/app/'
-          )
-          expect(handleRequestSpan!.attributes?.['next.span_name']).toBe(
-            handleRequestSpan!.name
-          )
+          await retry(
+            async () => {
+              const spans = collector.getSpans()
+              const handleRequestSpan = spans.find((span) => {
+                if (
+                  span.attributes?.['next.span_type'] !==
+                  'BaseServer.handleRequest'
+                ) {
+                  return false
+                }
+                const target = span.attributes?.['http.target'] as
+                  | string
+                  | undefined
+                return Boolean(target && target.includes(pathname))
+              })
 
-          const parentSpan = spans.find(
-            (span) =>
-              span.traceId === handleRequestSpan!.traceId &&
-              !span.parentId &&
-              !span.attributes?.['next.span_type'] &&
-              span.name === handleRequestSpan!.name
+              expect(handleRequestSpan).toBeDefined()
+              expect(handleRequestSpan!.name).toBe(`GET ${route}`)
+              expect(handleRequestSpan!.attributes?.['http.target']).toContain(
+                pathname
+              )
+              expect(handleRequestSpan!.attributes?.['next.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['http.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['next.span_name']).toBe(
+                `GET ${route}`
+              )
+
+              const parentSpan = spans.find(
+                (span) =>
+                  span.traceId === handleRequestSpan!.traceId &&
+                  !span.parentId &&
+                  !span.attributes?.['next.span_type'] &&
+                  span.name === handleRequestSpan!.name
+              )
+              expect(parentSpan).toBeDefined()
+              expect(parentSpan!.name).toBe(`GET ${route}`)
+            },
+            30_000,
+            1_000,
+            `direct entrypoint span route naming ${pathname}`
           )
-          expect(parentSpan).toBeDefined()
-          expect(parentSpan!.name).toContain(' /app/')
-        },
-        30_000,
-        1_000,
-        'direct entrypoint span route naming'
-      )
-    })
+        })
 
-    it('should propagate incoming context without next-server wrapper', async () => {
-      await next.fetch('/app/param/rsc-fetch', {
-        headers: {
-          traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-        },
-      })
+        it(`should propagate incoming context without next-server wrapper for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname, {
+            headers: {
+              traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+            },
+          })
+          expect(response.status).toBe(200)
 
-      await expectTrace(getCollector(), [
-        {
-          name: 'GET /app/[param]/rsc-fetch',
-          traceId: EXTERNAL.traceId,
-          parentId: EXTERNAL.spanId,
-          attributes: {
-            'http.target': '/app/param/rsc-fetch',
-            'next.span_type': 'BaseServer.handleRequest',
-          },
-        },
-      ])
-    })
+          await expectTrace(getCollector(), [
+            {
+              name: `GET ${route}`,
+              traceId: EXTERNAL.traceId,
+              parentId: EXTERNAL.spanId,
+              attributes: {
+                'http.target': pathname,
+                'next.span_type': 'BaseServer.handleRequest',
+                'http.route': route,
+                'next.route': route,
+              },
+            },
+          ])
+        })
+      }
+    )
   })
 }
 
