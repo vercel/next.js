@@ -976,8 +976,7 @@ impl FileSystem for DiskFileSystem {
         // content is available in the persistent cache (via PersistedFileContent) and does not
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
-        let persisted_content = content.persist().await?;
-        let content = content.await?;
+        let content = content.persist().await?;
 
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -987,8 +986,7 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             invalidator: Option<Invalidator>,
-            content: ReadRef<FileContent>,
-            persisted_content: ReadRef<PersistedFileContent>,
+            content: ReadRef<PersistedFileContent>,
         }
 
         impl Effect for WriteEffect {
@@ -1018,7 +1016,7 @@ impl FileSystem for DiskFileSystem {
                 // code will need to read the file from disk into a Vc<FileContent>, so we're
                 // not wasting cycles.
                 let compare = self
-                    .persisted_content
+                    .content
                     .streaming_compare(&full_path)
                     .instrument(tracing::info_span!("read file before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
@@ -1036,7 +1034,7 @@ impl FileSystem for DiskFileSystem {
                     return Ok(());
                 }
 
-                match &*self.persisted_content {
+                match &*self.content {
                     PersistedFileContent::Content(..) => {
                         let create_directory = compare == FileComparison::Create;
                         if create_directory && let Some(parent) = full_path.parent() {
@@ -1048,7 +1046,7 @@ impl FileSystem for DiskFileSystem {
                             })?;
                         }
 
-                        let content = self.persisted_content.clone();
+                        let content = self.content.clone();
                         retry_blocking(|| {
                             let mut f = std::fs::File::create(&full_path)?;
                             let PersistedFileContent::Content(file) = &*content else {
@@ -1114,7 +1112,6 @@ impl FileSystem for DiskFileSystem {
             inner,
             invalidator,
             content,
-            persisted_content,
         });
 
         Ok(())
