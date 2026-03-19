@@ -3,7 +3,6 @@ use std::sync::{Arc, RwLock};
 use anyhow::{Result, bail};
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
-    error::SelectorError,
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{BrowserslistConfig, Features, Targets},
     traits::ToCss,
@@ -489,49 +488,44 @@ async fn process_content(
         ) {
             Ok(mut ss) => {
                 for err in warnings.read().unwrap().iter() {
-                    match err.kind {
+                    // Unsupported pseudo-classes/elements are common in real-world CSS
+                    // (vendor prefixes, custom frameworks) and do not prevent the
+                    // stylesheet from being used — treat them as recoverable warnings.
+                    // All other previously-ignored parser warnings are also surfaced.
+                    let severity = match err.kind {
+                        lightningcss::error::ParserError::SelectorError(
+                            lightningcss::error::SelectorError::UnsupportedPseudoClass(_)
+                            | lightningcss::error::SelectorError::UnsupportedPseudoElement(_),
+                        ) => IssueSeverity::Warning,
+
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
-                        | lightningcss::error::ParserError::EndOfInput => {
-                            let issue_source = match &err.loc {
-                                Some(loc) => IssueSource::from_single_line_col(
-                                    source,
-                                    SourcePos {
-                                        // lightningcss::ErrorLocation is 1-based for column only
-                                        line: loc.line,
-                                        column: loc.column - 1,
-                                    },
-                                ),
-                                None => IssueSource::from_source_only(source),
-                            };
+                        | lightningcss::error::ParserError::EndOfInput => IssueSeverity::Error,
 
-                            let severity = match &err.kind {
-                                lightningcss::error::ParserError::SelectorError(
-                                    SelectorError::UnsupportedPseudoClass(_)
-                                    | SelectorError::UnsupportedPseudoElement(_),
-                                ) => {
-                                    // In most cases, these are new selectors not yet
-                                    // implemented in LightningCSS.
-                                    IssueSeverity::Warning
-                                }
-                                _ => IssueSeverity::Error,
-                            };
+                        _ => IssueSeverity::Warning,
+                    };
 
-                            ParsingIssue {
-                                msg: err.kind.to_string().into(),
-                                stage: IssueStage::Parse,
-                                source: issue_source,
-                                severity,
-                            }
-                            .resolved_cell()
-                            .emit();
-                        }
+                    let issue_source = match &err.loc {
+                        Some(loc) => IssueSource::from_single_line_col(
+                            source,
+                            SourcePos {
+                                // lightningcss::ErrorLocation is 1-based for column only
+                                line: loc.line,
+                                column: loc.column - 1,
+                            },
+                        ),
+                        None => IssueSource::from_source_only(source),
+                    };
 
-                        _ => {
-                            // Ignore
-                        }
+                    ParsingIssue {
+                        severity,
+                        msg: err.kind.to_string().into(),
+                        stage: IssueStage::Parse,
+                        source: issue_source,
                     }
+                    .resolved_cell()
+                    .emit();
                 }
 
                 let targets = *get_lightningcss_browser_targets(
@@ -561,10 +555,10 @@ async fn process_content(
                         None => IssueSource::from_source_only(source),
                     };
                     ParsingIssue {
+                        severity: IssueSeverity::Error,
                         msg: e.kind.to_string().into(),
                         stage: IssueStage::Transform,
                         source: issue_source,
-                        severity: IssueSeverity::Error,
                     }
                     .resolved_cell()
                     .emit();
@@ -601,10 +595,10 @@ async fn process_content(
                     None => IssueSource::from_source_only(source),
                 };
                 ParsingIssue {
+                    severity: IssueSeverity::Error,
                     msg: e.kind.to_string().into(),
                     stage: IssueStage::Parse,
                     source: issue_source,
-                    severity: IssueSeverity::Error,
                 }
                 .resolved_cell()
                 .emit();
@@ -651,6 +645,7 @@ impl CssError {
         match self {
             CssError::CssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
+                    severity: IssueSeverity::Error,
                     msg: format!(
                         "Selector \"{selector}\" is not pure. Pure selectors must contain at \
                          least one local class or id."
@@ -659,7 +654,6 @@ impl CssError {
                     stage: IssueStage::Transform,
                     // TODO: This should include the location of the selector in the file.
                     source: IssueSource::from_source_only(source),
-                    severity: IssueSeverity::Error,
                 }
                 .resolved_cell()
                 .emit();
@@ -756,10 +750,10 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 
 #[turbo_tasks::value]
 struct ParsingIssue {
+    severity: IssueSeverity,
     msg: RcStr,
     stage: IssueStage,
     source: IssueSource,
-    severity: IssueSeverity,
 }
 
 #[turbo_tasks::value_impl]
