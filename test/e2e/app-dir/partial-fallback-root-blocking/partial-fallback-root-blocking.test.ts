@@ -5,7 +5,7 @@ import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
 
 describe('partial-fallback-root-blocking', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     // The latest changes to support this behavior on deployed infra are available in the adapter,
     // and are not being backported to the CLI
@@ -40,26 +40,23 @@ describe('partial-fallback-root-blocking', () => {
     }
   }
 
-  // TODO: Re-enable once infra supports multiple layers of fallbacks
-  if (!isNextDeploy) {
-    it('should not reuse a shared shell cache entry for unknown root branches', async () => {
-      const firstResult = await fetchSplitHTML('/fr/two')
+  it('should not reuse a shared shell cache entry for unknown root branches', async () => {
+    const firstResult = await fetchSplitHTML('/fr/two')
 
-      expect(firstResult.response.status).toBe(200)
-      expect(firstResult.static$('#lang-fallback').length).toBe(0)
-      expect(firstResult.static$('#lang').text()).toBe('fr')
-      expect(firstResult.static$('#slug').text()).toBe('two')
-      expect(firstResult.dynamicPart).toBe('')
+    expect(firstResult.response.status).toBe(200)
+    expect(firstResult.static$('#lang-fallback').length).toBe(0)
+    expect(firstResult.static$('#lang').text()).toBe('fr')
+    expect(firstResult.static$('#slug').text()).toBe('two')
+    expect(firstResult.dynamicPart).toBe('')
 
-      const secondResult = await fetchSplitHTML('/fr/other')
+    const secondResult = await fetchSplitHTML('/fr/other')
 
-      expect(secondResult.response.status).toBe(200)
-      expect(secondResult.static$('#lang-fallback').length).toBe(0)
-      expect(secondResult.static$('#lang').text()).toBe('fr')
-      expect(secondResult.static$('#slug').text()).toBe('other')
-      expect(secondResult.dynamicPart).toBe('')
-    })
-  }
+    expect(secondResult.response.status).toBe(200)
+    expect(secondResult.static$('#lang-fallback').length).toBe(0)
+    expect(secondResult.static$('#lang').text()).toBe('fr')
+    expect(secondResult.static$('#slug').text()).toBe('other')
+    expect(secondResult.dynamicPart).toBe('')
+  })
 
   it('should still serve a fallback shell for generated root branches', async () => {
     const result = await fetchSplitHTML('/en/two')

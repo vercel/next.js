@@ -28,6 +28,13 @@ export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
 
 export const NEXT_RESUME_HEADER = 'next-resume'
 export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
+export const NEXT_SHELL_FALLBACK_QUERY_KEYS_HEADER =
+  'x-next-shell-fallback-query-keys'
+export const NEXT_BLOCKING_FALLBACK_QUERY_KEYS_HEADER =
+  'x-next-blocking-fallback-query-keys'
+export const NEXT_FALLBACK_PARAM_PAYLOADS_HEADER =
+  'x-next-fallback-param-payloads'
+export const NEXT_FALLBACK_ROUTE_PARAMS_HEADER = 'x-next-fallback-route-params'
 
 // if these change make sure we update the related
 // documentation as well

@@ -1,6 +1,7 @@
 import {
   createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
+  parseFallbackRouteParamsHeader,
 } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -609,5 +610,30 @@ describe('getFallbackRouteParams', () => {
       result = getFallbackRouteParams('/sidebar/is/real', routeModule)
       expect(result).toBeNull()
     })
+  })
+})
+
+describe('parseFallbackRouteParamsHeader', () => {
+  it('should decode a valid header payload', () => {
+    const value = Buffer.from(
+      JSON.stringify([
+        { paramName: 'slug', paramType: 'dynamic' },
+        { paramName: 'parts', paramType: 'catchall' },
+      ])
+    ).toString('base64url')
+
+    expect(parseFallbackRouteParamsHeader(value)).toEqual([
+      { paramName: 'slug', paramType: 'dynamic' },
+      { paramName: 'parts', paramType: 'catchall' },
+    ])
+  })
+
+  it('should reject invalid payloads', () => {
+    const value = Buffer.from(
+      JSON.stringify([{ paramName: 'slug', paramType: 'unknown' }])
+    ).toString('base64url')
+
+    expect(parseFallbackRouteParamsHeader(value)).toBeUndefined()
+    expect(parseFallbackRouteParamsHeader('not-base64')).toBeUndefined()
   })
 })

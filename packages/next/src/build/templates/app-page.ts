@@ -25,6 +25,7 @@ import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
   createOpaqueFallbackRouteParams,
+  parseFallbackRouteParamsHeader,
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
@@ -58,6 +59,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_FALLBACK_ROUTE_PARAMS_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
@@ -550,6 +552,14 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  const deferredFallbackRouteParams =
+    isOnDemandRevalidate && nextConfig.experimental.partialFallbacks === true
+      ? parseFallbackRouteParamsHeader(
+          req.headers[NEXT_FALLBACK_ROUTE_PARAMS_HEADER]
+        )
+      : undefined
+  const effectiveFallbackRouteParams =
+    deferredFallbackRouteParams ?? prerenderInfo?.fallbackRouteParams
   const hasUnresolvedRootFallbackParams =
     prerenderInfo?.fallback === null &&
     (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
@@ -654,7 +664,7 @@ export async function handler(
   const remainingFallbackRouteParams =
     nextConfig.experimental.partialFallbacks === true &&
     remainingPrerenderableParams.length > 0
-      ? (prerenderInfo?.fallbackRouteParams?.filter(
+      ? (effectiveFallbackRouteParams?.filter(
           (param) =>
             !remainingPrerenderableParams.some(
               (prerenderableParam) =>
@@ -1086,11 +1096,8 @@ export async function handler(
             // route params which correctly identifies which params are
             // unknown. Note: in dev, this block is only entered for
             // non-prerendered URLs (guarded by the outer condition).
-            (isProduction || isDebugStaticShell) &&
-            prerenderInfo?.fallbackRouteParams
-              ? createOpaqueFallbackRouteParams(
-                  prerenderInfo.fallbackRouteParams
-                )
+            (isProduction || isDebugStaticShell) && effectiveFallbackRouteParams
+              ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
               : // When debugging the fallback shell, treat all params as
                 // fallback (simulating the worst-case shell).
                 isDebugFallbackShell
@@ -1328,8 +1335,8 @@ export async function handler(
         // params which correctly identifies which params are unknown.
         ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
           (isDebugStaticShell && !isPrerendered)) &&
-        prerenderInfo?.fallbackRouteParams
-          ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+        effectiveFallbackRouteParams
+          ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
           : isDebugFallbackShell
             ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
@@ -1343,10 +1350,10 @@ export async function handler(
         (isProduction || isDebugStaticShell) &&
         nextConfig.cacheComponents &&
         !isPrerendered &&
-        prerenderInfo?.fallbackRouteParams
+        effectiveFallbackRouteParams
       ) {
         const fallbackParams = createOpaqueFallbackRouteParams(
-          prerenderInfo.fallbackRouteParams
+          effectiveFallbackRouteParams
         )
 
         if (fallbackParams) {

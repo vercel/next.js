@@ -37,8 +37,11 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_BLOCKING_FALLBACK_QUERY_KEYS_HEADER,
+  NEXT_FALLBACK_PARAM_PAYLOADS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
+  NEXT_SHELL_FALLBACK_QUERY_KEYS_HEADER,
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
@@ -132,6 +135,10 @@ interface SharedRouteFields {
      */
     env?: Record<string, string>
   }
+}
+
+function encodeHeaderPayload(value: unknown): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url')
 }
 
 export interface AdapterOutput {
@@ -1591,6 +1598,7 @@ export async function handleBuildComplete({
           fallbackHeaders,
           fallbackStatus,
           fallbackSourceRoute,
+          fallbackRouteParams,
           fallbackRootParams,
           remainingPrerenderableParams,
           allowHeader,
@@ -1619,17 +1627,20 @@ export async function handleBuildComplete({
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
+        const allFallbackRouteParams = fallbackRouteParams ?? []
+        const shellFallbackQueryKeysForChain = allFallbackRouteParams.map(
+          (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+        )
+        const blockingFallbackQueryKeys = (fallbackRootParams ?? []).map(
+          (paramName) => `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+        )
+        const fallbackParamPayloads = Object.fromEntries(
+          allFallbackRouteParams.map((param) => [
+            `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`,
+            param,
+          ])
+        )
 
-        // Today, consumers of this build output can only upgrade a fallback shell
-        // when all remaining route params become concrete in the upgraded entry.
-        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
-        // because we do not emit which fallback params should remain deferred after
-        // the upgrade. Until that contract exists, only emit `partialFallback` for
-        // the conservative case where the upgraded entry can become fully concrete.
-        const canEmitPartialFallback =
-          partialFallback &&
-          fallbackRootParams?.length === 0 &&
-          allowQuery.length === remainingPrerenderableParams?.length
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1655,7 +1666,7 @@ export async function handleBuildComplete({
               )
             )
             htmlAllowQuery =
-              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+              partialFallback && routesManifest.rsc.clientParamParsing
                 ? Object.values(routeKeys).filter((routeKey) =>
                     remainingPrerenderableQueryKeys.has(routeKey)
                   )
@@ -1675,6 +1686,20 @@ export async function handleBuildComplete({
               ? {
                   headers: {
                     [NEXT_RESUME_HEADER]: '1',
+                    ...(partialFallback && shellFallbackQueryKeysForChain.length
+                      ? {
+                          [NEXT_SHELL_FALLBACK_QUERY_KEYS_HEADER]:
+                            shellFallbackQueryKeysForChain.join(','),
+                          [NEXT_FALLBACK_PARAM_PAYLOADS_HEADER]:
+                            encodeHeaderPayload(fallbackParamPayloads),
+                        }
+                      : {}),
+                    ...(partialFallback && blockingFallbackQueryKeys.length
+                      ? {
+                          [NEXT_BLOCKING_FALLBACK_QUERY_KEYS_HEADER]:
+                            blockingFallbackQueryKeys.join(','),
+                        }
+                      : {}),
                   },
                 }
               : undefined,
@@ -1704,7 +1729,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
-            partialFallback: canEmitPartialFallback || undefined,
+            partialFallback: partialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },

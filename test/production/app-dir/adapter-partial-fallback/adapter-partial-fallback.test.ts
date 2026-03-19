@@ -6,7 +6,7 @@ describe('adapter-partial-fallback', () => {
     files: __dirname,
   })
 
-  it('should emit partial fallback metadata when infra can upgrade the shell', async () => {
+  it('should emit partial fallback metadata for upgradeable shells', async () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
 
@@ -42,14 +42,37 @@ describe('adapter-partial-fallback', () => {
     expect(withoutGspPrerender.config.partialFallback).toBeUndefined()
     expect(withoutGspPrerender.config.allowQuery).toEqual([])
 
-    expect(genericPrefixPrerender.config.partialFallback).toBeUndefined()
-    expect(genericPrefixPrerender.config.allowQuery).toEqual([])
+    expect(genericPrefixPrerender.config.partialFallback).toBe(true)
+    expect(genericPrefixPrerender.config.allowQuery).toEqual(['nxtPone'])
+    expect(
+      genericPrefixPrerender.pprChain.headers[
+        'x-next-shell-fallback-query-keys'
+      ]
+    ).toBe('nxtPone,nxtPtwo')
+    expect(
+      JSON.parse(
+        Buffer.from(
+          genericPrefixPrerender.pprChain.headers[
+            'x-next-fallback-param-payloads'
+          ],
+          'base64url'
+        ).toString('utf8')
+      )
+    ).toEqual({
+      nxtPone: { paramName: 'one', paramType: 'dynamic' },
+      nxtPtwo: { paramName: 'two', paramType: 'dynamic' },
+    })
 
     expect(generatedPrefixPrerender.config.partialFallback).toBeUndefined()
     expect(generatedPrefixPrerender.config.allowQuery).toEqual([])
 
-    expect(genericDashedPrerender.config.partialFallback).toBeUndefined()
-    expect(genericDashedPrerender.config.allowQuery).toEqual([])
+    expect(genericDashedPrerender.config.partialFallback).toBe(true)
+    expect(genericDashedPrerender.config.allowQuery).toEqual(['nxtPmy-slug'])
+    expect(
+      genericDashedPrerender.pprChain.headers[
+        'x-next-shell-fallback-query-keys'
+      ]
+    ).toBe('nxtPmy-slug,nxtPtwo')
 
     expect(generatedDashedPrerender.config.partialFallback).toBeUndefined()
     expect(generatedDashedPrerender.config.allowQuery).toEqual([])

@@ -74,6 +74,46 @@ export function createOpaqueFallbackRouteParams(
   return keys
 }
 
+export function parseFallbackRouteParamsHeader(
+  value: string | readonly string[] | undefined
+): readonly FallbackRouteParam[] | undefined {
+  if (typeof value !== 'string' || value.length === 0) {
+    return undefined
+  }
+
+  try {
+    const parsedValue: unknown = JSON.parse(
+      Buffer.from(value, 'base64url').toString('utf8')
+    )
+
+    if (!Array.isArray(parsedValue)) {
+      return undefined
+    }
+
+    const fallbackRouteParams: FallbackRouteParam[] = []
+    for (const item of parsedValue) {
+      if (
+        typeof item !== 'object' ||
+        item === null ||
+        typeof item.paramName !== 'string' ||
+        typeof item.paramType !== 'string' ||
+        !(item.paramType in dynamicParamTypes)
+      ) {
+        return undefined
+      }
+
+      fallbackRouteParams.push({
+        paramName: item.paramName,
+        paramType: item.paramType as FallbackRouteParam['paramType'],
+      })
+    }
+
+    return fallbackRouteParams
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Gets the fallback route params for a given page. This is an expensive
  * operation because it requires parsing the loader tree to extract the fallback
