@@ -21,7 +21,7 @@ use crate::{
         ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
         TurboTasksApi, read_local_output, with_turbo_tasks,
     },
-    registry::{self, get_value_type},
+    registry::get_value_type,
     turbo_tasks,
 };
 
@@ -33,12 +33,7 @@ pub struct CellId {
 
 impl Display for CellId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}#{}",
-            registry::get_value_type(self.type_id).ty.name,
-            self.index
-        )
+        write!(f, "{}#{}", get_value_type(self.type_id).ty.name, self.index)
     }
 }
 
@@ -261,6 +256,38 @@ impl CollectiblesSource for RawVc {
     }
 }
 
+/// Polls a pending [`EventListener`] slot. Returns [`Poll::Pending`] if the event has not yet
+/// fired. On [`Poll::Ready`], clears the slot so it is not polled again.
+///
+/// [`EventListener`] is [`Unpin`], so this uses the safe [`Pin::new`] instead of
+/// [`Pin::new_unchecked`][std::pin::Pin::new_unchecked].
+fn poll_listener(
+    listener: &mut Option<EventListener>,
+    cx: &mut std::task::Context<'_>,
+) -> Poll<()> {
+    if let Some(l) = listener {
+        if Pin::new(l).poll(cx).is_pending() {
+            return Poll::Pending;
+        }
+        *listener = None;
+    }
+    Poll::Ready(())
+}
+
+/// Wraps `f` in a scope that suppresses the eventual-consistency top-level task assertion,
+/// but only when `strongly_consistent` is `true` and debug assertions are enabled.
+///
+/// This is needed because a strongly-consistent read of a `TaskOutput` is not a single atomic
+/// operation — inner reads switch to eventual consistency after the first output is resolved —
+/// which would otherwise trigger the assertion in top-level tasks.
+fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
+    if cfg!(debug_assertions) && strongly_consistent {
+        SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
+    } else {
+        f()
+    }
+}
+
 #[must_use]
 pub struct ResolveRawVcFuture {
     current: RawVc,
@@ -312,13 +339,8 @@ impl Future for ResolveRawVcFuture {
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             'outer: loop {
-                if let Some(listener) = &mut this.listener {
-                    // SAFETY: listener is from previous pinned this
-                    let listener = unsafe { Pin::new_unchecked(listener) };
-                    if listener.poll(cx).is_pending() {
-                        return Poll::Pending;
-                    }
-                    this.listener = None;
+                if poll_listener(&mut this.listener, cx).is_pending() {
+                    return Poll::Pending;
                 }
                 let mut listener = match this.current {
                     RawVc::TaskOutput(task) => {
@@ -353,8 +375,7 @@ impl Future for ResolveRawVcFuture {
                         }
                     }
                 };
-                // SAFETY: listener is from previous pinned this
-                match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
+                match Pin::new(&mut listener).poll(cx) {
                     Poll::Ready(_) => continue,
                     Poll::Pending => {
                         this.listener = Some(listener);
@@ -363,14 +384,6 @@ impl Future for ResolveRawVcFuture {
                 };
             }
         };
-
-        fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
-            if cfg!(debug_assertions) && strongly_consistent {
-                SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
-            } else {
-                f()
-            }
-        }
 
         suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
     }
@@ -472,34 +485,25 @@ impl Future for ReadRawVcFuture {
         // Lazily resolve `is_serializable_cell_content` from the type registry on the first
         // entry into phase 2, then clear the flag so subsequent polls skip this lookup.
         if this.is_serializable_cell_content_unknown {
-            let value_type = registry::get_value_type(index.type_id);
-            this.read_cell_options.is_serializable_cell_content = value_type.bincode.is_some();
+            this.read_cell_options.is_serializable_cell_content =
+                get_value_type(index.type_id).bincode.is_some();
             this.is_serializable_cell_content_unknown = false;
         }
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             loop {
-                if let Some(listener) = &mut this.listener {
-                    // SAFETY: listener is from previous pinned this
-                    let listener = unsafe { Pin::new_unchecked(listener) };
-                    if listener.poll(cx).is_pending() {
-                        return Poll::Pending;
-                    }
-                    this.listener = None;
+                if poll_listener(&mut this.listener, cx).is_pending() {
+                    return Poll::Pending;
                 }
 
                 let read_result = tt.try_read_task_cell(task, index, this.read_cell_options);
                 let mut listener = match read_result {
-                    Ok(Ok(content)) => {
-                        // SAFETY: Constructor ensures that T and U are binary identical
-                        return Poll::Ready(Ok(content));
-                    }
+                    Ok(Ok(content)) => return Poll::Ready(Ok(content)),
                     Ok(Err(listener)) => listener,
                     Err(err) => return Poll::Ready(Err(err)),
                 };
 
-                // SAFETY: listener is from previous pinned this
-                match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
+                match Pin::new(&mut listener).poll(cx) {
                     Poll::Ready(_) => continue,
                     Poll::Pending => {
                         this.listener = Some(listener);
