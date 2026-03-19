@@ -512,6 +512,17 @@ describe('validateAppPaths', () => {
     })
   })
 
+  describe('sibling routes with different dynamic slug names', () => {
+    it('detects conflict when sibling routes use different param names at same depth', () => {
+      const paths = [
+        '/api/items/[item_id]/details',
+        '/api/items/[parent_item_id]/purge',
+      ]
+
+      expect(() => validateAppPaths(paths)).toThrow(/different slug names/)
+    })
+  })
+
   describe('error message quality', () => {
     it('provides clear error message with normalized path', () => {
       const paths = ['/blog/[slug]', '/blog/[modalSlug]']
