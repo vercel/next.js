@@ -219,24 +219,22 @@ impl ReplacedSubpathValue {
     ) -> TerminalState {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
-                let mut state = TerminalState::Result;
                 for value in list {
-                    match value.add_results(
+                    if value.add_results(
                         prefix.clone(),
                         key,
                         conditions,
                         unspecified_condition,
                         condition_overrides,
                         target,
-                    ) {
-                        TerminalState::Stop => return TerminalState::Stop,
-                        TerminalState::Result => {
-                            state = TerminalState::Result;
-                        }
-                        TerminalState::Unset => {}
+                    ) == TerminalState::Stop
+                    {
+                        return TerminalState::Stop;
                     }
                 }
-                state
+                // Alternatives always resolves to Result — even if every inner value
+                // returned Unset, the alternatives node itself is a terminal match.
+                TerminalState::Result
             }
             ReplacedSubpathValue::Conditional(list) => {
                 for (condition, value) in list {
@@ -290,28 +288,24 @@ impl ReplacedSubpathValue {
                 }
                 TerminalState::Unset
             }
-            ReplacedSubpathValue::Result(r) => {
-                target.push(ReplacedSubpathValueResult {
-                    ty: ReplacedSubpathValueResultType::Path(r),
-                    conditions: collect_active_conditions(condition_overrides),
-                    map_prefix: prefix,
-                    map_key: key,
-                });
-                TerminalState::Result
-            }
+            ReplacedSubpathValue::Result(r) => push_result(
+                ReplacedSubpathValueResultType::Path(r),
+                condition_overrides,
+                prefix,
+                key,
+                target,
+            ),
             ReplacedSubpathValue::Excluded => {
                 // The import is blocked (null). Don't add a result; stop immediately.
                 TerminalState::Stop
             }
-            ReplacedSubpathValue::Empty => {
-                target.push(ReplacedSubpathValueResult {
-                    ty: ReplacedSubpathValueResultType::Empty,
-                    conditions: collect_active_conditions(condition_overrides),
-                    map_prefix: prefix,
-                    map_key: key,
-                });
-                TerminalState::Result
-            }
+            ReplacedSubpathValue::Empty => push_result(
+                ReplacedSubpathValueResultType::Empty,
+                condition_overrides,
+                prefix,
+                key,
+                target,
+            ),
         }
     }
 }
@@ -329,6 +323,26 @@ fn collect_active_conditions(
             ConditionValue::Unknown => None,
         })
         .collect()
+}
+
+/// Appends a leaf result to `target` and returns [`TerminalState::Result`].
+///
+/// Shared by the [`ReplacedSubpathValue::Result`] and [`ReplacedSubpathValue::Empty`]
+/// arms of [`ReplacedSubpathValue::add_results`].
+fn push_result<'a, 'b>(
+    ty: ReplacedSubpathValueResultType,
+    condition_overrides: &FxHashMap<RcStr, ConditionValue>,
+    prefix: Cow<'a, str>,
+    key: &'b AliasKey,
+    target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
+) -> TerminalState {
+    target.push(ReplacedSubpathValueResult {
+        ty,
+        conditions: collect_active_conditions(condition_overrides),
+        map_prefix: prefix,
+        map_key: key,
+    });
+    TerminalState::Result
 }
 
 struct ResultsIterMut<'a> {
@@ -352,8 +366,7 @@ impl<'a> Iterator for ResultsIterMut<'a> {
                     }
                 }
                 SubpathValue::Result(r) => return Some(r),
-                SubpathValue::Excluded => {}
-                SubpathValue::Empty => {}
+                SubpathValue::Excluded | SubpathValue::Empty => {}
             }
         }
         None

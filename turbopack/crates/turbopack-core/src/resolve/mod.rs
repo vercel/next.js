@@ -3210,6 +3210,21 @@ async fn resolved(
     ))
 }
 
+/// Attaches `conditions` to a resolve result.
+///
+/// When `conditions` is empty the original `Vc` is returned as-is to avoid an
+/// unnecessary await. Otherwise the result is awaited, annotated, and re-wrapped.
+async fn apply_conditions(
+    resolve_result: Vc<ResolveResult>,
+    conditions: &[(RcStr, bool)],
+) -> Result<Vc<ResolveResult>> {
+    if conditions.is_empty() {
+        Ok(resolve_result)
+    } else {
+        Ok(resolve_result.await?.with_conditions(conditions).cell())
+    }
+}
+
 async fn handle_exports_imports_field(
     package_path: FileSystemPath,
     package_json_path: FileSystemPath,
@@ -3301,23 +3316,14 @@ async fn handle_exports_imports_field(
                         }
                     };
 
-                    let resolve_result = if !conditions.is_empty() {
-                        let resolve_result = resolve_result.await?.with_conditions(&conditions);
-                        resolve_result.cell()
-                    } else {
-                        resolve_result
-                    };
+                    let resolve_result = apply_conditions(resolve_result, &conditions).await?;
                     resolved_results.push(resolve_result);
                 }
             }
             ReplacedSubpathValueResultType::Empty => {
                 // `false` in the exports/imports field: resolve to an empty module.
                 let resolve_result = ResolveResult::primary(ResolveResultItem::Empty).cell();
-                let resolve_result = if !conditions.is_empty() {
-                    resolve_result.await?.with_conditions(&conditions).cell()
-                } else {
-                    resolve_result
-                };
+                let resolve_result = apply_conditions(resolve_result, &conditions).await?;
                 resolved_results.push(resolve_result);
             }
         }

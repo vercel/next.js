@@ -1330,7 +1330,7 @@ fn export_value_to_import_mapping(
 
     match mappings.len() {
         0 => None,
-        1 => Some(mappings.into_iter().next().unwrap()),
+        1 => mappings.into_iter().next(),
         _ => Some(ImportMapping::Alternatives(mappings).resolved_cell()),
     }
 }
