@@ -2039,24 +2039,6 @@ function enforceExperimentalFeatures(
     delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
-  // TODO: Remove this once using the debug channel is the default.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL === 'true' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.reactDebugChannel === undefined ||
-      (isDefaultConfig && !config.experimental.reactDebugChannel))
-  ) {
-    config.experimental.reactDebugChannel = true
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'reactDebugChannel',
-        true,
-        'enabled by `__NEXT_EXPERIMENTAL_DEBUG_CHANNEL`'
-      )
-    }
-  }
   // TODO: Remove this once strictRouteTypes is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true' &&
