@@ -176,6 +176,12 @@ export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  /**
+   * Optional getter that returns the live userland module. When provided (in
+   * Turbopack dev mode), it is called on every request so that server HMR
+   * updates are picked up without re-executing the entry chunk.
+   */
+  readonly getUserland?: () => Promise<AppRouteUserlandModule>
 }
 
 /**
@@ -212,32 +218,40 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
-  private readonly hasNonStaticMethods: boolean
-  private readonly dynamic: AppRouteUserlandModule['dynamic']
+  private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
+  private methods: Record<HTTP_METHOD, AppRouteHandlerFn>
+  private hasNonStaticMethods: boolean
+  private dynamic: AppRouteUserlandModule['dynamic']
 
   constructor({
     userland,
+    getUserland,
     definition,
     distDir,
     relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, relativeProjectDir })
+    super({
+      userland: userland!,
+      definition,
+      distDir,
+      relativeProjectDir,
+    })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this._getUserland = getUserland
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
-    this.methods = autoImplementMethods(userland)
+    this.methods = autoImplementMethods(userland!)
 
     // Get the non-static methods for this route.
-    this.hasNonStaticMethods = hasNonStaticMethods(userland)
+    this.hasNonStaticMethods = hasNonStaticMethods(userland!)
 
     // Get the dynamic property from the userland module.
-    this.dynamic = this.userland.dynamic
+    this.dynamic = userland!.dynamic
     if (this.nextConfigOutput === 'export') {
       if (this.dynamic === 'force-dynamic') {
         throw new Error(
@@ -296,8 +310,22 @@ export class AppRouteRouteModule extends RouteModule<
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
 
-    // Return the handler.
-    return this.methods[method]
+    return autoImplementMethods(this.userland as AppRouteUserlandModule)[method]
+  }
+
+  /**
+   * Like resolve(), but re-fetches the userland module on every call via the
+   * async getter. Only used in Turbopack dev mode, where server HMR disposes
+   * modules between requests. The async wrapper also unwraps async-module
+   * Promises produced by ESM-only serverExternalPackages.
+   */
+  private async resolveWithGetter(
+    method: string,
+    getUserland: () => Promise<AppRouteUserlandModule>
+  ): Promise<AppRouteHandlerFn> {
+    if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
+    const userland = await getUserland()
+    return autoImplementMethods(userland)[method]
   }
 
   private async do(
@@ -692,8 +720,12 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
-    // Get the handler function for the given method.
-    const handler = this.resolve(req.method)
+    // Get the handler function for the given method. In Turbopack dev mode,
+    // use resolveWithGetter() to re-fetch the live userland on every request
+    // In all other modes, resolve() is synchronous.
+    const handler = this._getUserland
+      ? await this.resolveWithGetter(req.method, this._getUserland)
+      : this.resolve(req.method)
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
@@ -738,7 +770,7 @@ export class AppRouteRouteModule extends RouteModule<
           this.workAsyncStorage.run(workStore, async () => {
             // Check to see if we should bail out of static generation based on
             // having non-static methods.
-            if (this.hasNonStaticMethods) {
+            if (hasNonStaticMethods(this.userland)) {
               if (workStore.isStaticGeneration) {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
@@ -754,7 +786,8 @@ export class AppRouteRouteModule extends RouteModule<
             let request = req
 
             // Update the static generation store based on the dynamic property.
-            switch (this.dynamic) {
+            const { dynamic } = this.userland
+            switch (dynamic) {
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
@@ -790,7 +823,7 @@ export class AppRouteRouteModule extends RouteModule<
                 request = proxyNextRequest(req, workStore)
                 break
               default:
-                this.dynamic satisfies never
+                dynamic satisfies never
             }
 
             const tracer = getTracer()

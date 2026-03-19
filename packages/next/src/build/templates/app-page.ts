@@ -73,6 +73,7 @@ import {
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body'
+import { parseUrl } from '../../lib/url'
 
 // These are injected by the loader afterwards.
 
@@ -1059,7 +1060,7 @@ export async function handler(
           // When fallback isn't present, abort this render so we 404
           fallbackMode === FallbackMode.NOT_FOUND
         ) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()
@@ -1389,12 +1390,7 @@ export async function handler(
 
       // In dev, we should not cache pages for any reason.
       if (routeModule.isDev) {
-        res.setHeader(
-          'Cache-Control',
-          nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
       }
 
       if (!cacheEntry) {
@@ -1577,9 +1573,15 @@ export async function handler(
           getRequestMeta(req, 'onCacheEntry'))
         : getRequestMeta(req, 'onCacheEntry')
       if (onCacheEntry) {
+        const rawCacheEntryUrl = getRequestMeta(req, 'initURL') ?? req.url
+        const cacheEntryUrl = rawCacheEntryUrl
+          ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
+          : undefined
+
         const finished = await onCacheEntry(cacheEntry, {
-          url: getRequestMeta(req, 'initURL') ?? req.url,
+          url: cacheEntryUrl,
         })
+
         if (finished) return null
       }
 

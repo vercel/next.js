@@ -357,6 +357,48 @@ async function createComponentTreeInternal(
     }
   }
 
+  // Read unstable_dynamicStaleTime from page modules (not layouts) and track it on
+  // the store's stale field. This affects the segment cache stale time via
+  // the StaleTimeIterable.
+  if (
+    isPage &&
+    typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
+  ) {
+    const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+          if (workUnitStore.stale > pageStaleTime) {
+            workUnitStore.stale = pageStaleTime
+          }
+          break
+        case 'request':
+          if (
+            workUnitStore.stale === undefined ||
+            workUnitStore.stale > pageStaleTime
+          ) {
+            workUnitStore.stale = pageStaleTime
+          }
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'validation-client':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+  }
+
   const isStaticGeneration = workStore.isStaticGeneration
 
   // Assume the segment we're rendering contains only partial data if PPR is

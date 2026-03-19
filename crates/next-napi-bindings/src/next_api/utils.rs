@@ -98,6 +98,12 @@ pub fn root_task_dispose(
     Ok(())
 }
 
+/// [Peeks] at the [`Issue`] held by the given source and returns it as a [`PlainDiagnostic`].
+/// It does not [consume] any [`Issue`]s held by the source.
+///
+/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
+/// [`Issue`]: turbopack_core::issue::Issue
+/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
     filter: Vc<IssueFilter>,
@@ -107,10 +113,11 @@ pub async fn get_issues<T: Send>(
     ))
 }
 
-/// Reads the [turbopack_core::diagnostics::Diagnostic] held
-/// by the given source and returns it as a
-/// [turbopack_core::diagnostics::PlainDiagnostic]. It does
-/// not consume any Diagnostics held by the source.
+/// [Peeks] at the [`Diagnostic`]s held by the given source and returns it as a [`PlainDiagnostic`].
+/// It does not [consume] any [`Diagnostic`]s held by the source.
+///
+/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
+/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_diagnostics<T: Send>(
     source: OperationVc<T>,
 ) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {

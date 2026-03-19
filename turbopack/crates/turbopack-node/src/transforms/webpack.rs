@@ -23,7 +23,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset},
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
@@ -31,10 +31,16 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::{ModuleGraph, SingleModuleGraph},
-    reference_type::{InnerAssets, ReferenceType},
+    module_graph::{
+        ModuleGraph, SingleModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
+        ResolveErrorMode,
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
+        origin::PlainResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -45,7 +51,8 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_resolve::{
-    ecmascript::get_condition_maps, resolve::resolve_options,
+    ecmascript::{esm_resolve, get_condition_maps},
+    resolve::resolve_options,
     resolve_options_context::ResolveOptionsContext,
 };
 
@@ -125,11 +132,13 @@ impl SourceTransform for WebpackLoaders {
     fn transform(
         self: ResolvedVc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             WebpackLoadersProcessedAsset {
                 transform: self,
                 source,
+                asset_context,
             }
             .cell(),
         )
@@ -140,6 +149,7 @@ impl SourceTransform for WebpackLoaders {
 struct WebpackLoadersProcessedAsset {
     transform: ResolvedVc<WebpackLoaders>,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -290,8 +300,10 @@ impl WebpackLoadersProcessedAsset {
                 node_backend: *node_backend,
                 context_source_for_issue: self.source,
                 chunking_context: *chunking_context,
+                evaluate_context: transform.evaluate_context,
                 module_graph,
                 resolve_options_context: Some(transform.resolve_options_context),
+                asset_context: self.asset_context,
                 args: vec![
                     ResolvedVc::cell(content),
                     // We need to pass the query string to the loader
@@ -443,14 +455,35 @@ pub enum RequestMessage {
     },
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
+    #[serde(rename_all = "camelCase")]
+    ImportModule { lookup_path: RcStr, request: RcStr },
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportModuleChunk {
+    path: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<RcStr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    binary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_map: Option<RcStr>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
-    Resolve { path: RcStr },
+    Resolve {
+        path: RcStr,
+    },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    #[serde(rename_all = "camelCase")]
+    ImportModule {
+        entry_path: RcStr,
+        chunks: Vec<ImportModuleChunk>,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
@@ -462,7 +495,9 @@ pub struct WebpackLoaderContext {
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
@@ -645,6 +680,120 @@ impl EvaluateContext for WebpackLoaderContext {
                 // await the read though to cover at least one class of race conditions.
                 let _ = &*self.cwd.join(&file)?.read().await?;
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::ImportModule {
+                lookup_path,
+                request,
+            } => {
+                let lookup_path = self.cwd.join(&lookup_path)?;
+
+                let request_vc = Request::parse(Pattern::Constant(request.clone()));
+                let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
+                let resolved = esm_resolve(
+                    Vc::upcast(origin),
+                    request_vc,
+                    EcmaScriptModulesReferenceSubType::ImportModule,
+                    ResolveErrorMode::Error,
+                    Some(IssueSource::from_source_only(self.context_source_for_issue)),
+                )
+                .await?;
+
+                let Some(module) = *resolved.first_module().await? else {
+                    bail!(
+                        "importModule: unable to resolve {} in {}",
+                        request,
+                        lookup_path.value_to_string().await?
+                    );
+                };
+
+                // Cast to evaluatable asset for bundle generation
+                let evaluatable = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module)
+                    .context("importModule: module is not evaluatable")?;
+
+                // Build a module graph from the resolved module and its
+                // transitive dependencies
+                let single_graph = SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry(vec![module]),
+                    false,
+                    false,
+                );
+                let import_module_graph = ModuleGraph::from_single_graph(single_graph)
+                    .connect()
+                    .to_resolved()
+                    .await?;
+
+                // Generate a full Node.js bundle using the real runtime
+                let output_root = self.chunking_context.output_root().owned().await?;
+                let entry_path = output_root.join("importModule.js")?;
+
+                let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
+                    entry_path.clone(),
+                    ChunkGroup::Entry(vec![ResolvedVc::upcast(evaluatable)]),
+                    *import_module_graph,
+                    OutputAssets::empty(),
+                    OutputAssets::empty(),
+                );
+
+                // Collect all internal assets as {path, code} pairs
+                let bootstrap_resolved = bootstrap.to_resolved().await?;
+                let all_assets = expand_output_assets(
+                    std::iter::once(ExpandOutputAssetsInput::Asset(bootstrap_resolved)),
+                    true,
+                )
+                .await?;
+
+                let mut chunks = Vec::new();
+                for asset in all_assets {
+                    let asset_path = asset.path().owned().await?;
+                    if !asset_path.is_inside_ref(&output_root) {
+                        continue;
+                    }
+                    let Some(rel_path) = output_root.get_path_to(&asset_path) else {
+                        continue;
+                    };
+                    // Skip source map files
+                    if rel_path.ends_with(".map") {
+                        continue;
+                    }
+                    let content = asset.content().await?;
+                    let AssetContent::File(file_vc) = *content else {
+                        continue;
+                    };
+                    let file_content = file_vc.await?;
+                    let FileContent::Content(file) = &*file_content else {
+                        continue;
+                    };
+
+                    if rel_path.ends_with(".js") {
+                        // JavaScript chunk — send as text
+                        let code: RcStr = file.content().to_str()?.into_owned().into();
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: Some(code),
+                            binary: None,
+                            source_map: None,
+                        });
+                    } else {
+                        // Binary asset (wasm, images, etc.) — send base64-encoded
+                        let bytes = file.content().to_bytes();
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(&*bytes);
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: None,
+                            binary: Some(encoded),
+                            source_map: None,
+                        });
+                    }
+                }
+
+                let entry_rel = output_root
+                    .get_path_to(&entry_path)
+                    .context("entry path should be inside output root")?;
+
+                Ok(ResponseMessage::ImportModule {
+                    entry_path: entry_rel.into(),
+                    chunks,
+                })
             }
         }
     }

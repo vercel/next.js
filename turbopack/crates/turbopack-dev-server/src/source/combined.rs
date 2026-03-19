@@ -8,10 +8,7 @@ use crate::source::{
     route_tree::{RouteTree, RouteTrees},
 };
 
-/// Combines multiple [ContentSource]s by trying all content sources in order.
-///
-/// The content source which responds with the most specific response (that is
-/// not a [ContentSourceContent::NotFound]) will be returned.
+/// Combines multiple [`ContentSource`]s by [merging][RouteTrees::merge] [`RouteTree`]s.
 #[turbo_tasks::value(shared)]
 pub struct CombinedContentSource {
     pub sources: Vec<ResolvedVc<Box<dyn ContentSource>>>,

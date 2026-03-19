@@ -25,7 +25,6 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
-  NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
@@ -43,6 +42,7 @@ import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import { stripIsPartialByte } from '../segment-cache/cache'
+import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -81,7 +81,7 @@ type SpaFetchServerResponseResult = {
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
-  staleTime: number
+  dynamicStaleTime: number
   staticStageData: StaticStageData | null
   runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
@@ -196,13 +196,6 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeaderSeconds = res.headers.get(
-      NEXT_ROUTER_STALE_TIME_HEADER
-    )
-    const staleTime =
-      staleTimeHeaderSeconds !== null
-        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
-        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -289,7 +282,11 @@ export async function fetchServerResponse(
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
-      staleTime,
+      // The dynamicStaleTime is only present in the response body when
+      // a page exports unstable_dynamicStaleTime and this is a dynamic render.
+      // When absent (UnknownDynamicStaleTime), the client falls back to the
+      // global DYNAMIC_STALETIME_MS. The value is in seconds.
+      dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       staticStageData,
       runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,

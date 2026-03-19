@@ -88,7 +88,6 @@ use crate::{
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     sri_manifest::get_sri_manifest_asset,
-    webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
@@ -1407,34 +1406,6 @@ impl AppEndpoint {
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
 
         if emit_manifests != EmitManifests::None {
-            if *this
-                .app_project
-                .project()
-                .should_create_webpack_stats()
-                .await?
-            {
-                let webpack_stats = generate_webpack_stats(
-                    *module_graphs.base,
-                    app_entry.original_name.clone(),
-                    client_assets.await?.into_iter().copied(),
-                )
-                .await?;
-                let stats_output = VirtualOutputAsset::new(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/webpack-stats.json",
-                    ))?,
-                    AssetContent::file(
-                        FileContent::Content(File::from(serde_json::to_string_pretty(
-                            &webpack_stats,
-                        )?))
-                        .cell(),
-                    ),
-                )
-                .to_resolved()
-                .await?;
-                server_assets.insert(ResolvedVc::upcast(stats_output));
-            }
-
             let build_manifest = BuildManifest {
                 output_path: node_root.join(&format!(
                     "server/app{manifest_path_prefix}/build-manifest.json",

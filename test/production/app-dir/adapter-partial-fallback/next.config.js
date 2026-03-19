@@ -3,8 +3,8 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  adapterPath: require.resolve('./my-adapter.mjs'),
   experimental: {
-    adapterPath: require.resolve('./my-adapter.mjs'),
     partialFallbacks: true,
   },
 }
