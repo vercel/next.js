@@ -226,10 +226,10 @@ const FILES = {
     })
 
     describe.each([
-      { test: 'standard', mode: 'builder' },
-      { test: 'standard', mode: 'adapter' },
-      { test: 'cacheComponents', mode: 'builder' },
-      { test: 'cacheComponents', mode: 'adapter' },
+      { test: 'standard', mode: 'builder' } as const,
+      { test: 'standard', mode: 'adapter' } as const,
+      { test: 'cacheComponents', mode: 'builder' } as const,
+      { test: 'cacheComponents', mode: 'adapter' } as const,
     ])('build output API - $test $mode', ({ test, mode }) => {
       const { next } = nextTestSetup({
         files: {
@@ -258,26 +258,33 @@ const FILES = {
         disableAutoSkewProtection: true,
       })
 
-      it('should produce identical build outputs even when changing deployment id', async () => {
-        let { run1, run2 } = await runTest(next, readFilesBuilder)
+      it(
+        'should produce identical build outputs even when changing deployment id',
+        async () => {
+          let { run1, run2 } = await runTest(next, readFilesBuilder)
 
-        expect(run1.size).toBeGreaterThan(0)
-        expect([...run1.keys()]).toEqual([...run2.keys()])
+          expect(run1.size).toBeGreaterThan(0)
+          expect([...run1.keys()]).toEqual([...run2.keys()])
 
-        if (test === 'standard') {
-          expect([...run1.keys()]).toIncludeAllMembers([
-            '.vercel/output/functions/app-page.func/.vc-config.json',
-            '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
-            '.vercel/output/functions/app-route.func/.vc-config.json',
-            '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
-            '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
-            '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
-          ])
-          expect([...run1.keys()]).toSatisfyAny((k) =>
-            k.includes('middleware.func')
-          )
-        }
-      })
+          if (test === 'standard') {
+            expect([...run1.keys()]).toIncludeAllMembers([
+              '.vercel/output/functions/app-page.func/.vc-config.json',
+              '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
+              '.vercel/output/functions/app-route.func/.vc-config.json',
+              '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
+              '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
+              '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
+            ])
+            expect([...run1.keys()]).toSatisfyAny((k) =>
+              k.includes('middleware.func')
+            )
+          }
+        },
+        // The builder mode can take a bit longer, so we increase the timeout
+        // for these tests. The adapter mode should be faster, so we leave it as
+        // the default.
+        mode === 'builder' ? 120_000 : undefined
+      )
     })
   }
 )
