@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
@@ -213,13 +213,30 @@ impl Endpoint for InstrumentationEndpoint {
                 vec![]
             };
 
-            Ok(EndpointOutput {
-                output_assets: output_assets.to_resolved().await?,
-                output_paths: EndpointOutputPaths::Edge {
+            let output_paths = if !this.is_edge {
+                let node_root = this.project.node_root().owned().await?;
+                let chunk = self.node_chunk();
+                let server_entry_path = node_root
+                    .get_path_to(&*chunk.path().await?)
+                    .context(
+                        "Node.js instrumentation chunk entry path must be inside the node root",
+                    )?
+                    .into();
+                EndpointOutputPaths::NodeJs {
+                    server_entry_path,
                     server_paths,
                     client_paths: vec![],
                 }
-                .resolved_cell(),
+            } else {
+                EndpointOutputPaths::Edge {
+                    server_paths,
+                    client_paths: vec![],
+                }
+            };
+
+            Ok(EndpointOutput {
+                output_assets: output_assets.to_resolved().await?,
+                output_paths: output_paths.resolved_cell(),
                 project: this.project,
             }
             .cell())

@@ -359,12 +359,29 @@ impl Endpoint for MiddlewareEndpoint {
                 (vec![], vec![])
             };
 
-            Ok(EndpointOutput {
-                output_paths: EndpointOutputPaths::Edge {
+            let output_paths = if matches!(this.runtime, NextRuntime::NodeJs) {
+                let node_root = this.project.node_root().owned().await?;
+                let chunk = self.node_chunk();
+                let server_entry_path = node_root
+                    .get_path_to(&*chunk.path().await?)
+                    .context(
+                        "Node.js middleware chunk entry path must be inside the node root",
+                    )?
+                    .into();
+                EndpointOutputPaths::NodeJs {
+                    server_entry_path,
                     server_paths,
                     client_paths,
                 }
-                .resolved_cell(),
+            } else {
+                EndpointOutputPaths::Edge {
+                    server_paths,
+                    client_paths,
+                }
+            };
+
+            Ok(EndpointOutput {
+                output_paths: output_paths.resolved_cell(),
                 output_assets: output_assets.to_resolved().await?,
                 project: this.project,
             }

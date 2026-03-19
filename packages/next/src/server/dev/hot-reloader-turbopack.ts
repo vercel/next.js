@@ -602,15 +602,18 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType } = splitEntryKey(key)
+    const { type: entryType, page: entryPage } = splitEntryKey(key)
 
-    // Server HMR applies to all App Router entries built with the Turbopack
-    // Node.js runtime: both app pages and route handlers. Edge routes,
-    // Pages Router pages, and middleware/instrumentation do not use the
-    // Turbopack Node.js dev runtime and are excluded.
+    // Server HMR applies to App Router entries, Node.js middleware, and
+    // Node.js instrumentation built with the Turbopack Node.js runtime. Edge
+    // routes, Pages Router pages, and edge middleware/instrumentation do not
+    // use the Turbopack Node.js dev runtime and are excluded.
     const usesServerHmr =
       serverFastRefresh &&
-      entryType === 'app' &&
+      (entryType === 'app' ||
+        (entryType === 'root' &&
+          (entryPage === 'middleware' ||
+            entryPage === 'instrumentation.nodeJs'))) &&
       writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []

@@ -155,6 +155,102 @@ describe('server-hmr', () => {
     )
   })
 
+  describe('nodejs middleware hmr', () => {
+    it('reflects Node.js middleware changes on next request', async () => {
+      const initial = await next.fetch('/api/hello')
+      expect(initial.headers.get('x-middleware-version')).toBe('0')
+
+      await next.patchFile('middleware.ts', (content) =>
+        content.replace("'0'", "'1'")
+      )
+
+      await retry(async () => {
+        const updated = await next.fetch('/api/hello')
+        expect(updated.headers.get('x-middleware-version')).toBe('1')
+      })
+    })
+
+    itTurbopackDev(
+      'does not re-evaluate unmodified dependency when middleware changes',
+      async () => {
+        // Read current version (may have been changed by a previous test)
+        const initial = await next.fetch('/api/hello')
+        const initialVersion = initial.headers.get('x-middleware-version')
+        const initialDepEvaluatedAt = initial.headers.get(
+          'x-middleware-dep-evaluated-at'
+        )
+        expect(initialDepEvaluatedAt).toMatch(/^\d+$/)
+
+        // Change only the middleware, not the dependency
+        await next.patchFile('middleware.ts', (content) =>
+          content.replace(`'${initialVersion}'`, `'${initialVersion}-updated'`)
+        )
+
+        await retry(async () => {
+          const updated = await next.fetch('/api/hello')
+          expect(updated.headers.get('x-middleware-version')).toBe(
+            `${initialVersion}-updated`
+          )
+          // The unmodified dependency should NOT have been re-evaluated
+          expect(
+            updated.headers.get('x-middleware-dep-evaluated-at')
+          ).toBe(initialDepEvaluatedAt)
+        })
+      }
+    )
+  })
+
+  describe('instrumentation hmr', () => {
+    itTurbopackDev(
+      'reflects instrumentation module changes via server HMR',
+      async () => {
+        const initial = await next
+          .fetch('/api/instrumentation-state')
+          .then((res) => res.json())
+        expect(initial.version).toBe('v0')
+
+        await next.patchFile('instrumentation.ts', (content) =>
+          content.replace("'v0'", "'v1'")
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/instrumentation-state')
+            .then((res) => res.json())
+          expect(updated.version).toBe('v1')
+        })
+      }
+    )
+
+    itTurbopackDev(
+      'does not re-evaluate unmodified dependency when instrumentation changes',
+      async () => {
+        // Read current state (version may have changed in prior test)
+        const initial = await next
+          .fetch('/api/instrumentation-state')
+          .then((res) => res.json())
+        const initialDepEvaluatedAt = initial.depEvaluatedAt
+        expect(String(initialDepEvaluatedAt)).toMatch(/^\d+$/)
+
+        // Change only instrumentation, not the dependency
+        await next.patchFile('instrumentation.ts', (content) =>
+          content.replace(`'${initial.version}'`, `'${initial.version}-updated'`)
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/instrumentation-state')
+            .then((res) => res.json())
+          expect(updated.version).toBe(`${initial.version}-updated`)
+          // The unmodified dependency should NOT have been re-evaluated
+          expect(String(updated.depEvaluatedAt)).toBe(
+            String(initialDepEvaluatedAt)
+          )
+        })
+      }
+    )
+  })
+
   describe('route handler hmr', () => {
     function getText(res: Response) {
       return res.ok
