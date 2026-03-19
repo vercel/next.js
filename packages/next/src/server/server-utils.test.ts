@@ -71,3 +71,56 @@ describe('getParamsFromRouteMatches', () => {
     expect(params).toEqual({ slug: 'hello-world', rest: ['im-the', 'rest'] })
   })
 })
+
+describe('normalizeDynamicRouteParams', () => {
+  it('should reject encoded default placeholders for dynamic params', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: '%5BteamSlug%5D',
+        project: '%5Bproject%5D',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {},
+      hasValidParams: false,
+    })
+  })
+
+  it('should continue accepting regular dynamic values', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'vercel',
+        project: 'nextjs',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'vercel',
+        project: 'nextjs',
+      },
+      hasValidParams: true,
+    })
+  })
+})

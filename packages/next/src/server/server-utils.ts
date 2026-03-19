@@ -112,6 +112,29 @@ export function normalizeDynamicRouteParams(
   defaultRouteMatches: ParsedUrlQuery,
   ignoreMissingOptional: boolean
 ) {
+  const includesDefaultValue = (
+    candidateValue: string | undefined,
+    defaultValue: string
+  ) => {
+    if (!candidateValue) {
+      return false
+    }
+
+    if (candidateValue.includes(defaultValue)) {
+      return true
+    }
+
+    if (!/%5b|%5d/i.test(candidateValue)) {
+      return false
+    }
+
+    try {
+      return decodeURIComponent(candidateValue).includes(defaultValue)
+    } catch {
+      return false
+    }
+  }
+
   let hasValidParams = true
   let params: ParsedUrlQuery = {}
 
@@ -133,10 +156,12 @@ export function normalizeDynamicRouteParams(
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
-            ? value.some((val) => val.includes(defaultVal))
-            : value?.includes(defaultVal)
+            ? value.some((val) => includesDefaultValue(val, defaultVal))
+            : includesDefaultValue(value, defaultVal)
         })
-      : value?.includes(defaultValue as string)
+      : Array.isArray(value)
+        ? value.some((val) => includesDefaultValue(val, defaultValue as string))
+        : includesDefaultValue(value, defaultValue as string)
 
     if (
       isDefaultValue ||

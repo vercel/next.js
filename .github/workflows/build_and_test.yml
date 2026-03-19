@@ -767,7 +767,8 @@ jobs:
 
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
-    needs: ['optimize-ci', 'test-new-tests-dev', 'test-new-tests-start']
+    needs:
+      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
     # test-new-tests-if
     if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
     # test-new-tests-end-if

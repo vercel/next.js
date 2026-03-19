@@ -853,6 +853,14 @@ export abstract class RouteModule<
         true
       )
 
+      if (
+        this.definition.kind === RouteKind.APP_PAGE &&
+        params &&
+        !paramsResult.hasValidParams
+      ) {
+        params = undefined
+      }
+
       let paramsToInterpolate: ParsedUrlQuery
 
       if (
@@ -912,7 +920,15 @@ export abstract class RouteModule<
           // the literal slug matches here e.g. /blog/[slug]
           // actually being requested
           if (paramsMatch) {
-            params = Object.assign({}, paramsMatch)
+            if (this.definition.kind === RouteKind.APP_PAGE) {
+              const normalizedParamsMatch =
+                serverUtils.normalizeDynamicRouteParams(paramsMatch, true)
+              if (normalizedParamsMatch.hasValidParams) {
+                params = Object.assign({}, normalizedParamsMatch.params)
+              }
+            } else {
+              params = Object.assign({}, paramsMatch)
+            }
           }
         }
       }
