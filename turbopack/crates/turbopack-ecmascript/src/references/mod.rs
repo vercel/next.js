@@ -2239,13 +2239,12 @@ where
                     } else {
                         ResolveErrorMode::Error
                     };
-                    let pattern = Pattern::new(pat).to_resolved().await?;
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
                             // WorkerThreads resolve filepaths relative to the process root
                             get_traced_project_dir().await?,
-                            pattern,
+                            Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
                             error_mode,
