@@ -52,7 +52,7 @@ impl SourcePos {
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
     /// a single terminator), and JSON LINE/PARAGRAPH SEPARATORs.
     ///
-    /// See https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators
+    /// See <https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators>
     pub fn update(&mut self, code: &[u8]) {
         // JS source text is interpreted as UCS-2, which is basically UTF-16 with less
         // restrictions. We cannot iterate UTF-8 bytes here, 2-byte UTF-8 octets

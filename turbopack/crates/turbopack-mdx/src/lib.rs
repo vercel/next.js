@@ -10,6 +10,7 @@ use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     ident::AssetIdent,
     issue::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
@@ -90,7 +91,11 @@ impl MdxTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for MdxTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(
+        &self,
+        source: ResolvedVc<Box<dyn Source>>,
+        _asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             MdxTransformedAsset {
                 options: self.options,
@@ -112,6 +117,12 @@ impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().rename_as(rcstr!("*.tsx"))
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("MDX transform of {}", inner).into()))
     }
 }
 

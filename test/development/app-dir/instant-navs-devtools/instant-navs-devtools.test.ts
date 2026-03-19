@@ -3,7 +3,7 @@ import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
 describe('instant-nav-panel', () => {
-  const { next } = nextTestSetup({
+  const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -14,10 +14,17 @@ describe('instant-nav-panel', () => {
     await new Promise((resolve) =>
       setTimeout(
         resolve,
-        // MENU_DURATION_MS
-        200
+        // MENU_DURATION_MS + some flakiness buffer
+        200 + 50
       )
     )
+  }
+
+  async function waitForInstantModeCookie(browser: Playwright): Promise<void> {
+    await retry(async () => {
+      const cookie = await browser.eval(() => document.cookie)
+      expect(cookie).toMatch(/next-instant-navigation-testing=[^;]+/)
+    })
   }
 
   async function clearInstantModeCookie(browser: Playwright) {
@@ -32,6 +39,7 @@ describe('instant-nav-panel', () => {
 
   async function clickStartClientNav(browser: Playwright) {
     await browser.elementByCssInstant('[data-instant-nav-client]').click()
+    await waitForInstantModeCookie(browser)
   }
 
   async function getInstantNavPanelText(browser: Playwright): Promise<string> {
@@ -84,6 +92,11 @@ describe('instant-nav-panel', () => {
   })
 
   it('should show client nav state after clicking Start and navigating', async () => {
+    const targetPage = '/target-page/my-post?search=foo'
+    if (isNextDev && !isTurbopack) {
+      // warmup target page compilation before clicking Start, to avoid extra flakiness.
+      void next.render(targetPage).catch(() => {})
+    }
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -94,10 +107,7 @@ describe('instant-nav-panel', () => {
     await clickStartClientNav(browser)
 
     // Cookie should now be set
-    await retry(async () => {
-      const cookie = await browser.eval(() => document.cookie)
-      expect(cookie).toContain('next-instant-navigation-testing=')
-    })
+    await waitForInstantModeCookie(browser)
 
     // Panel should show client-nav-waiting state
     await retry(async () => {
@@ -107,9 +117,9 @@ describe('instant-nav-panel', () => {
     })
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-    await browser.eval(() => {
-      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
-    })
+    await browser.eval((page) => {
+      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
+    }, targetPage)
 
     // Panel should transition to client-nav state
     await retry(async () => {
@@ -124,6 +134,11 @@ describe('instant-nav-panel', () => {
   })
 
   it('should show loading skeleton during SPA navigation after clicking Start', async () => {
+    const targetPage = '/target-page/my-post?search=foo'
+    if (isNextDev && !isTurbopack) {
+      // warmup target page compilation before clicking Start, to avoid extra flakiness.
+      void next.render(targetPage).catch(() => {})
+    }
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -134,9 +149,9 @@ describe('instant-nav-panel', () => {
     await clickStartClientNav(browser)
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-    await browser.eval(() => {
-      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
-    })
+    await browser.eval((page) => {
+      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
+    }, targetPage)
 
     // The data fetching skeleton should be visible (dynamic content is locked).
     // Use a longer timeout because dev mode needs to compile the target page.

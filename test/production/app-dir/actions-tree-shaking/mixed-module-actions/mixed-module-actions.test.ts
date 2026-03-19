@@ -15,20 +15,16 @@ import {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
       expect(actionsRoutesState).toMatchInlineSnapshot(`
        {
-         "app/mixed-module/cjs/page": {
-           "rsc": [
-             "app/mixed-module/cjs/actions.js#cjsModuleTypeAction",
-             "app/mixed-module/cjs/actions.js#esmModuleTypeAction",
-             "app/mixed-module/cjs/actions.js#unusedModuleTypeAction1",
-           ],
-         },
-         "app/mixed-module/esm/page": {
-           "rsc": [
-             "app/mixed-module/esm/actions.js#cjsModuleTypeAction",
-             "app/mixed-module/esm/actions.js#esmModuleTypeAction",
-             "app/mixed-module/esm/actions.js#unusedModuleTypeAction1",
-           ],
-         },
+         "app/mixed-module/cjs/page": [
+           "app/mixed-module/cjs/actions.js#cjsModuleTypeAction",
+           "app/mixed-module/cjs/actions.js#esmModuleTypeAction",
+           "app/mixed-module/cjs/actions.js#unusedModuleTypeAction1",
+         ],
+         "app/mixed-module/esm/page": [
+           "app/mixed-module/esm/actions.js#cjsModuleTypeAction",
+           "app/mixed-module/esm/actions.js#esmModuleTypeAction",
+           "app/mixed-module/esm/actions.js#unusedModuleTypeAction1",
+         ],
        }
       `)
     })

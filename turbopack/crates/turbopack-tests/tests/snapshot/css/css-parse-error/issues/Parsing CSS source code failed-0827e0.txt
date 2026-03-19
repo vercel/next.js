@@ -1,0 +1,18 @@
+warning - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:25:14  Parsing CSS source code failed
+      21 | .carousel > *::scroll-marker {
+      22 |   content: "";
+      23 | }
+      24 | 
+         +               v
+      25 + .carousel > *::scroll-marker:target-current {
+         +               ^
+      26 |   background: oklch(0.5 0 0 / 0.6);
+      27 | }
+      28 | 
+  
+  'scroll-marker' is not recognized as a valid pseudo-element. Did you mean ':scroll-marker' (pseudo-class) or is this a typo?
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/index.js

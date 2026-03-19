@@ -75,14 +75,13 @@ impl ModuleReference for SingleModuleReference {
 
 #[turbo_tasks::value_impl]
 impl SingleModuleReference {
-    /// Create a new [Vc<SingleModuleReference>] that resolves to the given
-    /// asset.
+    /// Create a new instance that resolves to the given asset.
     #[turbo_tasks::function]
     pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
-    /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
+    /// The [`Vc<Box<dyn Module>>`][Module] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn Module>> {
         *self.asset
@@ -155,14 +154,13 @@ impl ModuleReference for SingleOutputAssetReference {
 
 #[turbo_tasks::value_impl]
 impl SingleOutputAssetReference {
-    /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
-    /// asset.
+    /// Create a new `Vc<SingleOutputAssetReference>` that resolves to the given asset.
     #[turbo_tasks::function]
     pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: RcStr) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
-    /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
+    /// The [`Vc<Box<dyn OutputAsset>>`][OutputAsset] that this reference resolves to.
     #[turbo_tasks::function]
     pub fn asset(&self) -> Vc<Box<dyn OutputAsset>> {
         *self.asset
@@ -233,11 +231,10 @@ impl TracedModuleReference {
     }
 }
 
-/// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]
-/// This does not include transitively references [Module]s, only includes
-/// primary [Module]s referenced.
+/// Aggregates all primary [`Module`]s referenced by an [`Module`]. This does not include
+/// transitively references [`Module`]s, only includes primary [`Module`]s referenced.
 ///
-/// [Module]: crate::module::Module
+/// [`Module`]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
     let mut set = HashSet::new();

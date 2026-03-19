@@ -159,8 +159,8 @@ impl<T: Into<Bytes>> From<T> for Rope {
 impl RopeBuilder {
     /// Push owned bytes into the Rope.
     ///
-    /// If possible use [push_static_bytes] or `+=` operation instead, as they
-    /// will create a reference to shared memory instead of cloning the bytes.
+    /// If possible, use [`RopeBuilder::push_static_bytes`] or `+=` operation instead. That will
+    /// create a reference to shared memory instead of cloning the bytes.
     pub fn push_bytes(&mut self, bytes: &[u8]) {
         if bytes.is_empty() {
             return;
@@ -414,7 +414,7 @@ impl DeterministicHash for RopeBytesOnlyHash<'_> {
 /// [`Rope::to_bytes`] instead would be easier, but would require copying to an intermediate buffer.
 ///
 /// This len + bytes format is similar to how bincode would normally encode a `&[u8]`:
-/// https://docs.rs/bincode/latest/bincode/spec/index.html#collections
+/// <https://docs.rs/bincode/latest/bincode/spec/index.html#collections>
 impl Encode for Rope {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         self.length.encode(encoder)?;
@@ -882,7 +882,7 @@ impl BufRead for RopeReader<'_> {
 }
 
 impl<'a> Stream for RopeReader<'a> {
-    /// This is efficiently streamable into a [`Hyper::Body`] if each item is cloned into an owned
+    /// This is efficiently streamable into a `Hyper::Body` if each item is cloned into an owned
     /// `Bytes` instance.
     type Item = Result<&'a Bytes>;
 
