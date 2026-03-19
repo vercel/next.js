@@ -1,6 +1,6 @@
 {
   "name": "@next/eslint-plugin-next",
-  "version": "15.5.13",
+  "version": "15.5.14",
   "description": "ESLint plugin for Next.js.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
