@@ -20,16 +20,12 @@ import {
   type PendingSegmentCacheEntry,
   convertRouteTreeToFlightRouterState,
   readOrCreateRevalidatingSegmentEntry,
-  upsertSegmentEntry,
-  type FulfilledSegmentCacheEntry,
   upgradeToPendingSegment,
-  waitForSegmentCacheEntry,
   overwriteRevalidatingSegmentCacheEntry,
   canNewFetchStrategyProvideMoreContent,
   attemptToFulfillDynamicSegmentFromBFCache,
   attemptToUpgradeSegmentFromBFCache,
 } from './cache'
-import { getSegmentVaryPathForRequest, type SegmentVaryPath } from './vary-path'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
 import {
@@ -1636,18 +1632,15 @@ function pingPPRSegmentRevalidation(
   )
   switch (revalidatingSegment.status) {
     case EntryStatus.Empty:
-      // Spawn a prefetch request and upsert the segment into the cache
-      // upon completion.
-      upsertSegmentOnCompletion(
-        spawnPrefetchSubtask(
-          fetchSegmentOnCacheMiss(
-            route,
-            upgradeToPendingSegment(revalidatingSegment, FetchStrategy.PPR),
-            routeKey,
-            tree
-          )
-        ),
-        getSegmentVaryPathForRequest(FetchStrategy.PPR, tree)
+      // Spawn a prefetch request. The fetch function handles upserting
+      // the entry at the correct fulfilled vary path upon completion.
+      spawnPrefetchSubtask(
+        fetchSegmentOnCacheMiss(
+          route,
+          upgradeToPendingSegment(revalidatingSegment, FetchStrategy.PPR),
+          routeKey,
+          tree
+        )
       )
       break
     case EntryStatus.Pending:
@@ -1684,10 +1677,8 @@ function pingFullSegmentRevalidation(
       revalidatingSegment,
       fetchStrategy
     )
-    upsertSegmentOnCompletion(
-      waitForSegmentCacheEntry(pendingSegment),
-      getSegmentVaryPathForRequest(fetchStrategy, tree)
-    )
+    // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
+    // when the dynamic prefetch response is written into the cache.
     return pendingSegment
   } else {
     // There's already a revalidation in progress.
@@ -1709,10 +1700,8 @@ function pingFullSegmentRevalidation(
         emptySegment,
         fetchStrategy
       )
-      upsertSegmentOnCompletion(
-        waitForSegmentCacheEntry(pendingSegment),
-        getSegmentVaryPathForRequest(fetchStrategy, tree)
-      )
+      // The upsert is handled by fulfillEntrySpawnedByRuntimePrefetch
+      // when the dynamic prefetch response is written into the cache.
       return pendingSegment
     }
     switch (nonEmptyRevalidatingSegment.status) {
@@ -1730,21 +1719,6 @@ function pingFullSegmentRevalidation(
         return null
     }
   }
-}
-
-const noop = () => {}
-
-function upsertSegmentOnCompletion(
-  promise: Promise<FulfilledSegmentCacheEntry | null>,
-  varyPath: SegmentVaryPath
-) {
-  // Wait for a segment to finish loading, then upsert it into the cache
-  promise.then((fulfilled) => {
-    if (fulfilled !== null) {
-      // Received new data. Attempt to replace the existing entry in the cache.
-      upsertSegmentEntry(Date.now(), varyPath, fulfilled)
-    }
-  }, noop)
 }
 
 function doesCurrentSegmentMatchCachedSegment(

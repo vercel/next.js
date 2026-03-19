@@ -17,6 +17,7 @@ import {
   check,
   getRedboxHeader,
   normalizeManifest,
+  retry,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -245,11 +246,12 @@ function runTests({ dev }) {
 
       await browser.eval('window.beforeNav = 1')
       await browser.elementByCss(`#${id}`).click()
-      await check(() => browser.eval('window.location.pathname'), pathname)
 
-      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
-        navQuery
-      )
+      await retry(async () => {
+        expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual(
+          navQuery
+        )
+      })
       expect(await browser.eval('window.location.pathname')).toBe(pathname)
       expect(await browser.eval('window.location.hash')).toBe(hash)
       expect(
