@@ -4,6 +4,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     source::Source,
     source_transform::SourceTransform,
@@ -51,7 +52,11 @@ impl JsonSourceTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for JsonSourceTransform {
     #[turbo_tasks::function]
-    async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+    async fn transform(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        _asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
         let ident = source.ident();
         let path = ident.path().await?;

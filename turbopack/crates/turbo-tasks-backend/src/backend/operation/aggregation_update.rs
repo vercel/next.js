@@ -24,7 +24,8 @@ use tracing::span::Span;
 ))]
 use tracing::trace_span;
 use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription,
+    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
+    event::EventDescription,
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -43,6 +44,10 @@ type FxRingSet<T> = RingSet<T, FxBuildHasher>;
 
 pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
+/// Batch size for find_and_schedule processing. These jobs are cheaper than aggregation
+/// updates (they only read task metadata and optionally schedule a task), so we can process more
+/// of them per `process()` call before yielding.
+const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
@@ -857,6 +862,8 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    #[bincode(skip, default = "FxHashMap::default")]
+    scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
 }
 
 impl AggregationUpdateQueue {
@@ -869,6 +876,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            scheduled_tasks: FxHashMap::default(),
         }
     }
 
@@ -881,12 +889,14 @@ impl AggregationUpdateQueue {
             balance_queue,
             optimize_queue,
             done_aggregation_number_updates: _,
+            scheduled_tasks,
         } = self;
         jobs.is_empty()
             && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
+            && scheduled_tasks.is_empty()
     }
 
     /// Pushes a job to the queue.
@@ -1237,22 +1247,20 @@ impl AggregationUpdateQueue {
             self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
-            let mut remaining = MAX_COUNT_BEFORE_YIELD;
-            while remaining > 0 {
-                if let Some(FindAndScheduleJob {
-                    task_id,
-                    #[cfg(feature = "trace_find_and_schedule")]
-                    span,
-                }) = self.find_and_schedule.pop_front()
-                {
-                    #[cfg(feature = "trace_find_and_schedule")]
-                    let _guard = span.map(|s| s.entered());
-                    self.find_and_schedule_dirty(task_id, ctx);
-                    remaining -= 1;
-                } else {
-                    break;
-                }
-            }
+            let count = self
+                .find_and_schedule
+                .len()
+                .min(FIND_AND_SCHEDULE_BATCH_SIZE);
+            let jobs: SmallVec<[FindAndScheduleJob; 4]> =
+                self.find_and_schedule.drain(..count).collect();
+            self.find_and_schedule_dirty(jobs, ctx);
+            false
+        } else if !self.scheduled_tasks.is_empty() {
+            ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
+                let parent_priority = self.scheduled_tasks[&task.id()];
+                ctx.schedule_task(task, parent_priority);
+            });
+            self.scheduled_tasks.clear();
             false
         } else {
             true
@@ -1422,23 +1430,32 @@ impl AggregationUpdateQueue {
         }
     }
 
-    /// Schedules the task if it's dirty.
+    /// Schedules the tasks if they're dirty.
     ///
     /// Only used when activeness is tracked.
-    fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut impl ExecuteContext) {
+    fn find_and_schedule_dirty(
+        &mut self,
+        jobs: SmallVec<[FindAndScheduleJob; 4]>,
+        ctx: &mut impl ExecuteContext,
+    ) {
         #[cfg(feature = "trace_find_and_schedule")]
-        let _span = trace_span!(
-            "find and schedule",
-            %task_id,
-            name = ctx.get_task_description(task_id)
-        )
-        .entered();
-        let task = ctx.task(
-            task_id,
-            // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
-        );
-        self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        let mut spans: FxHashMap<TaskId, Option<Span>> = jobs
+            .iter()
+            .map(|job| (job.task_id, job.span.clone()))
+            .collect();
+        // For performance reasons this should stay `Meta` and not `All`
+        ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
+            let task_id = task.id();
+            // Enter the enqueue-time span and create a per-task child span with the
+            // task description. Both guards must live until the end of the closure.
+            #[cfg(feature = "trace_find_and_schedule")]
+            let _trace = (
+                spans.remove(&task_id).flatten().map(|s| s.entered()),
+                trace_span!("find and schedule", %task_id, name = task.get_task_description())
+                    .entered(),
+            );
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        });
     }
 
     fn find_and_schedule_dirty_internal(
@@ -1478,7 +1495,7 @@ impl AggregationUpdateQueue {
             let description = EventDescription::new(|| task.get_task_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
-                ctx.schedule(task_id, parent_priority);
+                self.scheduled_tasks.insert(task_id, parent_priority);
             }
         }
     }

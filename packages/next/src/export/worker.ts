@@ -82,6 +82,7 @@ async function exportPageImpl(
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
+    enableNodeStreams,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -94,6 +95,9 @@ async function exportPageImpl(
 
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
+  }
+  if (enableNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = 'true'
   }
 
   const {
@@ -432,6 +436,7 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            enableNodeStreams: !!nextConfig.experimental.useNodeStreams,
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,
