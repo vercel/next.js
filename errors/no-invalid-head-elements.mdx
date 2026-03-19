@@ -1,0 +1,68 @@
+---
+title: No Invalid Head Elements
+---
+
+> Prevent usage of invalid elements in `next/head` component.
+
+## Why This Error Occurred
+
+Certain elements, such as `<html>` and `<body>`, are not valid children of the `next/head` component. Nesting another `<Head />` inside `next/head` is also invalid.
+
+These invalid structures can lead to confusing runtime behavior and misleading errors in the browser.
+
+## Possible Ways to Fix It
+
+Only place valid head elements inside `next/head`, such as `<title>`, `<meta>`, `<link>`, and similar tags.
+
+If you need to customize the `<html>` or `<body>` tags, use `pages/_document` instead.
+
+**Before**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <Head>
+      <html lang="en" />
+      <body className="dark" />
+    </Head>
+  )
+}
+```
+
+**After**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <Head>
+      <title>My page</title>
+      <meta name="description" content="Demo" />
+    </Head>
+  )
+}
+```
+
+```jsx filename="pages/_document.js"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head />
+      <body className="dark">
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+## Useful Links
+
+- [next/head](/docs/pages/api-reference/components/head)
+- [Custom Document](/docs/pages/building-your-application/routing/custom-document)

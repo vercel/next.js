@@ -12,6 +12,7 @@ import noDocumentImportInPage from './rules/no-document-import-in-page'
 import noDuplicateHead from './rules/no-duplicate-head'
 import noHeadElement from './rules/no-head-element'
 import noHeadImportInDocument from './rules/no-head-import-in-document'
+import noInvalidHeadElements from './rules/no-invalid-head-elements'
 import noHtmlLinkForPages from './rules/no-html-link-for-pages'
 import noImgElement from './rules/no-img-element'
 import noPageCustomFont from './rules/no-page-custom-font'
@@ -71,6 +72,7 @@ const plugin = {
     'no-duplicate-head': noDuplicateHead,
     'no-head-element': noHeadElement,
     'no-head-import-in-document': noHeadImportInDocument,
+    'no-invalid-head-elements': noInvalidHeadElements,
     'no-html-link-for-pages': noHtmlLinkForPages,
     'no-img-element': noImgElement,
     'no-page-custom-font': noPageCustomFont,
