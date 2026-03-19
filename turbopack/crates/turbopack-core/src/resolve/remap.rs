@@ -185,14 +185,17 @@ impl ReplacedSubpathValue {
     /// runtime-unknown condition overrides in `condition_overrides` so that
     /// callers can attach them to the resolved request key.
     ///
-    /// Returns `true` when a definitive result is found that covers all
-    /// possible values of any unknown conditions — i.e., [`Excluded`],
-    /// [`Empty`], or a concrete [`Result`] was matched. Callers (particularly
+    /// Returns `true` when [`Excluded`] is applied for all possible values of
+    /// any unknown conditions — i.e., the import is definitively blocked
+    /// regardless of runtime condition values. Callers (particularly
     /// [`Alternatives`] and the outer lookup loop) use this to stop trying
-    /// further alternatives once a terminal match has been established.
+    /// further alternatives.
+    ///
+    /// Note: a concrete [`Result`] path does **not** return `true`, because
+    /// the path might not resolve successfully (the file may not exist), in
+    /// which case the next alternative should be tried.
     ///
     /// [`Excluded`]: ReplacedSubpathValue::Excluded
-    /// [`Empty`]: ReplacedSubpathValue::Empty
     /// [`Result`]: ReplacedSubpathValue::Result
     /// [`Alternatives`]: ReplacedSubpathValue::Alternatives
     pub fn add_results<'a, 'b>(
@@ -276,7 +279,8 @@ impl ReplacedSubpathValue {
                     map_prefix: prefix,
                     map_key: key,
                 });
-                true
+                // Don't stop: the path might not exist, so further alternatives may be needed.
+                false
             }
             ReplacedSubpathValue::Excluded => {
                 target.push(ReplacedSubpathValueResult {
