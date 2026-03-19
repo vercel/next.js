@@ -286,6 +286,20 @@ impl ResolveRawVcFuture {
         self.read_output_options.consistency = ReadConsistency::Strong;
         self
     }
+
+    /// Track task output reads with a specific key (forwarded from
+    /// [`ReadRawVcFuture::track_with_key`]).
+    pub(crate) fn track_with_key(mut self) -> Self {
+        self.read_output_options.tracking = ReadTracking::Tracked;
+        self
+    }
+
+    /// Do not track task output reads as dependencies (forwarded from
+    /// [`ReadRawVcFuture::untracked`]).
+    pub(crate) fn untracked(mut self) -> Self {
+        self.read_output_options.tracking = ReadTracking::TrackOnlyError;
+        self
+    }
 }
 
 impl Future for ResolveRawVcFuture {
@@ -366,41 +380,43 @@ impl Unpin for ResolveRawVcFuture {}
 
 #[must_use]
 pub struct ReadRawVcFuture {
-    current: RawVc,
-    read_output_options: ReadOutputOptions,
+    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
+    resolve: ResolveRawVcFuture,
+    /// Phase 2: options for the cell read once we have a [`RawVc::TaskCell`].
     read_cell_options: ReadCellOptions,
+    /// If `true`, the `is_serializable_cell_content` flag in `read_cell_options` is unknown at
+    /// construction time and must be determined lazily from the type registry once we reach the
+    /// [`RawVc::TaskCell`].
     is_serializable_cell_content_unknown: bool,
-    /// This flag redundant with `read_output_options`, but `read_output_options` is mutated during
-    /// the read. This flag indicates that the initial read was strongly consistent.
-    strongly_consistent: bool,
+    /// Phase 2: the resolved task and cell identity, set when phase 1 completes.
+    resolved: Option<(TaskId, CellId)>,
+    /// Phase 2: listener for the cell read wait.
     listener: Option<EventListener>,
 }
 
 impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc, is_serializable_cell_content: Option<bool>) -> Self {
         ReadRawVcFuture {
-            current: vc,
-            read_output_options: ReadOutputOptions::default(),
+            resolve: ResolveRawVcFuture::new(vc),
             read_cell_options: ReadCellOptions {
                 is_serializable_cell_content: is_serializable_cell_content.unwrap_or(false),
                 ..Default::default()
             },
             is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
-            strongly_consistent: false,
+            resolved: None,
             listener: None,
         }
     }
 
     /// Make reads strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.read_output_options.consistency = ReadConsistency::Strong;
-        self.strongly_consistent = true;
+        self.resolve = self.resolve.strongly_consistent();
         self
     }
 
     /// Track the value as a dependency with an key.
     pub fn track_with_key(mut self, key: u64) -> Self {
-        self.read_output_options.tracking = ReadTracking::Tracked;
+        self.resolve = self.resolve.track_with_key();
         self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
         self
     }
@@ -411,7 +427,7 @@ impl ReadRawVcFuture {
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
     pub fn untracked(mut self) -> Self {
-        self.read_output_options.tracking = ReadTracking::TrackOnlyError;
+        self.resolve = self.resolve.untracked();
         self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
         self
     }
@@ -431,9 +447,38 @@ impl Future for ReadRawVcFuture {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
 
-        // Extract the closure to avoid deep nesting
+        // --- Phase 1: resolve the RawVc pointer chain to a TaskCell ---
+        //
+        // `ResolveRawVcFuture` is `Unpin`, so `Pin::new` is safe.
+        // It handles `with_turbo_tasks` and `suppress_top_level_task_check` internally.
+        if this.resolved.is_none() {
+            match Pin::new(&mut this.resolve).poll(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+                Poll::Ready(Ok(RawVc::TaskCell(task, index))) => {
+                    this.resolved = Some((task, index));
+                }
+                Poll::Ready(Ok(_)) => {
+                    unreachable!("ResolveRawVcFuture always resolves to a TaskCell");
+                }
+            }
+        }
+
+        // --- Phase 2: read the cell content ---
+        //
+        // At this point `this.resolved` is `Some((task, index))`.
+        let (task, index) = this.resolved.unwrap();
+
+        // Lazily resolve `is_serializable_cell_content` from the type registry on the first
+        // entry into phase 2, then clear the flag so subsequent polls skip this lookup.
+        if this.is_serializable_cell_content_unknown {
+            let value_type = registry::get_value_type(index.type_id);
+            this.read_cell_options.is_serializable_cell_content = value_type.bincode.is_some();
+            this.is_serializable_cell_content_unknown = false;
+        }
+
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
-            'outer: loop {
+            loop {
                 if let Some(listener) = &mut this.listener {
                     // SAFETY: listener is from previous pinned this
                     let listener = unsafe { Pin::new_unchecked(listener) };
@@ -442,60 +487,17 @@ impl Future for ReadRawVcFuture {
                     }
                     this.listener = None;
                 }
-                let mut listener = match this.current {
-                    RawVc::TaskOutput(task) => {
-                        let read_result = tt.try_read_task_output(task, this.read_output_options);
-                        match read_result {
-                            Ok(Ok(vc)) => {
-                                // turbo-tasks-backend doesn't currently have any sort of
-                                // "transaction" or global lock mechanism to group together chains
-                                // of `TaskOutput`/`TaskCell` reads.
-                                //
-                                // If we ignore the theoretical TOCTOU issues, we no longer need to
-                                // read strongly consistent, as any Vc returned from the first task
-                                // will be inside of the scope of the first task. So it's already
-                                // strongly consistent.
-                                this.read_output_options.consistency = ReadConsistency::Eventual;
-                                this.current = vc;
-                                continue 'outer;
-                            }
-                            Ok(Err(listener)) => listener,
-                            Err(err) => return Poll::Ready(Err(err)),
-                        }
+
+                let read_result = tt.try_read_task_cell(task, index, this.read_cell_options);
+                let mut listener = match read_result {
+                    Ok(Ok(content)) => {
+                        // SAFETY: Constructor ensures that T and U are binary identical
+                        return Poll::Ready(Ok(content));
                     }
-                    RawVc::TaskCell(task, index) => {
-                        if this.is_serializable_cell_content_unknown {
-                            let value_type = registry::get_value_type(index.type_id);
-                            this.read_cell_options.is_serializable_cell_content =
-                                value_type.bincode.is_some();
-                        }
-                        let read_result =
-                            tt.try_read_task_cell(task, index, this.read_cell_options);
-                        match read_result {
-                            Ok(Ok(content)) => {
-                                // SAFETY: Constructor ensures that T and U are binary identical
-                                return Poll::Ready(Ok(content));
-                            }
-                            Ok(Err(listener)) => listener,
-                            Err(err) => return Poll::Ready(Err(err)),
-                        }
-                    }
-                    RawVc::LocalOutput(execution_id, local_output_id, ..) => {
-                        debug_assert_eq!(
-                            this.read_output_options.consistency,
-                            ReadConsistency::Eventual
-                        );
-                        let read_result = tt.try_read_local_output(execution_id, local_output_id);
-                        match read_result {
-                            Ok(Ok(vc)) => {
-                                this.current = vc;
-                                continue 'outer;
-                            }
-                            Ok(Err(listener)) => listener,
-                            Err(err) => return Poll::Ready(Err(err)),
-                        }
-                    }
+                    Ok(Err(listener)) => listener,
+                    Err(err) => return Poll::Ready(Err(err)),
                 };
+
                 // SAFETY: listener is from previous pinned this
                 match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
                     Poll::Ready(_) => continue,
@@ -503,26 +505,14 @@ impl Future for ReadRawVcFuture {
                         this.listener = Some(listener);
                         return Poll::Pending;
                     }
-                };
+                }
             }
         };
 
-        fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
-            if cfg!(debug_assertions) && strongly_consistent {
-                // Temporarily suppress the top-level task check
-                SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
-            } else {
-                f()
-            }
-        }
-
-        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
-        //
-        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
-        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
-        // `TaskCell` could get mutated after the strongly consistent read of the outer
-        // `TaskOutput`.
-        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
+        // Phase 2 does not need `suppress_top_level_task_check`: cell reads don't trigger the
+        // eventual-consistency top-level task assertion, and if phase 1 was strongly-consistent,
+        // `ResolveRawVcFuture` already applied the suppression during its own poll.
+        with_turbo_tasks(poll_fn)
     }
 }
 
