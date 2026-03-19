@@ -640,16 +640,6 @@ fn handle_key_match_generic<B: SharedBytes>(
     })
 }
 
-impl From<LookupValue<RcBytes>> for IterValue {
-    fn from(v: LookupValue<RcBytes>) -> Self {
-        match v {
-            LookupValue::Deleted => IterValue::Deleted,
-            LookupValue::Slice { value } => IterValue::Slice { value },
-            LookupValue::Blob { sequence_number } => IterValue::Blob { sequence_number },
-        }
-    }
-}
-
 /// An iterator over all entries in a SST file in sorted order.
 pub struct StaticSortedFileIter {
     /// The memory-mapped file, wrapped in `Rc` for non-atomic refcounting.
