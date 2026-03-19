@@ -1456,6 +1456,36 @@ if (!isNextDev) {
       await collector.shutdown()
     })
 
+    it('should add route names to handleRequest and parent spans for direct entrypoints', async () => {
+      await next.fetch('/app/param/rsc-fetch')
+      await next.fetch('/pages/param/getServerSideProps')
+
+      await check(async () => {
+        const spans = collector.getSpans()
+
+        for (const target of [
+          '/app/param/rsc-fetch',
+          '/pages/param/getServerSideProps',
+        ]) {
+          const handleRequestSpan = spans.find(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              span.attributes?.['http.target'] === target
+          )
+
+          expect(handleRequestSpan).toBeDefined()
+
+          const parentSpan = spans.find(
+            (span) => span.id === handleRequestSpan!.parentId
+          )
+          expect(parentSpan).toBeDefined()
+          expect(parentSpan!.name).toBe(handleRequestSpan!.name)
+          expect(parentSpan!.name).toContain(' /')
+        }
+      }, 30_000)
+    })
+
     it('should propagate incoming context without next-server wrapper', async () => {
       await next.fetch('/app/param/rsc-fetch', {
         headers: {
