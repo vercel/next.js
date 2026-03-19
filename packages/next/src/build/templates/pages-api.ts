@@ -83,13 +83,6 @@ export async function handler(
     const isWrappedByNextServer = Boolean(
       routerServerContext?.isWrappedByNextServer
     )
-    const activeHandleRequestSpan =
-      isWrappedByNextServer &&
-      activeSpan &&
-      tracer.getRootSpanAttributes()?.get('next.span_type') ===
-        BaseServerSpan.handleRequest
-        ? activeSpan
-        : undefined
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
@@ -165,8 +158,8 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeHandleRequestSpan) {
-      await invokeRouteModule(activeHandleRequestSpan)
+    if (isWrappedByNextServer && activeSpan) {
+      await invokeRouteModule(activeSpan)
     } else {
       parentSpan = tracer.getActiveScopeSpan()
       await tracer.withPropagatedContext(
@@ -185,7 +178,7 @@ export async function handler(
             invokeRouteModule
           ),
         undefined,
-        !activeHandleRequestSpan
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

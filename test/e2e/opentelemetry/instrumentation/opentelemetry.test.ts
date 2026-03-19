@@ -11,6 +11,7 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
+const isStartMode = process.env.NEXT_TEST_MODE === 'start'
 
 describe('opentelemetry', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -1418,7 +1419,7 @@ describe('opentelemetry with custom server', () => {
   })
 })
 
-if (!isNextDev) {
+if (isStartMode) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,

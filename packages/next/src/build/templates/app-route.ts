@@ -216,13 +216,6 @@ export async function handler(
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
-  const activeHandleRequestSpan =
-    isWrappedByNextServer &&
-    activeSpan &&
-    tracer.getRootSpanAttributes()?.get('next.span_type') ===
-      BaseServerSpan.handleRequest
-      ? activeSpan
-      : undefined
   const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   const incrementalCache =
@@ -515,8 +508,8 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeHandleRequestSpan) {
-      await handleResponse(activeHandleRequestSpan)
+    if (isWrappedByNextServer && activeSpan) {
+      await handleResponse(activeSpan)
     } else {
       parentSpan = tracer.getActiveScopeSpan()
       await tracer.withPropagatedContext(
@@ -535,7 +528,7 @@ export async function handler(
             handleResponse
           ),
         undefined,
-        !activeHandleRequestSpan
+        !isWrappedByNextServer
       )
     }
   } catch (err) {
