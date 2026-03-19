@@ -1,7 +1,6 @@
 ---
 title: adapterPath
 description: Configure a custom adapter for Next.js to hook into the build process.
-version: experimental
 ---
 
 Next.js provides a built-in adapters API. It allows deployment platforms or build systems to integrate with the Next.js build process.
@@ -10,14 +9,12 @@ For a full reference implementation, see the [`nextjs/adapter-vercel`](https://g
 
 ## Configuration
 
-To use an adapter, specify the path to your adapter module in `experimental.adapterPath`:
+To use an adapter, specify the path to your adapter module in `adapterPath`:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    adapterPath: require.resolve('./my-adapter.js'),
-  },
+  adapterPath: require.resolve('./my-adapter.js'),
 }
 
 module.exports = nextConfig

@@ -53,8 +53,9 @@ import {
   readFromBFCacheDuringRegularNavigation,
   writeToBFCache,
   writeHeadToBFCache,
+  updateBFCacheEntryStaleAt,
+  computeDynamicStaleAt,
 } from '../segment-cache/bfcache'
-import { DYNAMIC_STALETIME_MS } from './reducers/navigate-reducer'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -132,7 +133,8 @@ export function createInitialCacheNodeForHydration(
   navigatedAt: number,
   initialTree: RouteTree,
   seedData: CacheNodeSeedData | null,
-  seedHead: HeadData
+  seedHead: HeadData,
+  seedDynamicStaleAt: number
 ): NavigationTask {
   // Create the initial cache node tree, using the data embedded into the
   // HTML document.
@@ -147,6 +149,7 @@ export function createInitialCacheNodeForHydration(
     FreshnessPolicy.Hydration,
     seedData,
     seedHead,
+    seedDynamicStaleAt,
     false,
     accumulation
   )
@@ -193,6 +196,7 @@ export function startPPRNavigation(
   freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
+  seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask | null {
@@ -214,6 +218,7 @@ export function startPPRNavigation(
     didFindRootLayout,
     seedData,
     seedHead,
+    seedDynamicStaleAt,
     isSamePageNavigation,
     parentNeedsDynamicRequest,
     oldRootRefreshState,
@@ -233,6 +238,7 @@ function updateCacheNodeOnNavigation(
   didFindRootLayout: boolean,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
+  seedDynamicStaleAt: number,
   isSamePageNavigation: boolean,
   parentNeedsDynamicRequest: boolean,
   oldRootRefreshState: RefreshState,
@@ -290,6 +296,7 @@ function updateCacheNodeOnNavigation(
       freshness,
       seedData,
       seedHead,
+      seedDynamicStaleAt,
       parentNeedsDynamicRequest,
       accumulation
     )
@@ -356,7 +363,8 @@ function updateCacheNodeOnNavigation(
       seedRsc,
       newMetadataVaryPath,
       seedHead,
-      freshness
+      freshness,
+      seedDynamicStaleAt
     )
     newCacheNode = result.cacheNode
     needsDynamicRequest = result.needsDynamicRequest
@@ -486,6 +494,7 @@ function updateCacheNodeOnNavigation(
         childDidFindRootLayout,
         seedDataChild ?? null,
         seedHeadChild,
+        seedDynamicStaleAt,
         isSamePageNavigation,
         parentNeedsDynamicRequest || needsDynamicRequest,
         oldRootRefreshState,
@@ -600,6 +609,7 @@ function createCacheNodeOnNavigation(
   freshness: FreshnessPolicy,
   seedData: CacheNodeSeedData | null,
   seedHead: HeadData | null,
+  seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask {
@@ -625,7 +635,8 @@ function createCacheNodeOnNavigation(
     seedRsc,
     newMetadataVaryPath,
     seedHead,
-    freshness
+    freshness,
+    seedDynamicStaleAt
   )
   const newCacheNode = result.cacheNode
   const needsDynamicRequest = result.needsDynamicRequest
@@ -661,6 +672,7 @@ function createCacheNodeOnNavigation(
         freshness,
         seedDataChild ?? null,
         seedHead,
+        seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
         accumulation
       )
@@ -882,7 +894,8 @@ function createCacheNodeForSegment(
   seedRsc: React.ReactNode | null,
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
-  freshness: FreshnessPolicy
+  freshness: FreshnessPolicy,
+  dynamicStaleAt: number
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -905,29 +918,23 @@ function createCacheNodeForSegment(
   // the BFCache.
   switch (freshness) {
     case FreshnessPolicy.Default: {
-      // When experimental.staleTimes.dynamic config is set, we read from the
-      // BFCache even during regular navigations. (This is not a recommended API
-      // with Cache Components, but it's supported for backwards compatibility.
-      // Use cacheLife instead.)
-
-      // This outer check isn't semantically necessary; even if the configured
-      // stale time is 0, the bfcache will return null, because any entry would
-      // have immediately expired. Just an optimization.
-      if (DYNAMIC_STALETIME_MS > 0) {
-        const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-          now,
-          tree.varyPath
-        )
-        if (bfcacheEntry !== null) {
-          return {
-            cacheNode: createCacheNode(
-              bfcacheEntry.rsc,
-              bfcacheEntry.prefetchRsc,
-              bfcacheEntry.head,
-              bfcacheEntry.prefetchHead
-            ),
-            needsDynamicRequest: false,
-          }
+      // Check BFCache during regular navigations. The entry's staleAt
+      // determines whether it's still fresh. This is used when
+      // staleTimes.dynamic is configured globally or when a page exports
+      // unstable_dynamicStaleTime for per-page control.
+      const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
+        now,
+        tree.varyPath
+      )
+      if (bfcacheEntry !== null) {
+        return {
+          cacheNode: createCacheNode(
+            bfcacheEntry.rsc,
+            bfcacheEntry.prefetchRsc,
+            bfcacheEntry.head,
+            bfcacheEntry.prefetchHead
+          ),
+          needsDynamicRequest: false,
         }
       }
       break
@@ -953,9 +960,23 @@ function createCacheNodeForSegment(
       const prefetchRsc = null
       const head = isPage ? seedHead : null
       const prefetchHead = null
-      writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+      writeToBFCache(
+        now,
+        tree.varyPath,
+        rsc,
+        prefetchRsc,
+        head,
+        prefetchHead,
+        dynamicStaleAt
+      )
       if (isPage && metadataVaryPath !== null) {
-        writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+        writeHeadToBFCache(
+          now,
+          metadataVaryPath,
+          head,
+          prefetchHead,
+          dynamicStaleAt
+        )
       }
       return {
         cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
@@ -1180,9 +1201,23 @@ function createCacheNodeForSegment(
   // Skip BFCache writes for optimistic navigations since they are transient
   // and will be replaced by the canonical navigation.
   if (freshness !== FreshnessPolicy.Gesture) {
-    writeToBFCache(now, tree.varyPath, rsc, prefetchRsc, head, prefetchHead)
+    writeToBFCache(
+      now,
+      tree.varyPath,
+      rsc,
+      prefetchRsc,
+      head,
+      prefetchHead,
+      dynamicStaleAt
+    )
     if (isPage && metadataVaryPath !== null) {
-      writeHeadToBFCache(now, metadataVaryPath, head, prefetchHead)
+      writeHeadToBFCache(
+        now,
+        metadataVaryPath,
+        head,
+        prefetchHead,
+        dynamicStaleAt
+      )
     }
   }
 
@@ -1583,10 +1618,14 @@ async function fetchMissingDynamicData(
         seed: null,
       }
     }
+    const now = Date.now()
+
     const seed = convertServerPatchToFullTree(
+      now,
       task.route,
       result.flightData,
-      result.renderedSearch
+      result.renderedSearch,
+      result.dynamicStaleTime
     )
 
     // If the navigation lock is active, wait for it to be released before
@@ -1595,8 +1634,6 @@ async function fetchMissingDynamicData(
     if (process.env.__NEXT_EXPOSE_TESTING_API) {
       await waitForNavigationLock()
     }
-
-    const now = Date.now()
 
     if (routeCacheEntry !== null && result.staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
@@ -1653,11 +1690,16 @@ async function fetchMissingDynamicData(
         })
     }
 
+    // result.dynamicStaleTime is in seconds (from the server's `d` field).
+    // Convert to an absolute timestamp using the centralized helper.
+    const dynamicStaleAt = computeDynamicStaleAt(now, result.dynamicStaleTime)
+
     const didReceiveUnknownParallelRoute = writeDynamicDataIntoNavigationTask(
       task,
       seed.routeTree,
       seed.data,
       seed.head,
+      dynamicStaleAt,
       result.debugInfo
     )
 
@@ -1685,11 +1727,19 @@ function writeDynamicDataIntoNavigationTask(
   serverRouteTree: RouteTree,
   dynamicData: CacheNodeSeedData | null,
   dynamicHead: HeadData,
+  dynamicStaleAt: number,
   debugInfo: Array<any> | null
 ): boolean {
   if (task.status === NavigationTaskStatus.Pending && dynamicData !== null) {
     task.status = NavigationTaskStatus.Fulfilled
     finishPendingCacheNode(task.node, dynamicData, dynamicHead, debugInfo)
+
+    // Update the BFCache entry's staleAt for this segment with the value
+    // from the dynamic response. This applies the per-page
+    // unstable_dynamicStaleTime if set, or the default DYNAMIC_STALETIME_MS.
+    // We only update segments that received dynamic data — static segments
+    // are unaffected.
+    updateBFCacheEntryStaleAt(serverRouteTree.varyPath, dynamicStaleAt)
   }
 
   const taskChildren = task.children
@@ -1740,6 +1790,7 @@ function writeDynamicDataIntoNavigationTask(
                 serverRouteTreeChild,
                 dynamicDataChild,
                 dynamicHead,
+                dynamicStaleAt,
                 debugInfo
               )
             if (childDidReceiveUnknownParallelRoute) {

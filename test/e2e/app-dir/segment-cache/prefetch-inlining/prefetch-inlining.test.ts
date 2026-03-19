@@ -175,7 +175,7 @@ describe('prefetch inlining', () => {
                 ⇣  root
                 ⇣  └── "test-parallel"
        outlined ■      ├── "__PAGE__"
-                ⇣      └── @sidebar/"(slot)"
+                ⇣      └── @sidebar/"(__SLOT__)"
        outlined ■          └── "__PAGE__"
        "
       `)
@@ -184,7 +184,7 @@ describe('prefetch inlining', () => {
        "
                 ⇣  root
                 ⇣  └── "test-parallel"
-                ⇣      ├── @sidebar/"(slot)"
+                ⇣      ├── @sidebar/"(__SLOT__)"
        outlined ■      │   └── "__PAGE__"
        outlined ■      └── "__PAGE__"
        "

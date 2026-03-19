@@ -13,10 +13,15 @@ use crate::asset::AssetContent;
 #[turbo_tasks::value(transparent)]
 pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
-/// The content of an [Asset] alongside its version.
+/// The content of an [`Asset`] alongside its version, returned by [`Asset::versioned_content`].
+///
+/// [`Asset`]: crate::asset::Asset
+/// [`Asset::versioned_content`]: crate::asset::Asset::versioned_content
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
-    /// The content of the [Asset].
+    /// The content of the [`Asset`].
+    ///
+    /// [`Asset`]: crate::asset::Asset
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
@@ -85,7 +90,7 @@ impl VersionedContent for VersionedAssetContent {
 #[turbo_tasks::value_impl]
 impl VersionedAssetContent {
     #[turbo_tasks::function]
-    /// Creates a new [Vc<VersionedAssetContent>] from a [Vc<FileContent>].
+    /// Creates a new instance from a [`Vc<AssetContent>`][AssetContent].
     pub async fn new(asset_content: Vc<AssetContent>) -> Result<Vc<Self>> {
         let asset_content = asset_content.await?;
         Ok(Self::cell(VersionedAssetContent { asset_content }))

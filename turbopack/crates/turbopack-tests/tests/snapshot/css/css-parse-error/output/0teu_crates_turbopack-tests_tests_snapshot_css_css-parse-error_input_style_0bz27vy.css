@@ -1,0 +1,2 @@
+.before{color:red}.after{color:green}::highlight(highlight-test){color:#fff}.carousel{scroll-marker-group:after}.carousel>::scroll-marker{content:""}.carousel>::scroll-marker:target-current{background:#63636399;background:lab(42% 0 0/.6)}
+/*# sourceMappingURL=0teu_crates_turbopack-tests_tests_snapshot_css_css-parse-error_input_style_0bz27vy.css.map*/

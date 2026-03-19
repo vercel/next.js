@@ -77,6 +77,10 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called inside generateStaticParams.'
+        )
       case 'request':
         // Client searchParams are not runtime prefetchable
         const isRuntimePrefetchable = false
@@ -132,6 +136,10 @@ export function createServerSearchParamsForServerPage(
       case 'unstable-cache':
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
@@ -190,6 +198,10 @@ export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams
       case 'unstable-cache':
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
