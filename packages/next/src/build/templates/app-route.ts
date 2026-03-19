@@ -308,7 +308,7 @@ export async function handler(
           return
         }
 
-        const route = rootSpanAttributes.get('next.route') || srcPage
+        const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
         const name = `${method} ${route}`
 
         span.setAttributes({

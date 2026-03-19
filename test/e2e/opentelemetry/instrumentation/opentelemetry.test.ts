@@ -1508,7 +1508,7 @@ if (!isNextDev) {
 
       await expectTrace(getCollector(), [
         {
-          name: 'GET /app/[param]/rsc-fetch/page',
+          name: 'GET /app/[param]/rsc-fetch',
           traceId: EXTERNAL.traceId,
           parentId: EXTERNAL.spanId,
           attributes: {
