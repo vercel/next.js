@@ -217,7 +217,7 @@ impl UpdateCellOperation {
         };
 
         // Update cell_data_hash for non-serializable cells when not recomputing.
-        if !is_serializable_cell_content && !assume_unchanged {
+        if !is_serializable_cell_content {
             if let Some(hash) = content_hash {
                 task.insert_cell_data_hash(cell, hash);
             } else {
