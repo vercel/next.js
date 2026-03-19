@@ -32,7 +32,7 @@ where
 impl<T: ?Sized> ResolveOperationVcFuture<T> {
     /// Make the resolution strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.inner = self.inner.strongly_consistent();
+        self.inner.inner = self.inner.inner.strongly_consistent();
         self
     }
 }
@@ -159,7 +159,7 @@ impl<T: ?Sized> OperationVc<T> {
     /// strong consistency.
     pub fn resolve(self) -> ResolveOperationVcFuture<T> {
         ResolveOperationVcFuture {
-            inner: self.connect().resolve_internal(),
+            inner: self.connect().resolve(),
         }
     }
 
