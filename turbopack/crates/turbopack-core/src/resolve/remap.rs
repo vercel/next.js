@@ -219,7 +219,7 @@ impl ReplacedSubpathValue {
     ) -> TerminalState {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
-                let mut state = TerminalState::Unset;
+                let mut state = TerminalState::Result;
                 for value in list {
                     match value.add_results(
                         prefix.clone(),
