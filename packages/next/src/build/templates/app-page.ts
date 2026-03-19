@@ -1073,6 +1073,7 @@ export async function handler(
         // contains param references, and therefore we can't use the fallback.
         if (
           isRoutePPREnabled &&
+          !isPossibleServerAction &&
           (nextConfig.cacheComponents ? !isDynamicRSCRequest : !isRSCRequest)
         ) {
           const cacheKey =
