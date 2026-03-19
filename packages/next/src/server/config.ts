@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  type PHASE_PRODUCTION_SERVER,
+  PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -1796,7 +1796,10 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.experimental?.useLightningcss) {
+    if (
+      phase !== PHASE_PRODUCTION_SERVER &&
+      userConfig.experimental?.useLightningcss
+    ) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (
