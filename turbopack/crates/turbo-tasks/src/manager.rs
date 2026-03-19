@@ -177,7 +177,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -525,6 +524,14 @@ struct CurrentTaskState {
     /// True if the current task uses an external invalidator
     has_invalidator: bool,
 
+    /// Whether the current task's function is annotated with `session_dependent`.
+    /// Set after `try_start_task_execution` returns. Used by `mark_ttl()` for its debug_assert.
+    is_session_dependent: bool,
+
+    /// If set, the task's cached result should be considered valid for this duration after
+    /// completion. Only meaningful for session-dependent tasks.
+    ttl: Option<std::time::Duration>,
+
     /// True if we're in a top-level task (e.g. `.run_once(...)` or `.run(...)`).
     /// Eventually consistent reads are not allowed in top-level tasks.
     in_top_level_task: bool,
@@ -557,6 +564,8 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
+            is_session_dependent: false,
+            ttl: None,
             in_top_level_task,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
@@ -576,6 +585,8 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
+            is_session_dependent: false,
+            ttl: None,
             in_top_level_task,
             cell_counters: None,
             local_tasks: Vec::new(),
@@ -1179,6 +1190,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 #[cfg(feature = "verify_determinism")]
                 stateful: current_task_state.stateful,
                 has_invalidator: current_task_state.has_invalidator,
+                ttl: current_task_state.ttl,
             }
         })
     }
@@ -1221,12 +1233,19 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 return false;
                             }
 
-                            let Some(TaskExecutionSpec { future, span }) = this
+                            let Some(TaskExecutionSpec {
+                                future,
+                                span,
+                                is_session_dependent,
+                            }) = this
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)
                             else {
                                 return false;
                             };
+                            CURRENT_TASK_STATE.with(|cell| {
+                                cell.write().unwrap().is_session_dependent = is_session_dependent;
+                            });
 
                             async {
                                 let result = CaptureFuture::new(future).await;
@@ -1250,6 +1269,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     #[cfg(feature = "verify_determinism")]
                                     finihed_state.stateful,
                                     finihed_state.has_invalidator,
+                                    finihed_state.ttl,
                                     &*this,
                                 )
                             }
@@ -1350,6 +1370,9 @@ struct FinishedTaskState {
 
     /// True if the task uses an external invalidator
     has_invalidator: bool,
+
+    /// If set, the task's cached result should be considered valid for this duration.
+    ttl: Option<std::time::Duration>,
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
@@ -1590,10 +1613,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
-    }
-
-    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
-        self.backend.mark_own_task_as_session_dependent(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1891,13 +1910,6 @@ pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
-/// Marks the current task as dirty when restored from filesystem cache.
-pub fn mark_session_dependent() {
-    with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
-}
-
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1942,8 +1954,27 @@ pub fn mark_invalidator() {
     })
 }
 
+/// Marks the current task's cached result as valid for the given duration after completion.
+///
+/// On a warm cache restore, if the TTL has not expired, the task will not be re-executed.
+/// This is only meaningful for `session_dependent` tasks — calling it from a non-session-dependent
+/// task will trigger a debug assertion failure.
+///
+/// Mid-session expiry is not handled by this mechanism. If you need mid-session re-execution,
+/// use an `invalidator` with a timer.
+pub fn mark_ttl(duration: std::time::Duration) {
+    CURRENT_TASK_STATE.with(|cell| {
+        let mut state = cell.write().unwrap();
+        debug_assert!(
+            state.is_session_dependent,
+            "mark_ttl() can only be called from a session_dependent task"
+        );
+        state.ttl = Some(duration);
+    })
+}
+
 /// Marks the current task as stateful. This is used to indicate that the task
-/// has interior mutability (e.g., via State or TransientState), which means
+/// has interior mutability (e.g., via State), which means
 /// the task may produce different outputs even with the same inputs.
 ///
 /// Only has an effect when the `verify_determinism` feature is enabled.

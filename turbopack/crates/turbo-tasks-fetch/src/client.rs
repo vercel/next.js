@@ -3,7 +3,7 @@ use std::{hash::Hash, sync::LazyLock};
 use anyhow::Result;
 use quick_cache::sync::Cache;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, Vc, duration_span, mark_session_dependent};
+use turbo_tasks::{ReadRef, Vc, duration_span};
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
@@ -34,7 +34,7 @@ impl FetchClientConfig {
     /// The reqwest client fails to construct if the TLS backend cannot be initialized, or the
     /// resolver cannot load the system configuration. These failures should be treated as
     /// cached for some amount of time, but ultimately transient (e.g. using
-    /// [`turbo_tasks::mark_session_dependent`]).
+    /// [`Completion::session_dependent`]).
     pub fn try_get_cached_reqwest_client(
         self: ReadRef<FetchClientConfig>,
     ) -> reqwest::Result<reqwest::Client> {
@@ -80,7 +80,7 @@ impl FetchClientConfig {
 
 #[turbo_tasks::value_impl]
 impl FetchClientConfig {
-    #[turbo_tasks::function(network)]
+    #[turbo_tasks::function(network, session_dependent)]
     pub async fn fetch(
         self: Vc<FetchClientConfig>,
         url: RcStr,
@@ -104,11 +104,18 @@ impl FetchClientConfig {
 
             let status = response.status().as_u16();
 
+            // Extract max-age from Cache-Control header before consuming the response body
+            let max_age = parse_cache_control_max_age(response.headers());
+
             let body = {
                 let _span = duration_span!("fetch response", url = url_ref);
                 response.bytes().await?
             }
             .to_vec();
+
+            if let Some(max_age) = max_age {
+                turbo_tasks::mark_ttl(std::time::Duration::from_secs(max_age));
+            }
 
             Ok(HttpResponse {
                 status,
@@ -121,13 +128,26 @@ impl FetchClientConfig {
             Ok(resp) => Ok(Vc::cell(Ok(resp.resolved_cell()))),
             Err(err) => {
                 // the client failed to construct or the HTTP request failed
-                mark_session_dependent();
+                // No TTL for errors — always re-execute on restore
                 Ok(Vc::cell(Err(
                     FetchError::from_reqwest_error(&err, &url).resolved_cell()
                 )))
             }
         }
     }
+}
+
+/// Parses the `max-age` directive from a `Cache-Control` header value.
+/// Returns the max-age in seconds, or `None` if not present or unparseable.
+fn parse_cache_control_max_age(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+    let value = headers.get(reqwest::header::CACHE_CONTROL)?.to_str().ok()?;
+    for directive in value.split(',') {
+        let directive = directive.trim();
+        if let Some(max_age) = directive.strip_prefix("max-age=") {
+            return max_age.trim().parse().ok();
+        }
+    }
+    None
 }
 
 #[doc(hidden)]

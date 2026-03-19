@@ -739,6 +739,18 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
                     None
                 }
             }
+            Dirtyness::SessionDependentTtl(deadline) => {
+                if !self.current_session_clean() {
+                    if deadline.is_expired() {
+                        Some(TaskPriority::leaf())
+                    } else {
+                        // TTL not expired — treat as clean for this session
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
@@ -746,6 +758,10 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
             Dirtyness::SessionDependent => {
                 Some((Dirtyness::SessionDependent, self.current_session_clean()))
+            }
+            Dirtyness::SessionDependentTtl(deadline) => {
+                let clean = self.current_session_clean() || !deadline.is_expired();
+                Some((Dirtyness::SessionDependentTtl(*deadline), clean))
             }
         }
     }
@@ -755,6 +771,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             None => (false, false),
             Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
+            Some(Dirtyness::SessionDependentTtl(deadline)) => {
+                (true, self.current_session_clean() || !deadline.is_expired())
+            }
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
@@ -886,6 +905,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         } else {
             panic!("Every task must have a task type {self:?}");
         }
+    }
+    fn is_session_dependent(&self) -> bool {
+        matches!(self.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent)
     }
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.get_task_type().to_owned();

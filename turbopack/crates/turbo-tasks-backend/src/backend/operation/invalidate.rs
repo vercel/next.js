@@ -258,7 +258,7 @@ pub fn make_task_dirty_internal(
             }
             return;
         }
-        Some(Dirtyness::SessionDependent) => {
+        Some(Dirtyness::SessionDependent | Dirtyness::SessionDependentTtl(_)) => {
             let parent_priority = ctx.get_current_task_priority();
             task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was a session-dependent dirty before, so we need to remove that clean count

@@ -216,6 +216,35 @@ transient_traits!(TransientTask);
 pub enum Dirtyness {
     Dirty(TaskPriority),
     SessionDependent,
+    SessionDependentTtl(TtlDeadline),
+}
+
+/// An absolute deadline after which a session-dependent task should be re-executed.
+/// Stored as seconds and nanoseconds since the Unix epoch for deterministic serialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Encode, Decode)]
+pub struct TtlDeadline {
+    secs: u64,
+    nanos: u32,
+}
+
+impl TtlDeadline {
+    pub fn from_system_time(time: std::time::SystemTime) -> Self {
+        let duration = time
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("SystemTime before UNIX_EPOCH");
+        Self {
+            secs: duration.as_secs(),
+            nanos: duration.subsec_nanos(),
+        }
+    }
+
+    pub fn is_expired(&self) -> bool {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("SystemTime before UNIX_EPOCH");
+        let deadline = std::time::Duration::new(self.secs, self.nanos);
+        now >= deadline
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -238,7 +267,6 @@ pub struct InProgressStateInner {
     pub stale: bool,
     #[allow(dead_code)]
     pub once_task: bool,
-    pub session_dependent: bool,
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,

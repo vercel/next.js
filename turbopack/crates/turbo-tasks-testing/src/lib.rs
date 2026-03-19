@@ -294,10 +294,6 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn mark_own_task_as_session_dependent(&self, _task: TaskId) {
-        // no-op
-    }
-
     fn spawn_detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
