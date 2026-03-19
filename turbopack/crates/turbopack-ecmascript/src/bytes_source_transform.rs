@@ -5,6 +5,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     source::Source,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -30,7 +31,11 @@ impl BytesSourceTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for BytesSourceTransform {
     #[turbo_tasks::function]
-    async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+    async fn transform(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        _asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<Box<dyn Source>>> {
         let ident = source.ident();
         let path = ident.path().await?;
         let content = source.content().file_content().await?;

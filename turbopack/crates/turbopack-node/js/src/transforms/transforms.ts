@@ -41,6 +41,11 @@ export type IpcRequestMessage =
       type: 'trackFileRead'
       file: string
     }
+  | {
+      type: 'importModule'
+      lookupPath: string
+      request: string
+    }
 
 export type TransformIpc = Ipc<IpcInfoMessage, IpcRequestMessage>
 
