@@ -21,9 +21,8 @@ use crate::source::{
     route_tree::RouteTree,
 };
 
-/// The result of [`resolve_source_request`]. Similar to a
-/// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
-/// care in the function.
+/// The result of [`resolve_source_request`]. Similar to a [`ContentSourceContent`], but without the
+/// [`Rewrite`][ContentSourceContent::Rewrite] variant, as this is taken care in the function.
 #[turbo_tasks::value(serialization = "none", shared)]
 pub enum ResolveSourceRequestResult {
     NotFound,
@@ -62,14 +61,22 @@ fn get_content_source_content_get_operation(
     get_content.get(path, data)
 }
 
-/// Resolves a [SourceRequest] within a [super::ContentSource], returning the
-/// corresponding content.
+/// Resolves a [`SourceRequest`] within a [`ContentSource`], returning the corresponding content.
 ///
-/// This function is the boundary of consistency. All invoked methods should be
-/// invoked strongly consistent. This ensures that all requests serve the latest
-/// version of the content. We don't make resolve_source_request strongly
-/// consistent as we want get_routes and get to be independent consistent and
-/// any side effect in get should not wait for recomputing of get_routes.
+/// Matches the first [`ContentSourceContent`] in the [`RouteTree`] returned by
+/// [`ContentSource::get_routes`] that does not generate [`ContentSourceContent::Next`].
+///
+/// *In the future*, this function may be used at the boundary of consistency. All invoked methods
+/// should be read using [strong consistency][OperationVc::read_strongly_consistent]. This ensures
+/// that all requests serve the latest version of the content.
+///
+/// If this function is not called/read with strong consistency, [`ContentSource::get_routes`] would
+/// be allowed to be independently consistent. Side effects should not need to wait for
+/// recomputation of [`ContentSource::get_routes`].
+///
+/// TODO: The callers of this function now read this operation using strong consistency. This may
+/// have re-introduced performance issues that were solved in
+/// <https://github.com/vercel/turborepo/pull/5360>.
 #[turbo_tasks::function(operation)]
 pub async fn resolve_source_request(
     source: OperationVc<Box<dyn ContentSource>>,

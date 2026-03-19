@@ -156,6 +156,17 @@ const API_DOCS: Record<
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
     insertText: 'unstable_instant = { prefetch: "static" };',
   },
+  unstable_dynamicStaleTime: {
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    link: '(docs coming soon)',
+    type: 'number',
+    isValid: (value: string) => {
+      return Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the dynamic stale time to \`${value}\` seconds.`
+    },
+  },
 }
 
 type FullAppSegmentConfig = Required<AppSegmentConfig>

@@ -88,7 +88,6 @@ use crate::{
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     sri_manifest::get_sri_manifest_asset,
-    webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
@@ -930,9 +929,7 @@ impl AppProject {
                         .take(server_component_entries.len().saturating_sub(1))
                     {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            // This should really be ChunkGroupEntry::Shared(module.await?.module),
-                            // but that breaks everything for some reason.
-                            vec![ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(*module)])],
+                            vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(*module))],
                             visited_modules,
                             should_trace,
                             should_read_binding_usage,
@@ -1409,34 +1406,6 @@ impl AppEndpoint {
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
 
         if emit_manifests != EmitManifests::None {
-            if *this
-                .app_project
-                .project()
-                .should_create_webpack_stats()
-                .await?
-            {
-                let webpack_stats = generate_webpack_stats(
-                    *module_graphs.base,
-                    app_entry.original_name.clone(),
-                    client_assets.await?.into_iter().copied(),
-                )
-                .await?;
-                let stats_output = VirtualOutputAsset::new(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/webpack-stats.json",
-                    ))?,
-                    AssetContent::file(
-                        FileContent::Content(File::from(serde_json::to_string_pretty(
-                            &webpack_stats,
-                        )?))
-                        .cell(),
-                    ),
-                )
-                .to_resolved()
-                .await?;
-                server_assets.insert(ResolvedVc::upcast(stats_output));
-            }
-
             let build_manifest = BuildManifest {
                 output_path: node_root.join(&format!(
                     "server/app{manifest_path_prefix}/build-manifest.json",
@@ -1895,9 +1864,7 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(
-                                    server_component.await?.module,
-                                )),
+                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2157,9 +2124,9 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+        Ok(Vc::cell(vec![ChunkGroupEntry::Shared(
             server_actions_loader,
-        ])]))
+        )]))
     }
 
     #[turbo_tasks::function]
