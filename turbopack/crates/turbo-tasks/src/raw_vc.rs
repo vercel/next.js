@@ -3,7 +3,7 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
-    task::Poll,
+    task::{Poll, ready},
 };
 
 use anyhow::Result;
@@ -266,9 +266,7 @@ fn poll_listener(
     cx: &mut std::task::Context<'_>,
 ) -> Poll<()> {
     if let Some(l) = listener {
-        if Pin::new(l).poll(cx).is_pending() {
-            return Poll::Pending;
-        }
+        ready!(Pin::new(l).poll(cx));
         *listener = None;
     }
     Poll::Ready(())
@@ -339,10 +337,8 @@ impl Future for ResolveRawVcFuture {
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             'outer: loop {
-                if poll_listener(&mut this.listener, cx).is_pending() {
-                    return Poll::Pending;
-                }
-                let mut listener = match this.current {
+                ready!(poll_listener(&mut this.listener, cx));
+                let listener = match this.current {
                     RawVc::TaskOutput(task) => {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
@@ -375,13 +371,8 @@ impl Future for ResolveRawVcFuture {
                         }
                     }
                 };
-                match Pin::new(&mut listener).poll(cx) {
-                    Poll::Ready(_) => continue,
-                    Poll::Pending => {
-                        this.listener = Some(listener);
-                        return Poll::Pending;
-                    }
-                };
+                this.listener = Some(listener);
+                ready!(poll_listener(&mut this.listener, cx));
             }
         };
 
@@ -465,15 +456,12 @@ impl Future for ReadRawVcFuture {
         // `ResolveRawVcFuture` is `Unpin`, so `Pin::new` is safe.
         // It handles `with_turbo_tasks` and `suppress_top_level_task_check` internally.
         if this.resolved.is_none() {
-            match Pin::new(&mut this.resolve).poll(cx) {
-                Poll::Pending => return Poll::Pending,
-                Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
-                Poll::Ready(Ok(RawVc::TaskCell(task, index))) => {
+            match ready!(Pin::new(&mut this.resolve).poll(cx)) {
+                Err(err) => return Poll::Ready(Err(err)),
+                Ok(RawVc::TaskCell(task, index)) => {
                     this.resolved = Some((task, index));
                 }
-                Poll::Ready(Ok(_)) => {
-                    unreachable!("ResolveRawVcFuture always resolves to a TaskCell");
-                }
+                Ok(_) => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
             }
         }
 
@@ -492,24 +480,14 @@ impl Future for ReadRawVcFuture {
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             loop {
-                if poll_listener(&mut this.listener, cx).is_pending() {
-                    return Poll::Pending;
-                }
-
-                let read_result = tt.try_read_task_cell(task, index, this.read_cell_options);
-                let mut listener = match read_result {
+                ready!(poll_listener(&mut this.listener, cx));
+                let listener = match tt.try_read_task_cell(task, index, this.read_cell_options) {
                     Ok(Ok(content)) => return Poll::Ready(Ok(content)),
                     Ok(Err(listener)) => listener,
                     Err(err) => return Poll::Ready(Err(err)),
                 };
-
-                match Pin::new(&mut listener).poll(cx) {
-                    Poll::Ready(_) => continue,
-                    Poll::Pending => {
-                        this.listener = Some(listener);
-                        return Poll::Pending;
-                    }
-                }
+                this.listener = Some(listener);
+                ready!(poll_listener(&mut this.listener, cx));
             }
         };
 
