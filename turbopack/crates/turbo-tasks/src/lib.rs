@@ -192,10 +192,7 @@ pub use turbo_tasks_macros::function;
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
-/// - **`"hashed"`:** Like `"compare"`, but also stores a hash of the value. When the cell's
-///   transient data is evicted from memory, the stored hash is used to detect whether the value
-///   changed—avoiding unnecessary downstream invalidation. Requires the value to implement both
-///   [`Eq`] and [`Hash`][std::hash::Hash].
+/// - **`"keyed"`:** Like `"compare"`, but uses per-key invalidation for transparent map types.
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
 /// depend on this cell's value.
@@ -219,7 +216,19 @@ pub use turbo_tasks_macros::function;
 /// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
 ///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
+/// - **`"hash"`:** Like `"none"` (no bincode serialization), but also stores a hash of the cell
+///   value so that changes can be detected even when the transient cell data has been evicted
+///   from memory—avoiding unnecessary downstream invalidation. Only valid with `cell = "compare"`.
+///   Requires the value to implement both [`Eq`] and [`Hash`][std::hash::Hash].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `hash = "..."`
+///
+/// By default, when using `serialization = "hash"`, we `#[derive(Hash)]`. This argument allows
+/// overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`Hash`][std::hash::Hash] so you can do it manually.
+///   Only valid with `serialization = "hash"`.
 ///
 /// ## `shared`
 ///
