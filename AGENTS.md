@@ -251,7 +251,7 @@ For full triage workflow (failure prioritization, mode selection, CI env reprodu
 
 - Skill file: `.agents/skills/pr-status-triage/SKILL.md`
 
-**Use `/pr-status` for automated analysis** - analyzes failing jobs and review comments in parallel, groups failures by test file.
+**Use `$pr-status-triage` for automated analysis** - see `.agents/skills/pr-status-triage/SKILL.md` for the full step-by-step workflow.
 
 **CI Analysis Tips:**
 
