@@ -147,4 +147,58 @@ describe('normalizeDynamicRouteParams', () => {
       hasValidParams: true,
     })
   })
+
+  it('should not decode matched params beyond the route matcher decode', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'acme',
+        project: '%23hash',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'acme',
+        project: '%23hash',
+      },
+      hasValidParams: true,
+    })
+  })
+
+  it('should not reject non-placeholder values that only contain decoded placeholder text', () => {
+    const { normalizeDynamicRouteParams } = getServerUtils({
+      page: '/[teamSlug]/[project]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = normalizeDynamicRouteParams(
+      {
+        teamSlug: 'acme',
+        project: '%5Bproject%5D-suffix',
+      },
+      true
+    )
+
+    expect(result).toEqual({
+      params: {
+        teamSlug: 'acme',
+        project: '%5Bproject%5D-suffix',
+      },
+      hasValidParams: true,
+    })
+  })
 })

@@ -112,10 +112,7 @@ export function normalizeDynamicRouteParams(
   defaultRouteMatches: ParsedUrlQuery,
   ignoreMissingOptional: boolean
 ) {
-  const tryDecodeParamValue = (candidateValue: string) =>
-    decodeQueryPathParameter(normalizeRscURL(candidateValue))
-
-  const includesDefaultValue = (
+  const isDefaultValueMatch = (
     candidateValue: string | undefined,
     defaultValue: string
   ) => {
@@ -123,9 +120,9 @@ export function normalizeDynamicRouteParams(
       return false
     }
 
-    let normalizedCandidateValue = candidateValue
+    let normalizedCandidateValue = normalizeRscURL(candidateValue)
     for (let i = 0; i < 3; i++) {
-      if (normalizedCandidateValue.includes(defaultValue)) {
+      if (normalizedCandidateValue === defaultValue) {
         return true
       }
 
@@ -150,9 +147,9 @@ export function normalizeDynamicRouteParams(
     let value: string | string[] | undefined = query[key]
 
     if (typeof value === 'string') {
-      value = tryDecodeParamValue(value)
+      value = normalizeRscURL(value)
     } else if (Array.isArray(value)) {
-      value = value.map(tryDecodeParamValue)
+      value = value.map(normalizeRscURL)
     }
 
     // if the value matches the default value we can't rely
@@ -164,12 +161,12 @@ export function normalizeDynamicRouteParams(
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
-            ? value.some((val) => includesDefaultValue(val, defaultVal))
-            : includesDefaultValue(value, defaultVal)
+            ? value.some((val) => isDefaultValueMatch(val, defaultVal))
+            : isDefaultValueMatch(value, defaultVal)
         })
       : Array.isArray(value)
-        ? value.some((val) => includesDefaultValue(val, defaultValue as string))
-        : includesDefaultValue(value, defaultValue as string)
+        ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
+        : isDefaultValueMatch(value, defaultValue as string)
 
     if (
       isDefaultValue ||
