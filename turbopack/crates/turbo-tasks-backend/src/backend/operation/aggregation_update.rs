@@ -24,7 +24,8 @@ use tracing::span::Span;
 ))]
 use tracing::trace_span;
 use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription,
+    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
+    event::EventDescription,
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -861,6 +862,8 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    #[bincode(skip, default = "FxHashMap::default")]
+    scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
 }
 
 impl AggregationUpdateQueue {
@@ -873,6 +876,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            scheduled_tasks: FxHashMap::default(),
         }
     }
 
@@ -885,12 +889,14 @@ impl AggregationUpdateQueue {
             balance_queue,
             optimize_queue,
             done_aggregation_number_updates: _,
+            scheduled_tasks,
         } = self;
         jobs.is_empty()
             && aggregation_number_updates.is_empty()
             && find_and_schedule.is_empty()
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
+            && scheduled_tasks.is_empty()
     }
 
     /// Pushes a job to the queue.
@@ -1249,6 +1255,13 @@ impl AggregationUpdateQueue {
                 self.find_and_schedule.drain(..count).collect();
             self.find_and_schedule_dirty(jobs, ctx);
             false
+        } else if !self.scheduled_tasks.is_empty() {
+            ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
+                let parent_priority = self.scheduled_tasks[&task.id()];
+                ctx.schedule_task(task, parent_priority);
+            });
+            self.scheduled_tasks.clear();
+            false
         } else {
             true
         }
@@ -1482,7 +1495,7 @@ impl AggregationUpdateQueue {
             let description = EventDescription::new(|| task.get_task_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
-                ctx.schedule(task_id, parent_priority);
+                self.scheduled_tasks.insert(task_id, parent_priority);
             }
         }
     }
