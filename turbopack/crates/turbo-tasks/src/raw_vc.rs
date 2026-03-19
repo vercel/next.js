@@ -383,46 +383,71 @@ impl Future for ResolveRawVcFuture {
 impl Unpin for ResolveRawVcFuture {}
 
 #[must_use]
-pub struct ReadRawVcFuture {
-    /// Phase 1: resolves the [`RawVc`] pointer chain to a [`RawVc::TaskCell`].
-    resolve: ResolveRawVcFuture,
-    /// Phase 2: options for the cell read once we have a [`RawVc::TaskCell`].
-    read_cell_options: ReadCellOptions,
-    /// If `true`, the `is_serializable_cell_content` flag in `read_cell_options` is unknown at
-    /// construction time and must be determined lazily from the type registry once we reach the
-    /// [`RawVc::TaskCell`].
-    is_serializable_cell_content_unknown: bool,
-    /// Phase 2: the resolved task and cell identity, set when phase 1 completes.
-    resolved: Option<(TaskId, CellId)>,
-    /// Phase 2: listener for the cell read wait.
-    listener: Option<EventListener>,
+pub enum ReadRawVcFuture {
+    /// Phase 1: following the [`RawVc`] pointer chain until we reach a [`RawVc::TaskCell`].
+    Resolving {
+        resolve: ResolveRawVcFuture,
+        read_cell_options: ReadCellOptions,
+        /// If `true`, the `is_serializable_cell_content` flag in `read_cell_options` is unknown
+        /// at construction time and must be determined lazily from the type registry once we reach
+        /// the [`RawVc::TaskCell`].
+        is_serializable_cell_content_unknown: bool,
+    },
+    /// Phase 2: reading the cell content once the [`RawVc::TaskCell`] is known.
+    Reading {
+        task: TaskId,
+        index: CellId,
+        read_cell_options: ReadCellOptions,
+        is_serializable_cell_content_unknown: bool,
+        listener: Option<EventListener>,
+    },
 }
 
 impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc, is_serializable_cell_content: Option<bool>) -> Self {
-        ReadRawVcFuture {
+        Self::Resolving {
             resolve: ResolveRawVcFuture::new(vc),
             read_cell_options: ReadCellOptions {
                 is_serializable_cell_content: is_serializable_cell_content.unwrap_or(false),
                 ..Default::default()
             },
             is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
-            resolved: None,
-            listener: None,
         }
     }
 
     /// Make reads strongly consistent.
-    pub fn strongly_consistent(mut self) -> Self {
-        self.resolve = self.resolve.strongly_consistent();
-        self
+    pub fn strongly_consistent(self) -> Self {
+        let Self::Resolving {
+            resolve,
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+        } = self
+        else {
+            unreachable!("builder methods must be called before polling");
+        };
+        Self::Resolving {
+            resolve: resolve.strongly_consistent(),
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+        }
     }
 
-    /// Track the value as a dependency with an key.
-    pub fn track_with_key(mut self, key: u64) -> Self {
-        self.resolve = self.resolve.track_with_key();
-        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
-        self
+    /// Track the value as a dependency with a key.
+    pub fn track_with_key(self, key: u64) -> Self {
+        let Self::Resolving {
+            resolve,
+            mut read_cell_options,
+            is_serializable_cell_content_unknown,
+        } = self
+        else {
+            unreachable!("builder methods must be called before polling");
+        };
+        read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
+        Self::Resolving {
+            resolve: resolve.track_with_key(),
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+        }
     }
 
     /// This will not track the value as dependency, but will still track the error as dependency,
@@ -430,16 +455,39 @@ impl ReadRawVcFuture {
     ///
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
-    pub fn untracked(mut self) -> Self {
-        self.resolve = self.resolve.untracked();
-        self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
-        self
+    pub fn untracked(self) -> Self {
+        let Self::Resolving {
+            resolve,
+            mut read_cell_options,
+            is_serializable_cell_content_unknown,
+        } = self
+        else {
+            unreachable!("builder methods must be called before polling");
+        };
+        read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
+        Self::Resolving {
+            resolve: resolve.untracked(),
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+        }
     }
 
     /// Hint that this is the final read of the cell content.
-    pub fn final_read_hint(mut self) -> Self {
-        self.read_cell_options.final_read_hint = true;
-        self
+    pub fn final_read_hint(self) -> Self {
+        let Self::Resolving {
+            resolve,
+            mut read_cell_options,
+            is_serializable_cell_content_unknown,
+        } = self
+        else {
+            unreachable!("builder methods must be called before polling");
+        };
+        read_cell_options.final_read_hint = true;
+        Self::Resolving {
+            resolve,
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+        }
     }
 }
 
@@ -448,46 +496,81 @@ impl Future for ReadRawVcFuture {
 
     #[inline(never)]
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        // SAFETY: we are not moving self
-        let this = unsafe { self.get_unchecked_mut() };
+        let this = self.get_mut();
 
         // --- Phase 1: resolve the RawVc pointer chain to a TaskCell ---
         //
         // `ResolveRawVcFuture` is `Unpin`, so `Pin::new` is safe.
         // It handles `with_turbo_tasks` and `suppress_top_level_task_check` internally.
-        if this.resolved.is_none() {
-            match ready!(Pin::new(&mut this.resolve).poll(cx)) {
-                Err(err) => return Poll::Ready(Err(err)),
-                Ok(RawVc::TaskCell(task, index)) => {
-                    this.resolved = Some((task, index));
+        if matches!(this, Self::Resolving { .. }) {
+            // Borrow fields of `this` in a nested block so the borrows end before we overwrite
+            // `*this` with the `Reading` variant on transition.
+            let (poll_result, read_cell_options, is_serializable_cell_content_unknown) = {
+                let Self::Resolving {
+                    resolve,
+                    read_cell_options,
+                    is_serializable_cell_content_unknown,
+                } = &mut *this
+                else {
+                    unreachable!()
+                };
+                (
+                    Pin::new(resolve).poll(cx),
+                    *read_cell_options,
+                    *is_serializable_cell_content_unknown,
+                )
+            };
+            match poll_result {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+                Poll::Ready(Ok(RawVc::TaskCell(task, index))) => {
+                    *this = Self::Reading {
+                        task,
+                        index,
+                        read_cell_options,
+                        is_serializable_cell_content_unknown,
+                        listener: None,
+                    };
                 }
-                Ok(_) => unreachable!("ResolveRawVcFuture always resolves to a TaskCell"),
+                Poll::Ready(Ok(_)) => {
+                    unreachable!("ResolveRawVcFuture always resolves to a TaskCell")
+                }
             }
         }
 
         // --- Phase 2: read the cell content ---
-        //
-        // At this point `this.resolved` is `Some((task, index))`.
-        let (task, index) = this.resolved.unwrap();
+        let Self::Reading {
+            task,
+            index,
+            read_cell_options,
+            is_serializable_cell_content_unknown,
+            listener,
+        } = this
+        else {
+            unreachable!()
+        };
+
+        let task = *task;
+        let index = *index;
 
         // Lazily resolve `is_serializable_cell_content` from the type registry on the first
         // entry into phase 2, then clear the flag so subsequent polls skip this lookup.
-        if this.is_serializable_cell_content_unknown {
-            this.read_cell_options.is_serializable_cell_content =
+        if *is_serializable_cell_content_unknown {
+            read_cell_options.is_serializable_cell_content =
                 get_value_type(index.type_id).bincode.is_some();
-            this.is_serializable_cell_content_unknown = false;
+            *is_serializable_cell_content_unknown = false;
         }
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             loop {
-                ready!(poll_listener(&mut this.listener, cx));
-                let listener = match tt.try_read_task_cell(task, index, this.read_cell_options) {
+                ready!(poll_listener(listener, cx));
+                let l = match tt.try_read_task_cell(task, index, *read_cell_options) {
                     Ok(Ok(content)) => return Poll::Ready(Ok(content)),
                     Ok(Err(listener)) => listener,
                     Err(err) => return Poll::Ready(Err(err)),
                 };
-                this.listener = Some(listener);
-                ready!(poll_listener(&mut this.listener, cx));
+                *listener = Some(l);
+                ready!(poll_listener(listener, cx));
             }
         };
 
