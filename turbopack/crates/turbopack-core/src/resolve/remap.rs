@@ -167,8 +167,6 @@ pub enum ReplacedSubpathValueResultType {
     Path(Pattern),
     /// An empty module (`"path": false`).
     Empty,
-    /// An excluded path (`"path": null`): the import is blocked.
-    Excluded,
 }
 
 pub struct ReplacedSubpathValueResult<'a, 'b> {
@@ -187,9 +185,9 @@ impl ReplacedSubpathValue {
     ///
     /// Returns `true` when [`Excluded`] is applied for all possible values of
     /// any unknown conditions — i.e., the import is definitively blocked
-    /// regardless of runtime condition values. Callers (particularly
-    /// [`Alternatives`] and the outer lookup loop) use this to stop trying
-    /// further alternatives.
+    /// regardless of runtime condition values. No item is added to `target` in
+    /// this case. Callers (particularly [`Alternatives`] and the outer lookup
+    /// loop) use this to stop trying further alternatives.
     ///
     /// Note: a concrete [`Result`] path does **not** return `true`, because
     /// the path might not resolve successfully (the file may not exist), in
@@ -283,12 +281,8 @@ impl ReplacedSubpathValue {
                 false
             }
             ReplacedSubpathValue::Excluded => {
-                target.push(ReplacedSubpathValueResult {
-                    ty: ReplacedSubpathValueResultType::Excluded,
-                    conditions: collect_active_conditions(condition_overrides),
-                    map_prefix: prefix,
-                    map_key: key,
-                });
+                // The import is blocked (null in the exports/imports field). Don't add a result;
+                // just signal to the caller that this is terminal.
                 true
             }
             ReplacedSubpathValue::Empty => {
