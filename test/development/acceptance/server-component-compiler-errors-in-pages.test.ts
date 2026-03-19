@@ -48,14 +48,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       You're importing a module that depends on "next/headers". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
        > 1 | import { cookies } from 'next/headers'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          2 |
@@ -81,7 +82,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "next/headers". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -96,7 +98,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "next/headers". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -131,14 +134,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       You're importing a module that depends on "server-only". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
        > 1 | import 'server-only'
            | ^^^^^^^^^^^^^^^^^^^^
          2 |
@@ -164,7 +168,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "server-only". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -183,7 +188,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "server-only". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -216,14 +222,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:10)
-       You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       You're importing a module that depends on "after". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
        > 1 | import { after } from 'next/server'
            |          ^^^^^
          2 |
@@ -249,7 +256,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "after". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -268,7 +276,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "after". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -310,14 +319,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
     await session.waitForRedbox()
     await expect(session.getRedboxSource()).resolves.toMatch(
-      /That only works in a Server Component/
+      /This API is only available in Server Components/
     )
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
        "./components/Comp.js (1:1)
-       You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       You're importing a module that depends on "next/root-params". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+           Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
        > 1 | import { foo } from 'next/root-params'
            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          2 |
@@ -343,7 +353,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-         ╰─▶   × Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+         ╰─▶   × Error:   x You're importing a module that depends on "next/root-params". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+               │   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
                │   |
                │
                │    ,-[1:1]
@@ -362,7 +373,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
        "./components/Comp.js
-       Error:   x You're importing a component that needs "next/root-params". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
+       Error:   x You're importing a module that depends on "next/root-params". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components
          |
 
           ,-[1:1]
@@ -401,7 +413,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
       await session.waitForRedbox()
       await expect(session.getRedboxSource()).resolves.toMatch(
-        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+        `You're importing a module that depends on "${api}". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.`
       )
     })
 

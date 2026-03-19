@@ -196,7 +196,7 @@ export const getHandler = ({
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()
@@ -526,16 +526,13 @@ export const getHandler = ({
             return {
               value: {
                 kind: CachedRouteKind.PAGES,
-                html: new RenderResult(
-                  Buffer.from(previousCacheEntry.value.html),
-                  {
-                    contentType: HTML_CONTENT_TYPE_HEADER,
-                    metadata: {
-                      statusCode: previousCacheEntry.value.status,
-                      headers: previousCacheEntry.value.headers,
-                    },
-                  }
-                ),
+                html: new RenderResult(previousCacheEntry.value.html, {
+                  contentType: HTML_CONTENT_TYPE_HEADER,
+                  metadata: {
+                    statusCode: previousCacheEntry.value.status,
+                    headers: previousCacheEntry.value.headers,
+                  },
+                }),
                 pageData: {},
                 status: previousCacheEntry.value.status,
                 headers: previousCacheEntry.value.headers,
@@ -706,12 +703,7 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            nextConfig.experimental.devCacheControlNoCache
-              ? 'no-cache, must-revalidate'
-              : 'no-store, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         }
 
         // Draft mode should never be cached
@@ -745,13 +737,10 @@ export const getHandler = ({
           // anymore
           result:
             isNextDataRequest && !isErrorPage && !is500Page
-              ? new RenderResult(
-                  Buffer.from(JSON.stringify(result.value.pageData)),
-                  {
-                    contentType: JSON_CONTENT_TYPE_HEADER,
-                    metadata: result.value.html.metadata,
-                  }
-                )
+              ? new RenderResult(JSON.stringify(result.value.pageData), {
+                  contentType: JSON_CONTENT_TYPE_HEADER,
+                  metadata: result.value.html.metadata,
+                })
               : result.value.html,
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,

@@ -38,6 +38,7 @@ import type { AppRouterState } from '../router-reducer/router-reducer-types'
 import { ScrollBehavior } from '../router-reducer/router-reducer-types'
 import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
+import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -258,6 +259,7 @@ export function navigateToKnownRoute(
     freshnessPolicy,
     navigationSeed.data,
     navigationSeed.head,
+    navigationSeed.dynamicStaleAt,
     isSamePageNavigation,
     accumulation
   )
@@ -314,6 +316,7 @@ function navigateUsingPrefetchedRouteTree(
     metadataVaryPath: route.metadata.varyPath as any,
     data: null,
     head: null,
+    dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
   }
   return navigateToKnownRoute(
     now,
@@ -406,6 +409,7 @@ async function navigateToUnknownRoute(
     renderedSearch,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
+    dynamicStaleTime,
     staticStageData,
     runtimePrefetchStream,
     responseHeaders,
@@ -416,9 +420,11 @@ async function navigateToUnknownRoute(
   // different, we'll need to massage the data a bit. Create FlightRouterState
   // tree that simulates what we'd receive as the result of a prefetch.
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     flightData,
-    renderedSearch
+    renderedSearch,
+    dynamicStaleTime
   )
 
   // Learn the route pattern so we can predict it for future navigations.
@@ -736,12 +742,15 @@ export type NavigationSeed = {
   metadataVaryPath: PageVaryPath | null
   data: CacheNodeSeedData | null
   head: HeadData | null
+  dynamicStaleAt: number
 }
 
 export function convertServerPatchToFullTree(
+  now: number,
   currentTree: FlightRouterState,
   flightData: Array<NormalizedFlightData> | null,
-  renderedSearch: string
+  renderedSearch: string,
+  dynamicStaleTimeSeconds: number
 ): NavigationSeed {
   // During a client navigation or prefetch, the server sends back only a patch
   // for the parts of the tree that have changed.
@@ -806,6 +815,7 @@ export function convertServerPatchToFullTree(
     data: baseData,
     renderedSearch,
     head,
+    dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
   }
 }
 

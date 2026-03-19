@@ -91,7 +91,7 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic" />
         </li>
         <li>
-          <DebugLinks href="/suspense-in-root/static/valid-only-loading-around-dynamic-higher" />
+          <DebugLinks href="/suspense-in-root/static/invalid-loading-above-route-group" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/invalid-dynamic-layout-with-loading" />
@@ -184,6 +184,12 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-group-depths-deep-slot-hole" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/parallel-group-depths-shallow-slot-hole" />
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/route-group-shared-boundary/foo" />

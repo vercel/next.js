@@ -7,6 +7,7 @@ related:
   links:
     - app/api-reference/functions/redirect
     - app/api-reference/file-conventions/error
+    - app/api-reference/functions/catchError
     - app/api-reference/functions/not-found
     - app/api-reference/file-conventions/not-found
 ---
@@ -271,7 +272,66 @@ Errors will bubble up to the nearest parent error boundary. This allows for gran
   height="687"
 />
 
-Error boundaries don’t catch errors inside event handlers. They’re designed to catch errors [during rendering](https://react.dev/reference/react/Component#static-getderivedstatefromerror) to show a **fallback UI** instead of crashing the whole app.
+For component-level error recovery, the [`unstable_catchError`](/docs/app/api-reference/functions/catchError) function lets you create error boundaries that can wrap any part of your component tree:
+
+```tsx filename="app/custom-error-boundary.tsx" switcher
+'use client'
+
+import { unstable_catchError as catchError, type ErrorInfo } from 'next/error'
+
+function ErrorFallback(
+  props: { title: string },
+  { error, unstable_retry: retry }: ErrorInfo
+) {
+  return (
+    <div>
+      <h2>{props.title}</h2>
+      <p>{error.message}</p>
+      <button onClick={() => retry()}>Try again</button>
+    </div>
+  )
+}
+
+export default catchError(ErrorFallback)
+```
+
+```jsx filename="app/custom-error-boundary.js" switcher
+'use client'
+
+import { unstable_catchError as catchError } from 'next/error'
+
+function ErrorFallback(props, { error, unstable_retry: retry }) {
+  return (
+    <div>
+      <h2>{props.title}</h2>
+      <p>{error.message}</p>
+      <button onClick={() => retry()}>Try again</button>
+    </div>
+  )
+}
+
+export default catchError(ErrorFallback)
+```
+
+Then use the returned component as a wrapper in any layout or page:
+
+```tsx filename="app/some-component.tsx" switcher
+import ErrorBoundary from './custom-error-boundary'
+
+export default function Component({ children }: { children: React.ReactNode }) {
+  return <ErrorBoundary title="Dashboard Error">{children}</ErrorBoundary>
+}
+```
+
+```jsx filename="app/some-component.js" switcher
+import ErrorBoundary from './custom-error-boundary'
+
+export default function Component({ children }) {
+  return <ErrorBoundary title="Dashboard Error">{children}</ErrorBoundary>
+}
+```
+
+Error boundaries don't catch errors inside event handlers. They're designed to catch errors [during rendering](https://react.dev/reference/react/Component#static-getderivedstatefromerror) to show a **fallback UI** instead of crashing the whole app.
 
 In general, errors in event handlers or async code aren’t handled by error boundaries because they run after rendering.
 

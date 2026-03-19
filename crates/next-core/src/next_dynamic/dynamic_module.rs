@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
@@ -36,20 +36,12 @@ impl NextDynamicEntryModule {
     }
 }
 
-fn dynamic_ref_description() -> RcStr {
-    rcstr!("next/dynamic reference")
-}
-
 impl NextDynamicEntryModule {
-    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
-        Ok(ResolvedVc::upcast(
-            SingleChunkableModuleReference::new(
-                Vc::upcast(*self.module),
-                dynamic_ref_description(),
-                ExportUsage::all(),
-            )
-            .to_resolved()
-            .await?,
+    fn module_reference(&self) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(SingleChunkableModuleReference::new(
+            Vc::upcast(*self.module),
+            rcstr!("next/dynamic reference"),
+            ExportUsage::all(),
         ))
     }
 }
@@ -70,8 +62,9 @@ impl Module for NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![self.module_reference().await?]))
+        Ok(Vc::cell(vec![self.module_reference().to_resolved().await?]))
     }
+
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // This just exports another import
@@ -95,12 +88,7 @@ impl ChunkableModule for NextDynamicEntryModule {
 impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        let module_reference: Vc<Box<dyn ModuleReference>> =
-            Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(*self.module),
-                dynamic_ref_description(),
-                ExportUsage::all(),
-            ));
+        let module_reference = self.module_reference();
         EsmExports::reexport_including_default(module_reference)
     }
 

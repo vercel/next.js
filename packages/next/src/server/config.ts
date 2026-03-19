@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  type PHASE_PRODUCTION_SERVER,
+  PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -798,6 +798,13 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'adapterPath',
+    'adapterPath',
+    configFileName,
+    silent
+  )
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -1452,11 +1459,9 @@ async function applyModifyConfig(
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
-  if (config.experimental?.adapterPath) {
+  if (config.adapterPath) {
     const adapterMod = interopDefault(
-      await import(
-        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
-      )
+      await import(pathToFileURL(require.resolve(config.adapterPath)).href)
     ) as NextAdapter
 
     if (typeof adapterMod.modifyConfig === 'function') {
@@ -1791,7 +1796,10 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.experimental?.useLightningcss) {
+    if (
+      phase !== PHASE_PRODUCTION_SERVER &&
+      userConfig.experimental?.useLightningcss
+    ) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (

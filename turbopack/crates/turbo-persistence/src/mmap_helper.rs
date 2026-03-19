@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 /// Apply Linux-specific mmap advice flags that should be set on all persistent mmaps.
 ///
 /// - `DontFork`: prevents mmap regions from being copied into child processes on `fork()`, avoiding
@@ -6,8 +8,10 @@
 ///   compressed content that won't benefit from deduplication scanning.
 #[cfg(target_os = "linux")]
 pub fn advise_mmap_for_persistence(mmap: &memmap2::Mmap) -> anyhow::Result<()> {
-    mmap.advise(memmap2::Advice::DontFork)?;
-    mmap.advise(memmap2::Advice::Unmergeable)?;
+    mmap.advise(memmap2::Advice::DontFork)
+        .context("Failed to advise mmap DontFork")?;
+    mmap.advise(memmap2::Advice::Unmergeable)
+        .context("Failed to advise mmap Unmergeable")?;
     Ok(())
 }
 
