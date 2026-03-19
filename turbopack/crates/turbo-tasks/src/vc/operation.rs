@@ -2,7 +2,6 @@ use std::{
     fmt::Debug,
     future::Future,
     hash::Hash,
-    marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -14,9 +13,8 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, RawVc, ReadVcFuture, ResolveRawVcFuture, ResolvedVc, TaskInput,
-    UpcastStrict, Vc, VcValueTrait, VcValueTraitCast, VcValueType,
-    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
+    VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
 
 /// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
@@ -28,8 +26,7 @@ pub struct ResolveOperationVcFuture<T>
 where
     T: ?Sized,
 {
-    inner: ResolveRawVcFuture,
-    _t: PhantomData<T>,
+    inner: super::ResolveVcFuture<T>,
 }
 
 impl<T: ?Sized> ResolveOperationVcFuture<T> {
@@ -46,15 +43,10 @@ impl<T: ?Sized> Future for ResolveOperationVcFuture<T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
-        // ResolveRawVcFuture: Unpin, so Pin::new is safe
-        Pin::new(&mut this.inner).poll(cx).map(|r| {
-            r.map(|node| ResolvedVc {
-                node: Vc {
-                    node,
-                    _t: PhantomData,
-                },
-            })
-        })
+        // ResolveVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner)
+            .poll(cx)
+            .map(|r| r.map(|node| ResolvedVc { node }))
     }
 }
 
@@ -167,8 +159,7 @@ impl<T: ?Sized> OperationVc<T> {
     /// strong consistency.
     pub fn resolve(self) -> ResolveOperationVcFuture<T> {
         ResolveOperationVcFuture {
-            inner: self.connect().node.resolve(),
-            _t: PhantomData,
+            inner: self.connect().resolve_internal(),
         }
     }
 

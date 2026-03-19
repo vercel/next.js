@@ -115,10 +115,10 @@ pub use crate::{
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
-        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
-        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        ResolveOperationVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
+        ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode, VcCellNewMode,
+        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+        VcValueTypeCast,
     },
 };
 

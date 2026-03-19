@@ -44,9 +44,13 @@ use crate::{
 
 /// A future returned by [`Vc::resolve`] that resolves a [`Vc<T>`] to a cell.
 ///
-/// Use [`.strongly_consistent()`][Self::strongly_consistent] to opt into strong consistency.
+/// This type is intentionally not public: use [`ResolveOperationVcFuture`] (via
+/// [`OperationVc::resolve`]) to get access to a public [`strongly_consistent`] method.
+///
+/// [`strongly_consistent`]: ResolveOperationVcFuture::strongly_consistent
+/// [`OperationVc::resolve`]: crate::OperationVc::resolve
 #[must_use]
-pub struct ResolveVcFuture<T>
+pub(crate) struct ResolveVcFuture<T>
 where
     T: ?Sized,
 {
@@ -56,7 +60,7 @@ where
 
 impl<T: ?Sized> ResolveVcFuture<T> {
     /// Make the resolution strongly consistent.
-    pub fn strongly_consistent(mut self) -> Self {
+    pub(crate) fn strongly_consistent(mut self) -> Self {
         self.inner = self.inner.strongly_consistent();
         self
     }
@@ -419,7 +423,13 @@ where
 
     /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
     /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
-    pub fn resolve(self) -> ResolveVcFuture<T> {
+    pub fn resolve(self) -> impl Future<Output = Result<Vc<T>>> {
+        self.resolve_internal()
+    }
+
+    /// Internal version of [`Vc::resolve`] that returns the concrete future type, for use within
+    /// `turbo-tasks` only.
+    pub(crate) fn resolve_internal(self) -> ResolveVcFuture<T> {
         ResolveVcFuture {
             inner: self.node.resolve(),
             _t: PhantomData,
