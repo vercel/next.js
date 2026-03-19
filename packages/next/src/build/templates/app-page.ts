@@ -1632,16 +1632,18 @@ export async function handler(
         res.statusCode = 200
       }
 
-      // Mark that the request did postpone.
-      if (didPostpone && !isDynamicRSCRequest) {
+      // Mark that the request did postpone. Server Action responses are RSC
+      // payloads, not HTML shells, so we do not set this header for them.
+      if (didPostpone && !isDynamicRSCRequest && !isPossibleServerAction) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
       // we don't go through this block when preview mode is true
       // as preview mode is a dynamic request (bypasses cache) and doesn't
       // generate both HTML and payloads in the same request so continue to just
-      // return the generated payload
-      if (isRSCRequest && !isDraftMode) {
+      // return the generated payload. Server Action POSTs expect RSC payload
+      // but do not send the RSC header, so we treat them as RSC requests here.
+      if ((isRSCRequest || isPossibleServerAction) && !isDraftMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (typeof cachedData.rscData === 'undefined') {
           // If the response is not an RSC response, then we can't serve it.
