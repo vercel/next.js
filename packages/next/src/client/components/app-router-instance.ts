@@ -291,7 +291,8 @@ export function dispatchNavigateAction(
     }
   }
 
-  const url = new URL(addBasePath(href), location.href)
+  const base = href.startsWith('/') ? location.origin : location.href
+  const url = new URL(addBasePath(href), base)
   if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
     window.next.__pendingUrl = url
   }
@@ -350,7 +351,8 @@ function gesturePush(href: string, options?: NavigateOptions): void {
     if (state === null) {
       return
     }
-    const url = new URL(addBasePath(href), location.href)
+    const base = href.startsWith('/') ? location.origin : location.href
+    const url = new URL(addBasePath(href), base)
     if (isExternalURL(url)) {
       return
     }

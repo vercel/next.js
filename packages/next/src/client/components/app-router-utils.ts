@@ -20,7 +20,8 @@ export function createPrefetchURL(href: string): URL | null {
 
   let url: URL
   try {
-    url = new URL(addBasePath(href), window.location.href)
+    const base = href.startsWith('/') ? window.location.origin : window.location.href
+    url = new URL(addBasePath(href), base)
   } catch (_) {
     // TODO: Does this need to throw or can we just console.error instead? Does
     // anyone rely on this throwing? (Seems unlikely.)
