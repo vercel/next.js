@@ -1979,8 +1979,8 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "hash", hash = "manual")]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1992,12 +1992,6 @@ impl From<File> for FileContent {
     }
 }
 
-/// A persisted version of [`FileContent`] that uses full bincode serialization.
-///
-/// Unlike [`FileContent`] (which uses `serialization = "hash"`), this type is fully serialized
-/// to the persistent task cache. It is produced by [`FileContent::persist()`] and used by
-/// [`DiskFileSystem::write`] to ensure file content survives cache restoration without
-/// requiring recomputation and without causing unnecessary downstream invalidation.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum PersistedFileContent {
