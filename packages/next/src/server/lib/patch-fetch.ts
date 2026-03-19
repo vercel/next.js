@@ -296,7 +296,7 @@ export function createPatchedFetcher(
       cacheSignal.beginRead()
     }
 
-    const result = getTracer().trace(
+    const result = getTracer().traceWithOptions(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
         hideSpan,

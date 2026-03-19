@@ -63,7 +63,7 @@ export function createComponentTree(props: {
   authInterrupts: boolean
   MetadataOutlet: ComponentType
 }): Promise<CacheNodeSeedData> {
-  return getTracer().trace(
+  return getTracer().traceWithOptions(
     NextNodeServerSpan.createComponentTree,
     {
       spanName: 'build component tree',
@@ -201,7 +201,7 @@ async function createComponentTreeInternal(
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().traceWithOptions(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),

@@ -265,7 +265,7 @@ export async function adapter(
       const waitUntil = event.waitUntil.bind(event)
       const closeController = new CloseController()
 
-      return getTracer().trace(
+      return getTracer().traceWithOptions(
         MiddlewareSpan.execute,
         {
           spanName: `middleware ${request.method}`,

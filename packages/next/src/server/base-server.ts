@@ -886,7 +886,7 @@ export default abstract class Server<
       // resource name correctly.
       const parentSpan = tracer.getActiveScopeSpan()
 
-      return tracer.trace(
+      return tracer.traceWithOptions(
         BaseServerSpan.handleRequest,
         {
           spanName: `${method}`,
@@ -2537,7 +2537,7 @@ export default abstract class Server<
   private async renderToResponse(
     ctx: RequestContext<ServerRequest, ServerResponse>
   ): Promise<ResponsePayload | null> {
-    return getTracer().trace(
+    return getTracer().traceWithOptions(
       BaseServerSpan.renderToResponse,
       {
         spanName: `rendering page`,

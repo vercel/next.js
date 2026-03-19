@@ -816,7 +816,7 @@ export default class NextNodeServer extends BaseServer<
     shouldEnsure: boolean
     url?: string
   }): Promise<FindComponentsResult | null> {
-    return getTracer().trace(
+    return getTracer().traceWithOptions(
       NextNodeServerSpan.findPageComponents,
       {
         spanName: 'resolve page components',

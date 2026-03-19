@@ -755,7 +755,7 @@ export const getHandler = ({
       } else {
         parentSpan = tracer.getActiveScopeSpan()
         await tracer.withPropagatedContext(req.headers, () =>
-          tracer.trace(
+          tracer.traceWithOptions(
             BaseServerSpan.handleRequest,
             {
               spanName: `${method} ${srcPage}`,

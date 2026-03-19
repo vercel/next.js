@@ -125,7 +125,7 @@ type SpanTypes =
   | `${MiddlewareSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
-export const NextVanillaSpanAllowlist = new Set([
+export const NextVanillaSpanAllowlist = new Set<SpanTypes>([
   MiddlewareSpan.execute,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
@@ -146,7 +146,7 @@ export const NextVanillaSpanAllowlist = new Set([
 
 // These Spans are allowed to be always logged
 // when the otel log prefix env is set
-export const LogSpanAllowList = new Set([
+export const LogSpanAllowList = new Set<SpanTypes>([
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.createComponentTree,
   NextNodeServerSpan.clientComponentLoading,

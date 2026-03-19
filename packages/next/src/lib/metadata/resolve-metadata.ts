@@ -504,7 +504,7 @@ function getDefinedViewport(
 
     return Object.assign(
       (parent: ResolvingViewport) =>
-        getTracer().trace(
+        getTracer().traceWithOptions(
           ResolveMetadataSpan.generateViewport,
           {
             spanName: `generateViewport ${route}`,
@@ -531,7 +531,7 @@ function getDefinedMetadata(
 
     return Object.assign(
       (parent: ResolvingMetadata) =>
-        getTracer().trace(
+        getTracer().traceWithOptions(
           ResolveMetadataSpan.generateMetadata,
           {
             spanName: `generateMetadata ${route}`,

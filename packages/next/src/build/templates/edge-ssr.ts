@@ -346,7 +346,7 @@ async function requestHandler(
   const tracer = getTracer()
 
   return tracer.withPropagatedContext(req.headers, () =>
-    tracer.trace(
+    tracer.traceWithOptions(
       BaseServerSpan.handleRequest,
       {
         spanName: `${req.method} ${srcPage}`,

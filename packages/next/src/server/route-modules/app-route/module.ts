@@ -832,7 +832,7 @@ export class AppRouteRouteModule extends RouteModule<
             const { pathname } = this.definition
             tracer.setRootSpanAttribute('next.route', pathname)
 
-            return tracer.trace(
+            return tracer.traceWithOptions(
               AppRouteRouteHandlersSpan.runHandler,
               {
                 spanName: `executing api route (app) ${pathname}`,

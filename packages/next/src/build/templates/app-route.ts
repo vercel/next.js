@@ -519,7 +519,7 @@ export async function handler(
       await tracer.withPropagatedContext(
         req.headers,
         () =>
-          tracer.trace(
+          tracer.traceWithOptions(
             BaseServerSpan.handleRequest,
             {
               spanName: `${method} ${srcPage}`,
