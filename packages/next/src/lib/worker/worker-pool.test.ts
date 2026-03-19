@@ -220,8 +220,8 @@ describe('WorkerPool', () => {
         (msg) => msg[0] === CHILD_MESSAGE_INITIALIZE
       )
       expect(initMsg).toBeDefined()
-      expect(initMsg![2]).toBe('/fake/worker.js')
-      expect(initMsg![3]).toEqual(['arg1', 'arg2'])
+      expect(initMsg![1]).toBe('/fake/worker.js')
+      expect(initMsg![2]).toEqual(['arg1', 'arg2'])
       pool.shutdownNow()
     })
 

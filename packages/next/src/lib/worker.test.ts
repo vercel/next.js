@@ -126,7 +126,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBe('1')
   })
@@ -137,7 +137,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBe('0')
   })
@@ -151,7 +151,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
   })
@@ -168,7 +168,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
   })
@@ -183,7 +183,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
   })
@@ -199,7 +199,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBeUndefined()
   })
@@ -216,7 +216,7 @@ describe('lib/worker color propagation', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.FORCE_COLOR).toBe('1')
   })
@@ -236,7 +236,7 @@ describe('lib/worker lazy spawning', () => {
       ...noopOptions,
       maxWorkers: 4,
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.maxWorkers).toBe(4)
   })
@@ -245,7 +245,7 @@ describe('lib/worker lazy spawning', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     const os = require('os') as typeof import('os')
     expect(latestPoolOptions?.maxWorkers).toBe(
@@ -267,7 +267,7 @@ describe('lib/worker lazy spawning', () => {
     const result = await worker.testMethod('arg1', 'arg2')
     expect(result).toBeUndefined() // mock resolves with undefined
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('passes concurrencyPerWorker option to WorkerPool', () => {
@@ -277,7 +277,7 @@ describe('lib/worker lazy spawning', () => {
       ...noopOptions,
       concurrencyPerWorker: 5,
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.concurrencyPerWorker).toBe(5)
   })
@@ -286,7 +286,7 @@ describe('lib/worker lazy spawning', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.concurrencyPerWorker).toBe(1)
   })
@@ -298,7 +298,7 @@ describe('lib/worker lazy spawning', () => {
       ...noopOptions,
       enableWorkerThreads: true,
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.enableWorkerThreads).toBe(true)
   })
@@ -307,7 +307,7 @@ describe('lib/worker lazy spawning', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.enableWorkerThreads).toBe(false)
   })
@@ -319,7 +319,7 @@ describe('lib/worker lazy spawning', () => {
       ...noopOptions,
       maxRetries: 3,
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.maxRespawns).toBeUndefined()
   })
@@ -344,7 +344,7 @@ describe('lib/worker exposed methods', () => {
     expect(worker._privateMethod).toBeUndefined()
     expect(worker.__internal).toBeUndefined()
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('dispatches to pool with correct method name and args', async () => {
@@ -361,7 +361,7 @@ describe('lib/worker exposed methods', () => {
     expect(latestPoolInstance!.dispatches[0].method).toBe('compute')
     expect(latestPoolInstance!.dispatches[0].args).toEqual(['hello', 42, true])
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('returns the result from pool.dispatch', async () => {
@@ -377,7 +377,7 @@ describe('lib/worker exposed methods', () => {
     const result = await worker.compute(1, 2)
     expect(result).toEqual({ sum: 42 })
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('propagates errors from pool.dispatch', async () => {
@@ -392,65 +392,65 @@ describe('lib/worker exposed methods', () => {
 
     await expect(worker.failMethod()).rejects.toThrow('worker crashed')
 
-    worker.close()
+    worker.shutdownNow()
   })
 })
 
-describe('lib/worker end and close', () => {
+describe('lib/worker shutdown and shutdownNow', () => {
   afterEach(() => {
     jest.resetModules()
     latestPoolOptions = undefined
     latestPoolInstance = undefined
   })
 
-  it('end() delegates to pool.end()', async () => {
+  it('shutdown() delegates to pool.shutdown()', async () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
 
-    const result = await worker.end()
+    const result = await worker.shutdown()
     expect(result).toEqual({ forceExited: false })
     expect(latestPoolInstance!._shutdown).toBe(true)
   })
 
-  it('end() throws when called after close()', () => {
+  it('shutdown() throws when called after shutdownNow()', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
-    expect(() => worker.end()).toThrow(
+    expect(() => worker.shutdown()).toThrow(
       'Worker is ended, no more calls can be done to it'
     )
   })
 
-  it('end() throws when called twice', async () => {
+  it('shutdown() throws when called twice', async () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    await worker.end()
+    await worker.shutdown()
 
-    expect(() => worker.end()).toThrow(
+    expect(() => worker.shutdown()).toThrow(
       'Worker is ended, no more calls can be done to it'
     )
   })
 
-  it('close() delegates to pool.close()', () => {
+  it('shutdownNow() delegates to pool.shutdownNow()', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolInstance!._shutdownNow).toBe(true)
   })
 
-  it('close() is idempotent (safe to call multiple times)', () => {
+  it('shutdownNow() is idempotent (safe to call multiple times)', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
-    worker.close() // should not throw
-    worker.close() // should not throw
+    worker.shutdownNow()
+    worker.shutdownNow() // should not throw
+    worker.shutdownNow() // should not throw
   })
 })
 
@@ -479,7 +479,7 @@ describe('lib/worker env configuration', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const worker = new Worker(__filename, noopOptions)
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.IS_NEXT_WORKER).toBe('true')
   })
@@ -493,7 +493,7 @@ describe('lib/worker env configuration', () => {
         env: { CUSTOM_VAR: 'custom_value' },
       },
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.forkOptions?.env?.CUSTOM_VAR).toBe('custom_value')
   })
@@ -507,7 +507,7 @@ describe('lib/worker env configuration', () => {
       ...noopOptions,
       isolatedMemory: true,
     })
-    worker.close()
+    worker.shutdownNow()
 
     const nodeOptions = latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS ?? ''
     expect(nodeOptions).not.toContain('max-old-space-size')
@@ -523,7 +523,7 @@ describe('lib/worker env configuration', () => {
       ...noopOptions,
       isolatedMemory: false,
     })
-    worker.close()
+    worker.shutdownNow()
 
     const nodeOptions = latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS ?? ''
     expect(nodeOptions).toContain('max-old-space-size')
@@ -536,7 +536,7 @@ describe('lib/worker env configuration', () => {
       ...noopOptions,
       enableSourceMaps: true,
     })
-    worker.close()
+    worker.shutdownNow()
 
     const nodeOptions = latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS ?? ''
     expect(nodeOptions).toContain('enable-source-maps')
@@ -557,7 +557,7 @@ describe('lib/worker timeout and activity', () => {
       ...noopOptions,
       timeout: 5000,
     })
-    worker.close()
+    worker.shutdownNow()
 
     expect(latestPoolOptions?.timeout).toBe(5000)
   })
@@ -577,7 +577,7 @@ describe('lib/worker timeout and activity', () => {
     latestPoolOptions.onActivity()
     expect(onActivity).toHaveBeenCalledTimes(1)
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('calls setOnActivity to update the activity callback', () => {
@@ -601,7 +601,7 @@ describe('lib/worker timeout and activity', () => {
     // onActivity1 should not have been called again
     expect(onActivity1).toHaveBeenCalledTimes(1)
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('triggers onActivity callback for activity custom messages', () => {
@@ -670,7 +670,7 @@ describe('lib/worker maxRetries', () => {
     expect(result).toBe('success')
     expect(callCount).toBe(3) // 1 initial + 2 retries
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('does not retry when maxRetries is 0', async () => {
@@ -690,7 +690,7 @@ describe('lib/worker maxRetries', () => {
       'Worker exited unexpectedly with code 1'
     )
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('does not retry on non-crash errors', async () => {
@@ -711,7 +711,7 @@ describe('lib/worker maxRetries', () => {
     await expect(worker.compute()).rejects.toThrow('method error')
     expect(callCount).toBe(1) // no retries
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('calls onRestart on each retry', async () => {
@@ -740,7 +740,7 @@ describe('lib/worker maxRetries', () => {
     expect(onRestart).toHaveBeenCalledWith('compute', ['arg1'], 0)
     expect(onRestart).toHaveBeenCalledWith('compute', ['arg1'], 1)
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('throws after exhausting all retries', async () => {
@@ -760,7 +760,7 @@ describe('lib/worker maxRetries', () => {
       'Worker exited unexpectedly with code 1'
     )
 
-    worker.close()
+    worker.shutdownNow()
   })
 
   it('does not pass onWorkerExit to the pool', () => {
@@ -779,7 +779,7 @@ describe('lib/worker exit handler cleanup', () => {
     latestPoolInstance = undefined
   })
 
-  it('removes process exit listener on end()', async () => {
+  it('removes process exit listener on shutdown()', async () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     // Capture the listener list before/after to verify our handler is added/removed
@@ -791,14 +791,14 @@ describe('lib/worker exit handler cleanup', () => {
     const added = listenersAfter.filter((l) => !listenersBefore.includes(l))
     expect(added).toHaveLength(1)
 
-    await worker.end()
+    await worker.shutdown()
 
     const listenersEnd = process.listeners('exit').slice()
     const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
     expect(remaining).toHaveLength(0)
   })
 
-  it('removes process exit listener on close()', () => {
+  it('removes process exit listener on shutdownNow()', () => {
     const { Worker } = require('./worker') as typeof import('./worker')
 
     const listenersBefore = process.listeners('exit').slice()
@@ -809,7 +809,7 @@ describe('lib/worker exit handler cleanup', () => {
     const added = listenersAfter.filter((l) => !listenersBefore.includes(l))
     expect(added).toHaveLength(1)
 
-    worker.close()
+    worker.shutdownNow()
 
     const listenersEnd = process.listeners('exit').slice()
     const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
@@ -831,7 +831,7 @@ describe('lib/worker exit handler cleanup', () => {
     expect(added).toHaveLength(20)
 
     for (const w of workers) {
-      w.close()
+      w.shutdownNow()
     }
 
     const listenersEnd = process.listeners('exit').slice()
