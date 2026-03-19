@@ -1,4 +1,4 @@
-name: build-and-test
+name: build-and-test chromeOS
 
 on:
   push:
