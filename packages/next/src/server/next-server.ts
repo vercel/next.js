@@ -222,6 +222,9 @@ export default class NextNodeServer extends BaseServer<
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
     }
+    if (this.nextConfig.experimental.useNodeStreams) {
+      process.env.__NEXT_USE_NODE_STREAMS = 'true'
+    }
 
     if (!this.minimalMode) {
       this.imageResponseCache = new ResponseCache(this.minimalMode)
