@@ -654,6 +654,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         loader: z.enum(VALID_LOADERS).optional(),
         loaderFile: z.string().optional(),
+        maximumDiskCacheSize: z.number().int().min(0).optional(),
         maximumResponseBody: z
           .number()
           .int()

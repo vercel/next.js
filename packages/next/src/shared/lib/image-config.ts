@@ -103,6 +103,9 @@ export type ImageConfigComplete = {
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
 
+  /** @see [Maximum Disk Cache Size (in bytes)](https://nextjs.org/docs/api-reference/next/image#maximumdiskcachesize) */
+  maximumDiskCacheSize: number | undefined
+
   /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
   maximumResponseBody: number
 
@@ -140,6 +143,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   disableStaticImages: false,
   minimumCacheTTL: 60,
   formats: ['image/webp'],
+  maximumDiskCacheSize: undefined, // auto-detect by default
   maximumResponseBody: 50_000_000, // 50 MB
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,

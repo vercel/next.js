@@ -774,6 +774,36 @@ module.exports = {
 }
 ```
 
+#### `maximumDiskCacheSize`
+
+The default image optimization loader will write optimized images to disk so subsequent requests can be served faster from the disk cache.
+
+You can configure the maximum disk cache size in bytes, for example 500 MB:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumDiskCacheSize: 500_000_000,
+  },
+}
+```
+
+You can also disable the disk cache entirely by setting the value to `0`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumDiskCacheSize: 0,
+  },
+}
+```
+
+If no value is configured, the default behavior is to check the current available disk space once during startup and use 50%.
+
+When the disk cache exceeds the configured size, the least recently used optimized images will be deleted until the cache is under the limit again.
+
+Alternatively, you can implement your own cache handler using [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) which will ignore the `maximumDiskCacheSize` configuration.
+
 #### `maximumResponseBody`
 
 The default image optimization loader will fetch source images up to 50 MB in size.
@@ -915,7 +945,6 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
   - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
   - Use [`priority`](#priority) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
-
   - Enable [AVIF `formats`](#formats)
   - Use [`placeholder`](#placeholder)
 
@@ -1275,6 +1304,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v15.5.14` | `maximumDiskCacheSize` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

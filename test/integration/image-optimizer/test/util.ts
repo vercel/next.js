@@ -12,6 +12,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -20,7 +21,7 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
-  imagesDir: string
+  imagesDir?: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -28,6 +29,8 @@ type SetupTestsCtx = {
 
 type RunTestsCtx = SetupTestsCtx & {
   w: number
+  q: number
+  imagesDir: string
   app?: import('child_process').ChildProcess
   appDir?: string
   appPort?: number
@@ -100,6 +103,22 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
 export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
   console.warn('Cleaning', ctx.imagesDir)
   await fs.remove(ctx.imagesDir)
+}
+
+async function getDirSize(dir: string): Promise<number> {
+  let totalSize = 0
+  const entries = await fs.readdir(dir).catch(() => [] as string[])
+  for (const entry of entries) {
+    const entryPath = join(dir, entry)
+    const stat = await fs.stat(entryPath).catch(() => null)
+    if (!stat) continue
+    if (stat.isDirectory()) {
+      totalSize += await getDirSize(entryPath)
+    } else {
+      totalSize += stat.size
+    }
+  }
+  return totalSize
 }
 
 async function expectAvifSmallerThanWebp(
@@ -917,7 +936,10 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
-      if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+      if (
+        ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
+      ) {
         return // this test is not applicable when we don't write the cache
       }
       await cleanImagesDir(ctx)
@@ -1141,7 +1163,10 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       return // this test is not applicable when we don't write the cache
     }
     await cleanImagesDir(ctx)
@@ -1294,7 +1319,10 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cached image file when parameters are the same for animated gif', async () => {
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       return // this test is not applicable when we don't write the cache
     }
     await cleanImagesDir(ctx)
@@ -1393,7 +1421,10 @@ export function runTests(ctx: RunTestsCtx) {
       `${contentDispositionType}; filename="test.bmp"`
     )
 
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       expect(json1).toEqual({})
       expect(await fsToJson(ctx.imagesDir)).toEqual({})
     } else {
@@ -1518,7 +1549,10 @@ export function runTests(ctx: RunTestsCtx) {
       await expectWidth(res3, ctx.w)
 
       const length =
-        ctx.nextConfigExperimental?.isrFlushToDisk === false ? 0 : 1
+        ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
+          ? 0
+          : 1
 
       await check(async () => {
         const json1 = await fsToJson(ctx.imagesDir)
@@ -1535,10 +1569,75 @@ export function runTests(ctx: RunTestsCtx) {
       expect(xCache).toEqual(['MISS', 'MISS', 'MISS'])
     })
   }
+
+  if (typeof ctx.nextConfigImages?.maximumDiskCacheSize !== 'undefined') {
+    const { maximumDiskCacheSize } = ctx.nextConfigImages
+    it(`should handle maximumDiskCacheSize ${maximumDiskCacheSize}`, async () => {
+      const opts = { headers: { accept: 'image/webp' } }
+      const requests = [
+        { url: '/test.png', w: largeSize },
+        { url: '/test.jpg', w: largeSize },
+        { url: '/test.gif', w: largeSize },
+        { url: '/test.bmp', w: largeSize },
+        { url: '/test.webp', w: largeSize },
+        { url: '/test.avif', w: largeSize },
+        { url: '/test.tiff', w: largeSize },
+        { url: '/test.ico', w: largeSize },
+        { url: '/animated.gif', w: largeSize },
+        { url: '/animated.png', w: largeSize },
+        { url: '/animated2.png', w: largeSize },
+      ]
+      await cleanImagesDir(ctx)
+      const json1 = await fsToJson(ctx.imagesDir)
+      expect(Object.keys(json1).length).toEqual(0)
+      for (const { url, w } of requests) {
+        const query = { url, w, q: ctx.q }
+        const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+        expect(res.status).toBe(200)
+        await res.buffer() // consume response body
+        await retry(async () => {
+          const size = await getDirSize(ctx.imagesDir)
+          expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
+        })
+      }
+
+      const json2 = await fsToJson(ctx.imagesDir)
+      const json2Length = Object.keys(json2).length
+      if (maximumDiskCacheSize === 0) {
+        expect(json2Length).toEqual(0)
+      } else {
+        expect(json2Length).toBeGreaterThan(0)
+      }
+
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/_next/image',
+        { url: '/mountains.jpg', w: ctx.w, q: ctx.q },
+        opts
+      )
+      expect(res.status).toBe(200)
+
+      await retry(async () => {
+        const json3 = await fsToJson(ctx.imagesDir)
+        const json3Length = Object.keys(json3).length
+        if (maximumDiskCacheSize === 0) {
+          expect(json3Length).toEqual(0)
+        } else {
+          expect(json3Length).toBeGreaterThan(0)
+          expect(json3).not.toStrictEqual(json2)
+        }
+        const size = await getDirSize(ctx.imagesDir)
+        expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
+      })
+    })
+  }
 }
 
 export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
+  // Compute imagesDir if not provided
+  const imagesDir =
+    ctx.imagesDir || join(ctx.appDir, '.next', 'cache', 'images')
 
   describe('dev support w/o next.config.js', () => {
     if (ctx.nextConfigImages) {
@@ -1548,7 +1647,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: true,
     }
 
@@ -1567,7 +1668,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         },
         cwd: curCtx.appDir,
       })
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
     })
     afterAll(async () => {
       nextConfig.restore()
@@ -1581,7 +1682,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 400
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: true,
       nextConfigImages: {
         domains: [
@@ -1606,7 +1709,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1632,7 +1735,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: false,
     }
     beforeAll(async () => {
@@ -1644,7 +1749,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1666,7 +1771,9 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const size = 399
     const curCtx: RunTestsCtx = {
       ...ctx,
+      imagesDir,
       w: size,
+      q: 75,
       isDev: false,
       nextConfigImages: {
         domains: [
@@ -1691,7 +1798,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir({ imagesDir })
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
