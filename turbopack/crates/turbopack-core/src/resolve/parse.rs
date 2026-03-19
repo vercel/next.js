@@ -293,7 +293,12 @@ impl Request {
                 Request::Unknown { path } => {
                     path.push(item);
                 }
-                Request::DataUri { .. } | Request::Uri { .. } | Request::Dynamic => {
+                Request::DataUri { .. } | Request::Uri { .. } => {
+                    return Request::Dynamic;
+                }
+                Request::Dynamic => {
+                    // A dynamic prefix is essentially impossible to resolve so we don't try.  We
+                    // would have to scan the entire repo for suffix matches.
                     return Request::Dynamic;
                 }
                 Request::Alternatives { .. } => unreachable!(),
