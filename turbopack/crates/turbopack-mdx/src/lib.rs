@@ -113,6 +113,12 @@ impl Source for MdxTransformedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().rename_as(rcstr!("*.tsx"))
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("MDX transform of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]

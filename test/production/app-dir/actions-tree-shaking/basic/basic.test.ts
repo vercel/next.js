@@ -15,23 +15,17 @@ import {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
       expect(actionsRoutesState).toMatchInlineSnapshot(`
        {
-         "app/client/page": {
-           "action-browser": [
-             "app/actions.js#clientComponentAction",
-           ],
-         },
-         "app/inline/page": {
-           "rsc": [
-             "app/inline/page.js#$$RSC_SERVER_ACTION_0",
-           ],
-         },
-         "app/server/page": {
-           "rsc": [
-             "app/actions.js#clientComponentAction",
-             "app/actions.js#serverComponentAction",
-             "app/actions.js#unusedExportedAction",
-           ],
-         },
+         "app/client/page": [
+           "app/actions.js#clientComponentAction",
+         ],
+         "app/inline/page": [
+           "app/inline/page.js#$$RSC_SERVER_ACTION_0",
+         ],
+         "app/server/page": [
+           "app/actions.js#clientComponentAction",
+           "app/actions.js#serverComponentAction",
+           "app/actions.js#unusedExportedAction",
+         ],
        }
       `)
     })

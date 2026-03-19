@@ -130,6 +130,7 @@ export function getFlightStream<T>(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
