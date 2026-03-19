@@ -131,23 +131,27 @@ describe('react-dom/server in React Server environment', () => {
       `)
     } else {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": [
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ],
-          "named": [
-            "default",
-            "renderToReadableStream",
-            "renderToStaticMarkup",
-            "renderToString",
-            "resume",
-            "version"
-          ]
-        }"
+       "{
+         "default": [
+           "renderToPipeableStream",
+           "renderToReadableStream",
+           "renderToStaticMarkup",
+           "renderToString",
+           "resume",
+           "resumeToPipeableStream",
+           "version"
+         ],
+         "named": [
+           "default",
+           "renderToPipeableStream",
+           "renderToReadableStream",
+           "renderToStaticMarkup",
+           "renderToString",
+           "resume",
+           "resumeToPipeableStream",
+           "version"
+         ]
+       }"
       `)
     }
     const redbox = {
@@ -479,25 +483,29 @@ describe('react-dom/server in React Server environment', () => {
       `)
     } else {
       expect(await browser.elementByCss('main').text()).toMatchInlineSnapshot(`
-        "{
-          "default": {
-            "default": [
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ],
-            "named": [
-              "default",
-              "renderToReadableStream",
-              "renderToStaticMarkup",
-              "renderToString",
-              "resume",
-              "version"
-            ]
-          }
-        }"
+       "{
+         "default": {
+           "default": [
+             "renderToPipeableStream",
+             "renderToReadableStream",
+             "renderToStaticMarkup",
+             "renderToString",
+             "resume",
+             "resumeToPipeableStream",
+             "version"
+           ],
+           "named": [
+             "default",
+             "renderToPipeableStream",
+             "renderToReadableStream",
+             "renderToStaticMarkup",
+             "renderToString",
+             "resume",
+             "resumeToPipeableStream",
+             "version"
+           ]
+         }
+       }"
       `)
     }
     const redbox = {
