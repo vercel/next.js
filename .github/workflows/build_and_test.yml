@@ -1210,7 +1210,6 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           --timings \
