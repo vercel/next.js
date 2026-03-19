@@ -183,7 +183,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
-#[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp-pnpm.js"))]
+#[cfg_attr(
+    not(target_os = "windows"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
 #[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]
