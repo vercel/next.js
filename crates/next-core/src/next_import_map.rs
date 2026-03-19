@@ -12,8 +12,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType, ResolveAliasMap,
-        SubpathValue,
+        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType,
+        ReplacedSubpathValueResultType, ResolveAliasMap, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -1303,48 +1303,36 @@ fn export_value_to_import_mapping(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
-    // `false` in resolveAlias means "resolve to an empty module"
-    if matches!(value, SubpathValue::Empty) {
-        return Some(ImportMapping::Empty.resolved_cell());
-    }
-
     let alias_key = AliasKey::Exact;
-    let mut result = Vec::new();
+    let mut results = Vec::new();
     value.convert().add_results(
         Cow::Borrowed(""),
         &alias_key,
         conditions,
         &ConditionValue::Unset,
         &mut FxHashMap::default(),
-        &mut result,
+        &mut results,
     );
-    if result.is_empty() {
-        None
-    } else if result.len() == 1 {
-        let path = result[0].result_path.as_constant_string()?;
-        Some(
-            ImportMapping::PrimaryAlternative(path.clone(), Some(project_path.clone()))
-                .resolved_cell(),
-        )
-    } else {
-        Some(
-            ImportMapping::Alternatives(
-                result
-                    .iter()
-                    .filter_map(|r| {
-                        let m = r.result_path.as_constant_string()?;
-                        Some(
-                            ImportMapping::PrimaryAlternative(
-                                m.clone(),
-                                Some(project_path.clone()),
-                            )
-                            .resolved_cell(),
-                        )
-                    })
-                    .collect(),
-            )
-            .resolved_cell(),
-        )
+
+    let mappings: Vec<_> = results
+        .iter()
+        .filter_map(|r| match &r.ty {
+            ReplacedSubpathValueResultType::Path(path) => {
+                let m = path.as_constant_string()?;
+                Some(
+                    ImportMapping::PrimaryAlternative(m.clone(), Some(project_path.clone()))
+                        .resolved_cell(),
+                )
+            }
+            ReplacedSubpathValueResultType::Empty => Some(ImportMapping::Empty.resolved_cell()),
+            ReplacedSubpathValueResultType::Excluded => None,
+        })
+        .collect();
+
+    match mappings.len() {
+        0 => None,
+        1 => Some(mappings.into_iter().next().unwrap()),
+        _ => Some(ImportMapping::Alternatives(mappings).resolved_cell()),
     }
 }
 

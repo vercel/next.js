@@ -65,7 +65,10 @@ pub use alias_map::{
     AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
     AliasTemplate,
 };
-pub use remap::{ReplacedSubpathValue, ReplacedSubpathValueResult, ResolveAliasMap, SubpathValue};
+pub use remap::{
+    ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
+    ResolveAliasMap, SubpathValue,
+};
 
 /// Controls how resolve errors are handled.
 #[turbo_tasks::value(shared)]
@@ -3227,14 +3230,16 @@ async fn handle_exports_imports_field(
     let values = exports_imports_field.lookup(&req);
     for value in values {
         let value = value?;
-        if value.output.add_results(
+        let prev_len = results.len();
+        value.output.add_results(
             value.prefix,
             value.key,
             conditions,
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
-        ) {
+        );
+        if results.len() > prev_len {
             // Match found, stop (leveraging the lazy `lookup` iterator).
             break;
         }
@@ -3242,62 +3247,82 @@ async fn handle_exports_imports_field(
 
     let mut resolved_results = Vec::new();
     for ReplacedSubpathValueResult {
-        result_path,
+        ty,
         conditions,
         map_prefix,
         map_key,
     } in results
     {
-        if let Some(result_path) = result_path.with_normalized_path() {
-            let request = *Request::parse(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("./")),
-                result_path.clone(),
-            ]))
-            .to_resolved()
-            .await?;
+        match ty {
+            ReplacedSubpathValueResultType::Path(result_path) => {
+                if let Some(result_path) = result_path.with_normalized_path() {
+                    let request = *Request::parse(Pattern::Concatenation(vec![
+                        Pattern::Constant(rcstr!("./")),
+                        result_path.clone(),
+                    ]))
+                    .to_resolved()
+                    .await?;
 
-            let resolve_result = Box::pin(resolve_internal_inline(
-                package_path.clone(),
-                request,
-                options,
-            ))
-            .await?;
+                    let resolve_result = Box::pin(resolve_internal_inline(
+                        package_path.clone(),
+                        request,
+                        options,
+                    ))
+                    .await?;
 
-            let resolve_result = if let Some(req) = req.as_constant_string() {
-                resolve_result.with_request(req.clone())
-            } else {
-                match map_key {
-                    AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
-                    AliasKey::Wildcard { .. } => {
-                        // - `req` is the user's request (key of the export map)
-                        // - `result_path` is the final request (value of the export map), so
-                        //   effectively `'{foo}*{bar}'`
+                    let resolve_result = if let Some(req) = req.as_constant_string() {
+                        resolve_result.with_request(req.clone())
+                    } else {
+                        match map_key {
+                            AliasKey::Exact => {
+                                resolve_result.with_request(map_prefix.clone().into())
+                            }
+                            AliasKey::Wildcard { .. } => {
+                                // - `req` is the user's request (key of the export map)
+                                // - `result_path` is the final request (value of the export map),
+                                //   so effectively `'{foo}*{bar}'`
 
-                        // Because of the assertion in AliasMapLookupIterator, `req` is of the
-                        // form:
-                        // - "prefix...<dynamic>" or
-                        // - "prefix...<dynamic>...suffix"
+                                // Because of the assertion in AliasMapLookupIterator, `req` is of
+                                // the form:
+                                // - "prefix...<dynamic>" or
+                                // - "prefix...<dynamic>...suffix"
 
-                        let mut old_request_key = result_path;
-                        // Remove the Pattern::Constant(rcstr!("./")), from above again
-                        old_request_key.push_front(rcstr!("./").into());
-                        let new_request_key = req.clone();
+                                let mut old_request_key = result_path;
+                                // Remove the Pattern::Constant(rcstr!("./")), from above again
+                                old_request_key.push_front(rcstr!("./").into());
+                                let new_request_key = req.clone();
 
-                        resolve_result.with_replaced_request_key_pattern(
-                            Pattern::new(old_request_key),
-                            Pattern::new(new_request_key),
-                        )
-                    }
+                                resolve_result.with_replaced_request_key_pattern(
+                                    Pattern::new(old_request_key),
+                                    Pattern::new(new_request_key),
+                                )
+                            }
+                        }
+                    };
+
+                    let resolve_result = if !conditions.is_empty() {
+                        let resolve_result = resolve_result.await?.with_conditions(&conditions);
+                        resolve_result.cell()
+                    } else {
+                        resolve_result
+                    };
+                    resolved_results.push(resolve_result);
                 }
-            };
-
-            let resolve_result = if !conditions.is_empty() {
-                let resolve_result = resolve_result.await?.with_conditions(&conditions);
-                resolve_result.cell()
-            } else {
-                resolve_result
-            };
-            resolved_results.push(resolve_result);
+            }
+            ReplacedSubpathValueResultType::Empty => {
+                // `false` in the exports/imports field: resolve to an empty module.
+                let resolve_result = ResolveResult::primary(ResolveResultItem::Empty).cell();
+                let resolve_result = if !conditions.is_empty() {
+                    resolve_result.await?.with_conditions(&conditions).cell()
+                } else {
+                    resolve_result
+                };
+                resolved_results.push(resolve_result);
+            }
+            ReplacedSubpathValueResultType::Excluded => {
+                // `null` in the exports/imports field: the import is blocked.
+                // Produce no resolved result, which leads to an unresolvable outcome.
+            }
         }
     }
 
