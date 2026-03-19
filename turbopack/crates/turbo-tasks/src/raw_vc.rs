@@ -501,10 +501,13 @@ impl Future for ReadRawVcFuture {
             }
         };
 
-        // Phase 2 does not need `suppress_top_level_task_check`: cell reads don't trigger the
-        // eventual-consistency top-level task assertion, and if phase 1 was strongly-consistent,
-        // `ResolveRawVcFuture` already applied the suppression during its own poll.
-        with_turbo_tasks(poll_fn)
+        // Phase 2 must also suppress the top-level task check when phase 1 was
+        // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
+        // the duration of that individual `poll` call and does not carry over to subsequent calls
+        // or to this phase.
+        suppress_top_level_task_check(this.resolve.strongly_consistent, || {
+            with_turbo_tasks(poll_fn)
+        })
     }
 }
 
