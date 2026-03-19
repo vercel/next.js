@@ -35,7 +35,7 @@ where
 impl<T: ?Sized> ResolveOperationVcFuture<T> {
     /// Make the resolution strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
-        self.inner.strongly_consistent();
+        self.inner = self.inner.strongly_consistent();
         self
     }
 }
