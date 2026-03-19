@@ -4731,20 +4731,30 @@ async function validateInstantConfigs(
       }
     }
 
-    const payloadResult = await createCombinedPayloadAtDepth(
-      initialRscPayload,
-      cache,
-      loaderTree,
-      ctx.getDynamicParamFromSegment,
-      ctx.query,
-      depth,
-      groupDepthForValidation,
-      extraChunksController.signal,
-      boundaryState,
-      clientReferenceManifest,
-      stageEndTimes,
-      useRuntimeStageForPartialSegments
-    )
+    let payloadResult: Awaited<ReturnType<typeof createCombinedPayloadAtDepth>>
+    try {
+      payloadResult = await createCombinedPayloadAtDepth(
+        initialRscPayload,
+        cache,
+        loaderTree,
+        ctx.getDynamicParamFromSegment,
+        ctx.query,
+        depth,
+        groupDepthForValidation,
+        extraChunksController.signal,
+        boundaryState,
+        clientReferenceManifest,
+        stageEndTimes,
+        useRuntimeStageForPartialSegments
+      )
+    } catch (err) {
+      // Incompatible config errors (e.g. false + instant on sibling slots)
+      // are thrown during tree construction. Surface them as validation errors.
+      if (err instanceof AggregateError) {
+        return err.errors
+      }
+      return [err]
+    }
 
     if (payloadResult === null) {
       return null

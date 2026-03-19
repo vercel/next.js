@@ -1140,5 +1140,8 @@
   "1139": "`unstable_catchError` can only be used in Client Components.",
   "1140": "Route %s used \\`import('next/root-params').%s()\\` inside \\`\"use cache\"\\` nested within \\`unstable_cache\\`. Root params are not available in this context.",
   "1141": "Route %s used \\`import('next/root-params').%s()\\` inside \\`unstable_cache\\`. This is not supported. Use \\`\"use cache\"\\` instead.",
-  "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them."
+  "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them.",
+  "1143": "Route \"%s/\": Incompatible \\`unstable_instant\\` configurations. %s has \\`unstable_instant = false\\` which expects blocking navigations, while %s has an \\`unstable_instant\\` config which expects instant navigations.",
+  "1144": "Route \"%s/\": The other conflicting \\`unstable_instant\\` configuration is defined here.",
+  "1145": "Route \"%s/\": Incompatible \\`unstable_instant\\` configurations. %s has \\`unstable_instant = false\\` which expects blocking navigations, while %s has an \\`unstable_instant\\` config which expects instant navigations.\\n\\nTo see the exact locations of the conflicting configurations, try one of the following:\\n  - Start the app in development mode by running \\`next dev\\`, then open \"%s/\" in your browser to investigate the error.\\n  - Rerun the production build with \\`next build --debug-prerender\\` to generate better stack traces."
 }

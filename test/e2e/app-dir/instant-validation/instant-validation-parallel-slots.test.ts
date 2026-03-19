@@ -464,6 +464,151 @@ describe('instant validation - parallel slot configs', () => {
       })
     })
 
+    describe('incompatible configs', () => {
+      it('errors when one slot has false and sibling has instant config', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/parallel/false-conflict'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/suspense-in-root/parallel/false-conflict/page.tsx (3:33) @ unstable_instant
+           > 3 | export const unstable_instant = false
+               |                                 ^",
+                   "stack": [
+                     "unstable_instant app/suspense-in-root/parallel/false-conflict/page.tsx (3:33)",
+                   ],
+                 },
+               ],
+               "code": "E1143",
+               "description": "Route "/suspense-in-root/parallel/false-conflict": Incompatible \`unstable_instant\` configurations. This route has \`unstable_instant = false\` which expects blocking navigations, while parallel route "@slot" has an \`unstable_instant\` config which expects instant navigations.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/parallel/false-conflict/page.tsx (3:33) @ unstable_instant
+           > 3 | export const unstable_instant = false
+               |                                 ^",
+               "stack": [],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/suspense-in-root/parallel/false-conflict/@slot/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+                   "stack": [
+                     "unstable_instant app/suspense-in-root/parallel/false-conflict/@slot/page.tsx (1:33)",
+                   ],
+                 },
+               ],
+               "code": "E1144",
+               "description": "Route "/suspense-in-root/parallel/false-conflict": The other conflicting \`unstable_instant\` configuration is defined here.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/parallel/false-conflict/@slot/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+               "stack": [],
+             },
+           ]
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/parallel/false-conflict'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/false-conflict": Incompatible \`unstable_instant\` configurations. This route has \`unstable_instant = false\` which expects blocking navigations, while parallel route "@slot" has an \`unstable_instant\` config which expects instant navigations.
+
+           To see the exact locations of the conflicting configurations, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/false-conflict" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/parallel/false-conflict".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('errors when configs conflict across deeper independent paths', async () => {
+        // children/inner has instant static, @slot/inner has instant false.
+        // Even though the configs are at different paths, without Suspense
+        // between the slots a suspending slot blocks the sibling.
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/parallel/false-conflict-deep/inner'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/suspense-in-root/parallel/false-conflict-deep/@slot/inner/page.tsx (3:33) @ unstable_instant
+           > 3 | export const unstable_instant = false
+               |                                 ^",
+                   "stack": [
+                     "unstable_instant app/suspense-in-root/parallel/false-conflict-deep/@slot/inner/page.tsx (3:33)",
+                   ],
+                 },
+               ],
+               "code": "E1143",
+               "description": "Route "/suspense-in-root/parallel/false-conflict-deep": Incompatible \`unstable_instant\` configurations. Parallel route "@slot" has \`unstable_instant = false\` which expects blocking navigations, while this route has an \`unstable_instant\` config which expects instant navigations.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/parallel/false-conflict-deep/@slot/inner/page.tsx (3:33) @ unstable_instant
+           > 3 | export const unstable_instant = false
+               |                                 ^",
+               "stack": [],
+             },
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/suspense-in-root/parallel/false-conflict-deep/inner/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+                   "stack": [
+                     "unstable_instant app/suspense-in-root/parallel/false-conflict-deep/inner/page.tsx (1:33)",
+                   ],
+                 },
+               ],
+               "code": "E1144",
+               "description": "Route "/suspense-in-root/parallel/false-conflict-deep": The other conflicting \`unstable_instant\` configuration is defined here.",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": "app/suspense-in-root/parallel/false-conflict-deep/inner/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+               "stack": [],
+             },
+           ]
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/parallel/false-conflict-deep/inner'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/false-conflict-deep": Incompatible \`unstable_instant\` configurations. Parallel route "@slot" has \`unstable_instant = false\` which expects blocking navigations, while this route has an \`unstable_instant\` config which expects instant navigations.
+
+           To see the exact locations of the conflicting configurations, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/false-conflict-deep" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/parallel/false-conflict-deep/inner".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+    })
+
     describe('valid parallel slot configs', () => {
       it('valid - config on both children and slot pages', async () => {
         if (isNextDev) {

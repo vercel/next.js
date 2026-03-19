@@ -165,6 +165,12 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/parallel/slot-config-children-suspended" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/false-conflict" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/false-conflict-deep/inner" />
+        </li>
       </ul>
 
       <h2>Head</h2>

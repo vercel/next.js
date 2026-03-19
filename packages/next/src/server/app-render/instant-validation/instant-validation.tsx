@@ -759,10 +759,19 @@ type SegmentCacheItem = {
   debugChunks: Uint8Array[] | null
 }
 
+const enum InstantExpectation {
+  /** No unstable_instant config in this subtree. */
+  None = 0,
+  /** unstable_instant = { prefetch: ... } — expects instant navigations. */
+  Instant = 1,
+  /** unstable_instant = false — expects blocking navigations. */
+  Blocking = 2,
+}
+
 type TreeResult = {
   seedData: CacheNodeSeedData
-  requiresInstantUI: boolean
-  createInstantStack: (() => Error) | null
+  expectation: InstantExpectation
+  createConfigStack: (() => Error) | null
   /** How deep in the tree the config was found. Higher = more specific.
    * Used to prefer deeper configs over shallower ones when multiple
    * slots have configs. */
@@ -938,7 +947,11 @@ export async function createCombinedPayloadAtDepth(
       if (slotSeedData === null) continue
       const result = results.get(key)
       const markerIndex = slotStacks.length
-      slotStacks.push(result?.createInstantStack ?? null)
+      slotStacks.push(
+        result?.expectation === InstantExpectation.Instant
+          ? result.createConfigStack
+          : null
+      )
       const markerName = `${INSTANT_SLOT_MARKER_PREFIX}${markerIndex - 1}${INSTANT_SLOT_MARKER_SUFFIX}`
       const [node, parallelRoutesData, unused, isPartial, varyParams] =
         slotSeedData
@@ -952,6 +965,83 @@ export async function createCombinedPayloadAtDepth(
         isPartial,
         varyParams,
       ]
+    }
+  }
+
+  /**
+   * After collecting results from all parallel slots at a fork point,
+   * check if any slot has `unstable_instant = false` while a sibling
+   * has a non-false config. This is an incompatible configuration —
+   * one slot says the navigation should block while the other requires
+   * it to be instant.
+   */
+  function throwIfIncompatibleConfigs(
+    slotResults: Map<string, TreeResult>,
+    path: SegmentPath
+  ): void {
+    if (slotResults.size <= 1) return
+
+    let hasBlocking = false
+    let hasInstant = false
+    let blockingKey: string | null = null
+    let instantKey: string | null = null
+    let blockingStack: (() => Error) | null = null
+    let instantStack: (() => Error) | null = null
+
+    for (const [key, result] of slotResults) {
+      if (result.expectation === InstantExpectation.Blocking) {
+        hasBlocking = true
+        blockingKey = key
+        blockingStack = result.createConfigStack
+      }
+      if (result.expectation === InstantExpectation.Instant) {
+        hasInstant = true
+        instantKey = key
+        instantStack = result.createConfigStack
+      }
+    }
+
+    if (hasBlocking && hasInstant) {
+      const blockingDesc =
+        blockingKey === 'children'
+          ? 'This route'
+          : `Parallel route "@${blockingKey}"`
+      const instantDesc =
+        instantKey === 'children'
+          ? 'this route'
+          : `parallel route "@${instantKey}"`
+      const message =
+        `Route "${path || '/'}": Incompatible \`unstable_instant\` configurations. ` +
+        `${blockingDesc} has \`unstable_instant = false\` which expects blocking navigations, ` +
+        `while ${instantDesc} has an \`unstable_instant\` config which expects instant navigations.`
+      if (process.env.NODE_ENV === 'development') {
+        // In dev or --debug-prerender, throw two errors so both config
+        // locations get codeframes in the error overlay / CLI output.
+        // TODO: Switch to AggregateError when the CLI output and dev
+        // error overlay support rendering them nicely.
+        const blockingError = new Error(message)
+        if (blockingStack) {
+          blockingError.cause = blockingStack()
+        }
+        const instantError = new Error(
+          `Route "${path || '/'}": The other conflicting \`unstable_instant\` configuration is defined here.`
+        )
+        if (instantStack) {
+          instantError.cause = instantStack()
+        }
+        throw new AggregateError([blockingError, instantError])
+      } else {
+        // In production builds without --debug-prerender, source maps
+        // are unavailable so codeframes won't be useful. Throw a single
+        // error with guidance on how to get better diagnostics.
+        const error = new Error(
+          message +
+            `\n\nTo see the exact locations of the conflicting configurations, try one of the following:` +
+            `\n  - Start the app in development mode by running \`next dev\`, then open "${path || '/'}" in your browser to investigate the error.` +
+            `\n  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`
+        )
+        throw error
+      }
     }
   }
 
@@ -1034,8 +1124,8 @@ export async function createCombinedPayloadAtDepth(
 
       const slots: CacheNodeSeedDataSlots = {}
       const slotResults = new Map<string, TreeResult>()
-      let requiresInstantUI = false
-      let createInstantStack: (() => Error) | null = null
+      let expectation = InstantExpectation.None
+      let createConfigStack: (() => Error) | null = null
       let bestConfigDepth = -1
 
       for (const parallelRouteKey in parallelRoutes) {
@@ -1048,25 +1138,33 @@ export async function createCombinedPayloadAtDepth(
         )
         slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
-        if (result.requiresInstantUI) {
-          requiresInstantUI = true
+        if (result.expectation === InstantExpectation.Instant) {
+          expectation = InstantExpectation.Instant
           if (
             result.configDepth > bestConfigDepth ||
             (result.configDepth === bestConfigDepth &&
               parallelRouteKey === 'children')
           ) {
             bestConfigDepth = result.configDepth
-            createInstantStack = result.createInstantStack
+            createConfigStack = result.createConfigStack
           }
+        }
+        if (
+          result.expectation === InstantExpectation.Blocking &&
+          expectation !== InstantExpectation.Instant
+        ) {
+          expectation = InstantExpectation.Blocking
+          createConfigStack = result.createConfigStack
         }
       }
 
+      throwIfIncompatibleConfigs(slotResults, path)
       wrapSlotsWithMarkers(slots, slotResults)
 
       return {
         seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
-        requiresInstantUI,
-        createInstantStack,
+        expectation,
+        createConfigStack,
         configDepth: bestConfigDepth,
       }
     }
@@ -1074,8 +1172,8 @@ export async function createCombinedPayloadAtDepth(
     // Not at the boundary yet — keep walking as shared.
     const slots: CacheNodeSeedDataSlots = {}
     const slotResults = new Map<string, TreeResult>()
-    let requiresInstantUI = false
-    let createInstantStack: (() => Error) | null = null
+    let expectation = InstantExpectation.None
+    let createConfigStack: (() => Error) | null = null
     let bestConfigDepth = -1
     for (const parallelRouteKey in parallelRoutes) {
       const result = await buildSharedTreeSeedData(
@@ -1087,25 +1185,33 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
-      if (result.requiresInstantUI) {
-        requiresInstantUI = true
+      if (result.expectation === InstantExpectation.Instant) {
+        expectation = InstantExpectation.Instant
         if (
           result.configDepth > bestConfigDepth ||
           (result.configDepth === bestConfigDepth &&
             parallelRouteKey === 'children')
         ) {
           bestConfigDepth = result.configDepth
-          createInstantStack = result.createInstantStack
+          createConfigStack = result.createConfigStack
         }
+      }
+      if (
+        result.expectation === InstantExpectation.Blocking &&
+        expectation !== InstantExpectation.Instant
+      ) {
+        expectation = InstantExpectation.Blocking
+        createConfigStack = result.createConfigStack
       }
     }
 
+    throwIfIncompatibleConfigs(slotResults, path)
     wrapSlotsWithMarkers(slots, slotResults)
 
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
-      requiresInstantUI,
-      createInstantStack,
+      expectation,
+      createConfigStack,
       configDepth: bestConfigDepth,
     }
   }
@@ -1131,7 +1237,7 @@ export async function createCombinedPayloadAtDepth(
     if (layoutOrPageMod !== undefined) {
       instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+      if (instantConfig !== null) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1179,11 +1285,11 @@ export async function createCombinedPayloadAtDepth(
       { startTime: undefined, endTime: stageEndTimes[stage] }
     )
 
-    // Build children first, then determine requiresInstantUI.
+    // Build children first, then determine expectation.
     const slots: CacheNodeSeedDataSlots = {}
     const slotResults = new Map<string, TreeResult>()
-    let childrenRequireInstantUI = false
-    let childCreateInstantStack: (() => Error) | null = null
+    let childExpectation = InstantExpectation.None
+    let childCreateConfigStack: (() => Error) | null = null
     let bestChildConfigDepth = -1
     for (const parallelRouteKey in parallelRoutes) {
       const childSegmentDepth = segmentConsumesURLDepth(segment)
@@ -1198,48 +1304,56 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
-      if (result.requiresInstantUI) {
-        childrenRequireInstantUI = true
+      if (result.expectation === InstantExpectation.Instant) {
+        childExpectation = InstantExpectation.Instant
         if (
           result.configDepth > bestChildConfigDepth ||
           (result.configDepth === bestChildConfigDepth &&
             parallelRouteKey === 'children')
         ) {
           bestChildConfigDepth = result.configDepth
-          childCreateInstantStack = result.createInstantStack
+          childCreateConfigStack = result.createConfigStack
         }
+      }
+      if (
+        result.expectation === InstantExpectation.Blocking &&
+        childExpectation !== InstantExpectation.Instant
+      ) {
+        childExpectation = InstantExpectation.Blocking
+        childCreateConfigStack = result.createConfigStack
       }
     }
 
+    throwIfIncompatibleConfigs(slotResults, path)
     wrapSlotsWithMarkers(slots, slotResults)
 
     // Local config takes precedence over children.
-    let requiresInstantUI: boolean
-    let createInstantStack: (() => Error) | null
+    let expectation: InstantExpectation
+    let createConfigStack: (() => Error) | null
     let configDepth: number
     if (instantConfig === false) {
-      requiresInstantUI = false
-      createInstantStack = null
+      expectation = InstantExpectation.Blocking
+      createConfigStack = localCreateInstantStack
       configDepth = -1
     } else if (instantConfig && typeof instantConfig === 'object') {
-      requiresInstantUI = true
-      createInstantStack = localCreateInstantStack
+      expectation = InstantExpectation.Instant
+      createConfigStack = localCreateInstantStack
       configDepth = segmentDepth
     } else {
-      requiresInstantUI = childrenRequireInstantUI
-      createInstantStack = childCreateInstantStack
+      expectation = childExpectation
+      createConfigStack = childCreateConfigStack
       configDepth = bestChildConfigDepth
     }
 
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
-      requiresInstantUI,
-      createInstantStack,
+      expectation,
+      createConfigStack,
       configDepth,
     }
   }
 
-  const { seedData, requiresInstantUI, createInstantStack } =
+  const { seedData, expectation, createConfigStack } =
     await buildSharedTreeSeedData(
       initialLoaderTree,
       null /* parentPath */,
@@ -1248,13 +1362,13 @@ export async function createCombinedPayloadAtDepth(
       0 /* groupDepthConsumed */
     )
 
-  if (!requiresInstantUI) {
+  if (expectation !== InstantExpectation.Instant) {
     return null
   }
 
   // Set the root config at index 0. This is the fallback for errors
   // that occur above any fork (no slot marker in the component stack).
-  slotStacks[0] = createInstantStack
+  slotStacks[0] = createConfigStack
 
   const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
 
