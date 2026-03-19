@@ -368,7 +368,7 @@ pub struct ProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
 }
 
@@ -869,7 +869,7 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_chunk_names].
+    /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
     pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
         self.project().hmr_chunk_names(target)
@@ -960,7 +960,7 @@ pub struct Project {
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
 
-    /// Whether server-side HMR is enabled (--experimental-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
 }
 
@@ -1219,13 +1219,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn no_mangling(&self) -> Vc<bool> {
         Vc::cell(self.no_mangling)
-    }
-
-    #[turbo_tasks::function]
-    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.env.read(rcstr!("TURBOPACK_STATS")).await?.is_some(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -2325,8 +2318,9 @@ impl Project {
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the
-    /// specified target. This is only needed for testing purposes and isn't
-    /// used in real apps.
+    /// specified target. Used by the dev server to set up server-side HMR
+    /// subscriptions for all Node.js App Router entries (pages and route
+    /// handlers).
     #[turbo_tasks::function]
     pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {

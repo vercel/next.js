@@ -60,6 +60,19 @@ export type NormalizedAppRouteSegment =
   | StaticAppRouteSegment
   | DynamicAppRouteSegment
 
+function normalizeEncodedDynamicPlaceholder(segment: string): string {
+  if (!/%5b|%5d/i.test(segment)) {
+    return segment
+  }
+
+  try {
+    const decodedSegment = decodeURIComponent(segment)
+    return getSegmentParam(decodedSegment) ? decodedSegment : segment
+  } catch {
+    return segment
+  }
+}
+
 export function parseAppRouteSegment(segment: string): AppRouteSegment | null {
   if (segment === '') {
     return null
@@ -180,8 +193,10 @@ export function parseAppRoute(
   let interceptedRoute: AppRoute | NormalizedAppRoute | undefined
 
   for (const segment of pathnameSegments) {
+    const normalizedSegment = normalizeEncodedDynamicPlaceholder(segment)
+
     // Parse the segment into an AppSegment.
-    const appSegment = parseAppRouteSegment(segment)
+    const appSegment = parseAppRouteSegment(normalizedSegment)
     if (!appSegment) {
       continue
     }

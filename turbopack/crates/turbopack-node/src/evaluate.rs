@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
@@ -121,9 +122,9 @@ pub trait EvaluateOperation: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait Operation: Send {
-    async fn recv(&mut self) -> Result<Vec<u8>>;
+    async fn recv(&mut self) -> Result<Bytes>;
 
-    async fn send(&mut self, data: Vec<u8>) -> Result<()>;
+    async fn send(&mut self, data: Bytes) -> Result<()>;
 
     async fn wait_or_kill(&mut self) -> Result<ExitStatus>;
 
@@ -374,11 +375,11 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
         || async {
             let mut operation = pool.operation().await?;
             operation
-                .send(serde_json::to_vec(
+                .send(Bytes::from(serde_json::to_vec(
                     &EvalJavaScriptOutgoingMessage::Evaluate {
                         args: args.iter().map(|v| &**v).collect(),
                     },
-                )?)
+                )?))
                 .await?;
             Ok(operation)
         },
@@ -567,24 +568,24 @@ async fn pull_operation<T: EvaluateContext>(
                 {
                     Ok(response) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: None,
                                     data: Some(serde_json::to_value(response)?),
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                     Err(e) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: Some(PrettyPrintError(&e).to_string()),
                                     data: None,
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                 }
