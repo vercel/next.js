@@ -10468,6 +10468,7 @@ dependencies = [
  "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
+ "turbopack-node",
  "turbopack-resolve",
 ]
 
