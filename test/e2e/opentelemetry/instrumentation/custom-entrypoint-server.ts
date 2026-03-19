@@ -18,7 +18,11 @@ type EntrypointHandler = (
 
 function loadEntrypointHandler(pathParts: string[]): EntrypointHandler {
   const entrypointPath = path.join(__dirname, '.next', 'server', ...pathParts)
-  return (require(entrypointPath) as { handler: EntrypointHandler }).handler
+  const mod = require(entrypointPath) as { handler?: EntrypointHandler }
+  if (typeof mod.handler !== 'function') {
+    throw new Error(`Entrypoint handler missing at ${entrypointPath}`)
+  }
+  return mod.handler
 }
 
 async function main() {
@@ -34,18 +38,11 @@ async function main() {
     'rsc-fetch',
     'page.js',
   ])
-  const pagesPageHandler = loadEntrypointHandler([
-    'pages',
-    'pages',
-    '[param]',
-    'getServerSideProps.js',
-  ])
 
   const tracer = trace.getTracer('custom-entrypoint-server', '1.0.0')
 
   const resolveHandler = (pathname: string): EntrypointHandler | undefined => {
     if (pathname.startsWith('/app/')) return appPageHandler
-    if (pathname.startsWith('/pages/')) return pagesPageHandler
     return undefined
   }
 

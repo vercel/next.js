@@ -224,6 +224,16 @@ export const getHandler = ({
 
     const tracer = getTracer()
     const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
+    const activeHandleRequestSpan =
+      isWrappedByNextServer &&
+      activeSpan &&
+      tracer.getRootSpanAttributes()?.get('next.span_type') ===
+        BaseServerSpan.handleRequest
+        ? activeSpan
+        : undefined
 
     try {
       const method = req.method || 'GET'
@@ -413,26 +423,22 @@ export const getHandler = ({
                     return
                   }
 
-                  const route = rootSpanAttributes.get('next.route')
-                  if (route) {
-                    const name = `${method} ${route}`
+                  const route = rootSpanAttributes.get('next.route') || srcPage
+                  const name = `${method} ${route}`
 
-                    span.setAttributes({
-                      'next.route': route,
-                      'http.route': route,
-                      'next.span_name': name,
-                    })
-                    span.updateName(name)
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
 
-                    // Propagate http.route to the parent span if one exists
-                    // (e.g. a platform-created HTTP span in adapter
-                    // deployments).
-                    if (parentSpan && parentSpan !== span) {
-                      parentSpan.setAttribute('http.route', route)
-                      parentSpan.updateName(name)
-                    }
-                  } else {
-                    span.updateName(`${method} ${srcPage}`)
+                  // Propagate http.route to the parent span if one exists
+                  // (e.g. a platform-created HTTP span in adapter
+                  // deployments).
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                    parentSpan.updateName(name)
                   }
                 })
             } catch (err: unknown) {
@@ -750,23 +756,27 @@ export const getHandler = ({
 
       // TODO: activeSpan code path is for when wrapped by
       // next-server can be removed when this is no longer used
-      if (activeSpan) {
-        await handleResponse()
+      if (activeHandleRequestSpan) {
+        await handleResponse(activeHandleRequestSpan)
       } else {
         parentSpan = tracer.getActiveScopeSpan()
-        await tracer.withPropagatedContext(req.headers, () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
+        await tracer.withPropagatedContext(
+          req.headers,
+          () =>
+            tracer.trace(
+              BaseServerSpan.handleRequest,
+              {
+                spanName: `${method} ${srcPage}`,
+                kind: SpanKind.SERVER,
+                attributes: {
+                  'http.method': method,
+                  'http.target': req.url,
+                },
               },
-            },
-            handleResponse
-          )
+              handleResponse
+            ),
+          undefined,
+          !activeHandleRequestSpan
         )
       }
     } catch (err) {

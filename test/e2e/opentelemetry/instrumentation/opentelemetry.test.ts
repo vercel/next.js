@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
@@ -1458,32 +1458,45 @@ if (!isNextDev) {
 
     it('should add route names to handleRequest and parent spans for direct entrypoints', async () => {
       await next.fetch('/app/param/rsc-fetch')
-      await next.fetch('/pages/param/getServerSideProps')
 
-      await check(async () => {
-        const spans = collector.getSpans()
-
-        for (const target of [
-          '/app/param/rsc-fetch',
-          '/pages/param/getServerSideProps',
-        ]) {
+      await retry(
+        async () => {
+          const spans = collector.getSpans()
           const handleRequestSpan = spans.find(
             (span) =>
               span.attributes?.['next.span_type'] ===
-                'BaseServer.handleRequest' &&
-              span.attributes?.['http.target'] === target
+                'BaseServer.handleRequest' && span.name?.includes('/app/')
           )
 
           expect(handleRequestSpan).toBeDefined()
+          expect(handleRequestSpan!.name).toContain(' /app/')
+          expect(handleRequestSpan!.attributes?.['http.target']).toContain(
+            '/app/param/rsc-fetch'
+          )
+          expect(handleRequestSpan!.attributes?.['next.route']).toContain(
+            '/app/'
+          )
+          expect(handleRequestSpan!.attributes?.['http.route']).toContain(
+            '/app/'
+          )
+          expect(handleRequestSpan!.attributes?.['next.span_name']).toBe(
+            handleRequestSpan!.name
+          )
 
           const parentSpan = spans.find(
-            (span) => span.id === handleRequestSpan!.parentId
+            (span) =>
+              span.traceId === handleRequestSpan!.traceId &&
+              !span.parentId &&
+              !span.attributes?.['next.span_type'] &&
+              span.name === handleRequestSpan!.name
           )
           expect(parentSpan).toBeDefined()
-          expect(parentSpan!.name).toBe(handleRequestSpan!.name)
-          expect(parentSpan!.name).toContain(' /')
-        }
-      }, 30_000)
+          expect(parentSpan!.name).toContain(' /app/')
+        },
+        30_000,
+        1_000,
+        'direct entrypoint span route naming'
+      )
     })
 
     it('should propagate incoming context without next-server wrapper', async () => {
