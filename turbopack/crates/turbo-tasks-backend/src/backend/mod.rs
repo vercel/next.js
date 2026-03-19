@@ -1111,107 +1111,81 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        // Helper to encode a TaskStorage into a SnapshotItem
-        // encode_meta/encode_data control whether to encode each category
-        let encode_snapshot_item =
-            |task_id: TaskId,
-             inner: &TaskStorage,
-             encode_meta: bool,
-             encode_data: bool,
-             buffer: &mut TurboBincodeBuffer| {
-                let encode_category = |task_id: TaskId,
-                                       data: &TaskStorage,
-                                       category: SpecificTaskDataCategory,
-                                       buffer: &mut TurboBincodeBuffer|
-                 -> Option<TurboBincodeBuffer> {
-                    match encode_task_data(task_id, data, category, buffer) {
-                        Ok(encoded) => {
-                            #[cfg(feature = "print_cache_item_size")]
-                            {
-                                let mut stats = task_cache_stats.lock();
-                                let entry = stats
-                                    .entry(self.get_task_name(task_id, turbo_tasks))
-                                    .or_default();
-                                match category {
-                                    SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                    SpecificTaskDataCategory::Data => entry.add_data(&encoded),
-                                }
+        // Encode each task's modified categories. We only encode categories with `modified` set,
+        // meaning the category was actually dirtied. Categories restored from disk but never
+        // modified don't need re-persisting since the on-disk version is still valid.
+        // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
+        // flags were copied from the live task at snapshot creation time, reflecting which
+        // categories were dirtied before the snapshot was taken.
+        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            let encode_category = |task_id: TaskId,
+                                   data: &TaskStorage,
+                                   category: SpecificTaskDataCategory,
+                                   buffer: &mut TurboBincodeBuffer|
+             -> Option<TurboBincodeBuffer> {
+                match encode_task_data(task_id, data, category, buffer) {
+                    Ok(encoded) => {
+                        #[cfg(feature = "print_cache_item_size")]
+                        {
+                            let mut stats = task_cache_stats.lock();
+                            let entry = stats
+                                .entry(self.get_task_name(task_id, turbo_tasks))
+                                .or_default();
+                            match category {
+                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
+                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
                             }
-                            Some(encoded)
                         }
-                        Err(err) => {
-                            eprintln!(
-                                "Serializing task {} failed ({:?}): {:?}",
-                                self.debug_get_task_description(task_id),
-                                category,
-                                err
-                            );
-                            None
-                        }
+                        Some(encoded)
                     }
-                };
-                if task_id.is_transient() {
-                    return SnapshotItem {
-                        task_id,
-                        data: None,
-                        meta: None,
-                    };
-                }
-
-                #[cfg(feature = "print_cache_item_size")]
-                if encode_meta {
-                    task_cache_stats
-                        .lock()
-                        .entry(self.get_task_name(task_id, turbo_tasks))
-                        .or_default()
-                        .add_counts(inner);
-                }
-
-                let meta = if encode_meta {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
-                } else {
-                    None
-                };
-
-                let data = if encode_data {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
-                } else {
-                    None
-                };
-
-                SnapshotItem {
-                    task_id,
-                    meta,
-                    data,
+                    Err(err) => {
+                        eprintln!(
+                            "Serializing task {} failed ({:?}): {:?}",
+                            self.debug_get_task_description(task_id),
+                            category,
+                            err
+                        );
+                        None
+                    }
                 }
             };
+            if task_id.is_transient() {
+                unreachable!("transient task_ids should never be enqueued to be persisted");
+            }
 
-        // Process tasks from the main storage map (uses restored flags)
-        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(
+            let encode_meta = inner.flags.meta_modified();
+            let encode_data = inner.flags.data_modified();
+
+            #[cfg(feature = "print_cache_item_size")]
+            if encode_meta {
+                task_cache_stats
+                    .lock()
+                    .entry(self.get_task_name(task_id, turbo_tasks))
+                    .or_default()
+                    .add_counts(inner);
+            }
+
+            let meta = if encode_meta {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
+            } else {
+                None
+            };
+
+            let data = if encode_data {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
+            } else {
+                None
+            };
+
+            SnapshotItem {
                 task_id,
-                inner,
-                inner.flags.meta_restored(),
-                inner.flags.data_restored(),
-                buffer,
-            )
+                meta,
+                data,
+            }
         };
 
-        // Process tasks that were accessed during snapshot mode (uses modified flags)
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
-                encode_snapshot_item(
-                    task_id,
-                    &inner,
-                    inner.flags.meta_modified(),
-                    inner.flags.data_modified(),
-                    buffer,
-                )
-            };
-
-        // take_snapshot filters empty shards (no modified/snapshot entries) in parallel.
-        // Individual empty SnapshotItems are filtered by the iterator.
-        let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
+        // take_snapshot already filters empty items and empty shards in parallel
+        let task_snapshots = self.storage.take_snapshot(&process);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
