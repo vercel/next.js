@@ -19,19 +19,18 @@ function createWriterFromResponse(
 ): WritableStream<Uint8Array> {
   let started = false
 
-  // Create a promise that will resolve once the response has drained. See
-  // https://nodejs.org/api/stream.html#stream_event_drain
-  let drained = new DetachedPromise<void>()
-  function onDrain() {
-    drained.resolve()
-  }
-  res.on('drain', onDrain)
+  // Lazily created on first backpressure event. For typical responses
+  // (< ~64KB), res.write() never returns false so this is never allocated.
+  let drained: DetachedPromise<void> | undefined
 
-  // If the finish event fires, it means we shouldn't block and wait for the
-  // drain event.
+  function onDrain() {
+    drained?.resolve()
+  }
+
+  // If the response closes, resolve any pending drain wait and stop listening.
   res.once('close', () => {
     res.off('drain', onDrain)
-    drained.resolve()
+    drained?.resolve()
   })
 
   // Create a promise that will resolve once the response has finished. See
@@ -40,6 +39,13 @@ function createWriterFromResponse(
   res.once('finish', () => {
     finished.resolve()
   })
+
+  // Cache the flush check once instead of per-chunk. The `flush` method is
+  // added by the `compression` middleware and won't appear/disappear mid-request.
+  const flushFn =
+    'flush' in res && typeof (res as any).flush === 'function'
+      ? (res as any).flush.bind(res)
+      : null
 
   // Create a writable stream that will write to the response.
   return new WritableStream<Uint8Array>({
@@ -73,6 +79,7 @@ function createWriterFromResponse(
           NextNodeServerSpan.startResponse,
           {
             spanName: 'start response',
+            hideSpan: true,
           },
           () => undefined
         )
@@ -81,15 +88,18 @@ function createWriterFromResponse(
       try {
         const ok = res.write(chunk)
 
-        // Added by the `compression` middleware, this is a function that will
-        // flush the partially-compressed response to the client.
-        if ('flush' in res && typeof res.flush === 'function') {
-          res.flush()
+        // Flush the partially-compressed response to the client.
+        if (flushFn) {
+          flushFn()
         }
 
         // If the write returns false, it means there's some backpressure, so
         // wait until it's streamed before continuing.
         if (!ok) {
+          if (!drained) {
+            drained = new DetachedPromise<void>()
+            res.on('drain', onDrain)
+          }
           await drained.promise
 
           // Reset the drained promise so that we can wait for the next drain event.
