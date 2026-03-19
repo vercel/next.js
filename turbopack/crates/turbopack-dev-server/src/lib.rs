@@ -203,7 +203,7 @@ impl DevServerBuilder {
 
                                 println!("[404] {path} (WebSocket)");
                                 if path == "/_next/hmr" {
-                                    // Special-case requests to webpack-hmr as these are made by
+                                    // Special-case requests to hmr as these are made by
                                     // Next.js clients built
                                     // without turbopack, which may be making requests in
                                     // development.
