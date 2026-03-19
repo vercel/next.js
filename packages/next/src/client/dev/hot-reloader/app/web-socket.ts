@@ -48,7 +48,7 @@ export function createWebSocket(
     }
 
     const newWebSocket = new window.WebSocket(
-      `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+      `${getSocketUrl(assetPrefix)}/_next/hmr?id=${self.__next_r}`
     )
 
     newWebSocket.binaryType = 'arraybuffer'

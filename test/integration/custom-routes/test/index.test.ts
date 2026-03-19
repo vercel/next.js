@@ -97,7 +97,7 @@ const runTests = (isDev = false) => {
       'success'
     )
     ws.close()
-    expect([...externalServerHits]).toEqual(['/_next/webpack-hmr?page=/about'])
+    expect([...externalServerHits]).toEqual(['/_next/hmr?page=/about'])
   })
 
   it('should successfully rewrite a WebSocket request to a page', async () => {
@@ -2134,7 +2134,7 @@ const runTests = (isDev = false) => {
          "rewrites": {
            "afterFiles": [
              {
-               "destination": "http://localhost:EXTERNAL_SERVER_PORT/_next/webpack-hmr?page=/about",
+               "destination": "http://localhost:EXTERNAL_SERVER_PORT/_next/hmr?page=/about",
                "regex": "^\\/to-websocket(?:\\/)?$",
                "source": "/to-websocket",
              },

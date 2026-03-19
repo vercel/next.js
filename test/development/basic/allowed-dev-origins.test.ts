@@ -158,7 +158,7 @@ describe.each(['', '/docs'])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -183,7 +183,7 @@ describe.each(['', '/docs'])(
           })
 
           expectBlockedDevResourceMessage(next.cliOutput, {
-            resourcePath: withBasePath(basePath, '/_next/webpack-hmr'),
+            resourcePath: withBasePath(basePath, '/_next/hmr'),
             source: 'example.vercel.sh',
           })
         } finally {
@@ -286,7 +286,7 @@ describe.each(['', '/docs'])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
 
-              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/hmr')}")
 
               ws.addEventListener('error', () => {
                 statusEl.innerText = 'error'
@@ -353,7 +353,7 @@ describe.each(['', '/docs'])(
               statusEl.id = 'status'
               document.querySelector('body').appendChild(statusEl)
   
-              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
+              const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/hmr')}")
               
               ws.addEventListener('error', (err) => {
                 statusEl.innerText = 'error'
@@ -484,7 +484,7 @@ describe.each(['', '/docs'])(
                     statusEl.id = 'status'
                     document.querySelector('body').appendChild(statusEl)
         
-                    const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/webpack-hmr')}")
+                    const ws = new WebSocket("${next.url}${withBasePath(basePath, '/_next/hmr')}")
                     
                     ws.addEventListener('error', (err) => {
                       statusEl.innerText = 'error'
@@ -512,7 +512,7 @@ describe.each(['', '/docs'])(
           })
 
           expectBlockedDevResourceMessage(next.cliOutput, {
-            resourcePath: withBasePath(basePath, '/_next/webpack-hmr'),
+            resourcePath: withBasePath(basePath, '/_next/hmr'),
             opaqueOrigin: true,
           })
         } finally {

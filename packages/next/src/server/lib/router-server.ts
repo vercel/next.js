@@ -836,7 +836,7 @@ export async function initialize(opts: {
         }
 
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
