@@ -604,10 +604,11 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
     "passed": [
-      "app dir client cache with parallel routes prefetch={true} should prefetch the full page",
+      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
+    ],
+    "failed": [
       "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3544,6 +3545,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/instant-validation/instant-validation-parallel-slots.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "instant validation - parallel slot configs TODO: snapshot tests for webpack"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/instant-validation/instant-validation.test.ts": {
     "passed": [],
     "failed": [],
@@ -4471,8 +4481,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-after-app-static/build-time/build-time.test.ts": {
-    "passed": [],
-    "failed": ["after() in static pages runs after during build"],
+    "passed": ["after() in static pages runs after during build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7450,10 +7460,11 @@
       "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
       "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
-    "failed": [],
+    "failed": [
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available"
+    ],
     "pending": [
       "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
@@ -7593,6 +7604,15 @@
       "segment cache (staleness) entry expires when its stale time has elapsed",
       "segment cache (staleness) expires runtime prefetches when their stale time has elapsed",
       "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params-base-dynamic/vary-params-base-dynamic.test.ts": {
+    "passed": [
+      "segment cache - vary params base dynamic keeps dynamic segment params valid before and after time-based revalidation"
     ],
     "failed": [],
     "pending": [],
@@ -8284,6 +8304,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
+    "passed": [
+      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-params/use-params.test.ts": {
     "passed": [
       "use-params should work for catch all params",
@@ -8365,6 +8394,15 @@
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-import-module/webpack-loader-import-module.test.ts": {
+    "passed": [],
+    "failed": [
+      "webpack-loader-import-module should support this.importModule() in a webpack loader"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10880,7 +10918,14 @@
       "opentelemetry root context pages should handle getServerSideProps returning notFound",
       "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry with custom server should set attributes correctly on handleRequest span",
-      "opentelemetry with direct entrypoint handler should propagate incoming context without next-server wrapper",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/app/param/data should add route names to handleRequest and parent spans for direct entrypoint /api/app/param/data",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/app/param/data should propagate incoming context without next-server wrapper for direct entrypoint /api/app/param/data",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/pages/param/basic should add route names to handleRequest and parent spans for direct entrypoint /api/pages/param/basic",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/pages/param/basic should propagate incoming context without next-server wrapper for direct entrypoint /api/pages/param/basic",
+      "opentelemetry with direct entrypoint handler direct entrypoint /app/param/rsc-fetch should add route names to handleRequest and parent spans for direct entrypoint /app/param/rsc-fetch",
+      "opentelemetry with direct entrypoint handler direct entrypoint /app/param/rsc-fetch should propagate incoming context without next-server wrapper for direct entrypoint /app/param/rsc-fetch",
+      "opentelemetry with direct entrypoint handler direct entrypoint /pages/param/getServerSideProps should add route names to handleRequest and parent spans for direct entrypoint /pages/param/getServerSideProps",
+      "opentelemetry with direct entrypoint handler direct entrypoint /pages/param/getServerSideProps should propagate incoming context without next-server wrapper for direct entrypoint /pages/param/getServerSideProps",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "failed": [],
@@ -21027,10 +21072,11 @@
       "Telemetry CLI production mode detect static 404 correctly for `next build`",
       "Telemetry CLI production mode detects correct cli session defaults",
       "Telemetry CLI production mode detects tests correctly for `next build`",
-      "Telemetry CLI production mode emits event when swc fails to load",
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
-    "failed": [],
+    "failed": [
+      "Telemetry CLI production mode emits event when swc fails to load"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
