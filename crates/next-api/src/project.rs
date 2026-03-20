@@ -1482,31 +1482,28 @@ impl Project {
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        async move {
-            let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = if self.next_mode().await?.is_production() {
-                module_graphs_op.connect()
-            } else {
-                // In development mode, we need to to take and drop the issues, otherwise every
-                // route will report all issues.
-                let vc = module_graphs_op.resolve_strongly_consistent().await?;
-                module_graphs_op.drop_issues();
-                *vc
-            };
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = if self.next_mode().await?.is_production() {
+            module_graphs_op.connect()
+        } else {
+            // In development mode, we need to to take and drop the issues, otherwise every
+            // route will report all issues.
+            let vc = module_graphs_op.resolve_strongly_consistent().await?;
+            module_graphs_op.drop_issues();
+            *vc
+        };
 
-            // At this point all modules have been computed and we can get rid of the node.js
-            // process pools
-            let execution_context = self.execution_context().await?;
-            let node_backend = execution_context.node_backend.into_trait_ref().await?;
-            if *self.is_watch_enabled().await? {
-                node_backend.scale_down()?;
-            } else {
-                node_backend.scale_zero()?;
-            }
-
-            Ok(module_graphs_vc)
+        // At this point all modules have been computed and we can get rid of the node.js
+        // process pools
+        let execution_context = self.execution_context().await?;
+        let node_backend = execution_context.node_backend.into_trait_ref().await?;
+        if *self.is_watch_enabled().await? {
+            node_backend.scale_down()?;
+        } else {
+            node_backend.scale_zero()?;
         }
-        .await
+
+        Ok(module_graphs_vc)
     }
 
     #[turbo_tasks::function]
@@ -2499,8 +2496,7 @@ async fn whole_app_module_graph_operation(
 
         let (full, binding_usage_info) = if turbopack_remove_unused_imports {
             let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
-            let binding_usage_info =
-                compute_binding_usage_info(full_with_unused_references, true);
+            let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
             (
                 ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info),
                 Some(binding_usage_info),
