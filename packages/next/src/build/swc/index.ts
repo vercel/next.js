@@ -620,36 +620,77 @@ function bindingToApi(
       }
     }
 
-    async function* createIterator() {
-      const task = await nativeFunction(emitResult)
-      try {
-        while (!canceled) {
-          if (buffer.length > 0) {
-            const item = buffer.shift()!
-            if (item.err) throw item.err
-            yield item.value
-          } else {
-            // eslint-disable-next-line no-loop-func
-            yield new Promise<T>((resolve, reject) => {
-              waiting = { resolve, reject }
-            })
-          }
-        }
-      } catch (e) {
-        if (e === cancel) return
-        throw e
-      } finally {
-        if (task) {
-          binding.rootTaskDispose(task)
-        }
+    // Manual async iterator instead of an async generator to avoid creating
+    // multiple async hook IDs per iteration.
+    //
+    // Async generators register a long-lived "AsyncGeneratorObject" async
+    // resource plus a generator step-Promise for every `.next()` call. When
+    // the generator yields a Promise (as done below for the "waiting" path),
+    // the `for await…of` consumer also wraps that value in `Promise.resolve()`,
+    // producing yet another async resource. Under heavy Turbopack HMR activity
+    // (many subscriptions × many events) these resources accumulate inside
+    // React's dev-mode `pendingOperations` Map — which tracks every async
+    // resource with a captured stack trace — faster than V8's GC can fire the
+    // `destroy` hook to clean them up, eventually causing:
+    //
+    //   RangeError: Map maximum size exceeded
+    //     at Map.set (…)
+    //     at AsyncHook.init (…app-page-turbo.runtime.dev.js…)
+    //
+    // This manual implementation returns one `Promise<IteratorResult<T>>`
+    // directly from `next()` — no generator object overhead, no extra
+    // step-Promise wrapping — which keeps async-resource pressure proportional
+    // to the number of active subscriptions rather than to the total number of
+    // events ever processed.
+    let task: Awaited<ReturnType<typeof nativeFunction>> | undefined
+    nativeFunction(emitResult).then(
+      (t) => {
+        task = t
+      },
+      (err: Error) => {
+        emitResult(err, undefined)
       }
-    }
+    )
 
-    const iterator = createIterator()
-    iterator.return = async () => {
-      canceled = true
-      if (waiting) waiting.reject(cancel)
-      return { value: undefined, done: true } as IteratorReturnResult<never>
+    const iterator: AsyncIterableIterator<T> = {
+      [Symbol.asyncIterator]() {
+        return this
+      },
+      next(): Promise<IteratorResult<T>> {
+        if (canceled) {
+          return Promise.resolve({
+            value: undefined,
+            done: true,
+          } as IteratorReturnResult<never>)
+        }
+        if (buffer.length > 0) {
+          const item = buffer.shift()!
+          if (item.err) return Promise.reject(item.err)
+          return Promise.resolve({ value: item.value!, done: false })
+        }
+        // eslint-disable-next-line no-loop-func
+        return new Promise<IteratorResult<T>>((resolve, reject) => {
+          waiting = {
+            resolve: (value: T) => resolve({ value, done: false }),
+            reject: (e: Error) => {
+              if (e === cancel) {
+                resolve({
+                  value: undefined,
+                  done: true,
+                } as IteratorReturnResult<never>)
+              } else {
+                reject(e)
+              }
+            },
+          }
+        })
+      },
+      return: async () => {
+        canceled = true
+        if (waiting) waiting.reject(cancel)
+        if (task) binding.rootTaskDispose(task)
+        return { value: undefined, done: true } as IteratorReturnResult<never>
+      },
     }
     return iterator
   }
