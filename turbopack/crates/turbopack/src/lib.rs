@@ -215,10 +215,10 @@ async fn apply_module_type(
                                     ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
                                                     *module,
                                                 ))
-                                                .resolve()
+                                                .to_resolved()
                                                 .await?,
                                             ),
                                             part.clone(),
@@ -436,10 +436,10 @@ impl ModuleAssetContext {
             return Ok(self);
         }
         let this = self.await?;
-        let resolve_options_context = this
+        let resolve_options_context = *this
             .resolve_options_context
             .with_types_enabled()
-            .resolve()
+            .to_resolved()
             .await?;
 
         Ok(ModuleAssetContext::new(
@@ -1017,7 +1017,7 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
+        let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
