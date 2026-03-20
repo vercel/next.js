@@ -1358,6 +1358,25 @@ export async function handler(
         // non-prerendered URL, use the prerender manifest's fallback route
         // params which correctly identifies which params are unknown.
         ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+          // In minimal mode (adapter deployments), dynamic matched-path
+          // requests can reach the lambda with placeholder params like
+          // "[teamSlug]" and no renderFallbackShell metadata. Treat these as
+          // fallback-shell renders so static and resumed renders use
+          // consistent param semantics.
+          (isMinimalMode &&
+            pageIsDynamic &&
+            prerenderInfo?.fallbackRouteParams?.every((param) => {
+              const placeholder = buildDynamicSegmentPlaceholder(param)
+              const value = (params as Record<string, unknown> | undefined)?.[
+                param.paramName
+              ]
+              return (
+                value === placeholder ||
+                (Array.isArray(value) &&
+                  value.length === 1 &&
+                  value[0] === placeholder)
+              )
+            })) ||
           (isDebugStaticShell && !isPrerendered)) &&
         prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
