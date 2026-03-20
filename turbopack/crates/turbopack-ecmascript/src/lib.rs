@@ -402,6 +402,10 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
+    /// A transient cache of successful parse results
+    /// Used when EcmascriptOptions::keep_last_successful_parse is enabled (only in dev)
+    /// This ensures that parse errors don't invalidate large portions of the task graph, so we
+    /// still report the issue but serve the previous AST
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "Default::default")]
     last_successful_parse: TransientCache<ReadRef<ParseResult>>,

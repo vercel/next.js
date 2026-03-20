@@ -376,23 +376,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
     ) {
         let base_aggregation_number = if is_root {
-            Some(u32::MAX)
+            u32::MAX
         } else if is_session_dependent && self.should_track_dependencies() {
             const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
-            Some(SESSION_DEPENDENT_AGGREGATION_NUMBER)
+            SESSION_DEPENDENT_AGGREGATION_NUMBER
         } else {
-            None
+            return;
         };
-        if let Some(base_aggregation_number) = base_aggregation_number {
-            AggregationUpdateQueue::run(
-                AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number,
-                    distance: None,
-                },
-                ctx,
-            );
-        }
+
+        AggregationUpdateQueue::run(
+            AggregationUpdateJob::UpdateAggregationNumber {
+                task_id,
+                base_aggregation_number,
+                distance: None,
+            },
+            ctx,
+        );
     }
 
     fn should_track_activeness(&self) -> bool {
@@ -502,21 +501,6 @@ struct TaskExecutionCompletePrepareResult {
 
 // Operations
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
-    fn connect_child(
-        &self,
-        parent_task: Option<TaskId>,
-        child_task: TaskId,
-        task_type: Option<ArcOrOwned<CachedTaskType>>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        operation::ConnectChildOperation::run(
-            parent_task,
-            child_task,
-            task_type,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
     fn try_read_task_output(
         self: &Arc<Self>,
         task_id: TaskId,
@@ -1545,22 +1529,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> TaskId {
         let is_root = task_type.native_fn.is_root;
         let is_session_dependent = task_type.native_fn.is_session_dependent;
-
+        // Create a single ExecuteContext for both lookup and connect_child
+        let mut ctx = self.execute_context(turbo_tasks);
         // First check if the task exists in the cache which only uses a read lock
         if let Some(task_id) = self.task_cache.get(&task_type) {
             let task_id = *task_id;
             self.track_cache_hit(&task_type);
-            self.connect_child(
+            operation::ConnectChildOperation::run(
                 parent_task,
                 task_id,
                 Some(ArcOrOwned::Owned(task_type)),
-                turbo_tasks,
+                ctx,
             );
             return task_id;
         }
-
-        // Create a single ExecuteContext for both lookup and connect_child
-        let mut ctx = self.execute_context(turbo_tasks);
 
         let mut is_new = false;
         let (task_id, task_type) = if let Some(task_id) = ctx.task_by_type(&task_type) {
@@ -1631,15 +1613,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 /* cell_id */ None,
             );
         }
+        let mut ctx = self.execute_context(turbo_tasks);
         // First check if the task exists in the cache which only uses a read lock
         if let Some(task_id) = self.task_cache.get(&task_type) {
             let task_id = *task_id;
             self.track_cache_hit(&task_type);
-            self.connect_child(
+            operation::ConnectChildOperation::run(
                 parent_task,
                 task_id,
                 Some(ArcOrOwned::Owned(task_type)),
-                turbo_tasks,
+                ctx,
             );
             return task_id;
         }
@@ -1649,11 +1632,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = *e.get();
                 drop(e);
                 self.track_cache_hit(&task_type);
-                self.connect_child(
+                operation::ConnectChildOperation::run(
                     parent_task,
                     task_id,
                     Some(ArcOrOwned::Owned(task_type)),
-                    turbo_tasks,
+                    ctx,
                 );
                 task_id
             }
@@ -1663,21 +1646,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
 
-                {
-                    let mut ctx = self.execute_context(turbo_tasks);
-                    self.set_initial_aggregation_number(
-                        task_id,
-                        is_root,
-                        is_session_dependent,
-                        &mut ctx,
-                    );
-                }
+                self.set_initial_aggregation_number(
+                    task_id,
+                    is_root,
+                    is_session_dependent,
+                    &mut ctx,
+                );
 
-                self.connect_child(
+                operation::ConnectChildOperation::run(
                     parent_task,
                     task_id,
                     Some(ArcOrOwned::Arc(task_type)),
-                    turbo_tasks,
+                    ctx,
                 );
 
                 task_id
