@@ -574,7 +574,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
 
-        let sync_span = tracing::info_span!("sync new files").entered();
+        let sync_span = tracing::trace_span!("sync new files").entered();
         let mut new_meta_files = self
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
@@ -814,7 +814,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
-        let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)

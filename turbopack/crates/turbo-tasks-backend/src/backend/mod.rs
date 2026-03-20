@@ -2769,12 +2769,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
 
                         let this = self.clone();
-                        let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
+                        // Create a root span shared by both the snapshot/persist
+                        // work and the subsequent compaction so they appear
+                        // grouped together in trace viewers.
+                        let background_span =
+                            tracing::info_span!(parent: None, "background snapshot");
+                        let snapshot =
+                            this.snapshot_and_persist(background_span.id(), reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
 
                             // Compact while idle (up to limit), regardless of
                             // whether the snapshot had new data.
+                            // `background_span` is not entered here because
+                            // `EnteredSpan` is `!Send` and would prevent the
+                            // future from being sent across threads when it
+                            // suspends at the `select!` await below.
                             const MAX_IDLE_COMPACTION_PASSES: usize = 10;
                             for _ in 0..MAX_IDLE_COMPACTION_PASSES {
                                 let idle_ended = tokio::select! {
@@ -2788,6 +2798,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 if idle_ended {
                                     break;
                                 }
+                                // Enter the span only around the synchronous
+                                // compact() call so we never hold an
+                                // `EnteredSpan` across an await point.
+                                let _compact_span = tracing::info_span!(
+                                    parent: background_span.id(),
+                                    "compact database"
+                                )
+                                .entered();
                                 match self.backing_storage.compact() {
                                     Ok(true) => {}
                                     Ok(false) => break,
