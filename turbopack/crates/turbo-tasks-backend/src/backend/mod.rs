@@ -1136,10 +1136,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Ok(encoded) => {
                         #[cfg(feature = "print_cache_item_size")]
                         {
+                            let task_name = inner
+                                .get_persistent_task_type()
+                                .map(|t| t.to_string())
+                                .unwrap_or_else(|| "<unknown>".to_string());
                             let mut stats = task_cache_stats.lock();
-                            let entry = stats
-                                .entry(self.get_task_name(task_id, turbo_tasks))
-                                .or_default();
+                            let entry = stats.entry(task_name).or_default();
                             match category {
                                 SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
                                 SpecificTaskDataCategory::Data => entry.add_data(&encoded),
@@ -1166,10 +1168,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let encode_data = inner.flags.data_modified();
 
             #[cfg(feature = "print_cache_item_size")]
-            if encode_meta {
+            if encode_data || encode_meta {
+                let task_name = inner
+                    .get_persistent_task_type()
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "<unknown>".to_string());
                 task_cache_stats
                     .lock()
-                    .entry(self.get_task_name(task_id, turbo_tasks))
+                    .entry(task_name)
                     .or_default()
                     .add_counts(inner);
             }
