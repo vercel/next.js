@@ -976,11 +976,13 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
-                let mut module_count = 0u64;
-                for g in &graphs {
-                    module_count += g.connect().module_count().untracked().owned().await?;
+                if !span.is_disabled() {
+                    let mut module_count = 0u64;
+                    for g in &graphs {
+                        module_count += g.connect().module_count().untracked().owned().await?;
+                    }
+                    span.record("modules", module_count);
                 }
-                span.record("modules", module_count);
 
                 let remove_unused_imports = *self
                     .project

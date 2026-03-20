@@ -2480,19 +2480,21 @@ async fn whole_app_module_graph_operation(
             should_read_binding_usage,
         );
 
-        let base_module_count = base_single_module_graph
-            .connect()
-            .module_count()
-            .untracked()
-            .owned()
-            .await?;
-        let additional_module_count = additional_module_graph
-            .connect()
-            .module_count()
-            .untracked()
-            .owned()
-            .await?;
-        span.record("modules", base_module_count + additional_module_count);
+        if !span.is_disabled() {
+            let base_module_count = base_single_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .owned()
+                .await?;
+            let additional_module_count = additional_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .owned()
+                .await?;
+            span.record("modules", base_module_count + additional_module_count);
+        }
 
         let graphs = vec![base_single_module_graph, additional_module_graph];
 
