@@ -213,7 +213,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
       return Promise.all([
         options.router.pageLoader.getPageList(),
         getClientBuildManifest(),
-      ]).then(([pages, { __rewrites: rewrites }]: any) => {
+      ]).then(async ([pages, { __rewrites: rewrites }]: any) => {
+        // Refresh once if the rewritten target is missing from the current page list.
+        if (rewriteHeader && !pages.includes(fsPathname)) {
+          pages = await options.router.pageLoader.getPageList(true)
+        }
+
         let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
 
         if (
