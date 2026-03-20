@@ -9487,11 +9487,13 @@ dependencies = [
  "bincode 2.0.1",
  "bytes-str",
  "codspeed-criterion-compat",
+ "dashmap 6.1.0",
  "napi",
  "new_debug_unreachable",
  "rustc-hash 2.1.1",
  "serde",
  "shrink-to-fit",
+ "smallvec",
  "triomphe 0.1.12",
  "turbo-tasks-hash",
 ]

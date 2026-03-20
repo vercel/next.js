@@ -1,11 +1,147 @@
-use std::{num::NonZeroU8, ptr::NonNull};
+use std::{num::NonZeroU8, ptr::NonNull, sync::LazyLock};
 
+use dashmap::DashMap;
+use smallvec::SmallVec;
 use triomphe::Arc;
 
 use crate::{
     INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, STATIC_TAG, TAG_MASK,
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
+
+/// A wrapper around `TaggedValue` that implements `Send` and `Sync`.
+///
+/// This is safe because the `TaggedValue` in the intern table always points to
+/// either:
+/// - A `triomphe::Arc<PrehashedString>` (DYNAMIC_TAG), which is `Send + Sync`
+/// - A `&'static PrehashedString` (STATIC_TAG), which is `Send + Sync`
+///
+/// The wrapper is `Copy` and has no `Drop`, avoiding recursive drop issues.
+#[derive(Copy, Clone, PartialEq, Eq)]
+struct InternEntry(TaggedValue);
+
+// Safety: InternEntry wraps either an Arc pointer (Send+Sync via Arc) or a
+// static reference (inherently Send+Sync). See the doc comment above.
+unsafe impl Send for InternEntry {}
+unsafe impl Sync for InternEntry {}
+
+/// Global intern table for deduplicating RcStr values.
+///
+/// Keyed by the precomputed u64 hash of the string content. Values are SmallVec
+/// of `InternEntry`s to handle the (extremely rare) case of hash collisions.
+/// Using `InternEntry` (a `Copy` wrapper around `TaggedValue`) instead of
+/// `RcStr` avoids recursive Drop calls when evicting entries.
+///
+/// The table entries may be either DYNAMIC-tagged (heap-allocated Arc) or
+/// STATIC-tagged (compile-time constant). When a static string is registered,
+/// subsequent `RcStr::from()` calls for the same content return a static clone,
+/// avoiding heap allocation and refcounting entirely.
+///
+/// Dynamic entries are self-evicting: when an RcStr is dropped and the only
+/// remaining reference is the intern table's copy (refcount == 2), the entry is
+/// removed.
+static INTERN_TABLE: LazyLock<DashMap<u64, SmallVec<[InternEntry; 1]>>> =
+    LazyLock::new(DashMap::new);
+
+/// Returns the number of unique strings currently in the intern table.
+pub fn interned_count() -> usize {
+    INTERN_TABLE.iter().map(|e| e.value().len()).sum()
+}
+
+/// Look up a string in the intern table by hash and content.
+/// Returns a clone of the existing entry as an RcStr if found.
+fn intern_lookup(hash: u64, text: &str) -> Option<RcStr> {
+    let entry = INTERN_TABLE.get(&hash)?;
+    for &InternEntry(tv) in entry.value().iter() {
+        // Safety: all entries in the intern table point to valid
+        // PrehashedString allocations (either Arc-managed or static).
+        let phs = unsafe { deref_from(tv) };
+        if phs.value.as_str() == text {
+            // Clone the entry — for DYNAMIC entries this increments the Arc
+            // refcount, for STATIC entries it's free.
+            return Some(clone_intern_entry(tv));
+        }
+    }
+    None
+}
+
+/// Clone an interned TaggedValue into a new RcStr, incrementing the Arc
+/// refcount for DYNAMIC entries.
+fn clone_intern_entry(tv: TaggedValue) -> RcStr {
+    let tag = tv.tag_byte() & TAG_MASK;
+    if tag == crate::DYNAMIC_TAG {
+        unsafe {
+            let arc = restore_arc(tv);
+            std::mem::forget(arc.clone()); // increment refcount
+            std::mem::forget(arc); // don't decrement
+        }
+    }
+    // For STATIC and INLINE (though INLINE should never be in the table),
+    // just copy the TaggedValue.
+    RcStr { unsafe_data: tv }
+}
+
+/// Register a static RcStr in the intern table so that future `RcStr::from()`
+/// calls for the same content return the static version (avoiding heap
+/// allocation and refcounting).
+pub(crate) fn intern_static(tv: TaggedValue, hash: u64) {
+    debug_assert!(tv.tag_byte() & TAG_MASK == STATIC_TAG);
+    let new_entry = InternEntry(tv);
+    INTERN_TABLE
+        .entry(hash)
+        .and_modify(|entries| {
+            let text = unsafe { deref_from(tv) }.value.as_str();
+            // Replace any existing dynamic entry with the static one
+            if let Some(pos) = entries
+                .iter()
+                .position(|&InternEntry(e)| unsafe { deref_from(e) }.value.as_str() == text)
+            {
+                let InternEntry(old) = entries[pos];
+                entries[pos] = new_entry;
+                // If the old entry was DYNAMIC, drop the table's Arc reference
+                drop_intern_entry(old);
+            } else {
+                entries.push(new_entry);
+            }
+        })
+        .or_insert_with(|| SmallVec::from_elem(new_entry, 1));
+}
+
+/// Remove a dynamic entry from the intern table by pointer identity.
+/// Called from RcStr::Drop or into_owned when the refcount indicates only
+/// the caller and the intern table hold references.
+///
+/// This also drops the table's Arc reference (decrementing the refcount).
+pub(crate) fn intern_remove(tagged_value: TaggedValue) {
+    let phs = unsafe { deref_from(tagged_value) };
+    let hash = phs.hash;
+    let needle = InternEntry(tagged_value);
+    if let Some(mut entry) = INTERN_TABLE.get_mut(&hash) {
+        let entries = entry.value_mut();
+        if let Some(pos) = entries.iter().position(|&e| e == needle) {
+            let InternEntry(removed) = entries.swap_remove(pos);
+            if entries.is_empty() {
+                drop(entry);
+                INTERN_TABLE.remove_if(&hash, |_, entries| entries.is_empty());
+            } else {
+                drop(entry);
+            }
+            // Drop the table's Arc reference — InternEntry is Copy so removing
+            // from the SmallVec didn't decrement the refcount.
+            drop_intern_entry(removed);
+        }
+    }
+}
+
+/// Drop the Arc refcount for a DYNAMIC TaggedValue. No-op for STATIC/INLINE.
+fn drop_intern_entry(tv: TaggedValue) {
+    let tag = tv.tag_byte() & TAG_MASK;
+    if tag == crate::DYNAMIC_TAG {
+        unsafe {
+            drop(restore_arc(tv));
+        }
+    }
+}
 
 pub enum Payload {
     String(String),
@@ -55,6 +191,10 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
 
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
+///
+/// For strings longer than the inline threshold, this checks the global intern
+/// table and returns a clone of an existing Arc if the string is already
+/// interned, avoiding a new heap allocation.
 pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     let len = text.as_ref().len();
 
@@ -70,12 +210,66 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 
     let hash = hash_bytes(text.as_ref().as_bytes());
 
-    let entry: Arc<PrehashedString> = Arc::new(PrehashedString {
-        value: Payload::String(text.into()),
-        hash,
-    });
-    let entry = Arc::into_raw(entry);
+    // Fast path: read lock only. Most hits go through here.
+    if let Some(existing) = intern_lookup(hash, text.as_ref()) {
+        return existing;
+    }
 
+    // Slow path: take the write lock via entry() and double-check.
+    // This eliminates the race where two threads both miss the read lock
+    // and both insert duplicate entries.
+    intern_insert_or_lookup(hash, text)
+}
+
+/// Slow path for `new_atom`: acquires the write lock on the DashMap shard via
+/// `entry()`, double-checks for an existing entry (another thread may have
+/// inserted between our read-lock miss and this write-lock acquisition), and
+/// either returns the existing entry or inserts a new one.
+fn intern_insert_or_lookup<T: AsRef<str> + Into<String>>(hash: u64, text: T) -> RcStr {
+    match INTERN_TABLE.entry(hash) {
+        dashmap::Entry::Occupied(entry) => {
+            // Double-check: another thread may have inserted while we were
+            // waiting for the write lock.
+            for &InternEntry(tv) in entry.get().iter() {
+                let phs = unsafe { deref_from(tv) };
+                if phs.value.as_str() == text.as_ref() {
+                    return clone_intern_entry(tv);
+                }
+            }
+            // Hash bucket exists but no content match (hash collision).
+            // Insert our new entry alongside the existing ones.
+            let arc: Arc<PrehashedString> = Arc::new(PrehashedString {
+                value: Payload::String(text.into()),
+                hash,
+            });
+            let table_arc = arc.clone();
+            let rcstr = arc_to_rcstr(arc);
+            let table_rcstr = arc_to_rcstr(table_arc);
+            entry
+                .into_ref()
+                .value_mut()
+                .push(InternEntry(table_rcstr.unsafe_data));
+            std::mem::forget(table_rcstr);
+            rcstr
+        }
+        dashmap::Entry::Vacant(entry) => {
+            let arc: Arc<PrehashedString> = Arc::new(PrehashedString {
+                value: Payload::String(text.into()),
+                hash,
+            });
+            let table_arc = arc.clone();
+            let rcstr = arc_to_rcstr(arc);
+            let table_rcstr = arc_to_rcstr(table_arc);
+            entry.insert(SmallVec::from_elem(InternEntry(table_rcstr.unsafe_data), 1));
+            std::mem::forget(table_rcstr);
+            rcstr
+        }
+    }
+}
+
+/// Convert a `triomphe::Arc<PrehashedString>` into an `RcStr` with DYNAMIC_TAG.
+fn arc_to_rcstr(arc: Arc<PrehashedString>) -> RcStr {
+    let entry = Arc::into_raw(arc);
     let ptr: NonNull<PrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
         NonNull::new_unchecked(entry as *mut _)
@@ -97,9 +291,11 @@ pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
         NonNull::new_unchecked(entry as *mut _)
     };
 
-    RcStr {
-        unsafe_data: TaggedValue::new_ptr(ptr),
-    }
+    let tv = TaggedValue::new_ptr(ptr);
+    // Register in the intern table so that future RcStr::from() calls for
+    // the same content return this static version instead of allocating.
+    intern_static(tv, string.hash);
+    RcStr { unsafe_data: tv }
 }
 
 /// Attempts to construct an RcStr but only if it can be constructed inline.

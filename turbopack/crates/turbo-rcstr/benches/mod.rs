@@ -47,9 +47,40 @@ fn bench_construct(c: &mut Criterion) {
         f.iter(|| RcStr::from("this is a long string that will take time to copy"));
     });
 }
+/// Benchmark intern table hit: repeatedly create RcStr from the same string.
+/// With interning this is a table lookup + Arc clone instead of a fresh allocation.
+fn bench_intern_hit(c: &mut Criterion) {
+    let mut g = c.benchmark_group("intern_hit");
+    let long = "this is a long string that exercises the intern table lookup path";
+
+    // Pre-populate the intern table
+    let _keep = RcStr::from(long);
+
+    g.bench_function("from/interned", |b| {
+        b.iter(|| {
+            let s = RcStr::from(long);
+            std::hint::black_box(&s);
+        });
+    });
+    g.finish();
+}
+
+/// Benchmark equality of interned strings (pointer identity fast path).
+fn bench_eq_interned(c: &mut Criterion) {
+    let mut g = c.benchmark_group("eq");
+    let long = "benchmark equality: a long string for comparing interned values";
+    let a = RcStr::from(long);
+    let b = RcStr::from(long);
+
+    g.bench_function("interned", |bench| {
+        bench.iter(|| std::hint::black_box(&a) == std::hint::black_box(&b));
+    });
+    g.finish();
+}
+
 criterion_group!(
   name = benches;
   config = Criterion::default();
-  targets = bench_map,bench_construct,
+  targets = bench_map,bench_construct,bench_intern_hit,bench_eq_interned,
 );
 criterion_main!(benches);

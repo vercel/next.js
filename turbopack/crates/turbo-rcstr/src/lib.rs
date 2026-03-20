@@ -23,6 +23,7 @@ use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
+pub use crate::dynamic::interned_count;
 use crate::{
     dynamic::{deref_from, hash_bytes, new_atom},
     tagged_value::TaggedValue,
@@ -66,10 +67,13 @@ mod tagged_value;
 /// Converting from an [`RcStr`] to a `&str` should be done with [`RcStr::as_str`]. Converting to a
 /// `String` should be done with [`RcStr::into_owned`].
 ///
-/// ## Future Optimizations
+/// ## Interning
 ///
-/// This type is intentionally opaque to allow for optimizations to the underlying representation.
-/// Future implementations may use inline representations or interning.
+/// Heap-allocated `RcStr` values are automatically interned: creating an `RcStr` from the same
+/// string content will reuse the existing allocation. This deduplicates memory and makes
+/// equality checks via pointer identity fast. Static strings created with [`rcstr!`] are also
+/// registered in the intern table, so `RcStr::from("...")` returns a zero-cost static copy
+/// when a matching `rcstr!` constant exists.
 //
 // If you want to change the underlying string type to `Arc<str>`, please ensure that you profile
 // performance. The current implementation offers very cheap `String -> RcStr -> String`, meaning we
@@ -143,8 +147,13 @@ impl RcStr {
     pub fn into_owned(self) -> String {
         match self.tag() {
             DYNAMIC_TAG => {
-                // convert `self` into `arc`
-                let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
+                let md = ManuallyDrop::new(self);
+                let arc = unsafe { dynamic::restore_arc(md.unsafe_data) };
+                // Check if only this arc + intern table hold references.
+                // If so, evict from the table to enable try_unwrap to succeed.
+                if Arc::count(&arc) == 2 {
+                    dynamic::intern_remove(md.unsafe_data);
+                }
                 match Arc::try_unwrap(arc) {
                     Ok(v) => v.value.into_string(),
                     Err(arc) => arc.value.as_str().to_string(),
@@ -399,7 +408,16 @@ impl_borrow_decode!(RcStr);
 impl Drop for RcStr {
     fn drop(&mut self) {
         match self.tag() {
-            DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
+            DYNAMIC_TAG => {
+                let arc = unsafe { dynamic::restore_arc(self.unsafe_data) };
+                // If the refcount is 2, only this arc and the intern table hold
+                // references. Remove from the intern table before dropping so
+                // the string is fully deallocated.
+                if Arc::count(&arc) == 2 {
+                    dynamic::intern_remove(self.unsafe_data);
+                }
+                drop(arc);
+            }
             STATIC_TAG => {
                 // do nothing, these are never deallocated
             }
@@ -519,19 +537,22 @@ mod tests {
             triomphe::Arc::count(&arc)
         }
 
-        let str = RcStr::from("this is a long string that won't be inlined");
+        // Use a unique string to avoid interference from other tests' interned strings
+        let str = RcStr::from("test_refcount: a unique long string for this test");
 
-        assert_eq!(refcount(&str), 1);
-        assert_eq!(refcount(&str), 1); // refcount should not modify the refcount itself
+        // Refcount is 2: one for `str`, one for the intern table entry
+        assert_eq!(refcount(&str), 2);
+        assert_eq!(refcount(&str), 2); // refcount should not modify the refcount itself
 
         let cloned_str = str.clone();
-        assert_eq!(refcount(&str), 2);
+        assert_eq!(refcount(&str), 3);
 
         drop(cloned_str);
-        assert_eq!(refcount(&str), 1);
+        assert_eq!(refcount(&str), 2);
 
+        // into_owned evicts from intern table when refcount == 2, then unwraps
         let _ = str.clone().into_owned();
-        assert_eq!(refcount(&str), 1);
+        assert_eq!(refcount(&str), 2);
     }
 
     #[test]
@@ -555,7 +576,10 @@ mod tests {
         const LONG: &str = "a very long string that lives forever";
         let leaked = rcstr!(LONG);
         let not_leaked = RcStr::from(LONG);
-        assert_ne!(leaked.tag(), not_leaked.tag());
+        // With interning, RcStr::from() finds the static in the intern table
+        // and returns a STATIC-tagged copy — same tag, same pointer.
+        assert_eq!(leaked.tag(), not_leaked.tag());
+        assert_eq!(leaked.tag(), STATIC_TAG);
         assert_eq!(leaked, not_leaked);
     }
 
@@ -622,6 +646,102 @@ mod tests {
                     s2
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_intern_pointer_identity() {
+        // Two RcStr::from() calls with the same long string should share the
+        // same underlying Arc (same TaggedValue bits).
+        let a = RcStr::from("intern_pointer_identity: same content");
+        let b = RcStr::from("intern_pointer_identity: same content");
+        assert_eq!(a.unsafe_data, b.unsafe_data);
+        assert_eq!(a.tag(), DYNAMIC_TAG);
+    }
+
+    fn refcount(str: &RcStr) -> usize {
+        assert!(str.tag() == DYNAMIC_TAG);
+        let arc = ManuallyDrop::new(unsafe { dynamic::restore_arc(str.unsafe_data) });
+        triomphe::Arc::count(&arc)
+    }
+
+    #[test]
+    fn test_intern_eviction() {
+        let s = RcStr::from("intern_eviction: unique string for eviction test");
+        assert_eq!(refcount(&s), 2); // s + intern table
+
+        let s2 = s.clone();
+        assert_eq!(refcount(&s), 3); // s + s2 + intern table
+
+        drop(s2);
+        assert_eq!(refcount(&s), 2);
+
+        // After dropping, re-creating the same string should get a fresh Arc
+        // (proving eviction happened)
+        let tv_before = s.unsafe_data;
+        drop(s);
+        let s_new = RcStr::from("intern_eviction: unique string for eviction test");
+        // New allocation — different pointer (eviction worked)
+        assert_ne!(s_new.unsafe_data, tv_before);
+        assert_eq!(refcount(&s_new), 2);
+    }
+
+    #[test]
+    fn test_intern_static_dedup() {
+        // After rcstr! registers a static, RcStr::from() returns STATIC
+        let static_str = rcstr!("intern_static_dedup: a long static string");
+        let dynamic_str = RcStr::from("intern_static_dedup: a long static string");
+        assert_eq!(static_str.tag(), STATIC_TAG);
+        assert_eq!(dynamic_str.tag(), STATIC_TAG);
+        assert_eq!(static_str.unsafe_data, dynamic_str.unsafe_data);
+    }
+
+    #[test]
+    fn test_intern_into_owned_evicts() {
+        let s = RcStr::from("intern_into_owned: unique string for into_owned test");
+        assert_eq!(refcount(&s), 2); // s + intern table
+
+        // into_owned with sole reference should succeed at try_unwrap
+        // (proving intern_remove was called first)
+        let owned = s.into_owned();
+        assert_eq!(
+            owned,
+            "intern_into_owned: unique string for into_owned test"
+        );
+
+        // After into_owned, re-creating gives a fresh interned string
+        let s_new = RcStr::from("intern_into_owned: unique string for into_owned test");
+        assert_eq!(refcount(&s_new), 2); // fresh: s_new + intern table
+    }
+
+    #[test]
+    fn test_intern_inline_not_interned() {
+        // Inline strings (≤6 bytes) should use INLINE_TAG, not be interned
+        let short = RcStr::from("hi");
+        assert_eq!(short.tag(), INLINE_TAG);
+    }
+
+    #[test]
+    fn test_intern_thread_safety() {
+        use std::thread;
+
+        const S: &str = "intern_thread_safety: shared across threads";
+
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                thread::spawn(|| {
+                    let strs: Vec<_> = (0..100).map(|_| RcStr::from(S)).collect();
+                    // All should share the same Arc pointer
+                    for s in &strs {
+                        assert_eq!(s.unsafe_data, strs[0].unsafe_data);
+                    }
+                    drop(strs);
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().unwrap();
         }
     }
 }
