@@ -144,12 +144,13 @@ export function createJsonReporter(options: {
     flushAll: (opts?: { end: boolean }) =>
       batch
         ? batch.flushAll().then(() => {
-            // Always end the writeStream when flushing, not just in production.
-            // In dev mode the stream was previously left open, leaking the fd
-            // until the process exited. Ending it here is safe because the next
-            // call to report() will lazily recreate it via the batcher callback.
-            if (opts?.end || writeStream) {
-              return writeStream?.end()
+            const phase = traceGlobals.get('phase')
+            if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
+              if (writeStream) {
+                const stream = writeStream
+                writeStream = undefined!
+                return stream.end()
+              }
             }
           })
         : undefined,
