@@ -507,8 +507,8 @@ pub struct StreamingSstWriter<E: Entry> {
     key_buffer: Vec<u8>,
 
     // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
-    // in close(). Fingerprint size is always ≤32 bits, so the lower 32 bits suffice.
-    collected_hashes: Vec<u32>,
+    // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
+    collected_fingerprints: Vec<u32>,
 
     // Index block data: (first_hash, block_index) for each key block written
     key_block_boundaries: Vec<(u64, u16)>,
@@ -566,7 +566,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
-            collected_hashes: Vec::with_capacity(max_entry_count as usize),
+            collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
             max_hash: 0,
@@ -625,7 +625,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         self.entry_count += 1;
 
         // Collect hash for deferred AMQF construction in close()
-        self.collected_hashes.push(key_hash as u32);
+        self.collected_fingerprints.push(key_hash as u32);
 
         // Track key size for fullness and block capacity
         self.total_key_size += key_len;
@@ -946,15 +946,16 @@ impl<E: Entry> StreamingSstWriter<E> {
         // Build AMQF from collected hashes using sorted Builder insertion.
         // Hashes are already sorted by key_hash (SST invariant), but fingerprints
         // (truncated hashes) may not be sorted, so we sort by fingerprint.
-        let actual_count = self.collected_hashes.len() as u64;
+        let actual_count = self.collected_fingerprints.len() as u64;
         let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
             .expect("Filter can't be constructed");
         let fp_size = builder.fingerprint_size();
         assert!(fp_size < 32, "fp_size {fp_size} exceeds u32");
         let fp_mask = (1u32 << fp_size) - 1;
         // Mask in-place to fingerprint size and sort.
-        self.collected_hashes.sort_unstable_by_key(|&h| h & fp_mask);
-        for &h in &self.collected_hashes {
+        self.collected_fingerprints
+            .sort_unstable_by_key(|&h| h & fp_mask);
+        for &h in &self.collected_fingerprints {
             builder
                 .insert_fingerprint(false, h as u64)
                 .expect("AMQF insert failed");
