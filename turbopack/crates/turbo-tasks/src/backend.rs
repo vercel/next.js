@@ -158,9 +158,6 @@ impl Display for CachedTaskType {
 pub struct TaskExecutionSpec<'a> {
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
-    /// Whether the task's function is annotated with `session_dependent`.
-    /// Used to populate `CurrentTaskState` so that `mark_ttl()` can assert at the call site.
-    pub is_session_dependent: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
@@ -513,7 +510,6 @@ pub trait Backend: Sync + Send {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
-        ttl: Option<std::time::Duration>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 

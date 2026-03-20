@@ -524,14 +524,6 @@ struct CurrentTaskState {
     /// True if the current task uses an external invalidator
     has_invalidator: bool,
 
-    /// Whether the current task's function is annotated with `session_dependent`.
-    /// Set after `try_start_task_execution` returns. Used by `mark_ttl()` for its debug_assert.
-    is_session_dependent: bool,
-
-    /// If set, the task's cached result should be considered valid for this duration after
-    /// completion. Only meaningful for session-dependent tasks.
-    ttl: Option<std::time::Duration>,
-
     /// True if we're in a top-level task (e.g. `.run_once(...)` or `.run(...)`).
     /// Eventually consistent reads are not allowed in top-level tasks.
     in_top_level_task: bool,
@@ -564,8 +556,6 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
-            is_session_dependent: false,
-            ttl: None,
             in_top_level_task,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
@@ -585,8 +575,6 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
-            is_session_dependent: false,
-            ttl: None,
             in_top_level_task,
             cell_counters: None,
             local_tasks: Vec::new(),
@@ -1190,7 +1178,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 #[cfg(feature = "verify_determinism")]
                 stateful: current_task_state.stateful,
                 has_invalidator: current_task_state.has_invalidator,
-                ttl: current_task_state.ttl,
             }
         })
     }
@@ -1233,19 +1220,12 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 return false;
                             }
 
-                            let Some(TaskExecutionSpec {
-                                future,
-                                span,
-                                is_session_dependent,
-                            }) = this
+                            let Some(TaskExecutionSpec { future, span }) = this
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)
                             else {
                                 return false;
                             };
-                            CURRENT_TASK_STATE.with(|cell| {
-                                cell.write().unwrap().is_session_dependent = is_session_dependent;
-                            });
 
                             async {
                                 let result = CaptureFuture::new(future).await;
@@ -1269,7 +1249,6 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     #[cfg(feature = "verify_determinism")]
                                     finihed_state.stateful,
                                     finihed_state.has_invalidator,
-                                    finihed_state.ttl,
                                     &*this,
                                 )
                             }
@@ -1370,9 +1349,6 @@ struct FinishedTaskState {
 
     /// True if the task uses an external invalidator
     has_invalidator: bool,
-
-    /// If set, the task's cached result should be considered valid for this duration.
-    ttl: Option<std::time::Duration>,
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
@@ -1951,25 +1927,6 @@ pub fn mark_invalidator() {
             has_invalidator, ..
         } = &mut *cell.write().unwrap();
         *has_invalidator = true;
-    })
-}
-
-/// Marks the current task's cached result as valid for the given duration after completion.
-///
-/// On a warm cache restore, if the TTL has not expired, the task will not be re-executed.
-/// This is only meaningful for `session_dependent` tasks — calling it from a non-session-dependent
-/// task will trigger a debug assertion failure.
-///
-/// Mid-session expiry is not handled by this mechanism. If you need mid-session re-execution,
-/// use an `invalidator` with a timer.
-pub fn mark_ttl(duration: std::time::Duration) {
-    CURRENT_TASK_STATE.with(|cell| {
-        let mut state = cell.write().unwrap();
-        debug_assert!(
-            state.is_session_dependent,
-            "mark_ttl() can only be called from a session_dependent task"
-        );
-        state.ttl = Some(duration);
     })
 }
 
