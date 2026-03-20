@@ -64,8 +64,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::apollo("integration/apollo.js")]
 #[case::argon2("integration/argon2.js")]
 #[case::auth0("integration/auth0.js")]
+#[case::aws_sdk_old("integration/aws-sdk-old.js")]
 #[case::aws_sdk("integration/aws-sdk.js")]
-#[case::aws_sdk3("integration/aws-sdk3.js")]
 #[case::axios("integration/axios.js")]
 #[case::azure_cosmos("integration/azure-cosmos.js")]
 #[case::azure_storage("integration/azure-storage.js")]
@@ -147,7 +147,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::passport("integration/passport.js")]
 #[case::path_platform("integration/path-platform.js")]
 #[case::pixelmatch("integration/pixelmatch.js")]
-#[case::pdf2json("integration/pdf2json.mjs")]
+#[case::pdf2json("integration/pdf2json.js")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
 #[case::pino("integration/pino.js")]
@@ -183,6 +183,15 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
+#[cfg_attr(
+    not(target_os = "windows"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
 #[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]

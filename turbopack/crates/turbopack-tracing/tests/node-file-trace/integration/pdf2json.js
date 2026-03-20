@@ -1,7 +1,7 @@
-import { parse } from 'url'
-import PDFParser from 'pdf2json'
+const { parse } = require('url')
+const PDFParser = require('pdf2json')
 
-export default function (req, res) {
+module.exports = (req, res) => {
   const { query } = parse(req.url, true)
   const { name = 'World' } = query
   res.end(`Hello ${name}!`)
