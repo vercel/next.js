@@ -152,8 +152,9 @@ You can call the [`notFound`](/docs/app/api-reference/functions/not-found) funct
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import { getPostBySlug } from '@/lib/posts'
+import { notFound } from 'next/navigation'
 
-export default async function Page({ params }: { params: { slug: string } }) {
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const post = getPostBySlug(slug)
 
@@ -167,6 +168,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 import { getPostBySlug } from '@/lib/posts'
+import { notFound } from 'next/navigation'
 
 export default async function Page({ params }) {
   const { slug } = await params
