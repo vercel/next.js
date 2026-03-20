@@ -1053,9 +1053,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[derive(Default)]
         struct TaskCacheStats {
             data: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             data_compressed: usize,
             data_count: usize,
             meta: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             meta_compressed: usize,
             meta_count: usize,
             upper_count: usize,
@@ -1069,6 +1071,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             fn compressed_size(data: &[u8]) -> Result<usize> {
                 Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
                     data,
@@ -1079,13 +1082,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
-                self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                }
                 self.data_count += 1;
             }
 
             fn add_meta(&mut self, data: &[u8]) {
                 self.meta += data.len();
-                self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                }
                 self.meta_count += 1;
             }
 
@@ -1215,28 +1224,58 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .into_iter()
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
+                    use std::fmt::Display;
+
                     use turbo_tasks::util::FormatBytes;
 
                     use crate::utils::markdown_table::print_markdown_table;
 
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
                         (stats_b.data_compressed + stats_b.meta_compressed, key_b)
                             .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
                     });
+                    #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                    task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
+                        (stats_b.data + stats_b.meta, key_b)
+                            .cmp(&(stats_a.data + stats_a.meta, key_a))
+                    });
+
+                    struct FormatSizes {
+                        size: usize,
+                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                        compressed_size: usize,
+                    }
+
+                    impl Display for FormatSizes {
+                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                            return write!(
+                                f,
+                                "{} ({} compressed)",
+                                FormatBytes(self.size),
+                                FormatBytes(self.compressed_size)
+                            );
+                        }
+                        #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                            return write!(f, "{}", FormatBytes(self.size));
+                        }
+                    }
+
                     println!(
-                        "Task cache stats: {} ({})",
-                        FormatBytes(
-                            task_cache_stats
+                        "Task cache stats: {}",
+                        FormatSizes {
+                            size: task_cache_stats
+                                .iter()
+                                .map(|(_, s)| s.data + s.meta)
+                                .sum::<usize>(),
+                            #[cfg(feature = "print_cache_item_size_with_compressed")]
+                            compressed_size: task_cache_stats
                                 .iter()
                                 .map(|(_, s)| s.data_compressed + s.meta_compressed)
                                 .sum::<usize>()
-                        ),
-                        FormatBytes(
-                            task_cache_stats
-                                .iter()
-                                .map(|(_, s)| s.data + s.meta)
-                                .sum::<usize>()
-                        )
+                        },
                     );
 
                     print_markdown_table(
@@ -1263,45 +1302,53 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             [
                                 task_desc.to_string(),
                                 format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.data_compressed + stats.meta_compressed),
-                                    FormatBytes(stats.data + stats.meta)
+                                    " {}",
+                                    FormatSizes {
+                                        size: stats.data + stats.meta,
+                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                                        compressed_size: stats.data_compressed
+                                            + stats.meta_compressed,
+                                    }
                                 ),
                                 format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.data_compressed),
-                                    FormatBytes(stats.data)
+                                    " {}",
+                                    FormatSizes {
+                                        size: stats.data,
+                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                                        compressed_size: stats.data_compressed,
+                                    }
                                 ),
                                 format!(" {} x", stats.data_count,),
                                 format!(
-                                    "{} ({})",
-                                    FormatBytes(
-                                        stats
+                                    "{}",
+                                    FormatSizes {
+                                        size: stats.data.checked_div(stats.data_count).unwrap_or(0),
+                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                                        compressed_size: stats
                                             .data_compressed
                                             .checked_div(stats.data_count)
-                                            .unwrap_or(0)
-                                    ),
-                                    FormatBytes(
-                                        stats.data.checked_div(stats.data_count).unwrap_or(0)
-                                    ),
+                                            .unwrap_or(0),
+                                    }
                                 ),
                                 format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.meta_compressed),
-                                    FormatBytes(stats.meta)
+                                    " {}",
+                                    FormatSizes {
+                                        size: stats.meta,
+                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                                        compressed_size: stats.meta_compressed,
+                                    }
                                 ),
                                 format!(" {} x", stats.meta_count,),
                                 format!(
-                                    "{} ({})",
-                                    FormatBytes(
-                                        stats
+                                    "{}",
+                                    FormatSizes {
+                                        size: stats.meta.checked_div(stats.meta_count).unwrap_or(0),
+                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
+                                        compressed_size: stats
                                             .meta_compressed
                                             .checked_div(stats.meta_count)
-                                            .unwrap_or(0)
-                                    ),
-                                    FormatBytes(
-                                        stats.meta.checked_div(stats.meta_count).unwrap_or(0)
-                                    ),
+                                            .unwrap_or(0),
+                                    }
                                 ),
                                 format!(" {}", stats.upper_count),
                                 format!(" {}", stats.collectibles_count),

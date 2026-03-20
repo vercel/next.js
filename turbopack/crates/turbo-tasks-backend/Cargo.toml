@@ -13,7 +13,8 @@ bench = false
 workspace = true
 
 [features]
-default = []
+default = ["print_cache_item_size"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
 print_cache_item_size = ["dep:lzzzz"]
 no_fast_stale = []
 aggregation_update_no_batch = []
