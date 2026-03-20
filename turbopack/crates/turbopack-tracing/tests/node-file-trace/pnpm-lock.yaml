@@ -217,8 +217,8 @@ importers:
         specifier: ^0.5.0
         version: 0.5.0
       mariadb:
-        specifier: ^3.4.1
-        version: 3.5.2
+        specifier: ^2.0.5
+        version: 2.5.6
       memcached:
         specifier: ^2.2.2
         version: 2.2.2
@@ -314,7 +314,7 @@ importers:
         version: 7.7.4
       sequelize:
         specifier: ^6.29.0
-        version: 6.37.8(mariadb@3.5.2)(oracledb@4.2.0)(pg@8.20.0)(sqlite3@5.1.2(encoding@0.1.13))
+        version: 6.37.8(mariadb@2.5.6)(oracledb@4.2.0)(pg@8.20.0)(sqlite3@5.1.2(encoding@0.1.13))
       serialport:
         specifier: ^13.0.0
         version: 13.0.0
@@ -3001,8 +3001,8 @@ packages:
   '@types/node@16.9.1':
     resolution: {integrity: sha512-QpLcX9ZSsq3YYUUnD3nFDY8H7wctAhQj/TFKL8Ya8v5fMm3CFXxo8zStsLAl780ltoYoo1WvKUVGBQK+1ifr7g==}
 
-  '@types/node@25.5.0':
-    resolution: {integrity: sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw==}
+  '@types/node@17.0.45':
+    resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
 
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
@@ -5714,10 +5714,6 @@ packages:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
 
-  iconv-lite@0.7.2:
-    resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
-    engines: {node: '>=0.10.0'}
-
   idb@3.0.2:
     resolution: {integrity: sha512-+FLa/0sTXqyux0o6C+i2lOR0VoS60LU/jzUo5xjfY6+7sEEgy4Gz1O7yFBXvjd7N0NyIGWIRg8DcQSLEG+VSPw==}
 
@@ -6773,9 +6769,6 @@ packages:
     resolution: {integrity: sha512-tqNXrS78oMOE73NMxK4EMLQsQowWf8jKooH9g7xPavRT706R6bkQJ6DY2Te7QukaZsulxa30wQ7bk0pm4XiHmA==}
     engines: {node: '>=8'}
 
-  lru-cache@10.4.3:
-    resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
@@ -6830,9 +6823,9 @@ packages:
     resolution: {integrity: sha512-4y7uGv8bd2WdM9vpQsiQNo41Ln1NvhvDRuVt0k2JZQ+ezN2uaQes7lZeZ+QQUHOLQAtDaBJ+7wCbi+ab/KFs+w==}
     engines: {node: '>=0.10.0'}
 
-  mariadb@3.5.2:
-    resolution: {integrity: sha512-9rztrI4nouxAY/82a+RlzzZ5ie2vxu2eYclkBvTy1ATXH1B9cnvZ0O71Pzsy/mlfDb5P3HhOg0JzQKkDRhctyA==}
-    engines: {node: '>= 18'}
+  mariadb@2.5.6:
+    resolution: {integrity: sha512-zBx7loYY5GzLl8Y6AKxGXfY9DUYIIdGrmEORPOK9FEu0pg5ZLBKCGJuucHwKADxTBxKY7eM4rxndqxRcnMZKIw==}
+    engines: {node: '>= 10.13'}
 
   markdown-extensions@1.1.1:
     resolution: {integrity: sha512-WWC0ZuMzCyDHYCasEGs4IPvLyTGftYwh6wIEOULOF0HXcqZlhwRzrK0w2VUlxWA98xnvb/jszw4ZSkJ6ADpM6Q==}
@@ -8088,6 +8081,9 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  please-upgrade-node@3.2.0:
+    resolution: {integrity: sha512-gQR3WpIgNIKwBMVLkpMUeR3e1/E1y42bqDQZfql+kDeXd8COYfM8PQA4X6y7a8u9Ua9FHmsrrmirW2vHs45hWg==}
+
   png-js@1.0.0:
     resolution: {integrity: sha512-k+YsbhpA9e+EFfKjTCH3VW6aoKlyNYI6NYdTfDL4CIvFnvsuO84ttonmZE7rc+v23SLTH8XX+5w/Ak9v0xGY4g==}
 
@@ -8693,6 +8689,9 @@ packages:
   semaphore@1.1.0:
     resolution: {integrity: sha512-O4OZEaNtkMd/K0i6js9SL+gqy0ZCBMgUvlSqHKi4IBdjhe7wB8pwztUk1BbZ1fmrvpwFrPbHzqd2w5pTcJH6LA==}
     engines: {node: '>=0.8.0'}
+
+  semver-compare@1.0.0:
+    resolution: {integrity: sha512-YM3/ITh2MJ5MtzaM429anh+x2jiLVjqILF4m4oyQB18W7Ggea7BfqdH/wGMK7dDiMghv/6WG7znWMwUDzJiXow==}
 
   semver@5.7.1:
     resolution: {integrity: sha512-sauaDf/PZdVgrLTNYHRtpXa1iRiKcaebiKQ1BJdpQlWH2lCvexQdX55snPFyK7QzpudqbCI0qXFfOasHdyNDGQ==}
@@ -9607,9 +9606,6 @@ packages:
 
   underscore@1.7.0:
     resolution: {integrity: sha512-cp0oQQyZhUM1kpJDLdGO1jPZHgS/MpzoWYfe9+CM2h/QGDZlqwT2T3YGukuBdaNJ/CAPoeyAZRRHz8JFo176vA==}
-
-  undici-types@7.18.2:
-    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
   unfetch@5.0.0:
     resolution: {integrity: sha512-3xM2c89siXg0nHvlmYsQ2zkLASvVMBisZm5lF3gFDqfF2xonNStDJyMpvaOBe0a1Edxmqrf2E0HBdmy9QyZaeg==}
@@ -14234,9 +14230,7 @@ snapshots:
 
   '@types/node@16.9.1': {}
 
-  '@types/node@25.5.0':
-    dependencies:
-      undici-types: 7.18.2
+  '@types/node@17.0.45': {}
 
   '@types/pg-pool@2.0.6':
     dependencies:
@@ -17569,10 +17563,6 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  iconv-lite@0.7.2:
-    dependencies:
-      safer-buffer: 2.1.2
-
   idb@3.0.2: {}
 
   ieee754@1.1.13: {}
@@ -18925,8 +18915,6 @@ snapshots:
 
   lowercase-keys@2.0.0: {}
 
-  lru-cache@10.4.3: {}
-
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
@@ -18995,13 +18983,15 @@ snapshots:
     dependencies:
       object-visit: 1.0.1
 
-  mariadb@3.5.2:
+  mariadb@2.5.6:
     dependencies:
       '@types/geojson': 7946.0.16
-      '@types/node': 25.5.0
+      '@types/node': 17.0.45
       denque: 2.1.0
-      iconv-lite: 0.7.2
-      lru-cache: 10.4.3
+      iconv-lite: 0.6.3
+      long: 5.2.0
+      moment-timezone: 0.5.48
+      please-upgrade-node: 3.2.0
 
   markdown-extensions@1.1.1: {}
 
@@ -20471,6 +20461,10 @@ snapshots:
 
   playwright-core@1.27.1: {}
 
+  please-upgrade-node@3.2.0:
+    dependencies:
+      semver-compare: 1.0.0
+
   png-js@1.0.0: {}
 
   pngjs@6.0.0: {}
@@ -21243,6 +21237,8 @@ snapshots:
 
   semaphore@1.1.0: {}
 
+  semver-compare@1.0.0: {}
+
   semver@5.7.1: {}
 
   semver@6.3.1: {}
@@ -21277,7 +21273,7 @@ snapshots:
 
   sequelize-pool@7.1.0: {}
 
-  sequelize@6.37.8(mariadb@3.5.2)(oracledb@4.2.0)(pg@8.20.0)(sqlite3@5.1.2(encoding@0.1.13)):
+  sequelize@6.37.8(mariadb@2.5.6)(oracledb@4.2.0)(pg@8.20.0)(sqlite3@5.1.2(encoding@0.1.13)):
     dependencies:
       '@types/debug': 4.1.13
       '@types/validator': 13.15.10
@@ -21296,7 +21292,7 @@ snapshots:
       validator: 13.15.26
       wkx: 0.5.0
     optionalDependencies:
-      mariadb: 3.5.2
+      mariadb: 2.5.6
       oracledb: 4.2.0
       pg: 8.20.0
       sqlite3: 5.1.2(encoding@0.1.13)
@@ -22449,8 +22445,6 @@ snapshots:
   underscore@1.13.6: {}
 
   underscore@1.7.0: {}
-
-  undici-types@7.18.2: {}
 
   unfetch@5.0.0: {}
 

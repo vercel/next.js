@@ -71,7 +71,7 @@
     "lighthouse": "^12.3.0",
     "loopback": "^3.26.0",
     "mailgun": "^0.5.0",
-    "mariadb": "^3.4.1",
+    "mariadb": "^2.0.5",
     "memcached": "^2.2.2",
     "microtime": "^3.0.0",
     "mongoose": "^8.13.2",
