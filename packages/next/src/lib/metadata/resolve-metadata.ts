@@ -571,12 +571,13 @@ async function collectStaticImagesFiles(
   if (!metadata?.[type]) return undefined
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
-      await interopDefault(imageModule)(props)
+    async (
+      imageModule: () => Promise<(p: any) => Promise<MetadataImageModule[]>>
+    ) => await interopDefault(await imageModule())(props)
   )
 
   return iconPromises?.length > 0
-    ? (await Promise.all(iconPromises))?.flat()
+    ? (await Promise.all(iconPromises)).flat()
     : undefined
 }
 
