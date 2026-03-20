@@ -38,8 +38,13 @@ export async function fetchInlineAsset(options: {
 
   if (fileIsReadable) {
     const readStream = createReadStream(filePath)
-    return new options.context.Response(
-      requestToBodyStream(options.context, Uint8Array, readStream)
-    )
+    try {
+      return new options.context.Response(
+        requestToBodyStream(options.context, Uint8Array, readStream)
+      )
+    } catch (err) {
+      readStream.destroy()
+      throw err
+    }
   }
 }
