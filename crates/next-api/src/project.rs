@@ -1506,7 +1506,6 @@ impl Project {
 
             Ok(module_graphs_vc)
         }
-        .instrument(tracing::info_span!("module graph for app"))
         .await
     }
 
