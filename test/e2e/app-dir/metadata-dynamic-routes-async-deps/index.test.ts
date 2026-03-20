@@ -8,7 +8,6 @@ describe('app dir - metadata dynamic routes with async deps', () => {
     },
   })
 
-  // This bug only manifests with Turbopack builds (next build without --webpack)
   it('should render page with og:image meta tag when opengraph-image has async dependencies', async () => {
     const $ = await next.render$('/blog/hello-world')
     const ogImageUrl = $('meta[property="og:image"]').attr('content')
