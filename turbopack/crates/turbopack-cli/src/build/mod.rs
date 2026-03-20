@@ -526,7 +526,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
     let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
-    let is_short_session = is_ci; // build sessions are typically short
+    let is_short_session = true; // build sessions are always short
 
     let tt = if args.common.persistent_caching {
         let version_info = GitVersionInfo {
