@@ -813,7 +813,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
-        let _span = tracing::info_span!(parent: None, "compact database").entered();
+        let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)

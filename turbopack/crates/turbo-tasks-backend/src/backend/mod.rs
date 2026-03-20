@@ -2788,6 +2788,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 if idle_ended {
                                     break;
                                 }
+                                let _compact_span =
+                                    tracing::info_span!(parent: None, "compact database").entered();
                                 match self.backing_storage.compact() {
                                     Ok(true) => {}
                                     Ok(false) => break,
