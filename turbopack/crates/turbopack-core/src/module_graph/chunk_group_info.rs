@@ -136,6 +136,7 @@ pub enum ChunkGroupEntry {
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
     Shared(ResolvedVc<Box<dyn Module>>),
+    SharedMultiple(Vec<ResolvedVc<Box<dyn Module>>>),
     SharedMerged {
         parent: Box<ChunkGroupEntry>,
         merge_tag: RcStr,
@@ -150,6 +151,7 @@ impl ChunkGroupEntry {
             }
             Self::Entry(entries)
             | Self::IsolatedMerged { entries, .. }
+            | Self::SharedMultiple(entries)
             | Self::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
         }
     }
@@ -175,6 +177,8 @@ pub enum ChunkGroup {
     /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
     /// `merge_tag: None`
     Shared(ResolvedVc<Box<dyn Module>>),
+    /// A shared chunk group with multiple entries.
+    SharedMultiple(Vec<ResolvedVc<Box<dyn Module>>>),
     /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
     /// `merge_tag: Some(_)`
     SharedMerged {
@@ -205,6 +209,7 @@ impl ChunkGroup {
             }
             ChunkGroup::Entry(entries)
             | ChunkGroup::IsolatedMerged { entries, .. }
+            | ChunkGroup::SharedMultiple(entries)
             | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
         }
     }
@@ -214,6 +219,7 @@ impl ChunkGroup {
             ChunkGroup::Async(_) | ChunkGroup::Isolated(_) | ChunkGroup::Shared(_) => 1,
             ChunkGroup::Entry(entries)
             | ChunkGroup::IsolatedMerged { entries, .. }
+            | ChunkGroup::SharedMultiple(entries)
             | ChunkGroup::SharedMerged { entries, .. } => entries.len(),
         }
     }
@@ -237,6 +243,14 @@ impl ChunkGroup {
             ChunkGroup::Shared(entry) => turbofmt!("ChunkGroup::Shared({:?})", entry.ident())
                 .await?
                 .to_string(),
+            ChunkGroup::SharedMultiple(entries) => format!(
+                "ChunkGroup::SharedMultiple({:?})",
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
             ChunkGroup::IsolatedMerged {
                 parent,
                 merge_tag,
@@ -286,6 +300,7 @@ pub enum ChunkGroupKey {
         merge_tag: RcStr,
     },
     Shared(ResolvedVc<Box<dyn Module>>),
+    SharedMultiple(Vec<ResolvedVc<Box<dyn Module>>>),
     SharedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
@@ -322,6 +337,14 @@ impl ChunkGroupKey {
             ChunkGroupKey::Shared(module) => {
                 turbofmt!("Shared({:?})", module.ident()).await?.to_string()
             }
+            ChunkGroupKey::SharedMultiple(entries) => format!(
+                "SharedMultiple({:?})",
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
             ChunkGroupKey::SharedMerged { parent, merge_tag } => {
                 format!(
                     "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
@@ -446,6 +469,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 ChunkGroupEntry::Async(entry) => ChunkGroupKey::Async(entry),
                 ChunkGroupEntry::Isolated(entry) => ChunkGroupKey::Isolated(entry),
                 ChunkGroupEntry::Shared(entry) => ChunkGroupKey::Shared(entry),
+                ChunkGroupEntry::SharedMultiple(entries) => ChunkGroupKey::SharedMultiple(entries),
                 ChunkGroupEntry::IsolatedMerged {
                     parent,
                     merge_tag,
@@ -752,6 +776,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         }
                     }
                     ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
+                    ChunkGroupKey::SharedMultiple(entries) => ChunkGroup::SharedMultiple(entries),
                     ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
                         parent: parent.0 as usize,
                         merge_tag,
