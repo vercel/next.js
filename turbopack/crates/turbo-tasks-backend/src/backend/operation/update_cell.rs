@@ -174,10 +174,13 @@ impl UpdateCellOperation {
 
                 // Update cell_data_hash before dropping the task lock
                 if !is_serializable_cell_content {
-                    if let Some(hash) = content_hash {
-                        task.insert_cell_data_hash(cell, hash);
-                    } else {
-                        task.remove_cell_data_hash(&cell);
+                    let old_hash = task.get_cell_data_hash(&cell).copied();
+                    if old_hash != content_hash {
+                        if let Some(hash) = content_hash {
+                            task.insert_cell_data_hash(cell, hash);
+                        } else {
+                            task.remove_cell_data_hash(&cell);
+                        }
                     }
                 }
 
@@ -218,10 +221,13 @@ impl UpdateCellOperation {
 
         // Update cell_data_hash for non-serializable cells when not recomputing.
         if !is_serializable_cell_content {
-            if let Some(hash) = content_hash {
-                task.insert_cell_data_hash(cell, hash);
-            } else {
-                task.remove_cell_data_hash(&cell);
+            let old_hash = task.get_cell_data_hash(&cell).copied();
+            if old_hash != content_hash {
+                if let Some(hash) = content_hash {
+                    task.insert_cell_data_hash(cell, hash);
+                } else {
+                    task.remove_cell_data_hash(&cell);
+                }
             }
         }
 
