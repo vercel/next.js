@@ -125,7 +125,7 @@ impl EcmascriptDevChunkListContent {
             .map(|(merger, contents)| (merger, Vc::cell(contents)))
             .map(async |(merger, contents)| {
                 Ok((
-                    merger.to_resolved().await?,
+                    merger,
                     merger.merge(contents).version().into_trait_ref().await?,
                 ))
             })
