@@ -348,6 +348,9 @@ jobs:
 
       - name: 'Build'
         if: ${{ !matrix.docker }}
+        env:
+          # We don't want incremental builds on CI
+          CARGO_INCREMENTAL: 0
         run: |
           echo "Host arch: $(uname -m)"
           echo "Node arch: $(node -e 'console.log(process.arch)')"

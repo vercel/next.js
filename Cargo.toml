@@ -54,9 +54,16 @@ debug = true
 
 [profile.release]
 lto = "thin"
-# https://github.com/davidlattimore/duplicate-function-checker suggests that fat LTO + share-generics + codegen-units = 1
-# is the best way to reduce overall function duplication in the binary, and by extension, size. We only do thin LTO, but
-# this _should_ have similar effect.
+# codegen-units=1 disables intra-crate parallelism so LLVM sees each crate as a
+# single module, enabling better inlining and identical-function deduplication
+# within each crate. Combined with share-generics (which avoids duplicating
+# monomorphized generics across crates) and thin LTO (which deduplicates across
+# crate boundaries), this minimizes overall function duplication in the binary.
+#
+# https://github.com/davidlattimore/duplicate-function-checker suggests that fat LTO +
+# share-generics + codegen-units = 1 is the best way to reduce overall function
+# duplication in the binary, and by extension, size. We only do thin LTO, but
+# this _should_ have similar effect to fat LTO.
 codegen-units = 1
 
 # Use a custom profile for CI or local testing where we are somewhat performance

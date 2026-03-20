@@ -73,7 +73,7 @@ rustflags = [
 
 # aarch64-musl: cross-compiled from x86_64, so self-contained rust-lld won't
 # work (it would resolve to the host sysroot). Instead, use the musl cross-
-# compiler as the linker and tell it to use lld for the actual linking.
+# compiler.
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
 rustflags = [
