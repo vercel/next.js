@@ -117,6 +117,14 @@ export class Lockfile {
       try {
         nativeLockfile = bindings.lockfileTryAcquireSync(path, content)
       } catch (e) {
+        // If the native module doesn't support lockfileTryAcquireSync (version
+        // mismatch), skip the lockfile gracefully instead of crashing.
+        if (e instanceof TypeError) {
+          Log.warn(
+            `Skipping lockfile at ${cyan(path)}: native module does not support lockfileTryAcquireSync`
+          )
+          return new Lockfile(bindings, undefined)
+        }
         // this happens if there's an IO error (e.g. `ENOENT`), which is
         // different than if we just didn't acquire the lock
         throw new Error(

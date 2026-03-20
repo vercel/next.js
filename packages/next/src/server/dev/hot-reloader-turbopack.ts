@@ -648,10 +648,6 @@ export async function createHotReloaderTurbopack(
       resetInstrumentationCache()
     }
 
-    if (entryType === 'root' && writtenEndpoint.type === 'nodejs') {
-      console.log(`[dbg-root] key=${entryPage} entryPath=${writtenEndpoint.entryPath} filesToDelete=${filesToDelete.map(f => relative(distDir, f)).join(',')}`)
-    }
-
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {
       resetFetch()

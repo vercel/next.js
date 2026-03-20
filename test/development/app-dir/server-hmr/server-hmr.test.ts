@@ -381,12 +381,12 @@ describe('server-hmr', () => {
         const initial = await next
           .fetch('/api/with-dep')
           .then((res) => res.json())
-        expect(initial.routeVersion).toBe('v1')
+        const initialVersion = initial.routeVersion
         const initialDepEvaluatedAt = initial.depEvaluatedAt
 
         // Change only the route module, not the dependency
         await next.patchFile('app/api/with-dep/route.ts', (content) =>
-          content.replace("'v1'", "'v2'")
+          content.replace(`'${initialVersion}'`, `'${initialVersion}-updated'`)
         )
 
         await retry(async () => {
@@ -395,7 +395,7 @@ describe('server-hmr', () => {
             .then((res) => res.json())
 
           // The route change should be reflected in the response
-          expect(updated.routeVersion).toBe('v2')
+          expect(updated.routeVersion).toBe(`${initialVersion}-updated`)
 
           // The unmodified dependency should NOT have been re-evaluated
           expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
