@@ -6,8 +6,11 @@
 ///   compressed content that won't benefit from deduplication scanning.
 #[cfg(target_os = "linux")]
 pub fn advise_mmap_for_persistence(mmap: &memmap2::Mmap) -> anyhow::Result<()> {
-    mmap.advise(memmap2::Advice::DontFork)?;
-    mmap.advise(memmap2::Advice::Unmergeable)?;
+    use anyhow::Context;
+    mmap.advise(memmap2::Advice::DontFork)
+        .context("Failed to advise mmap DontFork")?;
+    mmap.advise(memmap2::Advice::Unmergeable)
+        .context("Failed to advise mmap Unmergeable")?;
     Ok(())
 }
 

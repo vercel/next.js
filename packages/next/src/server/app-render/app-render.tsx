@@ -4766,7 +4766,7 @@ async function validateInstantConfigs(
       )
 
     const instantValidationState = createInstantValidationState(
-      payloadResult.createInstantStack
+      payloadResult.slotStacks
     )
 
     const validationSampleTracking =
