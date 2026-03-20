@@ -189,7 +189,7 @@ impl AppPageLoaderTreeBuilder {
                 // when mixing ESM imports and requires).
                 self.base.imports.push(
                     format!(
-                        "const {identifier} = require(/*turbopackChunkingType: \
+                        "const {identifier} = () => require(/*turbopackChunkingType: \
                          shared*/\"{inner_module_id}\");"
                     )
                     .into(),
@@ -208,7 +208,10 @@ impl AppPageLoaderTreeBuilder {
                     .insert(inner_module_id.into(), module);
 
                 let s = "      ";
-                writeln!(self.loader_tree_code, "{s}{identifier}.default,")?;
+                writeln!(
+                    self.loader_tree_code,
+                    "{s}async (props) => interopDefault(await {identifier}())(props),"
+                )?;
             }
         }
         Ok(())
@@ -239,7 +242,7 @@ impl AppPageLoaderTreeBuilder {
         // requires).
         self.base.imports.push(
             format!(
-                "const {identifier} = require(/*turbopackChunkingType: \
+                "const {identifier} = () => require(/*turbopackChunkingType: \
                  shared*/\"{inner_module_id}\");"
             )
             .into(),
@@ -254,48 +257,7 @@ impl AppPageLoaderTreeBuilder {
             .inner_assets
             .insert(inner_module_id.into(), module);
 
-        let s = "      ";
-        writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-        let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{base_path}/{app_page}")
-        } else {
-            app_page.to_string()
-        };
-        let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
-        writeln!(
-            self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, await props.params, {}, true) + \
-             `?${{{identifier}.default.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&pathname_prefix),
-            StringifyJs(metadata_route),
-        )?;
-
-        let numeric_sizes = name == "twitter" || name == "openGraph";
-        if numeric_sizes {
-            writeln!(
-                self.loader_tree_code,
-                "{s}  width: {identifier}.default.width,"
-            )?;
-            writeln!(
-                self.loader_tree_code,
-                "{s}  height: {identifier}.default.height,"
-            )?;
-        } else {
-            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
-            // For the images doesn't provide the size properly, use "any" as well.
-            // If the size is presented, use the actual size for the image.
-            let sizes = if path.has_extension(".svg") {
-                "any".to_string()
-            } else {
-                format!("${{{identifier}.default.width}}x${{{identifier}.default.height}}")
-            };
-            writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
-        }
-
-        let content_type = get_content_type(path).await?;
-        writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
-
-        if let Some(alt_path) = alt_path {
+        let alt = if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
 
@@ -304,7 +266,7 @@ impl AppPageLoaderTreeBuilder {
             // requires).
             self.base.imports.push(
                 format!(
-                    "const {identifier} = require(/*turbopackChunkingType: \
+                    "const {identifier} = () => require(/*turbopackChunkingType: \
                      shared*/\"{inner_module_id}\");"
                 )
                 .into(),
@@ -322,10 +284,63 @@ impl AppPageLoaderTreeBuilder {
                 .inner_assets
                 .insert(inner_module_id.into(), module);
 
-            writeln!(self.loader_tree_code, "{s}  alt: {identifier}.default,")?;
+            Some(identifier)
+        } else {
+            None
+        };
+
+        let s = "      ";
+        writeln!(self.loader_tree_code, "{s}(async (props) => {{")?;
+        writeln!(
+            self.loader_tree_code,
+            "{s}  const mod = interopDefault(await {identifier}());"
+        )?;
+        if let Some(alt) = &alt {
+            writeln!(
+                self.loader_tree_code,
+                "{s}  const alt = interopDefault(await {alt}());"
+            )?;
+        }
+        writeln!(self.loader_tree_code, "{s}  return [{{")?;
+        let pathname_prefix = if let Some(base_path) = &self.base_path {
+            format!("{base_path}/{app_page}")
+        } else {
+            app_page.to_string()
+        };
+        let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
+        writeln!(
+            self.loader_tree_code,
+            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
+             `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
+            StringifyJs(&pathname_prefix),
+            StringifyJs(metadata_route),
+        )?;
+
+        let numeric_sizes = name == "twitter" || name == "openGraph";
+        if numeric_sizes {
+            writeln!(self.loader_tree_code, "{s}    width: mod.width,")?;
+            writeln!(self.loader_tree_code, "{s}    height: mod.height,")?;
+        } else {
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            let sizes = if path.has_extension(".svg") {
+                "any"
+            } else {
+                "${mod.width}x${mod.height}"
+            };
+            writeln!(self.loader_tree_code, "{s}    sizes: `{sizes}`,")?;
         }
 
-        writeln!(self.loader_tree_code, "{s}}}]),")?;
+        let content_type = get_content_type(path).await?;
+        writeln!(self.loader_tree_code, "{s}    type: `{content_type}`,")?;
+
+        if alt.is_some() {
+            writeln!(self.loader_tree_code, "{s}    alt,")?;
+        }
+
+        writeln!(self.loader_tree_code, "{s}  }}];")?;
+        writeln!(self.loader_tree_code, "{s}}}),")?;
 
         Ok(())
     }
