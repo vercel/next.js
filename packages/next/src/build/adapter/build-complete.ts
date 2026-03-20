@@ -1070,8 +1070,26 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes - they will be output as static files
-          if (isStaticMetadataFile(normalizedPage)) {
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[normalizedPage] ||
+            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                normalizedPage.slice(1)
+              )
+              return (
+                prerenderManifest.routes[localePathname] ||
+                prerenderManifest.dynamicRoutes[localePathname]
+              )
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
