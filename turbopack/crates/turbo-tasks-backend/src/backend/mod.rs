@@ -2775,6 +2775,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                             // Compact while idle (up to limit), regardless of
                             // whether the snapshot had new data.
+                            let _compact_span =
+                                tracing::info_span!(parent: None, "compact database").entered();
                             const MAX_IDLE_COMPACTION_PASSES: usize = 10;
                             for _ in 0..MAX_IDLE_COMPACTION_PASSES {
                                 let idle_ended = tokio::select! {
@@ -2788,8 +2790,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 if idle_ended {
                                     break;
                                 }
-                                let _compact_span =
-                                    tracing::info_span!(parent: None, "compact database").entered();
                                 match self.backing_storage.compact() {
                                     Ok(true) => {}
                                     Ok(false) => break,
@@ -2799,6 +2799,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     }
                                 }
                             }
+                            drop(_compact_span);
 
                             if !new_data {
                                 fresh_idle = false;
