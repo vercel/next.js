@@ -133,6 +133,40 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
+  # Build the Docker image used for all Linux native builds.
+  # Cached by turbo based on Dockerfile + cross-config + rust-toolchain hash.
+  build-native-image:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Build Docker image
+        run: |
+          CACHE_KEY="next-swc-builder-${{ hashFiles('docker/native-builder.Dockerfile', '.cargo/cross-config.toml', 'rust-toolchain.toml') }}"
+          # Check if image with this hash already exists
+          if docker image inspect "next-swc-builder:${CACHE_KEY}" &>/dev/null; then
+            echo "Image already cached, tagging as latest"
+            docker tag "next-swc-builder:${CACHE_KEY}" next-swc-builder:latest
+          else
+            echo "Building new image"
+            # Use a minimal context (just rust-toolchain.toml) to avoid sending
+            # the entire repo checkout to the Docker daemon.
+            DOCKER_CTX=$(mktemp -d)
+            cp rust-toolchain.toml "$DOCKER_CTX/"
+            docker build -t next-swc-builder:latest -t "next-swc-builder:${CACHE_KEY}" \
+              -f docker/native-builder.Dockerfile "$DOCKER_CTX"
+            rm -rf "$DOCKER_CTX"
+          fi
+
   # Generate the build matrix for native binaries.
   # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
   generate-native-matrix:
@@ -150,34 +184,7 @@ jobs:
             deployTarget: ${{ needs.deploy-target.outputs.value }}
           input: |
             $if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
-            target:
-              $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
-            build_task: build-native-release
-            os:
-              mac:
-                host: "['self-hosted', 'macos', 'arm64']"
-                arch: [x86_64, aarch64]
-                vendor: apple
-                sys: darwin
-              windows:
-                host: "['self-hosted', 'windows', 'x64']"
-                vendor: pc
-                sys: windows
-                abi: msvc
-                arch:
-                  x86_64: {}
-                  aarch64:
-                    build_task: build-native-no-plugin-release
-              linux:
-                host: "['self-hosted', 'linux', 'x64', 'metal']"
-                docker: next-swc-builder:latest
-                vendor: unknown
-                sys: linux
-                abi:
-                  gnu:
-                    arch: [x86_64, aarch64]
-                  musl:
-                    arch: [x86_64, aarch64]
+            $include: .github/build-matrix.yml
 
   # Build binaries for publishing
   build-native:
@@ -185,6 +192,7 @@ jobs:
     needs:
       - deploy-target
       - generate-native-matrix
+      - build-native-image
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -241,7 +249,13 @@ jobs:
         with:
           save-if: 'true'
           cache-provider: 'turbo'
-          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml', '.cargo/cross-config.toml') }}
+
+      - name: Set RUSTFLAGS for docker builds
+        if: ${{ matrix.docker }}
+        run: |
+          RUSTFLAGS=$(cargo xtask print-rustflags --target ${{ matrix.target }} --cross-config .cargo/cross-config.toml)
+          echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
 
       - name: Clear native build
         run: rm -rf packages/next-swc/native
@@ -269,19 +283,20 @@ jobs:
         if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         run: |
           docker run --rm \
-            -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
+            -e CI -e RUST_BACKTRACE -e RUSTFLAGS -e CARGO_TERM_COLOR \
             -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
             -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
             -e TARGET="${{ matrix.target }}" \
             -e ABI="${{ matrix.abi }}" \
             -e ARCH="${{ matrix.arch }}" \
             -e BUILD_TASK="${{ matrix.build_task }}" \
+            -e VERIFY_CMD="${{ matrix.verify_cmd }}" \
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
             -v ${{ github.workspace }}:/build \
             -w /build \
             --entrypoint bash \
-            ${{ matrix.docker }} \
+            next-swc-builder:latest \
             -xeo pipefail scripts/docker-native-build.sh
 
       - name: cache build
