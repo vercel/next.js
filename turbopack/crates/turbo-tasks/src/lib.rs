@@ -216,9 +216,10 @@ pub use turbo_tasks_macros::function;
 /// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
 ///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
-/// - **`"hash"`:** Like `"none"` (no bincode serialization), but also stores a hash of the cell
+/// - **`"hash"`:** Like `"none"` (no bincode serialization), but instead stores a hash of the cell
 ///   value so that changes can be detected even when the transient cell data has been evicted
-///   from memory—avoiding unnecessary downstream invalidation. Only valid with `cell = "compare"`.
+///   from memory or was never stored in the cache—avoiding unnecessary downstream invalidation.
+///   Only valid with `cell = "compare"`.
 ///   Requires the value to implement both [`Eq`] and [`DeterministicHash`][turbo_tasks_hash::DeterministicHash].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
 ///

@@ -15,7 +15,6 @@ static REGISTRATION: Registration = register!();
 #[derive(Debug)]
 struct HashedValue {
     value: u32,
-    #[turbo_tasks(trace_ignore)]
     noise: u64,
 }
 
