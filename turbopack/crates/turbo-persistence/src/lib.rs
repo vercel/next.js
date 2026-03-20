@@ -3,6 +3,7 @@
 #![feature(iter_collect_into)]
 
 mod arc_bytes;
+pub(crate) mod be;
 mod collector;
 mod collector_entry;
 mod compaction;
@@ -16,6 +17,8 @@ pub mod meta_file;
 mod meta_file_builder;
 pub mod mmap_helper;
 mod parallel_scheduler;
+mod rc_bytes;
+mod shared_bytes;
 mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;

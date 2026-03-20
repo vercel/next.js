@@ -1,53 +1,53 @@
 use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
-    hash::{Hash, Hasher},
     ops::{Deref, Range},
-    sync::Arc,
+    rc::Rc,
 };
 
 use memmap2::Mmap;
 
 use crate::{
-    compression::decompress_into_arc,
+    compression::decompress_into_rc,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
-/// The backing storage for an `ArcBytes`.
+
+/// The backing storage for an `RcBytes`.
 ///
-/// The inner values are never read directly — they exist solely to keep the
-/// backing memory alive while the raw `data` pointer in `ArcBytes` references it.
+/// Uses `Rc` for all refcounting, eliminating atomic operations.
 #[derive(Clone)]
 enum Backing {
-    Arc { _backing: Arc<[u8]> },
-    Mmap { _backing: Arc<Mmap> },
+    Rc { _backing: Rc<[u8]> },
+    Mmap { _backing: Rc<Mmap> },
 }
 
-/// An owned byte slice backed by either an `Arc<[u8]>` or a memory-mapped file.
+/// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
+///
+/// Identical to `ArcBytes` but uses `Rc` instead of `Arc`, eliminating atomic
+/// refcount overhead. Use this in single-threaded contexts like SST iteration
+/// during compaction.
 #[derive(Clone)]
-pub struct ArcBytes {
+pub struct RcBytes {
     data: *const [u8],
     backing: Backing,
 }
 
-unsafe impl Send for ArcBytes {}
-unsafe impl Sync for ArcBytes {}
-
-impl From<Arc<[u8]>> for ArcBytes {
-    fn from(arc: Arc<[u8]>) -> Self {
+impl From<Rc<[u8]>> for RcBytes {
+    fn from(rc: Rc<[u8]>) -> Self {
         Self {
-            data: &*arc as *const [u8],
-            backing: Backing::Arc { _backing: arc },
+            data: &*rc as *const [u8],
+            backing: Backing::Rc { _backing: rc },
         }
     }
 }
 
-impl From<Box<[u8]>> for ArcBytes {
+impl From<Box<[u8]>> for RcBytes {
     fn from(b: Box<[u8]>) -> Self {
-        Self::from(Arc::from(b))
+        Self::from(Rc::from(b))
     }
 }
 
-impl Deref for ArcBytes {
+impl Deref for RcBytes {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
@@ -55,41 +55,28 @@ impl Deref for ArcBytes {
     }
 }
 
-impl Borrow<[u8]> for ArcBytes {
+impl Borrow<[u8]> for RcBytes {
     fn borrow(&self) -> &[u8] {
         self
     }
 }
 
-impl Hash for ArcBytes {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.deref().hash(state)
-    }
-}
-
-impl PartialEq for ArcBytes {
+impl PartialEq for RcBytes {
     fn eq(&self, other: &Self) -> bool {
         self.deref().eq(other.deref())
     }
 }
 
-impl Debug for ArcBytes {
+impl Debug for RcBytes {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         Debug::fmt(&**self, f)
     }
 }
 
-impl Eq for ArcBytes {}
+impl Eq for RcBytes {}
 
-impl ArcBytes {
-    /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
-    pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.backing, Backing::Mmap { .. })
-    }
-}
-
-impl SharedBytes for ArcBytes {
-    type MmapHandle = Arc<Mmap>;
+impl SharedBytes for RcBytes {
+    type MmapHandle = Rc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
         let data = &*self;
@@ -105,7 +92,7 @@ impl SharedBytes for ArcBytes {
             is_subslice_of(
                 subslice,
                 match &self.backing {
-                    Backing::Arc { _backing } => _backing,
+                    Backing::Rc { _backing } => _backing,
                     Backing::Mmap { _backing } => _backing,
                 }
             ),
@@ -117,12 +104,12 @@ impl SharedBytes for ArcBytes {
         }
     }
 
-    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
+    unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),
             "from_mmap: subslice is not within the mmap"
         );
-        ArcBytes {
+        RcBytes {
             data: subslice as *const [u8],
             backing: Backing::Mmap {
                 _backing: mmap.clone(),
@@ -131,7 +118,7 @@ impl SharedBytes for ArcBytes {
     }
 
     fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
-        Ok(ArcBytes::from(decompress_into_arc(
+        Ok(RcBytes::from(decompress_into_rc(
             uncompressed_length,
             block,
         )?))
