@@ -1249,21 +1249,31 @@ export default async function build(
       let middlewareFilePath: string | undefined
 
       for (const rootPath of rootPaths) {
-        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const { dir: fileDir } = path.parse(rootPath)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
           normalizedFileDir === '/' || normalizedFileDir === '/src'
 
-        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+        // Use path.basename to account for compound pageExtensions
+        // (e.g. proxy.api.js): path.parse().name returns "proxy.api" but
+        // we only need to match the leading convention name segment.
+        const fileBasenameForMatch = path.basename(rootPath)
+        if (
+          isAtConventionLevel &&
+          middlewareDetectionRegExp.test(fileBasenameForMatch)
+        ) {
           middlewareFilePath = rootPath
         }
-        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+        if (
+          isAtConventionLevel &&
+          proxyDetectionRegExp.test(fileBasenameForMatch)
+        ) {
           proxyFilePath = rootPath
         }
         if (
           isAtConventionLevel &&
-          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
+          instrumentationHookDetectionRegExp.test(fileBasenameForMatch)
         ) {
           instrumentationHookFilePath = rootPath
         }

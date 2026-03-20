@@ -454,6 +454,16 @@ async function startWatcher(
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
 
+      // Build detection regexps once; they support compound pageExtensions
+      // (e.g. proxy.api.js) where path.parse().name returns "proxy.api"
+      // rather than "proxy", causing a plain string comparison to miss.
+      const middlewareDetectionRegExpDev = new RegExp(
+        `^${MIDDLEWARE_FILENAME}\\.(?:${nextConfig.pageExtensions.join('|')})$`
+      )
+      const proxyDetectionRegExpDev = new RegExp(
+        `^${PROXY_FILENAME}\\.(?:${nextConfig.pageExtensions.join('|')})$`
+      )
+
       for (const fileName of sortedKnownFiles) {
         if (
           !files.includes(fileName) &&
@@ -462,15 +472,22 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { dir: fileDir } = path.parse(fileName)
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
 
-        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+        const fileBasenameForMatch = path.basename(fileName)
+        if (
+          isAtConventionLevel &&
+          middlewareDetectionRegExpDev.test(fileBasenameForMatch)
+        ) {
           middlewareFilePath = fileName
         }
-        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+        if (
+          isAtConventionLevel &&
+          proxyDetectionRegExpDev.test(fileBasenameForMatch)
+        ) {
           proxyFilePath = fileName
         }
 
