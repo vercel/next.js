@@ -1,53 +1,27 @@
 import { cacheLife } from 'next/cache'
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { LinkAccordion } from '../../../components/link-accordion'
+import { LinkAccordion } from '../../../../components/link-accordion'
 
 type Params = { teamSlug: string; project: string }
 
-export default function TeamProjectPage({
+export default function ProjectSettingsPage({
   params,
 }: {
   params: Promise<Params>
 }) {
   return (
-    <div id="team-project-page">
+    <div id="team-project-settings-page">
       <Suspense
-        fallback={<div data-loading="true">Loading team/project route...</div>}
+        fallback={<div data-loading="true">Loading settings page...</div>}
       >
-        <TeamProjectContent params={params} />
+        <ProjectSettingsContent params={params} />
       </Suspense>
       <nav data-nav-link-list="true">
         <ul>
           <li>
             <Link href="/" data-nav-link="/">
               Navigate: home
-            </Link>
-          </li>
-          <li>
-            <Link href="/acme/dashboard" data-nav-link="/acme/dashboard">
-              Navigate: acme/dashboard
-            </Link>
-          </li>
-          <li>
-            <Link href="/globex/portal" data-nav-link="/globex/portal">
-              Navigate: globex/portal
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/acme/dashboard/settings"
-              data-nav-link="/acme/dashboard/settings"
-            >
-              Navigate: acme/dashboard/settings
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/globex/portal/settings"
-              data-nav-link="/globex/portal/settings"
-            >
-              Navigate: globex/portal/settings
             </Link>
           </li>
           <li>
@@ -69,12 +43,6 @@ export default function TeamProjectPage({
         </ul>
       </nav>
       <div data-related-link-list="true">
-        <LinkAccordion href="/acme/dashboard">
-          Related route: acme/dashboard
-        </LinkAccordion>
-        <LinkAccordion href="/globex/portal">
-          Related route: globex/portal
-        </LinkAccordion>
         <LinkAccordion href="/acme/dashboard/settings/domains">
           Related route: acme/dashboard/settings/domains
         </LinkAccordion>
@@ -86,7 +54,7 @@ export default function TeamProjectPage({
   )
 }
 
-async function TeamProjectContent({ params }: { params: Promise<Params> }) {
+async function ProjectSettingsContent({ params }: { params: Promise<Params> }) {
   'use cache'
   cacheLife({ stale: 0, revalidate: 1, expire: 60 })
 
@@ -94,8 +62,8 @@ async function TeamProjectContent({ params }: { params: Promise<Params> }) {
   const marker = Date.now()
 
   return (
-    <div data-team-project-content="true">
-      {`Team project content - team: ${teamSlug}, project: ${project}, marker: ${marker}`}
+    <div data-team-project-settings-content="true">
+      {`Project settings overview content - team: ${teamSlug}, project: ${project}, marker: ${marker}`}
     </div>
   )
 }
