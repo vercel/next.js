@@ -141,6 +141,7 @@ const zTurbopackModuleType = z.enum([
   'typescript',
   'css',
   'css-module',
+  'json',
   'wasm',
   'raw',
   'node',

@@ -142,6 +142,7 @@ export type TurbopackRuleCondition =
  * - `'typescript'` - Process as TypeScript module
  * - `'css'` - Process as CSS file
  * - `'css-module'` - Process as CSS module
+ * - `'json'` - Process as JSON module
  * - `'wasm'` - Process as WebAssembly module
  * - `'raw'` - Return raw file contents as a string
  * - `'node'` - Process as native Node.js addon
@@ -155,6 +156,7 @@ export type TurbopackModuleType =
   | 'typescript'
   | 'css'
   | 'css-module'
+  | 'json'
   | 'wasm'
   | 'raw'
   | 'node'
