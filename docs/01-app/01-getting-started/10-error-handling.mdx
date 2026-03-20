@@ -287,13 +287,13 @@ import { unstable_catchError as catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(
   props: { title: string },
-  { error, unstable_retry: retry }: ErrorInfo
+  { error, unstable_retry }: ErrorInfo
 ) {
   return (
     <div>
       <h2>{props.title}</h2>
       <p>{error.message}</p>
-      <button onClick={() => retry()}>Try again</button>
+      <button onClick={() => unstable_retry()}>Try again</button>
     </div>
   )
 }
@@ -306,12 +306,12 @@ export default catchError(ErrorFallback)
 
 import { unstable_catchError as catchError } from 'next/error'
 
-function ErrorFallback(props, { error, unstable_retry: retry }) {
+function ErrorFallback(props, { error, unstable_retry }) {
   return (
     <div>
       <h2>{props.title}</h2>
       <p>{error.message}</p>
-      <button onClick={() => retry()}>Try again</button>
+      <button onClick={() => unstable_retry()}>Try again</button>
     </div>
   )
 }
