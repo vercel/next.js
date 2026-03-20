@@ -112,10 +112,14 @@ function formatDependencyChain(dependencyChain: ModuleId[]): string {
  * @param moduleId - The module that changed
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept().
  *                           This is used for server-side HMR where pages auto-accept at the top level.
+ * @param isAutoAcceptModule - Optional predicate. If provided and returns true for a module ID, that module
+ *                           acts as an HMR accept boundary regardless of its hot.accept() state.
+ *                           Use this to define coarser accept boundaries (e.g. segment files in App Router).
  */
 function getAffectedModuleEffects(
   moduleId: ModuleId,
-  autoAcceptRootModules: boolean
+  autoAcceptRootModules: boolean,
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 ): ModuleEffect {
   const outdatedModules: Set<ModuleId> = new Set()
   const outdatedDependencies: Map<ModuleId, Set<ModuleId>> = new Map()
@@ -165,9 +169,12 @@ function getAffectedModuleEffects(
     if (
       // The module is not in the cache. Since this is a "modified" update,
       // it means that the module was never instantiated before.
-      !module || // The module accepted itself without invalidating globalThis.
+      !module ||
+      // The module accepted itself without invalidating globalThis.
       // TODO is that right?
-      (hotState.selfAccepted && !hotState.selfInvalidated)
+      (hotState.selfAccepted && !hotState.selfInvalidated) ||
+      // Caller-defined accept boundary (e.g. App Router segment files).
+      isAutoAcceptModule?.(moduleId)
     ) {
       continue
     }
@@ -269,10 +276,12 @@ function mergeDependencies(
  *
  * @param invalidated - The modules that have been invalidated
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param isAutoAcceptModule - Optional predicate for caller-defined accept boundaries
  */
 function computedInvalidatedModules(
   invalidated: Iterable<ModuleId>,
-  autoAcceptRootModules: boolean
+  autoAcceptRootModules: boolean,
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 ): {
   outdatedModules: Set<ModuleId>
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>
@@ -281,7 +290,11 @@ function computedInvalidatedModules(
   const outdatedDependencies = new Map<ModuleId, Set<ModuleId>>()
 
   for (const moduleId of invalidated) {
-    const effect = getAffectedModuleEffects(moduleId, autoAcceptRootModules)
+    const effect = getAffectedModuleEffects(
+      moduleId,
+      autoAcceptRootModules,
+      isAutoAcceptModule
+    )
 
     switch (effect.type) {
       case 'unaccepted':
@@ -422,11 +435,13 @@ function createModuleHot(
  *
  * @param outdatedModules - The current set of outdated modules
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param isAutoAcceptModule - Optional predicate for caller-defined accept boundaries
  */
 function applyInvalidatedModules(
   outdatedModules: Set<ModuleId>,
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
-  autoAcceptRootModules: boolean
+  autoAcceptRootModules: boolean,
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 ): {
   outdatedModules: Set<ModuleId>
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>
@@ -434,7 +449,8 @@ function applyInvalidatedModules(
   if (queuedInvalidatedModules.size > 0) {
     const result = computedInvalidatedModules(
       queuedInvalidatedModules,
-      autoAcceptRootModules
+      autoAcceptRootModules,
+      isAutoAcceptModule
     )
     for (const moduleId of result.outdatedModules) {
       outdatedModules.add(moduleId)
@@ -755,12 +771,14 @@ function computeChangedModules(
  * @param modified - Map of modified modules
  * @param evalModuleEntry - Function to compile module code
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param isAutoAcceptModule - Optional predicate for caller-defined accept boundaries
  */
 function computeOutdatedModules(
   added: Map<ModuleId, EcmascriptModuleEntry | undefined>,
   modified: Map<ModuleId, EcmascriptModuleEntry>,
   evalModuleEntry: (entry: EcmascriptModuleEntry) => HotModuleFactoryFunction,
-  autoAcceptRootModules: boolean
+  autoAcceptRootModules: boolean,
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 ): {
   outdatedModules: Set<ModuleId>
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>
@@ -778,7 +796,8 @@ function computeOutdatedModules(
   // Walk dependency tree to find all modules affected by modifications
   const { outdatedModules, outdatedDependencies } = computedInvalidatedModules(
     modified.keys(),
-    autoAcceptRootModules
+    autoAcceptRootModules,
+    isAutoAcceptModule
   )
 
   // Compile modified modules
@@ -903,6 +922,7 @@ function applyPhase(
  * invalidation, disposal, and application of new modules.
  *
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
+ * @param isAutoAcceptModule - Optional predicate for caller-defined accept boundaries
  */
 function applyInternal(
   outdatedModules: Set<ModuleId>,
@@ -917,12 +937,14 @@ function applyInternal(
     sourceData: SourceData
   ) => HotModule,
   applyModuleFactoryNameFn: (factory: HotModuleFactoryFunction) => void,
-  autoAcceptRootModules: boolean
+  autoAcceptRootModules: boolean,
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 ) {
   ;({ outdatedModules, outdatedDependencies } = applyInvalidatedModules(
     outdatedModules,
     outdatedDependencies,
-    autoAcceptRootModules
+    autoAcceptRootModules,
+    isAutoAcceptModule
   ))
 
   // Find self-accepted modules to re-instantiate
@@ -969,7 +991,8 @@ function applyInternal(
       devModuleCache,
       instantiateModuleFn,
       applyModuleFactoryNameFn,
-      autoAcceptRootModules
+      autoAcceptRootModules,
+      isAutoAcceptModule
     )
   }
 }
@@ -981,6 +1004,10 @@ function applyInternal(
  * @param options.autoAcceptRootModules - If true, root modules auto-accept updates without explicit
  *                                   module.hot.accept(). Used for server-side HMR where pages
  *                                   auto-accept at the top level.
+ * @param options.isAutoAcceptModule - Optional predicate. If provided and returns true for a module ID,
+ *                                   that module acts as an HMR accept boundary regardless of its
+ *                                   hot.accept() state. The update bubble stops there, and only that
+ *                                   module (and its outdated dependencies) are re-instantiated.
  */
 function applyEcmascriptMergedUpdateShared(options: {
   added: Map<ModuleId, EcmascriptModuleEntry | undefined>
@@ -996,6 +1023,7 @@ function applyEcmascriptMergedUpdateShared(options: {
   moduleFactories: ModuleFactories
   devModuleCache: ModuleCache<HotModule>
   autoAcceptRootModules: boolean
+  isAutoAcceptModule?: (moduleId: ModuleId) => boolean
 }) {
   const {
     added,
@@ -1007,6 +1035,7 @@ function applyEcmascriptMergedUpdateShared(options: {
     moduleFactories,
     devModuleCache,
     autoAcceptRootModules,
+    isAutoAcceptModule,
   } = options
 
   const { outdatedModules, outdatedDependencies, newModuleFactories } =
@@ -1014,7 +1043,8 @@ function applyEcmascriptMergedUpdateShared(options: {
       added,
       modified,
       evalModuleEntry,
-      autoAcceptRootModules
+      autoAcceptRootModules,
+      isAutoAcceptModule
     )
 
   applyInternal(
@@ -1026,6 +1056,7 @@ function applyEcmascriptMergedUpdateShared(options: {
     devModuleCache,
     instantiateModule,
     applyModuleFactoryName,
-    autoAcceptRootModules
+    autoAcceptRootModules,
+    isAutoAcceptModule
   )
 }

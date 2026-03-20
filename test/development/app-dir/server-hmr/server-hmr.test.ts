@@ -160,7 +160,7 @@ describe('server-hmr', () => {
       const initial = await next.fetch('/api/hello')
       expect(initial.headers.get('x-middleware-version')).toBe('0')
 
-      await next.patchFile('middleware.ts', (content) =>
+      await next.patchFile('proxy.ts', (content) =>
         content.replace("'0'", "'1'")
       )
 
@@ -182,7 +182,7 @@ describe('server-hmr', () => {
         expect(initialDepEvaluatedAt).toMatch(/^\d+$/)
 
         // Change only the middleware, not the dependency
-        await next.patchFile('middleware.ts', (content) =>
+        await next.patchFile('proxy.ts', (content) =>
           content.replace(`'${initialVersion}'`, `'${initialVersion}-updated'`)
         )
 
@@ -247,6 +247,107 @@ describe('server-hmr', () => {
             String(initialDepEvaluatedAt)
           )
         })
+      }
+    )
+  })
+
+  describe('segment-level accept', () => {
+    // Renders /segment-accept/inner which has two nested layouts:
+    // OuterLayout (app/segment-accept/layout.tsx) and
+    // InnerLayout (app/segment-accept/inner/layout.tsx)
+
+    itTurbopackDev(
+      'does not re-evaluate outer layout when inner layout changes',
+      async () => {
+        const browser = await next.browser('/segment-accept/inner')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser
+            .elementByCss('#outer-layout-eval-time')
+            .text()
+          expect(text).toMatch(/Outer Layout Evaluated At: \d+/)
+        })
+
+        const initialOuterEvalTime = await browser
+          .elementByCss('#outer-layout-eval-time')
+          .text()
+        const initialInnerEvalTime = await browser
+          .elementByCss('#inner-layout-eval-time')
+          .text()
+
+        // Change the inner layout — only it should be re-evaluated
+        await next.patchFile(
+          'app/segment-accept/inner/layout.tsx',
+          (content) => content.replace('_hmrTrigger = 0', '_hmrTrigger = 1')
+        )
+
+        // Wait until the inner layout is re-evaluated (its timestamp changes)
+        await retry(async () => {
+          await browser.refresh()
+          const newInnerEvalTime = await browser
+            .elementByCss('#inner-layout-eval-time')
+            .text()
+          expect(newInnerEvalTime).not.toBe(initialInnerEvalTime)
+        })
+
+        // The outer layout should NOT have been re-evaluated
+        const newOuterEvalTime = await browser
+          .elementByCss('#outer-layout-eval-time')
+          .text()
+        expect(newOuterEvalTime).toBe(initialOuterEvalTime)
+      }
+    )
+
+    itTurbopackDev(
+      're-evaluates inner layout but not outer when inner segment utility changes',
+      async () => {
+        const browser = await next.browser('/segment-accept/inner')
+
+        // Wait for initial render
+        await retry(async () => {
+          const text = await browser
+            .elementByCss('#outer-layout-eval-time')
+            .text()
+          expect(text).toMatch(/Outer Layout Evaluated At: \d+/)
+        })
+
+        const initialOuterEvalTime = await browser
+          .elementByCss('#outer-layout-eval-time')
+          .text()
+        const initialInnerEvalTime = await browser
+          .elementByCss('#inner-layout-eval-time')
+          .text()
+        const initialUtilEvalTime = await browser
+          .elementByCss('#segment-util-eval-time')
+          .text()
+
+        // Change the utility imported by the inner layout.
+        // The inner layout is the nearest segment boundary, so both the utility
+        // and the inner layout should be re-evaluated. The outer layout should not.
+        await next.patchFile(
+          'app/segment-accept/inner/segment-util.ts',
+          (content) => content.replace('_hmrTrigger = 0', '_hmrTrigger = 1')
+        )
+
+        // Wait until both the utility and inner layout are re-evaluated
+        await retry(async () => {
+          await browser.refresh()
+          const newUtilEvalTime = await browser
+            .elementByCss('#segment-util-eval-time')
+            .text()
+          expect(newUtilEvalTime).not.toBe(initialUtilEvalTime)
+          const newInnerEvalTime = await browser
+            .elementByCss('#inner-layout-eval-time')
+            .text()
+          expect(newInnerEvalTime).not.toBe(initialInnerEvalTime)
+        })
+
+        // The outer layout should NOT have been re-evaluated
+        const newOuterEvalTime = await browser
+          .elementByCss('#outer-layout-eval-time')
+          .text()
+        expect(newOuterEvalTime).toBe(initialOuterEvalTime)
       }
     )
   })

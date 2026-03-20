@@ -74,6 +74,25 @@ function emitMessage(msg: { type: string; data: any }): boolean {
 }
 
 /**
+ * App Router segment boundary files are natural HMR accept boundaries.
+ * The route entry loads them dynamically via __next_app_require__ on each
+ * server request, so it does not need re-instantiation when a segment changes.
+ * Only the segment file itself (and any transitive dependencies that don't
+ * self-accept) will be re-instantiated.
+ *
+ * Segment boundary files are identified by their conventional filenames inside
+ * the `app/` directory:
+ * layout, page, template, error, loading, not-found, forbidden, unauthorized,
+ * global-error, global-not-found
+ */
+const SEGMENT_BOUNDARY_MODULE_RE =
+  /[/\\]app[/\\].*[/\\](layout|page|template|error|loading|not-found|forbidden|unauthorized|global-error|global-not-found)\.[jt]sx?(\?|$)/
+
+function isAppRouterSegmentModule(moduleId: ModuleId): boolean {
+  return SEGMENT_BOUNDARY_MODULE_RE.test(String(moduleId))
+}
+
+/**
  * Handles server message updates and applies them to the Node.js runtime.
  * Uses shared HMR update logic from hmr-runtime.ts.
  */
@@ -116,6 +135,9 @@ function handleNodejsUpdate(
       moduleFactories,
       devModuleCache,
       autoAcceptRootModules: true,
+      // App Router segment files are accept boundaries: the update bubble stops
+      // at the segment rather than propagating all the way to the route entry.
+      isAutoAcceptModule: isAppRouterSegmentModule,
     })
   } catch (e) {
     console.error('[Server HMR] Update failed, full reload needed:', e)

@@ -65,6 +65,7 @@ import {
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
+import { resetInstrumentationCache } from '../lib/router-utils/instrumentation-globals.external'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -616,23 +617,40 @@ export async function createHotReloaderTurbopack(
             entryPage === 'instrumentation.nodeJs'))) &&
       writtenEndpoint.type !== 'edge'
 
+    // Root entries (middleware/instrumentation) are loaded via require() rather
+    // than __turbopack_require__. Their entry chunk's exports are cached in
+    // Node's require.cache and must be cleared when the module changes so that
+    // the next require() loads the updated code. Dep chunks are preserved so
+    // that unmodified deps are not re-evaluated.
+    const isRootEntryChunk =
+      usesServerHmr &&
+      writtenEndpoint.type === 'nodejs' &&
+      entryType === 'root'
+
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
       clearModuleContext(file)
 
       const relativePath = relative(distDir, file)
-      if (
-        // For Pages Router, edge routes, middleware, and manifest files:
-        // clear the sharedCache in evalManifest(), Node.js require.cache,
-        // and edge runtime module contexts.
-        force ||
-        !usesServerHmr ||
-        !serverHmrSubscriptions?.has(relativePath)
-      ) {
+      const inSubscriptions = !!serverHmrSubscriptions?.has(relativePath)
+      const isEntryChunk =
+        isRootEntryChunk && relativePath === writtenEndpoint.entryPath
+
+      if (force || !usesServerHmr || !inSubscriptions || isEntryChunk) {
         filesToDelete.push(file)
       }
     }
     deleteCache(filesToDelete)
+
+    // Reset the instrumentation module cache so the next request re-requires
+    // the updated instrumentation module and re-runs its module-scope globals.
+    if (entryPage === 'instrumentation.nodeJs') {
+      resetInstrumentationCache()
+    }
+
+    if (entryType === 'root' && writtenEndpoint.type === 'nodejs') {
+      console.log(`[dbg-root] key=${entryPage} entryPath=${writtenEndpoint.entryPath} filesToDelete=${filesToDelete.map(f => relative(distDir, f)).join(',')}`)
+    }
 
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {

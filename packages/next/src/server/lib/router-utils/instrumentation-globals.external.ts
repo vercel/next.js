@@ -79,6 +79,13 @@ export async function instrumentationOnRequestError(
 }
 
 let registerInstrumentationPromise: Promise<void> | null = null
+
+export function resetInstrumentationCache() {
+  cachedInstrumentationModule = undefined as unknown as InstrumentationModule
+  instrumentationModulePromise = null
+  registerInstrumentationPromise = null
+}
+
 export function ensureInstrumentationRegistered(
   projectDir: string,
   distDir: string

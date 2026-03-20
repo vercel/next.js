@@ -512,6 +512,8 @@ export function hasEntrypointForKey(
         case 'middleware':
           return entrypoints.global.middleware != null
         case 'instrumentation':
+        case 'instrumentation.nodeJs':
+        case 'instrumentation.edge':
           return entrypoints.global.instrumentation != null
         default:
           return false
@@ -686,6 +688,30 @@ export async function handleEntrypoints({
       'actualInstrumentationHookFile',
       dev.serverFields.actualInstrumentationHookFile
     )
+
+    // Subscribe to instrumentation endpoint changes so server HMR picks up
+    // instrumentation module updates without a full server restart.
+    const subscribeInstrumentation = (
+      name: string,
+      prop: 'nodeJs' | 'edge'
+    ) => {
+      const key = getEntryKey('root', 'server', name)
+      dev.hooks.subscribeToChanges(key, false, instrumentation[prop], () => {
+        void processInstrumentation(name, prop).then(() => {
+          manifestLoader.loadMiddlewareManifest(
+            'instrumentation',
+            'instrumentation'
+          )
+          manifestLoader.writeManifests({
+            devRewrites,
+            productionRewrites: undefined,
+            entrypoints: currentEntrypoints,
+          })
+        })
+      })
+    }
+    subscribeInstrumentation('instrumentation.nodeJs', 'nodeJs')
+    subscribeInstrumentation('instrumentation.edge', 'edge')
   } else {
     dev.serverFields.actualInstrumentationHookFile = undefined
     await dev.hooks.propagateServerField(

@@ -1,6 +1,5 @@
-export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
-import { depEvaluatedAt } from './middleware-dep'
+import { depEvaluatedAt } from './proxy-dep'
 
 export default function middleware() {
   const res = NextResponse.next()
