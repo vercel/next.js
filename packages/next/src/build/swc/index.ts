@@ -646,7 +646,7 @@ function bindingToApi(
     nativeFunction(emitResult).then(
       (t) => {
         if (canceled) {
-          binding.rootTaskDispose(t)
+          if (t) binding.rootTaskDispose(t)
         } else {
           task = t
         }
