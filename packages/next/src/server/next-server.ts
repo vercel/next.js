@@ -1558,13 +1558,12 @@ export default class NextNodeServer extends BaseServer<
 
         if (this.dev || functionsConfig?.functions?.['/_middleware']) {
           // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
-            )
+          const middlewarePath = join(
+            /* turbopackIgnore: true */ this.distDir,
+            'server',
+            'middleware.js'
           )
+          return require(middlewarePath)
         }
       } catch (err) {
         if (

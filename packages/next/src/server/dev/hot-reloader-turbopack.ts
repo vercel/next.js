@@ -161,8 +161,10 @@ function setupServerHmr(
   project: Project,
   {
     clear,
+    clearEdge,
   }: {
     clear: () => void | Promise<void>
+    clearEdge: () => void | Promise<void>
   }
 ) {
   const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
@@ -179,6 +181,10 @@ function setupServerHmr(
     const subscription = project.hmrEvents(chunkPath, HmrTarget.Server)
     serverHmrSubscriptions.set(chunkPath, subscription)
 
+    // Edge chunks use a separate runtime (edge sandbox) and must not affect
+    // the Node.js require.cache or devModuleCache when they restart.
+    const isEdgeChunk = chunkPath.startsWith('server/edge/')
+
     // Start listening for changes in background
     ;(async () => {
       // Skip initial state
@@ -190,11 +196,21 @@ function setupServerHmr(
         // Fully re-evaluate all chunks from disk. Clears the module cache and
         // notifies browsers to refetch RSC.
         if (update.type === 'restart') {
-          await clear()
+          if (isEdgeChunk) {
+            // Edge chunk restart: only clear edge contexts, leave Node.js state intact
+            await clearEdge()
+          } else {
+            await clear()
+          }
           continue
         }
 
         if (update.type !== 'partial') {
+          continue
+        }
+
+        // Edge chunks don't go through the Node.js server HMR apply mechanism
+        if (isEdgeChunk) {
           continue
         }
 
@@ -605,9 +621,9 @@ export async function createHotReloaderTurbopack(
 
     const { type: entryType, page: entryPage } = splitEntryKey(key)
 
-    // Server HMR applies to App Router entries, Node.js middleware, and
-    // Node.js instrumentation built with the Turbopack Node.js runtime. Edge
-    // routes, Pages Router pages, and edge middleware/instrumentation do not
+    // Server HMR applies to App Router entries and Node.js root entries
+    // (proxy/middleware running as Node.js, nodeJs instrumentation).
+    // Edge routes, Pages Router pages, and edge middleware/instrumentation do not
     // use the Turbopack Node.js dev runtime and are excluded.
     const usesServerHmr =
       serverFastRefresh &&
@@ -635,7 +651,6 @@ export async function createHotReloaderTurbopack(
       const inSubscriptions = !!serverHmrSubscriptions?.has(relativePath)
       const isEntryChunk =
         isRootEntryChunk && relativePath === writtenEndpoint.entryPath
-
       if (force || !usesServerHmr || !inSubscriptions || isEntryChunk) {
         filesToDelete.push(file)
       }
@@ -1870,6 +1885,18 @@ export async function createHotReloaderTurbopack(
         resetFetch()
 
         // Tell browsers to refetch RSC (soft refresh, not full page reload)
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hash: String(++hmrHash),
+        })
+      },
+      clearEdge: async () => {
+        // Edge-only clear: do not touch Node.js require.cache or devModuleCache.
+        // Only clear the edge sandbox contexts and notify browsers.
+        await clearAllModuleContexts()
+
+        resetFetch()
+
         hotReloader.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           hash: String(++hmrHash),
