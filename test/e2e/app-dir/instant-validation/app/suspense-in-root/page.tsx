@@ -144,6 +144,27 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/static/false-below-static" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-config-only" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-layout-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-runtime-config" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/children-config-with-slot" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/fork-layout-config-with-slot" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/both-configs" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/slot-config-children-suspended" />
+        </li>
       </ul>
 
       <h2>Head</h2>
