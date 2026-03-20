@@ -293,15 +293,15 @@ impl AppPageLoaderTreeBuilder {
         writeln!(self.loader_tree_code, "{s}(async (props) => {{")?;
         writeln!(
             self.loader_tree_code,
-            "const mod = interopDefault(await {identifier}());"
+            "{s}  const mod = interopDefault(await {identifier}());"
         )?;
         if let Some(alt) = &alt {
             writeln!(
                 self.loader_tree_code,
-                "const alt = interopDefault(await {alt}());"
+                "{s}  const alt = interopDefault(await {alt}());"
             )?;
         }
-        writeln!(self.loader_tree_code, "return [{{")?;
+        writeln!(self.loader_tree_code, "{s}  return [{{")?;
         let pathname_prefix = if let Some(base_path) = &self.base_path {
             format!("{base_path}/{app_page}")
         } else {
@@ -310,7 +310,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, await props.params, {}, true) + \
+            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
              `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
@@ -318,8 +318,8 @@ impl AppPageLoaderTreeBuilder {
 
         let numeric_sizes = name == "twitter" || name == "openGraph";
         if numeric_sizes {
-            writeln!(self.loader_tree_code, "{s}  width: mod.width,")?;
-            writeln!(self.loader_tree_code, "{s}  height: mod.height,")?;
+            writeln!(self.loader_tree_code, "{s}    width: mod.width,")?;
+            writeln!(self.loader_tree_code, "{s}    height: mod.height,")?;
         } else {
             // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
             // For the images doesn't provide the size properly, use "any" as well.
@@ -329,17 +329,18 @@ impl AppPageLoaderTreeBuilder {
             } else {
                 "${mod.width}x${mod.height}"
             };
-            writeln!(self.loader_tree_code, "{s}  sizes: `{sizes}`,")?;
+            writeln!(self.loader_tree_code, "{s}    sizes: `{sizes}`,")?;
         }
 
         let content_type = get_content_type(path).await?;
-        writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
+        writeln!(self.loader_tree_code, "{s}    type: `{content_type}`,")?;
 
         if alt.is_some() {
-            writeln!(self.loader_tree_code, "{s}  alt,")?;
+            writeln!(self.loader_tree_code, "{s}    alt,")?;
         }
 
-        writeln!(self.loader_tree_code, "{s}}}];}}),")?;
+        writeln!(self.loader_tree_code, "{s}  }}];")?;
+        writeln!(self.loader_tree_code, "{s}}}),")?;
 
         Ok(())
     }
