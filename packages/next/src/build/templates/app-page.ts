@@ -621,7 +621,14 @@ export async function handler(
   if (
     !staticPathKey &&
     (routeModule.isDev ||
-      (isSSG && pageIsDynamic && prerenderInfo?.fallbackRouteParams))
+      (isSSG &&
+        pageIsDynamic &&
+        prerenderInfo?.fallbackRouteParams &&
+        // Server action requests must not get a staticPathKey, otherwise they
+        // enter the fallback rendering block below and return the cached HTML
+        // shell with the action result appended, instead of responding with
+        // just the RSC action result.
+        !isPossibleServerAction))
   ) {
     staticPathKey = resolvedPathname
   }
