@@ -645,7 +645,11 @@ function bindingToApi(
     let task: Awaited<ReturnType<typeof nativeFunction>> | undefined
     nativeFunction(emitResult).then(
       (t) => {
-        task = t
+        if (canceled) {
+          binding.rootTaskDispose(t)
+        } else {
+          task = t
+        }
       },
       (err: Error) => {
         emitResult(err, undefined)
