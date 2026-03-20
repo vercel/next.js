@@ -95,6 +95,16 @@ pub struct CommonArguments {
     /// Number of worker threads to use for parallel processing
     #[clap(long)]
     pub worker_threads: Option<usize>,
+
+    /// Enable filesystem-backed persistent caching.
+    /// Cache is stored at `<cache-dir>/<git-version>`.
+    #[clap(long)]
+    pub persistent_caching: bool,
+
+    /// Directory to store the persistent cache.
+    /// Defaults to `.turbopack/cache` relative to the project directory.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]

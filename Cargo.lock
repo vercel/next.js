@@ -9896,6 +9896,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "console-subscriber",
  "dunce",
+ "either",
  "futures",
  "owo-colors",
  "regex",
@@ -9927,6 +9928,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-resolve",
  "turbopack-trace-utils",
+ "vergen-gitcl",
  "webbrowser",
 ]
 
