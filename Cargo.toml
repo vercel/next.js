@@ -54,230 +54,17 @@ debug = true
 
 [profile.release]
 lto = "thin"
-
-[profile.release.package]
-
-[profile.release.package.turbopack-ecmascript]
-opt-level = 3
-
-[profile.release.package.turbopack-core]
-opt-level = 3
-
-[profile.release.package.next-core]
-opt-level = 3
-
-[profile.release.package.lightningcss]
-opt-level = "s"
-
-[profile.release.package.lightningcss-napi]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_ast]
-opt-level = 3
-
-[profile.release.package.next-api]
-opt-level = 3
-
-[profile.release.package.wasmer-wasix]
-opt-level = "s"
-
-[profile.release.package.cranelift-codegen]
-opt-level = "s"
-
-[profile.release.package.turbo-tasks]
-opt-level = 3
-
-[profile.release.package.turbopack-node]
-opt-level = 3
-
-[profile.release.package.turbopack-dev-server]
-opt-level = 3
-
-[profile.release.package.swc_ecma_minifier]
-opt-level = 3
-
-[profile.release.package.swc]
-opt-level = 3
-
-[profile.release.package.turbopack-css]
-opt-level = 3
-
-[profile.release.package.swc_ecma_compat_es2015]
-opt-level = "s"
-
-[profile.release.package.turbo-tasks-fs]
-opt-level = 3
-
-[profile.release.package.swc_ecma_parser]
-opt-level = 3
-
-[profile.release.package.turbopack]
-opt-level = 3
-
-[profile.release.package.turbopack-browser]
-opt-level = 3
-
-[profile.release.package.turbo-tasks-backend]
-opt-level = 3
-
-[profile.release.package.styled_jsx]
-opt-level = "s"
-
-[profile.release.package.next-custom-transforms]
-opt-level = 3
-
-[profile.release.package.wast]
-opt-level = "s"
-
-[profile.release.package.wasmparser]
-opt-level = "s"
-
-[profile.release.package.browserslist-rs]
-opt-level = "s"
-
-[profile.release.package.tokio]
-opt-level = 3
-
-[profile.release.package.reqwest]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_transforms_proposal]
-opt-level = "s"
-
-[profile.release.package.turbopack-resolve]
-opt-level = 3
-
-[profile.release.package.swc_ecma_transforms_optimization]
-opt-level = 3
-
-[profile.release.package.swc_ecma_transforms_base]
-opt-level = 3
-
-[profile.release.package.regex-automata]
-opt-level = 3
-
-[profile.release.package.auto-hash-map]
-opt-level = 3
-
-[profile.release.package.webc]
-opt-level = "s"
-
-[profile.release.package.turbopack-nodejs]
-opt-level = 3
-
-[profile.release.package.turbopack-trace-server]
-opt-level = 3
-
-[profile.release.package.swc_ecma_transforms_module]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_transforms_typescript]
-opt-level = 3
-
-[profile.release.package.swc_css_prefixer]
-opt-level = "s"
-
-[profile.release.package.zstd-sys]
-opt-level = 3
-
-[profile.release.package.swc_sourcemap]
-opt-level = 3
-
-[profile.release.package.turbopack-wasm]
-opt-level = 3
-
-[profile.release.package.turbopack-ecmascript-plugins]
-opt-level = 3
-
-[profile.release.package.handlebars]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_compat_bugfixes]
-opt-level = "s"
-
-[profile.release.package.h2]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_compat_es2022]
-opt-level = "s"
-
-[profile.release.package.wasmer-config]
-opt-level = "s"
-
-[profile.release.package.wasmer-compiler]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_utils]
-opt-level = 3
-
-[profile.release.package.regex-syntax]
-opt-level = "s"
-
-[profile.release.package.turbopack-image]
-opt-level = 3
-
-[profile.release.package.turbo-tasks-env]
-opt-level = 3
-
-[profile.release.package.napi]
-opt-level = 3
-
-[profile.release.package.mdxjs]
-opt-level = "s"
-
-[profile.release.package.serde_json]
-opt-level = 3
-
-[profile.release.package.swc_plugin_runner]
-opt-level = "s"
-
-[profile.release.package.markdown]
-opt-level = "s"
-
-[profile.release.package.swc_ecma_preset_env]
-opt-level = "s"
-
-[profile.release.package.turbo-tasks-fetch]
-opt-level = 3
-
-[profile.release.package.swc_ecma_visit]
-opt-level = 3
-
-[profile.release.package.turbopack-mdx]
-opt-level = "s"
-
-[profile.release.package.autocfg]
-opt-level = "s"
-
-[profile.release.package.image]
-opt-level = 3
-
-[profile.release.package.serde]
-opt-level = 3
-
-[profile.release.package.wasmer]
-opt-level = "s"
-
-[profile.release.package.wasmer-vm]
-opt-level = "s"
-
-[profile.release.package.wasmer-compiler-cranelift]
-opt-level = "s"
-
-[profile.release.package.regalloc2]
-opt-level = "s"
-
-[profile.release.package.swc_plugin_backend_wasmer]
-opt-level = "s"
-
-[profile.release.package.globset]
-opt-level = "s"
-
-[profile.release.package.toml_edit]
-opt-level = "s"
-
-[profile.release.package.miette]
-opt-level = "s"
+# codegen-units=1 disables intra-crate parallelism so LLVM sees each crate as a
+# single module, enabling better inlining and identical-function deduplication
+# within each crate. Combined with share-generics (which avoids duplicating
+# monomorphized generics across crates) and thin LTO (which deduplicates across
+# crate boundaries), this minimizes overall function duplication in the binary.
+#
+# https://github.com/davidlattimore/duplicate-function-checker suggests that fat LTO +
+# share-generics + codegen-units = 1 is the best way to reduce overall function
+# duplication in the binary, and by extension, size. We only do thin LTO, but
+# this _should_ have similar effect to fat LTO.
+codegen-units = 1
 
 # Use a custom profile for CI or local testing where we are somewhat performance
 # sensitive but we still want the additional validation of debug-assertions.
@@ -291,10 +78,81 @@ overflow-checks = true
 # Thin-LTO can make the binary ~5-10% faster, but it can make our build take a
 # couple more minutes, so it's not worth it for most test scenarios.
 lto = false
+# More codegen units = faster compilation. Without LTO there's no cross-CGU
+# optimization recovery, but this profile prioritizes build speed over perf.
+codegen-units = 64
 
 [profile.release-with-debug]
 inherits = "release"
 debug = true
+
+# Size-optimized crates: determined via `cargo bloat --release --crates -p next-napi-bindings`.
+# Wasmer/cranelift crates are used by the plugin feature (wasm builds).
+[profile.release.package.browserslist-rs]
+opt-level = "s"
+
+[profile.release.package.cranelift-codegen]
+opt-level = "s"
+
+[profile.release.package.handlebars]
+opt-level = "s"
+
+[profile.release.package.lightningcss]
+opt-level = "s"
+
+[profile.release.package.lightningcss-napi]
+opt-level = "s"
+
+[profile.release.package.markdown]
+opt-level = "s"
+
+[profile.release.package.mdxjs]
+opt-level = "s"
+
+[profile.release.package.regalloc2]
+opt-level = "s"
+
+[profile.release.package.regex-syntax]
+opt-level = "s"
+
+[profile.release.package.reqwest]
+opt-level = "s"
+
+[profile.release.package.styled_jsx]
+opt-level = "s"
+
+[profile.release.package.swc_css_prefixer]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_compat_bugfixes]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_compat_es2015]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_compat_es2022]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_preset_env]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_transforms_module]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_transforms_proposal]
+opt-level = "s"
+
+[profile.release.package.swc_plugin_backend_wasmer]
+opt-level = "s"
+
+[profile.release.package.swc_plugin_runner]
+opt-level = "s"
+
+[profile.release.package.wasmer]
+opt-level = "s"
+
+[profile.release.package.wasmer-compiler]
+opt-level = "s"
 
 [workspace.dependencies]
 # Workspace crates

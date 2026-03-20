@@ -192,7 +192,6 @@ jobs:
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit --remote-cache-timeout 60 --log-order stream
-      mold: 'yes'
       stepName: 'test-cargo-unit'
     secrets: inherit
 

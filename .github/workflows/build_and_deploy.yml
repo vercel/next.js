@@ -20,6 +20,9 @@ concurrency:
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.8.11
+  # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
+  # TODO: we should add the relevant envs later to to switch to strict mode
+  TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
   NODE_LTS_VERSION: 20
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
@@ -27,6 +30,9 @@ env:
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
   MACOSX_DEPLOYMENT_TARGET: 11.0
+  # Run GitHub Actions JS with Node.js 24 to avoid deprecation warnings
+  # (needed until actions/checkout, actions/setup-node, etc. all default to node24)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   deploy-target:
@@ -37,12 +43,12 @@ jobs:
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
       - run: echo "${{ github.event.after }}"
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -86,7 +92,7 @@ jobs:
       NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -95,14 +101,14 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 25
 
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
@@ -120,18 +126,79 @@ jobs:
 
       - run: pnpm run build
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         timeout-minutes: 5
         id: cache-build
         with:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
+  # Generate the build matrix for native binaries.
+  # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
+  generate-native-matrix:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: mmastrac/mmm-matrix@3edd85c30addba11887c770740309c979a446aa9 # v1
+        id: matrix
+        with:
+          config: |
+            deployTarget: ${{ needs.deploy-target.outputs.value }}
+          input: |
+            $if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
+            target:
+              $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
+            build_task: build-native-release
+            os:
+              mac:
+                host: "['self-hosted', 'macos', 'arm64']"
+                arch: [x86_64, aarch64]
+                vendor: apple
+                sys: darwin
+              windows:
+                host: "['self-hosted', 'windows', 'x64']"
+                vendor: pc
+                sys: windows
+                abi: msvc
+                arch:
+                  x86_64: {}
+                  aarch64:
+                    build_task: build-native-no-plugin-release
+              linux:
+                host: "['self-hosted', 'linux', 'x64', 'metal']"
+                vendor: unknown
+                sys: linux
+                abi:
+                  gnu:
+                    verify_cmd: "objdump -T native/next-swc.*.node | grep GLIBC_"
+                    extra_apt_packages: "xz-utils"
+                    arch:
+                      x86_64:
+                        docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
+                      aarch64:
+                        docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
+                        cc: '/usr/bin/clang'
+                        cflags: '--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu'
+                  musl:
+                    docker: "ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian"
+                    arch:
+                      x86_64:
+                        extra_apt_packages: musl-tools musl-dev
+                        cc: musl-gcc
+                      aarch64:
+                        cc: aarch64-linux-musl-gcc
+                        cxx: aarch64-linux-musl-g++
+
   # Build binaries for publishing
   build-native:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
     needs:
       - deploy-target
+      - generate-native-matrix
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -139,197 +206,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          # only build the binaries we run automated tests against
-          # linux GNU x64
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-apple-darwin' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-gnu' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
-          - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-apple-darwin' }}
+        include: ${{ fromJSON(needs.generate-native-matrix.outputs.matrix) }}
 
-        settings:
-          - host:
-              - 'self-hosted'
-              - 'macos'
-              - 'arm64'
-
-            target: 'x86_64-apple-darwin'
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'macos'
-              - 'arm64'
-
-            target: 'aarch64-apple-darwin'
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
-            target: 'x86_64-pc-windows-msvc'
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            target: 'aarch64-pc-windows-msvc'
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-
-            target: 'x86_64-unknown-linux-gnu'
-            # [NOTE] If you want to update / modify build steps, check these things:
-            # - We use docker images to pin the glibc version to link against,
-            #   even if host target is identical to the container image (i.e host: x64-linux, image: x64-linux)
-            # - After build `objdump -T` prints out the glibc version next-swc is linked against,
-            #   to ensure it did not change unexpectedly if docker image, or other dependency changed
-            # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
-            #   environment.
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
-            build: |
-              apt update
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev
-              rustup show
-              rustup target add x86_64-unknown-linux-gnu
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              unset CC_x86_64_unknown_linux_gnu && unset CC
-              cd packages/next-swc
-              npm run build-native-release -- --target x86_64-unknown-linux-gnu
-              strip native/next-swc.*.node
-              objdump -T native/next-swc.*.node | grep GLIBC_
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-
-            target: 'x86_64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
-            build: |
-              apk update
-              apk del llvm
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang20-static llvm20 llvm20-dev
-              export PATH="/usr/lib/llvm20/bin:$PATH"
-              rustup show
-              rustup target add x86_64-unknown-linux-musl
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static'
-              cd packages/next-swc
-              npm run build-native-release -- --target x86_64-unknown-linux-musl
-              strip native/next-swc.*.node
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-
-            target: 'aarch64-unknown-linux-gnu'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
-            build: |
-              apt update
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev
-              export JEMALLOC_SYS_WITH_LG_PAGE=16
-              rustup show
-              rustup target add aarch64-unknown-linux-gnu
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              export CC_aarch64_unknown_linux_gnu=/usr/bin/clang
-              export CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu"
-              cd packages/next-swc
-              npm run build-native-release -- --target aarch64-unknown-linux-gnu
-              llvm-strip -x native/next-swc.*.node
-              objdump -T native/next-swc.*.node | grep GLIBC_
-
-          - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
-
-            target: 'aarch64-unknown-linux-musl'
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
-            build: |
-              apk update
-              apk del llvm
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang20-static llvm20 llvm20-dev
-              export PATH="/usr/lib/llvm20/bin:$PATH"
-              export JEMALLOC_SYS_WITH_LG_PAGE=16
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              rustup show
-              rustup target add aarch64-unknown-linux-musl
-              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Zunstable-options -Csymbol-mangling-version=v0 -Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker'
-              cd packages/next-swc
-              npm run build-native-release -- --target aarch64-unknown-linux-musl
-              llvm-strip -x native/next-swc.*.node
-
-    name: stable - ${{ matrix.settings.target }} - node@16
-    runs-on: ${{ matrix.settings.host }}
+    name: stable - ${{ matrix.target }} - node@20
+    runs-on: ${{ fromJSON(matrix.host) }}
     timeout-minutes: 45
     steps:
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-        if: ${{ matrix.settings.host == 'ubuntu-latest' }}
-      - name: tune windows network
-        run: Disable-NetAdapterChecksumOffload -Name * -TcpIPv4 -UdpIPv4 -TcpIPv6 -UdpIPv6
-        if: ${{ matrix.settings.host == 'windows-latest' }}
-      - name: tune mac network
-        run: sudo sysctl -w net.link.generic.system.hwcksum_tx=0 && sudo sysctl -w net.link.generic.system.hwcksum_rx=0
-        if: ${{ matrix.settings.host == 'macos-latest' }}
+      # Enable long paths on Windows to avoid MAX_PATH (260 char) errors
+      # with deeply nested node_modules/.pnpm paths
+      - name: Enable git long paths
+        if: ${{ matrix.os == 'windows' }}
+        run: git config --system core.longpaths true
+
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # crates/next-napi-bindings/build.rs uses git-describe to find the most recent git tag. It's okay if
           # this fails, but fetch with enough depth that we're likely to find a recent tag.
           fetch-depth: 100
 
       - name: Setup node
-        uses: actions/setup-node@v4
-        if: ${{ !matrix.settings.docker }}
+        uses: actions/setup-node@v6
+        if: ${{ !matrix.docker }}
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -340,24 +239,29 @@ jobs:
           corepack enable
 
       # we always want to run this to set environment variables
+      # (skip for docker builds - rust is already in the image)
       - name: Install Rust
+        if: ${{ !matrix.docker }}
         uses: ./.github/actions/setup-rust
         with:
-          targets: ${{ matrix.settings.target }}
+          targets: ${{ matrix.target }}
 
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
 
-      - name: Setup toolchain
-        run: ${{ matrix.settings.setup }}
-        if: ${{ matrix.settings.setup }}
-
       - name: Cache on ${{ github.ref_name }}
+        if: ${{ !matrix.docker }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'
-          shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml') }}
+
+      - name: Set RUSTFLAGS for docker builds
+        if: ${{ matrix.docker }}
+        run: |
+          RUSTFLAGS=$(cargo xtask print-rustflags --target ${{ matrix.target }})
+          echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
 
       - name: Clear native build
         run: rm -rf packages/next-swc/native
@@ -366,43 +270,111 @@ jobs:
       # as they are on an older Node.js version and have
       # issues with turbo caching
       - name: pull build cache
-        if: ${{ matrix.settings.docker }}
-        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        if: ${{ matrix.docker }}
+        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.target }}
 
       - name: check build exists
-        if: ${{ matrix.settings.docker }}
+        if: ${{ matrix.docker }}
         run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
         id: build-exists
 
       - name: Build in docker
-        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         env:
-          # put the command in an environment variable to avoid escaping issues
-          DOCKER_CMD: ${{ matrix.settings.build }}
+          # Single build script with if-blocks for per-variant dispatch.
+          # Notes:
+          # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
+          #   environment.
+          BUILD_SCRIPT: |
+            # Musl builds: clear GNU-specific env vars baked into the Debian image
+            if [ "${{ matrix.abi }}" = "musl" ]; then
+              unset LDFLAGS CFLAGS CXXFLAGS C_INCLUDE_PATH CC CXX TARGET_CC
+            fi
+
+            apt-get update
+            apt-get install -y --no-install-recommends pkg-config dav1d libdav1d-dev ${{ matrix.extra_apt_packages }}
+
+            # Ensure ld.lld is available for -fuse-ld=lld (these docker images
+            # ship ancient GNU ld that doesn't support --icf=all or other modern flags).
+            if command -v lld >/dev/null 2>&1 && ! command -v ld.lld >/dev/null 2>&1; then
+              ln -sf "$(command -v lld)" /usr/local/bin/ld.lld
+            fi
+
+            # Cross-compilation toolchain for musl/aarch64
+            if [ "${{ matrix.abi }}" = "musl" ] && [ "${{ matrix.arch }}" = "aarch64" ]; then
+              wget -qO- "https://github.com/napi-rs/napi-rs/releases/download/linux-musl-cross%4010/aarch64-linux-musl-cross.tgz" | tar xz -C /
+              export PATH="/aarch64-linux-musl-cross/bin:$PATH"
+              # -fuse-ld=lld makes gcc look for 'ld.lld' in its toolchain bin dir.
+              # Create the symlink so the cross-compiler finds host lld.
+              ln -sf /usr/bin/lld /aarch64-linux-musl-cross/aarch64-linux-musl/bin/ld.lld
+            fi
+
+            # Set per-target compiler from matrix vars (CC_<target>, CXX_<target>, CFLAGS_<target>)
+            TARGET_US=$(echo "${{ matrix.target }}" | tr '-' '_')
+            unset "CC_${TARGET_US}"
+            if [ -n "${{ matrix.cc }}" ]; then export "CC_${TARGET_US}=${{ matrix.cc }}"; fi
+            if [ -n "${{ matrix.cxx }}" ]; then export "CXX_${TARGET_US}=${{ matrix.cxx }}"; fi
+            if [ -n "${{ matrix.cflags }}" ]; then export "CFLAGS_${TARGET_US}=${{ matrix.cflags }}"; fi
+
+            # aarch64 needs larger page size for jemalloc
+            if [ "${{ matrix.arch }}" = "aarch64" ]; then
+              export JEMALLOC_SYS_WITH_LG_PAGE=16
+            fi
+
+            node -v
+            rustup show
+            rustup target add ${{ matrix.target }}
+            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+            cd packages/next-swc
+            npm run ${{ matrix.build_task }} -- --target ${{ matrix.target }}
+            llvm-strip -x native/next-swc.*.node
+            ${{ matrix.verify_cmd }}
         run: |
           docker run -v "/var/run/docker.sock":"/var/run/docker.sock" \
-            -e CI -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL \
-            -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
+            -e CI -e RUST_BACKTRACE -e RUSTFLAGS -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR \
+            -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
             -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
             -v ${{ github.workspace }}:/build \
             -w /build \
             --entrypoint=bash \
-            ${{ matrix.settings.docker }} \
-            -xeo pipefail -c "$DOCKER_CMD" # these args are passed to the entrypoint (bash)
+            ${{ matrix.docker }} \
+            -xeo pipefail -c "$BUILD_SCRIPT" # these args are passed to the entrypoint (bash)
 
       - name: cache build
-        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run cache-build-native --force -- ${{ matrix.settings.target }}
+        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run cache-build-native --force -- ${{ matrix.target }}
 
       - name: 'Build'
-        run: ${{ matrix.settings.build }}
-        if: ${{ !matrix.settings.docker }}
+        if: ${{ !matrix.docker }}
+        env:
+          # We don't want incremental builds on CI
+          CARGO_INCREMENTAL: 0
+        run: |
+          echo "Host arch: $(uname -m)"
+          echo "Node arch: $(node -e 'console.log(process.arch)')"
+          echo "Node binary: $(file $(which node))"
+          echo "Rustc binary: $(file $(which rustc) || echo 'not found')"
+          rustc --version --verbose || true
+          node -v
+          npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+          pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} -- --target ${{ matrix.target }}
+          if [ "${{ matrix.os }}" != "windows" ]; then
+            strip -x packages/next-swc/native/next-swc.*.node
+          fi
 
       - name: 'check build cache status'
         id: check-did-build
         run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
+
+      - name: 'Report binary size'
+        if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
+        run: |
+          shopt -s nullglob
+          for f in packages/next-swc/native/next-swc.*.node; do
+            FILE="$f" node -e "const s=require('fs').statSync(process.env.FILE).size; console.log('::notice title=${{ matrix.target }} binary size::' + (s/1024/1024).toFixed(1) + ' MB (' + s + ' bytes)')"
+          done
 
       # Try to upload metrics for Turbopack to datadog's CI pipeline execution
       - name: 'Collect turbopack build metrics'
@@ -419,26 +391,27 @@ jobs:
             export FILENAME=${FILENAME%.node}
             export BYTESIZE=$(wc -c < $filename | xargs)
             echo "Reporting $FILENAME:$BYTESIZE for Turbopack bytesize"
-            echo "turbopack.bytesize.$FILENAME:$BYTESIZE" > ./turbopack-bin-size/${{ matrix.settings.target }}
+            echo "turbopack.bytesize.$FILENAME:$BYTESIZE" > ./turbopack-bin-size/${{ matrix.target }}
           done
 
       - name: Upload turbopack bytesize artifact
         if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: turbopack-bytesize-${{ matrix.settings.target }}
+          name: turbopack-bytesize-${{ matrix.target }}
           path: turbopack-bin-size/*
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: next-swc-binaries-${{ matrix.settings.target }}
+          name: next-swc-binaries-${{ matrix.target }}
           path: packages/next-swc/native/next-swc.*.node
 
       - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v4
+        if: ${{ !matrix.docker }}
+        uses: actions/upload-artifact@v6
         with:
-          name: turbo-run-summary-${{ matrix.settings.target }}
+          name: turbo-run-summary-${{ matrix.target }}
           path: .turbo/runs
 
   build-wasm:
@@ -456,10 +429,10 @@ jobs:
       - 'metal'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -477,21 +450,19 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Build
-        # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-        # TODO: we should add the relevant envs later to to switch to strict mode
-        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm ${TURBO_ARGS} -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: turbo-run-summary-wasm-${{matrix.target}}
           path: .turbo/runs
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wasm-binaries-${{matrix.target}}
           path: crates/wasm/pkg-*
@@ -507,7 +478,7 @@ jobs:
       - build-native
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -520,7 +491,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         timeout-minutes: 5
         id: restore-build
         with:
@@ -532,13 +503,13 @@ jobs:
             ${{ github.sha }}-${{ github.run_number }}
             ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
@@ -550,7 +521,7 @@ jobs:
         run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
       - name: Upload tarballs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           # Update all mentions of this name in vercel-packages when changing.
           name: preview-tarballs
@@ -572,7 +543,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -585,7 +556,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         timeout-minutes: 5
         id: restore-build
         with:
@@ -597,13 +568,13 @@ jobs:
             ${{ github.sha }}-${{ github.run_number }}
             ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
@@ -624,9 +595,9 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -657,7 +628,7 @@ jobs:
     needs: [build, deploy-target]
     steps:
       - run: echo '${{ needs.deploy-target.outputs.value }}'
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 25
       - name: Install Vercel CLI
@@ -694,7 +665,7 @@ jobs:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
       - name: Collect bytesize metrics
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: turbopack-bytesize-*
           merge-multiple: true
