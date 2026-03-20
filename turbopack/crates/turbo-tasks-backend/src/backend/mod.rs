@@ -1069,6 +1069,33 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             aggregated_dirty_containers_count: usize,
             output_size: usize,
         }
+        /// Formats a byte size, optionally including the compressed size when the
+        /// `print_cache_item_size_with_compressed` feature is enabled.
+        #[cfg(feature = "print_cache_item_size")]
+        struct FormatSizes {
+            size: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
+            compressed_size: usize,
+        }
+        #[cfg(feature = "print_cache_item_size")]
+        impl std::fmt::Display for FormatSizes {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                use turbo_tasks::util::FormatBytes;
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    write!(
+                        f,
+                        "{} ({} compressed)",
+                        FormatBytes(self.size),
+                        FormatBytes(self.compressed_size)
+                    )
+                }
+                #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                {
+                    write!(f, "{}", FormatBytes(self.size))
+                }
+            }
+        }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
             #[cfg(feature = "print_cache_item_size_with_compressed")]
@@ -1115,6 +1142,73 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .unwrap_or(0);
                 }
             }
+
+            /// Returns the task name used as the stats grouping key.
+            fn task_name(storage: &TaskStorage) -> String {
+                storage
+                    .get_persistent_task_type()
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "<unknown>".to_string())
+            }
+
+            /// Returns the primary sort key: compressed total when
+            /// `print_cache_item_size_with_compressed` is enabled, raw total otherwise.
+            fn sort_key(&self) -> usize {
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.data_compressed + self.meta_compressed
+                }
+                #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                {
+                    self.data + self.meta
+                }
+            }
+
+            fn format_total(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data + self.meta,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.data_compressed + self.meta_compressed,
+                }
+            }
+
+            fn format_data(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.data_compressed,
+                }
+            }
+
+            fn format_avg_data(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data.checked_div(self.data_count).unwrap_or(0),
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self
+                        .data_compressed
+                        .checked_div(self.data_count)
+                        .unwrap_or(0),
+                }
+            }
+
+            fn format_meta(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.meta,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.meta_compressed,
+                }
+            }
+
+            fn format_avg_meta(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.meta.checked_div(self.meta_count).unwrap_or(0),
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self
+                        .meta_compressed
+                        .checked_div(self.meta_count)
+                        .unwrap_or(0),
+                }
+            }
         }
         #[cfg(feature = "print_cache_item_size")]
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
@@ -1136,12 +1230,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Ok(encoded) => {
                         #[cfg(feature = "print_cache_item_size")]
                         {
-                            let task_name = inner
-                                .get_persistent_task_type()
-                                .map(|t| t.to_string())
-                                .unwrap_or_else(|| "<unknown>".to_string());
                             let mut stats = task_cache_stats.lock();
-                            let entry = stats.entry(task_name).or_default();
+                            let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
                             match category {
                                 SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
                                 SpecificTaskDataCategory::Data => entry.add_data(&encoded),
@@ -1169,13 +1259,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             #[cfg(feature = "print_cache_item_size")]
             if encode_data || encode_meta {
-                let task_name = inner
-                    .get_persistent_task_type()
-                    .map(|t| t.to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string());
                 task_cache_stats
                     .lock()
-                    .entry(task_name)
+                    .entry(TaskCacheStats::task_name(inner))
                     .or_default()
                     .add_counts(inner);
             }
@@ -1230,44 +1316,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .into_iter()
                     .collect::<Vec<_>>();
                 if !task_cache_stats.is_empty() {
-                    use std::fmt::Display;
-
                     use turbo_tasks::util::FormatBytes;
 
                     use crate::utils::markdown_table::print_markdown_table;
 
-                    #[cfg(feature = "print_cache_item_size_with_compressed")]
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-                        (stats_b.data_compressed + stats_b.meta_compressed, key_b)
-                            .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
+                        (stats_b.sort_key(), key_b).cmp(&(stats_a.sort_key(), key_a))
                     });
-                    #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
-                    task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-                        (stats_b.data + stats_b.meta, key_b)
-                            .cmp(&(stats_a.data + stats_a.meta, key_a))
-                    });
-
-                    struct FormatSizes {
-                        size: usize,
-                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                        compressed_size: usize,
-                    }
-
-                    impl Display for FormatSizes {
-                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                            return write!(
-                                f,
-                                "{} ({} compressed)",
-                                FormatBytes(self.size),
-                                FormatBytes(self.compressed_size)
-                            );
-                        }
-                        #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
-                        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                            return write!(f, "{}", FormatBytes(self.size));
-                        }
-                    }
 
                     println!(
                         "Task cache stats: {}",
@@ -1307,55 +1362,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         |(task_desc, stats)| {
                             [
                                 task_desc.to_string(),
-                                format!(
-                                    " {}",
-                                    FormatSizes {
-                                        size: stats.data + stats.meta,
-                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                                        compressed_size: stats.data_compressed
-                                            + stats.meta_compressed,
-                                    }
-                                ),
-                                format!(
-                                    " {}",
-                                    FormatSizes {
-                                        size: stats.data,
-                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                                        compressed_size: stats.data_compressed,
-                                    }
-                                ),
-                                format!(" {} x", stats.data_count,),
-                                format!(
-                                    "{}",
-                                    FormatSizes {
-                                        size: stats.data.checked_div(stats.data_count).unwrap_or(0),
-                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                                        compressed_size: stats
-                                            .data_compressed
-                                            .checked_div(stats.data_count)
-                                            .unwrap_or(0),
-                                    }
-                                ),
-                                format!(
-                                    " {}",
-                                    FormatSizes {
-                                        size: stats.meta,
-                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                                        compressed_size: stats.meta_compressed,
-                                    }
-                                ),
-                                format!(" {} x", stats.meta_count,),
-                                format!(
-                                    "{}",
-                                    FormatSizes {
-                                        size: stats.meta.checked_div(stats.meta_count).unwrap_or(0),
-                                        #[cfg(feature = "print_cache_item_size_with_compressed")]
-                                        compressed_size: stats
-                                            .meta_compressed
-                                            .checked_div(stats.meta_count)
-                                            .unwrap_or(0),
-                                    }
-                                ),
+                                format!(" {}", stats.format_total()),
+                                format!(" {}", stats.format_data()),
+                                format!(" {} x", stats.data_count),
+                                format!("{}", stats.format_avg_data()),
+                                format!(" {}", stats.format_meta()),
+                                format!(" {} x", stats.meta_count),
+                                format!("{}", stats.format_avg_meta()),
                                 format!(" {}", stats.upper_count),
                                 format!(" {}", stats.collectibles_count),
                                 format!(" {}", stats.aggregated_collectibles_count),
