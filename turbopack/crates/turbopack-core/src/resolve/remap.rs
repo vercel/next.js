@@ -293,14 +293,7 @@ impl ReplacedSubpathValue {
             ReplacedSubpathValue::Result(r) => {
                 target.push(ReplacedSubpathValueResult {
                     ty: ReplacedSubpathValueResultType::Path(r),
-                    conditions: condition_overrides
-                        .iter()
-                        .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((k.clone(), true)),
-                            ConditionValue::Unset => Some((k.clone(), false)),
-                            ConditionValue::Unknown => None,
-                        })
-                        .collect(),
+                    conditions: collect_active_conditions(condition_overrides),
                     map_prefix: prefix,
                     map_key: key,
                 });
@@ -313,14 +306,7 @@ impl ReplacedSubpathValue {
                 // no fallback alternatives are needed.
                 target.push(ReplacedSubpathValueResult {
                     ty: ReplacedSubpathValueResultType::Empty,
-                    conditions: condition_overrides
-                        .iter()
-                        .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((k.clone(), true)),
-                            ConditionValue::Unset => Some((k.clone(), false)),
-                            ConditionValue::Unknown => None,
-                        })
-                        .collect(),
+                    conditions: collect_active_conditions(condition_overrides),
                     map_prefix: prefix,
                     map_key: key,
                 });
@@ -328,6 +314,21 @@ impl ReplacedSubpathValue {
             }
         }
     }
+}
+
+/// Collects the currently active condition overrides into a `(key, bool)` list
+/// for attaching to a [ReplacedSubpathValueResult].
+fn collect_active_conditions(
+    condition_overrides: &FxHashMap<RcStr, ConditionValue>,
+) -> Vec<(RcStr, bool)> {
+    condition_overrides
+        .iter()
+        .filter_map(|(k, v)| match v {
+            ConditionValue::Set => Some((k.clone(), true)),
+            ConditionValue::Unset => Some((k.clone(), false)),
+            ConditionValue::Unknown => None,
+        })
+        .collect()
 }
 
 struct ResultsIterMut<'a> {
