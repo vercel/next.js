@@ -716,7 +716,7 @@ async fn process_default_internal(
             *execution_context,
             Some(import_map),
             None,
-            Layer::new(rcstr!("turbopack_use_loaders")),
+            Layer::new(rcstr!("webpack_loaders")),
             false,
         )
         .to_resolved()
