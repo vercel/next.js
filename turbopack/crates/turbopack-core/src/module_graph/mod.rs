@@ -1522,6 +1522,11 @@ impl SingleModuleGraph {
         )
         .await
     }
+
+    #[turbo_tasks::function]
+    pub async fn module_count(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(self.number_of_modules as u64))
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
