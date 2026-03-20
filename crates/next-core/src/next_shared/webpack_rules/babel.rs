@@ -6,7 +6,7 @@ use serde::Serialize;
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{self, FileJsonContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -17,7 +17,9 @@ use turbopack_core::{
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions},
+    next_config::{
+        NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions, ReactCompilerTarget,
+    },
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -152,6 +154,12 @@ pub async fn get_babel_loader_rules(
     {
         let react_compiler_options = react_compiler_options.await?;
 
+        let mut react_compiler_options_with_target: ReactCompilerOptions =
+            (*react_compiler_options).clone();
+        if let Some(target) = detect_react_compiler_target(project_path).await? {
+            react_compiler_options_with_target.target = Some(target);
+        }
+
         // we don't want to accept user-supplied `environment` options, but we do want to pass
         // `enableNameAnonymousFunctions` down to the babel plugin based on dev/prod.
         #[derive(Serialize)]
@@ -168,7 +176,7 @@ pub async fn get_babel_loader_rules(
         }
 
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options,
+            base: &react_compiler_options_with_target,
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
@@ -233,6 +241,38 @@ pub async fn get_babel_loader_rules(
             module_type: None,
         },
     )])
+}
+
+async fn detect_react_compiler_target(
+    project_path: &FileSystemPath,
+) -> Result<Option<ReactCompilerTarget>> {
+    let react_pkg_result = resolve(
+        project_path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
+        node_cjs_resolve_options(project_path.root().owned().await?),
+    );
+
+    let Some(source) = &*react_pkg_result.first_source().await? else {
+        return Ok(None);
+    };
+
+    let path = source.ident().path().await?;
+    let FileJsonContent::Content(value) = &*path.read_json().await? else {
+        return Ok(None);
+    };
+
+    let major = value
+        .get("version")
+        .and_then(|v| v.as_str())
+        .and_then(|v| v.split('.').next())
+        .and_then(|s| s.parse::<u32>().ok());
+
+    match major {
+        Some(17) => Ok(Some(ReactCompilerTarget::React17)),
+        Some(18) => Ok(Some(ReactCompilerTarget::React18)),
+        _ => Ok(None),
+    }
 }
 
 /// A system path that can be passed to the webpack loader
