@@ -2909,19 +2909,14 @@ export default async function build(
                   : false
 
                 routes.forEach((route) => {
-                  // If the route has any dynamic root segments, we need to skip
-                  // rendering the route. This is because we don't support
-                  // revalidating the shells without the parameters present.
-                  // Note that we only have fallback root params if we also have
-                  // PPR enabled for this route/app already.
+                  // Skip rendering fallback shells for routes with undefined
+                  // root params. These routes always use BLOCKING_STATIC_RENDER
+                  // (or NOT_FOUND when dynamicParams is false), so the server
+                  // does a full on-demand prerender instead of resuming a
+                  // prebuilt fallback shell.
                   if (
                     route.fallbackRootParams &&
-                    route.fallbackRootParams.length > 0 &&
-                    // We don't skip rendering the route if we have the
-                    // following enabled. This is because the flight data now
-                    // does not contain any of the route params and is instead
-                    // completely static.
-                    !config.cacheComponents
+                    route.fallbackRootParams.length > 0
                   ) {
                     return
                   }
