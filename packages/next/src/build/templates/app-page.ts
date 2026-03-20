@@ -5,9 +5,9 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
-} from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+} from '../../server/route-modules/app-page/module.compiled' with { turbopackTransition: 'next-ssr' }
 
-import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
+import { RouteKind } from '../../server/route-kind' with { turbopackTransition: 'next-server-utility' }
 
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
@@ -98,7 +98,7 @@ export const __next_app__ = {
   loadChunk: __next_app_load_chunk__,
 }
 
-import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import * as entryBase from '../../server/app-render/entry-base' with { turbopackTransition: 'next-server-utility' }
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
@@ -108,7 +108,7 @@ import {
   getSegmentParam,
 } from '../../shared/lib/router/utils/get-segment-param'
 
-export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+export * from '../../server/app-render/entry-base' with { turbopackTransition: 'next-server-utility' }
 
 // Create and export the route module that will be consumed.
 export const routeModule = new AppPageRouteModule({

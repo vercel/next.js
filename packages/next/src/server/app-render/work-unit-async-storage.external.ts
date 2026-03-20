@@ -9,7 +9,7 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
-import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { turbopackTransition: 'next-shared' }
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type {
   RenderResumeDataCache,

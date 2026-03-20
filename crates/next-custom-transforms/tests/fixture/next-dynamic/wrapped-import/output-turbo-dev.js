@@ -1,15 +1,15 @@
 import { __turbopack_module_id__ as id } from "./components/hello1" with {
-    "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackTransition": "next-client-dynamic",
+    "turbopackChunkingType": "none"
 };
 import { __turbopack_module_id__ as id1 } from "./components/hello2" with {
-    "turbopack-transition": "next-client-dynamic",
-    "turbopack-chunking-type": "none"
+    "turbopackTransition": "next-client-dynamic",
+    "turbopackChunkingType": "none"
 };
 import dynamic from 'next/dynamic';
 const DynamicComponent1 = dynamic(()=>handleImport(import('./components/hello1', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopackTransition": "next-dynamic"
         }
     })), {
     loadableGenerated: {
@@ -22,7 +22,7 @@ const DynamicComponent1 = dynamic(()=>handleImport(import('./components/hello1',
 });
 const DynamicComponent2 = dynamic(()=>import('./components/hello2', {
         with: {
-            "turbopack-transition": "next-dynamic"
+            "turbopackTransition": "next-dynamic"
         }
     }).then((mod)=>{
         return mod.Button;

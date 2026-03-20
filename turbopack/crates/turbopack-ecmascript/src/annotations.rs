@@ -4,10 +4,10 @@ use swc_core::{
 };
 
 /// Changes the chunking type for the annotated import
-pub const ANNOTATION_CHUNKING_TYPE: &str = "turbopack-chunking-type";
+pub const ANNOTATION_CHUNKING_TYPE: &str = "turbopackChunkingType";
 
 /// Enables a specified transition for the annotated import
-pub const ANNOTATION_TRANSITION: &str = "turbopack-transition";
+pub const ANNOTATION_TRANSITION: &str = "turbopackTransition";
 
 pub fn with_clause<'a>(
     entries: impl IntoIterator<Item = &'a (&'a str, &'a str)>,

@@ -1,7 +1,7 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 
 // Share the instance module in the next-shared layer
-import { consoleAsyncStorageInstance } from './console-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { consoleAsyncStorageInstance } from './console-async-storage-instance' with { turbopackTransition: 'next-shared' }
 
 export interface ConsoleStore {
   /**

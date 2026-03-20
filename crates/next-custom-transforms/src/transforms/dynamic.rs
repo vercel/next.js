@@ -375,7 +375,7 @@ impl VisitMut for NextDynamicPatcher {
 
                         expr.args[0] = side_effect_free_loader_arg.as_arg();
                     } else {
-                        // Add `{with:{turbopack-transition: ...}}` to the dynamic import
+                        // Add `{with:{turbopackTransition: ...}}` to the dynamic import
                         let mut visitor = DynamicImportTransitionAdder {
                             transition_name: dynamic_transition_name,
                         };
@@ -404,7 +404,7 @@ impl VisitMut for NextDynamicPatcher {
 struct DynamicImportTransitionAdder<'a> {
     transition_name: &'a str,
 }
-// Add `{with:{turbopack-transition: <self.transition_name>}}` to any dynamic imports
+// Add `{with:{turbopackTransition: <self.transition_name>}}` to any dynamic imports
 impl VisitMut for DynamicImportTransitionAdder<'_> {
     fn visit_mut_call_expr(&mut self, expr: &mut CallExpr) {
         if let Callee::Import(..) = &expr.callee {
@@ -573,13 +573,13 @@ fn rel_filename(base: Option<&Path>, file: &FileName) -> String {
 }
 
 fn with_transition(transition_name: &str) -> ObjectLit {
-    with_clause(&[("turbopack-transition", transition_name)])
+    with_clause(&[("turbopackTransition", transition_name)])
 }
 
 fn with_transition_chunking_type(transition_name: &str, chunking_type: &str) -> Box<ObjectLit> {
     Box::new(with_clause(&[
-        ("turbopack-transition", transition_name),
-        ("turbopack-chunking-type", chunking_type),
+        ("turbopackTransition", transition_name),
+        ("turbopackChunkingType", chunking_type),
     ]))
 }
 

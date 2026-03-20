@@ -228,7 +228,7 @@ impl AppPageLoaderTreeBuilder {
         let inner_module_id = format!("METADATA_{i}");
         let helper_import = rcstr!(
             "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route' with \
-             { 'turbopack-transition': 'next-server-utility' }"
+             { 'turbopackTransition': 'next-server-utility' }"
         );
 
         if !self.base.imports.contains(&helper_import) {
