@@ -9,7 +9,25 @@ Next.js blocks cross-origin requests to dev-only assets and endpoints during dev
 
 To configure a Next.js application to allow requests from origins other than the hostname the server was initialized with (`localhost` by default), use the `allowedDevOrigins` config option.
 
-`allowedDevOrigins` lets you set additional origins that can request the dev server in development mode. For example, to use `local-origin.dev` instead of only `localhost`, open `next.config.js` and add the `allowedDevOrigins` config:
+`allowedDevOrigins` lets you set additional origins that can request the dev server in development mode. 
+
+## TypeScript
+
+For example, to use `local-origin.dev` instead of only `localhost`, open `next.config.ts` and add the `allowedDevOrigins` config:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
+}
+
+export default nextConfig
+```
+
+## JavaScript
+
+For example, to use `local-origin.dev` instead of only `localhost`, open `next.config.js` and add the `allowedDevOrigins` config:
 
 ```js filename="next.config.js"
 module.exports = {
