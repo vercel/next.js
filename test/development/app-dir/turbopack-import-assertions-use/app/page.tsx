@@ -11,6 +11,7 @@ import jsonData from '../data.jsonlike' with { turbopackLoader: 'test-identity-l
 // Normal rules should still work at the same time
 import jsonData2 from '../data.jsonlike2'
 
+console.log(jsonData, jsonData2)
 export default function Page() {
   return (
     <div>

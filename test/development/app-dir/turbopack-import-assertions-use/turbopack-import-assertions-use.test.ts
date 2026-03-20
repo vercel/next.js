@@ -34,6 +34,6 @@ describe('turbopack-import-assertions-use', () => {
 
   it('should apply identity with loader rules', async () => {
     const $ = await next.render$('/')
-    expect($('#json-type2').text()).toBe('Hello from JSON module type 2')
+    expect($('#json-type-2').text()).toBe('Hello from JSON module type 2')
   })
 })

@@ -6,6 +6,7 @@ const nextConfig = {
     rules: {
       '*.jsonlike2': {
         loaders: ['test-identity-loader'],
+        as: '*.json',
       },
     },
   },
