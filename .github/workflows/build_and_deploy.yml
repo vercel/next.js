@@ -370,7 +370,7 @@ jobs:
         run: |
           shopt -s nullglob
           for f in packages/next-swc/native/next-swc.*.node; do
-            FILE="$f" node -e "const s=require('fs').statSync(process.env.FILE).size; console.log('::notice title=${{ matrix.target }} binary size::' + (s/1048576).toFixed(1) + ' MB (' + s + ' bytes)')"
+            FILE="$f" node -e "const s=require('fs').statSync(process.env.FILE).size; console.log('::notice title=${{ matrix.target }} binary size::' + (s/1024/1024).toFixed(1) + ' MB (' + s + ' bytes)')"
           done
 
       # Try to upload metrics for Turbopack to datadog's CI pipeline execution
