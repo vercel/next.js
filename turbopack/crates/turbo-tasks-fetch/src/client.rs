@@ -268,6 +268,17 @@ impl FetchClientConfig {
                 .expect("system clock is before UNIX epoch")
                 .as_secs();
             let remaining = Duration::from_secs(deadline_secs.saturating_sub(now));
+            // NOTE: in the case where the deadline is expired on session start this timeout will
+            // immediately invalidate and race with us returning.  This is basically fine since in
+            // the most common case the actual fetch result is identical so this gives us a kind of
+            // 'stale while revalidate' feature.
+            // alternatively we could synchronously invalidate and re-execute `fetch-inner` but that
+            // simply adds latency in the common case where our fetch is identical.
+            // NOTE(2): if for some reason `fetch` is re-executed but `fetch-inner` isn't we could
+            // end up with multiple timers.  Currently there is no known case where this could
+            // happen, if it somehow does we could end up with redundant invalidations and
+            // re-fetches.  The solution is to detect this with a mutable hash map on
+            // FetchClientConfig to track outstanding timers and cancel them.
             turbo_tasks::spawn(async move {
                 tokio::time::sleep(remaining).await;
                 invalidator.invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
