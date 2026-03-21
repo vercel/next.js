@@ -1,3 +1,5 @@
+"use client"
+
 export const metadata = {}
 
 export default function () {

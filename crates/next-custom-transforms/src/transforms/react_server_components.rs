@@ -1162,7 +1162,7 @@ impl Visit for ReactServerComponentValidator {
                 && directive != Some(ModuleDirective::UseCache)
             {
                 self.assert_client_graph(&imports);
-                self.assert_invalid_api(module, true);
+                self.assert_invalid_api(module, directive == Some(ModuleDirective::UseClient));
             }
         }
 
