@@ -1,4 +1,5 @@
 use std::{
+    cmp::{max, min},
     fmt::{Display, Formatter},
     hash::Hash,
     sync::LazyLock,
@@ -180,6 +181,13 @@ impl FetchClientConfig {
         match response_result {
             Ok((resp, max_age_secs)) => {
                 if let Some(max_age_secs) = max_age_secs {
+                    // Don't allow caches to persist for less than an hour, we don't expect short
+                    // timeouts (google-fonts is typically 1-day), but a pathologically short
+                    // timeout could cause an `invalidation` bomb so we are defensive here.
+                    // TODO: it would be reasonable for this to be caller configurable or even
+                    // application-wide configurable.
+                    const MINIMUM_FETCH_CACHE_CONTROL_SECS: u64 = 60 * 60;
+                    let max_age_secs = max(max_age_secs, MINIMUM_FETCH_CACHE_CONTROL_SECS);
                     let deadline_secs = {
                         // Transform the relative offset to an absolute deadline so it can be
                         // cached.
