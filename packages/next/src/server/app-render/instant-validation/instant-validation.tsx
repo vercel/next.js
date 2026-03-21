@@ -17,9 +17,14 @@ import {
 } from '../prospective-render-utils'
 import { getDigestForWellKnownError } from '../create-error-handler'
 import {
-  // NOTE: we're in the server layer, so this is a client reference
+  // NOTE: we're in the server layer, so these are client references
   PlaceValidationBoundaryBelowThisLevel,
+  SlotMarker,
 } from '../../../client/components/instant-validation/boundary'
+import {
+  INSTANT_SLOT_MARKER_PREFIX,
+  INSTANT_SLOT_MARKER_SUFFIX,
+} from './boundary-constants'
 import type { ValidationBoundaryTracking } from './boundary-tracking'
 import {
   getLayoutOrPageModule,
@@ -758,6 +763,10 @@ type TreeResult = {
   seedData: CacheNodeSeedData
   requiresInstantUI: boolean
   createInstantStack: (() => Error) | null
+  /** How deep in the tree the config was found. Higher = more specific.
+   * Used to prefer deeper configs over shallower ones when multiple
+   * slots have configs. */
+  configDepth: number
 }
 
 /**
@@ -885,7 +894,11 @@ export type ValidationPayloadResult = {
    * True when some segments used Static stage. False when all segments
    * used Runtime stage and errors are definitively from uncached IO. */
   hasAmbiguousErrors: boolean
-  createInstantStack: (() => Error) | null
+  /** Per-slot config factories indexed by slot marker index. When a
+   * boundary spans multiple parallel slots, each slot gets a marker
+   * component in the tree. The marker's index maps to this array to
+   * find the right config for error attribution. */
+  slotStacks: Array<(() => Error) | null>
 }
 
 export async function createCombinedPayloadAtDepth(
@@ -904,6 +917,43 @@ export async function createCombinedPayloadAtDepth(
 ): Promise<ValidationPayloadResult | null> {
   let hasStaticSegments = false
   let hasRuntimeSegments = false
+  // Index 0 is reserved for the root config. Slot markers start at 1.
+  const slotStacks: Array<(() => Error) | null> = [null]
+
+  /**
+   * When a segment has multiple parallel routes (a fork), wrap each
+   * slot's seed data with a slot marker component. The marker's index
+   * in the component stack maps to `slotStacks` for per-slot error
+   * attribution. Slot markers start at index 1 (index 0 is root).
+   */
+  function wrapSlotsWithMarkers(
+    slots: CacheNodeSeedDataSlots,
+    results: Map<string, TreeResult>
+  ): void {
+    const keys = Object.keys(slots)
+    if (keys.length <= 1) return
+
+    for (const key of keys) {
+      const slotSeedData = slots[key]
+      if (slotSeedData === null) continue
+      const result = results.get(key)
+      const markerIndex = slotStacks.length
+      slotStacks.push(result?.createInstantStack ?? null)
+      const markerName = `${INSTANT_SLOT_MARKER_PREFIX}${markerIndex - 1}${INSTANT_SLOT_MARKER_SUFFIX}`
+      const [node, parallelRoutesData, unused, isPartial, varyParams] =
+        slotSeedData
+      slots[key] = [
+        // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
+        <SlotMarker name={markerName} key="sm">
+          {node}
+        </SlotMarker>,
+        parallelRoutesData,
+        unused,
+        isPartial,
+        varyParams,
+      ]
+    }
+  }
 
   function getSegment(loaderTree: LoaderTree): Segment {
     const dynamicParam = getDynamicParamFromSegment(loaderTree)
@@ -983,34 +1033,50 @@ export async function createCombinedPayloadAtDepth(
       }
 
       const slots: CacheNodeSeedDataSlots = {}
+      const slotResults = new Map<string, TreeResult>()
       let requiresInstantUI = false
       let createInstantStack: (() => Error) | null = null
+      let bestConfigDepth = -1
+
       for (const parallelRouteKey in parallelRoutes) {
         const result = await buildNewTreeSeedData(
           parallelRoutes[parallelRouteKey],
           path,
           parallelRouteKey,
-          false /* isInsideRuntimePrefetch */
+          false /* isInsideRuntimePrefetch */,
+          0 /* segmentDepth */
         )
+        slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
         if (result.requiresInstantUI) {
           requiresInstantUI = true
-          if (createInstantStack === null) {
+          if (
+            result.configDepth > bestConfigDepth ||
+            (result.configDepth === bestConfigDepth &&
+              parallelRouteKey === 'children')
+          ) {
+            bestConfigDepth = result.configDepth
             createInstantStack = result.createInstantStack
           }
         }
       }
+
+      wrapSlotsWithMarkers(slots, slotResults)
+
       return {
         seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
         requiresInstantUI,
         createInstantStack,
+        configDepth: bestConfigDepth,
       }
     }
 
     // Not at the boundary yet — keep walking as shared.
     const slots: CacheNodeSeedDataSlots = {}
+    const slotResults = new Map<string, TreeResult>()
     let requiresInstantUI = false
     let createInstantStack: (() => Error) | null = null
+    let bestConfigDepth = -1
     for (const parallelRouteKey in parallelRoutes) {
       const result = await buildSharedTreeSeedData(
         parallelRoutes[parallelRouteKey],
@@ -1019,18 +1085,28 @@ export async function createCombinedPayloadAtDepth(
         nextUrlDepth,
         currentGroupDepth
       )
+      slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
       if (result.requiresInstantUI) {
         requiresInstantUI = true
-        if (createInstantStack === null) {
+        if (
+          result.configDepth > bestConfigDepth ||
+          (result.configDepth === bestConfigDepth &&
+            parallelRouteKey === 'children')
+        ) {
+          bestConfigDepth = result.configDepth
           createInstantStack = result.createInstantStack
         }
       }
     }
+
+    wrapSlotsWithMarkers(slots, slotResults)
+
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      configDepth: bestConfigDepth,
     }
   }
 
@@ -1038,7 +1114,8 @@ export async function createCombinedPayloadAtDepth(
     lt: LoaderTree,
     parentPath: SegmentPath | null,
     key: string | null,
-    isInsideRuntimePrefetch: boolean
+    isInsideRuntimePrefetch: boolean,
+    segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
     const { mod: layoutOrPageMod } = await getLayoutOrPageModule(lt)
@@ -1104,42 +1181,61 @@ export async function createCombinedPayloadAtDepth(
 
     // Build children first, then determine requiresInstantUI.
     const slots: CacheNodeSeedDataSlots = {}
+    const slotResults = new Map<string, TreeResult>()
     let childrenRequireInstantUI = false
     let childCreateInstantStack: (() => Error) | null = null
+    let bestChildConfigDepth = -1
     for (const parallelRouteKey in parallelRoutes) {
+      const childSegmentDepth = segmentConsumesURLDepth(segment)
+        ? segmentDepth + 1
+        : segmentDepth
       const result = await buildNewTreeSeedData(
         parallelRoutes[parallelRouteKey],
         path,
         parallelRouteKey,
-        childIsInsideRuntimePrefetch
+        childIsInsideRuntimePrefetch,
+        childSegmentDepth
       )
+      slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
       if (result.requiresInstantUI) {
         childrenRequireInstantUI = true
-        if (childCreateInstantStack === null) {
+        if (
+          result.configDepth > bestChildConfigDepth ||
+          (result.configDepth === bestChildConfigDepth &&
+            parallelRouteKey === 'children')
+        ) {
+          bestChildConfigDepth = result.configDepth
           childCreateInstantStack = result.createInstantStack
         }
       }
     }
 
+    wrapSlotsWithMarkers(slots, slotResults)
+
     // Local config takes precedence over children.
     let requiresInstantUI: boolean
     let createInstantStack: (() => Error) | null
+    let configDepth: number
     if (instantConfig === false) {
       requiresInstantUI = false
       createInstantStack = null
+      configDepth = -1
     } else if (instantConfig && typeof instantConfig === 'object') {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
+      configDepth = segmentDepth
     } else {
       requiresInstantUI = childrenRequireInstantUI
       createInstantStack = childCreateInstantStack
+      configDepth = bestChildConfigDepth
     }
 
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      configDepth,
     }
   }
 
@@ -1155,6 +1251,10 @@ export async function createCombinedPayloadAtDepth(
   if (!requiresInstantUI) {
     return null
   }
+
+  // Set the root config at index 0. This is the fallback for errors
+  // that occur above any fork (no slot marker in the component stack).
+  slotStacks[0] = createInstantStack
 
   const { flightRouterState } = getRootDataFromPayload(initialRSCPayload)
 
@@ -1178,6 +1278,6 @@ export async function createCombinedPayloadAtDepth(
   return {
     payload,
     hasAmbiguousErrors: hasStaticSegments,
-    createInstantStack,
+    slotStacks,
   }
 }
