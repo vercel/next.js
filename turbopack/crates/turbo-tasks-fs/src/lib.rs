@@ -63,9 +63,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
-    TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
-    turbofmt,
+    TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, emit_effect,
+    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -240,75 +239,55 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }
 
-#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
-struct DiskFileSystemInner {
+pub(crate) struct DiskFileSystemSessionInner {
     pub name: RcStr,
     pub root: RcStr,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    mutex_map: MutexMap<PathBuf>,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    invalidator_map: InvalidatorMap,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    dir_invalidator_map: InvalidatorMap,
+    pub(crate) mutex_map: MutexMap<PathBuf>,
+    pub(crate) invalidator_map: InvalidatorMap,
+    pub(crate) dir_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    invalidation_lock: RwLock<()>,
+    pub(crate) invalidation_lock: RwLock<()>,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "create_read_semaphore")]
-    read_semaphore: tokio::sync::Semaphore,
+    pub(crate) read_semaphore: tokio::sync::Semaphore,
     /// Semaphore to limit the maximum number of concurrent file operations.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "create_write_semaphore")]
-    write_semaphore: tokio::sync::Semaphore,
+    pub(crate) write_semaphore: tokio::sync::Semaphore,
 
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    watcher: DiskWatcher,
-    /// Root paths that we do not allow access to from this filesystem.
-    /// Useful for things like output directories to prevent accidental ouroboros situations.
-    denied_paths: Vec<RcStr>,
+    pub(crate) watcher: DiskWatcher,
     /// Used by invalidators when called from a non-turbo-tasks thread, specifically in the fs
     /// watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "turbo_tasks_weak")]
-    turbo_tasks: Weak<dyn TurboTasksApi>,
+    pub(crate) turbo_tasks: Weak<dyn TurboTasksApi>,
     /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "Handle::current")]
-    tokio_handle: Handle,
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    effect_state_storage: EffectStateStorage,
+    pub(crate) tokio_handle: Handle,
+    pub(crate) effect_state_storage: EffectStateStorage,
 }
 
-impl DiskFileSystemInner {
+impl TraceRawVcs for DiskFileSystemSessionInner {
+    fn trace_raw_vcs(&self, _trace_context: &mut turbo_tasks::trace::TraceRawVcsContext) {
+        // All fields are transient session-local state that cannot reference Vcs.
+    }
+}
+
+// SAFETY: `DiskFileSystemSessionInner` contains only process-local state (file watchers,
+// semaphores, invalidator maps, effect storage, and scalar strings). No Vc is stored, so this
+// type is safe to use across task boundaries without participating in turbo-tasks tracking.
+unsafe impl NonLocalValue for DiskFileSystemSessionInner {}
+
+/// Transient, session-scoped state backing a [`DiskFileSystem`]. Holds the watcher, invalidator
+/// maps, semaphores, and other runtime state that cannot be serialized to disk. Marked
+/// `serialization = "none"` so any task that reads it becomes transient and therefore
+/// non-evictable (see eviction logic in the turbo-tasks backend).
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
+pub struct DiskFileSystemSession {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    inner: Arc<DiskFileSystemSessionInner>,
+}
+
+impl DiskFileSystemSessionInner {
     /// Returns the root as Path
     fn root_path(&self) -> &Path {
         // just in case there's a windows unc path prefix we remove it with `dunce`
         simplified(Path::new(&*self.root))
-    }
-
-    /// Checks if a path is within the denied path
-    /// Returns true if the path should be treated as non-existent
-    ///
-    /// Since denied_paths are guaranteed to be:
-    /// - normalized (no ../ traversals)
-    /// - using unix separators (/)
-    /// - relative to the fs root
-    ///
-    /// We can efficiently check using string operations
-    fn is_path_denied(&self, path: &FileSystemPath) -> bool {
-        let path = &path.path;
-        self.denied_paths.iter().any(|denied_path| {
-            path.starts_with(denied_path.as_str())
-                && (path.len() == denied_path.len()
-                    || path.as_bytes().get(denied_path.len()) == Some(&b'/'))
-        })
     }
 
     /// registers the path as an invalidator for the current task,
@@ -502,43 +481,78 @@ impl DiskFileSystemInner {
 }
 
 #[derive(Clone, ValueToString)]
-#[value_to_string(self.inner.name)]
+#[value_to_string(self.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
-    inner: Arc<DiskFileSystemInner>,
+    pub name: RcStr,
+    pub root: RcStr,
+    /// Root paths that we do not allow access to from this filesystem.
+    /// Useful for things like output directories to prevent accidental ouroboros situations.
+    denied_paths: Vec<RcStr>,
+    /// Transient session state (watcher, invalidator maps, semaphores, ...).
+    /// `DiskFileSystemSession` is `serialization = "none"`, so any task that resolves this Vc
+    /// becomes transient and therefore non-evictable.
+    session: ResolvedVc<DiskFileSystemSession>,
 }
 
 impl DiskFileSystem {
     pub fn name(&self) -> &RcStr {
-        &self.inner.name
+        &self.name
     }
 
     pub fn root(&self) -> &RcStr {
-        &self.inner.root
+        &self.root
     }
 
-    pub fn invalidate(&self) {
-        self.inner.invalidate();
+    /// Returns the root as Path
+    fn root_path(&self) -> &Path {
+        // just in case there's a windows unc path prefix we remove it with `dunce`
+        simplified(Path::new(&*self.root))
     }
 
-    pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
+    /// Checks if a path is within the denied path
+    fn is_path_denied(&self, path: &FileSystemPath) -> bool {
+        let path = &path.path;
+        self.denied_paths.iter().any(|denied_path| {
+            path.starts_with(denied_path.as_str())
+                && (path.len() == denied_path.len()
+                    || path.as_bytes().get(denied_path.len()) == Some(&b'/'))
+        })
+    }
+
+    async fn session(&self) -> Result<ReadRef<DiskFileSystemSession>> {
+        (*self.session).await
+    }
+
+    pub async fn invalidate(&self) -> Result<()> {
+        self.session().await?.inner.invalidate();
+        Ok(())
+    }
+
+    pub async fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
         reason: impl Fn(&Path) -> R + Sync,
-    ) {
-        self.inner.invalidate_with_reason(reason);
+    ) -> Result<()> {
+        self.session().await?.inner.invalidate_with_reason(reason);
+        Ok(())
     }
 
-    pub fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+    pub async fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
         &self,
         paths: impl IntoIterator<Item = PathBuf>,
         reason: impl Fn(&Path) -> R + Sync,
-    ) {
-        self.inner
+    ) -> Result<()> {
+        self.session()
+            .await?
+            .inner
             .invalidate_path_and_children_with_reason(paths, reason);
+        Ok(())
     }
 
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
-        self.inner
+        self.session()
+            .await?
+            .inner
             .start_watching_internal(false, poll_interval)
             .await
     }
@@ -547,13 +561,16 @@ impl DiskFileSystem {
         &self,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        self.inner
+        self.session()
+            .await?
+            .inner
             .start_watching_internal(true, poll_interval)
             .await
     }
 
-    pub async fn stop_watching(&self) {
-        self.inner.watcher.stop_watching().await;
+    pub async fn stop_watching(&self) -> Result<()> {
+        self.session().await?.inner.watcher.stop_watching().await;
+        Ok(())
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -582,7 +599,7 @@ impl DiskFileSystem {
             // DiskFileSystem root
             let normalized_sys_path = sys_path.normalize_lexically().ok()?;
             normalized_sys_path
-                .strip_prefix(self.inner.root_path())
+                .strip_prefix(self.root_path())
                 .ok()?
                 .to_owned()
         } else if let Some(relative_to) = relative_to {
@@ -604,7 +621,7 @@ impl DiskFileSystem {
     }
 
     pub fn to_sys_path(&self, fs_path: &FileSystemPath) -> PathBuf {
-        let path = self.inner.root_path();
+        let path = self.root_path();
         if fs_path.path.is_empty() {
             path.to_path_buf()
         } else {
@@ -677,10 +694,10 @@ impl DiskFileSystem {
         denied_paths: Vec<RcStr>,
     ) -> Result<Vc<Self>> {
         let root = root.owned().await?;
-        let instance = DiskFileSystem {
-            inner: Arc::new(DiskFileSystemInner {
-                name,
-                root,
+        let session = DiskFileSystemSession {
+            inner: Arc::new(DiskFileSystemSessionInner {
+                name: name.clone(),
+                root: root.clone(),
                 mutex_map: Default::default(),
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
@@ -688,20 +705,27 @@ impl DiskFileSystem {
                 read_semaphore: create_read_semaphore(),
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(),
-                denied_paths,
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
             }),
-        };
+        }
+        .cell()
+        .to_resolved()
+        .await?;
 
-        Ok(Self::cell(instance))
+        Ok(Self::cell(DiskFileSystem {
+            name,
+            root,
+            denied_paths,
+            session,
+        }))
     }
 }
 
 impl Debug for DiskFileSystem {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "name: {}, root: {}", self.inner.name, self.inner.root)
+        write!(f, "name: {}, root: {}", self.name, self.root)
     }
 }
 
@@ -712,17 +736,19 @@ impl FileSystem for DiskFileSystem {
         mark_session_dependent();
 
         // Check if path is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        let session = self.session().await?;
+        let inner = &session.inner;
+        inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
+        let _lock = inner.lock_path(&full_path).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
             .instrument(tracing::info_span!("read file", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&inner.read_semaphore)
             .await
         {
             Ok(file) => FileContent::new(file),
@@ -740,17 +766,19 @@ impl FileSystem for DiskFileSystem {
         mark_session_dependent();
 
         // Check if directory itself is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path).await?;
+        let session = self.session().await?;
+        let inner = &session.inner;
+        inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
             .instrument(tracing::info_span!("read directory", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&inner.read_semaphore)
             .await
         {
             Ok(dir) => dir,
@@ -768,7 +796,6 @@ impl FileSystem for DiskFileSystem {
         };
         let dir_path = fs_path.path.as_str();
         let denied_entries: FxHashSet<&str> = self
-            .inner
             .denied_paths
             .iter()
             .filter_map(|denied_path| {
@@ -830,17 +857,19 @@ impl FileSystem for DiskFileSystem {
         mark_session_dependent();
 
         // Check if path is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        let session = self.session().await?;
+        let inner = &session.inner;
+        inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
+        let _lock = inner.lock_path(&full_path).await;
         let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
             .instrument(tracing::info_span!("read symlink", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&inner.read_semaphore)
             .await
         {
             Ok(res) => res,
@@ -874,7 +903,7 @@ impl FileSystem for DiskFileSystem {
         //
         // we use `dunce::simplify` to strip a potential UNC prefix on windows, on any
         // other OS this gets compiled away
-        let result = simplified(&file).strip_prefix(simplified(Path::new(&self.inner.root)));
+        let result = simplified(&file).strip_prefix(simplified(Path::new(&self.root)));
 
         let relative_to_root_path = match result {
             Ok(file) => PathBuf::from(sys_to_unix(&file.to_string_lossy()).as_ref()),
@@ -921,7 +950,7 @@ impl FileSystem for DiskFileSystem {
         // session. All side effects are reexecuted in general.
 
         // Check if path is denied - if so, return an error
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             turbobail!("Cannot write to denied path: {fs_path}");
         }
         let full_path = self.to_sys_path(&fs_path);
@@ -933,12 +962,12 @@ impl FileSystem for DiskFileSystem {
         // recomputation.
         let content = content.persist().await?;
 
-        let inner = self.inner.clone();
+        let inner = self.session().await?.inner.clone();
 
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteEffect {
             full_path: PathBuf,
-            inner: Arc<DiskFileSystemInner>,
+            inner: Arc<DiskFileSystemSessionInner>,
             content: ReadRef<PersistedFileContent>,
             content_hash: u128,
         }
@@ -1102,19 +1131,19 @@ impl FileSystem for DiskFileSystem {
         // re-executed in general.
 
         // Check if path is denied - if so, return an error
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
         }
 
         let content = target.await?;
 
         let full_path = self.to_sys_path(&fs_path);
-        let inner = self.inner.clone();
+        let inner = self.session().await?.inner.clone();
 
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteLinkEffect {
             full_path: PathBuf,
-            inner: Arc<DiskFileSystemInner>,
+            inner: Arc<DiskFileSystemSessionInner>,
             content: ReadRef<LinkContent>,
             content_hash: u128,
         }
@@ -1382,16 +1411,18 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
-        if self.inner.is_path_denied(&fs_path) {
+        if self.is_path_denied(&fs_path) {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path).await?;
+        let session = self.session().await?;
+        let inner = &session.inner;
+        inner.register_read_invalidator(&full_path).await?;
 
-        let _lock = self.inner.lock_path(&full_path).await;
+        let _lock = inner.lock_path(&full_path).await;
         let meta = retry_blocking(|| std::fs::metadata(&full_path))
             .instrument(tracing::info_span!("read metadata", name = ?full_path))
-            .concurrency_limited(&self.inner.read_semaphore)
+            .concurrency_limited(&inner.read_semaphore)
             .await
             .with_context(|| format!("reading metadata for {:?}", full_path))?;
 

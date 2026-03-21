@@ -64,6 +64,47 @@ pub fn raw_entry_in_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
     }
 }
 
+/// Outcome of [`try_lock_and_remove`].
+pub enum TryLockAndRemove {
+    /// The shard lock was acquired and a matching entry was removed.
+    Removed,
+    /// The shard lock was acquired but no matching entry was present.
+    NotFound,
+    /// The shard lock was contended; the caller should retry later after releasing
+    /// any other locks they are holding.
+    WouldBlock,
+}
+
+/// Remove `key` from `map` without blocking on shard contention.
+///
+/// Intended for call sites that already hold another lock and want to avoid a
+/// cyclic wait. On contention (`WouldBlock`), the caller is expected to defer the
+/// removal and retry after dropping the other lock.
+pub fn try_lock_and_remove<
+    K: Eq + Hash + AsRef<Q>,
+    V,
+    Q: Eq + Hash + ?Sized,
+    S: BuildHasher + Clone,
+>(
+    map: &DashMap<K, V, S>,
+    key: &Q,
+) -> TryLockAndRemove {
+    let hasher = map.hasher();
+    let hash = hasher.hash_one(key);
+    let shard_idx = map.determine_shard(hash as usize);
+    let Some(mut shard) = map.shards()[shard_idx].try_write() else {
+        return TryLockAndRemove::WouldBlock;
+    };
+    // SAFETY: we hold the write lock for the duration of the find/erase.
+    match shard.find(hash, |(k, _v)| k.as_ref() == key) {
+        Some(bucket) => {
+            unsafe { shard.erase(bucket) };
+            TryLockAndRemove::Removed
+        }
+        None => TryLockAndRemove::NotFound,
+    }
+}
+
 pub enum RawEntry<'l, K, V> {
     Occupied(OccupiedEntry<'l, K, V>),
     Vacant(VacantEntry<'l, K, V>),

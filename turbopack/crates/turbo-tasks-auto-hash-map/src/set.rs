@@ -97,6 +97,14 @@ impl<K: Hash + Eq, H: BuildHasher + Default, const I: usize> AutoSet<K, H, I> {
     pub fn contains(&self, key: &K) -> bool {
         self.map.contains_key(key)
     }
+
+    /// see [HashSet::retain](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.retain)
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&K) -> bool,
+    {
+        self.map.retain(|k, _| f(k));
+    }
 }
 
 impl<K, H, const I: usize> AutoSet<K, H, I> {
