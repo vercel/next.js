@@ -3,8 +3,10 @@
   | component-only
   | 
   | 
-   ,-[input.js:1:1]
- 1 | export const metadata = {}
+   ,-[page.js:3:7]
+ 1 | "use client"
+ 2 | 
+ 3 | export const metadata = {}
    :              ^^^^^^^^
    `----
   x You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed. "generateMetadata" must be resolved on the server before the page component is
@@ -12,16 +14,18 @@
   | generatemetadata-is-server-component-only
   | 
   | 
-   ,-[input.js:3:1]
- 2 | 
- 3 | export function generateMetadata() {}
+   ,-[page.js:5:7]
+ 3 | export const metadata = {}
+ 4 | 
+ 5 | export function generateMetadata() {}
    :                 ^^^^^^^^^^^^^^^^
    `----
   x "getServerSideProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
   | 
   | 
-   ,-[input.js:5:1]
- 4 | 
- 5 | export function getServerSideProps() {}
+   ,-[page.js:7:7]
+ 5 | export function generateMetadata() {}
+ 6 | 
+ 7 | export function getServerSideProps() {}
    :                 ^^^^^^^^^^^^^^^^^^
    `----
