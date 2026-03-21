@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, min},
+    cmp::max,
     fmt::{Display, Formatter},
     hash::Hash,
     sync::LazyLock,
@@ -11,7 +11,7 @@ use quick_cache::sync::Cache;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ReadRef,
-    ResolvedVc, TurboTasksApi, Vc, duration_span, util::StaticOrArc,
+    ResolvedVc, Vc, duration_span, util::StaticOrArc,
 };
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
