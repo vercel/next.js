@@ -10,7 +10,7 @@ use quick_cache::sync::Cache;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ReadRef,
-    ResolvedVc, Vc, duration_span, util::StaticOrArc,
+    ResolvedVc, TurboTasksApi, Vc, duration_span, util::StaticOrArc,
 };
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
@@ -142,8 +142,6 @@ impl FetchClientConfig {
         url: RcStr,
         user_agent: Option<RcStr>,
     ) -> Result<Vc<FetchInnerResult>> {
-        let invalidator = turbo_tasks::get_invalidator();
-
         let url_ref = &*url;
         let this = self.await?;
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
@@ -161,7 +159,7 @@ impl FetchClientConfig {
             .and_then(|r| r.error_for_status())?;
 
             let status = response.status().as_u16();
-            let max_age = parse_cache_control_max_age(response.headers());
+            let max_age = parse_cache_control(response.headers());
 
             let body = {
                 let _span = duration_span!("fetch response", url = url_ref);
@@ -181,22 +179,32 @@ impl FetchClientConfig {
 
         match response_result {
             Ok((resp, max_age_secs)) => {
-                let deadline_secs = max_age_secs.map(|max_age| {
-                    // Transform the relative offset to an absolute deadline so it can be cached.
-                    let now = SystemTime::now()
-                        .duration_since(SystemTime::UNIX_EPOCH)
-                        .expect("system clock is before UNIX epoch")
-                        .as_secs();
-                    now + max_age
-                });
-                Ok(FetchInnerResult {
-                    result: Vc::<FetchResult>::cell(Ok(resp.resolved_cell()))
-                        .to_resolved()
-                        .await?,
-                    invalidator,
-                    deadline_secs,
+                if let Some(max_age_secs) = max_age_secs {
+                    let deadline_secs = {
+                        // Transform the relative offset to an absolute deadline so it can be
+                        // cached.
+                        let now = SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .expect("system clock is before UNIX epoch")
+                            .as_secs();
+                        now + max_age_secs
+                    };
+                    let invalidator = turbo_tasks::get_invalidator();
+                    Ok(FetchInnerResult {
+                        result: ResolvedVc::cell(Ok(resp.resolved_cell())),
+                        invalidator,
+                        deadline_secs: Some(deadline_secs),
+                    }
+                    .cell())
+                } else {
+                    Completion::session_dependent().await?;
+                    Ok(FetchInnerResult {
+                        result: ResolvedVc::cell(Ok(resp.resolved_cell())),
+                        invalidator: None,
+                        deadline_secs: None,
+                    }
+                    .cell())
                 }
-                .cell())
             }
             Err(err) => {
                 // Read session_dependent_completion so that this task is re-dirtied on session
@@ -204,12 +212,10 @@ impl FetchClientConfig {
                 // on the next session without a timer or busy-loop.
                 Completion::session_dependent().await?;
                 Ok(FetchInnerResult {
-                    result: Vc::<FetchResult>::cell(Err(FetchError::from_reqwest_error(
-                        &err, &url,
-                    )
-                    .resolved_cell()))
-                    .to_resolved()
-                    .await?,
+                    result: ResolvedVc::cell(Err(
+                        FetchError::from_reqwest_error(&err, &url).resolved_cell()
+                    )),
+
                     invalidator: None,
                     deadline_secs: None,
                 }
@@ -248,6 +254,7 @@ impl FetchClientConfig {
         if turbo_tasks::turbo_tasks().is_tracking_dependencies()
             && let (Some(deadline_secs), Some(invalidator)) = (deadline_secs, invalidator)
         {
+            // transform absolute deadline back to a relative duration for the sleep call
             let now = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("system clock is before UNIX epoch")
@@ -255,9 +262,7 @@ impl FetchClientConfig {
             let remaining = Duration::from_secs(deadline_secs.saturating_sub(now));
             turbo_tasks::spawn(async move {
                 tokio::time::sleep(remaining).await;
-                turbo_tasks::with_turbo_tasks(|tt| {
-                    invalidator.invalidate_with_reason(&**tt, HttpTimeout {})
-                });
+                invalidator.invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
             });
         }
 
@@ -267,15 +272,27 @@ impl FetchClientConfig {
 
 /// Parses the `max-age` directive from a `Cache-Control` header value.
 /// Returns the max-age in seconds, or `None` if not present or unparseable.
-fn parse_cache_control_max_age(headers: &reqwest::header::HeaderMap) -> Option<u64> {
+/// None means we shouldn't cache longer than the current session
+fn parse_cache_control(headers: &reqwest::header::HeaderMap) -> Option<u64> {
     let value = headers.get(reqwest::header::CACHE_CONTROL)?.to_str().ok()?;
+    let mut max_age = None;
     for directive in value.split(',') {
-        let directive = directive.trim();
-        if let Some(max_age) = directive.strip_prefix("max-age=") {
-            return max_age.trim().parse().ok();
+        let (key, val) = {
+            if let Some(index) = directive.find('=') {
+                (directive[0..index].trim(), Some(&directive[index + 1..]))
+            } else {
+                (directive.trim(), None)
+            }
+        };
+        if key.eq_ignore_ascii_case("max-age")
+            && let Some(val) = val
+        {
+            max_age = val.trim().parse().ok();
+        } else if key.eq_ignore_ascii_case("no-cache") || key.eq_ignore_ascii_case("no-store") {
+            return None;
         }
     }
-    None
+    max_age
 }
 
 #[doc(hidden)]
@@ -286,4 +303,36 @@ pub fn __test_only_reqwest_client_cache_clear() {
 #[doc(hidden)]
 pub fn __test_only_reqwest_client_cache_len() -> usize {
     CLIENT_CACHE.len()
+}
+
+#[cfg(test)]
+mod tests {
+    use reqwest::header::{CACHE_CONTROL, HeaderMap, HeaderValue};
+
+    use super::parse_cache_control;
+
+    fn headers(value: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(CACHE_CONTROL, HeaderValue::from_str(value).unwrap());
+        h
+    }
+
+    #[test]
+    fn max_age() {
+        assert_eq!(parse_cache_control(&headers("max-age=300")), Some(300));
+        assert_eq!(parse_cache_control(&headers("MAX-AGE = 300")), Some(300));
+        assert_eq!(
+            parse_cache_control(&headers("public, max-age=3600, must-revalidate")),
+            Some(3600)
+        );
+    }
+
+    #[test]
+    fn no_cache_headers() {
+        assert_eq!(parse_cache_control(&headers("NO-CACHE")), None);
+        assert_eq!(parse_cache_control(&headers("no-cache")), None);
+        assert_eq!(parse_cache_control(&headers("no-store")), None);
+        assert_eq!(parse_cache_control(&headers("max-age=300, no-store")), None);
+        assert_eq!(parse_cache_control(&HeaderMap::new()), None);
+    }
 }

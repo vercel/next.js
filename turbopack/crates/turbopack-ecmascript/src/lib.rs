@@ -365,8 +365,7 @@ impl EcmascriptModuleAssetBuilder {
 }
 
 /// A transient cache that stores a value across task re-executions within a session but is lost
-/// when restored from persistent cache. Unlike `TransientState`, this does not register
-/// invalidators or mark the task as session-dependent.
+/// when restored from persistent cache.
 struct TransientCache<T>(parking_lot::Mutex<Option<T>>);
 
 impl<T> Default for TransientCache<T> {
@@ -375,9 +374,11 @@ impl<T> Default for TransientCache<T> {
     }
 }
 
+// All caches are alwaqys eq, this doesn't really make sense on its own but fits the purpose of
+// embedding in EcmascriptModuleAsset
 impl<T> PartialEq for TransientCache<T> {
     fn eq(&self, _other: &Self) -> bool {
-        false
+        true
     }
 }
 impl<T> Eq for TransientCache<T> {}
