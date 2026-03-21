@@ -53,8 +53,10 @@ export function loadManifest<T extends object>(
     try {
       manifest = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
     } catch (err) {
-      let result = {} as any
-      cache.set(path, result)
+      const result = {} as any
+      if (shouldCache) {
+        cache.set(path, result)
+      }
       return result
     }
   } else {
@@ -108,8 +110,10 @@ export function evalManifest<T extends object>(
     try {
       content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
     } catch (err) {
-      let result = {} as any
-      cache.set(path, result)
+      const result = {} as any
+      if (shouldCache) {
+        cache.set(path, result)
+      }
       return result
     }
   } else {

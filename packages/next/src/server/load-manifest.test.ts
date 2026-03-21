@@ -1,4 +1,4 @@
-import { loadManifest } from './load-manifest.external'
+import { evalManifest, loadManifest } from './load-manifest.external'
 import { readFileSync } from 'fs'
 
 jest.mock('fs')
@@ -78,5 +78,64 @@ describe('loadManifest', () => {
     expect(Object.isFrozen(result2)).toBe(true)
 
     expect(result).toBe(result2)
+  })
+
+  it('should not cache a missing manifest when handleMissing is used without caching', () => {
+    const mockManifest = { key: 'value' }
+    ;(readFileSync as jest.Mock)
+      .mockImplementationOnce(() => {
+        throw new Error('File not found')
+      })
+      .mockReturnValueOnce(JSON.stringify(mockManifest))
+
+    const missingResult = loadManifest<{ key?: string }>(
+      'path/to/manifest',
+      false,
+      cache,
+      false,
+      true
+    )
+
+    expect(missingResult).toEqual({})
+    expect(cache.has('path/to/manifest')).toBe(false)
+
+    const result = loadManifest('path/to/manifest', true, cache)
+    expect(result).toEqual(mockManifest)
+    expect(readFileSync).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('evalManifest', () => {
+  const cache = new Map<string, unknown>()
+
+  afterEach(() => {
+    jest.resetAllMocks()
+    cache.clear()
+  })
+
+  it('should not cache a missing manifest when handleMissing is used without caching', () => {
+    ;(readFileSync as jest.Mock)
+      .mockImplementationOnce(() => {
+        throw new Error('File not found')
+      })
+      .mockReturnValueOnce('this.__MANIFEST = { key: "value" }')
+
+    const missingResult = evalManifest<{ __MANIFEST?: { key: string } }>(
+      'path/to/manifest',
+      false,
+      cache,
+      true
+    )
+
+    expect(missingResult).toEqual({})
+    expect(cache.has('path/to/manifest')).toBe(false)
+
+    const result = evalManifest<{ __MANIFEST: { key: string } }>(
+      'path/to/manifest',
+      true,
+      cache
+    )
+    expect(result.__MANIFEST).toEqual({ key: 'value' })
+    expect(readFileSync).toHaveBeenCalledTimes(2)
   })
 })
