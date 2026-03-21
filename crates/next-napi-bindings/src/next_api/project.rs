@@ -1247,15 +1247,19 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
 
     if paths_to_invalidate.is_empty() {
         // Fallback to full invalidation when app dir paths are unavailable.
-        project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path.to_string_lossy()),
-        });
-    } else {
-        project_fs.invalidate_path_and_children_with_reason(paths_to_invalidate, |path| {
-            invalidation::Initialize {
+        project_fs
+            .invalidate_with_reason(|path| invalidation::Initialize {
                 path: RcStr::from(path.to_string_lossy()),
-            }
-        });
+            })
+            .await?;
+    } else {
+        project_fs
+            .invalidate_path_and_children_with_reason(paths_to_invalidate, |path| {
+                invalidation::Initialize {
+                    path: RcStr::from(path.to_string_lossy()),
+                }
+            })
+            .await?;
     }
 
     Ok(())

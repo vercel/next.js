@@ -12,7 +12,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use bincode::{Decode, Encode};
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
@@ -27,7 +26,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    DiskFileSystemInner, format_absolute_fs_path,
+    DiskFileSystemSessionInner, format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
     invalidator_map::LockedInvalidatorMap,
     path_map::OrderedPathMapExt,
@@ -61,9 +60,7 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
     }
 });
 
-#[derive(Encode, Decode)]
 pub(crate) struct DiskWatcher {
-    #[bincode(skip)]
     state: State,
 }
 
@@ -360,7 +357,7 @@ impl DiskWatcher {
     /// - Doesn't emit Modify events after a Create event
     pub async fn start_watching(
         &self,
-        fs_inner: Arc<DiskFileSystemInner>,
+        fs_inner: Arc<DiskFileSystemSessionInner>,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
@@ -478,7 +475,7 @@ impl DiskWatcher {
     fn watch_thread(
         &self,
         rx: Receiver<notify::Result<notify::Event>>,
-        fs_inner: Arc<DiskFileSystemInner>,
+        fs_inner: Arc<DiskFileSystemSessionInner>,
         report_invalidation_reason: bool,
     ) {
         let mut batched_invalidate_path = FxHashSet::default();
@@ -771,7 +768,7 @@ impl DiskWatcher {
     fields(name = %path.display())
 )]
 fn invalidate(
-    inner: &DiskFileSystemInner,
+    inner: &DiskFileSystemSessionInner,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     path: &Path,
@@ -787,7 +784,7 @@ fn invalidate(
 }
 
 fn invalidate_path(
-    inner: &DiskFileSystemInner,
+    inner: &DiskFileSystemSessionInner,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     invalidator_map: &mut LockedInvalidatorMap,
@@ -803,7 +800,7 @@ fn invalidate_path(
 }
 
 fn invalidate_path_and_children_execute(
-    inner: &DiskFileSystemInner,
+    inner: &DiskFileSystemSessionInner,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
     invalidator_map: &mut LockedInvalidatorMap,
