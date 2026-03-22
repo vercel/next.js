@@ -2417,40 +2417,7 @@ export default async function getBaseWebpackConfig(
     })
   })
 
-  if (isRspack) {
-    // rspack's persistent cache lives in experiments.cache, not the top-level
-    // cache field (which only accepts boolean). snapshot must also be placed
-    // inside experiments.cache — the top-level snapshot is a no-op in rspack.
-    const rspackBuildDeps = [...(cache.buildDependencies?.config ?? [])]
-    // In Yarn PnP mode, track .pnp.cjs as a build dependency so that changes
-    // from yarn install invalidate the persistent cache.
-    if (process.versions.pnp === '3') {
-      try {
-        rspackBuildDeps.push(require.resolve('pnpapi'))
-      } catch {}
-    }
-    // @ts-ignore — experiments.cache is rspack-specific and not in webpack types
-    webpack5Config.experiments!.cache = {
-      type: 'persistent',
-      version: cache.version,
-      storage: {
-        type: 'filesystem',
-        directory: path.join(
-          distDir,
-          'cache',
-          `rspack-${compilerType}-${dev ? 'development' : 'production'}${isDevFallback ? '-fallback' : ''}`
-        ),
-      },
-      buildDependencies: rspackBuildDeps,
-      snapshot: {
-        managedPaths: webpack5Config.snapshot?.managedPaths,
-        immutablePaths: webpack5Config.snapshot?.immutablePaths,
-      },
-    }
-    webpack5Config.cache = true as any
-  } else {
-    webpack5Config.cache = cache
-  }
+  webpack5Config.cache = cache
 
   if (isRspack) {
     const buildDependencies: string[] = []
@@ -2462,6 +2429,13 @@ export default async function getBaseWebpackConfig(
     }
     if (jsConfigPath) {
       buildDependencies.push(jsConfigPath)
+    }
+    // In Yarn PnP mode, track .pnp.cjs as a build dependency so that changes
+    // from yarn install invalidate the persistent cache.
+    if (process.versions.pnp === '3') {
+      try {
+        buildDependencies.push(require.resolve('pnpapi'))
+      } catch {}
     }
 
     // @ts-ignore
@@ -2560,12 +2534,10 @@ export default async function getBaseWebpackConfig(
     deploymentId: config.deploymentId,
   })
 
-  if (!isRspack) {
-    // @ts-ignore Cache exists
-    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-      isDevFallback ? '-fallback' : ''
-    }`
-  }
+  // @ts-ignore Cache exists
+  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+    isDevFallback ? '-fallback' : ''
+  }`
 
   if (dev) {
     if (webpackConfig.module) {
