@@ -141,11 +141,10 @@
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error",
       "Error overlay - editor links should be possible to open source file on build error"
     ],
-    "failed": [
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1303,14 +1302,14 @@
     "runtimeError": false
   },
   "test/development/app-dir/typed-env/typed-env.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "typed-env should have env types from next config",
       "typed-env should rewrite env types if .env is modified"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
     "passed": [
@@ -2060,7 +2059,7 @@
   },
   "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
     "passed": [
-      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
+      "Dev Rendering Indicator Shows rendering indicator when navigating between pages"
     ],
     "failed": [],
     "pending": [],
@@ -2658,10 +2657,10 @@
     "runtimeError": false
   },
   "test/development/slow-module-detection/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Slow Module Detection should detect slow modules in webpack mode"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3222,6 +3221,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": ["adapter-dynamic-metadata should skip next dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -3514,12 +3520,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-fetch-deduping during next dev dedupes requests with different trace headers",
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3579,7 +3585,6 @@
       "app-dir with proxy Mutate request headers for next/headers Updates headers",
       "app-dir with proxy retains a link response header from the proxy",
       "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should log compilation time",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
@@ -3588,6 +3593,7 @@
       "app-dir with proxy should support unstable_cache in proxy"
     ],
     "failed": [
+      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should filter correctly after proxy rewrite"
     ],
     "pending": [
@@ -3630,16 +3636,16 @@
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware retains a link response header from the middleware",
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies",
-      "app-dir with middleware should support unstable_cache in middleware",
-      "app-dir with middleware should warn when deprecated middleware file is used"
+      "app-dir with middleware should support unstable_cache in middleware"
     ],
     "failed": [
-      "app-dir with middleware should filter correctly after middleware rewrite"
+      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
+      "app-dir with middleware should filter correctly after middleware rewrite",
+      "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "pending": [],
     "flakey": [],
@@ -6033,7 +6039,6 @@
       "instant validation dev - client navigation blocking valid - blocking layout with unstable_instant = false is allowed to block",
       "instant validation dev - client navigation blocking valid - blocking page inside a runtime layout is allowed if the layout has suspense",
       "instant validation dev - client navigation blocking valid - blocking page inside a static layout is allowed if the layout has suspense",
-      "instant validation dev - client navigation client components unable to validate - parent suspends on client data and blocks children",
       "instant validation dev - client navigation client components valid - parent suspends on client data but does not block children",
       "instant validation dev - client navigation client components valid - parent uses dynamic usePathname() in a client component",
       "instant validation dev - client navigation client components valid - parent uses sync IO in a client component",
@@ -6068,8 +6073,6 @@
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
       "instant validation dev - client navigation invalid - runtime prefetch - suspense too high",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO after runtime API",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
       "instant validation dev - client navigation invalid - static layout above runtime config blocks navigation",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around dynamic",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around dynamic in a layout",
@@ -6079,7 +6082,6 @@
       "instant validation dev - client navigation invalid - static prefetch - suspense too high",
       "instant validation dev - client navigation parallel slots with different group depths invalid - children hole detected before shallow @slot hole",
       "instant validation dev - client navigation parallel slots with different group depths invalid - deep hole in @slot detected before shallow hole in children",
-      "instant validation dev - client navigation route group shared boundary invalid - blocking layout inside shared route group boundary",
       "instant validation dev - client navigation route groups invalid - config on both route group and segment layout - cookies() blocks below",
       "instant validation dev - client navigation route groups invalid - config on route group layout - cookies() blocks below",
       "instant validation dev - client navigation route groups invalid - config on route group layout - cookies() blocks in deeper segment",
@@ -6165,8 +6167,12 @@
       "instant validation dev - initial load valid - target segment not visible in all navigations"
     ],
     "failed": [
+      "instant validation dev - client navigation client components unable to validate - parent suspends on client data and blocks children",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata"
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
+      "instant validation dev - client navigation route group shared boundary invalid - blocking layout inside shared route group boundary"
     ],
     "pending": [],
     "flakey": [],
@@ -6476,6 +6482,16 @@
       "mdx without-mdx-rs pages directory should work in initial html with mdx import",
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
     ],
     "failed": [],
     "pending": [],
@@ -7022,7 +7038,6 @@
       "app dir - navigation SEO should emit refresh meta tag (permanent) for redirect page when streaming",
       "app dir - navigation SEO should emit refresh meta tag for redirect page when streaming",
       "app dir - navigation SEO should not log 404 errors in ipc server",
-      "app dir - navigation browser back to a revalidated page should load the page",
       "app dir - navigation external push should push external url without affecting hooks",
       "app dir - navigation hash should not scroll to hash when scroll={false} is set",
       "app dir - navigation hash should scroll to the specified hash",
@@ -7069,7 +7084,9 @@
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating between different pages",
       "app dir - navigation useRouter identity between navigations should preserve identity when navigating to the same page"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - navigation browser back to a revalidated page should load the page"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9813,10 +9830,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10078,6 +10095,7 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -10087,7 +10105,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": ["shallow-routing pushState should support setting data"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10581,13 +10599,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["use-node-streams env precedence only testable in start mode"],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/use-params/use-params.test.ts": {
     "passed": [
       "use-params should work for catch all params",
@@ -10993,14 +11004,15 @@
   },
   "test/e2e/build-indicator/test/index.test.ts": {
     "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Build Activity Indicator build indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (app) Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows the build indicator when a page is built during navigation"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11293,8 +11305,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
