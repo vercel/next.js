@@ -70,176 +70,160 @@ export function UserPreferencesBody({
   }
 
   return (
-    <>
-      <h2 className="dev-tools-info-section-title">General</h2>
-      <div className="preferences-container">
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="theme">Theme</label>
-            <p className="preference-description">
-              Select your theme preference.
-            </p>
-          </div>
-          <Select
-            id="theme"
-            name="theme"
-            prefix={<ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />}
-            value={theme}
-            onChange={handleThemeChange}
+    <div className="preferences-container">
+      <div className="preference-section">
+        <div className="preference-header">
+          <label htmlFor="theme">Theme</label>
+          <p className="preference-description">
+            Select your theme preference.
+          </p>
+        </div>
+        <Select
+          id="theme"
+          name="theme"
+          prefix={<ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />}
+          value={theme}
+          onChange={handleThemeChange}
+        >
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </Select>
+      </div>
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label htmlFor="position">Position</label>
+          <p className="preference-description">
+            Adjust the placement of your dev tools.
+          </p>
+        </div>
+        <Select
+          id="position"
+          name="position"
+          value={position}
+          onChange={handlePositionChange}
+        >
+          <option value="bottom-left">Bottom Left</option>
+          <option value="bottom-right">Bottom Right</option>
+          <option value="top-left">Top Left</option>
+          <option value="top-right">Top Right</option>
+        </Select>
+      </div>
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label htmlFor="size">Size</label>
+          <p className="preference-description">
+            Adjust the size of your dev tools.
+          </p>
+        </div>
+        <Select id="size" name="size" value={scale} onChange={handleSizeChange}>
+          {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
+            return (
+              <option value={value} key={key}>
+                {key}
+              </option>
+            )
+          })}
+        </Select>
+      </div>
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label id="hide-dev-tools">Hide Dev Tools for this session</label>
+          <p className="preference-description">
+            Hide Dev Tools until you restart your dev server, or 1 day.
+          </p>
+        </div>
+        <div className="preference-control">
+          <button
+            aria-describedby="hide-dev-tools"
+            name="hide-dev-tools"
+            data-hide-dev-tools
+            className="action-button"
+            onClick={hide}
           >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="position">Position</label>
-            <p className="preference-description">
-              Adjust the placement of your dev tools.
-            </p>
-          </div>
-          <Select
-            id="position"
-            name="position"
-            value={position}
-            onChange={handlePositionChange}
-          >
-            <option value="bottom-left">Bottom Left</option>
-            <option value="bottom-right">Bottom Right</option>
-            <option value="top-left">Top Left</option>
-            <option value="top-right">Top Right</option>
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label htmlFor="size">Size</label>
-            <p className="preference-description">
-              Adjust the size of your dev tools.
-            </p>
-          </div>
-          <Select
-            id="size"
-            name="size"
-            value={scale}
-            onChange={handleSizeChange}
-          >
-            {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
-              return (
-                <option value={value} key={key}>
-                  {key}
-                </option>
-              )
-            })}
-          </Select>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label id="hide-dev-tools">Hide Dev Tools for this session</label>
-            <p className="preference-description">
-              Hide Dev Tools until you restart your dev server, or 1 day.
-            </p>
-          </div>
-          <div className="preference-control">
-            <button
-              aria-describedby="hide-dev-tools"
-              name="hide-dev-tools"
-              data-hide-dev-tools
-              className="action-button"
-              onClick={hide}
-            >
-              <EyeIcon />
-              <span>Hide</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
-            <p className="preference-description">
-              Set a custom keyboard shortcut to toggle visibility.
-            </p>
-          </div>
-          <div className="preference-control">
-            <ShortcutRecorder
-              value={hideShortcut?.split('+') ?? null}
-              onChange={setHideShortcut}
-            />
-          </div>
-        </div>
-
-        <div className="preference-section">
-          <div className="preference-header">
-            <label>Disable Dev Tools for this project</label>
-            <p className="preference-description">
-              To disable this UI completely, set{' '}
-              <code className="dev-tools-info-code">devIndicators: false</code>{' '}
-              in your <code className="dev-tools-info-code">next.config</code>{' '}
-              file.
-            </p>
-          </div>
+            <EyeIcon />
+            <span>Hide</span>
+          </button>
         </div>
       </div>
-      <h2 className="dev-tools-info-section-title">Development Server</h2>
-      <div className="preferences-container">
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label id="hide-dev-tools">Hide Dev Tools shortcut</label>
+          <p className="preference-description">
+            Set a custom keyboard shortcut to toggle visibility.
+          </p>
+        </div>
+        <div className="preference-control">
+          <ShortcutRecorder
+            value={hideShortcut?.split('+') ?? null}
+            onChange={setHideShortcut}
+          />
+        </div>
+      </div>
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label>Disable Dev Tools for this project</label>
+          <p className="preference-description">
+            To disable this UI completely, set{' '}
+            <code className="dev-tools-info-code">devIndicators: false</code> in
+            your <code className="dev-tools-info-code">next.config</code> file.
+          </p>
+        </div>
+      </div>
+
+      <div className="preference-section">
+        <div className="preference-header">
+          <label id="restart-dev-server">Restart Dev Server</label>
+          <p className="preference-description">
+            Restarts the development server without needing to leave the
+            browser.
+          </p>
+        </div>
+        <div className="preference-control">
+          <button
+            aria-describedby="restart-dev-server"
+            title="Restarts the development server without needing to leave the browser."
+            name="restart-dev-server"
+            data-restart-dev-server
+            className="action-button"
+            onClick={() => restartServer({ invalidateFileSystemCache: false })}
+            disabled={isPending}
+          >
+            <span>Restart</span>
+          </button>
+        </div>
+      </div>
+
+      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE ? (
         <div className="preference-section">
           <div className="preference-header">
-            <label id="restart-dev-server">Restart Dev Server</label>
+            <label id="reset-bundler-cache">Reset Bundler Cache</label>
             <p className="preference-description">
-              Restarts the development server without needing to leave the
-              browser.
+              Clears the bundler cache and restarts the dev server. Helpful if
+              you are seeing stale errors or changes are not appearing.
             </p>
           </div>
           <div className="preference-control">
             <button
-              aria-describedby="restart-dev-server"
-              title="Restarts the development server without needing to leave the browser."
-              name="restart-dev-server"
-              data-restart-dev-server
+              aria-describedby="reset-bundler-cache"
+              title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
+              name="reset-bundler-cache"
+              data-reset-bundler-cache
               className="action-button"
-              onClick={() =>
-                restartServer({ invalidateFileSystemCache: false })
-              }
+              onClick={() => restartServer({ invalidateFileSystemCache: true })}
               disabled={isPending}
             >
-              <span>Restart</span>
+              <span>Reset Cache</span>
             </button>
-          </div>
-        </div>
-      </div>
-      {process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE ? (
-        <div className="preferences-container">
-          <div className="preference-section">
-            <div className="preference-header">
-              <label id="reset-bundler-cache">Reset Bundler Cache</label>
-              <p className="preference-description">
-                Clears the bundler cache and restarts the dev server. Helpful if
-                you are seeing stale errors or changes are not appearing.
-              </p>
-            </div>
-            <div className="preference-control">
-              <button
-                aria-describedby="reset-bundler-cache"
-                title="Clears the bundler cache and restarts the dev server. Helpful if you are seeing stale errors or changes are not appearing."
-                name="reset-bundler-cache"
-                data-reset-bundler-cache
-                className="action-button"
-                onClick={() =>
-                  restartServer({ invalidateFileSystemCache: true })
-                }
-                disabled={isPending}
-              >
-                <span>Reset Cache</span>
-              </button>
-            </div>
           </div>
         </div>
       ) : null}
-    </>
+    </div>
   )
 }
 

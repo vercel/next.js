@@ -3,7 +3,6 @@ import type {
   NodeRequestHandler,
   Options as ServerOptions,
 } from './next-server'
-import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
@@ -15,7 +14,6 @@ import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
 import path from 'node:path'
-import { mkdirSync } from 'node:fs'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -32,7 +30,6 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
-import { Lockfile } from '../build/lockfile'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -131,7 +128,6 @@ export class NextServer implements NextWrapperServer {
   private reqHandler?: NodeRequestHandler
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
-  private lockfile?: Lockfile
 
   public options: NextServerOptions
 
@@ -151,7 +147,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
         const requestHandler = await this.getServerRequestHandler()
@@ -168,7 +164,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(
         NextServerSpan.getRequestHandlerWithMetadata,
@@ -261,9 +257,6 @@ export class NextServer implements NextWrapperServer {
     if (this.server) {
       await this.server.close()
     }
-    if (this.lockfile !== undefined) {
-      await this.lockfile.unlock()
-    }
   }
 
   private async createServer(
@@ -304,7 +297,7 @@ export class NextServer implements NextWrapperServer {
           path.join(
             /* turbopackIgnore: true */ dir,
             config.distDir,
-            SERVER_FILES_MANIFEST
+            SERVER_FILES_MANIFEST + '.json'
           )
         ).config
 
@@ -323,22 +316,7 @@ export class NextServer implements NextWrapperServer {
   private async getServer() {
     if (!this.serverPromise) {
       this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (conf) => {
-        if (this.options.dev) {
-          if (conf.experimental.lockDistDir) {
-            const dir = path.resolve(
-              /* turbopackIgnore: true */ this.options.dir || '.'
-            )
-            const distDir = path.join(
-              /* turbopackIgnore: true */ dir,
-              conf.distDir
-            )
-            mkdirSync(distDir, { recursive: true })
-            this.lockfile = await Lockfile.acquireWithRetriesOrExit(
-              path.join(/* turbopackIgnore: true */ distDir, 'lock'),
-              'next dev'
-            )
-          }
-        } else {
+        if (!this.options.dev) {
           if (conf.output === 'standalone') {
             if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
               log.warn(
@@ -424,6 +402,10 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async prepare() {
+    if (this.options.dev) {
+      process.env.__NEXT_DEV_SERVER = '1'
+    }
+
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
@@ -465,7 +447,7 @@ class NextCustomServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       this.setupWebSocketHandler(this.options.httpServer, req)
 

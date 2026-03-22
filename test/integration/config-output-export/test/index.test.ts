@@ -1,13 +1,14 @@
 /* eslint-env jest */
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
   killApp,
   launchApp,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -17,7 +18,7 @@ import type { Response } from 'node-fetch'
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
-const runDev = async (config: any) => {
+const runDev = async (config: any, shouldWaitForReady = true) => {
   await nextConfig.write(`module.exports = ${JSON.stringify(config)}`)
   const port = await findPort()
   const obj = { port, stdout: '', stderr: '' }
@@ -31,6 +32,9 @@ const runDev = async (config: any) => {
       obj.stderr += msg || ''
     },
   })
+  if (shouldWaitForReady) {
+    await fetch(`http://localhost:${port}`)
+  }
   return obj
 }
 
@@ -53,16 +57,22 @@ describe('config-output-export', () => {
   })
 
   it('should error with "i18n" config', async () => {
-    const { stderr } = await runDev({
-      output: 'export',
-      i18n: {
-        locales: ['en'],
-        defaultLocale: 'en',
+    const data = await runDev(
+      {
+        output: 'export',
+        i18n: {
+          locales: ['en'],
+          defaultLocale: 'en',
+        },
       },
-    })
-    expect(stderr).toContain(
-      'Specified "i18n" cannot be used with "output: export".'
+      false
     )
+
+    await retry(() => {
+      expect(data.stderr).toContain(
+        'Specified "i18n" cannot be used with "output: export".'
+      )
+    })
   })
 
   describe('when hasNextSupport = false', () => {
@@ -218,7 +228,7 @@ describe('config-output-export', () => {
       })
       browser = await webdriver(result.port, '/blog')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'ISR cannot be used with "output: export".'
       )
@@ -253,7 +263,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
@@ -281,7 +291,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
@@ -309,7 +319,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getServerSideProps cannot be used with "output: export".'
       )
@@ -353,7 +363,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: true" cannot be used with "output: export".'
       )
@@ -397,7 +407,7 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'getStaticPaths with "fallback: blocking" cannot be used with "output: export".'
       )
@@ -443,7 +453,7 @@ describe('config-output-export', () => {
       browser = await webdriver(result.port, '/posts/one')
       const h1 = await browser.elementByCss('h1')
       expect(await h1.text()).toContain('Hello from one')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       expect(result.stderr).toBeEmpty()
     } finally {
       await killApp(app).catch(() => {})

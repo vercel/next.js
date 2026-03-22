@@ -3,11 +3,11 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbopack::{
-    ModuleAssetContext, emit_with_completion_operation,
+    ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
 };
 use turbopack_core::{
@@ -17,6 +17,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -80,7 +81,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let input = input_fs.root().await?.join(&input)?;
 
                 let input_dir = input.parent().parent();
-                let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
+                let output_fs: Vc<NullFileSystem> = NullFileSystem.cell();
                 let output_dir = output_fs.root().owned().await?;
 
                 let source = FileSource::new(input);
@@ -117,12 +118,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = module_asset_context
                     .process(Vc::upcast(source), ReferenceType::Undefined)
                     .module();
-                let rebased = RebasedAsset::new(module, input_dir, output_dir.clone())
+                let rebased = RebasedAsset::new(module, input_dir, output_dir.clone());
+                let assets = all_assets_from_entry(Vc::upcast(rebased))
                     .to_resolved()
                     .await?;
 
-                let emit_op =
-                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                let emit_op = emit_assets_into_dir_operation(assets, output_dir);
                 emit_op.read_strongly_consistent().await?;
                 apply_effects(emit_op).await?;
 

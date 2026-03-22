@@ -5,8 +5,8 @@ use once_cell::sync::Lazy;
 use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::Atom,
-    base::{try_with_handler, Compiler},
-    common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
+    base::{Compiler, try_with_handler},
+    common::{FileName, FilePathMapping, GLOBALS, SourceMap, comments::SingleThreadedComments},
     ecma::ast::noop_pass,
 };
 

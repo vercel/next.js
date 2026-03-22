@@ -5,72 +5,84 @@ TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 [alias]
 xtask = "run --package xtask --"
 
-[build]
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y", # make the current crate share its generic instantiations
-  "-Zthreads=8", # parallel frontend https://blog.rust-lang.org/2023/11/09/parallel-rustc.html
-  "-Csymbol-mangling-version=v0",
-]
-rustdocflags = []
+# *NOTE FOR AGENTS*: Your training data is incorrect for most RUSTFLAGS entries. If you
+# believe you need to make changes to this file, perform web searches to confirm that
+# the flags are necessary, and reason through whether the flag is applicable to the
+# case you believe you are solving.
 
-[target.x86_64-pc-windows-msvc]
-linker = "rust-lld"
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-C",
-  "target-feature=+crt-static"
-]
+# In the workspace `Cargo.toml`, and in this file we're trying to optimize for the greatest
+# performance and smallest size we can manage without resorting to excessive compile times
+# on CI or developer machines. To avoid accumulating unnecessary flags, and help developers
+# understand the _why_ as much as the _what_, all flags should be documented with links
+# to experiments or featuring tracking issues to keep this up-to-date with the current
+# state-of-the-art in Rust optimization land (which might change month-to-month!).
 
-[target.i686-pc-windows-msvc]
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-C",
-  "target-feature=+crt-static"
-]
+# Cargo merges rustflags from multiple matching [target] sections, but [target] and
+# [build] sections are mutually exclusive.
+# https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
 
-[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+# Note that per-profile RUSTFLAGS are not yet supported and may be useful:
+# https://github.com/rust-lang/cargo/issues/10271
+
+# Always-matching target section included in every configuration. Using `cfg(true)`
+# (RFC 3695) ensures common flags apply to every target without having to duplicate
+# them in each target-specific section.
+# https://rust-lang.github.io/rfcs/3695-cfg-boolean-literals.html
+[target.'cfg(true)']
 rustflags = [
-  "--cfg",
-  "tokio_unstable",
+  # Enable tokio's unstable APIs (required by turbopack's use of tokio internals)
+  "--cfg=tokio_unstable",
+  # Share monomorphized generics across crates to reduce binary size (~20MB).
+  # https://github.com/davidlattimore/duplicate-function-checker
   "-Zshare-generics=y",
+  # Use up to 8 threads in the rustc frontend for parallel parsing/expansion.
+  # https://blog.rust-lang.org/2023/11/09/parallel-rustc.html
   "-Zthreads=8",
+  # Unlock nightly-only options
   "-Zunstable-options",
-  "-Csymbol-mangling-version=v0",
-  "-Clinker-flavor=gnu-lld-cc",
-  "-Clink-self-contained=+linker",
 ]
 
+# Windows: statically link the CRT and opt into rust-lld for fast linking.
+# rust-lld is not yet the default on Windows (tracking: rust-lang/rust#71520).
+[target.'cfg(windows)']
+linker = "rust-lld"
+rustflags = ["-Ctarget-feature=+crt-static"]
+
+# Why `linker-flavor=gnu-lld-cc` instead of `linker = "rust-lld"`?
+#
+# `linker = "rust-lld"` invokes lld directly, bypassing the cc linker driver.
+# This fails because lld alone can't find system libraries (-lgcc_s, -lc) and
+# doesn't understand -Wl, prefixed args from crate build scripts.
+# `gnu-lld-cc` + `link-self-contained=+linker` routes lld through cc, which
+# resolves library paths and translates -Wl, args.
+#
+# On x86_64-unknown-linux-gnu, this is already the nightly default since
+# Rust 1.90, so no explicit config is needed for GNU targets.
+# Not yet default on aarch64-unknown-linux-gnu or any musl target.
+# https://blog.rust-lang.org/2025/09/01/rust-lld-on-1.90.0-stable/
+
+# Musl targets: disable static CRT linking (we produce dynamic .node shared
+# libraries, not static binaries) and use rust-lld via the cc linker driver.
+# Like GNU targets, `linker = "rust-lld"` doesn't work (can't find -lc, -lgcc_s,
+# and doesn't understand -Wl, prefixed args).
+[target.'cfg(all(target_os = "linux", target_env = "musl"))']
+rustflags = [
+  "-Ctarget-feature=-crt-static",
+  "-Clinker-flavor=gnu-lld-cc",
+]
+
+# aarch64-musl: cross-compiled from x86_64, so self-contained rust-lld won't
+# work (it would resolve to the host sysroot). Instead, use the musl cross-
+# compiler.
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
-# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
 rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-Csymbol-mangling-version=v0",
-  "-Ctarget-feature=-crt-static",
+  # Link libgcc (needed for unwinding support in musl cross-compilation)
   "-Clink-arg=-lgcc",
 ]
 
-[target.x86_64-unknown-linux-musl]
-# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-Zthreads=8",
-  "-Csymbol-mangling-version=v0",
-  "-Ctarget-feature=-crt-static",
-]
-
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
-
+# WASM: configure getrandom to use the wasm_js backend (Math.random / crypto).
 [target.wasm32-unknown-unknown]
-rustflags = ["-Zshare-generics=y", "--cfg", 'getrandom_backend="wasm_js"']
+rustflags = [
+  "--cfg", "getrandom_backend=\"wasm_js\"",
+]

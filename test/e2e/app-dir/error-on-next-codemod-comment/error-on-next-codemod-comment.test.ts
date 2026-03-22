@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getRedboxSource,
   retry,
 } from 'next-test-utils'
@@ -21,12 +21,13 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should error with swc if you have codemod comments left', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       if (process.env.IS_TURBOPACK_TEST) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "./app/page.tsx (2:2)
-           Ecmascript file had an error
+           You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
+               After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.
              1 | export default function Page() {
            > 2 |   // @next-codemod-error remove jsx of next line
                |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,13 +35,11 @@ describe('app-dir - error-on-next-codemod-comment', () => {
              4 | }
              5 |
 
-           You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
-           After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken."
+           Ecmascript file had an error"
           `)
       } else if (process.env.NEXT_RSPACK) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
          "./app/page.tsx
-           × Module build failed:
            ╰─▶   × Error:   x You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
                  │   | After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.
                  │
@@ -82,7 +81,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       // Recover the original file content
       await next.patchFile('app/page.tsx', originFileContent)
@@ -91,7 +90,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should disappear the error when you rre the codemod comment', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       let originFileContent
       await next.patchFile('app/page.tsx', (code) => {
@@ -103,7 +102,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       })
 
       await retry(async () => {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
 
       // Recover the original file content
@@ -113,7 +112,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     it('should disappear the error when you replace with bypass comment', async () => {
       const browser = await next.browser('/')
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
 
       let originFileContent
       await next.patchFile('app/page.tsx', (code) => {
@@ -122,7 +121,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       })
 
       await retry(async () => {
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
       })
 
       // Recover the original file content

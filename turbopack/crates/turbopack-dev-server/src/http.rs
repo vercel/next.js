@@ -1,13 +1,15 @@
+use std::{io::Read, iter};
+
 use anyhow::{Result, anyhow};
 use auto_hash_map::AutoSet;
-use futures::{StreamExt, TryStreamExt};
+use flate2::{Compression, bufread::GzEncoder};
+use futures::{StreamExt, TryStreamExt, stream};
 use hyper::{
     Request, Response,
     header::{CONTENT_ENCODING, CONTENT_LENGTH, HeaderName},
     http::HeaderValue,
 };
 use mime::Mime;
-use tokio_util::io::{ReaderStream, StreamReader};
 use turbo_tasks::{
     CollectiblesSource, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc, apply_effects,
     util::SharedError,
@@ -175,22 +177,30 @@ pub async fn process_request_with_content_source(
                 let response = if should_compress {
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
-                    // Grab ropereader stream, coerce anyhow::Error to std::io::Error
-                    let stream_ext = content.read().into_stream().map_err(std::io::Error::other);
-
-                    let gzipped_stream =
-                        ReaderStream::new(async_compression::tokio::bufread::GzipEncoder::new(
-                            StreamReader::new(stream_ext),
-                        ));
-
-                    response.body(hyper::Body::wrap_stream(gzipped_stream))?
+                    // Hyper requires an owned reader... We could do this with streaming by cloning
+                    // each `Bytes` and implementing `BufRead` for `Iterator<bytes::Bytes>`, but
+                    // it's not really worth it, just compressing the whole thing up-front is fine.
+                    //
+                    // Use fast compression, since we're likely just tranferring data over
+                    // localhost.
+                    let mut gz_bytes = Vec::new();
+                    GzEncoder::new(content.read(), Compression::fast())
+                        .read_to_end(&mut gz_bytes)
+                        .expect("read of Rope should never fail");
+                    response.body(hyper::Body::wrap_stream(stream::iter(iter::once(
+                        hyper::Result::Ok(gz_bytes),
+                    ))))?
                 } else {
+                    // hyper requires an owned stream, so we must clone the iterator items
+                    // this is relatively cheap: each chunk is a `Bytes`, so `Clone` updates a
+                    // refcount
+                    let owned_chunks: Vec<_> =
+                        content.read().cloned().map(hyper::Result::Ok).collect();
                     header_map.insert(
                         CONTENT_LENGTH,
                         hyper::header::HeaderValue::try_from(content.len().to_string())?,
                     );
-
-                    response.body(hyper::Body::wrap_stream(content.read()))?
+                    response.body(hyper::Body::wrap_stream(stream::iter(owned_chunks)))?
                 };
 
                 return Ok((response, side_effects));

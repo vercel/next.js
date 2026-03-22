@@ -26,12 +26,14 @@ export function makeGetServerInsertedHTML({
   basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
-  // flag for static content that only needs to be flushed once
-  let hasFlushedInitially = false
 
-  const polyfillTags = polyfills.map((polyfill) => {
+  // These only need to be rendered once, they'll be set to empty arrays once flushed.
+  let polyfillTags = polyfills.map((polyfill) => {
     return <script key={polyfill.src} {...polyfill} />
   })
+  let traceMetaTags = (tracingMetadata || []).map(({ key, value }, index) => (
+    <meta key={`next-trace-data-${index}`} name={key} content={value} />
+  ))
 
   return async function getServerInsertedHTML() {
     // Loop through all the errors that have been captured but not yet
@@ -69,12 +71,6 @@ export function makeGetServerInsertedHTML({
       }
     }
 
-    const traceMetaTags = (tracingMetadata || []).map(
-      ({ key, value }, index) => (
-        <meta key={`next-trace-data-${index}`} name={key} content={value} />
-      )
-    )
-
     const serverInsertedHTML = renderServerInsertedHTML()
 
     // Skip React rendering if we know the content is empty.
@@ -90,12 +86,9 @@ export function makeGetServerInsertedHTML({
 
     const stream = await renderToReadableStream(
       <>
-        {
-          /* Insert the polyfills if they haven't been flushed yet. */
-          hasFlushedInitially ? null : polyfillTags
-        }
+        {polyfillTags}
         {serverInsertedHTML}
-        {hasFlushedInitially ? null : traceMetaTags}
+        {traceMetaTags}
         {errorMetaTags}
       </>,
       {
@@ -105,7 +98,9 @@ export function makeGetServerInsertedHTML({
       }
     )
 
-    hasFlushedInitially = true
+    // The polyfills and trace metadata have been flushed, so they don't need to be rendered again
+    polyfillTags = []
+    traceMetaTags = []
 
     // There's no need to wait for the stream to be ready
     // e.g. calling `await stream.allReady` because `streamToString` will

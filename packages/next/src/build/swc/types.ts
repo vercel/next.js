@@ -5,18 +5,27 @@ import type {
   RefCell,
   NapiTurboEngineOptions,
   NapiSourceDiagnostic,
+  NapiProjectOptions,
+  NapiPartialProjectOptions,
+  NapiCodeFrameOptions,
+  NapiCodeFrameLocation,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServer(
       traceFilePath: string,
@@ -43,6 +52,7 @@ export interface Binding {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
     }
   }
 
@@ -66,10 +76,18 @@ export interface Binding {
     imports: Record<string, string | null>
   ): string
 
-  lockfileTryAcquire(path: string): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileTryAcquire(
+    path: string,
+    content?: string | null
+  ): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
+  codeFrameColumns(
+    source: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | undefined
 }
 
 export type StyledString =
@@ -94,6 +112,30 @@ export type StyledString =
       value: StyledString[]
     }
 
+/** 0-indexed line and column position within a source file. */
+export interface SourcePosition {
+  line: number
+  column: number
+}
+
+export interface IssueSource {
+  source: {
+    ident: string
+    filePath: string
+  }
+  range?: {
+    start: SourcePosition
+    end: SourcePosition
+  }
+}
+
+export interface AdditionalIssueSource {
+  description: string
+  source: IssueSource
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
+}
+
 export interface Issue {
   severity: string
   stage: string
@@ -101,28 +143,12 @@ export interface Issue {
   title: StyledString
   description?: StyledString
   detail?: StyledString
-  source?: {
-    source: {
-      ident: string
-      content?: string
-    }
-    range?: {
-      start: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-      end: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-    }
-  }
+  source?: IssueSource
+  additionalSources?: AdditionalIssueSource[]
   documentationLink: string
   importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 export interface PlainTraceItem {
   fsName: string
@@ -190,14 +216,43 @@ interface PartialUpdate extends BaseUpdate {
 
 export type Update = IssuesUpdate | PartialUpdate
 
-export interface HmrIdentifiers {
-  identifiers: string[]
+/**
+ * IMPORTANT: This type is duplicated in:
+ * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
+ *
+ * The runtime file cannot import from this ES module without triggering module semantics,
+ * so we maintain a copy there. Please keep both definitions in sync.
+ */
+export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'EcmascriptMergedUpdate'
+    entries: Record<
+      string,
+      { code: string; url: string; map?: string | undefined }
+    >
+    chunks?: Record<string, { type: 'partial' }>
+  }
 }
 
-/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}
+
+export type NodeJsHmrUpdate =
+  | IssuesUpdate
+  | NodeJsPartialHmrUpdate
+  | NodeJsRestartHmrUpdate
+
+export interface HmrChunkNames {
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  chunkNames: string[]
+}
+
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   file: string
   originalFile?: string
   /** 1-indexed, unlike source map tokens */
@@ -220,6 +275,7 @@ export type CompilationEvent = {
   typeName: string
   message: string
   severity: string
+  eventJson: string
   eventData: any
 }
 
@@ -231,6 +287,8 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
@@ -239,11 +297,18 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Client
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<
-    TurbopackResult<HmrIdentifiers>
-  >
+  hmrChunkNamesSubscribe(
+    target: import('./index').HmrTarget
+  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
@@ -365,27 +430,8 @@ export type WrittenEndpoint =
       config: EndpointConfig
     }
 
-export interface ProjectOptions {
-  /**
-   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
-   * to access a file outside this root will fail, so think of this as a chroot.
-   * E.g. `/home/user/projects/my-repo`.
-   */
-  rootPath: string
-
-  /**
-   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
-   * E.g. `apps/my-app`
-   */
-  projectPath: string
-
-  /**
-   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
-   * path. Corresponds to next.config.js's `distDir`.
-   * E.g. `.next`
-   */
-  distDir: string
-
+export interface ProjectOptions
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -395,53 +441,21 @@ export interface ProjectOptions {
    * A map of environment variables to use when compiling code.
    */
   env: Record<string, string>
+}
 
-  defineEnv: DefineEnv
+export interface PartialProjectOptions
+  extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
+  rootPath: NapiProjectOptions['rootPath']
+  projectPath: NapiProjectOptions['projectPath']
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig?: NextConfigComplete
 
   /**
-   * Whether to watch the filesystem for file changes.
+   * A map of environment variables to use when compiling code.
    */
-  watch: {
-    enable: boolean
-    pollIntervalMs?: number
-  }
-
-  /**
-   * The mode in which Next.js is running.
-   */
-  dev: boolean
-
-  /**
-   * The server actions encryption key.
-   */
-  encryptionKey: string
-
-  /**
-   * The build id.
-   */
-  buildId: string
-
-  /**
-   * Options for draft mode.
-   */
-  previewProps: __ApiPreviewProps
-
-  /**
-   * The browserslist query to use for targeting browsers.
-   */
-  browserslistQuery: string
-
-  /**
-   * When the code is minified, this opts out of the default mangling of local
-   * names for variables, functions etc., which can be useful for
-   * debugging/profiling purposes.
-   */
-  noMangling: boolean
-
-  /**
-   * The version of Node.js that is available/currently running.
-   */
-  currentNodeJsVersion: string
+  env?: Record<string, string>
 }
 
 export interface DefineEnv {

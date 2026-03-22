@@ -1,6 +1,8 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use turbo_tasks::debug::ValueDebugFormat;
+use anyhow::Result;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Vc, debug::ValueDebugFormat};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -20,8 +22,15 @@ async fn ignored_indexes() {
     );
 
     run_once(&REGISTRATION, || async {
-        let input = IgnoredIndexes(-1, 2, -3);
-        let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
+        #[turbo_tasks::function(operation)]
+        async fn value_debug_format_operation() -> Result<Vc<RcStr>> {
+            let input = IgnoredIndexes(-1, 2, -3);
+            let debug = input.value_debug_format(usize::MAX).try_to_string().await?;
+            Ok(Vc::cell(RcStr::from(debug)))
+        }
+        let debug = value_debug_format_operation()
+            .read_strongly_consistent()
+            .await?;
         assert!(!debug.contains("-1"));
         assert!(debug.contains('2'));
         assert!(!debug.contains("-3"));

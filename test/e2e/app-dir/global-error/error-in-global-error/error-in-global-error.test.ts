@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
 describe('app dir - global-error - error-in-global-error', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -12,7 +12,7 @@ describe('app dir - global-error - error-in-global-error', () => {
     expect(text).toBe('Custom Global Error')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        {
          "description": "error in page",
@@ -31,13 +31,13 @@ describe('app dir - global-error - error-in-global-error', () => {
 
   it('should render fallback UI when error occurs in global-error', async () => {
     const browser = await next.browser('/?error-in-global-error=1')
-    const text = await browser.elementByCss('h2').text()
-    expect(text).toMatch(
-      /Application error: a client-side exception has occurred while loading [\w.-]+ \(see the browser console for more information\)./
-    )
+    // When the custom global-error throws, it falls back to the default global-error
+    // Client errors show "This page couldn\u2019t load"
+    const title = await browser.elementByCss('h1').text()
+    expect(title).toBe('This page couldn\u2019t load')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
        [
          {

@@ -22,7 +22,7 @@ async function ClientComponent() {
 1. **Convert to a Server Component**: If possible, convert your Client Component to a Server Component. This allows you to use `async`/`await` directly in your component.
 2. **Remove the `async` keyword**: If you need to keep it as a Client Component, remove the `async` keyword and handle data fetching differently.
 3. **Use React Hooks for data fetching**: Utilize hooks like `useEffect` for client-side data fetching, or use third-party libraries.
-4. **Leverage the `use` hook with a Context Provider**: Pass promises to child components using context, then resolve them with the `use` hook.
+4. **Leverage the `use` API with a Context Provider**: Pass promises to child components using context, then resolve them with the `use` API.
 
 ### Recommended: Server-side data fetching
 
@@ -44,7 +44,7 @@ export default async function Page() {
 
 ### Using `use` with Context Provider
 
-Another pattern to explore is using the React `use` hook with a Context Provider. This allows you to pass Promises to child components and resolve them using the `use` hook . Here's an example:
+Another pattern to explore is using the React `use` API with a Context Provider. This allows you to pass Promises to child components and resolve them using the `use` API . Here's an example:
 
 First, let's create a separate file for the context provider:
 
@@ -110,7 +110,7 @@ export function BlogPosts() {
 }
 ```
 
-This pattern allows you to start data fetching early and pass the Promise down to child components, which can then use the `use` hook to access the data when it's ready.
+This pattern allows you to start data fetching early and pass the Promise down to child components, which can then use the `use` API to access the data when it's ready.
 
 ### Client-side data fetching
 

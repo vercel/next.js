@@ -72,17 +72,6 @@ function validateCacheLife(profile: CacheLife) {
       )
     }
   }
-
-  if (profile.stale !== undefined && profile.expire !== undefined) {
-    if (profile.stale > profile.expire) {
-      throw new Error(
-        'If providing both the stale and expire options, ' +
-          'the expire option must be greater than the stale option. ' +
-          'The expire option indicates how many seconds from the start ' +
-          'until it can no longer be used.'
-      )
-    }
-  }
 }
 
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
@@ -97,11 +86,13 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   switch (workUnitStore?.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
+    case 'generate-static-params':
     case undefined:
       throw new Error(
         '`cacheLife()` can only be called inside a "use cache" function.'

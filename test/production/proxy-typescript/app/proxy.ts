@@ -1,11 +1,6 @@
-import { NextProxy, NextResponse, URLPattern, ProxyConfig } from 'next/server'
+import { NextProxy, NextResponse, ProxyConfig } from 'next/server'
 
 export const proxy: NextProxy = function (request) {
-  const pattern = new URLPattern({
-    pathname: '/:path',
-  })
-  console.log(pattern.test(request.nextUrl.pathname))
-
   if (request.nextUrl.pathname === '/static') {
     return new NextResponse(null, {
       headers: {

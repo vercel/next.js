@@ -1,11 +1,14 @@
 import { useReducer } from 'react'
 
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
+import type { CacheIndicatorState } from './cache-indicator'
+import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -49,6 +52,7 @@ export interface OverlayState {
   readonly notFound: boolean
   readonly buildingIndicator: boolean
   readonly renderingIndicator: boolean
+  readonly cacheIndicator: CacheIndicatorState
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
@@ -66,12 +70,15 @@ export interface OverlayState {
   >
   readonly scale: number
   readonly page: string
+  readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
+  readonly instantNavs: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
+export const ACTION_CACHE_INDICATOR = 'cache-indicator'
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'
@@ -98,6 +105,8 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -109,6 +118,11 @@ export const STORE_KEY_SHARED_PANEL_LOCATION =
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
+
+interface CacheIndicatorAction {
+  type: typeof ACTION_CACHE_INDICATOR
+  cacheIndicator: CacheIndicatorState
+}
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -201,11 +215,20 @@ interface DevToolsScaleAction {
 interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
   page: string
+  tree: FlightRouterState | null
 }
 
 interface DevToolsConfigAction {
   type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
+}
+
+interface CacheOnlyToggleAction {
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
+}
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAVS_RESET
 }
 
 export type DispatcherEvent =
@@ -216,6 +239,7 @@ export type DispatcherEvent =
   | UnhandledErrorAction
   | UnhandledRejectionAction
   | VersionInfoAction
+  | CacheIndicatorAction
   | StaticIndicatorAction
   | DebugInfoAction
   | DevIndicatorAction
@@ -232,6 +256,8 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
+  | CacheOnlyToggleAction
+  | InstantNavResetAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -254,6 +280,10 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
+const hasInstantNavsCookie =
+  !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
+  readInstantNavCookieState() !== null
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -263,13 +293,17 @@ export const INITIAL_OVERLAY_STATE: Omit<
   errors: [],
   notFound: false,
   renderingIndicator: false,
+  cacheIndicator: 'disabled',
   staticIndicator: 'disabled',
-  /* 
+  /*
     This is set to `true` when we can reliably know
-    whether the indicator is in disabled state or not.  
+    whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  showIndicator: false,
+  // When instant nav is active, show the indicator immediately so the user
+  // can toggle it off. Normally this is set to true by the HMR connection,
+  // but the HMR WebSocket is only created during hydration.
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -282,12 +316,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  tree: null,
   theme: 'system',
   hideShortcut: null,
+  instantNavs: hasInstantNavsCookie,
 }
 
 function getInitialState(
-  routerType: 'pages' | 'app'
+  routerType: 'pages' | 'app',
+  enableCacheIndicator: boolean
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
@@ -296,13 +333,15 @@ function getInitialState(
     // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
     isErrorOverlayOpen: routerType === 'pages',
     routerType,
+    cacheIndicator: enableCacheIndicator ? 'ready' : 'disabled',
   }
 }
 
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean
 ) {
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
@@ -348,6 +387,9 @@ export function useErrorOverlayReducer(
       switch (action.type) {
         case ACTION_DEBUG_INFO: {
           return { ...state, debugInfo: action.debugInfo }
+        }
+        case ACTION_CACHE_INDICATOR: {
+          return { ...state, cacheIndicator: action.cacheIndicator }
         }
         case ACTION_STATIC_INDICATOR: {
           return { ...state, staticIndicator: action.staticIndicator }
@@ -463,7 +505,7 @@ export function useErrorOverlayReducer(
           return { ...state, scale: action.scale }
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
-          return { ...state, page: action.page }
+          return { ...state, page: action.page, tree: action.tree }
         }
         case ACTION_DEVTOOLS_CONFIG: {
           const {
@@ -491,11 +533,17 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
+        }
+        case ACTION_INSTANT_NAVS_RESET: {
+          return { ...state, instantNavs: false }
+        }
         default: {
           return state
         }
       }
     },
-    getInitialState(routerType)
+    getInitialState(routerType, enableCacheIndicator)
   )
 }

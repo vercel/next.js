@@ -1,7 +1,6 @@
 ---
 title: cacheTag
 description: Learn how to use the cacheTag function to manage cache invalidation in your Next.js application.
-version: canary
 related:
   title: Related
   description: View related API references.
@@ -60,7 +59,7 @@ export async function getData() {
 }
 ```
 
-You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/updating-data):
+You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/mutating-data):
 
 ```tsx filename="app/action.ts" switcher
 'use server'
@@ -92,6 +91,8 @@ export default async function submit() {
 ```tsx
 cacheTag('tag-one', 'tag-two')
 ```
+
+- **Limits**: The max length for a custom tag is 256 characters and the max tag items is 128.
 
 ## Examples
 

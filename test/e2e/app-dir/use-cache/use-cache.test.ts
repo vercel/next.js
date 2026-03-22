@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertNoConsoleErrors,
-  assertNoErrorToast,
+  waitForNoErrorToast,
   retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -188,7 +188,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 
@@ -210,7 +212,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 
@@ -474,6 +478,8 @@ describe('use-cache', () => {
           // [id] route, first entry in generateStaticParams
           expect.stringMatching(/\/a\d/),
           withCacheComponents && '/api',
+          // api/[id] route handler using generateStaticParams with 'use cache' from node_modules
+          expect.stringMatching(/\/api\/\d/),
           // [id] route, second entry in generateStaticParams
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
@@ -484,6 +490,7 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/fetch-revalidate',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -495,10 +502,12 @@ describe('use-cache', () => {
           '/react-cache',
           '/referential-equality',
           '/revalidate-and-redirect/redirect',
+          '/revalidate-tag-no-refresh',
           '/rsc-payload',
           '/static-class-method',
           withCacheComponents && '/unhandled-promise-regression',
           '/use-action-state',
+          '/use-action-state-separate-export',
           '/with-server-action',
         ].filter(Boolean)
       )
@@ -635,9 +644,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
-    await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    // Revalidate is set to 1 second, so after waiting the value should change.
+    await retry(async () => {
+      await browser.refresh()
+
+      expect(await browser.elementByCss('#random').text()).not.toBe(
+        initialValue
+      )
+    })
   })
 
   it('should cache fetch without no-store', async () => {
@@ -678,6 +693,41 @@ describe('use-cache', () => {
         'cache-handler set fetch cache https://next-data-api-endpoint.vercel.app/api/random?no-store'
       )
     })
+
+    // Test for revalidateTag with profile (stale-while-revalidate)
+    // This should NOT cause immediate client refresh - only updateTag should do that
+    it('should NOT update immediately after revalidateTag with profile (stale-while-revalidate)', async () => {
+      const browser = await next.browser('/revalidate-tag-no-refresh')
+      const initial = await browser.elementByCss('#random').text()
+
+      console.log('[Test] Initial value:', initial)
+
+      // Click 1: revalidateTag with profile - should NOT cause immediate refresh
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      // Wait for the action to complete
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick1 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 1:', afterClick1)
+      expect(afterClick1).toBe(initial) // No change - stale-while-revalidate
+
+      // Click 2: Same as click 1 - should still show stale data
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick2 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 2:', afterClick2)
+      expect(afterClick2).toBe(initial) // Still no change
+
+      // Click 3: Same as before - should still show stale data (not data from click 1)
+      await browser.elementByCss('#revalidate-tag-with-profile').click()
+      await new Promise((r) => setTimeout(r, 1000))
+      const afterClick3 = await browser.elementByCss('#random').text()
+      console.log('[Test] After click 3:', afterClick3)
+      expect(afterClick3).toBe(initial) // Still no change - no read-your-own-writes
+
+      // The key assertion: after 3 clicks, the value should still be the same
+      // This proves revalidateTag with profile does NOT cause read-your-own-writes
+      // (Unlike the bug where click 3 would show a different stale value)
+    })
   }
 
   it('should override fetch with cookies/auth in use cache properly', async () => {
@@ -691,6 +741,26 @@ describe('use-cache', () => {
 
   it('works with useActionState if previousState parameter is not used in "use cache" function', async () => {
     const browser = await next.browser('/use-action-state')
+
+    let value = await browser.elementByCss('p').text()
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
+
+  it('works with useActionState if previousState parameter is not used in "use cache" function (separate export)', async () => {
+    const browser = await next.browser('/use-action-state-separate-export')
 
     let value = await browser.elementByCss('p').text()
     expect(value).toBe('-1')
@@ -1161,7 +1231,7 @@ describe('use-cache', () => {
       expect(canonicalUrl).toBe('https://example.com/baz/qux')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that implicitly depends on params dynamic during prerendering', async () => {
@@ -1190,7 +1260,7 @@ describe('use-cache', () => {
       browser = await next.browser('/generate-metadata-resume/canonical/foo')
 
       // There should be no timeout error.
-      await assertNoErrorToast(browser)
+      await waitForNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
@@ -1340,7 +1410,85 @@ describe('use-cache', () => {
       expect(initialScale2).toBe(initialScale)
       expect(maximumScale2).toBe(maximumScale)
     })
+    // end withCacheComponents
   }
+
+  it('caches a higher-order component in a "use cache" module', async () => {
+    const browser = await next.browser('/hoc/foo')
+    const slug = await browser.elementById('slug').text()
+    expect(slug).toBe('foo')
+    const date = await browser.elementById('date').text()
+    expect(date).toBeDateString()
+    await browser.refresh()
+    expect(await browser.elementById('date').text()).toBe(date)
+  })
+
+  it('ignores unused arguments in a "use cache" function', async () => {
+    const browser = await next.browser('/unused-args')
+    const initialNumbers = await browser.elementById('numbers').text()
+    await browser.refresh()
+    const numbers = await browser.elementById('numbers').text()
+    expect(numbers).toBe(initialNumbers)
+  })
+
+  if (isNextDev) {
+    it('should not log "use cache" functions called from client', async () => {
+      const browser = await next.browser('/passed-to-client')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#submit-button').click()
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        // Should have the POST request but not the function log
+        expect(logs).toContain('POST /passed-to-client')
+        expect(logs).not.toContain('└─ ƒ')
+      })
+    })
+  }
+
+  it('should allow nested short-lived caches after connection()', async () => {
+    // Check the prerendered shell (no JS).
+    let browser = await next.browser('/short-lived-caches', {
+      disableJavaScript: true,
+    })
+
+    // Static content should be in the shell.
+    expect(await browser.elementById('static').text()).toBe('Static content')
+
+    // Explicit long cacheLife should be in the shell despite short-lived inner
+    // caches.
+    expect(
+      await browser.elementById('explicit-long-revalidate-zero').text()
+    ).toBeDateString()
+    expect(
+      await browser.elementById('explicit-long-low-expire').text()
+    ).toBeDateString()
+
+    // Now check with JS enabled to verify dynamic content loads.
+    browser = await next.browser('/short-lived-caches', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    // Dynamic content should eventually render.
+    await retry(async () => {
+      // No explicit outer cacheLife (after connection()).
+      expect(
+        await browser.elementById('revalidate-zero').text()
+      ).toBeDateString()
+      expect(await browser.elementById('low-expire').text()).toBeDateString()
+
+      // Explicit short cacheLife - excluded from prerender.
+      expect(
+        await browser.elementById('explicit-revalidate-zero').text()
+      ).toBeDateString()
+      expect(
+        await browser.elementById('explicit-low-expire').text()
+      ).toBeDateString()
+    })
+
+    await assertNoConsoleErrors(browser)
+  })
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
@@ -1360,6 +1508,7 @@ function extractResumeDataCacheFromPostponedState(
   const postponedStringLength = parseInt(postponedStringLengthMatch)
 
   return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
+    undefined
   )
 }

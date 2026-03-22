@@ -45,7 +45,10 @@ export function createAsyncLocalStorage<
   return new FakeAsyncLocalStorage()
 }
 
-export function bindSnapshot<T>(fn: T): T {
+export function bindSnapshot<T>(
+  // WARNING: Don't pass a named function to this argument! See: https://github.com/facebook/react/pull/34911
+  fn: T
+): T {
   if (maybeGlobalAsyncLocalStorage) {
     return maybeGlobalAsyncLocalStorage.bind(fn)
   }

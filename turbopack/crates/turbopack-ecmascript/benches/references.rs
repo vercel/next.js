@@ -77,6 +77,7 @@ async fn setup(
         layer,
     }
     .resolved_cell();
+
     let module = EcmascriptModuleAsset::builder(
         ResolvedVc::upcast(
             FileSource::new(fs.root().await?.join(file).unwrap())
@@ -86,12 +87,17 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+            tree_shaking_mode: if analyze_mode == AnalyzeMode::Tracing {
+                None
+            } else {
+                Some(TreeShakingMode::ReexportsOnly)
+            },
             analyze_mode,
             ..Default::default()
         }
         .resolved_cell(),
         compile_time_info,
+        None,
     )
     .build()
     .to_resolved()

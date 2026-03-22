@@ -2,14 +2,23 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'next/dist/compiled/commander'
+import {
+  Argument,
+  Command,
+  InvalidArgumentError,
+  Option,
+} from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import { parseValidPositiveInteger } from '../server/lib/utils'
+import {
+  getParsedDebugAddress,
+  parseValidPositiveInteger,
+  type DebugAddress,
+} from '../server/lib/utils'
 import {
   SUPPORTED_TEST_RUNNERS_LIST,
   type NextTestOptions,
@@ -18,6 +27,7 @@ import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
+import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 
@@ -39,8 +49,7 @@ if (
   process.exit(1)
 }
 
-// Start performance profiling after Node.js version is checked
-performance.mark('next-start')
+process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 for (const dependency of ['react', 'react-dom']) {
   try {
@@ -56,8 +65,6 @@ for (const dependency of ['react', 'react-dom']) {
 class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
-
-    command.addOption(new Option('--inspect').hideHelp())
 
     command.hook('preAction', (event) => {
       const commandName = event.name()
@@ -81,7 +88,11 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (event.getOptionValue('inspect') === true) {
+      if (
+        commandName !== 'dev' &&
+        commandName !== 'start' &&
+        event.getOptionValue('inspect') === true
+      ) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -91,6 +102,22 @@ class NextRootCommand extends Command {
 
     return command
   }
+}
+
+function parseValidInspectAddress(value: string): DebugAddress {
+  const address = getParsedDebugAddress(value)
+
+  if (Number.isNaN(address.port)) {
+    throw new InvalidArgumentError(
+      'The given value is not a valid inspect address. ' +
+        'Did you mean to pass an app path?\n' +
+        `Try switching the order of the arguments or set the default address explicitly e.g.\n` +
+        `next dev ${value} --inspect\n` +
+        `next dev --inspect= ${value}`
+    )
+  }
+
+  return address
 }
 
 const program = new NextRootCommand()
@@ -123,6 +150,10 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option(
+    '--experimental-analyze',
+    'Analyze bundle output. Only compatible with Turbopack.'
+  )
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -154,17 +185,82 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--debug-build-paths <patterns>',
+    'Comma-separated glob patterns or explicit paths for selective builds. Use "!" prefix to exclude. Examples: "app/*", "app/page.tsx", "app/**/page.tsx", "app/**,!app/[slug]/**"'
+  )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
+  )
   .action((directory: string, options: NextBuildOptions) => {
+    if (options.debugPrerender) {
+      // @ts-expect-error not readonly
+      process.env.NODE_ENV = 'development'
+    }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+    if (options.experimentalCpuProf) {
+      process.env.NEXT_CPU_PROF = '1'
+      process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
+      const { join } = require('path') as typeof import('path')
+      const dir = directory || process.cwd()
+      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+    }
+
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
     return import('../cli/next-build.js').then((mod) =>
-      mod.nextBuild(options, directory).then(() => process.exit(0))
+      mod.nextBuild(options, directory).then(async () => {
+        // Save CPU profile before exiting if enabled
+        if (options.experimentalCpuProf) {
+          await mod.saveCpuProfile()
+        }
+        process.exit(0)
+      })
     )
   })
   .usage('[directory] [options]')
+
+program
+  .command('experimental-analyze')
+  .description(
+    'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to analyze the application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--no-mangling', 'Disables mangling.')
+  .option('--profile', 'Enables production profiling for React.')
+  .option(
+    '-o, --output',
+    'Only write analysis files to disk. Does not start the server.'
+  )
+  .addOption(
+    new Option(
+      '--port <port>',
+      'Specify a port number to serve the analyzer on.'
+    )
+      .implies({ serve: true })
+      .argParser(parseValidPositiveInteger)
+      .default(4000)
+      .env('PORT')
+  )
+  .action((directory: string, options: NextAnalyzeOptions) => {
+    return import('../cli/next-analyze.js')
+      .then((mod) => mod.nextAnalyze(options, directory))
+      .then(() => {
+        if (options.output) {
+          // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
+          // TODO: Fix the underlying issue so this is not necessary.
+          process.exit(0)
+        }
+      })
+  })
 
 program
   .command('dev', { isDefault: true })
@@ -176,6 +272,12 @@ program
     `A directory on which to build the application. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
+  )
+  .addOption(
+    new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
@@ -211,6 +313,7 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
+  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
@@ -219,10 +322,21 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.experimentalCpuProf) {
+        process.env.NEXT_CPU_PROF = '1'
+        process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
+        const { join } = require('path') as typeof import('path')
+        const dir = directory || process.cwd()
+        process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
       }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
@@ -277,6 +391,12 @@ program
   )
   .addOption(
     new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
+  )
+  .addOption(
+    new Option(
       '--keepAliveTimeout <keepAliveTimeout>',
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
@@ -285,9 +405,20 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+  )
   .action((directory: string, options: NextStartOptions) => {
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    if (options.experimentalCpuProf) {
+      process.env.NEXT_CPU_PROF = '1'
+      process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
+      const { join } = require('path') as typeof import('path')
+      const dir = directory || process.cwd()
+      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
     }
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
@@ -335,6 +466,36 @@ program
     )
   )
   .usage('[directory] [options]')
+
+const nextVersion = process.env.__NEXT_VERSION || 'unknown'
+program
+  .command('upgrade')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
+  .argument(
+    '[directory]',
+    `A Next.js project directory to upgrade. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .usage('[directory] [options]')
+  .option(
+    '--revision <revision>',
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc", "beta") or an exact version number (e.g. "15.0.0").',
+    nextVersion.includes('-canary.')
+      ? 'canary'
+      : nextVersion.includes('-rc.')
+        ? 'rc'
+        : nextVersion.includes('-beta.')
+          ? 'beta'
+          : 'latest'
+  )
+  .option('--verbose', 'Verbose output', false)
+  .action(async (directory, options) => {
+    const mod = await import('../cli/next-upgrade.js')
+    mod.spawnNextUpgrade(directory, options)
+  })
 
 program
   .command('experimental-test')

@@ -9,7 +9,7 @@ use turbopack_core::{
     version::VersionedContentExt,
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };

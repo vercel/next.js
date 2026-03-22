@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, assertHasRedbox, getRedboxDescription } from 'next-test-utils'
+import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('app-dir refresh', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -38,7 +38,7 @@ describe('app-dir refresh', () => {
     const browser = await next.browser('/refresh-invalid-render')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toContain(
         'refresh can only be called from within a Server Action'
@@ -67,7 +67,7 @@ describe('app-dir refresh', () => {
     const browser = await next.browser('/refresh-invalid-cache')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toContain(
         'refresh can only be called from within a Server Action'
@@ -79,5 +79,25 @@ describe('app-dir refresh', () => {
         )
       })
     }
+  })
+
+  it('should let you read your write after a redirect and refresh', async () => {
+    const browser = await next.browser('/redirect-and-refresh')
+
+    const todoEntries = await browser.elementById('todo-entries').text()
+    expect(todoEntries).toBe('No entries')
+
+    const todoInput = await browser.elementById('todo-input')
+    await todoInput.fill('foo')
+
+    await browser.elementById('add-button').click()
+
+    await retry(async () => {
+      const newTodoEntries = await browser.elementById('todo-entries').text()
+      expect(newTodoEntries).toContain('foo')
+    })
+
+    expect(await browser.hasElementByCssSelector('#foo-page')).toBe(true)
+    expect(await browser.url()).toContain('/redirect-and-refresh/foo')
   })
 })

@@ -92,6 +92,8 @@ these can be leveraged by prefixing the `pnpm test` command.
   it can be used when not using `pnpm test-dev` or `pnpm test-start` directly.
   Valid test modes can be seen here:
   https://github.com/vercel/next.js/blob/aa664868c102ddc5adc618415162d124503ad12e/test/lib/e2e-utils.ts#L46
+- Use `NEXT_TEST_DEPLOY_URL` with `pnpm test-deploy` to skip the Vercel deploy step and run
+  deploy-mode assertions against an existing deployment URL.
 - You can use `NEXT_TEST_PREFER_OFFLINE=1` while testing to configure the package manager to include the
   [`--prefer-offline`](https://pnpm.io/cli/install#--prefer-offline) argument during test setup.
   This is helpful when running tests in internet-restricted environments such as planes or public Wi-Fi.
@@ -102,6 +104,19 @@ When tests are run in CI and a test failure occurs,
 we attempt to capture traces of the playwright run to make debugging the failure easier.
 A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped,
 and then inspected with `pnpm playwright show-trace ./path/to/trace`
+
+To attach the chrome debugger to next the easiest approach is to modify the `createNext` call in your test to pass `--inspect` to next.
+
+```js
+const next = await createNext({
+  ...
+  startArgs: =['--inspect'],
+})
+```
+
+Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+
+To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
 
 ### Profiling tests
 

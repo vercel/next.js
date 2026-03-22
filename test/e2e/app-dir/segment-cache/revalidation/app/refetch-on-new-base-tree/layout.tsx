@@ -10,17 +10,16 @@ export default function RefetchOnNewBaseTreeLayout({
       <div style={{ backgroundColor: 'lightgray', padding: '1rem' }}>
         <p>
           This demonstrates what happens when a link is prefetched using{' '}
-          <code>{'prefetch="unstable_forceStale"'}</code> and the URL changes.
-          Next.js should re-prefetch the link in case the delta between the base
-          tree and the target tree has changed.
+          <code>{'prefetch={true}'}</code> and the URL changes. Next.js should
+          re-prefetch the link in case the delta between the base tree and the
+          target tree has changed.
         </p>
         <p>
           Everything in this gray section is part of a shared layout. The links
-          below are prefetched using{' '}
-          <code>{'prefetch="unstable_forceStale"'}</code>. If the first loaded
-          page is "/refetch-on-new-base-tree/a", the prefetch for this link will
-          be empty, because there's no delta between the base tree and the
-          target tree.
+          below are prefetched using <code>{'prefetch={true}'}</code>. If the
+          first loaded page is "/refetch-on-new-base-tree/a", the prefetch for
+          this link will be empty, because there's no delta between the base
+          tree and the target tree.
         </p>
         <p>
           However, if you then navigate to page B, we should re-prefetch the
@@ -49,16 +48,10 @@ export default function RefetchOnNewBaseTreeLayout({
             because it was fully prefetched.
           </li>
         </ul>
-        <LinkAccordion
-          prefetch="unstable_forceStale"
-          href="/refetch-on-new-base-tree/a"
-        >
+        <LinkAccordion prefetch={true} href="/refetch-on-new-base-tree/a">
           Page A
         </LinkAccordion>
-        <LinkAccordion
-          prefetch="unstable_forceStale"
-          href="/refetch-on-new-base-tree/b"
-        >
+        <LinkAccordion prefetch={true} href="/refetch-on-new-base-tree/b">
           Page B
         </LinkAccordion>
       </div>

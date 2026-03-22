@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -26,7 +26,7 @@ describe('cache-components-route-handler-errors', () => {
     if (isNextDev) {
       // Test the first route handler with "dynamic" config
       const browser = await next.browser('/route-with-dynamic')
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       const redbox = {
         description: await getRedboxDescription(browser),
         source: await getRedboxSource(browser),
@@ -34,7 +34,7 @@ describe('cache-components-route-handler-errors', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(

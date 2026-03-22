@@ -1,21 +1,14 @@
-use std::{fmt::Debug, future::Future, marker::PhantomData};
-
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    Vc, VcValueTrait,
-    registry::get_value_type,
-    task::shared_reference::TypedSharedReference,
-    vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
+    Vc, VcValueTrait, registry::get_value_type, task::shared_reference::TypedSharedReference,
 };
 
-/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
-/// object instead.
+/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait object instead.
 ///
-/// The only way to interact with a `TraitRef<T>` is by passing
-/// it around or turning it back into a value trait vc by calling
-/// [`ReadRef::cell`][crate::ReadRef::cell].
+/// Non-turbo-task methods with a `&self` receiver can be called on this reference.
+///
+/// A `TraitRef<T>` can be turned back into a value trait vc by calling [`TraitRef::cell`].
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
 pub struct TraitRef<T>
@@ -54,21 +47,6 @@ impl<T> Eq for TraitRef<T> {}
 impl<T> std::hash::Hash for TraitRef<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.shared_reference.hash(state)
-    }
-}
-
-impl<T> Serialize for TraitRef<T> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.shared_reference.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for TraitRef<T> {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Self {
-            shared_reference: TypedSharedReference::deserialize(deserializer)?,
-            _t: PhantomData,
-        })
     }
 }
 
@@ -132,31 +110,5 @@ where
         } = trait_ref;
         let value_type = get_value_type(shared_reference.type_id);
         (value_type.raw_cell)(shared_reference).into()
-    }
-}
-
-/// A trait that allows a value trait vc to be converted into a trait reference.
-///
-/// The signature is similar to `IntoFuture`, but we don't want trait vcs to
-/// have the same future-like semantics as value vcs when it comes to producing
-/// refs. This behavior is rarely needed, so in most cases, `.await`ing a trait
-/// vc is a mistake.
-pub trait IntoTraitRef {
-    type ValueTrait: VcValueTrait + ?Sized;
-    type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
-
-    fn into_trait_ref(self) -> Self::Future;
-}
-
-impl<T> IntoTraitRef for Vc<T>
-where
-    T: VcValueTrait + ?Sized,
-{
-    type ValueTrait = T;
-
-    type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
-
-    fn into_trait_ref(self) -> Self::Future {
-        self.node.into_read().into()
     }
 }

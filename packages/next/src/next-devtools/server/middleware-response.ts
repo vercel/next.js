@@ -6,9 +6,14 @@ export const middlewareResponse = {
     res.statusCode = 204
     res.end('No Content')
   },
-  badRequest(res: ServerResponse) {
+  badRequest(res: ServerResponse, reason?: string) {
     res.statusCode = 400
-    res.end('Bad Request')
+    if (reason !== undefined) {
+      res.setHeader('Content-Type', 'text/plain')
+      res.end(reason)
+    } else {
+      res.end()
+    }
   },
   notFound(res: ServerResponse) {
     res.statusCode = 404

@@ -50,6 +50,8 @@ const runTests = (isDev) => {
         `document.getElementById("basic-static").src`
       )
       const res = await fetch(url)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toStartWith('image/')
       expect(res.headers.get('cache-control')).toBe(
         'public, max-age=315360000, immutable'
       )
@@ -64,6 +66,8 @@ const runTests = (isDev) => {
         `document.getElementById("static-unoptimized").src`
       )
       const res = await fetch(url)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toStartWith('image/')
       expect(res.headers.get('cache-control')).toBe(
         'public, max-age=31536000, immutable'
       )

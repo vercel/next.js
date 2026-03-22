@@ -35,35 +35,34 @@ function findHeadInCacheImpl(
     parallelRoutesKeys.unshift('children')
   }
 
-  for (const key of parallelRoutesKeys) {
-    const [segment, childParallelRoutes] = parallelRoutes[key]
-    // If the parallel is not matched and using the default segment,
-    // skip searching the head from it.
-    if (segment === DEFAULT_SEGMENT_KEY) {
-      continue
-    }
-    const childSegmentMap = cache.parallelRoutes.get(key)
-    if (!childSegmentMap) {
-      continue
-    }
+  const slots = cache.slots
+  if (slots !== null) {
+    for (const key of parallelRoutesKeys) {
+      const [segment, childParallelRoutes] = parallelRoutes[key]
+      // If the parallel is not matched and using the default segment,
+      // skip searching the head from it.
+      if (segment === DEFAULT_SEGMENT_KEY) {
+        continue
+      }
 
-    const cacheKey = createRouterCacheKey(segment)
-    const cacheKeyWithoutSearchParams = createRouterCacheKey(segment, true)
+      const childCacheNode = slots[key]
+      if (!childCacheNode) {
+        continue
+      }
 
-    const cacheNode = childSegmentMap.get(cacheKey)
-    if (!cacheNode) {
-      continue
-    }
+      const cacheKey = createRouterCacheKey(segment)
+      const cacheKeyWithoutSearchParams = createRouterCacheKey(segment, true)
 
-    const item = findHeadInCacheImpl(
-      cacheNode,
-      childParallelRoutes,
-      keyPrefix + '/' + cacheKey,
-      keyPrefix + '/' + cacheKeyWithoutSearchParams
-    )
+      const item = findHeadInCacheImpl(
+        childCacheNode,
+        childParallelRoutes,
+        keyPrefix + '/' + cacheKey,
+        keyPrefix + '/' + cacheKeyWithoutSearchParams
+      )
 
-    if (item) {
-      return item
+      if (item) {
+        return item
+      }
     }
   }
 

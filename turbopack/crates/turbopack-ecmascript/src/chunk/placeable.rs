@@ -1,45 +1,78 @@
 use anyhow::Result;
+use either::Either;
+use itertools::Itertools;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
     asset::Asset,
-    chunk::ChunkableModule,
-    error::PrettyPrintError,
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     file_source::FileSource,
+    ident::AssetIdent,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::ModuleGraph,
+    output::{OutputAssets, OutputAssetsWithReferenced},
     resolve::{FindContextFileResult, find_context_file, package_json},
 };
 
-use crate::references::{
-    async_module::OptionAsyncModule,
-    esm::{EsmExport, EsmExports},
+use crate::{
+    chunk::EcmascriptChunkItemContent,
+    references::{
+        async_module::OptionAsyncModule,
+        esm::{EsmExport, EsmExports},
+    },
 };
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
+pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     #[turbo_tasks::function]
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
         Vc::cell(None)
     }
+
+    /// Generate chunk item content directly on the module.
+    /// This replaces the need for separate ChunkItem wrapper structs.
+    /// The `estimated` parameter is used during size estimation - when true, implementations
+    /// should avoid calling chunking context APIs that would cause cycles.
     #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
+    fn chunk_item_content(
         self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        Ok(is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        ))
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent>;
+
+    /// Returns the content identity for cache invalidation.
+    /// Override this for modules whose content depends on more than just the module source
+    /// (e.g., async loaders that depend on available modules).
+    #[turbo_tasks::function]
+    fn chunk_item_content_ident(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<AssetIdent> {
+        self.ident()
+    }
+
+    /// Returns output assets that this chunk item depends on.
+    /// Override this for modules that reference static assets, manifests, etc.
+    #[turbo_tasks::function]
+    fn chunk_item_output_assets(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+    ) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(OutputAssets::empty())
     }
 }
 
@@ -62,71 +95,71 @@ async fn side_effects_from_package_json(
         if let Some(side_effects) = side_effects.as_bool() {
             return Ok(SideEffectsValue::Constant(side_effects).cell());
         } else if let Some(side_effects) = side_effects.as_array() {
-            let globs = side_effects
+            let (globs, issues): (Vec<_>, Vec<_>) = side_effects
                 .iter()
-                .filter_map(|side_effect| {
+                .map(|side_effect| {
                     if let Some(side_effect) = side_effect.as_str() {
                         if side_effect.contains('/') {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
                                 GlobOptions::default(),
                             ))
                         } else {
-                            Some(Glob::new(
+                            Either::Left(Glob::new(
                                 format!("**/{side_effect}").into(),
                                 GlobOptions::default(),
                             ))
                         }
                     } else {
-                        SideEffectsInPackageJsonIssue {
+                        Either::Right(SideEffectsInPackageJsonIssue {
                             // TODO(PACK-4879): This should point at the buggy element
                             source: IssueSource::from_source_only(ResolvedVc::upcast(
                                 package_json_file,
                             )),
-                            description: Some(
-                                StyledString::Text(
-                                    format!(
-                                        "Each element in sideEffects must be a string, but found \
-                                         {side_effect:?}"
-                                    )
-                                    .into(),
+                            description: Some(StyledString::Text(
+                                format!(
+                                    "Each element in sideEffects must be a string, but found \
+                                     {side_effect:?}"
                                 )
-                                .resolved_cell(),
-                            ),
-                        }
-                        .resolved_cell()
-                        .emit();
-                        None
+                                .into(),
+                            )),
+                        })
                     }
                 })
                 .map(|glob| async move {
-                    match glob.resolve().await {
-                        Ok(glob) => Ok(Some(glob)),
-                        Err(err) => {
-                            SideEffectsInPackageJsonIssue {
-                                // TODO(PACK-4879): This should point at the buggy glob
-                                source: IssueSource::from_source_only(ResolvedVc::upcast(
-                                    package_json_file,
-                                )),
-                                description: Some(
-                                    StyledString::Text(
-                                        format!(
-                                            "Invalid glob in sideEffects: {}",
-                                            PrettyPrintError(&err)
-                                        )
-                                        .into(),
-                                    )
-                                    .resolved_cell(),
-                                ),
+                    Ok(match glob {
+                        Either::Left(glob) => {
+                            match glob.resolve().await {
+                                Ok(glob) => Either::Left(glob),
+                                Err(err) => {
+                                    Either::Right(SideEffectsInPackageJsonIssue {
+                                        // TODO(PACK-4879): This should point at the buggy glob
+                                        source: IssueSource::from_source_only(ResolvedVc::upcast(
+                                            package_json_file,
+                                        )),
+                                        description: Some(StyledString::Text(
+                                            format!(
+                                                "Invalid glob in sideEffects: {}",
+                                                PrettyPrintError(&err)
+                                            )
+                                            .into(),
+                                        )),
+                                    })
+                                }
                             }
-                            .resolved_cell()
-                            .emit();
-                            Ok(None)
                         }
-                    }
+                        Either::Right(_) => glob,
+                    })
                 })
-                .try_flat_join()
-                .await?;
+                .try_join()
+                .await?
+                .into_iter()
+                .partition_map(|either| either);
+
+            for issue in issues {
+                issue.resolved_cell().emit();
+            }
+
             return Ok(
                 SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
             );
@@ -134,15 +167,12 @@ async fn side_effects_from_package_json(
             SideEffectsInPackageJsonIssue {
                 // TODO(PACK-4879): This should point at the buggy value
                 source: IssueSource::from_source_only(ResolvedVc::upcast(package_json_file)),
-                description: Some(
-                    StyledString::Text(
-                        format!(
-                            "sideEffects must be a boolean or an array, but found {side_effects:?}"
-                        )
-                        .into(),
+                description: Some(StyledString::Text(
+                    format!(
+                        "sideEffects must be a boolean or an array, but found {side_effects:?}"
                     )
-                    .resolved_cell(),
-                ),
+                    .into(),
+                )),
             }
             .resolved_cell()
             .emit();
@@ -154,14 +184,14 @@ async fn side_effects_from_package_json(
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
     source: IssueSource,
-    description: Option<ResolvedVc<StyledString>>,
+    description: Option<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for SideEffectsInPackageJsonIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.into()
+        IssueStage::Parse.cell()
     }
 
     fn severity(&self) -> IssueSeverity {
@@ -180,7 +210,12 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description)
+        Vc::cell(
+            self.description
+                .as_ref()
+                .cloned()
+                .map(|s| s.resolved_cell()),
+        )
     }
 
     #[turbo_tasks::function]
@@ -189,13 +224,23 @@ impl Issue for SideEffectsInPackageJsonIssue {
     }
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Copy, Clone)]
+pub enum SideEffectsDeclaration {
+    SideEffectFree,
+    SideEffectful,
+    None,
+}
+
 #[turbo_tasks::function]
-pub async fn is_marked_as_side_effect_free(
+pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
-    side_effect_free_packages: Vc<Glob>,
-) -> Result<Vc<bool>> {
-    if side_effect_free_packages.await?.matches(&path.path) {
-        return Ok(Vc::cell(true));
+    side_effect_free_packages: Option<Vc<Glob>>,
+) -> Result<Vc<SideEffectsDeclaration>> {
+    if let Some(side_effect_free_packages) = side_effect_free_packages
+        && side_effect_free_packages.await?.matches(&path.path)
+    {
+        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
     }
 
     let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
@@ -203,17 +248,29 @@ pub async fn is_marked_as_side_effect_free(
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
         match *side_effects_from_package_json(package_json.clone()).await? {
             SideEffectsValue::None => {}
-            SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
+            SideEffectsValue::Constant(side_effects) => {
+                return Ok(if side_effects {
+                    SideEffectsDeclaration::SideEffectful
+                } else {
+                    SideEffectsDeclaration::SideEffectFree
+                }
+                .cell());
+            }
             SideEffectsValue::Glob(glob) => {
                 if let Some(rel_path) = package_json.parent().get_relative_path_to(&path) {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
-                    return Ok(Vc::cell(!glob.await?.matches(rel_path)));
+                    return Ok(if glob.await?.matches(rel_path) {
+                        SideEffectsDeclaration::SideEffectful
+                    } else {
+                        SideEffectsDeclaration::SideEffectFree
+                    }
+                    .cell());
                 }
             }
         }
     }
 
-    Ok(Vc::cell(false))
+    Ok(SideEffectsDeclaration::None.cell())
 }
 
 #[turbo_tasks::value(shared)]
@@ -236,6 +293,10 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// Returns whether this module should be split into separate locals and facade modules.
+    ///
+    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
+    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {

@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxDescription,
   openRedbox,
-  assertNoRedbox,
+  waitForNoRedbox,
   retry,
 } from 'next-test-utils'
 
@@ -13,11 +13,11 @@ describe('Cache Components Dev Errors', () => {
 
   it('should not show a red box error on the SSR render', async () => {
     const browser = await next.browser('/cached')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     let latestValue = await browser.elementByCss('#value').text()
 
     await browser.refresh()
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     let priorValue = latestValue
     latestValue = await browser.elementByCss('#value').text()
 
@@ -25,7 +25,7 @@ describe('Cache Components Dev Errors', () => {
 
     await browser.elementByCss('#refresh').click()
     await retry(async () => {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       let priorValue = latestValue
       latestValue = await browser.elementByCss('#value').text()
       expect(latestValue).not.toBe(priorValue)
@@ -33,7 +33,7 @@ describe('Cache Components Dev Errors', () => {
 
     await browser.elementByCss('#refresh').click()
     await retry(async () => {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       let priorValue = latestValue
       latestValue = await browser.elementByCss('#value').text()
       expect(latestValue).not.toBe(priorValue)
@@ -45,7 +45,7 @@ describe('Cache Components Dev Errors', () => {
 
     // await browser.elementByCss('#reload').click()
     // await retry(async () => {
-    //   await assertNoRedbox(browser)
+    //   await waitForNoRedbox(browser)
     //   let priorValue = latestValue
     //   latestValue = await browser.elementByCss('#value').text()
     //   expect(latestValue).toBe(priorValue)
@@ -53,7 +53,7 @@ describe('Cache Components Dev Errors', () => {
 
     // await browser.elementByCss('#reload').click()
     // await retry(async () => {
-    //   await assertNoRedbox(browser)
+    //   await waitForNoRedbox(browser)
     //   let priorValue = latestValue
     //   latestValue = await browser.elementByCss('#value').text()
     //   expect(latestValue).toBe(priorValue)
@@ -61,7 +61,7 @@ describe('Cache Components Dev Errors', () => {
 
     // await browser.elementByCss('#refresh').click()
     // await retry(async () => {
-    //   await assertNoRedbox(browser)
+    //   await waitForNoRedbox(browser)
     //   let priorValue = latestValue
     //   latestValue = await browser.elementByCss('#value').text()
     //   expect(latestValue).not.toBe(priorValue)
@@ -75,16 +75,12 @@ describe('Cache Components Dev Errors', () => {
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain(
-      'Route "/uncached": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it'
-    )
+    expect(desc).toContain('https://nextjs.org/docs/messages/blocking-route')
 
     await browser.refresh()
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain(
-      'Route "/uncached": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it'
-    )
+    expect(desc).toContain('https://nextjs.org/docs/messages/blocking-route')
   })
 })

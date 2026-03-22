@@ -5,6 +5,7 @@ import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provid
 
 import { DevAppNormalizers } from '../../normalizers/built/app'
 import { normalizeCatchAllRoutes } from '../../../build/normalize-catchall-routes'
+import { compareAppPaths } from '../../../shared/lib/router/utils/app-paths'
 
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
@@ -74,7 +75,7 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPaths = Object.fromEntries(
-      Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+      Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
     )
 
     const matchers: Array<AppPageRouteMatcher> = []

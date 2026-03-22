@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use swc_core::{
     atoms::{Atom, atom},
@@ -8,13 +8,14 @@ use swc_core::{
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
-        preset_env::{self, Targets},
+        preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
                 assumptions::Assumptions,
                 helpers::{HELPERS, HelperData, Helpers},
             },
             react::react,
+            typescript::{Config, typescript},
         },
         utils::IsDirective,
     },
@@ -33,9 +34,7 @@ pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
-        #[serde(default)]
         development: bool,
-        #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
         import_source: ResolvedVc<Option<RcStr>>,
@@ -45,17 +44,13 @@ pub enum EcmascriptInputTransform {
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
-        #[serde(default)]
         use_define_for_class_fields: bool,
+        verbatim_module_syntax: bool,
     },
     Decorators {
-        #[serde(default)]
         is_legacy: bool,
-        #[serde(default)]
         is_ecma: bool,
-        #[serde(default)]
         emit_decorators_metadata: bool,
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
 }
@@ -69,13 +64,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -146,10 +135,10 @@ impl EcmascriptInputTransform {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
                         _ => {
-                            return Err(anyhow::anyhow!(
+                            bail!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ));
+                            );
                         }
                     }
                 } else {
@@ -216,6 +205,13 @@ impl EcmascriptInputTransform {
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
                         mode: None, // Don't insert core-js polyfills
+                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
+                        // some idents references
+                        exclude: vec![
+                            FeatureOrModule::Feature(Feature::ReservedWords),
+                            FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                            FeatureOrModule::Feature(Feature::PropertyLiterals),
+                        ],
                         ..Default::default()
                     },
                 );
@@ -236,9 +232,12 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::TypeScript {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
+                verbatim_module_syntax,
             } => {
-                use swc_core::ecma::transforms::typescript::typescript;
-                let config = Default::default();
+                let config = Config {
+                    verbatim_module_syntax: *verbatim_module_syntax,
+                    ..Default::default()
+                };
                 apply_transform(
                     program,
                     helpers,

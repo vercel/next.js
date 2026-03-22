@@ -1,14 +1,18 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type {
+  NextConfigComplete,
+  NextConfigRuntime,
+} from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
-import type {
-  CustomRoutes,
-  Header,
-  Redirect,
-  Rewrite,
+import {
+  normalizeRouteRegex,
+  type CustomRoutes,
+  type Header,
+  type Redirect,
+  type Rewrite,
 } from '../lib/load-custom-routes'
 import type {
   EdgeFunctionDefinition,
@@ -40,9 +44,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { isValidElementType } from 'next/dist/compiled/react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import browserslist from 'next/dist/compiled/browserslist'
 import {
-  MODERN_BROWSERSLIST_TARGET,
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
@@ -72,11 +74,59 @@ import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
-import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
-import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
-import type { TurbopackResult } from './swc/types'
+import type {
+  AppRouteModule,
+  AppRouteRouteModule,
+} from '../server/route-modules/app-route/module'
+import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
+import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
+
+// Build a set of static metadata image filenames for quick lookup
+const staticMetadataImageFilenames = new Set<string>(
+  Object.values(STATIC_METADATA_IMAGES).map((meta) => meta.filename)
+)
+
+/**
+ * Get the display path for build output. For static metadata files under
+ * dynamic routes, this normalizes the path to use "-" placeholder.
+ * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
+ */
+function getTreeViewDisplayPath(pagePath: string): string {
+  // Check if the path contains dynamic segments
+  if (!isDynamicRoute(pagePath)) {
+    return pagePath
+  }
+
+  // Check if the filename is a static metadata image
+  const lastSlash = pagePath.lastIndexOf('/')
+  const filename = pagePath.slice(lastSlash + 1)
+  const dotIndex = filename.lastIndexOf('.')
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
+
+  // Check against known static metadata image filenames (e.g., icon, apple-icon, opengraph-image)
+  if (!staticMetadataImageFilenames.has(baseName)) {
+    return pagePath
+  }
+
+  // Transform using fillMetadataSegment with isStatic=true
+  const segment = pagePath.slice(0, lastSlash)
+  const lastSegment = filename
+  return fillMetadataSegment(segment, {}, lastSegment, true)
+}
 
 export type ROUTER_TYPE = 'pages' | 'app'
+
+export type DynamicManifestRoute = ManifestRoute & {
+  /**
+   * The source page that this route is based on. This is used to determine the
+   * source page for the route and is only relevant for app pages where PPR is
+   * enabled and the page differs from the source page.
+   */
+  sourcePage: string | undefined
+}
 
 // Use `print()` for expected console output
 const print = console.log
@@ -112,7 +162,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
@@ -179,71 +229,6 @@ export function collectRoutesUsingEdgeRuntime(
   return routesUsingEdgeRuntime
 }
 
-/**
- * Processes and categorizes build issues, then logs them as warnings, errors, or fatal errors.
- * Stops execution if fatal issues are encountered.
- *
- * @param entrypoints - The result object containing build issues to process.
- * @param isDev - A flag indicating if the build is running in development mode.
- * @return This function does not return a value but logs or throws errors based on the issues.
- * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
- *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
- */
-export function printBuildErrors(
-  entrypoints: TurbopackResult,
-  isDev: boolean
-): void {
-  // Issues that we want to stop the server from executing
-  const topLevelFatalIssues = []
-  // Issues that are true errors, but we believe we can keep running and allow the user to address the issue
-  const topLevelErrors = []
-  // Issues that are warnings but should not affect the running of the build
-  const topLevelWarnings = []
-
-  for (const issue of entrypoints.issues) {
-    // We only want to completely shut down the server
-    if (issue.severity === 'fatal' || issue.severity === 'bug') {
-      topLevelFatalIssues.push(formatIssue(issue))
-    } else if (isRelevantWarning(issue)) {
-      topLevelWarnings.push(formatIssue(issue))
-    } else if (issue.severity === 'error') {
-      if (isDev) {
-        // We want to treat errors as recoverable in development
-        // so that we can show the errors in the site and allow users
-        // to respond to the errors when necessary. In production builds
-        // though we want to error out and stop the build process.
-        topLevelErrors.push(formatIssue(issue))
-      } else {
-        topLevelFatalIssues.push(formatIssue(issue))
-      }
-    }
-  }
-  // TODO: print in order by source location so issues from the same file are displayed together and then add a summary at the end about the number of warnings/errors
-  if (topLevelWarnings.length > 0) {
-    console.warn(
-      `Turbopack build encountered ${
-        topLevelWarnings.length
-      } warnings:\n${topLevelWarnings.join('\n')}`
-    )
-  }
-
-  if (topLevelErrors.length > 0) {
-    console.error(
-      `Turbopack build encountered ${
-        topLevelErrors.length
-      } errors:\n${topLevelErrors.join('\n')}`
-    )
-  }
-
-  if (topLevelFatalIssues.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${
-        topLevelFatalIssues.length
-      } errors:\n${topLevelFatalIssues.join('\n')}`
-    )
-  }
-}
-
 export async function printTreeView(
   lists: {
     pages: ReadonlyArray<string>
@@ -254,6 +239,7 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     middlewareManifest,
+    functionsConfigManifest,
     useStaticPages404,
     hasGSPAndRevalidateZero,
   }: {
@@ -261,6 +247,7 @@ export async function printTreeView(
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
     middlewareManifest: MiddlewareManifest
+    functionsConfigManifest: FunctionsConfigManifest
     useStaticPages404: boolean
     hasGSPAndRevalidateZero: Set<string>
   }
@@ -375,10 +362,12 @@ export async function printTreeView(
         symbol = 'ƒ'
       }
 
+      const displayPath = getTreeViewDisplayPath(item)
+
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
         messages.push([
-          `${border} ƒ ${item}${
+          `${border} ƒ ${displayPath}${
             totalDuration > MIN_DURATION
               ? ` (${getPrettyDuration(totalDuration)})`
               : ''
@@ -395,7 +384,7 @@ export async function printTreeView(
       usedSymbols.add(symbol)
 
       messages.push([
-        `${border} ${symbol} ${item}${
+        `${border} ${symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -410,7 +399,7 @@ export async function printTreeView(
 
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
-        const contSymbol = i === arr.length - 1 ? ' ' : '├'
+        const contSymbol = i === arr.length - 1 ? ' ' : '│'
 
         // HERE
 
@@ -462,7 +451,7 @@ export async function printTreeView(
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol}   ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -513,8 +502,12 @@ export async function printTreeView(
     list: lists.pages,
   })
 
-  const middlewareInfo = middlewareManifest.middleware?.['/']
-  if (middlewareInfo?.files.length > 0) {
+  if (
+    middlewareManifest.middleware?.['/']?.files.length > 0 ||
+    // 'nodejs' runtime middleware or proxy is set to
+    // functions-config-manifest instead of middleware-manifest.
+    functionsConfigManifest.functions?.['/_middleware']
+  ) {
     messages.push([])
     messages.push(['ƒ Proxy (Middleware)'])
   }
@@ -564,13 +557,14 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
+  onMatchHeaders,
 }: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
-    type: 'Redirects' | 'Rewrites' | 'Headers'
+    type: 'Redirects' | 'Rewrites' | 'Headers' | 'On Match Headers'
   ) => {
     const isRedirects = type === 'Redirects'
-    const isHeaders = type === 'Headers'
+    const isHeaders = type === 'Headers' || type === 'On Match Headers'
     print(underline(type))
 
     /*
@@ -623,6 +617,9 @@ export function printCustomRoutes({
   if (headers.length) {
     printRoutes(headers, 'Headers')
   }
+  if (onMatchHeaders.length) {
+    printRoutes(onMatchHeaders, 'On Match Headers')
+  }
 
   const combinedRewrites = [
     ...rewrites.beforeFiles,
@@ -664,13 +661,15 @@ export async function isPageStatic({
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
-  maxMemoryCacheSize,
+  cacheMaxMemorySize,
   nextConfigOutput,
   cacheHandler,
   cacheHandlers,
   cacheLifeProfiles,
   pprConfig,
+  partialFallbacksEnabled,
   buildId,
+  clientAssetToken,
   sriEnabled,
 }: {
   dir: string
@@ -688,7 +687,7 @@ export async function isPageStatic({
   pageRuntime?: ServerRuntime
   originalAppPath?: string
   isrFlushToDisk?: boolean
-  maxMemoryCacheSize?: number
+  cacheMaxMemorySize: number
   cacheHandler?: string
   cacheHandlers?: Record<string, string | undefined>
   cacheLifeProfiles?: {
@@ -696,7 +695,9 @@ export async function isPageStatic({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacksEnabled: boolean
   buildId: string
+  clientAssetToken: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
@@ -720,7 +721,7 @@ export async function isPageStatic({
     distDir,
     dir,
     flushToDisk: isrFlushToDisk,
-    cacheMaxMemorySize: maxMemoryCacheSize,
+    cacheMaxMemorySize,
   })
 
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
@@ -750,6 +751,7 @@ export async function isPageStatic({
           name: edgeInfo.name,
           useCache: true,
           distDir,
+          clientAssetToken,
         })
         const mod = (
           await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
@@ -790,7 +792,9 @@ export async function isPageStatic({
       let isRoutePPREnabled: boolean = false
 
       if (pageType === 'app') {
-        const ComponentMod: AppPageModule = componentsResult.ComponentMod
+        // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
+        const ComponentMod: AppPageModule | AppRouteModule =
+          componentsResult.ComponentMod
 
         let segments: AppSegment[]
         try {
@@ -832,26 +836,30 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
+        const route = parseAppRoute(page, true)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
-        if (isDynamicRoute(page) && !pathIsEdgeRuntime) {
+        if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
           ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
             await buildAppStaticPaths({
               dir,
               page,
+              route,
               cacheComponents,
               authInterrupts,
               segments,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
-              maxMemoryCacheSize,
+              cacheMaxMemorySize,
               cacheHandler,
               cacheLifeProfiles,
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              partialFallbacksEnabled,
               buildId,
               rootParamKeys,
             }))
@@ -1036,11 +1044,14 @@ export async function hasCustomGetInitialProps({
   let mod = ComponentMod
 
   if (checkingApp) {
+    // @ts-expect-error very dynamic code
     mod = (await mod._app) || mod.default || mod
   } else {
+    // @ts-expect-error very dynamic code
     mod = mod.default || mod
   }
   mod = await mod
+  // @ts-expect-error very dynamic code
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
@@ -1063,7 +1074,7 @@ export async function getDefinedNamedExports({
   })
 
   return Object.keys(ComponentMod).filter((key) => {
-    return typeof ComponentMod[key] !== 'undefined'
+    return typeof ComponentMod[key as keyof typeof ComponentMod] !== 'undefined'
   })
 }
 
@@ -1161,7 +1172,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfigComplete,
+  serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
@@ -1179,7 +1190,10 @@ export async function copyTracedFiles(
   }
   try {
     const packageJsonPath = path.join(distDir, '../package.json')
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf8')
+    const packageJsonContent = await fs.readFile(
+      /* turbopackIgnore: true */ packageJsonPath,
+      'utf8'
+    )
     const packageJson = JSON.parse(packageJsonContent)
     moduleType = packageJson.type === 'module'
 
@@ -1196,7 +1210,9 @@ export async function copyTracedFiles(
   const copiedFiles = new Set()
 
   async function handleTraceFiles(traceFilePath: string) {
-    const traceData = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as {
+    const traceData = JSON.parse(
+      await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
+    ) as {
       files: string[]
     }
     const copySema = new Sema(10, { capacity: traceData.files.length })
@@ -1221,9 +1237,29 @@ export async function copyTracedFiles(
           if (symlink) {
             try {
               await fs.symlink(symlink, fileOutputPath)
-            } catch (e: any) {
-              if (e.code !== 'EEXIST') {
-                throw e
+            } catch (err: any) {
+              // Windows doesn't support creating symlinks without elevated privileges, unless
+              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
+              // creating a junction point instead.
+              //
+              // Ideally we'd just preserve the input file type (junction point or symlink), but
+              // there's no API in node.js to differentiate between a junction point and a symlink,
+              // so we just try making a symlink first. Symlinks are preferred because they support
+              // relative paths and non-directory (file) targets.
+              if (
+                process.platform === 'win32' &&
+                err.code === 'EPERM' &&
+                path.isAbsolute(symlink)
+              ) {
+                try {
+                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                } catch (junctionErr: any) {
+                  if (junctionErr.code !== 'EEXIST') {
+                    throw junctionErr
+                  }
+                }
+              } else if (err.code !== 'EEXIST') {
+                throw err
               }
             }
           } else {
@@ -1401,6 +1437,10 @@ export function isMiddlewareFile(file: string) {
   )
 }
 
+export function isProxyFile(file: string) {
+  return file === `/${PROXY_FILENAME}` || file === `/src/${PROXY_FILENAME}`
+}
+
 export function isInstrumentationHookFile(file: string) {
   return (
     file === `/${INSTRUMENTATION_HOOK_FILENAME}` ||
@@ -1452,30 +1492,7 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
-export function getSupportedBrowsers(
-  dir: string,
-  isDevelopment: boolean
-): string[] {
-  let browsers: any
-  try {
-    const browsersListConfig = browserslist.loadConfig({
-      path: dir,
-      env: isDevelopment ? 'development' : 'production',
-    })
-    // Running `browserslist` resolves `extends` and other config features into a list of browsers
-    if (browsersListConfig && browsersListConfig.length > 0) {
-      browsers = browserslist(browsersListConfig)
-    }
-  } catch {}
-
-  // When user has browserslist use that target
-  if (browsers && browsers.length > 0) {
-    return browsers
-  }
-
-  // Uses modern browsers as the default.
-  return MODERN_BROWSERSLIST_TARGET
-}
+export { getSupportedBrowsers } from './get-supported-browsers'
 
 export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
@@ -1568,3 +1585,39 @@ export function collectMeta({
 export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
   `^(|${[WEBPACK_LAYERS.pagesDirBrowser, WEBPACK_LAYERS.pagesDirEdge, WEBPACK_LAYERS.pagesDirNode].join('|')})$`
 )
+
+/**
+ * Converts a page to a manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @returns A route object.
+ */
+export function pageToRoute(page: string): ManifestRoute
+/**
+ * Converts a page to a dynamic manifest route.
+ *
+ * @param page The page to convert to a route.
+ * @param sourcePage The source page that this route is based on. This is used
+ * to determine the source page for the route and is only relevant for app
+ * pages when PPR is enabled on them.
+ * @returns A route object.
+ */
+export function pageToRoute(
+  page: string,
+  sourcePage: string | undefined
+): DynamicManifestRoute
+export function pageToRoute(
+  page: string,
+  sourcePage?: string
+): DynamicManifestRoute | ManifestRoute {
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
+  return {
+    sourcePage,
+    page,
+    regex: normalizeRouteRegex(routeRegex.re.source),
+    routeKeys: routeRegex.routeKeys,
+    namedRegex: routeRegex.namedRegex,
+  }
+}

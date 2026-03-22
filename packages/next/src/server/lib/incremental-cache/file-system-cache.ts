@@ -17,7 +17,6 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
@@ -231,10 +230,13 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             let rscData: Buffer | undefined
-            if (!ctx.isFallback) {
+            if (
+              !ctx.isFallback &&
+              (!ctx.isRoutePPREnabled || meta?.postponed == null)
+            ) {
               rscData = await this.fs.readFile(
                 this.getFilePath(
-                  `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                  `${key}${RSC_SUFFIX}`,
                   IncrementalCacheKind.APP_PAGE
                 )
               )
@@ -377,6 +379,7 @@ export default class FileSystemCache implements CacheHandler {
         status: data.status,
         postponed: undefined,
         segmentPaths: undefined,
+        prefetchHints: undefined,
       }
 
       writer.append(
@@ -396,16 +399,10 @@ export default class FileSystemCache implements CacheHandler {
       writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!ctx.fetchCache && !ctx.isFallback) {
+      if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {
         writer.append(
           this.getFilePath(
-            `${key}${
-              isAppPath
-                ? ctx.isRoutePPREnabled
-                  ? RSC_PREFETCH_SUFFIX
-                  : RSC_SUFFIX
-                : NEXT_DATA_SUFFIX
-            }`,
+            `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
             isAppPath
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES
@@ -436,6 +433,7 @@ export default class FileSystemCache implements CacheHandler {
           status: data.status,
           postponed: data.postponed,
           segmentPaths,
+          prefetchHints: undefined,
         }
 
         writer.append(

@@ -242,9 +242,13 @@
       }
       children = null;
       void 0 !== maybeKey &&
-        (checkKeyStringCoercion(maybeKey), (children = "" + maybeKey));
+        (maybeKey === REACT_OPTIMISTIC_KEY
+          ? (children = REACT_OPTIMISTIC_KEY)
+          : (checkKeyStringCoercion(maybeKey), (children = "" + maybeKey)));
       hasValidKey(config) &&
-        (checkKeyStringCoercion(config.key), (children = "" + config.key));
+        (config.key === REACT_OPTIMISTIC_KEY
+          ? (children = REACT_OPTIMISTIC_KEY)
+          : (checkKeyStringCoercion(config.key), (children = "" + config.key)));
       if ("key" in config) {
         maybeKey = {};
         for (var propName in config)
@@ -300,6 +304,7 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       ReactSharedInternals =
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,

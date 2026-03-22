@@ -44,6 +44,8 @@ In terms of nesting, `template.js` is rendered between a layout and its children
 </Layout>
 ```
 
+In the [component hierarchy](/docs/app/getting-started/project-structure#component-hierarchy), `template.js` renders between `layout.js` and `error.js`. It wraps `error.js`, `loading.js`, `not-found.js`, and `page.js`, but does **not** wrap the `layout.js` in the same segment.
+
 ## Props
 
 ### `children` (required)

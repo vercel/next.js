@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 
-import { headers as nextHeaders, draftMode } from 'next/headers'
+import { unstable_cache } from 'next/cache'
+import { headers as nextHeaders } from 'next/headers'
+
+const getCachedValue = unstable_cache(
+  async () => Math.random().toString(),
+  ['proxy-cache-probe']
+)
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -20,9 +26,11 @@ export async function proxy(request) {
     throw new Error('Expected headers from client to match')
   }
 
-  if (request.nextUrl.searchParams.get('draft')) {
-    ;(await draftMode()).enable()
-  }
+  // Cannot set draftMode in nodejs runtime
+  // TODO: Investigate https://github.com/vercel/next.js/pull/85174
+  // if (request.nextUrl.searchParams.get('draft')) {
+  //   ;(await draftMode()).enable()
+  // }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
   if (removeHeaders) {
@@ -76,6 +84,11 @@ export async function proxy(request) {
       },
     })
     return res
+  }
+
+  if (request.nextUrl.pathname === '/unstable-cache') {
+    const value = await getCachedValue()
+    return NextResponse.json({ value })
   }
 
   if (request.nextUrl.pathname === '/test-location-header') {

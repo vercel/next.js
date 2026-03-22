@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, hasErrorToast } from 'next-test-utils'
+import { waitForNoRedbox, hasErrorToast } from 'next-test-utils'
 
 describe('ssr-only-error', () => {
   const { next } = nextTestSetup({
@@ -12,6 +12,7 @@ describe('ssr-only-error', () => {
     // TODO(veil): Missing Owner Stack (NDX-905)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "SSR only error",
        "environmentLabel": null,
        "label": "Runtime Error",
@@ -30,7 +31,7 @@ describe('ssr-only-error', () => {
       pushErrorAsConsoleLog: true,
     })
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     expect(await hasErrorToast(browser)).toBe(false)
 
     const text = await browser.elementByCss('body').text()

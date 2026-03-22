@@ -4,7 +4,7 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{File, json::parse_json_with_source_context};
+use turbo_tasks_fs::{File, FileContent, json::parse_json_with_source_context};
 use turbopack_core::{
     asset::AssetContent,
     introspect::{Introspectable, IntrospectableChildren},
@@ -183,9 +183,8 @@ impl GetContentSourceContent for IntrospectionSource {
         .into();
         Ok(ContentSourceContent::static_content(
             AssetContent::file(
-                File::from(html)
-                    .with_content_type(mime::TEXT_HTML_UTF_8)
-                    .into(),
+                FileContent::Content(File::from(html).with_content_type(mime::TEXT_HTML_UTF_8))
+                    .cell(),
             )
             .versioned(),
         ))

@@ -16,5 +16,5 @@ export default async function Page({
 }
 
 export function generateStaticParams({ params }: { params: { lang: string } }) {
-  return params.lang === 'fr' ? [{ slug: '1' }] : []
+  return params.lang === 'fr' ? [{ slug: '1' }] : [{ slug: 'foo' }]
 }

@@ -1,0 +1,81 @@
+[
+    Member {
+        obj: Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+        prop: Constant(
+            Str(
+                Atom(
+                    "name",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Class,
+            ),
+            ClassDecl(
+                Class,
+            ),
+            Class(
+                Body(
+                    0,
+                ),
+            ),
+            ClassMember(
+                ClassProp,
+            ),
+            ClassProp(
+                Value,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 39..48,
+    },
+    FreeVar {
+        var: "this",
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                This,
+            ),
+        ],
+        span: 243..247,
+    },
+]

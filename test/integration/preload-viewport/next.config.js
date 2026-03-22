@@ -1,7 +1,4 @@
 module.exports = {
-  generateBuildId() {
-    return 'test-build'
-  },
   rewrites() {
     return [
       {

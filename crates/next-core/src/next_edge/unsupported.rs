@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     ident::AssetIdent,
@@ -52,7 +52,10 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
                 unsupported_module_source(lookup_path.root().owned().await?, module.clone())
                     .to_resolved()
                     .await?;
-            Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell())
+            Ok(ImportMapResult::Result(
+                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+            )
+            .cell())
         } else {
             Ok(ImportMapResult::NoEntry.cell())
         }
@@ -69,7 +72,7 @@ fn unsupported_module_source(root_path: FileSystemPath, module: Pattern) -> Vc<V
         "#,
         module = module.as_constant_string().map(ToString::to_string).unwrap_or_else(|| module.describe_as_string()),
     };
-    let content = AssetContent::file(File::from(code).into());
+    let content = AssetContent::file(FileContent::Content(File::from(code)).cell());
     VirtualSource::new_with_ident(
         AssetIdent::from_path(root_path).with_modifier(
             format!("unsupported edge import {}", module.describe_as_string()).into(),

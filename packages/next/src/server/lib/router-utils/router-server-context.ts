@@ -1,10 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { NextConfigComplete } from '../../config-shared'
+import type { NextConfigRuntime } from '../../config-shared'
 import type { UrlWithParsedQuery } from 'node:url'
+import type { ServerCacheStatus } from '../../../next-devtools/dev-overlay/cache-indicator'
 
 export type RevalidateFn = (config: {
   urlPath: string
-  revalidateHeaders: { [key: string]: string | string[] }
+  headers: { [key: string]: string | string[] }
   opts: { unstable_onlyGenerated?: boolean }
 }) => Promise<void>
 
@@ -29,7 +30,7 @@ export type RouterServerContext = Record<
       setHeaders?: boolean
     ) => Promise<void>
     // exposing nextConfig for dev mode specifically
-    nextConfig?: NextConfigComplete
+    nextConfig?: NextConfigRuntime
     // whether running in custom server mode
     isCustomServer?: boolean
     // whether test proxy is enabled
@@ -43,6 +44,13 @@ export type RouterServerContext = Record<
       htmlRequestId: string,
       requestId: string
     ) => void
+    setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
+    sendErrorsToBrowser?: (
+      errorsRscStream: ReadableStream<Uint8Array>,
+      htmlRequestId: string
+    ) => void
+    // indicates request handlers are already wrapped by next-server tracing
+    isWrappedByNextServer?: boolean
   }
 >
 

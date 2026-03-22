@@ -2,8 +2,11 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  // Some flag to enable react@experimental
-  experimental: { taint: true },
+  cacheComponents: true,
+  experimental: {
+    // Future but produces bad results.
+    reactDebugChannel: false,
+  },
 }
 
 module.exports = nextConfig

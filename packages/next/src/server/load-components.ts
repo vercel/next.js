@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   AppType,
   DocumentType,
@@ -29,8 +30,7 @@ import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { evalManifest, loadManifest } from './load-manifest.external'
 import { wait } from '../lib/wait'
-import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
-import { createServerModuleMap } from './app-render/action-utils'
+import { setManifestsSingleton } from './app-render/manifests-singleton'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
@@ -59,15 +59,25 @@ export interface LoadableManifest {
   [k: string]: { id: string | number; files: string[] }
 }
 
-export type LoadComponentsReturnType<NextModule = any> = {
+export type GenericComponentMod = {
+  handler(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+    }
+  ): Promise<void | null>
+}
+
+export type LoadComponentsReturnType<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
   Component: NextComponentType
   pageConfig: PageConfig
   buildManifest: DeepReadonly<BuildManifest>
   subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
   reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
   dynamicCssManifest?: DeepReadonly<DynamicCssManifest>
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
-  serverActionsManifest?: any
   Document: DocumentType
   App: AppType
   getStaticProps?: GetStaticProps
@@ -136,7 +146,7 @@ async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
-) {
+): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
@@ -147,7 +157,9 @@ async function tryLoadClientReferenceManifest(
   }
 }
 
-async function loadComponentsImpl<N = any>({
+async function loadComponentsImpl<
+  N extends GenericComponentMod = GenericComponentMod,
+>({
   distDir,
   page,
   isAppPath,
@@ -279,13 +291,10 @@ async function loadComponentsImpl<N = any>({
     // manifests to our global store so Server Action's encryption util can access
     // to them at the top level of the page module.
     if (serverActionsManifest && clientReferenceManifest) {
-      setReferenceManifestsSingleton({
+      setManifestsSingleton({
         page,
         clientReferenceManifest,
         serverActionsManifest,
-        serverModuleMap: createServerModuleMap({
-          serverActionsManifest,
-        }),
       })
     }
 
@@ -299,7 +308,9 @@ async function loadComponentsImpl<N = any>({
       ComponentMod
 
     return {
+      // @ts-expect-error this is indeed `{} || AppType` and not always `AppType`
       App,
+      // @ts-expect-error this is indeed `{} || DocumentType` and not always `DocumentType`
       Document,
       Component,
       buildManifest,
@@ -311,8 +322,6 @@ async function loadComponentsImpl<N = any>({
       getServerSideProps,
       getStaticProps,
       getStaticPaths,
-      clientReferenceManifest,
-      serverActionsManifest,
       isAppPath,
       page,
       routeModule,

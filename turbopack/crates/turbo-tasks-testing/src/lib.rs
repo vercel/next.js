@@ -11,14 +11,15 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
     ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
     test_helpers::with_turbo_tasks_for_testing,
@@ -154,6 +155,16 @@ impl TurboTasksCallApi for VcStorage {
     ) {
         unreachable!()
     }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        format!("Task({})", task)
+    }
 }
 
 impl TurboTasksApi for VcStorage {
@@ -185,7 +196,7 @@ impl TurboTasksApi for VcStorage {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
                 Ok(vc) => Ok(Ok(*vc)),
-                Err(err) => Err(anyhow!(err.clone())),
+                Err(err) => bail!(err.clone()),
             },
         }
     }
@@ -261,7 +272,15 @@ impl TurboTasksApi for VcStorage {
         .into_typed(index.type_id))
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        _is_serializable_cell_content: bool,
+        content: CellContent,
+        _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        _verification_mode: VerificationMode,
+    ) {
         let mut map = self.cells.lock().unwrap();
         let cell = map.entry((task, index)).or_default();
         *cell = content;
@@ -279,14 +298,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
-        // no-op
-    }
-
-    fn detached_for_testing(
+    fn spawn_detached_for_testing(
         &self,
-        _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unimplemented!()
     }
 
@@ -304,12 +319,6 @@ impl TurboTasksApi for VcStorage {
         &self,
         _event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>> {
-        unimplemented!()
-    }
-
-    /// Should not be called on the testing VcStorage. These methods are only implemented for
-    /// structs with access to a `MessageQueue` like `TurboTasks`.
-    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
     }
 

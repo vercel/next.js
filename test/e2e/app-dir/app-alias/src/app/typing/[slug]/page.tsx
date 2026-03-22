@@ -8,5 +8,5 @@ export async function generateStaticParams({
   params: { slug: string }
 }) {
   console.log(params)
-  return []
+  return [{ slug: 'foo' }]
 }

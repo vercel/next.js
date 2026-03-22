@@ -315,7 +315,15 @@ const plugin = (options: any = {}) => {
 
               const [pathname, query, hashOrQuery] = url.split(/(\?)?#/, 3)
 
-              let hash = query ? '?' : ''
+              let hash = ''
+
+              // Build query string with deployment ID before the hash fragment
+              if (query || options.deploymentId) {
+                hash += '?'
+              }
+              if (options.deploymentId) {
+                hash += `dpl=${options.deploymentId}`
+              }
               hash += hashOrQuery ? `#${hashOrQuery}` : ''
 
               const { needToResolveURL, rootContext } = options

@@ -28,11 +28,11 @@ describe('use-cache-custom-handler', () => {
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
@@ -58,12 +58,16 @@ describe('use-cache-custom-handler', () => {
     // Because we use a low `revalidate` value for the "use cache" function, new
     // data should be returned eventually.
 
-    await retry(async () => {
-      await browser.refresh()
-      data = await browser.elementById('data').text()
-      expect(data).toMatch(isoDateRegExp)
-      expect(data).not.toEqual(initialData)
-    }, 5000)
+    await retry(
+      async () => {
+        await browser.refresh()
+        data = await browser.elementById('data').text()
+        expect(data).toMatch(isoDateRegExp)
+        expect(data).not.toEqual(initialData)
+      },
+      10_000,
+      2_000
+    )
   })
 
   it('calls neither refreshTags nor getExpiration if "use cache" is not used', async () => {
@@ -122,7 +126,7 @@ describe('use-cache-custom-handler', () => {
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
-        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]{21}","([0-9a-f]{2})+",\[{"id":"dynamic-cache"},"\$undefined"\]\]/
+        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
       )
     })
   }

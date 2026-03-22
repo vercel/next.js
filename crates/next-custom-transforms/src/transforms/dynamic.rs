@@ -5,17 +5,17 @@ use std::{
 
 use pathdiff::diff_paths;
 use swc_core::{
-    atoms::{atom, Atom},
-    common::{errors::HANDLER, FileName, Span, DUMMY_SP},
+    atoms::{Atom, Wtf8Atom, atom},
+    common::{DUMMY_SP, FileName, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee,
-            Expr, ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
+            ArrayLit, ArrowExpr, BinExpr, BlockStmt, BlockStmtOrExpr, Bool, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, Id, Ident, IdentName, ImportDecl, ImportNamedSpecifier,
             ImportSpecifier, KeyValueProp, Lit, ModuleDecl, ModuleItem, ObjectLit, Pass, Prop,
-            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp,
+            PropName, PropOrSpread, Stmt, Str, Tpl, UnaryExpr, UnaryOp, op,
         },
-        utils::{private_ident, quote_ident, ExprFactory},
-        visit::{fold_pass, Fold, FoldWith, VisitMut, VisitMutWith},
+        utils::{ExprFactory, private_ident, quote_ident},
+        visit::{VisitMut, VisitMutWith, visit_mut_pass},
     },
     quote,
 };
@@ -34,7 +34,7 @@ pub fn next_dynamic(
     filename: Arc<FileName>,
     pages_or_app_dir: Option<PathBuf>,
 ) -> impl Pass {
-    fold_pass(NextDynamicPatcher {
+    visit_mut_pass(NextDynamicPatcher {
         is_development,
         is_server_compiler,
         is_react_server_layer,
@@ -91,7 +91,7 @@ struct NextDynamicPatcher {
     filename: Arc<FileName>,
     dynamic_bindings: Vec<Id>,
     is_next_dynamic_first_arg: bool,
-    dynamically_imported_specifier: Option<(Atom, Span)>,
+    dynamically_imported_specifier: Option<(Wtf8Atom, Span)>,
     state: NextDynamicPatcherState,
 }
 
@@ -111,36 +111,30 @@ enum NextDynamicPatcherState {
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum TurbopackImport {
     // TODO do we need more variants? server vs client vs dev vs prod?
-    Import { id_ident: Ident, specifier: Atom },
+    Import {
+        id_ident: Ident,
+        specifier: Wtf8Atom,
+    },
 }
 
-impl Fold for NextDynamicPatcher {
-    fn fold_module_items(&mut self, mut items: Vec<ModuleItem>) -> Vec<ModuleItem> {
-        items = items.fold_children_with(self);
+impl VisitMut for NextDynamicPatcher {
+    fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
+        items.visit_mut_children_with(self);
 
-        self.maybe_add_dynamically_imported_specifier(&mut items);
-
-        items
+        self.maybe_add_dynamically_imported_specifier(items);
     }
 
-    fn fold_import_decl(&mut self, decl: ImportDecl) -> ImportDecl {
-        let ImportDecl {
-            ref src,
-            ref specifiers,
-            ..
-        } = decl;
-        if &src.value == "next/dynamic" {
-            for specifier in specifiers {
+    fn visit_mut_import_decl(&mut self, decl: &mut ImportDecl) {
+        if &decl.src.value == "next/dynamic" {
+            for specifier in &decl.specifiers {
                 if let ImportSpecifier::Default(default_specifier) = specifier {
                     self.dynamic_bindings.push(default_specifier.local.to_id());
                 }
             }
         }
-
-        decl
     }
 
-    fn fold_call_expr(&mut self, expr: CallExpr) -> CallExpr {
+    fn visit_mut_call_expr(&mut self, expr: &mut CallExpr) {
         if self.is_next_dynamic_first_arg {
             if let Callee::Import(..) = &expr.callee {
                 match &*expr.args[0].expr {
@@ -149,43 +143,44 @@ impl Fold for NextDynamicPatcher {
                     }
                     Expr::Tpl(Tpl { exprs, quasis, .. }) if exprs.is_empty() => {
                         self.dynamically_imported_specifier =
-                            Some((quasis[0].raw.clone(), quasis[0].span));
+                            Some((quasis[0].raw.clone().into(), quasis[0].span));
                     }
                     _ => {}
                 }
             }
-            return expr.fold_children_with(self);
+            expr.visit_mut_children_with(self);
+            return;
         }
-        let mut expr = expr.fold_children_with(self);
-        if let Callee::Expr(i) = &expr.callee {
-            if let Expr::Ident(identifier) = &**i {
-                if self.dynamic_bindings.contains(&identifier.to_id()) {
-                    if expr.args.is_empty() {
+
+        expr.visit_mut_children_with(self);
+
+        if let Callee::Expr(i) = &expr.callee
+            && let Expr::Ident(identifier) = &**i
+            && self.dynamic_bindings.contains(&identifier.to_id())
+        {
+            if expr.args.is_empty() {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            identifier.span,
+                            "next/dynamic requires at least one argument",
+                        )
+                        .emit()
+                });
+                return;
+            } else if expr.args.len() > 2 {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(identifier.span, "next/dynamic only accepts 2 arguments")
+                        .emit()
+                });
+                return;
+            }
+            if expr.args.len() == 2 {
+                match &*expr.args[1].expr {
+                    Expr::Object(_) => {}
+                    _ => {
                         HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    identifier.span,
-                                    "next/dynamic requires at least one argument",
-                                )
-                                .emit()
-                        });
-                        return expr;
-                    } else if expr.args.len() > 2 {
-                        HANDLER.with(|handler| {
-                            handler
-                                .struct_span_err(
-                                    identifier.span,
-                                    "next/dynamic only accepts 2 arguments",
-                                )
-                                .emit()
-                        });
-                        return expr;
-                    }
-                    if expr.args.len() == 2 {
-                        match &*expr.args[1].expr {
-                            Expr::Object(_) => {}
-                            _ => {
-                                HANDLER.with(|handler| {
                           handler
                               .struct_span_err(
                                   identifier.span,
@@ -193,230 +188,216 @@ impl Fold for NextDynamicPatcher {
                               )
                               .emit();
                       });
-                                return expr;
-                            }
-                        }
-                    }
-
-                    self.is_next_dynamic_first_arg = true;
-                    expr.args[0].expr = expr.args[0].expr.clone().fold_with(self);
-                    self.is_next_dynamic_first_arg = false;
-
-                    let Some((dynamically_imported_specifier, dynamically_imported_specifier_span)) =
-                        self.dynamically_imported_specifier.take()
-                    else {
-                        return expr;
-                    };
-
-                    let project_dir = match self.pages_or_app_dir.as_deref() {
-                        Some(pages_or_app) => pages_or_app.parent(),
-                        _ => None,
-                    };
-
-                    let generated = Box::new(Expr::Object(ObjectLit {
-                        span: DUMMY_SP,
-                        props: match &mut self.state {
-                            NextDynamicPatcherState::Webpack => {
-                                // dev client or server:
-                                // loadableGenerated: {
-                                //   modules:
-                                // ["/project/src/file-being-transformed.js -> " +
-                                // '../components/hello'] }
-                                //
-                                // prod client
-                                // loadableGenerated: {
-                                //   webpack: () => [require.resolveWeak('../components/hello')],
-                                if self.is_development || self.is_server_compiler {
-                                    module_id_options(quote!(
-                                        "$left + $right" as Expr,
-                                        left: Expr = format!(
-                                            "{} -> ",
-                                            rel_filename(project_dir, &self.filename)
-                                        )
-                                        .into(),
-                                        right: Expr = dynamically_imported_specifier.clone().into(),
-                                    ))
-                                } else {
-                                    webpack_options(quote!(
-                                        "require.resolveWeak($id)" as Expr,
-                                        id: Expr = dynamically_imported_specifier.clone().into()
-                                    ))
-                                }
-                            }
-
-                            NextDynamicPatcherState::Turbopack { imports, .. } => {
-                                // loadableGenerated: { modules: [
-                                // ".../client.js [app-client] (ecmascript, next/dynamic entry)"
-                                // ]}
-                                let id_ident =
-                                    private_ident!(dynamically_imported_specifier_span, "id");
-
-                                imports.push(TurbopackImport::Import {
-                                    id_ident: id_ident.clone(),
-                                    specifier: dynamically_imported_specifier.clone(),
-                                });
-
-                                module_id_options(Expr::Ident(id_ident))
-                            }
-                        },
-                    }));
-
-                    let mut props =
-                        vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                            key: PropName::Ident(IdentName::new(
-                                atom!("loadableGenerated"),
-                                DUMMY_SP,
-                            )),
-                            value: generated,
-                        })))];
-
-                    let mut has_ssr_false = false;
-
-                    if expr.args.len() == 2 {
-                        if let Expr::Object(ObjectLit {
-                            props: options_props,
-                            ..
-                        }) = &*expr.args[1].expr
-                        {
-                            for prop in options_props.iter() {
-                                if let Some(KeyValueProp { key, value }) = match prop {
-                                    PropOrSpread::Prop(prop) => match &**prop {
-                                        Prop::KeyValue(key_value_prop) => Some(key_value_prop),
-                                        _ => None,
-                                    },
-                                    _ => None,
-                                } {
-                                    if let Some(IdentName { sym, span: _ }) = match key {
-                                        PropName::Ident(ident) => Some(ident),
-                                        _ => None,
-                                    } {
-                                        if sym == "ssr" {
-                                            if let Some(Lit::Bool(Bool {
-                                                value: false,
-                                                span: _,
-                                            })) = value.as_lit()
-                                            {
-                                                has_ssr_false = true
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            props.extend(options_props.iter().cloned());
-                        }
-                    }
-
-                    let should_skip_ssr_compile = has_ssr_false
-                        && self.is_server_compiler
-                        && !self.is_react_server_layer
-                        && self.prefer_esm;
-
-                    match &self.state {
-                        NextDynamicPatcherState::Webpack => {
-                            // Only use `require.resolveWebpack` to decouple modules for webpack,
-                            // turbopack doesn't need this
-
-                            // When it's not preferring to picking up ESM (in the pages router), we
-                            // don't need to do it as it doesn't need to enter the non-ssr module.
-                            //
-                            // Also transforming it to `require.resolveWeak` doesn't work with ESM
-                            // imports ( i.e. require.resolveWeak(esm asset)).
-                            if should_skip_ssr_compile {
-                                // if it's server components SSR layer
-                                // Transform 1st argument `expr.args[0]` aka the module loader from:
-                                // dynamic(() => import('./client-mod'), { ssr: false }))`
-                                // into:
-                                // dynamic(async () => {
-                                //   require.resolveWeak('./client-mod')
-                                // }, { ssr: false }))`
-
-                                let require_resolve_weak_expr = Expr::Call(CallExpr {
-                                    span: DUMMY_SP,
-                                    callee: quote_ident!("require.resolveWeak").as_callee(),
-                                    args: vec![ExprOrSpread {
-                                        spread: None,
-                                        expr: Box::new(Expr::Lit(Lit::Str(Str {
-                                            span: DUMMY_SP,
-                                            value: dynamically_imported_specifier.clone(),
-                                            raw: None,
-                                        }))),
-                                    }],
-                                    ..Default::default()
-                                });
-
-                                let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
-                                    span: DUMMY_SP,
-                                    params: vec![],
-                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts: vec![Stmt::Expr(ExprStmt {
-                                            span: DUMMY_SP,
-                                            expr: Box::new(exec_expr_when_resolve_weak_available(
-                                                &require_resolve_weak_expr,
-                                            )),
-                                        })],
-                                        ..Default::default()
-                                    })),
-                                    is_async: true,
-                                    is_generator: false,
-                                    ..Default::default()
-                                });
-
-                                expr.args[0] = side_effect_free_loader_arg.as_arg();
-                            }
-                        }
-                        NextDynamicPatcherState::Turbopack {
-                            dynamic_transition_name,
-                            ..
-                        } => {
-                            // When `ssr: false`
-                            // if it's server components SSR layer
-                            // Transform 1st argument `expr.args[0]` aka the module loader from:
-                            // dynamic(() => import('./client-mod'), { ssr: false }))`
-                            // into:
-                            // dynamic(async () => {}, { ssr: false }))`
-                            if should_skip_ssr_compile {
-                                let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
-                                    span: DUMMY_SP,
-                                    params: vec![],
-                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                        span: DUMMY_SP,
-                                        stmts: vec![],
-                                        ..Default::default()
-                                    })),
-                                    is_async: true,
-                                    is_generator: false,
-                                    ..Default::default()
-                                });
-
-                                expr.args[0] = side_effect_free_loader_arg.as_arg();
-                            } else {
-                                // Add `{with:{turbopack-transition: ...}}` to the dynamic import
-                                let mut visitor = DynamicImportTransitionAdder {
-                                    transition_name: dynamic_transition_name,
-                                };
-                                expr.args[0].visit_mut_with(&mut visitor);
-                            }
-                        }
-                    }
-
-                    let second_arg = ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Object(ObjectLit {
-                            span: DUMMY_SP,
-                            props,
-                        })),
-                    };
-
-                    if expr.args.len() == 2 {
-                        expr.args[1] = second_arg;
-                    } else {
-                        expr.args.push(second_arg)
+                        return;
                     }
                 }
             }
+
+            self.is_next_dynamic_first_arg = true;
+            expr.args[0].expr.visit_mut_with(self);
+            self.is_next_dynamic_first_arg = false;
+
+            let Some((dynamically_imported_specifier, dynamically_imported_specifier_span)) =
+                self.dynamically_imported_specifier.take()
+            else {
+                return;
+            };
+
+            let project_dir = match self.pages_or_app_dir.as_deref() {
+                Some(pages_or_app) => pages_or_app.parent(),
+                _ => None,
+            };
+
+            let generated = Box::new(Expr::Object(ObjectLit {
+                span: DUMMY_SP,
+                props: match &mut self.state {
+                    NextDynamicPatcherState::Webpack => {
+                        // dev client or server:
+                        // loadableGenerated: {
+                        //   modules:
+                        // ["/project/src/file-being-transformed.js -> " +
+                        // '../components/hello'] }
+                        //
+                        // prod client
+                        // loadableGenerated: {
+                        //   webpack: () => [require.resolveWeak('../components/hello')],
+                        if self.is_development || self.is_server_compiler {
+                            module_id_options(quote!(
+                                "$left + $right" as Expr,
+                                left: Expr = format!(
+                                    "{} -> ",
+                                    rel_filename(project_dir, &self.filename)
+                                )
+                                .into(),
+                                right: Expr = dynamically_imported_specifier.clone().into(),
+                            ))
+                        } else {
+                            webpack_options(quote!(
+                                "require.resolveWeak($id)" as Expr,
+                                id: Expr = dynamically_imported_specifier.clone().into()
+                            ))
+                        }
+                    }
+
+                    NextDynamicPatcherState::Turbopack { imports, .. } => {
+                        // loadableGenerated: { modules: [
+                        // ".../client.js [app-client] (ecmascript, next/dynamic entry)"
+                        // ]}
+                        let id_ident = private_ident!(dynamically_imported_specifier_span, "id");
+
+                        imports.push(TurbopackImport::Import {
+                            id_ident: id_ident.clone(),
+                            specifier: dynamically_imported_specifier.clone(),
+                        });
+
+                        module_id_options(Expr::Ident(id_ident))
+                    }
+                },
+            }));
+
+            let mut props = vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(IdentName::new(atom!("loadableGenerated"), DUMMY_SP)),
+                value: generated,
+            })))];
+
+            let mut has_ssr_false = false;
+
+            if expr.args.len() == 2
+                && let Expr::Object(ObjectLit {
+                    props: options_props,
+                    ..
+                }) = &*expr.args[1].expr
+            {
+                for prop in options_props.iter() {
+                    if let Some(KeyValueProp { key, value }) = match prop {
+                        PropOrSpread::Prop(prop) => match &**prop {
+                            Prop::KeyValue(key_value_prop) => Some(key_value_prop),
+                            _ => None,
+                        },
+                        _ => None,
+                    } && let Some(IdentName { sym, span: _ }) = match key {
+                        PropName::Ident(ident) => Some(ident),
+                        _ => None,
+                    } && sym == "ssr"
+                        && let Some(Lit::Bool(Bool {
+                            value: false,
+                            span: _,
+                        })) = value.as_lit()
+                    {
+                        has_ssr_false = true
+                    }
+                }
+                props.extend(options_props.iter().cloned());
+            }
+
+            let should_skip_ssr_compile = has_ssr_false
+                && self.is_server_compiler
+                && !self.is_react_server_layer
+                && self.prefer_esm;
+
+            match &self.state {
+                NextDynamicPatcherState::Webpack => {
+                    // Only use `require.resolveWebpack` to decouple modules for webpack,
+                    // turbopack doesn't need this
+
+                    // When it's not preferring to picking up ESM (in the pages router), we
+                    // don't need to do it as it doesn't need to enter the non-ssr module.
+                    //
+                    // Also transforming it to `require.resolveWeak` doesn't work with ESM
+                    // imports ( i.e. require.resolveWeak(esm asset)).
+                    if should_skip_ssr_compile {
+                        // if it's server components SSR layer
+                        // Transform 1st argument `expr.args[0]` aka the module loader from:
+                        // dynamic(() => import('./client-mod'), { ssr: false }))`
+                        // into:
+                        // dynamic(async () => {
+                        //   require.resolveWeak('./client-mod')
+                        // }, { ssr: false }))`
+
+                        let require_resolve_weak_expr = Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("require.resolveWeak").as_callee(),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                    span: DUMMY_SP,
+                                    value: dynamically_imported_specifier.clone(),
+                                    raw: None,
+                                }))),
+                            }],
+                            ..Default::default()
+                        });
+
+                        let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![Stmt::Expr(ExprStmt {
+                                    span: DUMMY_SP,
+                                    expr: Box::new(exec_expr_when_resolve_weak_available(
+                                        &require_resolve_weak_expr,
+                                    )),
+                                })],
+                                ..Default::default()
+                            })),
+                            is_async: true,
+                            is_generator: false,
+                            ..Default::default()
+                        });
+
+                        expr.args[0] = side_effect_free_loader_arg.as_arg();
+                    }
+                }
+                NextDynamicPatcherState::Turbopack {
+                    dynamic_transition_name,
+                    ..
+                } => {
+                    // When `ssr: false`
+                    // if it's server components SSR layer
+                    // Transform 1st argument `expr.args[0]` aka the module loader from:
+                    // dynamic(() => import('./client-mod'), { ssr: false }))`
+                    // into:
+                    // dynamic(async () => {}, { ssr: false }))`
+                    if should_skip_ssr_compile {
+                        let side_effect_free_loader_arg = Expr::Arrow(ArrowExpr {
+                            span: DUMMY_SP,
+                            params: vec![],
+                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![],
+                                ..Default::default()
+                            })),
+                            is_async: true,
+                            is_generator: false,
+                            ..Default::default()
+                        });
+
+                        expr.args[0] = side_effect_free_loader_arg.as_arg();
+                    } else {
+                        // Add `{with:{turbopack-transition: ...}}` to the dynamic import
+                        let mut visitor = DynamicImportTransitionAdder {
+                            transition_name: dynamic_transition_name,
+                        };
+                        expr.args[0].visit_mut_with(&mut visitor);
+                    }
+                }
+            }
+
+            let second_arg = ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Object(ObjectLit {
+                    span: DUMMY_SP,
+                    props,
+                })),
+            };
+
+            if expr.args.len() == 2 {
+                expr.args[1] = second_arg;
+            } else {
+                expr.args.push(second_arg)
+            }
         }
-        expr
     }
 }
 
@@ -541,7 +522,7 @@ impl NextDynamicPatcher {
 fn exec_expr_when_resolve_weak_available(expr: &Expr) -> Expr {
     let undefined_str_literal = Expr::Lit(Lit::Str(Str {
         span: DUMMY_SP,
-        value: atom!("undefined"),
+        value: atom!("undefined").into(),
         raw: None,
     }));
 

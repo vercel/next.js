@@ -1,6 +1,7 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -11,69 +12,66 @@ use turbopack_core::{
     },
 };
 
+#[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub enum TsConfigHandling {
+    /// Ignore tsconfig and jsconfig files.
+    Disabled,
+    #[default]
+    /// Find corresponding tsconfig files based on the location of the file.
+    ContextFile,
+    /// Use the provided config file for all files if it exists, otherwise fall back to the
+    /// [`Self::ContextFile`] behavior.
+    Fixed(FileSystemPath),
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
-    #[serde(default)]
+    /// - Overrides `options.node_externals`
+    /// - Appends `environment.resolve_conditions`
+    /// - Overrides `options.extensions`
     pub emulate_environment: Option<ResolvedVc<Environment>>,
-    #[serde(default)]
     pub enable_types: bool,
-    #[serde(default)]
     pub enable_typescript: bool,
-    #[serde(default)]
     pub enable_react: bool,
-    #[serde(default)]
     pub enable_node_native_modules: bool,
-    #[serde(default)]
     // Enable resolving of .mjs files without the .mjs extension
     pub enable_mjs_extension: bool,
-    #[serde(default)]
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
     pub enable_node_modules: Option<FileSystemPath>,
-    #[serde(default)]
     /// A specific path to a tsconfig.json file to use for resolving modules. If `None`, one will
     /// be looked up through the filesystem
-    pub tsconfig_path: Option<FileSystemPath>,
-    #[serde(default)]
+    pub tsconfig_path: TsConfigHandling,
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
     pub enable_node_externals: bool,
     /// Mark well-known Edge modules as external imports and load them using
     /// native `require`. e.g. buffer, events, assert
     pub enable_edge_node_externals: bool,
-    #[serde(default)]
     /// Enables the "browser" field and export condition in package.json
     pub browser: bool,
-    #[serde(default)]
     /// Enables the "module" field and export condition in package.json
     pub module: bool,
-    #[serde(default)]
     pub custom_conditions: Vec<RcStr>,
-    #[serde(default)]
     pub custom_extensions: Option<Vec<RcStr>>,
-    #[serde(default)]
     /// An additional import map to use when resolving modules.
     ///
     /// If set, this import map will be applied to `ResolveOption::import_map`.
     /// It is always applied last, so any mapping defined within will take
     /// precedence over any other (e.g. tsconfig.json `compilerOptions.paths`).
     pub import_map: Option<ResolvedVc<ImportMap>>,
-    #[serde(default)]
     /// An import map to fall back to when a request could not be resolved.
     ///
     /// If set, this import map will be applied to
     /// `ResolveOption::fallback_import_map`. It is always applied last, so
     /// any mapping defined within will take precedence over any other.
     pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
-    #[serde(default)]
     /// An additional resolved map to use after modules have been resolved.
     pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
-    #[serde(default)]
     /// A list of rules to use a different resolve option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ResolveOptionsContext>)>,
-    #[serde(default)]
     /// Plugins which get applied before and after resolving.
     pub after_resolve_plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
@@ -82,7 +80,6 @@ pub struct ResolveOptionsContext {
     /// Collect affecting sources for each resolve result.  Useful for tracing.
     pub collect_affecting_sources: bool,
 
-    #[serde(default)]
     pub placeholder_for_future_extensions: (),
 }
 
@@ -96,8 +93,8 @@ impl ResolveOptionsContext {
         Ok(Self::cell(clone))
     }
 
-    /// Returns a new [Vc<ResolveOptionsContext>] with its import map extended
-    /// to include the given import map.
+    /// Returns a new [`Vc<ResolveOptionsContext>`][Self] with its import map extended to include
+    /// the given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -112,11 +109,11 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptionsContext>] with its fallback import map
-    /// extended to include the given import map.
+    /// Returns a new [`Vc<ResolveOptionsContext>`][Self] with its fallback import map extended to
+    /// include the given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,
@@ -133,7 +130,7 @@ impl ResolveOptionsContext {
                 .to_resolved()
                 .await?,
         );
-        Ok(resolve_options_context.into())
+        Ok(resolve_options_context.cell())
     }
 }
 

@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { assertNoRedbox, renderViaHTTP } from 'next-test-utils'
+import { waitForNoRedbox, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
@@ -89,7 +89,7 @@ describe('Type module interop', () => {
 
   it('should render client-side', async () => {
     const browser = await webdriver(next.url, '/')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await browser.close()
   })
 
@@ -101,7 +101,7 @@ describe('Type module interop', () => {
 
   it('should render client-side with modules', async () => {
     const browser = await webdriver(next.url, '/modules')
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await browser.close()
   })
 })

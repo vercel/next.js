@@ -1,15 +1,11 @@
+import * as inspector from 'node:inspector'
 import { dim } from '../../lib/picocolors'
 import {
   consoleAsyncStorage,
   type ConsoleStore,
 } from '../app-render/console-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-
-type GetCacheSignal = () => AbortSignal | null
-const cacheSignals: Array<GetCacheSignal> = []
-export function registerGetCacheSignal(getSignal: GetCacheSignal): void {
-  cacheSignals.push(getSignal)
-}
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- we may use later and want parity with the HIDDEN_STYLE value
 const DIMMED_STYLE = 'dimmed'
@@ -147,6 +143,16 @@ function convertToDimmedArgs(
   methodName: InterceptableConsoleMethod,
   args: any[]
 ): any[] {
+  // When the Node.js inspector is open (e.g. --inspect), skip dimming entirely.
+  // Dimming wraps arguments in a format string which defeats inspector
+  // affordances such as collapsible objects and clickable/linkified stack
+  // traces. Ideally we would only skip dimming when a debugger frontend is
+  // actually attached, but Node.js does not expose a synchronous API for that.
+  // Detecting would require async polling of the /json/list HTTP endpoint.
+  if (inspector.url() !== undefined) {
+    return args
+  }
+
   switch (methodName) {
     case 'dir':
     case 'dirxml':
@@ -191,33 +197,32 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
       // the server React cacheSignal implementation. Any particular console call will be in one, the other, or neither
       // scope and these signals return null if you are out of scope so this can be called from a single global patch
       // and still work properly.
-      for (let i = 0; i < cacheSignals.length; i++) {
-        const signal = cacheSignals[i]() // try to get a signal from registered functions
-        if (signal) {
-          // We are in a React Server render and can consult the React cache signal to determine if logs
-          // are now dimmable.
-          if (signal.aborted) {
-            if (currentAbortedLogsStyle === HIDDEN_STYLE) {
-              return
-            }
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
-          } else if (consoleStore?.dim === true) {
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
-          } else {
-            return originalMethod.apply(this, args)
+      const signal =
+        getClientReact()?.cacheSignal() ?? getServerReact()?.cacheSignal()
+      if (signal) {
+        // We are in a React Server render and can consult the React cache signal to determine if logs
+        // are now dimmable.
+        if (signal.aborted) {
+          if (currentAbortedLogsStyle === HIDDEN_STYLE) {
+            return
           }
+          return applyWithDimming.call(
+            this,
+            consoleStore,
+            originalMethod,
+            methodName,
+            args
+          )
+        } else if (consoleStore?.dim === true) {
+          return applyWithDimming.call(
+            this,
+            consoleStore,
+            originalMethod,
+            methodName,
+            args
+          )
+        } else {
+          return originalMethod.apply(this, args)
         }
       }
 
@@ -234,6 +239,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
         // fallthrough
         case 'prerender-client':
+        case 'validation-client': {
           // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
           const renderSignal = workUnitStore.renderSignal
           if (renderSignal.aborted) {
@@ -248,6 +254,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
               args
             )
           }
+        }
         // intentional fallthrough
         case 'prerender-legacy':
         case 'prerender-ppr':
@@ -255,6 +262,7 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
         case 'unstable-cache':
         case 'private-cache':
         case 'request':
+        case 'generate-static-params':
         case undefined:
           if (consoleStore?.dim === true) {
             return applyWithDimming.call(

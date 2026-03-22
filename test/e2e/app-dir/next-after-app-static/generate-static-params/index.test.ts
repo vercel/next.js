@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
-import { assertNoRedbox, retry } from '../../../../lib/next-test-utils'
+import { waitForNoRedbox, retry } from '../../../../lib/next-test-utils'
 
 describe('after() in generateStaticParams', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -31,7 +31,7 @@ describe('after() in generateStaticParams', () => {
       const browser = await next.browser('/one/a')
 
       expect(await browser.elementByCss('body').text()).toBe('Param: a')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       await retry(async () => {
         expect(Log.readCliLogs(getLogs())).toContainEqual({
           source: '[generateStaticParams] /one/[myParam]',
@@ -40,7 +40,7 @@ describe('after() in generateStaticParams', () => {
 
       await browser.get(new URL('/two/d', next.url).href)
       expect(await browser.elementByCss('body').text()).toBe('Param: d')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
       await retry(async () => {
         expect(Log.readCliLogs(getLogs())).toContainEqual({
           source: '[generateStaticParams] /two/[myParam]',

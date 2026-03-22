@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
+import semver from 'semver'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { createParserFromPath } from '../lib/parser'
 import { white, bold, red, yellow, green, magenta } from 'picocolors'
@@ -128,6 +129,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   const root = j(configContent)
 
   // Track if we need to add imports and preserve other configs
+  let needsNext = false
   let needsNextVitals = false
   let needsNextTs = false
   let otherConfigs: string[] = []
@@ -147,7 +149,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       // Check arguments for all configs
       node.arguments.forEach((arg: any) => {
         if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-          if (arg.value === 'next/core-web-vitals') {
+          if (arg.value === 'next') {
+            needsNext = true
+          } else if (arg.value === 'next/core-web-vitals') {
             needsNextVitals = true
           } else if (arg.value === 'next/typescript') {
             needsNextTs = true
@@ -183,7 +187,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
                   element.type === 'Literal' ||
                   element.type === 'StringLiteral'
                 ) {
-                  if (element.value === 'next/core-web-vitals') {
+                  if (element.value === 'next') {
+                    needsNext = true
+                  } else if (element.value === 'next/core-web-vitals') {
                     needsNextVitals = true
                   } else if (element.value === 'next/typescript') {
                     needsNextTs = true
@@ -200,7 +206,12 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     }
   })
 
-  if (!needsNextVitals && !needsNextTs && otherConfigs.length === 0) {
+  if (
+    !needsNext &&
+    !needsNextVitals &&
+    !needsNextTs &&
+    otherConfigs.length === 0
+  ) {
     console.warn(
       prefixes.warn,
       '   No ESLint configs found in FlatCompat usage'
@@ -208,7 +219,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     return false
   }
 
-  if (!needsNextVitals && !needsNextTs) {
+  if (!needsNext && !needsNextVitals && !needsNextTs) {
     console.log('   No Next.js configs found, but preserving other configs')
   }
 
@@ -255,7 +266,16 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Add new imports after the eslint/config import
   const imports = []
 
-  // Add imports in correct order: core-web-vitals first, then typescript
+  // Add imports in correct order: next first, then core-web-vitals, then typescript
+  if (needsNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
+      )
+    )
+  }
+
   if (needsNextVitals) {
     imports.push(
       j.importDeclaration(
@@ -313,7 +333,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       const replacements = []
       node.argument.arguments.forEach((arg: any) => {
         if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-          if (arg.value === 'next/core-web-vitals') {
+          if (arg.value === 'next') {
+            replacements.push(j.spreadElement(j.identifier('next')))
+          } else if (arg.value === 'next/core-web-vitals') {
             replacements.push(
               j.spreadElement(j.identifier('nextCoreWebVitals'))
             )
@@ -380,7 +402,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
                   element.type === 'Literal' ||
                   element.type === 'StringLiteral'
                 ) {
-                  if (element.value === 'next/core-web-vitals') {
+                  if (element.value === 'next') {
+                    replacements.push(j.spreadElement(j.identifier('next')))
+                  } else if (element.value === 'next/core-web-vitals') {
                     replacements.push(
                       j.spreadElement(j.identifier('nextCoreWebVitals'))
                     )
@@ -463,7 +487,9 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
         const replacements = []
         prop.value.arguments.forEach((arg: any) => {
           if (arg.type === 'Literal' || arg.type === 'StringLiteral') {
-            if (arg.value === 'next/core-web-vitals') {
+            if (arg.value === 'next') {
+              replacements.push(j.spreadElement(j.identifier('next')))
+            } else if (arg.value === 'next/core-web-vitals') {
               replacements.push(
                 j.spreadElement(j.identifier('nextCoreWebVitals'))
               )
@@ -569,6 +595,7 @@ function updateExistingFlatConfig(
   }
 
   // Check if Next.js configs are already imported directly
+  const hasNext = configContent.includes('eslint-config-next')
   const hasNextVitals = configContent.includes(
     'eslint-config-next/core-web-vitals'
   )
@@ -645,6 +672,15 @@ function updateExistingFlatConfig(
   const program = root.find(j.Program)
   const imports = []
 
+  if (!hasNext) {
+    imports.push(
+      j.importDeclaration(
+        [j.importDefaultSpecifier(j.identifier('next'))],
+        j.literal('eslint-config-next')
+      )
+    )
+  }
+
   if (!hasNextVitals) {
     imports.push(
       j.importDeclaration(
@@ -674,6 +710,9 @@ function updateExistingFlatConfig(
   }
 
   const spreadsToAdd = []
+  if (!hasNext) {
+    spreadsToAdd.push(j.spreadElement(j.identifier('next')))
+  }
   if (!hasNextVitals) {
     spreadsToAdd.push(j.spreadElement(j.identifier('nextCoreWebVitals')))
   }
@@ -958,6 +997,30 @@ function updatePackageJsonScripts(packageJsonContent: string): {
         packageJson.dependencies?.next || packageJson.devDependencies?.next
       packageJson.devDependencies['eslint-config-next'] =
         nextVersion || 'latest'
+      needsUpdate = true
+    }
+
+    // Bump eslint to v9 for full Flat config support
+    if (
+      packageJson.dependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.dependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.dependencies['eslint'] = '^9'
+      needsUpdate = true
+    }
+    if (
+      packageJson.devDependencies?.['eslint'] &&
+      semver.lt(
+        semver.minVersion(packageJson.devDependencies['eslint'])?.version ??
+          '0.0.0',
+        '9.0.0'
+      )
+    ) {
+      packageJson.devDependencies['eslint'] = '^9'
       needsUpdate = true
     }
 

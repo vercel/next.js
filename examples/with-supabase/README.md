@@ -22,7 +22,7 @@
 - Works across the entire [Next.js](https://nextjs.org) stack
   - App Router
   - Pages Router
-  - Middleware
+  - Proxy
   - Client
   - Server
   - It just works!

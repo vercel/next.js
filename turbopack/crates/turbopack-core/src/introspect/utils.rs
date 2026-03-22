@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexSet, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
@@ -8,8 +8,8 @@ use super::{
 };
 use crate::{
     asset::AssetContent,
-    chunk::{ChunkableModuleReference, ChunkingType},
-    output::OutputAssets,
+    chunk::ChunkingType,
+    output::OutputAssetsWithReferenced,
     reference::{ModuleReference, ModuleReferences},
 };
 
@@ -68,25 +68,20 @@ pub async fn children_from_module_references(
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
-        let key = if let Some(chunkable) =
-            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference)
-        {
-            match &*chunkable.chunking_type().await? {
-                None => key.clone(),
-                Some(ChunkingType::Parallel { inherit_async, .. }) => {
-                    if *inherit_async {
-                        parallel_inherit_async_reference_ty()
-                    } else {
-                        parallel_reference_ty()
-                    }
+        let trait_ref = reference.into_trait_ref().await?;
+        let key = match &trait_ref.chunking_type() {
+            None => key.clone(),
+            Some(ChunkingType::Parallel { inherit_async, .. }) => {
+                if *inherit_async {
+                    parallel_inherit_async_reference_ty()
+                } else {
+                    parallel_reference_ty()
                 }
-                Some(ChunkingType::Async) => async_reference_ty(),
-                Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
-                Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
-                Some(ChunkingType::Traced) => traced_reference_ty(),
             }
-        } else {
-            key.clone()
+            Some(ChunkingType::Async) => async_reference_ty(),
+            Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
+            Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
+            Some(ChunkingType::Traced) => traced_reference_ty(),
         };
 
         for &module in reference
@@ -121,11 +116,11 @@ pub async fn children_from_module_references(
 
 #[turbo_tasks::function]
 pub async fn children_from_output_assets(
-    references: Vc<OutputAssets>,
+    references: Vc<OutputAssetsWithReferenced>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
     let mut children = FxIndexSet::default();
-    let references = references.await?;
+    let references = references.expand_all_assets().await?;
     for &reference in &*references {
         children.insert((
             key.clone(),

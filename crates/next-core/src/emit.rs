@@ -1,14 +1,11 @@
 use anyhow::Result;
-use tracing::{Instrument, Level, Span};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-};
+use tracing::Instrument;
+use turbo_tasks::{TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
 };
 
 /// Emits all assets transitively reachable from the given chunks, that are
@@ -41,7 +38,7 @@ pub async fn emit_all_assets(
 /// path.
 #[turbo_tasks::function]
 pub async fn emit_assets(
-    assets: Vc<OutputAssets>,
+    assets: Vc<ExpandedOutputAssets>,
     node_root: FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
@@ -112,99 +109,4 @@ async fn emit_rebase(
         .as_side_effect()
         .await?;
     Ok(())
-}
-
-struct OutputAssetVisit {
-    emit_spans: bool,
-}
-impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)> for OutputAssetVisit {
-    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
-    type EdgesIntoIter = Vec<Self::Edge>;
-    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
-
-    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
-        VisitControlFlow::Continue(edge)
-    }
-
-    fn edges(
-        &mut self,
-        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
-    ) -> Self::EdgesFuture {
-        get_referenced_assets(self.emit_spans, node.0)
-    }
-
-    fn span(
-        &mut self,
-        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
-    ) -> tracing::Span {
-        if let Some(ident) = &node.1 {
-            tracing::trace_span!("asset", name = display(ident))
-        } else {
-            Span::current()
-        }
-    }
-}
-
-/// Walks the asset graph from multiple assets and collect all referenced
-/// assets.
-#[turbo_tasks::function]
-pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
-    let emit_spans = tracing::enabled!(Level::INFO);
-    Ok(Vc::cell(
-        AdjacencyMap::new()
-            .skip_duplicates()
-            .visit(
-                entries
-                    .await?
-                    .iter()
-                    .map(async |asset| {
-                        Ok((
-                            *asset,
-                            if emit_spans {
-                                // INVALIDATION: we don't need to invalidate when the span name
-                                // changes
-                                Some(asset.path_string().untracked().await?)
-                            } else {
-                                None
-                            },
-                        ))
-                    })
-                    .try_join()
-                    .await?,
-                OutputAssetVisit { emit_spans },
-            )
-            .await
-            .completed()?
-            .into_inner()
-            .into_postorder_topological()
-            .map(|(asset, _)| asset)
-            .collect::<FxIndexSet<_>>()
-            .into_iter()
-            .collect(),
-    ))
-}
-
-/// Computes the list of all chunk children of a given chunk.
-async fn get_referenced_assets(
-    emit_spans: bool,
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
-    asset
-        .references()
-        .await?
-        .iter()
-        .map(async |asset| {
-            Ok((
-                *asset,
-                if emit_spans {
-                    // INVALIDATION: we don't need to invalidate the list of assets when the span
-                    // name changes
-                    Some(asset.path_string().untracked().await?)
-                } else {
-                    None
-                },
-            ))
-        })
-        .try_join()
-        .await
 }

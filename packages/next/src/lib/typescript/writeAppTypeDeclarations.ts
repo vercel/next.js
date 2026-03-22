@@ -8,12 +8,16 @@ export async function writeAppTypeDeclarations({
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
+  strictRouteTypes,
+  typedRoutes,
 }: {
   baseDir: string
   distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
+  strictRouteTypes: boolean
+  typedRoutes: boolean
 }): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -42,17 +46,17 @@ export async function writeAppTypeDeclarations({
    *
    * @see https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html
    */
-  const directives: string[] = [
+  const lines: string[] = [
     // Include the core Next.js typings.
     '/// <reference types="next" />',
   ]
 
   if (imageImportsEnabled) {
-    directives.push('/// <reference types="next/image-types/global" />')
+    lines.push('/// <reference types="next/image-types/global" />')
   }
 
   if (hasAppDir && hasPagesDir) {
-    directives.push(
+    lines.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
   }
@@ -63,16 +67,38 @@ export async function writeAppTypeDeclarations({
   )
 
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
-  directives.push(`import "./${routeTypesPath}";`)
+  lines.push(`import "./${routeTypesPath}";`)
+
+  if (strictRouteTypes) {
+    const cacheLifePath = path.posix.join(
+      distDir.replaceAll(path.win32.sep, path.posix.sep),
+      'types/cache-life.d.ts'
+    )
+    lines.push(`import "./${cacheLifePath}";`)
+
+    const routeValidatorPath = path.posix.join(
+      distDir.replaceAll(path.win32.sep, path.posix.sep),
+      'types/validator.ts'
+    )
+    lines.push(`import "./${routeValidatorPath}";`)
+
+    if (typedRoutes === true) {
+      const linkTypesPath = path.posix.join(
+        distDir.replaceAll(path.win32.sep, path.posix.sep),
+        'types/link.d.ts'
+      )
+      lines.push(`import "./${linkTypesPath}";`)
+    }
+  }
 
   // Push the notice in.
-  directives.push(
+  lines.push(
     '',
     '// NOTE: This file should not be edited',
     `// see https://nextjs.org/docs/${hasAppDir ? 'app' : 'pages'}/api-reference/config/typescript for more information.`
   )
 
-  const content = directives.join(eol) + eol
+  const content = lines.join(eol) + eol
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {

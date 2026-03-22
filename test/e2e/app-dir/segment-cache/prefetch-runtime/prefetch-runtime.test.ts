@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -7,7 +8,7 @@ describe('runtime prefetching', () => {
     files: __dirname,
   })
   if (isNextDev) {
-    it('disabled in development', () => {})
+    it('is skipped', () => {})
     return
   }
 
@@ -115,14 +116,6 @@ describe('runtime prefetching', () => {
       )
 
       await browser.back()
-
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/dynamic-params/456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
 
       // Navigate to the other page
       await act(async () => {
@@ -233,14 +226,6 @@ describe('runtime prefetching', () => {
       if (!isNextDeploy) {
         await browser.back()
 
-        // Reveal the link to the second page again. It should not be prefetched again
-        await act(async () => {
-          const linkToggle = await browser.elementByCss(
-            `input[data-link-accordion="/with-root-param/de/${prefix}/root-params"]`
-          )
-          await linkToggle.click()
-        }, 'no-requests')
-
         // Navigate to the other page
         await act(async () => {
           await act(
@@ -347,14 +332,6 @@ describe('runtime prefetching', () => {
       )
 
       await browser.back()
-
-      // Reveal the link to the second page again. It should not be prefetched again
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/search-params?searchParam=456"]`
-        )
-        await linkToggle.click()
-      }, 'no-requests')
 
       // Navigate to the other page
       await act(
@@ -495,23 +472,9 @@ describe('runtime prefetching', () => {
       // Go back to the previous page
       await browser.back()
 
-      // Reveal the link again to trigger a runtime prefetch for the new value of the cookie
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-link-accordion="/${prefix}/cookies"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should allow reading dynamic params
-        {
-          includes: 'Cookie: updatedValue',
-        },
-        // Should not prefetch the dynamic content
-        {
-          includes: 'Dynamic content',
-          block: 'reject',
-        },
-      ])
+      // wait a tick before navigating
+      // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
+      await waitFor(2000)
 
       // Navigate to the page
       await act(async () => {
@@ -786,31 +749,16 @@ describe('runtime prefetching', () => {
 
       const DYNAMICALLY_PREFETCHABLE_CONTENT = 'Short-lived cached content'
 
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="${path}"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: staticContent,
-        },
-        // Should not include the short-lived cache
-        {
-          includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
-          block: 'reject',
-        },
-      ])
-
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
+          `input[data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
+        {
+          includes: staticContent,
+        },
         // Should include the short-lived cache
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
@@ -842,32 +790,10 @@ describe('runtime prefetching', () => {
       const STATIC_CONTENT = 'This page uses a short-lived public cache'
       const DYNAMIC_CONTENT = 'Short-lived cached content'
 
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/public-short-expire-short-stale"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
-        {
-          includes: DYNAMIC_CONTENT,
-          block: 'reject',
-        },
-      ])
-
       // Reveal the link to trigger a runtime prefetch.
-      // It'll essentially be the same as the static prefetch, because the only dynamic hole
-      // will be omitted from both.
-      // (NOTE: in the future, we might prevent scenarios like this via `generatePrefetch`)
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/public-short-expire-short-stale"]`
+          `input[data-link-accordion="/caches/public-short-expire-short-stale"]`
         )
         await linkToggle.click()
       }, [
@@ -924,29 +850,10 @@ describe('runtime prefetching', () => {
       const STATIC_CONTENT = 'This page uses a short-lived private cache'
       const DYNAMIC_CONTENT = 'Short-lived cached content'
 
-      // Reveal the link to trigger a static prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/private-short-stale"]`
-        )
-        await linkToggle.click()
-      }, [
-        // Should include the static shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
-        {
-          includes: DYNAMIC_CONTENT,
-          block: 'reject',
-        },
-      ])
-
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/private-short-stale"]`
+          `input[data-link-accordion="/caches/private-short-stale"]`
         )
         await linkToggle.click()
       }, [
@@ -992,12 +899,12 @@ describe('runtime prefetching', () => {
       // Try navigating again. The cache is private, so we should see a different timestamp
       await browser.back()
 
-      // Reveal the link again. The prefetch should be cached, so we shouldn't see any requests
+      // Hover the link again. The prefetch should be cached, so we shouldn't see any requests
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/caches/private-short-stale"]`
         )
-        await linkToggle.click()
+        await linkToggle.hover()
       }, 'no-requests')
 
       // Navigate to the page again
@@ -1040,17 +947,10 @@ describe('runtime prefetching', () => {
         description: 'when sync IO is used after awaiting headers()',
         path: '/errors/sync-io-after-runtime-api/headers',
       },
-      // TODO(dynamic-ppr):
-      // A tree prefetch for "/dynamic-params/123" currently causes it to be prerendered on demand,
-      // meaning that we end up statically prerendering it with all the params included.
-      // Because of this, `await params` doesn't hang in the static prerender, so we hit the sync IO error behind it.
-      // This error somehow causes an infinite redirect loop between two different `?_rsc` URLs.
-      // Investigate this separately or wait until we start always using fallback params for route trees.
-      //
-      // {
-      //   description: 'when sync IO is used after awaiting dynamic params',
-      //   path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
-      // },
+      {
+        description: 'when sync IO is used after awaiting dynamic params',
+        path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
+      },
       {
         description: 'when sync IO is used after awaiting searchParams',
         path: '/errors/sync-io-after-runtime-api/search-params?foo=bar',
@@ -1087,7 +987,7 @@ describe('runtime prefetching', () => {
         // Reveal the link to trigger a runtime prefetch
         await act(async () => {
           const linkToggle = await browser.elementByCss(
-            `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
+            `input[data-link-accordion="${path}"]`
           )
           await linkToggle.click()
         }, [
@@ -1154,7 +1054,7 @@ describe('runtime prefetching', () => {
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/errors/error-after-cookies"]`
+          `input[data-link-accordion="/errors/error-after-cookies"]`
         )
         await linkToggle.click()
       }, [

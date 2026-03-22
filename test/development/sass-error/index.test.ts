@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
@@ -21,7 +21,7 @@ describe('app dir - css', () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case
@@ -37,6 +37,11 @@ describe('app dir - css', () => {
              48 |
 
            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
+
+           Generated code of PostCSS transform of loaders [next/dist/build/webpack/loaders/resolve-url-loader/index, next/dist/compiled/sass-loader] transform of file content of app/global.scss:
+           ./app/global.scss.css:1:884
+           > 1 | ...ate(-50%, 0px)}input.defaultCheckbox::before path{fill:currentColor}input:checked.defaul...
+               |                                                ^
 
            Import trace:
              Client Component Browser:

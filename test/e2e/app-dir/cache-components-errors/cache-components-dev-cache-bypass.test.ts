@@ -12,6 +12,8 @@ describe('Cache Components Errors', () => {
   describe('Warning for Bypassing Caches in Dev', () => {
     if (isNextDev) {
       it('warns if you render with cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -26,20 +28,24 @@ describe('Cache Components Errors', () => {
       })
 
       it('warns if you render with cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
-        await next.fetch('/', {
+        await next.fetch('/other', {
           headers: { 'cache-control': 'no-cache', RSC: '1' },
         })
 
         expect(stripGetLines(next.cliOutput.slice(from)))
           .toMatchInlineSnapshot(`
-         "Route / is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
+         "Route /other is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev
          "
         `)
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/')
@@ -50,6 +56,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -62,6 +70,8 @@ describe('Cache Components Errors', () => {
       })
     } else {
       it('does not warn if you render with cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -74,6 +84,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render with cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -86,6 +98,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on initial page load in start', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/')
@@ -96,6 +110,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation in start', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {

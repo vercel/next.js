@@ -35,7 +35,7 @@ pub enum ChunkLoading {
     Edge,
     /// CommonJS in Node.js
     NodeJs,
-    /// <script> and <link> tags in the browser
+    /// `<script>` and `<link>` tags in the browser
     Dom,
 }
 

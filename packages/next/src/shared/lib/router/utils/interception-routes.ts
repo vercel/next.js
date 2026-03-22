@@ -8,6 +8,8 @@ export const INTERCEPTION_ROUTE_MARKERS = [
   '(...)',
 ] as const
 
+export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
+
 export function isInterceptionRouteAppPath(path: string): boolean {
   // TODO-APP: add more serious validation
   return (

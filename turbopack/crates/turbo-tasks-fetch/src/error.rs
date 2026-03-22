@@ -86,7 +86,7 @@ impl Issue for FetchIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.into()
+        IssueStage::Load.cell()
     }
 
     #[turbo_tasks::function]
@@ -95,19 +95,28 @@ impl Issue for FetchIssue {
         let kind = &*self.kind.await?;
 
         Ok(Vc::cell(Some(
-            StyledString::Text(match kind {
-                FetchErrorKind::Connect => {
-                    format!("There was an issue establishing a connection while requesting {url}.")
-                        .into()
-                }
-                FetchErrorKind::Status(status) => {
-                    format!("Received response with status {status} when requesting {url}").into()
-                }
-                FetchErrorKind::Timeout => {
-                    format!("Connection timed out when requesting {url}").into()
-                }
-                FetchErrorKind::Other => format!("There was an issue requesting {url}").into(),
-            })
+            match kind {
+                FetchErrorKind::Connect => StyledString::Line(vec![
+                    StyledString::Text(rcstr!(
+                        "There was an issue establishing a connection while requesting "
+                    )),
+                    StyledString::Code(url.clone()),
+                ]),
+                FetchErrorKind::Status(status) => StyledString::Line(vec![
+                    StyledString::Text(rcstr!("Received response with status ")),
+                    StyledString::Code(RcStr::from(status.to_string())),
+                    StyledString::Text(rcstr!(" when requesting ")),
+                    StyledString::Code(url.clone()),
+                ]),
+                FetchErrorKind::Timeout => StyledString::Line(vec![
+                    StyledString::Text(rcstr!("Connection timed out when requesting ")),
+                    StyledString::Code(url.clone()),
+                ]),
+                FetchErrorKind::Other => StyledString::Line(vec![
+                    StyledString::Text(rcstr!("There was an issue requesting ")),
+                    StyledString::Code(url.clone()),
+                ]),
+            }
             .resolved_cell(),
         )))
     }

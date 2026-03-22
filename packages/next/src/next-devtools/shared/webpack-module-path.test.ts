@@ -1,5 +1,5 @@
 import {
-  formatFrameSourceFile,
+  formatStackFrameFile,
   isWebpackInternalResource,
 } from './webpack-module-path'
 
@@ -25,16 +25,16 @@ describe('webpack-module-path', () => {
 
   describe('formatFrameSourceFile', () => {
     it('should return the original file path', () => {
-      expect(formatFrameSourceFile('webpack-internal:///./src/hello.tsx')).toBe(
+      expect(formatStackFrameFile('webpack-internal:///./src/hello.tsx')).toBe(
         './src/hello.tsx'
       )
-      expect(formatFrameSourceFile('webpack://_N_E/./src/hello.tsx')).toBe(
+      expect(formatStackFrameFile('webpack://_N_E/./src/hello.tsx')).toBe(
         './src/hello.tsx'
       )
-      expect(formatFrameSourceFile('webpack://./src/hello.tsx')).toBe(
+      expect(formatStackFrameFile('webpack://./src/hello.tsx')).toBe(
         './src/hello.tsx'
       )
-      expect(formatFrameSourceFile('webpack:///./src/hello.tsx')).toBe(
+      expect(formatStackFrameFile('webpack:///./src/hello.tsx')).toBe(
         './src/hello.tsx'
       )
     })

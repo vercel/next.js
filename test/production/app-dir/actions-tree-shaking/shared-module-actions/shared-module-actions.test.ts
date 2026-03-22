@@ -1,38 +1,38 @@
-import { nextTestSetup } from 'e2e-utils'
 import {
+  nextTestSetupActionTreeShaking,
   getActionsRoutesStateByRuntime,
-  markLayoutAsEdge,
 } from '../_testing/utils'
 
 // TODO: revisit when we have a better side-effect free transform approach for server action
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - shared-module-actions',
   () => {
-    const { next } = nextTestSetup({
+    const { next } = nextTestSetupActionTreeShaking({
       files: __dirname,
     })
 
-    if (process.env.TEST_EDGE) {
-      markLayoutAsEdge(next)
-    }
-
     it('should not have the unused action in the manifest', async () => {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
-
-      expect(actionsRoutesState).toMatchObject({
-        'app/server/one/page': {
-          rsc: 3,
-        },
-        'app/server/two/page': {
-          rsc: 3,
-        },
-        'app/client/one/page': {
-          'action-browser': 1,
-        },
-        'app/client/two/page': {
-          'action-browser': 1,
-        },
-      })
+      expect(actionsRoutesState).toMatchInlineSnapshot(`
+       {
+         "app/client/one/page": [
+           "app/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/client/two/page": [
+           "app/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/server/one/page": [
+           "app/server/actions.js#sharedServerLayerAction",
+           "app/server/actions.js#unusedServerLayerAction1",
+           "app/server/actions.js#unusedServerLayerAction2",
+         ],
+         "app/server/two/page": [
+           "app/server/actions.js#sharedServerLayerAction",
+           "app/server/actions.js#unusedServerLayerAction1",
+           "app/server/actions.js#unusedServerLayerAction2",
+         ],
+       }
+      `)
     })
   }
 )
