@@ -2385,7 +2385,40 @@ export default async function getBaseWebpackConfig(
     })
   })
 
-  webpack5Config.cache = cache
+  if (isRspack) {
+    // rspack's persistent cache lives in experiments.cache, not the top-level
+    // cache field (which only accepts boolean). snapshot must also be placed
+    // inside experiments.cache — the top-level snapshot is a no-op in rspack.
+    const rspackBuildDeps = [...(cache.buildDependencies?.config ?? [])]
+    // In Yarn PnP mode, track .pnp.cjs as a build dependency so that changes
+    // from yarn install invalidate the persistent cache.
+    if (process.versions.pnp === '3') {
+      try {
+        rspackBuildDeps.push(require.resolve('pnpapi'))
+      } catch {}
+    }
+    // @ts-ignore — experiments.cache is rspack-specific and not in webpack types
+    webpack5Config.experiments!.cache = {
+      type: 'persistent',
+      version: cache.version,
+      storage: {
+        type: 'filesystem',
+        directory: path.join(
+          distDir,
+          'cache',
+          `rspack-${compilerType}-${dev ? 'development' : 'production'}${isDevFallback ? '-fallback' : ''}`
+        ),
+      },
+      buildDependencies: rspackBuildDeps,
+      snapshot: {
+        managedPaths: webpack5Config.snapshot?.managedPaths,
+        immutablePaths: webpack5Config.snapshot?.immutablePaths,
+      },
+    }
+    webpack5Config.cache = true as any
+  } else {
+    webpack5Config.cache = cache
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
@@ -2470,10 +2503,12 @@ export default async function getBaseWebpackConfig(
     serverSourceMaps: config.experimental.serverSourceMaps,
   })
 
-  // @ts-ignore Cache exists
-  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-    isDevFallback ? '-fallback' : ''
-  }`
+  if (!isRspack) {
+    // @ts-ignore Cache exists
+    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+      isDevFallback ? '-fallback' : ''
+    }`
+  }
 
   if (dev) {
     if (webpackConfig.module) {
