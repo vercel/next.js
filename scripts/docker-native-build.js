@@ -93,10 +93,7 @@ if (filter) {
 }
 if (targets.length === 0) {
   console.error(`No targets match filter: "${filter}"`)
-  console.error(
-    'Available:',
-    TARGETS.map((t) => t.target).join(', ')
-  )
+  console.error('Available:', TARGETS.map((t) => t.target).join(', '))
   process.exit(1)
 }
 
@@ -112,15 +109,19 @@ function ensureDockerImage() {
   }
 
   const forceFlag = rebuild ? ' -- --force' : ''
-  execSync(
-    `pnpm -F @next/swc build-docker-image${forceFlag}`,
-    { stdio: 'inherit', cwd: REPO_ROOT }
-  )
+  execSync(`pnpm -F @next/swc build-docker-image${forceFlag}`, {
+    stdio: 'inherit',
+    cwd: REPO_ROOT,
+  })
   // Load the image if turbo restored it from cache (turbo skips the script on hit)
   const loadFlag = rebuild ? '--force' : '--load'
-  execFileSync('node', [path.join(__dirname, 'docker-image-cache.js'), loadFlag], {
-    stdio: 'inherit',
-  })
+  execFileSync(
+    'node',
+    [path.join(__dirname, 'docker-image-cache.js'), loadFlag],
+    {
+      stdio: 'inherit',
+    }
+  )
 }
 
 ensureDockerImage()
@@ -135,7 +136,9 @@ if (quick) {
     'Quick mode: using release-with-assertions profile (no LTO, 64 codegen units)'
   )
 }
-console.log(`Building ${targets.length} target(s): ${targets.map((t) => t.target).join(', ')}\n`)
+console.log(
+  `Building ${targets.length} target(s): ${targets.map((t) => t.target).join(', ')}\n`
+)
 
 const HOME = os.homedir()
 
