@@ -5,7 +5,7 @@ dist
 target
 packages/next/wasm/@next
 tarballs/
-docker/image.tar
+docker/image.tar.zst
 packages/**/*.tgz
 .errors/
 
