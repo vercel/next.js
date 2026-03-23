@@ -1,8 +1,7 @@
 # Cross-compilation config for Linux docker builds.
 #
-# This file is NOT read by cargo directly. It is parsed by
-# `cargo xtask print-rustflags --cross-config .cargo/cross-config.toml`
-# and the flags are passed via the RUSTFLAGS env var.
+# This file is passed to cargo via `--config .cargo/cross-config.toml`
+# or resolved via `cargo rustflags --config .cargo/cross-config.toml`.
 #
 # This keeps cross-compilation flags out of .cargo/config.toml so that
 # local Linux development doesn't require lld or cross-compilers.
@@ -15,8 +14,12 @@
 # All Linux targets: use rust-lld via the cc linker driver and enable ICF
 # (Identical Code Folding) to reduce binary size.
 #
-# Why `linker-flavor=gnu-lld-cc` instead of `linker = "rust-lld"`?
-# See .cargo/config.toml for the full explanation.
+# We use `linker=clang` + `linker-flavor=gnu-lld-cc` rather than
+# `linker=rust-lld` directly. The actual linker is rust-lld in both
+# cases, but clang acts as the driver: it handles finding crt files
+# (crti.o, crtbeginS.o), libc, and libgcc, and translates --target /
+# --sysroot into the correct library search paths. Using rust-lld
+# directly would require manually specifying all of these paths.
 [target.'cfg(target_os = "linux")']
 rustflags = [
   "-Clinker-flavor=gnu-lld-cc",
@@ -35,15 +38,15 @@ rustflags = [
 # /usr/<triple>/ (not the native multiarch /usr/include/<triple>/ layout),
 # so --sysroot is required.
 [target.x86_64-unknown-linux-gnu]
-linker = "clang"
 rustflags = [
+  "-Clinker=clang",
   "-Clink-arg=--target=x86_64-linux-gnu",
   "-Clink-arg=--sysroot=/usr/x86_64-linux-gnu",
 ]
 
 [target.aarch64-unknown-linux-gnu]
-linker = "clang"
 rustflags = [
+  "-Clinker=clang",
   "-Clink-arg=--target=aarch64-linux-gnu",
   "-Clink-arg=--sysroot=/usr/aarch64-linux-gnu",
 ]
@@ -52,16 +55,16 @@ rustflags = [
 # --sysroot points to the musl headers/libs/crt files.
 # --gcc-toolchain tells clang where to find libgcc (needed for unwinding).
 [target.x86_64-unknown-linux-musl]
-linker = "clang"
 rustflags = [
+  "-Clinker=clang",
   "-Clink-arg=--target=x86_64-linux-musl",
   "-Clink-arg=--sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl",
   "-Clink-arg=--gcc-toolchain=/opt/x86_64-linux-musl-cross",
 ]
 
 [target.aarch64-unknown-linux-musl]
-linker = "clang"
 rustflags = [
+  "-Clinker=clang",
   "-Clink-arg=--target=aarch64-linux-musl",
   "-Clink-arg=--sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl",
   "-Clink-arg=--gcc-toolchain=/opt/aarch64-linux-musl-cross",
