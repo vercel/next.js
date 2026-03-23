@@ -1211,8 +1211,7 @@ const strictRouteTypes =
       )
     })
 
-    // Covered by E2E: test/e2e/tsconfig-module-preserve
-    it.skip('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
+    it('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
       expect(existsSync(tsConfig)).toBe(false)
 
       await writeFile(
@@ -1232,7 +1231,44 @@ const strictRouteTypes =
       if (strictRouteTypes) {
         expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot()
       } else {
-        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot()
+        expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "module": "preserve",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
       }
     })
   }
