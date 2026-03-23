@@ -1863,5 +1863,5 @@ describe('Image Component Default Tests', () => {
 })
 
 function stripTestHash(text: string) {
-  return text.replace(/test\.[0-9a-f]{8,}\.(png|jpe?g)/g, 'test.HASH.$1')
+  return text.replace(/test\.[0-9a-z_.~-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
 }

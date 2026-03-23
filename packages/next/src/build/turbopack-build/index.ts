@@ -35,24 +35,22 @@ async function turbopackBuildWithWorker(): ReturnType<
       config: _config,
       ...prunedBuildContext
     } = NextBuildContext
-    const { buildTraceContext, duration, debugTraceEvents } =
-      await worker.workerMain({
-        buildContext: prunedBuildContext,
-        traceState: {
-          ...exportTraceState(),
-          defaultParentSpanId: nextBuildSpan.getId(),
-          shouldSaveTraceEvents: true,
-        },
-      })
-
-    if (debugTraceEvents) {
-      recordTraceEvents(debugTraceEvents)
-    }
+    const { buildTraceContext, duration } = await worker.workerMain({
+      buildContext: prunedBuildContext,
+      traceState: {
+        ...exportTraceState(),
+        defaultParentSpanId: nextBuildSpan.getId(),
+        shouldSaveTraceEvents: true,
+      },
+    })
 
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
       // We need to wait for shutdown to make sure filesystem cache is flushed
-      shutdownPromise: worker.waitForShutdown().then(() => {
+      shutdownPromise: worker.waitForShutdown().then(({ debugTraceEvents }) => {
+        if (debugTraceEvents) {
+          recordTraceEvents(debugTraceEvents)
+        }
         worker.end()
       }),
       buildTraceContext,

@@ -171,11 +171,11 @@ struct TaskStorageSchema {
 
     /// Whether meta was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    meta_snapshot: bool,
+    meta_modified_during_snapshot: bool,
 
     /// Whether data was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    data_snapshot: bool,
+    data_modified_during_snapshot: bool,
 
     /// Whether dependencies have been prefetched.
     #[field(storage = "flag", category = "transient")]
@@ -334,8 +334,8 @@ impl TaskFlags {
     }
 
     /// Check if any snapshot flag is set
-    pub fn any_snapshot(&self) -> bool {
-        self.meta_snapshot() || self.data_snapshot()
+    pub fn any_modified_during_snapshot(&self) -> bool {
+        self.meta_modified_during_snapshot() || self.data_modified_during_snapshot()
     }
 
     /// Check if any modified flag is set
@@ -360,18 +360,22 @@ impl TaskFlags {
     }
 
     /// Check if the specified category has a snapshot
-    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
+    pub fn is_modified_during_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
         match category {
-            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
-            SpecificTaskDataCategory::Data => self.data_snapshot(),
+            SpecificTaskDataCategory::Meta => self.meta_modified_during_snapshot(),
+            SpecificTaskDataCategory::Data => self.data_modified_during_snapshot(),
         }
     }
 
     /// Set the snapshot flag for the specified category
-    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
+    pub fn set_modified_during_snapshot(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        value: bool,
+    ) {
         match category {
-            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
-            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+            SpecificTaskDataCategory::Meta => self.set_meta_modified_during_snapshot(value),
+            SpecificTaskDataCategory::Data => self.set_data_modified_during_snapshot(value),
         }
     }
 }
@@ -739,8 +743,8 @@ mod tests {
         assert!(!storage.flags.data_restored());
         assert!(!storage.flags.meta_modified());
         assert!(!storage.flags.data_modified());
-        assert!(!storage.flags.meta_snapshot());
-        assert!(!storage.flags.data_snapshot());
+        assert!(!storage.flags.meta_modified_during_snapshot());
+        assert!(!storage.flags.data_modified_during_snapshot());
         assert!(!storage.flags.prefetched());
 
         // Test setting restored flags
@@ -756,10 +760,10 @@ mod tests {
         assert!(storage.flags.data_modified());
 
         // Test setting snapshot flags
-        storage.flags.set_meta_snapshot(true);
-        storage.flags.set_data_snapshot(true);
-        assert!(storage.flags.meta_snapshot());
-        assert!(storage.flags.data_snapshot());
+        storage.flags.set_meta_modified_during_snapshot(true);
+        storage.flags.set_data_modified_during_snapshot(true);
+        assert!(storage.flags.meta_modified_during_snapshot());
+        assert!(storage.flags.data_modified_during_snapshot());
 
         // Test prefetched flag
         storage.flags.set_prefetched(true);

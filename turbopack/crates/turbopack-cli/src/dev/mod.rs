@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use either::Either;
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
@@ -18,7 +19,8 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
+    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -54,7 +56,7 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
+type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
 
 pub struct TurbopackDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -374,13 +376,56 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = is_ci;
+
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) =
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session)?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            Either::Left(backing_storage),
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "{} - Turbopack cache was invalidated{}",
+                "warn ".yellow(),
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                ..Default::default()
+            },
+            Either::Right(noop_backing_storage()),
+        ))
+    };
 
     let tt_clone = tt.clone();
 

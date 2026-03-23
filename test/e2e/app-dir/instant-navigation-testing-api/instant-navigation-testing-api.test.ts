@@ -22,38 +22,53 @@
  * API in production mode for testing purposes.
  */
 
-import { nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import { instant } from '@next/playwright'
 import type * as Playwright from 'playwright'
+import { join } from 'node:path'
+
+/**
+ * Opens a browser and returns the underlying Playwright Page instance.
+ *
+ * We use this pattern so our test assertions look as close as possible to
+ * what users would write with the actual Playwright helper package. The
+ * Next.js test infra wraps Playwright with its own BrowserInterface, but
+ * the Instant Navigation Testing API is designed to work with native Playwright.
+ */
+async function openPage(
+  next: NextInstance,
+  url: string,
+  options?: { cookies?: Array<{ name: string; value: string }> }
+): Promise<Playwright.Page> {
+  let page: Playwright.Page
+  await next.browser(url, {
+    beforePageLoad(p) {
+      page = p
+      if (options?.cookies) {
+        const { hostname } = new URL(next.url)
+        p.context().addCookies(
+          options.cookies.map((c) => ({
+            ...c,
+            domain: hostname,
+            path: '/',
+          }))
+        )
+      }
+    },
+  })
+  return page!
+}
 
 describe('instant-navigation-testing-api', () => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: join(__dirname, 'fixtures', 'default'),
     // Skip deployment tests because the exposeTestingApiInProductionBuild flag
     // doesn't exist in the production version of Next.js yet
     skipDeployment: true,
   })
 
-  /**
-   * Opens a browser and returns the underlying Playwright Page instance.
-   *
-   * We use this pattern so our test assertions look as close as possible to
-   * what users would write with the actual Playwright helper package. The
-   * Next.js test infra wraps Playwright with its own BrowserInterface, but
-   * the Instant Navigation Testing API is designed to work with native Playwright.
-   */
-  async function openPage(url: string): Promise<Playwright.Page> {
-    let page: Playwright.Page
-    await next.browser(url, {
-      beforePageLoad(p) {
-        page = p
-      },
-    })
-    return page!
-  }
-
   it('renders prefetched loading shell instantly during navigation', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       await page.click('#link-to-target')
@@ -79,7 +94,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('renders runtime-prefetched content instantly during navigation', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       await page.click('#link-to-runtime-prefetch')
@@ -119,7 +134,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('renders full prefetch content instantly when prefetch={true}', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       await page.click('#link-to-full-prefetch')
@@ -134,28 +149,26 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  it('logs an error when attempting to nest instant scopes', async () => {
-    const page = await openPage('/')
-
-    // Listen for the specific error message
-    const consolePromise = page.waitForEvent('console', {
-      predicate: (msg) =>
-        msg.type() === 'error' && msg.text().includes('already acquired'),
-      timeout: 5000,
-    })
+  it('throws when attempting to nest instant scopes', async () => {
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       // Attempt to acquire the lock again by nesting instant() calls.
-      // The inner call sets the cookie again, and the handler detects
-      // that the lock is already held, logging an error.
-      await instant(page, async () => {})
-      const msg = await consolePromise
-      expect(msg.text()).toContain('already acquired')
+      // The inner call detects the cookie is already set and throws
+      // before touching the browser state.
+      let caughtError: Error | undefined
+      try {
+        await instant(page, async () => {})
+      } catch (e) {
+        caughtError = e as Error
+      }
+      expect(caughtError).toBeDefined()
+      expect(caughtError!.message).toContain('already active')
     })
   })
 
   it('renders static shell on page reload', async () => {
-    const page = await openPage('/target-page')
+    const page = await openPage(next, '/target-page')
 
     // Wait for the page to fully load with dynamic content
     const dynamicContent = page.locator('[data-testid="dynamic-content"]')
@@ -184,7 +197,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('renders static shell on MPA navigation via plain anchor', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       // Navigate using a plain anchor (triggers full page load)
@@ -211,7 +224,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('reload followed by MPA navigation, both block dynamic data', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       // Reload the page while in instant mode
@@ -242,7 +255,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('successive MPA navigations within instant scope', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       // First MPA navigation: reload
@@ -293,11 +306,8 @@ describe('instant-navigation-testing-api', () => {
   // NOT be present.
   describe('runtime params are excluded from instant shell', () => {
     it('does not include cookie values in instant shell during client navigation', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage(next, '/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {
@@ -323,7 +333,7 @@ describe('instant-navigation-testing-api', () => {
     })
 
     it('does not include dynamic param values in instant shell during client navigation', async () => {
-      const page = await openPage('/')
+      const page = await openPage(next, '/')
 
       await instant(page, async () => {
         await page.click('#link-to-dynamic-params')
@@ -344,11 +354,11 @@ describe('instant-navigation-testing-api', () => {
       // After exiting instant scope, param value streams in
       const paramValue = page.locator('[data-testid="param-value"]')
       await paramValue.waitFor({ state: 'visible' })
-      expect(await paramValue.textContent()).toContain('slug: hello')
+      expect(await paramValue.textContent()).toContain('slug: unknown')
     })
 
     it('does not include search param values in instant shell during client navigation', async () => {
-      const page = await openPage('/')
+      const page = await openPage(next, '/')
 
       await instant(page, async () => {
         await page.click('#link-to-search-params')
@@ -377,11 +387,8 @@ describe('instant-navigation-testing-api', () => {
     })
 
     it('does not include cookie values in instant shell during page load', async () => {
-      const page = await openPage('/')
-
-      // Set a test cookie
-      await page.evaluate(() => {
-        document.cookie = 'testCookie=hello; path=/'
+      const page = await openPage(next, '/', {
+        cookies: [{ name: 'testCookie', value: 'hello' }],
       })
 
       await instant(page, async () => {
@@ -407,7 +414,7 @@ describe('instant-navigation-testing-api', () => {
     })
 
     it('does not include dynamic param values in instant shell during page load', async () => {
-      const page = await openPage('/')
+      const page = await openPage(next, '/')
 
       await instant(page, async () => {
         await page.click('#plain-link-to-dynamic-params')
@@ -428,11 +435,11 @@ describe('instant-navigation-testing-api', () => {
       // After exiting instant scope, param value streams in
       const paramValue = page.locator('[data-testid="param-value"]')
       await paramValue.waitFor({ state: 'visible', timeout: 10000 })
-      expect(await paramValue.textContent()).toContain('slug: hello')
+      expect(await paramValue.textContent()).toContain('slug: unknown')
     })
 
     it('does not include search param values in instant shell during page load', async () => {
-      const page = await openPage('/')
+      const page = await openPage(next, '/')
 
       await instant(page, async () => {
         await page.click('#plain-link-to-search-params')
@@ -461,12 +468,56 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  describe('statically generated params are included in instant shell', () => {
+    it('includes statically generated param values in instant shell during client navigation', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click('#link-to-static-dynamic-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="dynamic-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Param value IS in the shell (slug 'hello' is in generateStaticParams)
+        const paramValue = page.locator('[data-testid="param-value"]')
+        await paramValue.waitFor({ state: 'visible' })
+        expect(await paramValue.textContent()).toContain('slug: hello')
+
+        // Suspense fallback is NOT visible
+        const fallback = page.locator('[data-testid="params-fallback"]')
+        expect(await fallback.count()).toBe(0)
+      })
+    })
+
+    it('includes statically generated param values in instant shell during page load', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click('#plain-link-to-static-dynamic-params')
+
+        // Static page title is visible
+        const title = page.locator('[data-testid="dynamic-params-title"]')
+        await title.waitFor({ state: 'visible' })
+
+        // Param value IS in the shell (slug 'hello' is in generateStaticParams)
+        const paramValue = page.locator('[data-testid="param-value"]')
+        await paramValue.waitFor({ state: 'visible' })
+        expect(await paramValue.textContent()).toContain('slug: hello')
+
+        // Suspense fallback is NOT visible
+        const fallback = page.locator('[data-testid="params-fallback"]')
+        expect(await fallback.count()).toBe(0)
+      })
+    })
+  })
+
   // In dev mode, hover/intent-based prefetches should not send requests
   // that produce stale segment data. If a hover prefetch caches the route
   // with resolved runtime data before the instant lock is acquired, params
   // will leak into the shell when instant mode is later enabled.
   it('does not leak runtime data from hover prefetch into instant shell', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     // Hover over the dynamic params link to trigger an intent prefetch
     await page.hover('#link-to-dynamic-params')
@@ -495,11 +546,11 @@ describe('instant-navigation-testing-api', () => {
     // After exiting instant scope, param value streams in
     const paramValue = page.locator('[data-testid="param-value"]')
     await paramValue.waitFor({ state: 'visible' })
-    expect(await paramValue.textContent()).toContain('slug: hello')
+    expect(await paramValue.textContent()).toContain('slug: unknown')
   })
 
   it('subsequent navigations after instant scope are not locked', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     // First, do an MPA navigation within an instant scope
     await instant(page, async () => {
@@ -531,7 +582,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('throws descriptive error on fresh page without baseURL', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
     const freshPage = await page.context().newPage()
     try {
       let caughtError: Error | undefined
@@ -586,7 +637,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('sets cookie before first navigation when using baseURL', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
     const freshPage = await page.context().newPage()
     try {
       await instant(
@@ -629,7 +680,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('clears cookie after instant scope exits', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await instant(page, async () => {
       await page.reload()
@@ -646,7 +697,7 @@ describe('instant-navigation-testing-api', () => {
   })
 
   it('clears cookie even when callback throws', async () => {
-    const page = await openPage('/')
+    const page = await openPage(next, '/')
 
     await expect(
       instant(page, async () => {
@@ -660,5 +711,28 @@ describe('instant-navigation-testing-api', () => {
       (c) => c.name === 'next-instant-navigation-testing'
     )
     expect(instantCookie).toBeUndefined()
+  })
+})
+
+describe('instant-navigation-testing-api - root params', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'root-params'),
+    skipDeployment: true,
+  })
+
+  it('includes root param in instant shell', async () => {
+    const page = await openPage(next, '/en')
+
+    const langValue = page.locator('[data-testid="lang-value"]')
+    await langValue.waitFor({ state: 'visible' })
+    expect(await langValue.textContent()).toContain('lang: en')
+
+    await instant(page, async () => {
+      await page.reload()
+
+      // The root param value is still visible (it's statically known)
+      await langValue.waitFor({ state: 'visible' })
+      expect(await langValue.textContent()).toContain('lang: en')
+    })
   })
 })

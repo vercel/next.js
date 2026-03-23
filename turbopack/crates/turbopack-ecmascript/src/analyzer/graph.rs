@@ -356,8 +356,11 @@ impl DeclUsage {
 #[derive(Debug)]
 pub struct VarGraph {
     pub values: FxHashMap<Id, VarMeta>,
-    /// Map FreeVar names to their Id to facilitate lookups into [values]
-    /// Doesn't necessarily contain every FreeVar, just those who have non trivial values.
+
+    /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
+    ///
+    /// Doesn't necessarily contain every [`FreeVar`][JsValue::FreeVar], just those who have
+    /// non-trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
@@ -381,8 +384,6 @@ impl VarGraph {
     }
 }
 
-/// You should use same [Mark] for this function and
-/// [swc_ecma_transforms_base::resolver::resolver_with_mark]
 pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
@@ -417,16 +418,22 @@ pub fn create_graph(
 /// A context used for assembling the evaluation graph.
 #[derive(Debug)]
 pub struct EvalContext {
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) unresolved_mark: Mark,
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
     pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
-    /// Produce a new [EvalContext] from a [Program]. If you wish to support
-    /// webpackIgnore or turbopackIgnore comments, you must pass those in,
-    /// since the AST does not include comments by default.
+    /// Produce a new [`EvalContext`] from a [`Program`].
+    ///
+    /// If you wish to support `webpackIgnore` or `turbopackIgnore` comments, you must pass those
+    /// in, since the AST does not include comments by default.
+    ///
+    /// You should use the same `unresolved_mark` and `top_level_mark` [Mark] values for this
+    /// context that you passed to [`swc_core::ecma::transforms::base::resolver`].
     pub fn new(
         module: Option<&Program>,
         unresolved_mark: Mark,

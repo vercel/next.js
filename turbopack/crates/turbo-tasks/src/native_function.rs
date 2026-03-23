@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, hash::Hash, pin::Pin};
+use std::{any::Any, fmt::Debug, pin::Pin};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -9,7 +9,9 @@ use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    macro_helpers::into_task_fn,
     magic_any::{MagicAny, any_as_encode},
+    registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
@@ -180,17 +182,13 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
 pub struct NativeFunction {
-    /// A readable name of the function that is used to reporting purposes.
-    pub(crate) name: &'static str,
-
     pub(crate) arg_meta: ArgMeta,
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
     pub(crate) implementation: &'static dyn TaskFn,
 
-    // The globally unique name for this function, used when persisting.
-    pub(crate) global_name: &'static str,
+    pub(crate) ty: RegistryType,
 
     /// Whether this function's tasks should be treated as root nodes in the aggregation graph.
     /// Root tasks start with aggregation number `u32::MAX` on initial creation.
@@ -200,23 +198,38 @@ pub struct NativeFunction {
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
-            .field("name", &self.name)
-            .field("global_name", &self.global_name)
+            .field("name", &self.ty.name)
+            .field("global_name", &self.ty.global_name)
             .finish_non_exhaustive()
     }
 }
 
+fn default_fn() {
+    panic!("Pure virtual function called")
+}
+
+/// Sentinel used as placeholder in trait vtables before overrides are applied.
+/// A single static (not per-monomorphization) avoids bloating the FUNCTIONS registry.
+pub static VTABLE_DEFAULT: NativeFunction = NativeFunction::DEFAULT;
+
 impl NativeFunction {
-    pub const fn new(
+    #[allow(clippy::declare_interior_mutable_const)] // Interior mutability from RegistryType::id is only written during init
+    pub const DEFAULT: NativeFunction = NativeFunction {
+        arg_meta: ArgMeta::new::<()>(),
+        implementation: &into_task_fn(default_fn) as &dyn TaskFn,
+        ty: RegistryType::new::<()>("", ""),
+        is_root: false,
+    };
+
+    pub const fn new<T: TaskFn>(
         name: &'static str,
         global_name: &'static str,
         arg_meta: ArgMeta,
-        implementation: &'static dyn TaskFn,
+        implementation: &'static T,
         is_root: bool,
     ) -> Self {
         Self {
-            name,
-            global_name,
+            ty: RegistryType::new::<T>(name, global_name),
             arg_meta,
             implementation,
             is_root,
@@ -243,7 +256,7 @@ impl NativeFunction {
         };
         tracing::trace_span!(
             "turbo_tasks::function",
-            name = self.name,
+            name = self.ty.name,
             priority = %priority,
             flags = flags,
             reason = reason.as_str()
@@ -251,37 +264,8 @@ impl NativeFunction {
     }
 
     pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, priority = %priority)
-    }
-}
-impl PartialEq for NativeFunction {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
     }
 }
 
-impl Eq for NativeFunction {}
-impl Hash for NativeFunction {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self as *const NativeFunction).hash(state);
-    }
-}
-
-impl PartialOrd for &'static NativeFunction {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for &'static NativeFunction {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Ord::cmp(
-            &(*self as *const NativeFunction),
-            &(*other as *const NativeFunction),
-        )
-    }
-}
-
-pub struct CollectableFunction(pub &'static NativeFunction);
-
-inventory::collect! {CollectableFunction}
+turbo_registry!("Function", NativeFunction);

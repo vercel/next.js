@@ -75,7 +75,7 @@ function runTests(mode: 'dev' | 'server') {
       )
       expect(
         (await browser.elementById('static-image').getAttribute('src')).replace(
-          /test\.[a-z0-9]+\.jpg/,
+          /test\.[0-9a-z_.~-]+\.jpg/,
           'test.HASH.jpg'
         )
       ).toMatch('/_next/static/media/test.HASH.jpg' + assetDpl)

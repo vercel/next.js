@@ -7,8 +7,7 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind, imports::ImportAnnotations,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -359,7 +358,7 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
         [JsValue::Constant(ConstantValue::Str(v))] => {
             JsValue::promise(JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             }))
         }
         _ => JsValue::unknown(
@@ -380,7 +379,7 @@ fn require(args: Vec<JsValue>) -> JsValue {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
                 module: s.into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             })
         } else {
             JsValue::unknown(
@@ -448,7 +447,7 @@ fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Resu
 
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
-        annotations: ImportAnnotations::default(),
+        annotations: None,
     }))
 }
 

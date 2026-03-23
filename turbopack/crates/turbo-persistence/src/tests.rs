@@ -1,4 +1,4 @@
-use std::{fs, time::Instant};
+use std::{fs, path::Path, time::Instant};
 
 use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -1966,5 +1966,224 @@ fn multi_value_tombstone_shadows_older_sst_only() -> Result<()> {
         db.shutdown()?;
     }
 
+    Ok(())
+}
+
+/// Returns the number of `.blob` files in the given directory.
+fn count_blob_files(dir: &Path) -> usize {
+    fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "blob"))
+        .count()
+}
+
+/// Test that compaction deletes blob files when their entries are superseded
+/// by newer values (SingleValue family).
+#[test]
+fn compaction_deletes_superseded_blob() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+
+    // Write a blob-sized value
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], blob_value.clone().into())?;
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(
+        count_blob_files(path),
+        1,
+        "Should have 1 blob file after first write"
+    );
+
+    // Verify we can read it
+    let result = db.get(0, &vec![1u8])?;
+    assert_eq!(result.as_deref(), Some(&blob_value[..]));
+
+    // Overwrite the key with a small (non-blob) value in a new batch
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], vec![99u8].into())?;
+    db.commit_write_batch(batch)?;
+
+    // Blob file still exists before compaction (old SST still references it)
+    assert_eq!(
+        count_blob_files(path),
+        1,
+        "Blob file should still exist before compaction"
+    );
+
+    // Compact — the old blob entry is superseded by the newer small value
+    db.full_compact()?;
+
+    // After compaction, the old blob file should be deleted
+    assert_eq!(
+        count_blob_files(path),
+        0,
+        "Old blob file should be deleted after compaction"
+    );
+
+    // The new value should still be readable
+    let result = db.get(0, &vec![1u8])?;
+    assert_eq!(result.as_deref(), Some(&[99u8][..]));
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Test that compaction deletes blob files when a key is deleted via tombstone
+/// (SingleValue family).
+#[test]
+fn compaction_deletes_blob_on_tombstone() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+
+    // Write a blob-sized value
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], blob_value.clone().into())?;
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(count_blob_files(path), 1);
+
+    // Delete the key
+    let batch = db.write_batch()?;
+    batch.delete(0, vec![1u8])?;
+    db.commit_write_batch(batch)?;
+
+    // Blob file still exists before compaction
+    assert_eq!(
+        count_blob_files(path),
+        1,
+        "Blob file should still exist before compaction"
+    );
+
+    // Compact — tombstone supersedes the blob entry
+    db.full_compact()?;
+
+    // After compaction, the blob file should be deleted
+    assert_eq!(
+        count_blob_files(path),
+        0,
+        "Blob file should be deleted after compaction"
+    );
+
+    // Key should not be found
+    let result = db.get(0, &vec![1u8])?;
+    assert!(result.is_none());
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Test that compaction deletes blob files for MultiValue families when a
+/// tombstone prunes older blob entries.
+#[test]
+fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let config = DbConfig {
+        family_configs: [FamilyConfig {
+            kind: FamilyKind::MultiValue,
+        }],
+    };
+
+    let db = TurboPersistence::<_, 1>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        config,
+        RayonParallelScheduler,
+    )?;
+
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+
+    // Write a blob-sized value
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], blob_value.clone().into())?;
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(count_blob_files(path), 1);
+
+    // Delete the key (tombstone) and write a new small value in a new batch
+    let batch = db.write_batch()?;
+    batch.delete(0, vec![1u8])?;
+    batch.put(0, vec![1u8], vec![99u8].into())?;
+    db.commit_write_batch(batch)?;
+
+    // Blob file still exists before compaction
+    assert_eq!(count_blob_files(path), 1);
+
+    // Compact — tombstone prunes the old blob entry
+    db.full_compact()?;
+
+    // After compaction, the old blob file should be deleted
+    assert_eq!(
+        count_blob_files(path),
+        0,
+        "Blob file should be deleted after compaction"
+    );
+
+    // The new value should still be readable
+    let results = db.get_multiple(0, &vec![1u8].as_slice())?;
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].as_ref(), &[99u8]);
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Test that compaction preserves blob files that are still referenced
+/// (not superseded).
+#[test]
+fn compaction_preserves_active_blob() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+
+    // Write a blob-sized value
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], blob_value.clone().into())?;
+    db.commit_write_batch(batch)?;
+
+    // Write a different key to create a second SST (so compaction has work to do)
+    let batch = db.write_batch()?;
+    batch.put(0, vec![2u8], vec![1u8].into())?;
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(count_blob_files(path), 1);
+
+    // Compact — the blob entry is still the latest, should be preserved
+    db.full_compact()?;
+
+    // Blob file should still exist
+    assert_eq!(
+        count_blob_files(path),
+        1,
+        "Active blob file should be preserved after compaction"
+    );
+
+    // Value should still be readable
+    let result = db.get(0, &vec![1u8])?;
+    assert_eq!(result.as_deref(), Some(&blob_value[..]));
+
+    db.shutdown()?;
     Ok(())
 }

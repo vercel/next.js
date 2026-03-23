@@ -1,6 +1,7 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import {
   chainStreams,
@@ -46,6 +47,13 @@ export type AppPageRenderResultMetadata = {
   fetchMetrics?: FetchMetrics
 
   segmentData?: Map<string, Buffer>
+
+  /**
+   * Per-route prefetch hints computed at build time (e.g. segment inlining
+   * decisions based on gzip sizes). Written to prefetch-hints.json by the
+   * build pipeline.
+   */
+  prefetchHints?: PrefetchHints
 
   /**
    * In development, the resume data cache is warmed up before the render. This

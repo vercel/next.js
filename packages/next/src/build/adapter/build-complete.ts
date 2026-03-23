@@ -37,6 +37,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
@@ -88,6 +89,26 @@ interface SharedRouteFields {
    * to filePath on disk
    */
   wasmAssets?: Record<string, string>
+
+  /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
 
   /**
    * config related to the route
@@ -709,6 +730,11 @@ export async function handleBuildComplete({
           : route === '/index'
             ? '/'
             : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -718,19 +744,12 @@ export async function handleBuildComplete({
           runtime: 'edge',
           sourcePage: route,
           pathname,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
           wasmAssets: {},
           config: {
@@ -1051,8 +1070,26 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes - they will be output as static files
-          if (isStaticMetadataFile(normalizedPage)) {
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[normalizedPage] ||
+            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                normalizedPage.slice(1)
+              )
+              return (
+                prerenderManifest.routes[localePathname] ||
+                prerenderManifest.dynamicRoutes[localePathname]
+              )
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1573,6 +1610,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1584,19 +1622,32 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
-        const allowQuery = Object.values(
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
+        const allowQuery = Object.values(routeKeys)
         const partialFallbacksEnabled =
           config.experimental.partialFallbacks === true
         const partialFallback =
           partialFallbacksEnabled &&
           isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
           renderingMode === RenderingMode.PARTIALLY_STATIC &&
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
+
+        // Today, consumers of this build output can only upgrade a fallback shell
+        // when all remaining route params become concrete in the upgraded entry.
+        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
+        // because we do not emit which fallback params should remain deferred after
+        // the upgrade. Until that contract exists, only emit `partialFallback` for
+        // the conservative case where the upgraded entry can become fully concrete.
+        const canEmitPartialFallback =
+          partialFallback &&
+          fallbackRootParams?.length === 0 &&
+          allowQuery.length === remainingPrerenderableParams?.length
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1614,12 +1665,18 @@ export async function handleBuildComplete({
           // RSC shell.
           else if (meta.postponed) {
             // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
-            // For opt-in partial fallbacks in cache components, keep route
-            // allowQuery so fallback shells can be upgraded per-param instead
-            // of sharing one cache key.
+            // For opt-in partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
             htmlAllowQuery =
-              partialFallback && routesManifest.rsc.clientParamParsing
-                ? allowQuery
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
                 : []
           }
         }
@@ -1665,7 +1722,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
-            partialFallback: partialFallback || undefined,
+            partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },

@@ -16,7 +16,12 @@ interface PlaywrightBrowserContext {
       path?: string
     }>
   ): Promise<void>
-  clearCookies(options?: { name?: string }): Promise<void>
+  cookies(): Promise<Array<{ name: string; value: string }>>
+  clearCookies(options?: {
+    name?: string
+    domain?: string
+    path?: string
+  }): Promise<void>
 }
 
 interface PlaywrightPage {
@@ -52,25 +57,39 @@ export async function instant<T>(
   fn: () => Promise<T>,
   options?: { baseURL?: string }
 ): Promise<T> {
+  // Check for nested instant() calls. The cookie is scoped to the browser
+  // context, so we can detect nesting by checking if it's already set.
+  const existingCookies = await page.context().cookies()
+  if (existingCookies.some((c) => c.name === INSTANT_COOKIE)) {
+    throw new Error(
+      'An instant() scope is already active. Nesting instant() ' +
+        'calls is not supported. Did you forget to await the ' +
+        'previous instant() call?'
+    )
+  }
+
   // Acquire the lock by setting the cookie via the browser context. This
   // ensures the cookie is present even on the very first navigation.
   // The cookie triggers the CookieStore change event in
   // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
   const { hostname } = new URL(resolveURL(page, options))
   await step('Acquire Instant Lock', () =>
-    page
-      .context()
-      .addCookies([
-        { name: INSTANT_COOKIE, value: '1', domain: hostname, path: '/' },
-      ])
+    page.context().addCookies([
+      {
+        name: INSTANT_COOKIE,
+        value: JSON.stringify([0, `p${Math.random()}`]),
+        domain: hostname,
+        path: '/',
+      },
+    ])
   )
   try {
     return await fn()
   } finally {
-    // Release the lock by clearing the cookie. For SPA navigations, this
-    // triggers the CookieStore change event which resolves the in-memory
-    // lock. For MPA navigations (reload, plain anchor), the listener in
-    // app-bootstrap.ts triggers a page reload to fetch dynamic data.
+    // Release the lock by clearing the cookie. Next.js may have updated the
+    // cookie value (e.g. from [0] to [1,null]) during the lock scope. We
+    // clear by name to remove the cookie regardless of its current value or
+    // which domain variant it was stored under.
     await step('Release Instant Lock', () =>
       page.context().clearCookies({ name: INSTANT_COOKIE })
     )

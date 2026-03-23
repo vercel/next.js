@@ -30,9 +30,13 @@ export const expectedWhenTrailingSlashTrue = [
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [
@@ -109,9 +113,13 @@ const expectedWhenTrailingSlashFalse = [
   '__next._tree.txt',
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    ? [
+        expect.stringMatching(
+          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+        ),
+      ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [

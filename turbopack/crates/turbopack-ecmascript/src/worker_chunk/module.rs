@@ -5,7 +5,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset,
         availability_info::AvailabilityInfo,
     },
     context::AssetContext,
@@ -331,14 +331,13 @@ impl ModuleReference for WorkerModuleReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: match self.worker_type {
                 WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
                 WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
             },
             merge_tag: None,
-        }))
+        })
     }
 }

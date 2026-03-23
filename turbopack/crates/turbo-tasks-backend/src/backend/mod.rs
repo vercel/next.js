@@ -183,7 +183,8 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     storage: Storage,
 
     /// When true, the backing_storage has data that is not in the local storage.
-    local_is_partial: AtomicBool,
+    /// This is determined once at startup and never changes.
+    local_is_partial: bool,
 
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the
@@ -258,7 +259,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ),
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: FxDashMap::default(),
-            local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
+            local_is_partial: next_task_id != TaskId::MIN,
             storage: Storage::new(shard_amount, small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -949,7 +950,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = get_value_type(cell.type_id).global_name,
+            cell_type = get_value_type(cell.type_id).ty.global_name,
             cell_index = cell.index
         )
         .entered();
@@ -1110,106 +1111,81 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        // Helper to encode a TaskStorage into a SnapshotItem
-        // encode_meta/encode_data control whether to encode each category
-        let encode_snapshot_item =
-            |task_id: TaskId,
-             inner: &TaskStorage,
-             encode_meta: bool,
-             encode_data: bool,
-             buffer: &mut TurboBincodeBuffer| {
-                let encode_category = |task_id: TaskId,
-                                       data: &TaskStorage,
-                                       category: SpecificTaskDataCategory,
-                                       buffer: &mut TurboBincodeBuffer|
-                 -> Option<TurboBincodeBuffer> {
-                    match encode_task_data(task_id, data, category, buffer) {
-                        Ok(encoded) => {
-                            #[cfg(feature = "print_cache_item_size")]
-                            {
-                                let mut stats = task_cache_stats.lock();
-                                let entry = stats
-                                    .entry(self.get_task_name(task_id, turbo_tasks))
-                                    .or_default();
-                                match category {
-                                    SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                    SpecificTaskDataCategory::Data => entry.add_data(&encoded),
-                                }
+        // Encode each task's modified categories. We only encode categories with `modified` set,
+        // meaning the category was actually dirtied. Categories restored from disk but never
+        // modified don't need re-persisting since the on-disk version is still valid.
+        // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
+        // flags were copied from the live task at snapshot creation time, reflecting which
+        // categories were dirtied before the snapshot was taken.
+        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            let encode_category = |task_id: TaskId,
+                                   data: &TaskStorage,
+                                   category: SpecificTaskDataCategory,
+                                   buffer: &mut TurboBincodeBuffer|
+             -> Option<TurboBincodeBuffer> {
+                match encode_task_data(task_id, data, category, buffer) {
+                    Ok(encoded) => {
+                        #[cfg(feature = "print_cache_item_size")]
+                        {
+                            let mut stats = task_cache_stats.lock();
+                            let entry = stats
+                                .entry(self.get_task_name(task_id, turbo_tasks))
+                                .or_default();
+                            match category {
+                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
+                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
                             }
-                            Some(encoded)
                         }
-                        Err(err) => {
-                            eprintln!(
-                                "Serializing task {} failed ({:?}): {:?}",
-                                self.debug_get_task_description(task_id),
-                                category,
-                                err
-                            );
-                            None
-                        }
+                        Some(encoded)
                     }
-                };
-                if task_id.is_transient() {
-                    return SnapshotItem {
-                        task_id,
-                        data: None,
-                        meta: None,
-                    };
-                }
-
-                #[cfg(feature = "print_cache_item_size")]
-                if encode_meta {
-                    task_cache_stats
-                        .lock()
-                        .entry(self.get_task_name(task_id, turbo_tasks))
-                        .or_default()
-                        .add_counts(inner);
-                }
-
-                let meta = if encode_meta {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
-                } else {
-                    None
-                };
-
-                let data = if encode_data {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
-                } else {
-                    None
-                };
-
-                SnapshotItem {
-                    task_id,
-                    meta,
-                    data,
+                    Err(err) => {
+                        eprintln!(
+                            "Serializing task {} failed ({:?}): {:?}",
+                            self.debug_get_task_description(task_id),
+                            category,
+                            err
+                        );
+                        None
+                    }
                 }
             };
+            if task_id.is_transient() {
+                unreachable!("transient task_ids should never be enqueued to be persisted");
+            }
 
-        // Process tasks from the main storage map (uses restored flags)
-        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(
+            let encode_meta = inner.flags.meta_modified();
+            let encode_data = inner.flags.data_modified();
+
+            #[cfg(feature = "print_cache_item_size")]
+            if encode_meta {
+                task_cache_stats
+                    .lock()
+                    .entry(self.get_task_name(task_id, turbo_tasks))
+                    .or_default()
+                    .add_counts(inner);
+            }
+
+            let meta = if encode_meta {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
+            } else {
+                None
+            };
+
+            let data = if encode_data {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
+            } else {
+                None
+            };
+
+            SnapshotItem {
                 task_id,
-                inner,
-                inner.flags.meta_restored(),
-                inner.flags.data_restored(),
-                buffer,
-            )
+                meta,
+                data,
+            }
         };
 
-        // Process tasks that were accessed during snapshot mode (uses modified flags)
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
-                encode_snapshot_item(
-                    task_id,
-                    &inner,
-                    inner.flags.meta_modified(),
-                    inner.flags.data_modified(),
-                    buffer,
-                )
-            };
-
         // take_snapshot already filters empty items and empty shards in parallel
-        let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
+        let task_snapshots = self.storage.take_snapshot(&process);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
@@ -2793,9 +2769,53 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
 
                         let this = self.clone();
-                        let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
+                        // Create a root span shared by both the snapshot/persist
+                        // work and the subsequent compaction so they appear
+                        // grouped together in trace viewers.
+                        let background_span =
+                            tracing::info_span!(parent: None, "background snapshot");
+                        let snapshot =
+                            this.snapshot_and_persist(background_span.id(), reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
+
+                            // Compact while idle (up to limit), regardless of
+                            // whether the snapshot had new data.
+                            // `background_span` is not entered here because
+                            // `EnteredSpan` is `!Send` and would prevent the
+                            // future from being sent across threads when it
+                            // suspends at the `select!` await below.
+                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
+                                let idle_ended = tokio::select! {
+                                    biased;
+                                    _ = &mut idle_end_listener => {
+                                        idle_end_listener = self.idle_end_event.listen();
+                                        true
+                                    },
+                                    _ = std::future::ready(()) => false,
+                                };
+                                if idle_ended {
+                                    break;
+                                }
+                                // Enter the span only around the synchronous
+                                // compact() call so we never hold an
+                                // `EnteredSpan` across an await point.
+                                let _compact_span = tracing::info_span!(
+                                    parent: background_span.id(),
+                                    "compact database"
+                                )
+                                .entered();
+                                match self.backing_storage.compact() {
+                                    Ok(true) => {}
+                                    Ok(false) => break,
+                                    Err(err) => {
+                                        eprintln!("Compaction failed: {err:?}");
+                                        break;
+                                    }
+                                }
+                            }
+
                             if !new_data {
                                 fresh_idle = false;
                                 continue;
@@ -3614,7 +3634,11 @@ impl DebugTraceTransientTask {
             cell_type_id: Option<ValueTypeId>,
         ) -> fmt::Result {
             if let Some(ty) = cell_type_id {
-                write!(f, " (read cell of type {})", get_value_type(ty).global_name)
+                write!(
+                    f,
+                    " (read cell of type {})",
+                    get_value_type(ty).ty.global_name
+                )
             } else {
                 Ok(())
             }

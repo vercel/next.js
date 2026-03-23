@@ -71,12 +71,7 @@
             Module(
                 ModuleValue {
                     module: "react",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -579,12 +574,7 @@
             Module(
                 ModuleValue {
                     module: "https://esm.sh/preact/jsx-runtime",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -958,12 +948,7 @@
                                 Module(
                                     ModuleValue {
                                         module: "./external",
-                                        annotations: ImportAnnotations {
-                                            map: {},
-                                            turbopack_loader: None,
-                                            turbopack_rename_as: None,
-                                            turbopack_module_type: None,
-                                        },
+                                        annotations: None,
                                     },
                                 ),
                                 Constant(
@@ -1084,12 +1069,7 @@
                                             Module(
                                                 ModuleValue {
                                                     module: "./external",
-                                                    annotations: ImportAnnotations {
-                                                        map: {},
-                                                        turbopack_loader: None,
-                                                        turbopack_rename_as: None,
-                                                        turbopack_module_type: None,
-                                                    },
+                                                    annotations: None,
                                                 },
                                             ),
                                             Constant(

@@ -35,8 +35,9 @@ export class StagedRenderingController {
   private dynamicStagePromise = createPromiseWithResolvers<void>()
 
   constructor(
-    private abortSignal: AbortSignal | null = null,
-    private abandonController: AbortController | null = null
+    private abortSignal: AbortSignal | null,
+    private abandonController: AbortController | null,
+    private shouldTrackSyncIO: boolean
   ) {
     if (abortSignal) {
       abortSignal.addEventListener(
@@ -88,13 +89,15 @@ export class StagedRenderingController {
     }
   }
 
-  canSyncInterrupt() {
-    // If we haven't started the render yet, it can't be interrupted.
-    if (this.currentStage === RenderStage.Before) {
+  shouldTrackSyncInterrupt(): boolean {
+    if (!this.shouldTrackSyncIO) {
       return false
     }
 
     switch (this.currentStage) {
+      case RenderStage.Before:
+        // If we haven't started the render yet, it can't be interrupted.
+        return false
       case RenderStage.EarlyStatic:
       case RenderStage.Static:
         return true
@@ -132,8 +135,18 @@ export class StagedRenderingController {
       return
     }
 
-    // If we're in the final render, we cannot abandon it. We need to advance to the Dynamic stage
-    // and capture the interruption reason.
+    if (this.abortSignal) {
+      // If this is an abortable render, we capture the interruption reason and stop advancing.
+      // We don't release any more promises.
+      // The caller is expected to abort the signal.
+      this.syncInterruptReason = reason
+      this.currentStage = RenderStage.Abandoned
+      return
+    }
+
+    // If we're in a non-abandonable & non-abortable render,
+    // we need to advance to the Dynamic stage and capture the interruption reason.
+    // (in dev, this will be the restarted render)
     switch (this.currentStage) {
       case RenderStage.EarlyStatic:
       case RenderStage.Static:

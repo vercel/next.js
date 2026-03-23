@@ -1,16 +1,6 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { join } from 'path'
-import { readFileSync } from 'fs'
-import type { TraceEvent } from 'next/dist/trace'
-
-function parseTraceFile(tracePath: string): TraceEvent[] {
-  const content = readFileSync(tracePath, 'utf8')
-  const events: TraceEvent[] = []
-  for (const line of content.trim().split('\n').filter(Boolean)) {
-    events.push(...(JSON.parse(line) as TraceEvent[]))
-  }
-  return events
-}
+import { parseTraceEvents } from '../../lib/parse-trace-file'
 
 describe('build-failed-trace', () => {
   if (!isNextStart) {
@@ -28,7 +18,7 @@ describe('build-failed-trace', () => {
     expect(exitCode).not.toBe(0)
 
     const tracePath = join(next.testDir, '.next', 'trace')
-    const events = parseTraceFile(tracePath)
+    const events = parseTraceEvents(tracePath)
 
     const nextBuildEvent = events.find((e) => e.name === 'next-build')
     expect(nextBuildEvent).toBeDefined()

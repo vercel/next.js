@@ -166,7 +166,7 @@ describe('resolveRoutes with i18n', () => {
 
       // Path locale takes priority, so no redirect
       expect(result.redirect).toBeUndefined()
-      expect(result.matchedPathname).toBe('/fr/about')
+      expect(result.resolvedPathname).toBe('/fr/about')
     })
 
     it('should handle locale prefix with trailing slash', async () => {
@@ -179,7 +179,7 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeUndefined()
-      expect(result.matchedPathname).toBe('/fr/about/')
+      expect(result.resolvedPathname).toBe('/fr/about/')
     })
   })
 
@@ -326,7 +326,7 @@ describe('resolveRoutes with i18n', () => {
 
       // Should not redirect for api routes
       expect(result.redirect).toBeUndefined()
-      expect(result.matchedPathname).toBe('/api/ping')
+      expect(result.resolvedPathname).toBe('/api/ping')
     })
 
     it('should skip locale handling for nested api routes', async () => {
@@ -352,7 +352,7 @@ describe('resolveRoutes with i18n', () => {
 
       // Should not redirect for api routes, even with locale cookies/headers
       expect(result.redirect).toBeUndefined()
-      expect(result.matchedPathname).toBe('/api/users/[id]')
+      expect(result.resolvedPathname).toBe('/api/users/[id]')
       expect(result.routeMatches).toEqual({
         '1': '123',
         id: '123',

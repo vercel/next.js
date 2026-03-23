@@ -99,7 +99,7 @@ impl BaseLoaderTreeBuilder {
         self.imports.push(
             formatdoc!(
                 r#"
-                const {} = () => require("MODULE_{}");
+                const {} = () => require(/*turbopackChunkingType: shared*/"MODULE_{}");
                 "#,
                 identifier,
                 i

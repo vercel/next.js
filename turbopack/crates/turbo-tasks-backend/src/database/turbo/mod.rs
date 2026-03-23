@@ -7,27 +7,27 @@ use std::{
 };
 
 use anyhow::{Ok, Result};
-use parking_lot::Mutex;
 use smallvec::SmallVec;
 use turbo_persistence::{
     ArcBytes, CompactConfig, DbConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
 use turbo_tasks::{
-    JoinHandle,
     message_queue::{TimingEvent, TraceEvent},
-    spawn, turbo_tasks,
+    turbo_tasks,
 };
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
     turbo::parallel_scheduler::TurboTasksParallelScheduler,
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
+    write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
 
 /// Number of key families, see KeySpace enum for their numbers.
 const FAMILIES: usize = 4;
+
+const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
@@ -42,7 +42,6 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
 
 pub struct TurboKeyValueDatabase {
     db: Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
-    compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
     is_ci: bool,
     is_short_session: bool,
     is_fresh: bool,
@@ -61,7 +60,6 @@ impl TurboKeyValueDatabase {
         let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
         Ok(Self {
             db: db.clone(),
-            compact_join_handle: Mutex::new(None),
             is_ci,
             is_short_session,
             is_fresh: db.is_empty(),
@@ -70,17 +68,8 @@ impl TurboKeyValueDatabase {
 }
 
 impl KeyValueDatabase for TurboKeyValueDatabase {
-    type ReadTransaction<'l>
-        = ()
-    where
-        Self: 'l;
-
     fn is_empty(&self) -> bool {
         self.db.is_empty()
-    }
-
-    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
-        Ok(())
     }
 
     type ValueBuffer<'l>
@@ -88,30 +77,23 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<Option<Self::ValueBuffer<'l>>> {
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn batch_get(
+        &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'l>>>> {
+    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
         self.db.batch_get(key_space as usize, keys)
     }
 
-    fn get_multiple<'l, 'db: 'l>(
-        &'l self,
-        _transaction: &'l Self::ReadTransaction<'db>,
+    fn get_multiple(
+        &self,
         key_space: KeySpace,
         key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'l>; 1]>> {
+    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 
@@ -120,44 +102,38 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     where
         Self: 'l;
 
-    fn write_batch(
-        &self,
-    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
-        // Wait for the compaction to finish
-        if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join()?;
-        }
-        // Start a new write batch
-        Ok(WriteBatch::concurrent(TurboWriteBatch {
+    fn write_batch(&self) -> Result<Self::ConcurrentWriteBatch<'_>> {
+        Ok(TurboWriteBatch {
             batch: self.db.write_batch()?,
             db: &self.db,
-            compact_join_handle: (!self.is_short_session && !self.db.is_empty())
-                .then_some(&self.compact_join_handle),
-        }))
+        })
     }
 
     fn prevent_writes(&self) {}
 
-    fn shutdown(&self) -> Result<()> {
-        // Wait for the compaction to finish
-        if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join()?;
+    fn compact(&self) -> Result<bool> {
+        if self.is_short_session || self.db.is_empty() {
+            return Ok(false);
         }
+        do_compact(
+            &self.db,
+            COMPACTION_MESSAGE,
+            available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
+        )
+    }
+
+    fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
         if !self.is_fresh {
             if self.is_ci {
                 // Fully compact in CI to reduce cache size
-                do_compact(
-                    &self.db,
-                    "Finished filesystem cache database compaction",
-                    usize::MAX,
-                )?;
+                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;
             } else {
                 // Compact with a reasonable limit in non-CI environments
                 do_compact(
                     &self.db,
-                    "Finished filesystem cache database compaction",
+                    COMPACTION_MESSAGE,
                     available_parallelism().map_or(4, |c| max(4, c.get())),
                 )?;
             }
@@ -171,7 +147,7 @@ fn do_compact(
     db: &TurboPersistence<TurboTasksParallelScheduler, FAMILIES>,
     message: &'static str,
     max_merge_segment_count: usize,
-) -> Result<()> {
+) -> Result<bool> {
     let start = Instant::now();
     // SystemTime for wall-clock timestamps in trace events (Instant has no
     // defined epoch so it can't be used for cross-process trace correlation).
@@ -200,17 +176,16 @@ fn do_compact(
             vec![],
         )));
     }
-    Ok(())
+    Ok(ran)
 }
 
 pub struct TurboWriteBatch<'a> {
     batch:
         turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, FAMILIES>,
     db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
-    compact_join_handle: Option<&'a Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
-impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
+impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
         = ArcBytes
     where
@@ -225,27 +200,10 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
     }
 
     fn commit(self) -> Result<()> {
-        // Commit the write batch
         self.db.commit_write_batch(self.batch)?;
-
-        if let Some(compact_join_handle) = self.compact_join_handle {
-            // Start a new compaction in the background
-            let db = self.db.clone();
-            let handle = spawn(async move {
-                do_compact(
-                    &db,
-                    "Finished filesystem cache database compaction",
-                    available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
-                )
-            });
-            compact_join_handle.lock().replace(handle);
-        }
-
         Ok(())
     }
-}
 
-impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.batch
             .put(key_space as u32, key.into_static(), value.into())

@@ -7,8 +7,9 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -156,6 +157,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn asset_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.asset_content_hashing = content_hashing;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -226,6 +232,8 @@ pub struct NodeJsChunkingContext {
     debug_ids: bool,
     /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
     worker_forwarded_globals: Vec<RcStr>,
+    /// Content hashing for asset filenames.
+    asset_content_hashing: ContentHashing,
 }
 
 impl NodeJsChunkingContext {
@@ -270,6 +278,7 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
             },
         }
     }
@@ -461,16 +470,14 @@ impl ChunkingContext for NodeJsChunkingContext {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
+        let ContentHashing::Direct { length } = self.asset_content_hashing;
+        let short_hash = &content_hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
-                "{basename}.{content_hash}.{ext}",
+                "{basename}.{short_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
             ),
-            None => format!(
-                "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
-            ),
+            None => format!("{basename}.{short_hash}"),
         };
 
         let asset_root_path = tag

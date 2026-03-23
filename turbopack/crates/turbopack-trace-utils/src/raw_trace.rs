@@ -49,8 +49,8 @@ fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
         .id
 }
 
-/// A tracing layer that writes raw trace data to a writer. The data format is
-/// defined by [FullTraceRow].
+/// A tracing layer that writes raw trace data to a writer. We store data using the [`TraceRow`],
+/// serialized with [`postcard`].
 pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     trace_writer: TraceWriter,
     start: Instant,

@@ -1521,7 +1521,7 @@ export function runTests(ctx: RunTestsCtx) {
     if (!ctx.isDev) {
       const filename = fs
         .readdirSync(join(ctx.appDir, '.next/static/media'))
-        .find((f) => /^test\.[0-9a-f]+\.jpg$/.test(f))
+        .find((f) => /^test\.[0-9a-z_.~-]+\.jpg$/.test(f))
       expect(filename).toBeString()
       const query: Record<string, string> = {
         url: `/_next/static/media/${filename}`,

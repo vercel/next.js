@@ -733,11 +733,20 @@ async function exportAppImpl(
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
   if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
       } else {
         initialPhaseExportPaths.push(exportPath)
+      }
+
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
       }
     }
   } else {

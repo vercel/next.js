@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 // This layout does NOT have runtime prefetch and neither does the child
 // page. Since no segment has runtime prefetch enabled, sync IO in
 // generateMetadata should be allowed.
+export const unstable_instant = { prefetch: 'static' }
 
 export async function generateMetadata() {
   await cookies()
