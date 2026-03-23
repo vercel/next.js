@@ -49,15 +49,16 @@ The trade-off is infrastructure complexity. A finer-grained rendering boundary t
 
 The component-level rendering model has direct implications for platforms hosting Next.js applications:
 
-- **Streaming** is required because static and dynamic content are served in a single response. The server sends the static shell first, then streams dynamic portions as they resolve. See [Streaming](/docs/app/guides/streaming) for details.
+- **Streaming** is required because static and dynamic content are served in a single response. The server sends initial content first, then streams dynamic portions as they resolve. See [Streaming](/docs/app/guides/streaming) for details.
 - **Cache coordination** is required when running multiple instances because any cached content can be invalidated on demand via [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) or [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath). See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for the architecture.
 - **Cache consistency** matters because revalidation regenerates both the HTML response and the RSC payload (the serialized React Server Components data used for client-side navigation). If these get out of sync, users may see inconsistent data during navigation. See [How Revalidation Works](/docs/app/guides/how-revalidation-works) for consistency requirements.
+- **PPR shell delivery at CDN latency** can require additional platform integration to store the static shell separately and resume dynamic rendering correctly. See [PPR Platform Guide](/docs/app/guides/ppr-platform-guide) for implementation details.
 
-Each of these infrastructure requirements maps directly to a capability: streaming enables instant static shells, cache coordination enables on-demand updates without redeployment, and consistency ensures client-side navigations work correctly across cache boundaries.
+Each of these infrastructure requirements maps directly to a capability: streaming enables progressive delivery, cache coordination propagates invalidations across instances, cache consistency keeps HTML and RSC aligned, and PPR-at-edge often requires extra shell/resume integration.
 
 ## Portability and Fidelity
 
-Next.js runs on any platform that supports Node.js. A single server process handles every feature correctly. Streaming support enables progressive delivery of Server Components and PPR; without it, responses are buffered but features still work. Every additional infrastructure investment (CDN caching, edge compute, shared cache) is an optimization that improves performance.
+Next.js runs as a Node.js server process, and a single process handles every feature correctly. Streaming support enables progressive delivery of Server Components and PPR; without it, responses are buffered but features still work. Additional infrastructure investments (CDN caching, edge compute, shared cache) improve performance and, in multi-instance deployments, reduce consistency gaps.
 
 To make this concrete, we distinguish between two types of platform support:
 
@@ -69,6 +70,6 @@ A platform that achieves functional fidelity is a fully supported deployment tar
 
 ## CDN Feature Compatibility
 
-Every major CDN has the infrastructure primitives needed to build full Next.js support: edge compute, key-value storage, blob storage, and the ability to resume PPR rendering. Most community adapters today deploy Next.js as a Node.js server without leveraging these CDN primitives, but no architectural blockers prevent deeper integration. See the [Deploying](/docs/app/getting-started/deploying#adapters) page for the current list of adapters.
+Many CDNs have useful primitives for deeper Next.js integration (edge compute, key-value storage, blob storage), but end-to-end PPR resume support is still emerging and may require bespoke platform work. Most community adapters today deploy Next.js as a Node.js server without leveraging these CDN-specific primitives. See the [Deploying](/docs/app/getting-started/deploying#adapters) page for the current list of adapters.
 
 See [Deploying to Platforms](/docs/app/guides/deploying-to-platforms#cdn-infrastructure-compatibility) for the full CDN compatibility table and [CDN Caching](/docs/app/guides/cdn-caching) for caching behavior details.

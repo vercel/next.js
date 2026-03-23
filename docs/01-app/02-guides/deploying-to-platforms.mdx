@@ -17,7 +17,7 @@ Next.js [treats static and dynamic content as a spectrum](/docs/app/guides/rende
 
 To run Next.js, your platform needs **a Node.js server**. That's it.
 
-A single `next start` process handles every Next.js feature correctly: Server Components, ISR, PPR, Cache Components, Server Actions, Proxy, and `after()`. Everything beyond a Node.js server (CDN caching, edge compute, shared cache) is an optimization that improves performance but is not required for correctness. Streaming support is needed for features like PPR and Server Components to deliver content progressively (without it, responses are buffered and sent as a whole, which still works but loses the streaming performance benefit). The only additional dependency is the `sharp` package, which is required for [Image Optimization](/docs/app/api-reference/components/image).
+A single `next start` process handles every Next.js feature correctly: Server Components, ISR, PPR, Cache Components, Server Actions, Proxy, and `after()`. Streaming support is needed for features like PPR and Server Components to deliver content progressively (without it, responses are buffered and sent as a whole, which still works but loses the streaming performance benefit). Additional infrastructure (CDN caching, edge compute, shared cache) primarily improves performance and multi-instance consistency. In multi-instance deployments, shared cache and tag coordination reduce stale divergence between instances. The only additional dependency is the `sharp` package, which is required for [Image Optimization](/docs/app/api-reference/components/image).
 
 ## Functional Fidelity vs. Performance Fidelity
 
@@ -69,7 +69,7 @@ These are available building blocks, not finished integrations. Most community a
 
 Next.js provides a [Deployment Adapter API](/docs/app/api-reference/config/next-config-js/adapterPath) that lets platforms customize how Next.js applications are built and deployed for their infrastructure. Adapters run at build time and produce platform-specific output from the standard Next.js build.
 
-The adapter API plus [custom cache handlers](/docs/app/api-reference/config/next-config-js/cacheHandlers) together form the complete platform integration surface. The adapter handles build-time output, and cache handlers manage runtime caching behavior.
+The adapter API plus Next.js caching interfaces form the complete platform integration surface. The adapter handles build-time output, while `cacheHandler` and `cacheHandlers` cover different runtime caching paths. `cacheHandler` (singular) covers server cache paths like ISR, route handlers, patched `fetch`/`unstable_cache`, and image optimization. `cacheHandlers` (plural) configures `'use cache'` directive backends.
 
 For a list of available platform adapters, see the [Deploying](/docs/app/getting-started/deploying#adapters) page.
 
