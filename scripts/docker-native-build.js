@@ -142,18 +142,17 @@ console.log(
 
 const HOME = os.homedir()
 
-for (const { target, arch, abi } of targets) {
+for (const { target, arch, abi, napiPlatform } of targets) {
   console.log('='.repeat(50))
   console.log(`Building: ${target}`)
   console.log(`Docker:   ${DOCKER_IMAGE}`)
   console.log(`Task:     ${buildTask}`)
   console.log('='.repeat(50))
 
-  // Clean previous build
+  // Clean only this target's previous build (preserve other targets' .node files)
   const nativeDir = path.join(REPO_ROOT, 'packages/next-swc/native')
-  for (const f of fs.readdirSync(nativeDir)) {
-    if (f.endsWith('.node')) fs.unlinkSync(path.join(nativeDir, f))
-  }
+  const nodeFile = path.join(nativeDir, `next-swc.${napiPlatform}.node`)
+  if (fs.existsSync(nodeFile)) fs.unlinkSync(nodeFile)
 
   const volumeArgs = hostTarget ? [] : ['-v', '/build/target']
 
