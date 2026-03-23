@@ -22,7 +22,7 @@ const os = require('os')
 
 const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'next-swc-builder:latest'
-const IMAGE_TAR = path.join(REPO_ROOT, 'docker/image.tar')
+const IMAGE_TAR = path.join(REPO_ROOT, 'docker/image.tar.zst')
 const force = process.argv.includes('--force')
 
 function imageExists() {
@@ -54,7 +54,7 @@ function buildImage() {
 // If turbo restored docker/image.tar from cache, load it
 if (!force && fs.existsSync(IMAGE_TAR)) {
   console.log('Loading Docker image from turbo cache...')
-  execSync(`docker load -i ${IMAGE_TAR}`, { stdio: 'inherit' })
+  execSync(`zstd -d -c ${IMAGE_TAR} | docker load`, { stdio: 'inherit' })
   // Clean up — we don't need the tar on disk after loading
   fs.unlinkSync(IMAGE_TAR)
   console.log('Docker image restored from cache')
@@ -62,9 +62,11 @@ if (!force && fs.existsSync(IMAGE_TAR)) {
   // Cache miss or --force: build from scratch
   if (force && fs.existsSync(IMAGE_TAR)) fs.unlinkSync(IMAGE_TAR)
   buildImage()
-  // Save for turbo to cache as output
+  // Save for turbo to cache as output (zstd-compressed to ~1GB from ~2.7GB)
   console.log(`Saving Docker image for turbo cache...`)
-  execSync(`docker save ${IMAGE_NAME} -o ${IMAGE_TAR}`, { stdio: 'inherit' })
+  execSync(`docker save ${IMAGE_NAME} | zstd -T0 --fast -o ${IMAGE_TAR}`, {
+    stdio: 'inherit',
+  })
   const size = fs.statSync(IMAGE_TAR).size
   console.log(`Saved: ${(size / 1024 / 1024).toFixed(0)} MB`)
 }

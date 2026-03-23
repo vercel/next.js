@@ -130,7 +130,7 @@
         "../../rust-toolchain.toml",
         "../../scripts/docker-native-build.sh",
       ],
-      "outputs": ["../../docker/image.tar"],
+      "outputs": ["../../docker/image.tar.zst"],
     },
     "cache-build-native": {
       "inputs": [
