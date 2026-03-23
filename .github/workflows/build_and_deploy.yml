@@ -133,9 +133,6 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-  # Docker image build is now handled per-runner via docker-image-cache.js
-  # which uses turbo remote cache to share images across runners.
-
   # Generate the build matrix for native binaries.
   # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
   generate-native-matrix:
