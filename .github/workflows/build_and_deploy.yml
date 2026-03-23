@@ -254,7 +254,7 @@ jobs:
       # On cache miss, the script builds from scratch and saves the tar for caching.
       - name: Build/restore Docker image
         if: ${{ matrix.docker }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90 --log-order stream
 
       # Try to restore previously-built native binary from turbo cache
       - name: pull build cache
