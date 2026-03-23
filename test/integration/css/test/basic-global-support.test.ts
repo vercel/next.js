@@ -721,7 +721,7 @@ async function getStylesheetContents($, appPort, items) {
     const pathname = new URL(href, `http://localhost:${appPort}`).pathname
     const text = await res.text()
     results.push(
-      `${pathname.replace(/\/([0-9a-z_.~-]{7,})\.(css|js)\b/g, '/HASH.$2')}:\n${text
+      `${pathname.replace(/\/([0-9a-z_-]{7,})\.(css|js)\b/g, '/HASH.$2')}:\n${text
         .replace(/\/\*.*?\*\/\n?/g, '')
         .replace(/(\?dpl=[^)"']+)/g, '')
         .trim()}`
