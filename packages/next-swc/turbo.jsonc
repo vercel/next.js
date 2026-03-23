@@ -121,6 +121,17 @@
       "env": ["CI"],
       "outputs": ["native/*"],
     },
+    // Real turbo task: builds the Docker image on cache miss, loads from
+    // turbo cache on hit. The script detects whether docker/image.tar was
+    // restored by turbo and either `docker load`s it or builds from scratch.
+    "build-docker-image": {
+      "inputs": [
+        "../../docker/native-builder.Dockerfile",
+        "../../rust-toolchain.toml",
+        "../../scripts/docker-native-build.sh",
+      ],
+      "outputs": ["../../docker/image.tar"],
+    },
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",

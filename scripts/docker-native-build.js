@@ -100,38 +100,30 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
-// --- Build Docker image ---
-function dockerImageExists() {
+// --- Build Docker image via turbo task ---
+// This runs `build-docker-image` which is a real turbo task: on cache hit it
+// restores docker/image.tar and loads it; on miss it builds from scratch.
+// --force triggers a rebuild regardless of cache.
+function ensureDockerImage() {
   try {
     execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
-    return true
+    if (!rebuild) return // already loaded
   } catch {
-    return false
+    // not loaded — continue to build/restore
   }
-}
 
-function buildDockerImage() {
-  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
-  // Minimal context — just rust-toolchain.toml
-  const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
-  fs.copyFileSync(
-    path.join(REPO_ROOT, 'rust-toolchain.toml'),
-    path.join(ctx, 'rust-toolchain.toml')
+  const forceFlag = rebuild ? ' -- --force' : ''
+  execSync(
+    `pnpm -F @next/swc build-docker-image${forceFlag}`,
+    { stdio: 'inherit', cwd: REPO_ROOT }
   )
-  try {
-    execSync(
-      `docker build -t ${DOCKER_IMAGE} -f ${path.join(REPO_ROOT, 'docker/native-builder.Dockerfile')} ${ctx}`,
-      { stdio: 'inherit' }
-    )
-  } finally {
-    fs.rmSync(ctx, { recursive: true, force: true })
+  // Clean up tar if it was left behind (turbo saves it as output)
+  if (fs.existsSync(path.join(REPO_ROOT, 'docker/image.tar'))) {
+    fs.unlinkSync(path.join(REPO_ROOT, 'docker/image.tar'))
   }
 }
 
-if (rebuild || !dockerImageExists()) {
-  buildDockerImage()
-  console.log()
-}
+ensureDockerImage()
 
 // --- Build targets ---
 const buildTask = quick

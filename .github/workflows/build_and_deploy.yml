@@ -133,39 +133,8 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-  # Build the Docker image used for all Linux native builds.
-  # Cached by content hash of Dockerfile + rust-toolchain.
-  build-native-image:
-    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
-    needs:
-      - deploy-target
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - name: Build Docker image
-        run: |
-          CACHE_KEY="next-swc-builder-${{ hashFiles('docker/native-builder.Dockerfile', 'rust-toolchain.toml') }}"
-          # Check if image with this hash already exists
-          if docker image inspect "next-swc-builder:${CACHE_KEY}" &>/dev/null; then
-            echo "Image already cached, tagging as latest"
-            docker tag "next-swc-builder:${CACHE_KEY}" next-swc-builder:latest
-          else
-            echo "Building new image"
-            # Use a minimal context (just rust-toolchain.toml) to avoid sending
-            # the entire repo checkout to the Docker daemon.
-            DOCKER_CTX=$(mktemp -d)
-            cp rust-toolchain.toml "$DOCKER_CTX/"
-            docker build -t next-swc-builder:latest -t "next-swc-builder:${CACHE_KEY}" \
-              -f docker/native-builder.Dockerfile "$DOCKER_CTX"
-            rm -rf "$DOCKER_CTX"
-          fi
+  # Docker image build is now handled per-runner via docker-image-cache.js
+  # which uses turbo remote cache to share images across runners.
 
   # Generate the build matrix for native binaries.
   # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
@@ -219,7 +188,6 @@ jobs:
     needs:
       - deploy-target
       - generate-native-matrix
-      - build-native-image
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -281,9 +249,14 @@ jobs:
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # we only need custom caching for docker builds
-      # as they are on an older Node.js version and have
-      # issues with turbo caching
+      # Build or restore the Docker image via turbo remote cache.
+      # On cache hit, turbo restores docker/image.tar and the script loads it.
+      # On cache miss, the script builds from scratch and saves the tar for caching.
+      - name: Build/restore Docker image
+        if: ${{ matrix.docker }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90
+
+      # Try to restore previously-built native binary from turbo cache
       - name: pull build cache
         if: ${{ matrix.docker }}
         run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.target }}
