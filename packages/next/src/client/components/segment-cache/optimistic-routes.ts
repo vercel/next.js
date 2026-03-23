@@ -49,9 +49,11 @@ import {
   EntryStatus,
   writeRouteIntoCache,
   fulfillRouteCacheEntry,
+  getCurrentRouteCacheVersion,
   type PendingRouteCacheEntry,
   createMetadataRouteTree,
 } from './cache'
+import { isValueExpired } from './cache-map'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
 import {
@@ -136,6 +138,30 @@ type KnownRoutePart =
  * - string[] for catch-all [...param] and optional catch-all [[...param]]
  */
 type ResolvedParams = Map<string, string | string[]>
+
+/**
+ * Read the pattern from a KnownRoutePart, evicting it if expired.
+ *
+ * This prevents stale patterns (e.g. from InliningHintsStale route entries
+ * with staleAt = -1) from being cloned into synthetic entries indefinitely.
+ * Once evicted, the pattern slot can be repopulated by the next
+ * discoverKnownRoute call with a fresh entry from a /_tree response.
+ */
+function readPattern(
+  now: number,
+  part: KnownRoutePart
+): FulfilledRouteCacheEntry | null {
+  const pattern = part.pattern
+  if (pattern === null) {
+    return null
+  }
+  if (isValueExpired(now, getCurrentRouteCacheVersion(), pattern)) {
+    // The pattern is expired. Null it out so the slot can be repopulated.
+    part.pattern = null
+    return null
+  }
+  return pattern
+}
 
 function createEmptyPart(): KnownRoutePart {
   return {
@@ -442,12 +468,13 @@ function discoverKnownRoutePart(
 
   // Reached a page node. Create/get the route cache entry and store as a
   // pattern. First, check if there's already a pattern for this route.
-  if (knownRoutePart.pattern !== null) {
+  const existingPattern = readPattern(now, knownRoutePart)
+  if (existingPattern !== null) {
     // If this route has a dynamic rewrite, mark the existing pattern.
     if (hasDynamicRewrite) {
-      knownRoutePart.pattern.hasDynamicRewrite = true
+      existingPattern.hasDynamicRewrite = true
     }
-    return knownRoutePart.pattern
+    return existingPattern
   }
 
   // Get or create the entry
@@ -486,12 +513,14 @@ function discoverKnownRoutePart(
  * pattern, or null if no match is found (fall back to server resolution).
  */
 export function matchKnownRoute(
+  now: number,
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
   const pathnameParts = pathname.split('/').filter((p) => p !== '')
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
+    now,
     knownRouteTreeRoot,
     pathnameParts,
     0,
@@ -593,6 +622,7 @@ type KnownRouteMatch = {
  * Returns null if no match found (caller should fall back to server).
  */
 function matchKnownRoutePart(
+  now: number,
   part: KnownRoutePart,
   pathnameParts: string[],
   partIndex: number,
@@ -610,7 +640,7 @@ function matchKnownRoutePart(
   if (part.staticChildren === null) {
     // The only safe match is a direct pattern when no URL parts remain.
     if (urlPart === null) {
-      const pattern = part.pattern
+      const pattern = readPattern(now, part)
       if (pattern !== null && !pattern.hasDynamicRewrite) {
         return { part, pattern }
       }
@@ -636,6 +666,7 @@ function matchKnownRoutePart(
         return null
       }
       const match = matchKnownRoutePart(
+        now,
         staticChild,
         pathnameParts,
         partIndex + 1,
@@ -658,7 +689,7 @@ function matchKnownRoutePart(
     const dynamicPart = part.dynamicChild
     const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
-    const dynamicPattern = dynamicPart.pattern
+    const dynamicPattern = readPattern(now, dynamicPart)
 
     switch (paramType) {
       case 'c':
@@ -672,7 +703,7 @@ function matchKnownRoutePart(
           return { part: dynamicPart, pattern: dynamicPattern }
         }
         break
-      case 'oc':
+      case 'oc': {
         // Optional catch-all [[...param]]: consumes 0+ URL parts
         if (dynamicPattern !== null && !dynamicPattern.hasDynamicRewrite) {
           if (urlPart !== null) {
@@ -681,12 +712,14 @@ function matchKnownRoutePart(
           }
           // urlPart is null - can match with zero parts, but a direct pattern
           // (e.g., page.tsx alongside [[...param]]) takes precedence.
-          if (part.pattern === null || part.pattern.hasDynamicRewrite) {
+          const directPattern = readPattern(now, part)
+          if (directPattern === null || directPattern.hasDynamicRewrite) {
             resolvedParams.set(paramName, [])
             return { part: dynamicPart, pattern: dynamicPattern }
           }
         }
         break
+      }
       case 'd':
         // Regular dynamic [param]: consumes exactly 1 URL part.
         // Unlike catch-all which terminates here, regular dynamic must
@@ -694,6 +727,7 @@ function matchKnownRoutePart(
         if (urlPart !== null) {
           resolvedParams.set(paramName, urlPart)
           return matchKnownRoutePart(
+            now,
             dynamicPart,
             pathnameParts,
             partIndex + 1,
@@ -721,7 +755,7 @@ function matchKnownRoutePart(
   // No children matched. If we've consumed all URL parts, check for a direct
   // pattern at this node (the route terminates here).
   if (urlPart === null) {
-    const pattern = part.pattern
+    const pattern = readPattern(now, part)
     if (pattern !== null && !pattern.hasDynamicRewrite) {
       return { part, pattern }
     }

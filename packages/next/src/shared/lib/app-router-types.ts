@@ -195,7 +195,30 @@ export const enum PrefetchHint {
   // On the root hint node: the head was NOT inlined into any page — fetch
   // it separately. Absence of this bit means the head is bundled into a page.
   HeadOutlined = 0b100000000,
+  // The inlining hints in this tree may be stale because the tree was
+  // generated before collectPrefetchHints ran (e.g. the initial RSC payload
+  // for a fully static page at build time). When writing this tree into the
+  // cache, the route entry should be immediately expired so it gets
+  // re-fetched with correct hints. Only set during build-time prerendering,
+  // never at runtime.
+  InliningHintsStale = 0b1000000000,
+  // This segment has unstable_instant = false, opting out of all
+  // prefetching entirely (neither static nor runtime).
+  PrefetchDisabled = 0b10000000000,
+  // This segment or one of its descendants has runtime prefetch enabled
+  // (HasRuntimePrefetch). Propagates upward so the root reflects the
+  // entire subtree.
+  SubtreeHasRuntimePrefetch = 0b100000000000,
 }
+
+/**
+ * Alias: this segment's static prefetch is skipped. Either because it uses
+ * runtime prefetching (fetched dynamically instead) or because prefetching
+ * is disabled entirely (unstable_instant = false). The segment participates
+ * in the bundle chain but with null data.
+ */
+export const StaticPrefetchDisabled =
+  PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
 
 /**
  * Individual Flight response path

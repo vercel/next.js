@@ -1,7 +1,7 @@
 import type {
   TreePrefetch,
   RootTreePrefetch,
-  SegmentPrefetch,
+  SegmentPrefetchResponse,
   InlinedPrefetchResponse,
   InlinedSegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
@@ -10,6 +10,7 @@ import type {
   FlightData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   readVaryParams,
   type VaryParams,
@@ -452,7 +453,7 @@ export function readRouteCacheEntry(
   // No cache hit. Attempt to construct from template using the new
   // optimistic routing mechanism (pattern-based matching).
   if (process.env.__NEXT_OPTIMISTIC_ROUTING) {
-    return matchKnownRoute(key.pathname, key.search)
+    return matchKnownRoute(now, key.pathname, key.search)
   }
 
   return null
@@ -1070,7 +1071,17 @@ export function fulfillRouteCacheEntry(
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
   // change routes dynamically. We have other strategies for handling those.
-  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
+  //
+  // If the route tree has stale inlining hints (e.g. the initial RSC payload
+  // for a build-time static page, generated before collectPrefetchHints ran),
+  // immediately expire the entry so it gets re-fetched with correct hints.
+  // The segment data itself is still valid — only the route tree (which
+  // contains the hint bits) needs to be re-fetched.
+  if (tree.prefetchHints & PrefetchHint.InliningHintsStale) {
+    fulfilledEntry.staleAt = -1
+  } else {
+    fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
+  }
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1924,42 +1935,57 @@ export async function fetchSegmentOnCacheMiss(
       await createNonTaskyPrefetchResponseStream(response.body)
     closed.resolve()
     setSizeInCacheMap(segmentCacheEntry, responseSize)
-    const serverData = await createFromNextReadableStream<SegmentPrefetch>(
-      prefetchStream,
-      headers,
-      { allowPartialStream: true }
-    )
+    const serverResponse =
+      await createFromNextReadableStream<SegmentPrefetchResponse>(
+        prefetchStream,
+        headers,
+        { allowPartialStream: true }
+      )
     if (
       (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-        serverData.buildId) !== getNavigationBuildId()
+        serverResponse.buildId) !== getNavigationBuildId()
     ) {
       // The server build does not match the client. Treat as a 404. During
       // an actual navigation, the router will trigger an MPA navigation.
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
-    const now = Date.now()
-    const staleAt = now + getStaleTimeMs(serverData.staleTime)
-    const fulfilledEntry = fulfillSegmentCacheEntry(
-      segmentCacheEntry,
-      serverData.rsc,
-      staleAt,
-      serverData.isPartial
-    )
+    // Iterate over the segment data in the response array. Currently each
+    // per-segment response contains a single entry, but the format supports
+    // bundled responses with multiple entries (used when segment inlining
+    // is enabled).
+    let fulfilledEntry: FulfilledSegmentCacheEntry | null = null
+    for (const serverData of serverResponse.data) {
+      if (serverData === null) {
+        // Null entries represent segments with static prefetch disabled
+        // (runtime prefetch or unstable_instant = false). Skip them.
+        continue
+      }
+      const now = Date.now()
+      const staleAt = now + getStaleTimeMs(serverData.staleTime)
+      fulfilledEntry = fulfillSegmentCacheEntry(
+        segmentCacheEntry,
+        serverData.rsc,
+        staleAt,
+        serverData.isPartial
+      )
 
-    // If the server tells us which params the segment varies by, we can re-key
-    // the entry to a more generic vary path. This allows the entry to be reused
-    // across different param values for params that the segment doesn't
-    // actually depend on.
-    const varyParams = serverData.varyParams
-    const fulfilledVaryPath =
-      process.env.__NEXT_VARY_PARAMS && varyParams !== null
-        ? getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
-        : getSegmentVaryPathForRequest(segmentCacheEntry.fetchStrategy, tree)
-    // Re-key and upsert the entry at the fulfilled vary path. This ensures
-    // the entry is stored at the most generic path possible based on which
-    // params the segment actually depends on.
-    upsertSegmentEntry(now, fulfilledVaryPath, fulfilledEntry)
+      // If the server tells us which params the segment varies by, we can
+      // re-key the entry to a more generic vary path. This allows the entry
+      // to be reused across different param values for params that the
+      // segment doesn't actually depend on.
+      const varyParams = serverData.varyParams
+      const fulfilledVaryPath =
+        process.env.__NEXT_VARY_PARAMS && varyParams !== null
+          ? getFulfilledSegmentVaryPath(tree.varyPath, varyParams)
+          : getSegmentVaryPathForRequest(segmentCacheEntry.fetchStrategy, tree)
+      upsertSegmentEntry(now, fulfilledVaryPath, fulfilledEntry)
+    }
+
+    if (fulfilledEntry === null) {
+      rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
+      return null
+    }
 
     return {
       value: fulfilledEntry,
@@ -2037,7 +2063,7 @@ export async function fetchInlinedSegmentsOnCacheMiss(
 
     if (
       (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-        serverData.tree.segment.buildId) !== getNavigationBuildId()
+        serverData.buildId) !== getNavigationBuildId()
     ) {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null

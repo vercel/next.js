@@ -73,8 +73,16 @@ export type TreePrefetch = {
   prefetchHints: number
 }
 
+/**
+ * Top-level response for a segment prefetch request. Contains the build ID
+ * and an array of segment data (one per segment in the bundle).
+ */
+export type SegmentPrefetchResponse = {
+  buildId: string
+  data: Array<SegmentPrefetch | null>
+}
+
 export type SegmentPrefetch = {
-  buildId?: string
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
@@ -110,6 +118,7 @@ export type InlinedSegmentPrefetch = {
  * data for a route bundled into a single tree structure, plus the head segment.
  */
 export type InlinedPrefetchResponse = {
+  buildId: string
   tree: InlinedSegmentPrefetch
   head: SegmentPrefetch
 }
@@ -501,12 +510,19 @@ async function collectPrefetchHintsImpl(
     ? acceptingChildInlinedBytes
     : smallestChildInlinedBytes
 
-  // At leaf nodes (pages), try to inline the head (metadata/viewport) into
-  // this page's response. The head is treated like an additional inlined
+  // Try to inline the head (metadata/viewport) into this segment's
+  // response. The head can only be inlined into a page, not a layout,
+  // because pages may access additional params (e.g. searchParams) that
+  // layouts cannot. The head is treated like an additional inlined
   // entry — it counts against the same total budget. Only the first page
   // that has room gets the head; subsequent pages skip via the shared
   // headInlineState accumulator.
-  if (!hasChildren && !headInlineState.inlined) {
+  const segment = route[0]
+  const isPageSegment =
+    typeof segment === 'string'
+      ? segment === PAGE_SEGMENT_KEY
+      : segment[0] === PAGE_SEGMENT_KEY
+  if (isPageSegment && !headInlineState.inlined) {
     if (inlinedBytes + headGzipSize < maxBundleSize) {
       hints |= PrefetchHint.HeadInlinedIntoSelf
       inlinedBytes += headGzipSize
@@ -733,8 +749,14 @@ function collectSegmentDataImpl(
   // inlining hints (ParentInlinedIntoSelf, InlinedIntoChild) won't be in
   // route[4] yet. On subsequent renders the hints are already in the
   // FlightRouterState, so the union is idempotent.
+  //
+  // Strip InliningHintsStale — it's a transient flag set on the initial
+  // build-time FlightRouterState and must never appear in /_tree responses.
+  // If it leaked through, the client would re-fetch the tree in an infinite
+  // loop.
   const prefetchHints =
-    (route[4] ?? 0) | (hintTree !== null ? hintTree.hints : 0)
+    ((route[4] ?? 0) & ~PrefetchHint.InliningHintsStale) |
+    (hintTree !== null ? hintTree.hints : 0)
 
   // Determine which params this segment varies on.
   // Read the vary params thenable directly from the seed data. By the time
@@ -816,23 +838,22 @@ async function renderSegmentPrefetch(
     staleTime,
     varyParams,
   }
-  if (buildId) {
-    segmentPrefetch.buildId = buildId
+  // Wrap in a SegmentPrefetchResponse with a top-level buildId.
+  // For non-bundled responses, the data array has a single element.
+  const response: SegmentPrefetchResponse = {
+    buildId: buildId ?? '',
+    data: [segmentPrefetch],
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
   // caused by dynamic data. Abort the stream at the end of the current task.
   const abortController = new AbortController()
   waitAtLeastOneReactRenderTask().then(() => abortController.abort())
-  const { prelude: segmentStream } = await prerender(
-    segmentPrefetch,
-    clientModules,
-    {
-      filterStackFrame,
-      signal: abortController.signal,
-      onError: onSegmentPrerenderError,
-    }
-  )
+  const { prelude: segmentStream } = await prerender(response, clientModules, {
+    filterStackFrame,
+    signal: abortController.signal,
+    onError: onSegmentPrerenderError,
+  })
   const segmentBuffer = await streamToBuffer(segmentStream)
   if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
     return ['/_index' as SegmentRequestKey, segmentBuffer]
@@ -866,11 +887,9 @@ async function renderInlinedPrefetchResponse(
     staleTime,
     varyParams: headVaryParams,
   }
-  if (buildId) {
-    headPrefetch.buildId = buildId
-  }
 
   const response: InlinedPrefetchResponse = {
+    buildId: buildId ?? '',
     tree: inlinedTree,
     head: headPrefetch,
   }
@@ -927,9 +946,6 @@ async function buildInlinedSegmentPrefetch(
     isPartial: rsc !== null ? await isPartialRSCData(rsc, clientModules) : true,
     staleTime,
     varyParams,
-  }
-  if (buildId) {
-    segment.buildId = buildId
   }
   return { segment, slots }
 }

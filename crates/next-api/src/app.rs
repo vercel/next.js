@@ -35,7 +35,7 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
-use tracing::Instrument;
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
@@ -884,6 +884,8 @@ impl AppProject {
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
+            let span = tracing::info_span!("module graph for endpoint", modules = Empty);
+            let span_clone = span.clone();
             async move {
                 let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
 
@@ -974,6 +976,14 @@ impl AppProject {
                 );
                 graphs.push(additional_module_graph);
 
+                if !span.is_disabled() {
+                    let mut module_count = 0u64;
+                    for g in &graphs {
+                        module_count += g.connect().module_count().untracked().owned().await?;
+                    }
+                    span.record("modules", module_count);
+                }
+
                 let remove_unused_imports = *self
                     .project
                     .next_config()
@@ -1004,7 +1014,7 @@ impl AppProject {
                 }
                 .cell())
             }
-            .instrument(tracing::info_span!("module graph for endpoint"))
+            .instrument(span_clone)
             .await
         } else {
             Ok(self.project.whole_app_module_graphs())

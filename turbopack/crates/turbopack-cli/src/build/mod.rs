@@ -6,12 +6,14 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
+    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
@@ -55,7 +57,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
+type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -523,14 +525,57 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            dependency_tracking: false,
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = true; // build sessions are always short
+
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) =
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session)?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: false,
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            Either::Left(backing_storage),
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "warn  - Turbopack cache was invalidated{}",
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: false,
+                storage_mode: None,
+                ..Default::default()
+            },
+            Either::Right(noop_backing_storage()),
+        ))
+    };
 
     let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
         .log_detail(args.common.log_detail)
