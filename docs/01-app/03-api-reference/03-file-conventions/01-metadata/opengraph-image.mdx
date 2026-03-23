@@ -9,21 +9,21 @@ They are useful for setting the images that appear on social networks and messag
 
 There are two ways to set Open Graph and Twitter images:
 
-- [Using image files (.jpg, .png, .gif)](#image-files-jpg-png-gif)
+- [Using image files (.jpg, .png, .gif, .webp, .avif)](#image-files-jpg-png-gif-webp-avif)
 - [Using code to generate images (.js, .ts, .tsx)](#generate-images-using-code-js-ts-tsx)
 
-## Image files (.jpg, .png, .gif)
+## Image files (.jpg, .png, .gif, .webp, .avif)
 
 Use an image file to set a route segment's shared image by placing an `opengraph-image` or `twitter-image` image file in the segment.
 
 Next.js will evaluate the file and automatically add the appropriate tags to your app's `<head>` element.
 
-| File convention                                 | Supported file types            |
-| ----------------------------------------------- | ------------------------------- |
-| [`opengraph-image`](#opengraph-image)           | `.jpg`, `.jpeg`, `.png`, `.gif` |
-| [`twitter-image`](#twitter-image)               | `.jpg`, `.jpeg`, `.png`, `.gif` |
-| [`opengraph-image.alt`](#opengraph-imagealttxt) | `.txt`                          |
-| [`twitter-image.alt`](#twitter-imagealttxt)     | `.txt`                          |
+| File convention                                 | Supported file types                              |
+| ----------------------------------------------- | ------------------------------------------------- |
+| [`opengraph-image`](#opengraph-image)           | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.avif` |
+| [`twitter-image`](#twitter-image)               | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.avif` |
+| [`opengraph-image.alt`](#opengraph-imagealttxt) | `.txt`                                            |
+| [`twitter-image.alt`](#twitter-imagealttxt)     | `.txt`                                            |
 
 > **Good to know**:
 >
@@ -31,7 +31,7 @@ Next.js will evaluate the file and automatically add the appropriate tags to you
 
 ### `opengraph-image`
 
-Add an `opengraph-image.(jpg|jpeg|png|gif)` image file to any route segment.
+Add an `opengraph-image.(jpg|jpeg|png|gif|webp|avif)` image file to any route segment.
 
 ```html filename="<head> output"
 <meta property="og:image" content="<generated>" />
@@ -42,7 +42,7 @@ Add an `opengraph-image.(jpg|jpeg|png|gif)` image file to any route segment.
 
 ### `twitter-image`
 
-Add a `twitter-image.(jpg|jpeg|png|gif)` image file to any route segment.
+Add a `twitter-image.(jpg|jpeg|png|gif|webp|avif)` image file to any route segment.
 
 ```html filename="<head> output"
 <meta name="twitter:image" content="<generated>" />
@@ -53,7 +53,7 @@ Add a `twitter-image.(jpg|jpeg|png|gif)` image file to any route segment.
 
 ### `opengraph-image.alt.txt`
 
-Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif|webp|avif)` image it's alt text.
 
 ```txt filename="opengraph-image.alt.txt"
 About Acme
@@ -65,7 +65,7 @@ About Acme
 
 ### `twitter-image.alt.txt`
 
-Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif|webp|avif)` image it's alt text.
 
 ```txt filename="twitter-image.alt.txt"
 About Acme
@@ -77,7 +77,7 @@ About Acme
 
 ## Generate images using code (.js, .ts, .tsx)
 
-In addition to using [literal image files](#image-files-jpg-png-gif), you can programmatically **generate** images using code.
+In addition to using [literal image files](#image-files-jpg-png-gif-webp-avif), you can programmatically **generate** images using code.
 
 Generate a route segment's shared image by creating an `opengraph-image` or `twitter-image` route that default exports a function.
 
@@ -523,7 +523,8 @@ export default async function Image() {
 
 ## Version History
 
-| Version   | Changes                                              |
-| --------- | ---------------------------------------------------- |
-| `v16.0.0` | `params` is now a promise that resolves to an object |
-| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.    |
+| Version   | Changes                                                                     |
+| --------- | --------------------------------------------------------------------------- |
+| `v16.1.0` | Added `.webp` and `.avif` support for `opengraph-image` and `twitter-image` |
+| `v16.0.0` | `params` is now a promise that resolves to an object                        |
+| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.                           |
