@@ -570,12 +570,12 @@ requestMeta.onCacheEntryV2 callback
 
 ## Runtime Integration
 
-The Deployment Adapter API is a **build-time** interface. It tells your platform what was built and how to route requests. **Runtime** behavior (request handling, streaming, caching) is handled by the Next.js server itself and by the [Cache Handler API](/docs/app/api-reference/config/next-config-js/cacheHandlers).
+The Deployment Adapter API is a **build-time** interface. It tells your platform what was built and how to route requests. **Runtime** behavior (request handling, streaming, caching) is handled by the Next.js server itself and by the cache interfaces [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 
-Together, the adapter and cache handler form the complete platform integration surface:
+Together, the adapter and cache interfaces form the complete platform integration surface:
 
 - **Adapter** (build-time): processes build outputs, configures routing, and sets up platform-specific infrastructure.
-- **Cache Handler** (runtime): manages cache storage, tag coordination, and revalidation across instances.
+- **Cache Interfaces** (runtime): `cacheHandler` manages ISR/server cache storage and revalidation across instances; `cacheHandlers` configures `'use cache'` directive backends and tag coordination.
 
 ### Handler Context
 

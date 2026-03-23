@@ -88,7 +88,7 @@ This allows you to use a singular Docker image that can be promoted through mult
 
 Next.js can cache responses, generated static pages, build outputs, and other static assets like images, fonts, and scripts.
 
-Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration)) use the **same shared cache**. By default, this cache is stored on the local filesystem (on disk) of each Next.js server instance.
+Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration)) use the **same Next.js server cache**. By default, this cache is stored on the local filesystem (on disk) of each Next.js server instance.
 
 This works automatically for a single self-hosted `next start` instance with persistent local disk. If you run multiple instances, use ephemeral compute, or place a CDN/reverse proxy in front of Next.js, also review [Configuring Caching](#configuring-caching), [Multi-Instance Cache Coordination](#multi-instance-cache-coordination), and [Usage with CDNs](#usage-with-cdns).
 
@@ -112,7 +112,7 @@ By default, generated cache assets will be stored in memory (defaults to 50mb) a
 
 To configure the cache location when self-hosting, you can configure a custom handler in your `next.config.js` file:
 
-For production deployments, use this as a starting point and extend it with durable storage, eviction policies, error handling, and distributed tag coordination. See [Custom Next.js Cache Handler](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and the Redis examples in [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers#examples).
+For production deployments, use this as a starting point and extend it with durable storage, eviction policies, error handling, and distributed tag coordination. See [Custom Next.js Cache Handler](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis). If you are configuring backends for `'use cache'` directives, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
 
 ```jsx filename="next.config.js"
 module.exports = {

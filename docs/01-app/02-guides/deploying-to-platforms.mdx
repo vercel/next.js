@@ -48,7 +48,7 @@ Different features require different infrastructure capabilities. The "Edge Stit
 
 **Streaming Required** means the platform must support chunked transfer encoding or HTTP/2 streaming and must not buffer the response before sending it to the client.
 
-**Shared Cache Recommended** means multiple server instances benefit from a [shared cache backend](/docs/app/api-reference/config/next-config-js/cacheHandlers) to coordinate. Without shared cache, each instance maintains its own cache independently — features still work correctly on each instance, but revalidation events don't propagate across instances.
+**Shared Cache Recommended** means multiple server instances benefit from shared cache backends to coordinate. For ISR and server response caching, use [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). For `'use cache'` entries, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers). Without shared cache, each instance maintains its own cache independently — features still work correctly on each instance, but revalidation events don't propagate across instances.
 
 ## CDN Infrastructure Compatibility
 
