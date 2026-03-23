@@ -164,6 +164,90 @@ describe('create-next-app', () => {
     })
   })
 
+  it('should print assumed defaults when flags are partially provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'partial-flags'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--tailwind',
+          '--app',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          stdio: 'pipe',
+        }
+      )
+      expect(res.exitCode).toBe(0)
+
+      // Should print the defaults message for unspecified options
+      expect(res.stdout).toContain('Using defaults for unprovided options')
+
+      // Should list flags that were NOT explicitly provided
+      expect(res.stdout).toContain('--eslint')
+      expect(res.stdout).toContain('--no-react-compiler')
+      expect(res.stdout).toContain('--no-src-dir')
+      expect(res.stdout).toContain('--agents-md')
+      expect(res.stdout).toContain('--import-alias')
+
+      // Should NOT list flags that were explicitly provided
+      expect(res.stdout).not.toMatch(/^\s+--ts\s/m)
+      expect(res.stdout).not.toMatch(/^\s+--tailwind\s/m)
+      expect(res.stdout).not.toMatch(/^\s+--app\s/m)
+    })
+  })
+
+  it('should not print assumed defaults when all flags are provided', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'all-flags'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--eslint',
+          '--tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+          stdio: 'pipe',
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).not.toContain('Using defaults for unprovided options')
+    })
+  })
+
+  it('should not print assumed defaults with --yes flag', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'yes-flag'
+
+      const res = await run(
+        [projectName, '--yes', '--skip-install'],
+        nextTgzFilename,
+        {
+          cwd,
+          stdio: 'pipe',
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).not.toContain('Using defaults for unprovided options')
+    })
+  })
+
   it('should not install dependencies if --skip-install', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'empty-dir'

@@ -686,7 +686,12 @@ async function run(): Promise<void> {
       }
 
       // Import alias is not a boolean toggle, handle separately
-      if (!process.argv.some((arg) => arg.startsWith('--import-alias'))) {
+      const hasImportAlias = process.argv.some(
+        (arg) =>
+          arg.startsWith('--import-alias') ||
+          arg.startsWith('--no-import-alias')
+      )
+      if (!hasImportAlias) {
         lines.push(`  ${'--import-alias'.padEnd(24)}"${defaults.importAlias}"`)
       }
 
