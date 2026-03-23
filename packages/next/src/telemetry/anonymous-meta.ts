@@ -3,6 +3,7 @@ import isWslBoolean from 'next/dist/compiled/is-wsl'
 import os from 'os'
 
 import * as ciEnvironment from '../server/ci-info'
+import { detectAgent } from './detect-agent'
 
 type AnonymousMeta = {
   systemPlatform: NodeJS.Platform
@@ -18,6 +19,7 @@ type AnonymousMeta = {
   isCI: boolean
   ciName: string | null
   nextVersion: string
+  agentName: string | null
 }
 
 let traits: AnonymousMeta | undefined
@@ -46,6 +48,7 @@ export function getAnonymousMeta(): AnonymousMeta {
     isCI: ciEnvironment.isCI,
     ciName: (ciEnvironment.isCI && ciEnvironment.name) || null,
     nextVersion: process.env.__NEXT_VERSION as string,
+    agentName: detectAgent(),
   }
 
   return traits
