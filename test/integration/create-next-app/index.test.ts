@@ -185,20 +185,18 @@ describe('create-next-app', () => {
       )
       expect(res.exitCode).toBe(0)
 
-      // Should print the defaults message for unspecified options
-      expect(res.stdout).toContain('Using defaults for unprovided options')
-
-      // Should list flags that were NOT explicitly provided
-      expect(res.stdout).toContain('--eslint')
-      expect(res.stdout).toContain('--no-react-compiler')
-      expect(res.stdout).toContain('--no-src-dir')
-      expect(res.stdout).toContain('--agents-md')
-      expect(res.stdout).toContain('--import-alias')
-
-      // Should NOT list flags that were explicitly provided
-      expect(res.stdout).not.toMatch(/^\s+--ts\s/m)
-      expect(res.stdout).not.toMatch(/^\s+--tailwind\s/m)
-      expect(res.stdout).not.toMatch(/^\s+--app\s/m)
+      // Extract the defaults block from stdout
+      const defaultsMatch = res.stdout.match(
+        /Using defaults for unprovided options:\n\n([\s\S]*?)\n\nTo customize/
+      )
+      expect(defaultsMatch).not.toBeNull()
+      expect(defaultsMatch[1]).toMatchInlineSnapshot(`
+        "  --eslint                ESLint (use --biome for Biome, --no-eslint for None)
+          --no-react-compiler     No React Compiler (use --react-compiler for React Compiler)
+          --no-src-dir            No src/ directory (use --src-dir for src/ directory)
+          --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
+          --import-alias          "@/*""
+      `)
     })
   })
 
