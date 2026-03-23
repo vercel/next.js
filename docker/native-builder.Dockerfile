@@ -33,65 +33,49 @@ FROM ubuntu:20.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Enable multiarch for cross-compilation sysroots.
-# On arm64 hosts, amd64 packages live on archive.ubuntu.com (not ports).
-# On amd64 hosts, arm64 packages live on ports.ubuntu.com (not archive).
-# We detect the host arch and add the appropriate foreign arch + mirror.
+# Write sources.list from scratch with explicit [arch=...] tags.
+# On arm64 hosts: native packages from ports, foreign amd64 from archive.
+# On amd64 hosts: native packages from archive, foreign arm64 from ports.
 RUN HOST_ARCH=$(dpkg --print-architecture) && \
     if [ "$HOST_ARCH" = "arm64" ]; then \
-      dpkg --add-architecture amd64 && \
-      # Pin existing sources to arm64 so they don't try to fetch amd64 from ports
-      sed -i "s|^deb |deb [arch=arm64] |" /etc/apt/sources.list && \
-      # Add amd64 packages from the main Ubuntu archive
-      echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" >> /etc/apt/sources.list && \
-      echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal-updates main universe" >> /etc/apt/sources.list && \
-      echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal-security main universe" >> /etc/apt/sources.list; \
-    elif [ "$HOST_ARCH" = "amd64" ]; then \
-      dpkg --add-architecture arm64 && \
-      # Pin existing sources to amd64 so they don't try to fetch arm64 from archive
-      sed -i "s|^deb |deb [arch=amd64] |" /etc/apt/sources.list && \
-      # Add arm64 packages from the ports archive
-      echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal main universe" >> /etc/apt/sources.list && \
-      echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" >> /etc/apt/sources.list && \
-      echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-security main universe" >> /etc/apt/sources.list; \
-    fi
+      NATIVE_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; FOREIGN_ARCH=amd64; \
+      FOREIGN_MIRROR="http://archive.ubuntu.com/ubuntu"; \
+    else \
+      NATIVE_MIRROR="http://archive.ubuntu.com/ubuntu"; FOREIGN_ARCH=arm64; \
+      FOREIGN_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; \
+    fi && \
+    dpkg --add-architecture "$FOREIGN_ARCH" && \
+    printf '%s\n' \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal main universe" \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal-updates main universe" \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal-security main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-updates main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
+      > /etc/apt/sources.list
 
-# Core build tools
+# Core build tools + GNU cross-compilation sysroots.
+# crossbuild-essential installs headers + libs in the multiarch layout
+# that clang finds via --target. Both archs installed so the image
+# works on either host architecture.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    clang \
-    lld \
-    llvm \
-    pkg-config \
-    curl \
-    wget \
-    git \
-    ca-certificates \
-    xz-utils \
-    # GNU cross-compilation sysroots (headers + libs). These install the
-    # proper multiarch layout that clang finds automatically via --target.
-    # On arm64 hosts: crossbuild-essential-amd64 provides x86_64 sysroot.
-    # On x86_64 hosts: crossbuild-essential-arm64 provides aarch64 sysroot.
-    # Install both so the image works on either host architecture.
-    crossbuild-essential-amd64 \
-    crossbuild-essential-arm64 \
+    clang lld llvm pkg-config curl wget git ca-certificates xz-utils \
+    crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
 # Download musl cross-toolchains from musl.cc for their sysroots
-# (musl headers, crt files, libc, libgcc). Clang + rust-lld handle
-# compilation and linking; we only need the target libraries.
+# (headers, crt files, libc, libgcc). Clang + rust-lld handle compilation
+# and linking; we only need the target libraries.
+# Also copy GCC's crt files and libgcc into the sysroot lib dir — clang 10
+# doesn't search the --gcc-toolchain path for these files.
 # https://musl.cc/
 RUN cd /opt && \
-    wget -qO- "https://musl.cc/aarch64-linux-musl-cross.tgz" | tar xz && \
-    wget -qO- "https://musl.cc/x86_64-linux-musl-cross.tgz" | tar xz && \
-    # Copy GCC's crt files and libgcc into the sysroot lib dir.
-    # clang 10 finds crti.o/crtn.o from the sysroot but doesn't search the
-    # --gcc-toolchain path (lib/gcc/<triple>/<ver>/) for GCC's own files.
-    # Merging them into the sysroot lib avoids this limitation.
-    cp /opt/aarch64-linux-musl-cross/lib/gcc/aarch64-linux-musl/*/crt*.o \
-       /opt/aarch64-linux-musl-cross/lib/gcc/aarch64-linux-musl/*/libgcc.a \
-       /opt/aarch64-linux-musl-cross/aarch64-linux-musl/lib/ && \
-    cp /opt/x86_64-linux-musl-cross/lib/gcc/x86_64-linux-musl/*/crt*.o \
-       /opt/x86_64-linux-musl-cross/lib/gcc/x86_64-linux-musl/*/libgcc.a \
-       /opt/x86_64-linux-musl-cross/x86_64-linux-musl/lib/
+    for TRIPLE in aarch64-linux-musl x86_64-linux-musl; do \
+      wget -qO- "https://musl.cc/${TRIPLE}-cross.tgz" | tar xz && \
+      cp /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/crt*.o \
+         /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/libgcc.a \
+         /opt/${TRIPLE}-cross/${TRIPLE}/lib/; \
+    done
 
 # Copy Node.js from multi-stage build. We use the glibc-linked node for ALL
 # targets — node is just a build tool (runs npm/napi-cli), and the output

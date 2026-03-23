@@ -48,6 +48,11 @@ rustflags = [
 linker = "rust-lld"
 rustflags = ["-Ctarget-feature=+crt-static"]
 
+# Musl targets: disable static CRT linking. We produce dynamic .node shared
+# libraries (N-API addons), not static binaries.
+[target.'cfg(all(target_os = "linux", target_env = "musl"))']
+rustflags = ["-Ctarget-feature=-crt-static"]
+
 # WASM: configure getrandom to use the wasm_js backend (Math.random / crypto).
 [target.wasm32-unknown-unknown]
 rustflags = [
