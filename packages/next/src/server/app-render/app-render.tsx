@@ -13,6 +13,7 @@ import type {
   FlightDataPath,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
 import {
   workAsyncStorage,
@@ -1733,9 +1734,15 @@ async function getRSCPayload(
   } = ctx
 
   const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
+  const prefetchInliningEnabled = Boolean(
+    ctx.renderOpts.experimental.prefetchInlining
+  )
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     hints,
+    prefetchInliningEnabled,
+    workStore.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -1924,9 +1931,15 @@ async function getErrorRSCPayload(
   )
 
   const errorHints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
+  const errorPrefetchInliningEnabled = Boolean(
+    ctx.renderOpts.experimental.prefetchInlining
+  )
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     errorHints,
+    errorPrefetchInliningEnabled,
+    workStore.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -7244,7 +7257,27 @@ async function collectSegmentData(
   } else {
     // Runtime: use hints from the manifest. Never compute fresh hints
     // during ISR/revalidation.
-    hints = renderOpts.prefetchHints?.[pagePath] ?? null
+    const manifestHints = renderOpts.prefetchHints?.[pagePath]
+    if (manifestHints === undefined) {
+      // TODO(#91407): No hints found for this route. This currently
+      // happens for routes with `instant = false` at the root segment,
+      // which causes the prerender to run per-request and the hints
+      // manifest to be unavailable at runtime.
+      //
+      // Fall back to a hint tree that marks everything as unprefetchable.
+      // The root gets PrefetchDisabled, and children inherit null hints
+      // which triggers PrefetchDisabled in createFlightRouterStateFromLoaderTree.
+      //
+      // Once the instant:false bug is fixed, this should become an error —
+      // the manifest should always have an entry for every route that
+      // reaches collectSegmentData.
+      hints = {
+        hints: PrefetchHint.PrefetchDisabled,
+        slots: null,
+      }
+    } else {
+      hints = manifestHints
+    }
   }
 
   // Pass the resolved hints so collectSegmentData can union them into

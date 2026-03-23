@@ -60,7 +60,12 @@ export async function walkTreeWithFlightRouterState({
     isPrefetch,
     getDynamicParamFromSegment,
     parsedRequestHeaders,
+    workStore,
   } = ctx
+  const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const isStaticGeneration = workStore.isStaticGeneration
+  const isBuildTimePrerendering =
+    ctx.renderOpts.isBuildTimePrerendering ?? false
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -155,11 +160,17 @@ export async function walkTreeWithFlightRouterState({
         await createRouteTreePrefetch(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query
         )
@@ -187,11 +198,17 @@ export async function walkTreeWithFlightRouterState({
       ? await createRouteTreePrefetch(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
           hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query
         )
@@ -220,6 +237,9 @@ export async function walkTreeWithFlightRouterState({
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
       hintTree,
+      prefetchInliningEnabled,
+      isStaticGeneration,
+      isBuildTimePrerendering,
       getDynamicParamFromSegment,
       query
     )
@@ -339,6 +359,7 @@ export async function createFullTreeFlightDataForNavigation({
     query,
     getDynamicParamFromSegment,
     pagePath,
+    workStore: workStoreForInitialRender,
   } = ctx
 
   const hintTreeForInitialRender =
@@ -347,6 +368,9 @@ export async function createFullTreeFlightDataForNavigation({
   const routerState = await createFlightRouterStateFromLoaderTree(
     loaderTree,
     hintTreeForInitialRender,
+    Boolean(experimental.prefetchInlining),
+    workStoreForInitialRender.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )

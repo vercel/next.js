@@ -1,4 +1,6 @@
+import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
 const ParentInlinedIntoSelf = 0b100000 // 32
@@ -162,14 +164,10 @@ describe('prefetch inlining', () => {
     // accepts (children). The @sidebar slot doesn't receive the parent's
     // data and is fetched independently.
     //
-    // Turbopack and webpack produce slightly different route tree structures
-    // for parallel routes (turbopack adds a "(slot)" intermediate segment),
-    // so we use separate snapshots for each.
-    // Turbopack and webpack produce slightly different route tree structures
-    // for parallel routes. Turbopack adds a "(slot)" intermediate segment
-    // for the @sidebar slot; webpack puts __PAGE__ directly under it.
     const data = await fetchRouteTreePrefetch(next, '/test-parallel')
     if (isTurbopack) {
+      // Turbopack iterates children before @sidebar, so the parent
+      // inlines into children/__PAGE__.
       expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
        "
                 ⇣  root
@@ -180,6 +178,8 @@ describe('prefetch inlining', () => {
        "
       `)
     } else {
+      // Webpack iterates @sidebar before children, so the parent
+      // inlines into @sidebar/__PAGE__ instead.
       expect(renderInliningTree(data.tree)).toMatchInlineSnapshot(`
        "
                 ⇣  root
@@ -264,5 +264,52 @@ describe('prefetch inlining', () => {
     // pattern, not concrete path)
     const data2 = await fetchRouteTreePrefetch(next, '/test-dynamic/world')
     expect(renderInliningTree(data2.tree)).toBe(helloTree)
+  })
+
+  // TODO: Add a test for stale hints (InliningHintsStale). The stale hints
+  // mechanism expires the route cache entry so the next prefetch re-fetches
+  // the correct tree. This is hard to test reliably with act() because the
+  // test needs to start on a page with stale hints, navigate away, and
+  // navigate back — and act() can hang on CI when intercepting requests
+  // that overlap with background prefetch activity. The server-side logic
+  // is covered by the build output (the route tree correctly includes
+  // InliningHintsStale for build-time static pages), but the client-side
+  // recovery path needs a more robust test harness.
+
+  it('instant false at root: does not prefetch segment data', async () => {
+    // TODO: This test exists as a temporary mitigation for a bug where
+    // routes with `instant = false` at the root segment cause the
+    // prerender to run per-request instead of being cached. Until that
+    // bug is fixed (see https://github.com/vercel/next.js/pull/91407),
+    // we fall back to treating every segment as unprefetchable. This
+    // test verifies that fallback works — the route builds successfully
+    // and the client doesn't attempt to prefetch any segment data.
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page!)
+
+    // Reveal the link to trigger a prefetch. Since all segments are
+    // treated as PrefetchDisabled, the client should fetch the route
+    // tree but not any segment data.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/test-instant-false-root"]')
+        .click()
+    })
+
+    // The static page content should NOT appear in any prefetch response
+    // because all segments are marked as unprefetchable.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/test-instant-false-root"]').click()
+      },
+      // The page content should not have been prefetched — it will be
+      // fetched during navigation instead.
+      { includes: 'Static page below instant:false root' }
+    )
   })
 })

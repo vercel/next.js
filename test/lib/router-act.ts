@@ -293,6 +293,7 @@ export function createRouterAct(
     }
 
     const prevBatch = currentBatch
+
     const batch: Batch = {
       pendingRequestChecks: new Set(),
       pendingRequests: new Set(),
