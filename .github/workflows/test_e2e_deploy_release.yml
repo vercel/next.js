@@ -249,7 +249,7 @@ jobs:
   upload-adapter-test-results:
     name: Upload adapter test results
     needs: [test-deploy-adapter]
-    if: ${{ always() && github.event.inputs.deployScriptPath == '' && github.repository_owner == 'vercel' && secrets.ADAPTER_TEST_RESULTS_SECRET != '' }}
+    if: ${{ always() && github.event.inputs.deployScriptPath == '' && github.repository_owner == 'vercel' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -271,6 +271,11 @@ jobs:
 
       - name: Upload adapter test results
         run: |
+          if [ -z "${ADAPTER_TEST_RESULTS_SECRET:-}" ]; then
+            echo "ADAPTER_TEST_RESULTS_SECRET is not configured, skipping upload"
+            exit 0
+          fi
+
           if [ ! -d adapter-test-results ]; then
             echo "No adapter test artifact directory found, skipping upload"
             exit 0
