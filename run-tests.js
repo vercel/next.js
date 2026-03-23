@@ -18,6 +18,7 @@ const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
 const nextjsReactPeerVersion = "19.2.4";
+const nextjsTestTypescriptVersion = '6.0.0'
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -484,6 +485,7 @@ ${ENDGROUP}`)
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
+        typescript: nextjsTestTypescriptVersion,
       },
       keepRepoDir: true,
     })
