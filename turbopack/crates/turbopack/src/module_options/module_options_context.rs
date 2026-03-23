@@ -320,6 +320,9 @@ pub struct CssOptionsContext {
     /// User-specified lightningcss feature flags (include/exclude bitmasks).
     pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
 
+    /// Controls how CSS module class names are exported to JavaScript.
+    pub export_convention: turbopack_css::CssModuleExportConvention,
+
     pub placeholder_for_future_extensions: (),
 }
 

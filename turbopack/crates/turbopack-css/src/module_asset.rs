@@ -32,8 +32,10 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    CssModuleExportConvention,
     process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
+    util::{camel_case, dashes_camel_case},
 };
 
 /// A [CSS Module, as in `.module.css`][spec]. For a global CSS module, see [`CssModule`].
@@ -45,6 +47,7 @@ use crate::{
 pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub export_convention: CssModuleExportConvention,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,10 +56,12 @@ impl EcmascriptCssModule {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        export_convention: CssModuleExportConvention,
     ) -> Vc<Self> {
         Self::cell(EcmascriptCssModule {
             source,
             asset_context,
+            export_convention,
         })
     }
 }
@@ -273,7 +278,9 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self.await?;
         let classes = self.classes().await?;
+        let convention = this.export_convention;
 
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
@@ -292,7 +299,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                                 severity: IssueSeverity::Error,
                                 // TODO(PACK-4879): this should include detailed location
                                 // information
-                                source: IssueSource::from_source_only(self.await?.source),
+                                source: IssueSource::from_source_only(this.source),
                                 message: turbofmt!(
                                     "Module {} referenced in `composes: ... from ...;` can't be \
                                      resolved.\n",
@@ -312,7 +319,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                                 severity: IssueSeverity::Error,
                                 // TODO(PACK-4879): this should include detailed location
                                 // information
-                                source: IssueSource::from_source_only(self.await?.source),
+                                source: IssueSource::from_source_only(this.source),
                                 message: turbofmt!(
                                     "Module {} referenced in `composes: ... from ...;` is not a \
                                      CSS module.\n",
@@ -344,12 +351,36 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                 }
             }
 
-            writeln!(
-                code,
-                "  {}: {},",
-                StringifyJs(export_name),
-                exported_class_names.join(" + \" \" + ")
-            )?;
+            let class_value = exported_class_names.join(" + \" \" + ");
+
+            // Emit export entries based on the configured convention.
+            match convention {
+                CssModuleExportConvention::AsIs => {
+                    writeln!(code, "  {}: {},", StringifyJs(export_name), class_value)?;
+                }
+                CssModuleExportConvention::CamelCase => {
+                    writeln!(code, "  {}: {},", StringifyJs(export_name), class_value)?;
+                    let camel = camel_case(export_name);
+                    if camel != *export_name {
+                        writeln!(code, "  {}: {},", StringifyJs(&camel), class_value)?;
+                    }
+                }
+                CssModuleExportConvention::CamelCaseOnly => {
+                    let camel = camel_case(export_name);
+                    writeln!(code, "  {}: {},", StringifyJs(&camel), class_value)?;
+                }
+                CssModuleExportConvention::Dashes => {
+                    writeln!(code, "  {}: {},", StringifyJs(export_name), class_value)?;
+                    let dashed = dashes_camel_case(export_name);
+                    if dashed != *export_name {
+                        writeln!(code, "  {}: {},", StringifyJs(&dashed), class_value)?;
+                    }
+                }
+                CssModuleExportConvention::DashesOnly => {
+                    let dashed = dashes_camel_case(export_name);
+                    writeln!(code, "  {}: {},", StringifyJs(&dashed), class_value)?;
+                }
+            }
         }
         code += "});\n";
         let source_map = *chunking_context

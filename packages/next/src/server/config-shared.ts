@@ -239,6 +239,27 @@ export interface TurbopackOptions {
     title?: string | RegExp
     description?: string | RegExp
   }>
+
+  /**
+   * CSS Modules configuration for Turbopack.
+   */
+  cssModules?: {
+    /**
+     * Controls how CSS module class names are exported to JavaScript.
+     *
+     * - `'asIs'` (default) — export class names exactly as written in CSS.
+     * - `'camelCase'` — export both the original and a camelCased version.
+     * - `'camelCaseOnly'` — export only the camelCased version.
+     * - `'dashes'` — export both the original and a dashes-to-camelCase version.
+     * - `'dashesOnly'` — export only the dashes-to-camelCase version.
+     */
+    exportLocalsConvention?:
+      | 'asIs'
+      | 'camelCase'
+      | 'camelCaseOnly'
+      | 'dashes'
+      | 'dashesOnly'
+  }
 }
 
 export interface WebpackConfigContext {

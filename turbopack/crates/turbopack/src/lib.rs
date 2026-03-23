@@ -248,10 +248,14 @@ async fn apply_module_type(
         ModuleType::NodeAddon => {
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
-        ModuleType::CssModule => ResolvedVc::upcast(
-            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
-                .to_resolved()
-                .await?,
+        ModuleType::CssModule { export_convention } => ResolvedVc::upcast(
+            EcmascriptCssModule::new(
+                *source,
+                Vc::upcast(module_asset_context),
+                *export_convention,
+            )
+            .to_resolved()
+            .await?,
         ),
 
         ModuleType::Css {
@@ -761,6 +765,7 @@ async fn process_default_internal(
                     empty_transforms,
                     default_options,
                     None,
+                    Default::default(),
                     Default::default(),
                 )
                 .await?;
