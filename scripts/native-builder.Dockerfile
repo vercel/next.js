@@ -4,7 +4,7 @@
 # (x86_64/aarch64 × gnu/musl) from either an x86_64 or aarch64 host.
 #
 # Build:
-#   docker build -t next-swc-builder:latest -f docker/native-builder.Dockerfile .
+#   docker build -t next-swc-builder:latest -f scripts/native-builder.Dockerfile .
 #
 # The image includes:
 #   - Ubuntu 20.04 (glibc 2.31 — broad compatibility baseline)
