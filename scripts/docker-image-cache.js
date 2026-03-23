@@ -3,14 +3,21 @@
 //
 // Build or restore the next-swc-builder Docker image.
 //
-// When run as a turbo task (`pnpm -F @next/swc build-docker-image`), turbo
-// handles caching automatically: if the inputs (Dockerfile, rust-toolchain.toml,
-// docker-native-build.sh) haven't changed, the cached docker/image.tar is
-// restored and we just `docker load` it. On cache miss, we build from scratch
-// and `docker save` so turbo can cache the output.
+// This script is both a turbo task AND a post-turbo loader:
+//
+// 1. `pnpm -F @next/swc build-docker-image` (turbo task):
+//    - On cache miss: turbo runs this script, which builds the image and saves
+//      docker/image.tar for turbo to cache as output.
+//    - On cache hit: turbo restores docker/image.tar and SKIPS this script.
+//
+// 2. `node scripts/docker-image-cache.js --load` (post-turbo step):
+//    - If docker/image.tar exists (turbo cache hit), loads it into docker.
+//    - If the image is already loaded, does nothing.
+//    - Cleans up the tar after loading.
 //
 // Usage:
-//   node scripts/docker-image-cache.js          # build or load from cache
+//   node scripts/docker-image-cache.js           # build image + save tar (turbo task)
+//   node scripts/docker-image-cache.js --load    # load tar into docker if present
 //   node scripts/docker-image-cache.js --force   # always rebuild
 
 'use strict'
@@ -24,6 +31,7 @@ const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'next-swc-builder:latest'
 const IMAGE_TAR = path.join(REPO_ROOT, 'docker/image.tar')
 const force = process.argv.includes('--force')
+const load = process.argv.includes('--load')
 
 function imageExists() {
   try {
@@ -51,20 +59,29 @@ function buildImage() {
   }
 }
 
-// If turbo restored docker/image.tar from cache, load it
-if (!force && fs.existsSync(IMAGE_TAR)) {
-  console.log('Loading Docker image from turbo cache...')
-  execSync(`docker load -i ${IMAGE_TAR}`, { stdio: 'inherit' })
-  // Clean up — we don't need the tar on disk after loading
-  fs.unlinkSync(IMAGE_TAR)
-  console.log('Docker image restored from cache')
+if (load) {
+  // Post-turbo step: load the cached tar if present, or build if missing
+  if (imageExists() && !force) {
+    console.log('Docker image already loaded')
+  } else if (fs.existsSync(IMAGE_TAR)) {
+    console.log('Loading Docker image from turbo cache...')
+    execSync(`docker load -i ${IMAGE_TAR}`, { stdio: 'inherit' })
+    fs.unlinkSync(IMAGE_TAR)
+    console.log('Docker image restored from cache')
+  } else {
+    console.log('No cached image — building from scratch')
+    buildImage()
+  }
 } else {
-  // Cache miss or --force: build from scratch
+  // Turbo task: build and save tar for caching
   if (force && fs.existsSync(IMAGE_TAR)) fs.unlinkSync(IMAGE_TAR)
-  buildImage()
-  // Save for turbo to cache as output (zstd-compressed to ~1GB from ~2.7GB)
-  console.log(`Saving Docker image for turbo cache...`)
-  execSync(`docker save ${IMAGE_NAME} -o ${IMAGE_TAR}`, { stdio: 'inherit' })
-  const size = fs.statSync(IMAGE_TAR).size
-  console.log(`Saved: ${(size / 1024 / 1024).toFixed(0)} MB`)
+  if (!imageExists() || force) {
+    buildImage()
+  }
+  if (!fs.existsSync(IMAGE_TAR)) {
+    console.log('Saving Docker image for turbo cache...')
+    execSync(`docker save ${IMAGE_NAME} -o ${IMAGE_TAR}`, { stdio: 'inherit' })
+    const size = fs.statSync(IMAGE_TAR).size
+    console.log(`Saved: ${(size / 1024 / 1024).toFixed(0)} MB`)
+  }
 }
