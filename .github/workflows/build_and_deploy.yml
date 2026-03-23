@@ -281,7 +281,7 @@ jobs:
             -v ${{ github.workspace }}:/build \
             -w /build \
             --entrypoint bash \
-            next-swc-builder:latest \
+            ${{ matrix.docker }} \
             -xeo pipefail scripts/docker-native-build.sh
 
       - name: cache build
