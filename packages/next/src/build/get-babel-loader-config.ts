@@ -23,9 +23,9 @@ const getReactCompilerPlugins = (
     return undefined
   }
 
-  // Detect user's React version for React Compiler target. For React 17/18,
-  // the compiler emits imports from 'react-compiler-runtime' instead of
-  // 'react/compiler-runtime' (which is only available in React 19+).
+  // Set the React Compiler target based on the installed React version.
+  // Handle only the supported versions.
+  // https://react.dev/reference/react-compiler/target
   let target: '18' | undefined
   try {
     const reactPkgPath = require.resolve('react/package.json', {
