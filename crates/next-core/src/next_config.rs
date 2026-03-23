@@ -962,8 +962,6 @@ pub enum ReactCompilerPanicThreshold {
 #[turbo_tasks::value(shared, operation)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ReactCompilerTarget {
-    #[serde(rename = "17")]
-    React17,
     #[serde(rename = "18")]
     React18,
 }
