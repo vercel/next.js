@@ -138,7 +138,7 @@ jobs:
         with:
           name: test-timings
           path: test-timings.json
-          # Allows "rerun failed jobs" for N days 
+          # Allows "rerun failed jobs" for N days
           retention-days: 5
           if-no-files-found: error
 
