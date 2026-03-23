@@ -20,8 +20,6 @@
 //   node scripts/docker-image-cache.js --load    # load tar into docker if present
 //   node scripts/docker-image-cache.js --force   # always rebuild
 
-'use strict'
-
 const { execSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
@@ -80,6 +78,7 @@ if (load) {
   }
   if (!fs.existsSync(IMAGE_TAR)) {
     console.log('Saving Docker image for turbo cache...')
+    fs.mkdirSync(path.dirname(IMAGE_TAR), { recursive: true })
     execSync(`docker save ${IMAGE_NAME} -o ${IMAGE_TAR}`, { stdio: 'inherit' })
     const size = fs.statSync(IMAGE_TAR).size
     console.log(`Saved: ${(size / 1024 / 1024).toFixed(0)} MB`)
