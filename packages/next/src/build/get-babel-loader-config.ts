@@ -26,13 +26,13 @@ const getReactCompilerPlugins = (
   // Detect user's React version for React Compiler target. For React 17/18,
   // the compiler emits imports from 'react-compiler-runtime' instead of
   // 'react/compiler-runtime' (which is only available in React 19+).
-  let target: '17' | '18' | undefined
+  let target: '18' | undefined
   try {
     const reactPkgPath = require.resolve('react/package.json', {
       paths: [cwd],
     })
     const majorVersion: string = require(reactPkgPath).version.split('.')[0]
-    if (majorVersion === '17' || majorVersion === '18') {
+    if (majorVersion === '18') {
       target = majorVersion
     }
   } catch {
