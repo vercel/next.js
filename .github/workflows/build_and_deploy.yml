@@ -184,7 +184,8 @@ jobs:
             deployTarget: ${{ needs.deploy-target.outputs.value }}
           input: |
             $if: "config.deployTarget != 'automated-preview' || (this.target == 'x86_64-unknown-linux-gnu')"
-            target: $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
+            target:
+              $dynamic: "`${this.arch}-${this.vendor}-${this.sys}${this.abi ? '-' + this.abi : ''}`"
             build_task: build-native-release
             os:
               mac:
