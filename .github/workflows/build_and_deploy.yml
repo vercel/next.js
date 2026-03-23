@@ -250,11 +250,13 @@ jobs:
         run: rm -rf packages/next-swc/native
 
       # Build or restore the Docker image via turbo remote cache.
-      # On cache hit, turbo restores docker/image.tar and the script loads it.
-      # On cache miss, the script builds from scratch and saves the tar for caching.
+      # Step 1: turbo either runs the build (cache miss) or restores image.tar (cache hit).
+      # Step 2: --load ensures the tar is loaded into docker (turbo skips the script on hit).
       - name: Build/restore Docker image
         if: ${{ matrix.docker }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90 --log-order stream
+        run: |
+          pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90 --log-order stream
+          node scripts/docker-image-cache.js --load
 
       # Try to restore previously-built native binary from turbo cache
       - name: pull build cache

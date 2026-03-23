@@ -101,9 +101,8 @@ if (targets.length === 0) {
 }
 
 // --- Build Docker image via turbo task ---
-// This runs `build-docker-image` which is a real turbo task: on cache hit it
-// restores docker/image.tar and loads it; on miss it builds from scratch.
-// --force triggers a rebuild regardless of cache.
+// Step 1: turbo either builds (cache miss) or restores image.tar (cache hit).
+// Step 2: --load ensures the image is in docker (turbo skips the script on hit).
 function ensureDockerImage() {
   try {
     execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
@@ -117,10 +116,11 @@ function ensureDockerImage() {
     `pnpm -F @next/swc build-docker-image${forceFlag}`,
     { stdio: 'inherit', cwd: REPO_ROOT }
   )
-  // Clean up tar if it was left behind (turbo saves it as output)
-  if (fs.existsSync(path.join(REPO_ROOT, 'docker/image.tar'))) {
-    fs.unlinkSync(path.join(REPO_ROOT, 'docker/image.tar'))
-  }
+  // Load the image if turbo restored it from cache (turbo skips the script on hit)
+  const loadFlag = rebuild ? '--force' : '--load'
+  execFileSync('node', [path.join(__dirname, 'docker-image-cache.js'), loadFlag], {
+    stdio: 'inherit',
+  })
 }
 
 ensureDockerImage()
