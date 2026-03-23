@@ -464,6 +464,9 @@ struct TaskExecutionCompletePrepareResult {
     pub is_now_immutable: bool,
     #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
+    /// True when the task's output was not set before this execution (i.e. first run).
+    /// Used to populate the `argument_of` edge exactly once.
+    pub is_first_execution: bool,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
 }
@@ -1955,6 +1958,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
+            is_first_execution,
             new_output,
             output_dependent_tasks,
         }) = self.task_execution_completed_prepare(
@@ -2008,6 +2012,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
+        if is_first_execution {
+            self.task_execution_completed_arguments(&mut ctx, task_id);
+        }
+
         let (stale, in_progress_cells) = self.task_execution_completed_finish(
             &mut ctx,
             task_id,
@@ -2053,6 +2061,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
+                is_first_execution: false,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
             });
@@ -2202,6 +2211,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let current_output = task.get_output();
         #[cfg(feature = "verify_determinism")]
         let no_output_set = current_output.is_none();
+        let is_first_execution = current_output.is_none();
         let new_output = match result {
             Ok(RawVc::TaskOutput(output_task_id)) => {
                 if let Some(OutputValue::Output(current_task_id)) = current_output
@@ -2275,6 +2285,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
+            is_first_execution,
             new_output,
             output_dependent_tasks,
         })
@@ -2469,6 +2480,36 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
 
         false
+    }
+
+    fn task_execution_completed_arguments(
+        &self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+    ) {
+        // Record this task as a consumer ("argument user") on each task that appears as
+        // an argument in this task's CachedTaskType. This is done exactly once — on the
+        // first execution — and never cleaned up, so the edges are permanent.
+        let task = ctx.task(task_id, TaskDataCategory::Data);
+        let Some(task_type) = task.get_persistent_task_type().cloned() else {
+            // Transient tasks have no persistent_task_type; nothing to record.
+            return;
+        };
+        drop(task);
+
+        // Collect all RawVcs referenced by `this` and `arg`.
+        let mut raw_vcs: Vec<RawVc> = Vec::new();
+        if let Some(this) = task_type.this {
+            raw_vcs.extend(this.get_raw_vcs());
+        }
+        raw_vcs.extend(task_type.arg.get_raw_vcs());
+
+        for raw_vc in raw_vcs {
+            if let Some(arg_task_id) = raw_vc.try_get_task_id() {
+                let mut arg_task = ctx.task(arg_task_id, TaskDataCategory::Data);
+                let _ = arg_task.add_argument_of(task_id);
+            }
+        }
     }
 
     fn task_execution_completed_finish(

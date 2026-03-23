@@ -258,6 +258,11 @@ struct TaskStorageSchema {
     )]
     cell_dependents: AutoSet<(CellId, Option<u64>, TaskId)>,
 
+    /// Tasks that use this task as an argument (Argument edges).
+    /// Populated once on first execution and never cleaned up — edges are permanent.
+    #[field(storage = "auto_set", category = "data", filter_transient)]
+    argument_of: AutoSet<TaskId>,
+
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
 
