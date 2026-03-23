@@ -195,23 +195,23 @@ jobs:
                 sys: darwin
               windows:
                 host: "['self-hosted', 'windows', 'x64']"
-              vendor: pc
-              sys: windows
-              abi: msvc
-              arch:
-                x86_64: {}
-                aarch64:
-                  build_task: build-native-no-plugin-release
-            linux:
-              host: "['self-hosted', 'linux', 'x64', 'metal']"
-              docker: next-swc-builder:latest
-              vendor: unknown
-              sys: linux
-              abi:
-                gnu:
-                  arch: [x86_64, aarch64]
-                musl:
-                  arch: [x86_64, aarch64]
+                vendor: pc
+                sys: windows
+                abi: msvc
+                arch:
+                  x86_64: {}
+                  aarch64:
+                    build_task: build-native-no-plugin-release
+              linux:
+                host: "['self-hosted', 'linux', 'x64', 'metal']"
+                docker: next-swc-builder:latest
+                vendor: unknown
+                sys: linux
+                abi:
+                  gnu:
+                    arch: [x86_64, aarch64]
+                  musl:
+                    arch: [x86_64, aarch64]
 
   # Build binaries for publishing
   build-native:
