@@ -100,9 +100,6 @@ for i in $(seq 0 $((COUNT - 1))); do
   echo "Task:     $BUILD_TASK"
   echo "=========================================="
 
-  # Compute RUSTFLAGS from cargo rustflags, including cross-config
-  RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config .cargo/cross-config.toml)
-
   # By default, overlay target/ with an anonymous volume so the container
   # gets its own isolated build dir (no lock conflicts with the host).
   # --host-target skips the overlay so the host's target/ is shared.
@@ -114,7 +111,6 @@ for i in $(seq 0 $((COUNT - 1))); do
   docker run --rm \
     -e CI=1 \
     -e RUST_BACKTRACE=1 \
-    -e RUSTFLAGS="$RUSTFLAGS" \
     -e CARGO_TERM_COLOR=always \
     -e CARGO_INCREMENTAL=0 \
     -e TARGET="$TARGET" \

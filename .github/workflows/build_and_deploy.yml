@@ -251,19 +251,6 @@ jobs:
           cache-provider: 'turbo'
           shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml', '.cargo/cross-config.toml') }}
 
-      - name: Install Rust (for docker builds)
-        if: ${{ matrix.docker }}
-        uses: ./.github/actions/setup-rust
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Set RUSTFLAGS for docker builds
-        if: ${{ matrix.docker }}
-        run: |
-          cargo install cargo-rustflags
-          RUSTFLAGS=$(cargo rustflags --target ${{ matrix.target }} --config .cargo/cross-config.toml)
-          echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
-
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
@@ -290,7 +277,7 @@ jobs:
         if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         run: |
           docker run --rm \
-            -e CI -e RUST_BACKTRACE -e RUSTFLAGS -e CARGO_TERM_COLOR \
+            -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
             -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
             -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
             -e TARGET="${{ matrix.target }}" \

@@ -117,10 +117,13 @@ RUN rustup target add \
     x86_64-unknown-linux-musl \
     aarch64-unknown-linux-musl
 
-# Install @napi-rs/cli globally
-RUN npm i -g @napi-rs/cli@2.18.4
+# Install @napi-rs/cli and cargo-rustflags globally.
+# cargo-rustflags resolves the effective RUSTFLAGS for a target by querying
+# cargo's own config resolution (handles cfg() predicates, --config overlays).
+RUN npm i -g @napi-rs/cli@2.18.4 && \
+    cargo install cargo-rustflags
 
 # Verify installations
-RUN node --version && rustc --version && napi -h > /dev/null
+RUN node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null
 
 WORKDIR /build
