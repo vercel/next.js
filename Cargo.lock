@@ -12168,7 +12168,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tabled",
- "toml 0.8.9",
  "walkdir",
 ]
 

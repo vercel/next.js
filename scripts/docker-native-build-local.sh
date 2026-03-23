@@ -100,8 +100,8 @@ for i in $(seq 0 $((COUNT - 1))); do
   echo "Task:     $BUILD_TASK"
   echo "=========================================="
 
-  # Compute RUSTFLAGS from cargo xtask, including cross-config
-  RUSTFLAGS=$(cargo xtask print-rustflags --target "$TARGET" --cross-config .cargo/cross-config.toml)
+  # Compute RUSTFLAGS from cargo rustflags, including cross-config
+  RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config .cargo/cross-config.toml)
 
   # By default, overlay target/ with an anonymous volume so the container
   # gets its own isolated build dir (no lock conflicts with the host).
