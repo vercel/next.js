@@ -356,7 +356,7 @@ impl BrowserChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 chunk_content_hashing: None,
-                asset_content_hashing: ContentHashing::Direct { length: 14 },
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,

@@ -377,8 +377,8 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .chunk_content_hashing(ContentHashing::Direct { length: 14 })
-                        .asset_content_hashing(ContentHashing::Direct { length: 14 })
+                        .chunk_content_hashing(ContentHashing::Direct { length: 13 })
+                        .asset_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }

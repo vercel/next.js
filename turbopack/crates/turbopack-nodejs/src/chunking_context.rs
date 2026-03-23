@@ -278,7 +278,7 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
-                asset_content_hashing: ContentHashing::Direct { length: 14 },
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
             },
         }
     }
