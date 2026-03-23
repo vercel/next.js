@@ -68,7 +68,7 @@ describe('writeConfigurationDefaults()', () => {
              "esnext",
            ],
            "module": "esnext",
-           "moduleResolution": "node",
+           "moduleResolution": "bundler",
            "noEmit": true,
            "plugins": [
              {
@@ -113,7 +113,7 @@ describe('writeConfigurationDefaults()', () => {
 
          	- module was set to esnext (for dynamic import() support)
          	- esModuleInterop was set to true (requirement for SWC / babel)
-         	- moduleResolution was set to node (to match webpack resolution)
+         	- moduleResolution was set to bundler (to match modern bundler resolution)
          	- resolveJsonModule was set to true (to match webpack resolution)
          	- isolatedModules was set to true (requirement for SWC / Babel)
          	- jsx was set to react-jsx (next.js uses the React automatic runtime)
