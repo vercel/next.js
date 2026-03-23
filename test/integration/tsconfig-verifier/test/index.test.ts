@@ -1211,7 +1211,7 @@ const strictRouteTypes =
       )
     })
 
-    // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E: tsconfig-module-preserve
+    // Covered by E2E: test/e2e/tsconfig-module-preserve
     it.skip('allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using "module: preserve"', async () => {
       expect(existsSync(tsConfig)).toBe(false)
 

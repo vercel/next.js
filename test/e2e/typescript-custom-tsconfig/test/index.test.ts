@@ -7,7 +7,7 @@ describe('Custom TypeScript Config', () => {
   const { next, skipped } = nextTestSetup({
     files: new FileRef(join(__dirname, '..')),
     dependencies: {
-      typescript: '5.4.4',
+      typescript: '5.9.2',
     },
   })
 

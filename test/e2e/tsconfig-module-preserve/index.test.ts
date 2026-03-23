@@ -20,7 +20,7 @@ describe('tsconfig module: preserve', () => {
     // This test is skipped because it relies on `next.readFile`
     skipDeployment: true,
     dependencies: {
-      typescript: '5.4.4',
+      typescript: '5.9.2',
     },
   })
 

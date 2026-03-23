@@ -4,7 +4,7 @@ describe('specified tsconfig', () => {
   const { next, skipped } = nextTestSetup({
     files: new FileRef(__dirname),
     dependencies: {
-      typescript: '5.4.4',
+      typescript: '5.9.2',
     },
   })
 
