@@ -8,6 +8,8 @@
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
+'use strict'
+
 const { execSync, execFileSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
@@ -48,31 +50,41 @@ const HOST_ARCH =
   os.arch() === 'arm64' || os.arch() === 'aarch64' ? 'aarch64' : 'x86_64'
 
 // --- Parse args ---
-const { parseArgs } = require('node:util')
-const { values: flags, positionals } = parseArgs({
-  args: process.argv.slice(2),
-  options: {
-    quick: { type: 'boolean', default: false },
-    'host-target': { type: 'boolean', default: false },
-    rebuild: { type: 'boolean', default: false },
-    test: { type: 'boolean', default: false },
-    help: { type: 'boolean', short: 'h', default: false },
-  },
-  allowPositionals: true,
-})
+const args = process.argv.slice(2)
+let quick = false
+let hostTarget = false
+let rebuild = false
+let test = false
+let filter = ''
 
-if (flags.help) {
-  console.log(
-    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
-  )
-  process.exit(0)
+for (const arg of args) {
+  switch (arg) {
+    case '--quick':
+      quick = true
+      break
+    case '--host-target':
+      hostTarget = true
+      break
+    case '--rebuild':
+      rebuild = true
+      break
+    case '--test':
+      test = true
+      break
+    case '--help':
+    case '-h':
+      console.log(
+        'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
+      )
+      process.exit(0)
+    default:
+      if (arg.startsWith('--')) {
+        console.error(`Unknown flag: ${arg}`)
+        process.exit(1)
+      }
+      filter = arg
+  }
 }
-
-const quick = flags.quick
-const hostTarget = flags['host-target']
-const rebuild = flags.rebuild
-const test = flags.test
-const filter = positionals[0] || ''
 
 // --- Filter targets ---
 let targets = TARGETS
@@ -81,38 +93,45 @@ if (filter) {
 }
 if (targets.length === 0) {
   console.error(`No targets match filter: "${filter}"`)
-  console.error('Available:', TARGETS.map((t) => t.target).join(', '))
+  console.error(
+    'Available:',
+    TARGETS.map((t) => t.target).join(', ')
+  )
   process.exit(1)
 }
 
-// --- Build Docker image via turbo task ---
-// Step 1: turbo either builds (cache miss) or restores image.tar (cache hit).
-// Step 2: --load ensures the image is in docker (turbo skips the script on hit).
-function ensureDockerImage() {
+// --- Build Docker image ---
+function dockerImageExists() {
   try {
     execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
-    if (!rebuild) return // already loaded
+    return true
   } catch {
-    // not loaded — continue to build/restore
+    return false
   }
-
-  const forceFlag = rebuild ? ' -- --force' : ''
-  execSync(`pnpm -F @next/swc build-docker-image${forceFlag}`, {
-    stdio: 'inherit',
-    cwd: REPO_ROOT,
-  })
-  // Load the image if turbo restored it from cache (turbo skips the script on hit)
-  const loadFlag = rebuild ? '--force' : '--load'
-  execFileSync(
-    'node',
-    [path.join(__dirname, 'docker-image-cache.js'), loadFlag],
-    {
-      stdio: 'inherit',
-    }
-  )
 }
 
-ensureDockerImage()
+function buildDockerImage() {
+  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
+  // Minimal context — just rust-toolchain.toml
+  const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'rust-toolchain.toml'),
+    path.join(ctx, 'rust-toolchain.toml')
+  )
+  try {
+    execSync(
+      `docker build -t ${DOCKER_IMAGE} -f ${path.join(REPO_ROOT, 'docker/native-builder.Dockerfile')} ${ctx}`,
+      { stdio: 'inherit' }
+    )
+  } finally {
+    fs.rmSync(ctx, { recursive: true, force: true })
+  }
+}
+
+if (rebuild || !dockerImageExists()) {
+  buildDockerImage()
+  console.log()
+}
 
 // --- Build targets ---
 const buildTask = quick
@@ -124,46 +143,51 @@ if (quick) {
     'Quick mode: using release-with-assertions profile (no LTO, 64 codegen units)'
   )
 }
-console.log(
-  `Building ${targets.length} target(s): ${targets.map((t) => t.target).join(', ')}\n`
-)
+console.log(`Building ${targets.length} target(s): ${targets.map((t) => t.target).join(', ')}\n`)
 
 const HOME = os.homedir()
-const VOLUMES = [
-  `${HOME}/.cargo/git:/root/.cargo/git`,
-  `${HOME}/.cargo/registry:/root/.cargo/registry`,
-  `${REPO_ROOT}:/build`,
-]
 
-for (const { target, arch, abi, napiPlatform } of targets) {
+for (const { target, arch, abi } of targets) {
   console.log('='.repeat(50))
   console.log(`Building: ${target}`)
   console.log(`Docker:   ${DOCKER_IMAGE}`)
   console.log(`Task:     ${buildTask}`)
   console.log('='.repeat(50))
 
-  // Clean only this target's previous build (preserve other targets' .node files)
+  // Clean previous build
   const nativeDir = path.join(REPO_ROOT, 'packages/next-swc/native')
-  const nodeFile = path.join(nativeDir, `next-swc.${napiPlatform}.node`)
-  if (fs.existsSync(nodeFile)) fs.unlinkSync(nodeFile)
-
-  const ENV = {
-    CI: '1',
-    RUST_BACKTRACE: '1',
-    CARGO_TERM_COLOR: 'always',
-    CARGO_INCREMENTAL: '0',
-    TARGET: target,
-    ABI: abi,
-    ARCH: arch,
-    BUILD_TASK: buildTask,
+  for (const f of fs.readdirSync(nativeDir)) {
+    if (f.endsWith('.node')) fs.unlinkSync(path.join(nativeDir, f))
   }
+
+  const volumeArgs = hostTarget ? [] : ['-v', '/build/target']
 
   const dockerArgs = [
     'run',
     '--rm',
-    ...Object.entries(ENV).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
-    ...VOLUMES.flatMap((v) => ['-v', v]),
-    ...(hostTarget ? [] : ['-v', '/build/target']),
+    '-e',
+    'CI=1',
+    '-e',
+    'RUST_BACKTRACE=1',
+    '-e',
+    'CARGO_TERM_COLOR=always',
+    '-e',
+    'CARGO_INCREMENTAL=0',
+    '-e',
+    `TARGET=${target}`,
+    '-e',
+    `ABI=${abi}`,
+    '-e',
+    `ARCH=${arch}`,
+    '-e',
+    `BUILD_TASK=${buildTask}`,
+    '-v',
+    `${HOME}/.cargo/git:/root/.cargo/git`,
+    '-v',
+    `${HOME}/.cargo/registry:/root/.cargo/registry`,
+    '-v',
+    `${REPO_ROOT}:/build`,
+    ...volumeArgs,
     '-w',
     '/build',
     '--entrypoint',

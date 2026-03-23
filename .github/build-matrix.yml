@@ -24,7 +24,6 @@ os:
     sys: linux
     abi:
       gnu:
-        verify_cmd: "objdump -T native/next-swc.*.node | grep GLIBC_"
         arch: [x86_64, aarch64]
       musl:
         arch: [x86_64, aarch64]

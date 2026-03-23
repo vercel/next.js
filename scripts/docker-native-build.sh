@@ -1,23 +1,18 @@
 #!/usr/bin/env bash
 # Inner build script run inside the next-swc-builder docker container.
 #
-# All toolchains (clang, lld, musl sysroots, node, rust, napi-cli) are
-# pre-installed in the image — no runtime apt-get or downloads needed.
+# All toolchains (clang, lld, musl sysroots, node, rust, napi-cli,
+# cargo-rustflags) are pre-installed in the image.
 #
-# All 4 Linux targets use the same toolchain: clang (compiler) + rust-lld
-# (linker). The musl cross-toolchains provide only the sysroot; clang and
-# lld handle everything else.
+# RUSTFLAGS are resolved via `cargo rustflags` which merges .cargo/config.toml
+# (mounted from the repo) with target-specific --config overrides for cross-
+# compilation paths. This avoids duplicating config.toml flags in this script.
 #
-# Expected env vars (set by CI or docker-native-build-local.sh):
-#   TARGET        - Rust target triple (e.g. x86_64-unknown-linux-gnu)
-#   ABI           - Target ABI (gnu or musl)
-#   ARCH          - Target architecture (x86_64 or aarch64)
-#   VERIFY_CMD    - Command to verify the built binary (optional)
-#   BUILD_TASK    - Cargo/napi build task name (default: build-native-release)
-#
-# RUSTFLAGS are resolved inside the container via cargo-rustflags, merging
-# .cargo/config.toml with .cargo/cross-config.toml. No RUSTFLAGS env var
-# needs to be passed in.
+# Expected env vars (set by CI or docker-native-build.js):
+#   TARGET     - Rust target triple (e.g. x86_64-unknown-linux-gnu)
+#   ABI        - Target ABI (gnu or musl)
+#   ARCH       - Target architecture (x86_64 or aarch64)
+#   BUILD_TASK - Cargo/napi build task name (default: build-native-release)
 
 set -xeo pipefail
 
@@ -28,68 +23,83 @@ BUILD_TASK="${BUILD_TASK:-build-native-release}"
 # by cargo's --target, not the node binary.
 export PATH="/opt/node-gnu/bin:${PATH}"
 
-# Resolve RUSTFLAGS from cargo config + cross-config overlay.
-RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config .cargo/cross-config.toml)
+# --- RUSTFLAGS via cargo-rustflags ---
+# We use `linker=clang` + `linker-flavor=gnu-lld-cc` rather than
+# `linker=rust-lld` directly. The actual linker is rust-lld in both
+# cases, but clang acts as the driver: it handles finding crt files
+# (crti.o, crtbeginS.o), libc, and libgcc, and translates --target /
+# --sysroot into the correct library search paths.
+#
+# cargo-rustflags merges these with .cargo/config.toml (cfg(true) base flags,
+# musl crt-static, etc.) so we don't duplicate them here.
+CROSS_FLAGS="-Clinker=clang -Clinker-flavor=gnu-lld-cc -Clink-arg=-Wl,--icf=all"
+
+case "$TARGET" in
+  x86_64-unknown-linux-gnu)
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-gnu -Clink-arg=--sysroot=/usr/x86_64-linux-gnu" ;;
+  aarch64-unknown-linux-gnu)
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-gnu -Clink-arg=--sysroot=/usr/aarch64-linux-gnu" ;;
+  x86_64-unknown-linux-musl)
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-musl -Clink-arg=--sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl -Clink-arg=--gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
+  aarch64-unknown-linux-musl)
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-musl -Clink-arg=--sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl -Clink-arg=--gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
+  *) echo "Unknown target: $TARGET"; exit 1 ;;
+esac
+
+# For native GNU targets (host arch == target arch), strip --sysroot.
+# Ubuntu's native multiarch layout (/usr/include/<triple>/) differs from the
+# cross sysroot layout (/usr/<triple>/include/). Without --sysroot, clang
+# finds the native headers automatically.
+HOST_ARCH=$(uname -m)
+if [ "$ABI" = "gnu" ]; then
+  case "${HOST_ARCH}-${ARCH}" in
+    x86_64-x86_64|aarch64-aarch64)
+      CROSS_FLAGS=$(echo "$CROSS_FLAGS" | sed 's/-Clink-arg=--sysroot=[^ ]*//' | xargs)
+      ;;
+  esac
+fi
+
+# Build the --config argument as a TOML inline value
+CROSS_CONFIG="target.${TARGET}.rustflags=[$(echo "$CROSS_FLAGS" | sed 's/\([^ ]*\)/"\1"/g; s/ /, /g')]"
+
+# Resolve merged RUSTFLAGS (config.toml base + cross overrides)
+RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config "$CROSS_CONFIG")
 export RUSTFLAGS
 
-# rustc's gcc-ld/ dir has ld.lld but no 'ld' shim.
-# gnu-lld-cc passes -B<gcc-ld-dir> to GCC/clang, which looks for 'ld' there.
-# Create the symlink so the linker driver finds rust-lld.
+# --- rust-lld symlink ---
+# rustc's gcc-ld/ dir has ld.lld but no 'ld' shim. gnu-lld-cc passes
+# -B<gcc-ld-dir> to clang, which looks for 'ld' there.
 SYSROOT=$(rustc --print sysroot)
 GCC_LD="$SYSROOT/lib/rustlib/${TARGET}/bin/gcc-ld"
 if [ -d "$GCC_LD" ] && [ ! -e "$GCC_LD/ld" ]; then
   ln -sf ../rust-lld "$GCC_LD/ld"
 fi
 
-# Set CC/CXX per target — clang with --target + --sysroot for all targets.
-# napi-rs build scripts use CC_<target> / CXX_<target> / CFLAGS_<target>.
+# --- CC/CXX for build scripts (jemalloc, ring, etc.) ---
 TARGET_US=$(echo "$TARGET" | tr '-' '_')
 unset "CC_${TARGET_US}" "CXX_${TARGET_US}" "CFLAGS_${TARGET_US}"
-
-# Determine host arch for native vs cross detection
-HOST_ARCH=$(uname -m)
 
 export "CC_${TARGET_US}=clang"
 export "CXX_${TARGET_US}=clang++"
 
 case "$TARGET" in
   x86_64-unknown-linux-gnu)
-    # Only set --sysroot when cross-compiling (host != target arch).
-    # Native builds find headers via standard multiarch paths.
     if [ "$HOST_ARCH" = "x86_64" ]; then
       export "CFLAGS_${TARGET_US}=--target=x86_64-linux-gnu"
     else
       export "CFLAGS_${TARGET_US}=--target=x86_64-linux-gnu --sysroot=/usr/x86_64-linux-gnu"
-    fi
-    ;;
+    fi ;;
   aarch64-unknown-linux-gnu)
     if [ "$HOST_ARCH" = "aarch64" ]; then
       export "CFLAGS_${TARGET_US}=--target=aarch64-linux-gnu"
     else
       export "CFLAGS_${TARGET_US}=--target=aarch64-linux-gnu --sysroot=/usr/aarch64-linux-gnu"
-    fi
-    ;;
+    fi ;;
   x86_64-unknown-linux-musl)
-    export "CFLAGS_${TARGET_US}=--target=x86_64-linux-musl --sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl --gcc-toolchain=/opt/x86_64-linux-musl-cross"
-    ;;
+    export "CFLAGS_${TARGET_US}=--target=x86_64-linux-musl --sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl --gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
   aarch64-unknown-linux-musl)
-    export "CFLAGS_${TARGET_US}=--target=aarch64-linux-musl --sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl --gcc-toolchain=/opt/aarch64-linux-musl-cross"
-    ;;
+    export "CFLAGS_${TARGET_US}=--target=aarch64-linux-musl --sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl --gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
 esac
-
-# For native GNU targets (host arch == target arch), strip --sysroot from
-# RUSTFLAGS. The cross-config always includes --sysroot for cross-compilation,
-# but for native builds the sysroot paths are wrong (Ubuntu multiarch layout
-# differs from cross sysroot layout). Without --sysroot, clang and lld find
-# the native multiarch paths automatically.
-if [ "$ABI" = "gnu" ]; then
-  case "${HOST_ARCH}-${ARCH}" in
-    x86_64-x86_64|aarch64-aarch64)
-      RUSTFLAGS=$(echo "$RUSTFLAGS" | sed 's/-Clink-arg=--sysroot=[^ ]*//')
-      export RUSTFLAGS
-      ;;
-  esac
-fi
 
 # aarch64 needs larger page size for jemalloc
 if [ "$ARCH" = "aarch64" ]; then
@@ -100,14 +110,15 @@ echo "--- Build environment ---"
 node -v
 rustc --version
 echo "Target: $TARGET"
-echo "CC: clang --target=$(echo $TARGET)"
-echo "Linker: rust-lld (via gnu-lld-cc)"
+echo "RUSTFLAGS: $RUSTFLAGS"
 echo "-------------------------"
 
 rustup target add "$TARGET"
 cd packages/next-swc
 npm run "$BUILD_TASK" -- --target "$TARGET"
 llvm-strip -x native/next-swc.*.node
-if [ -n "$VERIFY_CMD" ]; then
-  eval "$VERIFY_CMD"
-fi
+
+# Post-build verification
+case "$ABI" in
+  gnu) echo "--- GLIBC symbols ---" && objdump -T native/next-swc.*.node | grep GLIBC_ ;;
+esac
