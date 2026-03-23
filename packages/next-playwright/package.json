@@ -1,6 +1,6 @@
 {
   "name": "@next/playwright",
-  "version": "16.2.1-canary.4",
+  "version": "16.2.1-canary.5",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-playwright"
