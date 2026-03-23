@@ -251,10 +251,17 @@ jobs:
           cache-provider: 'turbo'
           shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml', '.cargo/cross-config.toml') }}
 
+      - name: Install Rust (for docker builds)
+        if: ${{ matrix.docker }}
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
       - name: Set RUSTFLAGS for docker builds
         if: ${{ matrix.docker }}
         run: |
-          RUSTFLAGS=$(cargo xtask print-rustflags --target ${{ matrix.target }} --cross-config .cargo/cross-config.toml)
+          cargo install cargo-rustflags
+          RUSTFLAGS=$(cargo rustflags --target ${{ matrix.target }} --config .cargo/cross-config.toml)
           echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
 
       - name: Clear native build
