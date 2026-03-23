@@ -8,8 +8,6 @@
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
-'use strict'
-
 const { execSync, execFileSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
@@ -77,6 +75,7 @@ for (const arg of args) {
         'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
       )
       process.exit(0)
+      break // eslint: no-fallthrough
     default:
       if (arg.startsWith('--')) {
         console.error(`Unknown flag: ${arg}`)
