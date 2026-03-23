@@ -119,6 +119,17 @@ npm run "$BUILD_TASK" -- --target "$TARGET"
 llvm-strip -x native/next-swc.*.node
 
 # Post-build verification
+echo "--- Dynamic libraries ---"
+ldd native/next-swc.*.node || true
+
 case "$ABI" in
-  gnu) echo "--- GLIBC symbols ---" && objdump -T native/next-swc.*.node | grep GLIBC_ ;;
+  gnu)
+    echo "--- GLIBC symbols by version ---"
+    objdump -T native/next-swc.*.node \
+      | grep 'GLIBC_' \
+      | sed 's/.*\(GLIBC_[^ ]*\) \+/\1 /' \
+      | sort -t. -k2,2n -k3,3n \
+      | awk '{vers[$1] = vers[$1] ? vers[$1] ", " $2 : $2} END {for (v in vers) print v ": " vers[v]}' \
+      | sort -t. -k2,2n -k3,3n
+    ;;
 esac
