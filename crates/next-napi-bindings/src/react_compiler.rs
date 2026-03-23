@@ -28,10 +28,14 @@ impl Task for CheckTask {
                 return Ok(false);
             };
             let mut errors = vec![];
+            let is_tsx = matches!(
+                self.filename.extension().and_then(|e| e.to_str()),
+                Some("tsx" | "jsx")
+            );
             let Ok(program) = parse_file_as_program(
                 &fm,
                 Syntax::Typescript(TsSyntax {
-                    tsx: true,
+                    tsx: is_tsx,
                     ..Default::default()
                 }),
                 EsVersion::EsNext,
