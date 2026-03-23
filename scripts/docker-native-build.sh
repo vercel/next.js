@@ -48,11 +48,20 @@ fi
 case "$TARGET" in
   x86_64-unknown-linux-gnu)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-gnu"
-    [ "$IS_NATIVE_GNU" = "0" ] && CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--sysroot=/usr/x86_64-linux-gnu"
+    # For cross builds, DON'T pass --sysroot to the linker — lld can't
+    # resolve absolute paths inside libc.so linker scripts when --sysroot
+    # is set (it double-prepends the sysroot). Instead, pass -L to point
+    # at the cross libs directly. --sysroot is passed via CFLAGS for C
+    # compilation (build scripts like jemalloc).
+    if [ "$IS_NATIVE_GNU" = "0" ]; then
+      CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=-L/usr/x86_64-linux-gnu/lib"
+    fi
     ;;
   aarch64-unknown-linux-gnu)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-gnu"
-    [ "$IS_NATIVE_GNU" = "0" ] && CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--sysroot=/usr/aarch64-linux-gnu"
+    if [ "$IS_NATIVE_GNU" = "0" ]; then
+      CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=-L/usr/aarch64-linux-gnu/lib"
+    fi
     ;;
   x86_64-unknown-linux-musl)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-musl -Clink-arg=--sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl -Clink-arg=--gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
