@@ -15,6 +15,7 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use zip::ZipArchive;
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
@@ -22,6 +23,14 @@ use crate::{
 };
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
+
+// Well-known magic bytes for container/compression format detection:
+// Zstandard: https://datatracker.ietf.org/doc/html/rfc8878#section-3.1.1
+const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
+// Gzip: https://datatracker.ietf.org/doc/html/rfc1952#section-2.3.1
+const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
+// ZIP local file header: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT §4.3.7
+const ZIP_MAGIC: [u8; 4] = [0x50, 0x4b, 0x03, 0x04];
 
 trait TraceFormat {
     type Reused: Default;
@@ -77,11 +86,62 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
     }
 }
 
+/// Owns a `ZipArchive` on the heap and a `ZipFile` entry that borrows from it.
+///
+/// # Safety
+///
+/// This is a self-referential struct. `entry` holds a `ZipFile<'static, File>`
+/// whose lifetime has been transmuted from the borrow of `archive`. This is
+/// sound because:
+///
+/// 1. `archive` is `Box`-ed, so its heap address is stable.
+/// 2. `entry` is listed **before** `archive` so it is dropped first, ensuring the borrow is
+///    released before the archive is freed.
+/// 3. The `ZipEntryReader` is never moved out of or destructured — it is only accessed via `Read`
+///    and always dropped as a whole.
+struct ZipEntryReader {
+    // SAFETY: field order matters — `entry` must be dropped before `archive`.
+    // The `static lifetime here is really just bound to the _archive`
+    entry: zip::read::ZipFile<'static, File>,
+    _archive: Box<ZipArchive<File>>,
+    /// Total compressed size on disk, for progress reporting.
+    compressed_size: u64,
+}
+
+impl ZipEntryReader {
+    fn new(mut archive: Box<ZipArchive<File>>, index: usize) -> io::Result<Self> {
+        // SAFETY: We box the archive so it has a stable heap address, then
+        // transmute the entry's lifetime from the archive borrow to 'static.
+        // This is safe because the entry is always dropped before the archive
+        // (field drop order) and we never expose the archive reference.
+        let entry: zip::read::ZipFile<'static, File> = unsafe {
+            std::mem::transmute::<zip::read::ZipFile<'_, File>, zip::read::ZipFile<'static, File>>(
+                archive.by_index(index).map_err(|e| {
+                    io::Error::new(io::ErrorKind::InvalidData, format!("Zip read error: {e}"))
+                })?,
+            )
+        };
+        let compressed_size = entry.compressed_size();
+        Ok(Self {
+            entry,
+            _archive: archive,
+            compressed_size,
+        })
+    }
+}
+
+impl Read for ZipEntryReader {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.entry.read(buf)
+    }
+}
+
 #[derive(Default)]
 enum TraceFile {
     Raw(BufReader<File>),
     Zstd(zstd::Decoder<'static, BufReader<File>>),
     Gz(GzDecoder<BufReader<File>>),
+    Zip(ZipEntryReader),
     #[default]
     Unloaded,
 }
@@ -92,6 +152,7 @@ impl TraceFile {
             Self::Raw(file) => file.read(buffer),
             Self::Zstd(decoder) => decoder.read(buffer),
             Self::Gz(decoder) => decoder.read(buffer),
+            Self::Zip(reader) => reader.read(buffer),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -101,6 +162,10 @@ impl TraceFile {
             Self::Raw(file) => file.stream_position(),
             Self::Zstd(decoder) => decoder.get_mut().stream_position(),
             Self::Gz(decoder) => decoder.get_mut().stream_position(),
+            Self::Zip(_) => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "zip entries are not seekable",
+            )),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -110,6 +175,10 @@ impl TraceFile {
             Self::Raw(file) => file.seek(pos),
             Self::Zstd(decoder) => decoder.get_mut().seek(pos),
             Self::Gz(decoder) => decoder.get_mut().seek(pos),
+            Self::Zip(_) => Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "zip entries are not seekable",
+            )),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -119,6 +188,7 @@ impl TraceFile {
             Self::Raw(file) => file.get_ref().metadata().map(|m| m.len()),
             Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
             Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Zip(reader) => Ok(reader.compressed_size),
             Self::Unloaded => unreachable!(),
         }
     }
@@ -155,15 +225,51 @@ impl TraceReader {
             file,
         );
         let magic_bytes = file.peek(4)?;
-        Ok(
-            if path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd] {
-                TraceFile::Zstd(zstd::Decoder::with_buffer(file)?)
-            } else if path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]) {
-                TraceFile::Gz(GzDecoder::new(file))
-            } else {
-                TraceFile::Raw(file)
-            },
-        )
+
+        if path.ends_with(".zst") || magic_bytes == ZSTD_MAGIC {
+            Ok(TraceFile::Zstd(zstd::Decoder::with_buffer(file)?))
+        } else if path.ends_with(".gz") || magic_bytes.starts_with(&GZIP_MAGIC) {
+            Ok(TraceFile::Gz(GzDecoder::new(file)))
+        } else if path.ends_with(".zip") || magic_bytes == ZIP_MAGIC {
+            Self::open_zip_entry(file.into_inner())
+        } else {
+            Ok(TraceFile::Raw(file))
+        }
+    }
+
+    fn open_zip_entry(file: File) -> io::Result<TraceFile> {
+        let mut archive = Box::new(ZipArchive::new(file).map_err(|e| {
+            io::Error::new(io::ErrorKind::InvalidData, format!("Invalid zip file: {e}"))
+        })?);
+
+        if archive.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Zip archive is empty",
+            ));
+        }
+
+        // Find the first non-directory entry
+        let entry_index = (0..archive.len())
+            .find(|&i| archive.by_index_raw(i).is_ok_and(|entry| !entry.is_dir()))
+            .ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "Zip archive contains no files")
+            })?;
+
+        // Print info before we consume the entry into the reader
+        {
+            let entry = archive.by_index_raw(entry_index).map_err(|e| {
+                io::Error::new(io::ErrorKind::InvalidData, format!("Zip read error: {e}"))
+            })?;
+            println!(
+                "Reading \"{}\" from zip archive ({} MB compressed, {} MB uncompressed)",
+                entry.name(),
+                entry.compressed_size() / (1024 * 1024),
+                entry.size() / (1024 * 1024),
+            );
+        }
+
+        Ok(TraceFile::Zip(ZipEntryReader::new(archive, entry_index)?))
     }
 
     fn try_read(&mut self) -> bool {
@@ -171,6 +277,7 @@ impl TraceReader {
             return false;
         };
         println!("Trace file opened");
+
         let stop_at = env::var("STOP_AT")
             .unwrap_or_default()
             .parse()
@@ -194,10 +301,12 @@ impl TraceReader {
         if file.seek(SeekFrom::Start(0)).is_err() {
             return false;
         }
+        // _zip_tmp keeps the temp file alive for the duration of reading when
+        // the input is a zip archive (anonymous temp files are deleted on drop).
         let mut file = match self.trace_file_from_file(file) {
             Ok(f) => f,
             Err(err) => {
-                println!("Error creating zstd decoder: {err}");
+                println!("Error opening trace file: {err}");
                 return false;
             }
         };

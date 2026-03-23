@@ -32,4 +32,5 @@ turbo-rcstr = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
+zip = { version = "8.3.1", default-features = false, features = ["deflate"] }
 zstd = { version = "0.13.0" }
