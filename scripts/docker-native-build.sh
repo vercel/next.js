@@ -122,7 +122,7 @@ llvm-strip -x native/next-swc.*.node
 
 # Post-build verification
 echo "--- Dynamic libraries ---"
-ldd native/next-swc.*.node || true
+readelf -d native/next-swc.*.node | grep NEEDED
 
 case "$ABI" in
   gnu)
