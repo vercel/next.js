@@ -187,7 +187,7 @@ describe('create-next-app', () => {
 
       // Extract the defaults block from stdout
       const defaultsMatch = res.stdout.match(
-        /Using defaults for unprovided options:\n\n([\s\S]*?)\n\nTo customize/
+        /Using defaults for unprovided options:\n\n([\s\S]*?)\n\nCreating/
       )
       expect(defaultsMatch).not.toBeNull()
       expect(defaultsMatch[1]).toMatchInlineSnapshot(`

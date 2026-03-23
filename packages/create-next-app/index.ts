@@ -699,7 +699,7 @@ async function run(): Promise<void> {
         console.log(
           '\nUsing defaults for unprovided options:\n\n' +
             lines.join('\n') +
-            '\n\nTo customize, re-run with explicit flags.\n'
+            '\n'
         )
       }
     }
