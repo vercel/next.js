@@ -6,12 +6,13 @@
  */
 
 import type React from 'react'
+import type { CacheInfo } from './segment-cache/cache-info-decoding'
+
+export type VaryParams = Set<string>
 
 export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
-
-import type { VaryParamsThenable } from './segment-cache/vary-params-decoding'
 
 /** viewport metadata node */
 export type HeadData = React.ReactNode
@@ -265,7 +266,7 @@ export type CacheNodeSeedData = [
    * - Thenable resolves to non-empty Set: segment depends on those params.
    *   Can only reuse when those specific params match.
    */
-  varyParams: VaryParamsThenable | null,
+  varyParams: CacheInfo<VaryParams> | null,
 ]
 
 export type FlightDataSegment = [
@@ -330,7 +331,7 @@ export type InitialRSCPayload = {
   /**
    * headVaryParams - vary params for the head (metadata) of the response.
    */
-  h: VaryParamsThenable | null
+  h: CacheInfo<VaryParams> | null
   /** staleTime in seconds - Only present when Cache Components is enabled. */
   s?: AsyncIterable<number>
   /** staticStageByteLength - Resolves when the static stage ends. */
@@ -364,7 +365,7 @@ export type NavigationFlightResponse = {
   /** staticStageByteLength - Resolves when the static stage ends. */
   l?: Promise<number>
   /** headVaryParams */
-  h: VaryParamsThenable | null
+  h: CacheInfo<VaryParams> | null
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**
@@ -375,6 +376,13 @@ export type NavigationFlightResponse = {
    * staleness.
    */
   d?: number
+  /**
+   * cacheStage — The prefetch stage level of this response. A Flight
+   * thenable that resolves to a number: 0 = default (content was
+   * intentionally omitted due to navigation boundaries), 1 = max (nothing
+   * was intentionally omitted). Absent means max.
+   */
+  g?: CacheInfo<number>
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

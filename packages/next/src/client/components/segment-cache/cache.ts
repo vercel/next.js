@@ -12,10 +12,10 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
-  readVaryParams,
-  type VaryParams,
-  type VaryParamsThenable,
-} from '../../../shared/lib/segment-cache/vary-params-decoding'
+  readCacheInfo,
+  type CacheInfo,
+} from '../../../shared/lib/segment-cache/cache-info-decoding'
+import type { VaryParams } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
@@ -104,6 +104,7 @@ import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
+import { CacheStage } from '../../../shared/lib/segment-cache/cache-stage'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
@@ -240,6 +241,16 @@ export type RouteCacheEntry =
 
 type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
+
+  /**
+   * How much content past navigation boundaries is included.
+   * Used to compare completeness of two cache entries with the same fetch
+   * strategy. A higher stage means more content is available.
+   *
+   * TODO: This could be combined with fetchStrategy and isPartial into a
+   * single comparable value. See the TODO in upsertSegmentEntry.
+   */
+  stage: CacheStage
 
   // Map-related fields.
   ref: UnknownMapEntry | null
@@ -854,6 +865,14 @@ export function upsertSegmentEntry(
     // Don't replace a more specific segment with a less-specific one. A case where this
     // might happen is if the existing segment was fetched via
     // `<Link prefetch={true}>`.
+    //
+    // TODO: The fields compared here (fetchStrategy, isPartial, stage) all
+    // serve the same purpose: determining which entry has more content. They
+    // could be combined into a single comparable value (e.g. a bit field) so
+    // that this is a single comparison instead of multiple. Benefits:
+    // - Less juggling to pass these various values around
+    // - Harder to forget to check one but not the other
+    // - Conceptually aligns them as a single "completeness" dimension
     if (
       // We fetched the new segment using a different, less specific fetch strategy
       // than the segment we already have in the cache, so it can't have more content.
@@ -864,7 +883,11 @@ export function upsertSegmentEntry(
         )) ||
       // The existing entry isn't partial, but the new one is.
       // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
-      (!existingEntry.isPartial && candidateEntry.isPartial)
+      (!existingEntry.isPartial && candidateEntry.isPartial) ||
+      // The existing entry has a higher cache stage (more content past
+      // navigation boundaries) than the candidate.
+      (candidateEntry.fetchStrategy === existingEntry.fetchStrategy &&
+        candidateEntry.stage < existingEntry.stage)
     ) {
       // We're going to leave revalidating entry in the cache so that it doesn't
       // get revalidated again unnecessarily. Downgrade the Fulfilled entry to
@@ -897,6 +920,8 @@ export function createDetachedSegmentCacheEntry(
     // Default to assuming the fetch strategy will be PPR. This will be updated
     // when a fetch is actually initiated.
     fetchStrategy: FetchStrategy.PPR,
+    // Default to max stage (all content). Will be updated when fulfilled.
+    stage: CacheStage.Max,
     rsc: null,
     isPartial: true,
     promise: null,
@@ -970,7 +995,9 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
       pendingSegment,
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
-      isPartial
+      isPartial,
+      // Full navigations include all content.
+      CacheStage.Max
     )
   }
   return null
@@ -1003,7 +1030,9 @@ export function attemptToUpgradeSegmentFromBFCache(
       pendingSegment,
       bfcacheEntry.rsc,
       dynamicPrefetchStaleAt,
-      isPartial
+      isPartial,
+      // Full navigations include all content.
+      CacheStage.Max
     )
     const segmentVaryPath = getSegmentVaryPathForRequest(
       FetchStrategy.Full,
@@ -1145,13 +1174,15 @@ function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   staleAt: number,
-  isPartial: boolean
+  isPartial: boolean,
+  stage: CacheStage
 ): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.isPartial = isPartial
+  fulfilledEntry.stage = stage
   // Resolve any listeners that were waiting for this data.
   if (segmentCacheEntry.promise !== null) {
     segmentCacheEntry.promise.resolve(fulfilledEntry)
@@ -1803,7 +1834,7 @@ export async function fetchRouteOnCacheMiss(
       const headVaryParamsThenable = serverData.h
       const headVaryParams =
         headVaryParamsThenable !== null
-          ? readVaryParams(headVaryParamsThenable)
+          ? readCacheInfo(headVaryParamsThenable)
           : null
       writeDynamicTreeResponseIntoCache(
         Date.now(),
@@ -1967,7 +1998,9 @@ export async function fetchSegmentOnCacheMiss(
         segmentCacheEntry,
         serverData.rsc,
         staleAt,
-        serverData.isPartial
+        serverData.isPartial,
+        // Not relevant to static prefetches, only runtime ones.
+        CacheStage.Max
       )
 
       // If the server tells us which params the segment varies by, we can
@@ -2084,7 +2117,9 @@ export async function fetchInlinedSegmentsOnCacheMiss(
         ownedHeadEntry,
         serverData.head.rsc,
         headStaleAt,
-        serverData.head.isPartial
+        serverData.head.isPartial,
+        // Not relevant to static prefetches, only runtime ones.
+        CacheStage.Max
       )
     } else {
       // The head was already cached. Try to upsert if the entry is empty.
@@ -2098,7 +2133,9 @@ export async function fetchInlinedSegmentsOnCacheMiss(
           upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
           serverData.head.rsc,
           headStaleAt,
-          serverData.head.isPartial
+          serverData.head.isPartial,
+          // Not relevant to static prefetches, only runtime ones.
+          CacheStage.Max
         )
       }
     }
@@ -2130,7 +2167,10 @@ function fillInlinedSegmentEntries(
       ownedEntry,
       segment.rsc,
       staleAt,
-      segment.isPartial
+      segment.isPartial,
+      // Cache stage is only relevant for runtime prefetch responses. Static
+      // prefetches are not affected. This may change in the future.
+      CacheStage.Max
     )
   } else {
     // Not owned by us — this is extra data from the inlined response for a
@@ -2145,7 +2185,9 @@ function fillInlinedSegmentEntries(
         upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
         segment.rsc,
         staleAt,
-        segment.isPartial
+        segment.isPartial,
+        // Not relevant to static prefetches, only runtime ones.
+        CacheStage.Max
       )
     }
   }
@@ -2295,7 +2337,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const headVaryParamsThenable = serverData.h
     const headVaryParams =
       headVaryParamsThenable !== null
-        ? readVaryParams(headVaryParamsThenable)
+        ? readCacheInfo(headVaryParamsThenable)
         : null
 
     const now = Date.now()
@@ -2324,6 +2366,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       // Not needed for prefetch responses; pass unknown to use the default.
       UnknownDynamicStaleTime
     )
+    // Read the cache stage from the response. If absent, default to max.
+    const stage: CacheStage =
+      serverData.g !== undefined
+        ? (readCacheInfo(serverData.g) ?? CacheStage.Max)
+        : CacheStage.Max
+
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
       fetchStrategy,
@@ -2333,7 +2381,8 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       headVaryParams,
       staleAt,
       navigationSeed,
-      spawnedEntries
+      spawnedEntries,
+      stage
     )
 
     // For buffered responses, update LRU sizes now that we know which
@@ -2453,7 +2502,10 @@ function writeDynamicTreeResponseIntoCache(
     headVaryParams,
     getStaleAtFromHeader(now, response),
     navigationSeed,
-    null
+    null,
+    // Cache stage is only relevant for runtime prefetch responses. Static
+    // prefetches are not affected. This may change in the future.
+    CacheStage.Max
   )
 }
 
@@ -2485,7 +2537,8 @@ export function writeDynamicRenderResponseIntoCache(
   headVaryParams: VaryParams | null,
   staleAt: number,
   navigationSeed: NavigationSeed,
-  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null
+  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
+  stage: CacheStage
 ): Array<FulfilledSegmentCacheEntry> | null {
   if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
@@ -2533,7 +2586,8 @@ export function writeDynamicRenderResponseIntoCache(
         staleAt,
         seedData,
         isResponsePartial,
-        spawnedEntries
+        spawnedEntries,
+        stage
       )
     }
 
@@ -2562,6 +2616,7 @@ export function writeDynamicRenderResponseIntoCache(
         // parameter.
         headVaryParams,
         metadataTree,
+        stage,
         spawnedEntries
       )
     }
@@ -2598,7 +2653,8 @@ function writeSeedDataIntoCache(
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
-  > | null
+  > | null,
+  stage: CacheStage
 ) {
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
@@ -2609,7 +2665,7 @@ function writeSeedDataIntoCache(
   // thenable resolves to the set of params the segment accessed during render.
   // A null thenable means tracking was not enabled (not a prerender).
   const varyParams =
-    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+    varyParamsThenable !== null ? readCacheInfo(varyParamsThenable) : null
   fulfillEntrySpawnedByRuntimePrefetch(
     now,
     fetchStrategy,
@@ -2618,6 +2674,7 @@ function writeSeedDataIntoCache(
     staleAt,
     varyParams,
     tree,
+    stage,
     entriesOwnedByCurrentTask
   )
 
@@ -2637,7 +2694,8 @@ function writeSeedDataIntoCache(
           staleAt,
           childSeedData,
           isResponsePartial,
-          entriesOwnedByCurrentTask
+          entriesOwnedByCurrentTask,
+          stage
         )
       }
     }
@@ -2656,6 +2714,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   staleAt: number,
   segmentVaryParams: Set<string> | null,
   tree: RouteTree,
+  stage: CacheStage,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
@@ -2673,7 +2732,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       ownedEntry,
       rsc,
       staleAt,
-      isPartial
+      isPartial,
+      stage
     )
     // Re-key the entry based on which params the segment actually depends on.
     if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
@@ -2703,7 +2763,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         upgradeToPendingSegment(newEntry, fetchStrategy),
         rsc,
         staleAt,
-        isPartial
+        isPartial,
+        stage
       )
       // Re-key the entry based on which params the segment actually depends on.
       if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
@@ -2729,7 +2790,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         ),
         rsc,
         staleAt,
-        isPartial
+        isPartial,
+        stage
       )
       // Use the fulfilled vary path if available, otherwise fall back to
       // the request vary path.
@@ -2956,7 +3018,7 @@ function getStaleAtFromHeader(
  * returns a staleAt timestamp.
  *
  * TODO: Buffer the response and then read the iterable values
- * synchronously, similar to readVaryParams. This would avoid the need to
+ * synchronously, similar to readCacheInfo. This would avoid the need to
  * make this async, and we could also use it in
  * writeDynamicTreeResponseIntoCache. This will also be needed when React
  * starts leaving async iterables hanging when the outer RSC stream is
@@ -3003,7 +3065,7 @@ export function writeStaticStageResponseIntoCache(
   now: number,
   flightData: FlightData,
   buildId: string | undefined,
-  headVaryParamsThenable: VaryParamsThenable | null,
+  headVaryParamsThenable: CacheInfo<VaryParams> | null,
   staleAt: number,
   baseTree: FlightRouterState,
   renderedSearch: string,
@@ -3015,7 +3077,7 @@ export function writeStaticStageResponseIntoCache(
 
   const headVaryParams =
     headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
+      ? readCacheInfo(headVaryParamsThenable)
       : null
 
   const flightDatas = normalizeFlightData(flightData)
@@ -3038,7 +3100,10 @@ export function writeStaticStageResponseIntoCache(
     headVaryParams,
     staleAt,
     navigationSeed,
-    null // spawnedEntries — no pre-created entries; will create or upsert
+    null, // spawnedEntries — no pre-created entries; will create or upsert
+    // Cache stage is only relevant for runtime prefetch responses. Static
+    // prefetches are not affected. This may change in the future.
+    CacheStage.Max
   )
 }
 
@@ -3060,6 +3125,7 @@ export async function processRuntimePrefetchStream(
   isResponsePartial: boolean
   headVaryParams: VaryParams | null
   staleAt: number
+  stage: CacheStage
 } | null> {
   const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
 
@@ -3073,7 +3139,7 @@ export async function processRuntimePrefetchStream(
   const headVaryParamsThenable = serverData.h
   const headVaryParams =
     headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
+      ? readCacheInfo(headVaryParamsThenable)
       : null
 
   const staleAt = await getStaleAt(now, serverData.s)
@@ -3097,6 +3163,10 @@ export async function processRuntimePrefetchStream(
     isResponsePartial: isPartial,
     headVaryParams,
     staleAt,
+    stage:
+      serverData.g !== undefined
+        ? (readCacheInfo(serverData.g) ?? CacheStage.Max)
+        : CacheStage.Max,
   }
 }
 

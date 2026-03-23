@@ -8,7 +8,7 @@ import type {
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
-import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
+import { readCacheInfo } from '../../shared/lib/segment-cache/cache-info-decoding'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -308,7 +308,7 @@ export async function collectPrefetchHints(
   const headVaryParamsThenable = initialRSCPayload.h
   const headVaryParams =
     headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
+      ? readCacheInfo(headVaryParamsThenable)
       : null
 
   const [, headBuffer] = await renderSegmentPrefetch(
@@ -401,7 +401,7 @@ async function collectPrefetchHintsImpl(
   if (seedData !== null) {
     const varyParamsThenable = seedData[4]
     const varyParams =
-      varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+      varyParamsThenable !== null ? readCacheInfo(varyParamsThenable) : null
 
     const [, buffer] = await renderSegmentPrefetch(
       buildId,
@@ -620,7 +620,7 @@ async function PrefetchTreeData({
   const headVaryParamsThenable = initialRSCPayload.h
   const headVaryParams =
     headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
+      ? readCacheInfo(headVaryParamsThenable)
       : null
 
   // Compute the route metadata tree by traversing the FlightRouterState. As we
@@ -765,7 +765,7 @@ function collectSegmentDataImpl(
   // entries across param values).
   const varyParamsThenable = seedData !== null ? seedData[4] : null
   const varyParams =
-    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+    varyParamsThenable !== null ? readCacheInfo(varyParamsThenable) : null
 
   if (!prefetchInlining) {
     // When prefetch inlining is disabled, spawn individual segment tasks.
@@ -939,7 +939,7 @@ async function buildInlinedSegmentPrefetch(
   const rsc = seedData !== null ? seedData[0] : null
   const varyParamsThenable = seedData !== null ? seedData[4] : null
   const varyParams =
-    varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+    varyParamsThenable !== null ? readCacheInfo(varyParamsThenable) : null
 
   const segment: SegmentPrefetch = {
     rsc,

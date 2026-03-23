@@ -45,6 +45,7 @@ export interface UseCacheCacheStoreSerialized {
   hasExplicitRevalidate: boolean | undefined
   hasExplicitExpire: boolean | undefined
   readRootParamNames: string[] | undefined
+  hasMaxPrefetch?: boolean
 }
 
 /**
@@ -65,7 +66,13 @@ export function parseUseCacheCacheStore(
 
   for (const [
     key,
-    { entry, hasExplicitRevalidate, hasExplicitExpire, readRootParamNames },
+    {
+      entry,
+      hasExplicitRevalidate,
+      hasExplicitExpire,
+      readRootParamNames,
+      hasMaxPrefetch,
+    },
   ] of entries) {
     store.set(
       key,
@@ -92,6 +99,7 @@ export function parseUseCacheCacheStore(
         readRootParamNames: readRootParamNames
           ? new Set(readRootParamNames)
           : undefined,
+        hasMaxPrefetch,
       })
     )
   }
@@ -117,6 +125,7 @@ export async function serializeUseCacheCacheStore(
             hasExplicitRevalidate,
             hasExplicitExpire,
             readRootParamNames,
+            hasMaxPrefetch,
           }) => {
             if (
               isCacheComponentsEnabled &&
@@ -156,6 +165,7 @@ export async function serializeUseCacheCacheStore(
                 readRootParamNames: readRootParamNames
                   ? [...readRootParamNames]
                   : undefined,
+                hasMaxPrefetch,
               },
             ] satisfies [string, UseCacheCacheStoreSerialized]
           }

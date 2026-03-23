@@ -1680,7 +1680,8 @@ async function fetchMissingDynamicData(
               processed.headVaryParams,
               processed.staleAt,
               processed.navigationSeed,
-              null
+              null,
+              processed.stage
             )
           }
         })

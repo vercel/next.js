@@ -203,6 +203,12 @@ import {
   finishAccumulatingVaryParams,
   getMetadataVaryParamsThenable,
 } from './vary-params'
+import {
+  createCacheInfo,
+  finishCacheStageTracking,
+  getCacheStageThenable,
+} from './cache-info'
+import { CacheStage } from '../../shared/lib/segment-cache/cache-stage'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -728,6 +734,13 @@ async function generateDynamicRSCPayload(
     }
   }
 
+  // Read the cache stage thenable from the current work unit store, if
+  // present. This follows the same pattern as getMetadataVaryParamsThenable.
+  const cacheStageThenable = getCacheStageThenable()
+  if (cacheStageThenable !== null) {
+    baseResponse.g = cacheStageThenable
+  }
+
   return baseResponse
 }
 
@@ -999,7 +1012,9 @@ async function spawnRuntimePrefetchWithFilledCaches(
 
     const { result } = await finalRuntimeServerPrerender(
       ctx,
-      generateDynamicRSCPayload.bind(null, ctx, { staleTimeIterable }),
+      generateDynamicRSCPayload.bind(null, ctx, {
+        staleTimeIterable,
+      }),
       prerenderResumeDataCache,
       null, // renderResumeDataCache
       rootParams,
@@ -1398,6 +1413,7 @@ async function prospectiveRuntimeServerPrerender(
     hmrRefreshHash: undefined,
     // We don't track vary params during initial prerender, only the final one
     varyParamsAccumulator: null,
+    cacheStageAccumulator: createCacheInfo(CacheStage.Max),
     // No stage sequencing needed for prospective renders.
     stagedRendering: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1539,6 +1555,7 @@ async function finalRuntimeServerPrerender(
   )
 
   const varyParamsAccumulator = createResponseVaryParamsAccumulator()
+  const cacheStageAccumulator = createCacheInfo(CacheStage.Max)
 
   const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
@@ -1560,6 +1577,7 @@ async function finalRuntimeServerPrerender(
     renderResumeDataCache,
     hmrRefreshHash: undefined,
     varyParamsAccumulator,
+    cacheStageAccumulator,
     // Used to separate the stages in the 5-task pipeline.
     stagedRendering: finalStageController,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
@@ -1614,13 +1632,24 @@ async function finalRuntimeServerPrerender(
       finalStageController.advanceStage(RenderStage.Runtime)
     },
     () => {
+      // Resolve all cache info thenables, then abort the prerender. These
+      // are resolved in parallel because they are conceptually the same
+      // operation — finalizing info that Flight needs to serialize into the
+      // stream before we close it. See cache-info.ts for more context.
+      //
+      // TODO: These all follow the same pattern (resolve thenable, flush
+      // microtasks). They should be consolidated into shared machinery in
+      // cache-info.ts.
       Promise.all([
         finishStaleTimeTracking(staleTimeIterable),
         finishAccumulatingVaryParams(varyParamsAccumulator),
+        finishCacheStageTracking(
+          finalServerPrerenderStore.cacheStageAccumulator
+        ),
       ]).then(() => {
         // Abort. This runs as a microtask after Flight has flushed the
-        // staleTime and varyParams closing chunks, but before the next
-        // macrotask resolves the overall result.
+        // closing chunks, but before the next macrotask resolves the
+        // overall result.
         if (finalServerController.signal.aborted) {
           // If the server controller is already aborted we must have called
           // something that required aborting the prerender synchronously such
@@ -4359,6 +4388,7 @@ async function warmupClientModulesForStagedValidation(
       hmrRefreshHash: undefined,
       // Client prerenders don't track server param access
       varyParamsAccumulator: null,
+      cacheStageAccumulator: null,
     }
     initialClientPrerenderStore = store
   } else {
@@ -4383,6 +4413,7 @@ async function warmupClientModulesForStagedValidation(
       hmrRefreshHash: undefined,
       // Client prerenders don't track server param access
       varyParamsAccumulator: null,
+      cacheStageAccumulator: null,
       // We're not rendering any validation boundaries yet.
       boundaryState: null,
       validationSamples,
@@ -4534,6 +4565,7 @@ async function validateStagedShell(
     hmrRefreshHash,
     // Client prerenders don't track server param access
     varyParamsAccumulator: null,
+    cacheStageAccumulator: null,
   }
 
   const dynamicValidation = createDynamicValidationState()
@@ -4804,6 +4836,7 @@ async function validateInstantConfigs(
       renderResumeDataCache: null,
       hmrRefreshHash,
       varyParamsAccumulator: null,
+      cacheStageAccumulator: null,
       boundaryState,
       fallbackRouteParams,
       validationSamples,
@@ -5898,6 +5931,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        cacheStageAccumulator: null,
       }
 
       // We're not going to use the result of this render because the only time it could be used
@@ -5933,6 +5967,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        cacheStageAccumulator: null,
       })
 
       const initialPrerenderOptions = {
@@ -6056,6 +6091,7 @@ async function prerenderToStream(
           hmrRefreshHash: undefined,
           // Client prerenders don't track server param access
           varyParamsAccumulator: null,
+          cacheStageAccumulator: null,
         }
 
         const pendingInitialClientResult = workUnitAsyncStorage.run(
@@ -6180,6 +6216,7 @@ async function prerenderToStream(
         renderResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        cacheStageAccumulator: null,
       }
 
       const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -6221,6 +6258,7 @@ async function prerenderToStream(
         renderResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        cacheStageAccumulator: null,
       })
 
       if (staleTimeIterable !== undefined) {
@@ -6334,6 +6372,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // Client prerenders don't track server param access
         varyParamsAccumulator: null,
+        cacheStageAccumulator: null,
       }
 
       let dynamicValidation = createDynamicValidationState()
