@@ -134,7 +134,7 @@ jobs:
           key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
   # Build the Docker image used for all Linux native builds.
-  # Cached by turbo based on Dockerfile + cross-config + rust-toolchain hash.
+  # Cached by content hash of Dockerfile + rust-toolchain.
   build-native-image:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
     needs:
@@ -151,7 +151,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          CACHE_KEY="next-swc-builder-${{ hashFiles('docker/native-builder.Dockerfile', '.cargo/cross-config.toml', 'rust-toolchain.toml') }}"
+          CACHE_KEY="next-swc-builder-${{ hashFiles('docker/native-builder.Dockerfile', 'rust-toolchain.toml') }}"
           # Check if image with this hash already exists
           if docker image inspect "next-swc-builder:${CACHE_KEY}" &>/dev/null; then
             echo "Image already cached, tagging as latest"
@@ -249,7 +249,7 @@ jobs:
         with:
           save-if: 'true'
           cache-provider: 'turbo'
-          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml', '.cargo/cross-config.toml') }}
+          shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml') }}
 
       - name: Clear native build
         run: rm -rf packages/next-swc/native
@@ -277,7 +277,6 @@ jobs:
             -e ABI="${{ matrix.abi }}" \
             -e ARCH="${{ matrix.arch }}" \
             -e BUILD_TASK="${{ matrix.build_task }}" \
-            -e VERIFY_CMD="${{ matrix.verify_cmd }}" \
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
             -v ${{ github.workspace }}:/build \
