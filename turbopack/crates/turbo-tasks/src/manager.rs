@@ -1730,8 +1730,24 @@ pub(crate) fn current_task(from: &str) -> TaskId {
     }
 }
 
+/// Panics if we're not in a top-level task (e.g. [`run_once`]). Some function calls should only
+/// happen in a top-level task (e.g. [`Effects::apply`][crate::Effects::apply]).
 #[track_caller]
-fn debug_assert_not_in_top_level_task(operation: &str) {
+pub(crate) fn debug_assert_in_top_level_task(message: &str) {
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
+    let in_top_level = CURRENT_TASK_STATE
+        .try_with(|ts| ts.read().unwrap().in_top_level_task)
+        .unwrap_or(true);
+    if !in_top_level {
+        panic!("{message}");
+    }
+}
+
+#[track_caller]
+pub(crate) fn debug_assert_not_in_top_level_task(operation: &str) {
     if !cfg!(debug_assertions) {
         return;
     }

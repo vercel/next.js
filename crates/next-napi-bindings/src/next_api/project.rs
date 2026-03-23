@@ -49,8 +49,9 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, get_effects,
+    UpdateInfo, Vc,
     message_queue::{CompilationEvent, Severity},
+    take_effects,
     trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
@@ -1840,7 +1841,7 @@ async fn hmr_update_with_issues_operation(
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1975,7 +1976,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
-    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
