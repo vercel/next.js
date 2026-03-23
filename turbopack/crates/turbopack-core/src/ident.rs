@@ -336,7 +336,7 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_base38(hasher.finish());
-            // 7 base38 chars ≈ 37 bits of collision resistance
+            // 7 base38 chars ≈ 36 bits of collision resistance
             let truncated_hash = &hash[..7];
             write!(name, "_{truncated_hash}")?;
         }
