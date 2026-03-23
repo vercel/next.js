@@ -15,6 +15,18 @@
 #   - Rust nightly toolchain (pinned to match rust-toolchain.toml)
 #   - @napi-rs/cli for building native Node.js addons
 
+# ---------------------------------------------------------------------------
+# Stage 1: Extract glibc-linked Node.js binary + headers
+# ---------------------------------------------------------------------------
+FROM node:20-slim AS node-gnu
+RUN mkdir -p /out && \
+    cp -r /usr/local/bin /out/bin && \
+    cp -r /usr/local/include /out/include && \
+    cp -r /usr/local/lib /out/lib
+
+# ---------------------------------------------------------------------------
+# Stage 2: Builder image
+# ---------------------------------------------------------------------------
 FROM ubuntu:20.04 AS builder
 
 # Avoid interactive prompts during apt-get
@@ -42,15 +54,12 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
       "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
       > /etc/apt/sources.list
 
-# Core build tools + GNU cross-compilation sysroots + Node.js 20 via nodesource.
+# Core build tools + GNU cross-compilation sysroots.
 # crossbuild-essential installs headers + libs in the multiarch layout
 # that clang finds via --target. Both archs installed so the image
 # works on either host architecture.
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends \
-    nodejs \
-    clang lld llvm pkg-config wget git xz-utils \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang lld llvm pkg-config curl wget git ca-certificates xz-utils \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -67,6 +76,13 @@ RUN cd /opt && \
          /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/libgcc.a \
          /opt/${TRIPLE}-cross/${TRIPLE}/lib/; \
     done
+
+# Copy Node.js from multi-stage build. We use the glibc-linked node for ALL
+# targets — node is just a build tool (runs npm/napi-cli), and the output
+# .node shared library's linking is determined by cargo's --target, not the
+# node binary. N-API is ABI-stable across glibc and musl.
+COPY --from=node-gnu /out /opt/node-gnu
+ENV PATH="/opt/node-gnu/bin:${PATH}"
 
 # Install Rust — pinned nightly from rust-toolchain.toml
 # The COPY of rust-toolchain.toml ensures the image rebuilds when the toolchain changes.

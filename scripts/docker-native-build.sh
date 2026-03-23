@@ -33,31 +33,33 @@ export PATH="/opt/node-gnu/bin:${PATH}"
 # cargo-rustflags merges these with .cargo/config.toml (cfg(true) base flags,
 # musl crt-static, etc.) so we don't duplicate them here.
 CROSS_FLAGS="-Clinker=clang -Clinker-flavor=gnu-lld-cc -Clink-arg=-Wl,--icf=all"
+HOST_ARCH=$(uname -m)
+
+# Determine if we need --sysroot. Native GNU targets (host == target arch)
+# don't need it — clang finds native multiarch headers automatically.
+# Cross GNU targets and all musl targets need explicit sysroot paths.
+IS_NATIVE_GNU=0
+if [ "$ABI" = "gnu" ]; then
+  case "${HOST_ARCH}-${ARCH}" in
+    x86_64-x86_64|aarch64-aarch64) IS_NATIVE_GNU=1 ;;
+  esac
+fi
 
 case "$TARGET" in
   x86_64-unknown-linux-gnu)
-    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-gnu -Clink-arg=--sysroot=/usr/x86_64-linux-gnu" ;;
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-gnu"
+    [ "$IS_NATIVE_GNU" = "0" ] && CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--sysroot=/usr/x86_64-linux-gnu"
+    ;;
   aarch64-unknown-linux-gnu)
-    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-gnu -Clink-arg=--sysroot=/usr/aarch64-linux-gnu" ;;
+    CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-gnu"
+    [ "$IS_NATIVE_GNU" = "0" ] && CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--sysroot=/usr/aarch64-linux-gnu"
+    ;;
   x86_64-unknown-linux-musl)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-musl -Clink-arg=--sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl -Clink-arg=--gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
   aarch64-unknown-linux-musl)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-musl -Clink-arg=--sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl -Clink-arg=--gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
   *) echo "Unknown target: $TARGET"; exit 1 ;;
 esac
-
-# For native GNU targets (host arch == target arch), strip --sysroot.
-# Ubuntu's native multiarch layout (/usr/include/<triple>/) differs from the
-# cross sysroot layout (/usr/<triple>/include/). Without --sysroot, clang
-# finds the native headers automatically.
-HOST_ARCH=$(uname -m)
-if [ "$ABI" = "gnu" ]; then
-  case "${HOST_ARCH}-${ARCH}" in
-    x86_64-x86_64|aarch64-aarch64)
-      CROSS_FLAGS=$(echo "$CROSS_FLAGS" | sed 's/-Clink-arg=--sysroot=[^ ]*//' | xargs)
-      ;;
-  esac
-fi
 
 # Build the --config argument as a TOML inline value
 CROSS_CONFIG="target.${TARGET}.rustflags=[$(echo "$CROSS_FLAGS" | sed 's/\([^ ]*\)/"\1"/g; s/ /, /g')]"

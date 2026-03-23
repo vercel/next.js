@@ -141,6 +141,11 @@ console.log(
 )
 
 const HOME = os.homedir()
+const VOLUMES = [
+  `${HOME}/.cargo/git:/root/.cargo/git`,
+  `${HOME}/.cargo/registry:/root/.cargo/registry`,
+  `${REPO_ROOT}:/build`,
+]
 
 for (const { target, arch, abi, napiPlatform } of targets) {
   console.log('='.repeat(50))
@@ -154,34 +159,23 @@ for (const { target, arch, abi, napiPlatform } of targets) {
   const nodeFile = path.join(nativeDir, `next-swc.${napiPlatform}.node`)
   if (fs.existsSync(nodeFile)) fs.unlinkSync(nodeFile)
 
-  const volumeArgs = hostTarget ? [] : ['-v', '/build/target']
+  const ENV = {
+    CI: '1',
+    RUST_BACKTRACE: '1',
+    CARGO_TERM_COLOR: 'always',
+    CARGO_INCREMENTAL: '0',
+    TARGET: target,
+    ABI: abi,
+    ARCH: arch,
+    BUILD_TASK: buildTask,
+  }
 
   const dockerArgs = [
     'run',
     '--rm',
-    '-e',
-    'CI=1',
-    '-e',
-    'RUST_BACKTRACE=1',
-    '-e',
-    'CARGO_TERM_COLOR=always',
-    '-e',
-    'CARGO_INCREMENTAL=0',
-    '-e',
-    `TARGET=${target}`,
-    '-e',
-    `ABI=${abi}`,
-    '-e',
-    `ARCH=${arch}`,
-    '-e',
-    `BUILD_TASK=${buildTask}`,
-    '-v',
-    `${HOME}/.cargo/git:/root/.cargo/git`,
-    '-v',
-    `${HOME}/.cargo/registry:/root/.cargo/registry`,
-    '-v',
-    `${REPO_ROOT}:/build`,
-    ...volumeArgs,
+    ...Object.entries(ENV).flatMap(([k, v]) => ['-e', `${k}=${v}`]),
+    ...VOLUMES.flatMap((v) => ['-v', v]),
+    ...(hostTarget ? [] : ['-v', '/build/target']),
     '-w',
     '/build',
     '--entrypoint',

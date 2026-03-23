@@ -7,11 +7,11 @@
 //
 // 1. `pnpm -F @next/swc build-docker-image` (turbo task):
 //    - On cache miss: turbo runs this script, which builds the image and saves
-//      docker/image.tar for turbo to cache as output.
-//    - On cache hit: turbo restores docker/image.tar and SKIPS this script.
+//      target/docker-image.tar for turbo to cache as output.
+//    - On cache hit: turbo restores target/docker-image.tar and SKIPS this script.
 //
 // 2. `node scripts/docker-image-cache.js --load` (post-turbo step):
-//    - If docker/image.tar exists (turbo cache hit), loads it into docker.
+//    - If target/docker-image.tar exists (turbo cache hit), loads it into docker.
 //    - If the image is already loaded, does nothing.
 //    - Cleans up the tar after loading.
 //
@@ -29,7 +29,7 @@ const os = require('os')
 
 const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'next-swc-builder:latest'
-const IMAGE_TAR = path.join(REPO_ROOT, 'docker/image.tar')
+const IMAGE_TAR = path.join(REPO_ROOT, 'target/docker-image.tar')
 const force = process.argv.includes('--force')
 const load = process.argv.includes('--load')
 
@@ -51,7 +51,7 @@ function buildImage() {
   )
   try {
     execSync(
-      `docker build -t ${IMAGE_NAME} -f ${path.join(REPO_ROOT, 'docker/native-builder.Dockerfile')} ${ctx}`,
+      `docker build -t ${IMAGE_NAME} -f ${path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile')} ${ctx}`,
       { stdio: 'inherit' }
     )
   } finally {
