@@ -14,6 +14,10 @@
 #   ARCH          - Target architecture (x86_64 or aarch64)
 #   VERIFY_CMD    - Command to verify the built binary (optional)
 #   BUILD_TASK    - Cargo/napi build task name (default: build-native-release)
+#
+# RUSTFLAGS are resolved inside the container via cargo-rustflags, merging
+# .cargo/config.toml with .cargo/cross-config.toml. No RUSTFLAGS env var
+# needs to be passed in.
 
 set -xeo pipefail
 
@@ -23,6 +27,10 @@ BUILD_TASK="${BUILD_TASK:-build-native-release}"
 # node works for all targets — the output .node file's linking is determined
 # by cargo's --target, not the node binary.
 export PATH="/opt/node-gnu/bin:${PATH}"
+
+# Resolve RUSTFLAGS from cargo config + cross-config overlay.
+RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config .cargo/cross-config.toml)
+export RUSTFLAGS
 
 # rustc's gcc-ld/ dir has ld.lld but no 'ld' shim.
 # gnu-lld-cc passes -B<gcc-ld-dir> to GCC/clang, which looks for 'ld' there.
