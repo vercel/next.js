@@ -2,6 +2,11 @@
 ///
 /// All 38 characters are RFC 3986 unreserved characters and are safe on
 /// case-insensitive filesystems (macOS HFS+/APFS, Windows NTFS).
+///
+/// `~` and `.` are intentionally excluded despite being RFC 3986 unreserved:
+/// they are blocked by common Nginx hardening rules (`block_common_exploits.conf`)
+/// and enterprise WAF configurations, causing 403 errors when sequences like
+/// `~~` or `...` appear in asset filenames (false-positive path traversal matches).
 const BASE38_CHARS: &[u8; 38] = b"0123456789abcdefghijklmnopqrstuvwxyz_-";
 
 const BASE: u128 = BASE38_CHARS.len() as u128;
