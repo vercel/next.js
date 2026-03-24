@@ -1,9 +1,35 @@
 import { bold, cyan } from '../picocolors'
 import os from 'os'
 import path from 'path'
+import semver from 'next/dist/compiled/semver'
 
 import { FatalError } from '../fatal-error'
 import isError from '../is-error'
+
+function resolvePathAliasTarget(baseUrl: string, target: string): string {
+  if (
+    path.isAbsolute(target) ||
+    target.startsWith('./') ||
+    target.startsWith('../')
+  ) {
+    return target
+  }
+
+  if (baseUrl === '.' || baseUrl === './') {
+    return `./${target}`
+  }
+
+  const resolvedTarget = path.join(baseUrl, target)
+  if (
+    path.isAbsolute(resolvedTarget) ||
+    resolvedTarget.startsWith('./') ||
+    resolvedTarget.startsWith('../')
+  ) {
+    return resolvedTarget
+  }
+
+  return `./${resolvedTarget}`
+}
 
 export async function getTypeScriptConfiguration(
   typescript: typeof import('typescript'),
@@ -28,6 +54,66 @@ export async function getTypeScriptConfiguration(
     }
 
     let configToParse: any = config
+    if (semver.gte(typescript.version, '6.0.0')) {
+      const target = configToParse.compilerOptions?.target
+      if (
+        typeof target === 'string' &&
+        (target.toLowerCase() === 'es3' || target.toLowerCase() === 'es5')
+      ) {
+        const { target: _target, ...restCompilerOptions } =
+          configToParse.compilerOptions ?? {}
+
+        // TypeScript 6 deprecates ES3/ES5 targets. Rewrite deprecated
+        // targets in-memory to keep typechecking working without requiring
+        // `ignoreDeprecations`.
+        configToParse = {
+          ...configToParse,
+          compilerOptions: {
+            ...restCompilerOptions,
+            target: 'es2015',
+          },
+        }
+      }
+
+      const baseUrl = configToParse.compilerOptions?.baseUrl
+      const hasBaseUrl = typeof baseUrl === 'string' && baseUrl.length > 0
+
+      if (hasBaseUrl) {
+        const originalPaths = configToParse.compilerOptions?.paths
+        const rewrittenPaths: Record<string, unknown> =
+          originalPaths && typeof originalPaths === 'object'
+            ? Object.fromEntries(
+                Object.entries(originalPaths).map(([key, values]) => [
+                  key,
+                  Array.isArray(values)
+                    ? values.map((value) =>
+                        typeof value === 'string'
+                          ? resolvePathAliasTarget(baseUrl, value)
+                          : value
+                      )
+                    : values,
+                ])
+              )
+            : {
+                '*': [resolvePathAliasTarget(baseUrl, '*')],
+              }
+        if (!Object.prototype.hasOwnProperty.call(rewrittenPaths, '*')) {
+          rewrittenPaths['*'] = [resolvePathAliasTarget(baseUrl, '*')]
+        }
+        const { baseUrl: _baseUrl, ...restCompilerOptions } =
+          configToParse.compilerOptions ?? {}
+
+        // TypeScript 6 deprecates `baseUrl`; rewrite aliases to explicit
+        // relative paths so path mapping still works without this option.
+        configToParse = {
+          ...configToParse,
+          compilerOptions: {
+            ...restCompilerOptions,
+            paths: rewrittenPaths,
+          },
+        }
+      }
+    }
 
     const result = typescript.parseJsonConfigFileContent(
       configToParse,

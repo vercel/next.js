@@ -39,7 +39,7 @@ describe('correct tsconfig.json defaults', () => {
       expect(next.cliOutput).not.toContain('moduleResolution')
 
       expect(tsconfig.compilerOptions).toEqual(
-        expect.objectContaining({ moduleResolution: 'node' })
+        expect.objectContaining({ moduleResolution: 'bundler' })
       )
     } finally {
       await next.stop()
@@ -57,7 +57,7 @@ describe('correct tsconfig.json defaults', () => {
       const tsconfig = JSON.parse(await next.readFile('tsconfig.json'))
 
       expect(tsconfig.compilerOptions).toEqual(
-        expect.objectContaining({ moduleResolution: 'node' })
+        expect.objectContaining({ moduleResolution: 'bundler' })
       )
       expect(next.cliOutput).not.toContain('moduleResolution')
     } finally {
