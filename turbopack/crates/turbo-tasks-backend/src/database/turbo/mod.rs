@@ -49,15 +49,16 @@ pub struct TurboKeyValueDatabase {
 
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
-        const CONFIG: DbConfig<FAMILIES> = DbConfig {
+        let config = DbConfig {
             family_configs: [
                 KeySpace::Infra.family_config(),
                 KeySpace::TaskMeta.family_config(),
                 KeySpace::TaskData.family_config(),
                 KeySpace::TaskCache.family_config(),
             ],
+            ..DbConfig::new()
         };
-        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
+        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, config)?);
         Ok(Self {
             db: db.clone(),
             is_ci,
@@ -73,7 +74,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     }
 
     type ValueBuffer<'l>
-        = ArcBytes
+        = ArcBytes<'static>
     where
         Self: 'l;
 
@@ -187,7 +188,7 @@ pub struct TurboWriteBatch<'a> {
 
 impl<'a> ConcurrentWriteBatch<'a> for TurboWriteBatch<'a> {
     type ValueBuffer<'l>
-        = ArcBytes
+        = ArcBytes<'static>
     where
         Self: 'l,
         'a: 'l;

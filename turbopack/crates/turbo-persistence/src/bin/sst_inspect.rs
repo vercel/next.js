@@ -226,7 +226,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
         let filename = meta_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let seq_num: u32 = filename.parse().unwrap_or(0);
 
-        let meta_file = MetaFile::open(db_path, seq_num)
+        let meta_file = MetaFile::open(db_path, seq_num, turbo_persistence::AccessMode::Mmap)
             .with_context(|| format!("Failed to open {}", meta_path.display()))?;
 
         let family = meta_file.family();

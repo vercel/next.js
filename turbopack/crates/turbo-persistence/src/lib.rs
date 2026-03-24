@@ -3,7 +3,6 @@
 #![feature(iter_collect_into)]
 
 mod arc_bytes;
-pub(crate) mod be;
 mod collector;
 mod collector_entry;
 mod compaction;
@@ -17,8 +16,6 @@ pub mod meta_file;
 mod meta_file_builder;
 pub mod mmap_helper;
 mod parallel_scheduler;
-mod rc_bytes;
-mod shared_bytes;
 mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;
@@ -32,6 +29,15 @@ mod tests;
 pub use arc_bytes::ArcBytes;
 pub use compression::checksum_block;
 pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+
+/// Controls how SST and meta files are read from disk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AccessMode {
+    /// Memory-map the file and access blocks via the mapped region.
+    Mmap,
+    /// Read blocks directly from the file via pread (no mmap).
+    File,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {
@@ -60,15 +66,42 @@ pub struct FamilyConfig {
 #[derive(Clone, Debug)]
 pub struct DbConfig<const FAMILIES: usize> {
     pub family_configs: [FamilyConfig; FAMILIES],
+    /// How SST and meta files are read from disk.
+    pub access_mode: AccessMode,
 }
 
-impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
-    fn default() -> Self {
+/// Reads the `TURBO_PERSISTENCE_MMAP` env var (cached). Returns `AccessMode::File` when the var
+/// is set to `"0"`, `AccessMode::Mmap` otherwise.
+fn access_mode_env_var() -> AccessMode {
+    static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
+        if std::env::var("TURBO_PERSISTENCE_MMAP")
+            .map(|v| v == "0")
+            .unwrap_or(false)
+        {
+            AccessMode::File
+        } else {
+            AccessMode::Mmap
+        }
+    });
+    *ACCESS_MODE_ENV
+}
+
+impl<const FAMILIES: usize> DbConfig<FAMILIES> {
+    /// Returns a config with all defaults, reading the `TURBO_PERSISTENCE_MMAP` env var
+    /// to determine the access mode.
+    pub fn new() -> Self {
         Self {
             family_configs: [FamilyConfig {
                 kind: FamilyKind::SingleValue,
             }; FAMILIES],
+            access_mode: access_mode_env_var(),
         }
+    }
+}
+
+impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};

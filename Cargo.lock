@@ -9458,6 +9458,7 @@ dependencies = [
  "quick_cache",
  "rand 0.10.0",
  "rayon",
+ "rstest",
  "rustc-hash 2.1.1",
  "smallvec",
  "tempfile",

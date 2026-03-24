@@ -10,17 +10,17 @@ use qfilter::Filter;
 
 use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
 
-pub struct MetaFileBuilder<'a> {
+pub struct MetaFileBuilder {
     family: u32,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
-    entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
+    entries: Vec<(u32, StaticSortedFileBuilderMeta)>,
     /// Obsolete SST files, represented by their sequence numbers
     obsolete_sst_files: Vec<u32>,
     /// Optional AMQF for used key hashes
     used_key_hashes_amqf: Option<Filter>,
 }
 
-impl<'a> MetaFileBuilder<'a> {
+impl MetaFileBuilder {
     pub fn new(family: u32) -> Self {
         Self {
             family,
@@ -30,7 +30,7 @@ impl<'a> MetaFileBuilder<'a> {
         }
     }
 
-    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta<'a>) {
+    pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta) {
         self.entries.push((sequence_number, sst));
     }
 

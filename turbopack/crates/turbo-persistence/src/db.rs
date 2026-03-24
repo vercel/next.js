@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
@@ -12,6 +11,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+use either::Either;
 use jiff::Timestamp;
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
@@ -21,7 +21,7 @@ use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    DbConfig, FamilyKind, QueryKey,
+    AccessMode, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{checksum_block, decompress_into_arc},
@@ -30,15 +30,14 @@ use crate::{
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
-    lookup_entry::{IterValue, LookupEntry, LookupValue},
+    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
-    rc_bytes::RcBytes,
     sst_filter::SstFilter,
-    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
+    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
     write_batch::{FinishResult, WriteBatch},
 };
@@ -385,7 +384,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut meta_files = self
             .parallel_scheduler
             .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
-                let meta_file = MetaFile::open(&self.path, seq)?;
+                let meta_file = MetaFile::open(&self.path, seq, self.config.access_mode)?;
                 Ok(meta_file)
             })?;
 
@@ -402,23 +401,40 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
+    fn read_blob(&self, seq: u32) -> Result<ArcBytes<'static>> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)
             .with_context(|| format!("Failed to open blob file {}", path.display()))?;
-        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
-            format!(
-                "Failed to mmap blob file {} ({} bytes)",
-                path.display(),
-                file.metadata().map(|m| m.len()).unwrap_or(0)
-            )
-        })?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Sequential)?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::WillNeed)?;
-        advise_mmap_for_persistence(&mmap)?;
-        let mut reader = &mmap[..];
+
+        // Read the blob data either via mmap or plain file reads, avoiding an
+        // extra copy in the mmap path.
+        let data: Either<Mmap, Vec<u8>> = if self.config.access_mode == AccessMode::Mmap {
+            let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+                format!(
+                    "Failed to mmap blob file {} ({} bytes)",
+                    path.display(),
+                    file.metadata().map(|m| m.len()).unwrap_or(0)
+                )
+            })?;
+            #[cfg(unix)]
+            mmap.advise(memmap2::Advice::Sequential)?;
+            #[cfg(unix)]
+            mmap.advise(memmap2::Advice::WillNeed)?;
+            advise_mmap_for_persistence(&mmap)?;
+            Either::Left(mmap)
+        } else {
+            use std::io::Read;
+            let mut buf = Vec::new();
+            let mut file = std::io::BufReader::new(file);
+            file.read_to_end(&mut buf)
+                .with_context(|| format!("Failed to read blob file {}", path.display()))?;
+            Either::Right(buf)
+        };
+
+        let mut reader: &[u8] = match &data {
+            Either::Left(mmap) => mmap,
+            Either::Right(vec) => vec,
+        };
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;
@@ -579,7 +595,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
                 file.sync_all()?;
-                let meta_file = MetaFile::open(&self.path, seq)?;
+                let meta_file = MetaFile::open(&self.path, seq, self.config.access_mode)?;
                 Ok(meta_file)
             })?;
 
@@ -1027,16 +1043,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     // Merge SST files
                     let span = tracing::trace_span!("merge files");
-                    enum PartialMergeResult<'l> {
+                    enum PartialMergeResult {
                         Merged {
-                            new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                            new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta)>,
                             blob_seq_numbers_to_delete: Vec<u32>,
                             keys_written: u64,
                             indices: SmallVec<[usize; 1]>,
                         },
                         Move {
                             seq: u32,
-                            meta: StaticSortedFileBuilderMeta<'l>,
+                            meta: StaticSortedFileBuilderMeta,
                         },
                     }
                     let merge_result = self
@@ -1050,7 +1066,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                 let meta_file = &meta_files[meta_index];
                                 let entry = meta_file.entry(index_in_meta);
-                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let amqf = entry.raw_amqf(meta_file)?.into_static().into();
                                 let meta = StaticSortedFileBuilderMeta {
                                     min_hash: entry.min_hash(),
                                     max_hash: entry.max_hash(),
@@ -1075,7 +1091,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFileIter::open(path, entry.sst_metadata())
+                                    StaticSortedFile::open_for_compaction(
+                                        path,
+                                        entry.sst_metadata(),
+                                        self.config.access_mode,
+                                    )?
+                                    .try_into_iter()
                                 })
                                 .collect::<Result<Vec<_>>>()?;
 
@@ -1092,8 +1113,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 /// used set).
                                 writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
                                 flags: MetaEntryFlags,
-                                new_sst_files:
-                                    Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta)>,
                                 /// Hash of the last key added. Used to ensure we only split
                                 /// SST files at key boundaries (not mid-key-group for MultiValue).
                                 last_hash: Option<u64>,
@@ -1184,7 +1204,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let mut used_collector = Collector::new(MetaEntryFlags::WARM);
                             let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                            let mut current_key: Option<RcBytes> = None;
+                            let mut current_key: Option<ArcBytes<'static>> = None;
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
@@ -1216,7 +1236,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         FamilyKind::MultiValue => {
                                             // For MultiValue families we only skip remaining if we
                                             // see a tombstone
-                                            if matches!(entry.value, IterValue::Deleted) {
+                                            if matches!(
+                                                entry.value,
+                                                LazyLookupValue::Eager(LookupValue::Deleted)
+                                            ) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1236,7 +1259,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     // Entry is being dropped (superseded by newer entry or
                                     // pruned by tombstone). If it references a blob file,
                                     // mark that blob for deletion.
-                                    if let IterValue::Blob { sequence_number } = &entry.value {
+                                    if let LazyLookupValue::Eager(LookupValue::Blob {
+                                        sequence_number,
+                                    }) = &entry.value
+                                    {
                                         blob_seq_numbers_to_delete.push(*sequence_number);
                                     }
                                 }
@@ -1389,7 +1415,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Get a value from the database. Returns None if the key is not found. The returned value
     /// might hold onto a block of the database and it should not be hold long-term.
-    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes<'static>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -1421,7 +1447,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         key: &K,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+    ) -> Result<SmallVec<[ArcBytes<'static>; 1]>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::MultiValue {
             // This is an error in our caller so just panic
@@ -1447,10 +1473,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         family: usize,
         key: &K,
         span: &EnteredSpan,
-    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+    ) -> Result<SmallVec<[ArcBytes<'static>; 1]>> {
         let hash = hash_key(key);
         let inner = self.inner.read();
-        let mut output: SmallVec<[ArcBytes; 1]> = SmallVec::new();
+        let mut output: SmallVec<[ArcBytes<'static>; 1]> = SmallVec::new();
         // Track whether we found the key in any SST (even if deleted).
         // Used for miss_global stat: only fires if key was never found anywhere.
         #[cfg(feature = "stats")]
@@ -1558,7 +1584,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcBytes>>> {
+    ) -> Result<Vec<Option<ArcBytes<'static>>>> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -1696,18 +1722,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 let entries = meta_file
                     .entries()
                     .iter()
-                    .map(|entry| {
-                        let amqf = entry.raw_amqf(meta_file.amqf_data());
-                        MetaFileEntryInfo {
-                            sequence_number: entry.sequence_number(),
-                            min_hash: entry.min_hash(),
-                            max_hash: entry.max_hash(),
-                            sst_size: entry.size(),
-                            flags: entry.flags(),
-                            amqf_size: entry.amqf_size(),
-                            amqf_entries: amqf.len(),
-                            block_count: entry.block_count(),
-                        }
+                    .map(|entry| MetaFileEntryInfo {
+                        sequence_number: entry.sequence_number(),
+                        min_hash: entry.min_hash(),
+                        max_hash: entry.max_hash(),
+                        sst_size: entry.size(),
+                        flags: entry.flags(),
+                        amqf_size: entry.amqf_size(),
+                        amqf_entries: entry.amqf_size() as usize,
+                        block_count: entry.block_count(),
                     })
                     .collect();
                 MetaFileInfo {

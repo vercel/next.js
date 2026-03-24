@@ -1,4 +1,4 @@
-use std::{mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{mem::MaybeUninit, sync::Arc};
 
 use anyhow::{Context, Result};
 use lzzzz::lz4::{self, decompress};
@@ -37,17 +37,6 @@ pub fn decompress_into_arc(uncompressed_length: u32, block: &[u8]) -> Result<Arc
     let mut buffer = unsafe { buffer.assume_init() };
     // We just created this Arc so refcount is 1; get_mut always succeeds.
     let dest = Arc::get_mut(&mut buffer).expect("Arc refcount should be 1");
-    decompress_block(block, dest, uncompressed_length)?;
-    Ok(buffer)
-}
-
-/// Like [`decompress_into_arc`] but returns an `Rc<[u8]>` for thread-local use.
-pub fn decompress_into_rc(uncompressed_length: u32, block: &[u8]) -> Result<Rc<[u8]>> {
-    let buffer: Rc<[MaybeUninit<u8>]> = Rc::new_uninit_slice(uncompressed_length as usize);
-    // Safety: decompression will fully initialize the buffer (verified by the assert in
-    // decompress_block).
-    let mut buffer = unsafe { buffer.assume_init() };
-    let dest = Rc::get_mut(&mut buffer).expect("Rc refcount should be 1");
     decompress_block(block, dest, uncompressed_length)?;
     Ok(buffer)
 }

@@ -1,8 +1,9 @@
 use std::{
-    borrow::Cow,
     collections::VecDeque,
+    fmt,
     fs::File,
     io::{BufWriter, Write},
+    ops::Deref,
     path::Path,
 };
 
@@ -11,6 +12,7 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use turbo_bincode::turbo_bincode_encode;
 
 use crate::{
+    arc_bytes::ArcBytes,
     compression::{checksum_block, compress_into_buffer},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::{AmqfBincodeWrapper, MetaEntryFlags},
@@ -254,14 +256,51 @@ pub enum EntryValue<'l> {
     Deleted,
 }
 
+/// Owned byte data for an AMQF filter, backed by either an `ArcBytes<'static>` (zero-copy from
+/// mmap / pread) or a `Vec<u8>` (freshly serialized).
+#[derive(Clone)]
+pub enum AmqfData {
+    ArcBytes(ArcBytes<'static>),
+    Vec(Vec<u8>),
+}
+
+impl Deref for AmqfData {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        match self {
+            AmqfData::ArcBytes(a) => a,
+            AmqfData::Vec(v) => v,
+        }
+    }
+}
+
+impl fmt::Debug for AmqfData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("AmqfData").field(&self.len()).finish()
+    }
+}
+
+impl From<ArcBytes<'static>> for AmqfData {
+    fn from(a: ArcBytes<'static>) -> Self {
+        AmqfData::ArcBytes(a)
+    }
+}
+
+impl From<Vec<u8>> for AmqfData {
+    fn from(v: Vec<u8>) -> Self {
+        AmqfData::Vec(v)
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct StaticSortedFileBuilderMeta<'a> {
+pub struct StaticSortedFileBuilderMeta {
     /// The minimum hash of the keys in the SST file
     pub min_hash: u64,
     /// The maximum hash of the keys in the SST file
     pub max_hash: u64,
     /// The AMQF data
-    pub amqf: Cow<'a, [u8]>,
+    pub amqf: AmqfData,
     /// The number of blocks in the SST file
     pub block_count: u16,
     /// The file size of the SST file
@@ -282,7 +321,7 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
-) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+) -> Result<(StaticSortedFileBuilderMeta, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
     let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
     for entry in entries {
@@ -895,7 +934,7 @@ impl<E: Entry> StreamingSstWriter<E> {
 
     /// Finishes writing the SST file. Flushes remaining blocks, writes the index, and returns
     /// metadata.
-    pub fn close(mut self) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
+    pub fn close(mut self) -> Result<(StaticSortedFileBuilderMeta, File)> {
         #[cfg(debug_assertions)]
         {
             self.finished = true;
@@ -969,7 +1008,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         let meta = StaticSortedFileBuilderMeta {
             min_hash: self.min_hash,
             max_hash: self.max_hash,
-            amqf: Cow::Owned(amqf.into_vec()),
+            amqf: amqf.into_vec().into(),
             block_count,
             size: file_size,
             flags: self.flags,
@@ -1234,7 +1273,7 @@ mod tests {
     };
 
     type TestBlockCache =
-        Cache<(u32, u16), crate::ArcBytes, BlockWeighter, BuildHasherDefault<FxHasher>>;
+        Cache<(u32, u16), crate::ArcBytes<'static>, BlockWeighter, BuildHasherDefault<FxHasher>>;
 
     fn make_cache() -> TestBlockCache {
         TestBlockCache::with(
@@ -1349,7 +1388,7 @@ mod tests {
     fn open_sst(
         dir: &Path,
         seq: u32,
-        meta: &StaticSortedFileBuilderMeta<'_>,
+        meta: &StaticSortedFileBuilderMeta,
     ) -> Result<StaticSortedFile> {
         StaticSortedFile::open(
             dir,
@@ -1357,6 +1396,7 @@ mod tests {
                 sequence_number: seq,
                 block_count: meta.block_count,
             },
+            crate::AccessMode::Mmap,
         )
     }
 
@@ -1366,7 +1406,7 @@ mod tests {
         seq: u32,
         entries: &[TestEntry],
         flags: MetaEntryFlags,
-    ) -> Result<StaticSortedFileBuilderMeta<'static>> {
+    ) -> Result<StaticSortedFileBuilderMeta> {
         let sst_path = dir.join(format!("{seq:08}.sst"));
         let mut writer = StreamingSstWriter::new(&sst_path, flags, entries.len() as u64)?;
         for entry in entries {
@@ -1680,6 +1720,7 @@ mod tests {
                 sequence_number: 1,
                 block_count: meta1.block_count,
             },
+            crate::AccessMode::Mmap,
         )?;
         let sst2 = StaticSortedFile::open(
             dir.path(),
@@ -1687,6 +1728,7 @@ mod tests {
                 sequence_number: 2,
                 block_count: meta2.block_count,
             },
+            crate::AccessMode::Mmap,
         )?;
         let kc = make_cache();
         let vc = make_cache();
@@ -1812,7 +1854,7 @@ mod tests {
     fn assert_corruption_detected(
         dir: &Path,
         seq: u32,
-        meta: &StaticSortedFileBuilderMeta<'_>,
+        meta: &StaticSortedFileBuilderMeta,
         entries: &[TestEntry],
     ) {
         let sst = open_sst(dir, seq, meta).unwrap();
