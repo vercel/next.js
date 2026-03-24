@@ -2223,7 +2223,8 @@ async function renderToHTMLOrFlightImpl(
     const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
       if (shouldTrackModuleLoading()) {
-        trackPendingChunkLoad(loadingChunk)
+        // args[0] is the chunk ID (string | number)
+        trackPendingChunkLoad(loadingChunk, args[0])
       }
       return loadingChunk
     }

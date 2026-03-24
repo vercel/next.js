@@ -16,6 +16,13 @@ export class CacheSignal {
 
   private subscribedSignals: Set<CacheSignal> | null = null
 
+  // Track promises we've already begun tracking to avoid duplicate counting.
+  // During SSR prerenders, multiple parallel render contexts may request the same
+  // chunk, receiving the same Promise reference from Turbopack's cache. Without
+  // deduplication, each call to trackRead increments count, causing cacheReady()
+  // to wait for N begin/end cycles instead of 1.
+  private trackedPromises: WeakSet<Promise<unknown>> | null = null
+
   constructor() {
     if (process.env.NEXT_RUNTIME === 'edge') {
       // we rely on `process.nextTick`, which is not supported in edge
@@ -141,6 +148,18 @@ export class CacheSignal {
   }
 
   trackRead<T>(promise: Promise<T>) {
+    // Deduplicate by promise identity to avoid counting the same promise multiple times.
+    // This is critical for SSR prerenders where multiple render contexts may receive
+    // the same Promise reference from Turbopack's chunk cache.
+    if (this.trackedPromises === null) {
+      this.trackedPromises = new WeakSet()
+    }
+    if (this.trackedPromises.has(promise)) {
+      // Already tracking this promise, skip to avoid duplicate counting
+      return promise
+    }
+    this.trackedPromises.add(promise)
+
     this.beginRead()
     // `promise.finally()` still rejects, so don't use it here to avoid unhandled rejections
     const onFinally = this.endRead.bind(this)

@@ -13,7 +13,28 @@ function getModuleLoadingSignal() {
   return _moduleLoadingSignal
 }
 
-export function trackPendingChunkLoad(promise: Promise<unknown>) {
+// Track all chunk IDs that have ever been tracked in this process.
+// Once a chunk is loaded in Node.js, it stays loaded (module caching).
+// Subsequent requests for the same chunk are instant and don't need tracking.
+// This prevents duplicate tracking across server/client prerender phases.
+const _trackedChunks = new Set<string>()
+
+export function trackPendingChunkLoad(
+  promise: Promise<unknown>,
+  chunkId?: string | number
+) {
+  const chunkIdStr = chunkId !== undefined ? String(chunkId) : undefined
+
+  // Deduplicate by chunk ID - if this chunk was already tracked, skip it.
+  // This is safe because Node.js caches modules, so subsequent "loads" are instant.
+  // We intentionally do NOT remove from the Set after completion - once tracked, always tracked.
+  if (chunkIdStr !== undefined && _trackedChunks.has(chunkIdStr)) {
+    return
+  }
+  if (chunkIdStr !== undefined) {
+    _trackedChunks.add(chunkIdStr)
+  }
+
   const moduleLoadingSignal = getModuleLoadingSignal()
   moduleLoadingSignal.trackRead(promise)
 }
