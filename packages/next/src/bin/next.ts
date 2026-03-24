@@ -564,7 +564,9 @@ internal
     )}`
   )
   .action((directory: string, options: NextPostBuildOptions) => {
-    return (require('../cli/next-post-build.js') as typeof import('../cli/next-post-build.js'))
+    return (
+      require('../cli/next-post-build.js') as typeof import('../cli/next-post-build.js')
+    )
       .nextPostBuild(options, directory)
       .then(() => process.exit(0))
   })
