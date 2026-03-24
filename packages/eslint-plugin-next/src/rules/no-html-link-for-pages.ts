@@ -10,6 +10,47 @@ import {
   getUrlFromAppDirectory,
 } from '../utils/url'
 
+const DEFAULT_PAGE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
+
+function loadPageExtensionsFromConfig(rootDir: string): string[] | null {
+  const configFiles = ['next.config.js', 'next.config.ts', 'next.config.mjs']
+  for (const configFile of configFiles) {
+    const configPath = path.join(rootDir, configFile)
+    if (!fs.existsSync(configPath)) continue
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const config = require(configPath)
+      const resolved = config?.default ?? config
+      if (Array.isArray(resolved?.pageExtensions) && resolved.pageExtensions.length > 0) {
+        return resolved.pageExtensions
+      }
+    } catch {}
+  }
+  return null
+}
+
+const loadPageExtensionsFromConfigMemo = new Map<string, string[] | null>()
+
+function getPageExtensions(rootDirs: string[], settings: any): string[] {
+  const fromSettings = settings?.next?.pageExtensions
+  if (Array.isArray(fromSettings) && fromSettings.length > 0) {
+    return fromSettings.filter((ext): ext is string => typeof ext === 'string' && ext.length > 0)
+  }
+
+  for (const rootDir of rootDirs) {
+    if (!loadPageExtensionsFromConfigMemo.has(rootDir)) {
+      loadPageExtensionsFromConfigMemo.set(
+        rootDir,
+        loadPageExtensionsFromConfig(rootDir)
+      )
+    }
+    const fromConfig = loadPageExtensionsFromConfigMemo.get(rootDir)
+    if (fromConfig) return fromConfig
+  }
+
+  return DEFAULT_PAGE_EXTENSIONS
+}
+
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
     `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
@@ -19,7 +60,7 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
-const fsExistsSyncCache = {}
+const fsExistsSyncCache: Record<string, boolean> = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
@@ -32,10 +73,18 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
-const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
-const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
+const cachedGetUrlFromPagesDirectories = memoize(
+  (urlPrefix: string, dirs: string[], exts: string[]) =>
+    getUrlFromPagesDirectories(urlPrefix, dirs, exts)
+)
+const cachedGetUrlFromAppDirectory = memoize(
+  (urlPrefix: string, dirs: string[], exts: string[]) =>
+    getUrlFromAppDirectory(urlPrefix, dirs, exts)
+)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
+
+
 
 export default defineRule({
   meta: {
@@ -73,6 +122,7 @@ export default defineRule({
     const [customPagesDirectory] = ruleOptions
 
     const rootDirs = getRootDirs(context)
+    const pageExtensions = getPageExtensions(rootDirs, context.settings)
 
     const pagesDirs = (
       customPagesDirectory
@@ -107,8 +157,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
@@ -125,7 +175,7 @@ export default defineRule({
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
 
-        if (target && target.value.value === '_blank') {
+        if (target && target.value?.value === '_blank') {
           return
         }
 
