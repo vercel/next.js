@@ -3,7 +3,10 @@ use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
+    chunk::{
+        ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo,
+        concatenate_chunk_group_result_plain,
+    },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::OutputAssetsWithReferenced,
@@ -270,10 +273,12 @@ pub async fn get_app_client_references_chunks(
                 };
 
                 if let Some(client_chunk_group) = client_chunk_group {
-                    let client_chunk_group = current_client_chunk_group
-                        .concatenate(client_chunk_group)
-                        .to_resolved()
-                        .await?;
+                    let client_chunk_group = concatenate_chunk_group_result_plain(
+                        *current_client_chunk_group,
+                        client_chunk_group,
+                    )
+                    .to_resolved()
+                    .await?;
 
                     if is_layout {
                         current_client_chunk_group = client_chunk_group;
@@ -296,10 +301,12 @@ pub async fn get_app_client_references_chunks(
                 }
 
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
-                    let ssr_chunk_group = current_ssr_chunk_group
-                        .concatenate(ssr_chunk_group)
-                        .to_resolved()
-                        .await?;
+                    let ssr_chunk_group = concatenate_chunk_group_result_plain(
+                        *current_ssr_chunk_group,
+                        ssr_chunk_group,
+                    )
+                    .to_resolved()
+                    .await?;
 
                     if is_layout {
                         current_ssr_chunk_group = ssr_chunk_group;

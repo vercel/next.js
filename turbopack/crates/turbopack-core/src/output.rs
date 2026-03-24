@@ -2,7 +2,7 @@ use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, ValueToString, Vc,
+    FxIndexSet, OperationVc, ResolvedVc, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -77,13 +77,6 @@ pub struct OutputAssets(Vec<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_impl]
 impl OutputAssets {
-    #[turbo_tasks::function]
-    pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
-        let mut assets: FxIndexSet<_> = self.0.iter().copied().collect();
-        assets.extend(other.await?.iter().copied());
-        Ok(Vc::cell(assets.into_iter().collect()))
-    }
-
     #[turbo_tasks::function]
     pub async fn concat_asset(&self, asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Self>> {
         let mut assets: FxIndexSet<_> = self.0.iter().copied().collect();
@@ -166,25 +159,6 @@ impl OutputAssetsWithReferenced {
             references: OutputAssetsReferences::empty_resolved(),
         }
         .cell()
-    }
-
-    #[turbo_tasks::function]
-    pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
-        let other = other.await?;
-        Ok(Self {
-            assets: self.assets.concatenate(*other.assets).to_resolved().await?,
-            referenced_assets: self
-                .referenced_assets
-                .concatenate(*other.referenced_assets)
-                .to_resolved()
-                .await?,
-            references: self
-                .references
-                .concatenate(*other.references)
-                .to_resolved()
-                .await?,
-        }
-        .cell())
     }
 
     #[turbo_tasks::function]
@@ -278,6 +252,19 @@ async fn get_referenced_assets(
 pub enum ExpandOutputAssetsInput {
     Asset(ResolvedVc<Box<dyn OutputAsset>>),
     Reference(ResolvedVc<Box<dyn OutputAssetsReference>>),
+}
+
+/// Concatenates two sets of output assets (as operations), returning the union.
+///
+/// This is an operation function so it can be used in operation contexts.
+#[turbo_tasks::function(operation)]
+pub async fn concatenate(
+    a: OperationVc<OutputAssets>,
+    b: OperationVc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
+    let mut assets: FxIndexSet<_> = a.connect().await?.iter().copied().collect();
+    assets.extend(b.connect().await?.iter().copied());
+    Ok(Vc::cell(assets.into_iter().collect()))
 }
 
 pub async fn expand_output_assets(

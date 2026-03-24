@@ -4,7 +4,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
+    FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs,
+    turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -165,26 +166,6 @@ impl ChunkGroupResult {
             assets: self.assets,
             referenced_assets: self.referenced_assets,
             references: self.references,
-        }
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn concatenate(&self, next: Vc<Self>) -> Result<Vc<Self>> {
-        let next = next.await?;
-        Ok(ChunkGroupResult {
-            assets: self.assets.concatenate(*next.assets).to_resolved().await?,
-            referenced_assets: self
-                .referenced_assets
-                .concatenate(*next.referenced_assets)
-                .to_resolved()
-                .await?,
-            references: self
-                .references
-                .concatenate(*next.references)
-                .to_resolved()
-                .await?,
-            availability_info: next.availability_info,
         }
         .cell())
     }
@@ -792,4 +773,108 @@ fn chunk_group_assets(
     chunking_context
         .chunk_group(ident, chunk_group, module_graph, availability_info)
         .output_assets_with_referenced()
+}
+
+/// An operation-wrapped version of [`ChunkingContext::chunk_group`].
+/// Returns `OperationVc<ChunkGroupResult>` for use in operation contexts.
+#[turbo_tasks::function(operation)]
+pub fn chunk_group_operation(
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ident: ResolvedVc<AssetIdent>,
+    chunk_group: ChunkGroup,
+    module_graph: ResolvedVc<ModuleGraph>,
+    availability_info: AvailabilityInfo,
+) -> Vc<ChunkGroupResult> {
+    (*chunking_context).chunk_group(*ident, chunk_group, *module_graph, availability_info)
+}
+
+/// An operation-wrapped version of [`ChunkingContext::evaluated_chunk_group`].
+/// Returns `OperationVc<ChunkGroupResult>` for use in operation contexts.
+#[turbo_tasks::function(operation)]
+pub fn evaluated_chunk_group_operation(
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ident: ResolvedVc<AssetIdent>,
+    chunk_group: ChunkGroup,
+    module_graph: ResolvedVc<ModuleGraph>,
+    availability_info: AvailabilityInfo,
+) -> Vc<ChunkGroupResult> {
+    (*chunking_context).evaluated_chunk_group(*ident, chunk_group, *module_graph, availability_info)
+}
+
+/// Returns an operation that produces an empty [`ChunkGroupResult`] with
+/// [`AvailabilityInfo::root`]. Used as a starting point for accumulation loops.
+#[turbo_tasks::function(operation)]
+pub fn empty_chunk_group_result_operation() -> Vc<ChunkGroupResult> {
+    ChunkGroupResult::empty()
+}
+
+/// Returns an operation that produces an empty [`ChunkGroupResult`] with the given
+/// `availability_info`. Used as a starting point when the initial availability is not root.
+#[turbo_tasks::function(operation)]
+pub fn initial_chunk_group_result_operation(
+    availability_info: AvailabilityInfo,
+) -> Vc<ChunkGroupResult> {
+    ChunkGroupResult {
+        assets: ResolvedVc::cell(vec![]),
+        referenced_assets: ResolvedVc::cell(vec![]),
+        references: ResolvedVc::cell(vec![]),
+        availability_info,
+    }
+    .cell()
+}
+
+/// Concatenates two [`ChunkGroupResult`] values, merging assets, referenced_assets,
+/// and references (as set unions), with `b`'s `availability_info`.
+#[turbo_tasks::function]
+pub async fn concatenate_chunk_group_result_plain(
+    a: Vc<ChunkGroupResult>,
+    b: Vc<ChunkGroupResult>,
+) -> Result<Vc<ChunkGroupResult>> {
+    let a = a.await?;
+    let b = b.await?;
+
+    let mut assets: FxIndexSet<_> = a.assets.await?.iter().copied().collect();
+    assets.extend(b.assets.await?.iter().copied());
+
+    let mut referenced_assets: FxIndexSet<_> = a.referenced_assets.await?.iter().copied().collect();
+    referenced_assets.extend(b.referenced_assets.await?.iter().copied());
+
+    let mut references: FxIndexSet<_> = a.references.await?.iter().copied().collect();
+    references.extend(b.references.await?.iter().copied());
+
+    Ok(ChunkGroupResult {
+        assets: ResolvedVc::cell(assets.into_iter().collect()),
+        referenced_assets: ResolvedVc::cell(referenced_assets.into_iter().collect()),
+        references: ResolvedVc::cell(references.into_iter().collect()),
+        availability_info: b.availability_info,
+    }
+    .cell())
+}
+
+/// Concatenates two [`ChunkGroupResult`] operations, merging assets, referenced_assets,
+/// and references (as set unions), with `b`'s `availability_info`.
+#[turbo_tasks::function(operation)]
+pub async fn concatenate_chunk_group_result(
+    a: OperationVc<ChunkGroupResult>,
+    b: OperationVc<ChunkGroupResult>,
+) -> Result<Vc<ChunkGroupResult>> {
+    let a = a.connect().await?;
+    let b = b.connect().await?;
+
+    let mut assets: FxIndexSet<_> = a.assets.await?.iter().copied().collect();
+    assets.extend(b.assets.await?.iter().copied());
+
+    let mut referenced_assets: FxIndexSet<_> = a.referenced_assets.await?.iter().copied().collect();
+    referenced_assets.extend(b.referenced_assets.await?.iter().copied());
+
+    let mut references: FxIndexSet<_> = a.references.await?.iter().copied().collect();
+    references.extend(b.references.await?.iter().copied());
+
+    Ok(ChunkGroupResult {
+        assets: ResolvedVc::cell(assets.into_iter().collect()),
+        referenced_assets: ResolvedVc::cell(referenced_assets.into_iter().collect()),
+        references: ResolvedVc::cell(references.into_iter().collect()),
+        availability_info: b.availability_info,
+    }
+    .cell())
 }

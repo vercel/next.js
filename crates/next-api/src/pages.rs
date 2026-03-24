@@ -30,8 +30,8 @@ use next_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, fxindexmap,
-    fxindexset, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TaskInput, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -45,7 +45,8 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        availability_info::AvailabilityInfo, chunk_group_operation, concatenate_chunk_group_result,
+        empty_chunk_group_result_operation, evaluated_chunk_group_operation,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -992,25 +993,27 @@ impl PageEndpoint {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
                 NextRuntime::Edge => edge_chunking_context,
             };
+            let chunking_context_resolved = chunking_context.to_resolved().await?;
+            let ssr_module_graph_resolved = ssr_module_graph.to_resolved().await?;
 
-            let mut current_chunk_group = ChunkGroupResult::empty_resolved();
+            let mut current_chunk_group: OperationVc<ChunkGroupResult> =
+                empty_chunk_group_result_operation();
             for layout in [document_module, app_module].iter().flatten().copied() {
                 let span = tracing::trace_span!(
                     "layout segment",
                     name = display(layout.ident().to_string().await?)
                 );
                 async {
-                    let chunk_group = chunking_context.chunk_group(
-                        layout.ident(),
+                    let chunk_group_op = chunk_group_operation(
+                        chunking_context_resolved,
+                        layout.ident().to_resolved().await?,
                         ChunkGroup::Shared(layout),
-                        ssr_module_graph,
-                        current_chunk_group.await?.availability_info,
+                        ssr_module_graph_resolved,
+                        current_chunk_group.connect().await?.availability_info,
                     );
 
-                    current_chunk_group = current_chunk_group
-                        .concatenate(chunk_group)
-                        .to_resolved()
-                        .await?;
+                    current_chunk_group =
+                        concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
 
                     anyhow::Ok(())
                 }
@@ -1020,22 +1023,22 @@ impl PageEndpoint {
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
-                    ssr_module.ident(),
+                let edge_chunking_context_resolved = edge_chunking_context.to_resolved().await?;
+                let edge_chunk_group_op = evaluated_chunk_group_operation(
+                    edge_chunking_context_resolved,
+                    ssr_module.ident().to_resolved().await?,
                     ChunkGroup::Entry(vec![ssr_module]),
-                    ssr_module_graph,
-                    current_chunk_group.await?.availability_info,
+                    ssr_module_graph_resolved,
+                    current_chunk_group.connect().await?.availability_info,
                 );
 
-                let chunk_assets = current_chunk_group
-                    .output_assets_with_referenced()
-                    .concatenate(chunk_assets)
-                    .to_resolved()
-                    .await?;
+                let final_chunk_group =
+                    concatenate_chunk_group_result(current_chunk_group, edge_chunk_group_op);
+                let final_ref = final_chunk_group.connect().await?;
 
                 Ok(SsrChunk::Edge {
-                    assets: chunk_assets.primary_assets().to_resolved().await?,
-                    referenced_assets: chunk_assets.referenced_assets().to_resolved().await?,
+                    assets: final_ref.assets,
+                    referenced_assets: final_ref.referenced_assets,
                     dynamic_import_entries,
                     regions: regions.clone(),
                 }
@@ -1047,14 +1050,15 @@ impl PageEndpoint {
 
                 let ssr_entry_chunk_path_string = format!("pages{asset_path}");
                 let ssr_entry_chunk_path = node_path.join(&ssr_entry_chunk_path_string)?;
+                let current_ref = current_chunk_group.connect().await?;
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
                         ChunkGroup::Entry(vec![ssr_module]),
                         ssr_module_graph,
-                        current_chunk_group.primary_assets(),
-                        current_chunk_group.referenced_assets(),
-                        current_chunk_group.await?.availability_info,
+                        *current_ref.assets,
+                        *current_ref.referenced_assets,
+                        current_ref.availability_info,
                     )
                     .to_resolved()
                     .await?;
@@ -1413,7 +1417,7 @@ impl PageEndpoint {
                         file_paths_from_root.insert(rcstr!("required-server-files.js"));
                     }
 
-                    let all_assets = assets.concatenate(*referenced_assets);
+                    let all_assets = OutputAssets::concat(vec![*assets, *referenced_assets]);
                     let assets_ref = assets.await?;
 
                     server_assets.extend(referenced_assets.await?.iter().copied());

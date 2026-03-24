@@ -38,8 +38,8 @@ use next_core::{
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
-    trace::TraceRawVcs,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -51,7 +51,9 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        SourceMapsType, availability_info::AvailabilityInfo,
+        SourceMapsType, availability_info::AvailabilityInfo, chunk_group_operation,
+        concatenate_chunk_group_result, empty_chunk_group_result_operation,
+        evaluated_chunk_group_operation,
     },
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -1778,30 +1780,35 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let chunking_context = project.runtime_chunking_context(process_client_assets, runtime);
+        let chunking_context_resolved = chunking_context.to_resolved().await?;
+        let module_graph_resolved = module_graph.to_resolved().await?;
 
         Ok(match runtime {
             NextRuntime::Edge => {
-                let chunk_group1 = chunking_context.chunk_group(
-                    server_action_manifest_loader.ident(),
+                let chunk_group1_op = chunk_group_operation(
+                    chunking_context_resolved,
+                    server_action_manifest_loader.ident().to_resolved().await?,
                     ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
-                    module_graph,
+                    module_graph_resolved,
                     AvailabilityInfo::root(),
                 );
 
-                let chunk_group2_assets = chunking_context.evaluated_chunk_group_assets(
-                    app_entry.rsc_entry.ident(),
+                let chunk_group2_op = evaluated_chunk_group_operation(
+                    chunking_context_resolved,
+                    app_entry.rsc_entry.ident().to_resolved().await?,
                     ChunkGroup::Entry(vec![app_entry.rsc_entry]),
-                    module_graph,
-                    chunk_group1.await?.availability_info,
+                    module_graph_resolved,
+                    chunk_group1_op.connect().await?.availability_info,
                 );
 
-                chunk_group1
+                concatenate_chunk_group_result(chunk_group1_op, chunk_group2_op)
+                    .connect()
                     .output_assets_with_referenced()
-                    .concatenate(chunk_group2_assets)
             }
             NextRuntime::NodeJs => {
                 async {
-                    let mut current_chunk_group = ChunkGroupResult::empty_resolved();
+                    let mut current_chunk_group: OperationVc<ChunkGroupResult> =
+                        empty_chunk_group_result_operation();
 
                     let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
 
@@ -1823,24 +1830,25 @@ impl AppEndpoint {
                             .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                             .try_join()
                             .await?;
-                        let chunk_group = chunking_context
-                            .chunk_group(
-                                AssetIdent::from_path(
-                                    this.app_project.project().project_path().owned().await?,
-                                )
-                                .with_modifier(rcstr!("server-utils")),
-                                ChunkGroup::SharedMerged {
-                                    merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                    entries: server_utils,
-                                    parent: parent_chunk_group,
-                                },
-                                module_graph,
-                                AvailabilityInfo::root(),
+                        let chunk_group_op = chunk_group_operation(
+                            chunking_context_resolved,
+                            AssetIdent::from_path(
+                                this.app_project.project().project_path().owned().await?,
                             )
+                            .with_modifier(rcstr!("server-utils"))
                             .to_resolved()
-                            .await?;
+                            .await?,
+                            ChunkGroup::SharedMerged {
+                                merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                entries: server_utils,
+                                parent: parent_chunk_group,
+                            },
+                            module_graph_resolved,
+                            AvailabilityInfo::root(),
+                        );
 
-                        current_chunk_group = chunk_group;
+                        current_chunk_group =
+                            concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
 
                         anyhow::Ok(())
                     }
@@ -1862,17 +1870,16 @@ impl AppEndpoint {
                             name = display(server_component.ident().to_string().await?)
                         );
                         async {
-                            let chunk_group = chunking_context.chunk_group(
-                                server_component.ident(),
+                            let chunk_group_op = chunk_group_operation(
+                                chunking_context_resolved,
+                                server_component.ident().to_resolved().await?,
                                 ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
-                                module_graph,
-                                current_chunk_group.await?.availability_info,
+                                module_graph_resolved,
+                                current_chunk_group.connect().await?.availability_info,
                             );
 
-                            current_chunk_group = current_chunk_group
-                                .concatenate(chunk_group)
-                                .to_resolved()
-                                .await?;
+                            current_chunk_group =
+                                concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
 
                             anyhow::Ok(())
                         }
@@ -1881,23 +1888,23 @@ impl AppEndpoint {
                     }
 
                     {
-                        let chunk_group = chunking_context.chunk_group(
-                            server_action_manifest_loader.ident(),
+                        let chunk_group_op = chunk_group_operation(
+                            chunking_context_resolved,
+                            server_action_manifest_loader.ident().to_resolved().await?,
                             ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
-                            module_graph,
-                            current_chunk_group.await?.availability_info,
+                            module_graph_resolved,
+                            current_chunk_group.connect().await?.availability_info,
                         );
 
-                        current_chunk_group = current_chunk_group
-                            .concatenate(chunk_group)
-                            .to_resolved()
-                            .await?;
+                        current_chunk_group =
+                            concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
                     }
 
-                    let current_referenced_assets = current_chunk_group.referenced_assets();
-                    let chunk_group = current_chunk_group.await?;
+                    let current_vc = current_chunk_group.connect();
+                    let chunk_group = current_vc.await?;
                     let current_availability_info = chunk_group.availability_info;
                     let current_chunks = chunk_group.assets;
+                    let current_referenced_assets = current_vc.referenced_assets();
 
                     anyhow::Ok(
                         OutputAssetsWithReferenced {
