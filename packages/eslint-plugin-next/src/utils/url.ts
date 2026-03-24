@@ -1,6 +1,8 @@
 import * as path from 'path'
 import * as fs from 'fs'
 
+export const ALLOWED_PAGE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
+
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsReadDirSyncCache = {}
@@ -11,7 +13,7 @@ const fsReadDirSyncCache = {}
 function parseUrlForPages(
   urlprefix: string,
   directory: string,
-  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+  pageExtensions: string[] = ALLOWED_PAGE_EXTENSIONS
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
@@ -34,7 +36,11 @@ function parseUrlForPages(
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+          ...parseUrlForPages(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions
+          )
         )
       }
     }
@@ -48,7 +54,7 @@ function parseUrlForPages(
 function parseUrlForAppDir(
   urlprefix: string,
   directory: string,
-  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+  pageExtensions: string[] = ALLOWED_PAGE_EXTENSIONS
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
@@ -65,14 +71,20 @@ function parseUrlForAppDir(
             ''
           )}`
         )
-      } else if (!new RegExp(`^layout${extensionsRegex.source}`).test(dirent.name)) {
+      } else if (
+        !new RegExp(`^layout${extensionsRegex.source}`).test(dirent.name)
+      ) {
         res.push(`${urlprefix}${dirent.name.replace(extensionsRegex, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+          ...parseUrlForPages(
+            urlprefix + dirent.name + '/',
+            dirPath,
+            pageExtensions
+          )
         )
       }
     }
@@ -157,7 +169,7 @@ export function normalizeAppPath(route: string) {
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
   directories: string[],
-  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+  pageExtensions: string[] = ALLOWED_PAGE_EXTENSIONS
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
@@ -180,7 +192,7 @@ export function getUrlFromPagesDirectories(
 export function getUrlFromAppDirectory(
   urlPrefix: string,
   directories: string[],
-  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+  pageExtensions: string[] = ALLOWED_PAGE_EXTENSIONS
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.

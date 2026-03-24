@@ -8,6 +8,7 @@ import {
   normalizeURL,
   execOnce,
   getUrlFromAppDirectory,
+  ALLOWED_PAGE_EXTENSIONS,
 } from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
@@ -74,12 +75,8 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
     const nextSettings = context.settings.next || {}
-    const pageExtensions = nextSettings.pageExtensions || [
-      'js',
-      'jsx',
-      'ts',
-      'tsx',
-    ]
+    const pageExtensions =
+      nextSettings.pageExtensions || ALLOWED_PAGE_EXTENSIONS
 
     const pagesDirs = (
       customPagesDirectory
