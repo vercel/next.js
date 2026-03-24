@@ -36,6 +36,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
+    error::Error as StdError,
     fmt::{self, Debug, Formatter},
     fs::FileType,
     future::Future,
@@ -63,9 +64,9 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, effect, mark_session_dependent, parallel, trace::TraceRawVcs,
+    ApplyEffectsContext, Completion, Effect, InvalidationReason, Invalidator, NonLocalValue,
+    ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
+    debug::ValueDebugFormat, emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs,
     turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
@@ -975,114 +976,136 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
-            let full_path = validate_path_length(&full_path)?;
+        struct WriteEffect {
+            full_path: PathBuf,
+            inner: Arc<DiskFileSystemInner>,
+            invalidator: Option<Invalidator>,
+            content: ReadRef<FileContent>,
+        }
 
-            let _lock = inner.lock_path(&full_path).await;
+        impl Effect for WriteEffect {
+            type Error = AnyhowWrapper;
 
-            // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = invalidator
-                .map(|invalidator| {
-                    inner.register_write_invalidator(
-                        &full_path,
-                        invalidator,
-                        WriteContent::File(content.clone()),
-                    )
-                })
-                .transpose()?
-                .unwrap_or_default();
+            async fn apply(self) -> Result<(), Self::Error> {
+                let full_path = validate_path_length(&self.full_path)?;
 
-            // We perform an untracked comparison here, so that this write is not dependent
-            // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
-            // be freed immediately. Given this is an output file, it's unlikely any Turbo
-            // code will need to read the file from disk into a Vc<FileContent>, so we're
-            // not wasting cycles.
-            let compare = content
-                .streaming_compare(&full_path)
-                .instrument(tracing::info_span!("read file before write", name = ?full_path))
-                .concurrency_limited(&inner.read_semaphore)
-                .await?;
-            if compare == FileComparison::Equal {
-                if !old_invalidators.is_empty() {
-                    for (invalidator, write_content) in old_invalidators {
-                        inner.invalidator_map.insert(
-                            full_path.clone().into_owned(),
+                let _lock = self.inner.lock_path(&full_path).await;
+
+                // Track the file, so that we will rewrite it if it ever changes.
+                let old_invalidators = self
+                    .invalidator
+                    .map(|invalidator| {
+                        self.inner.register_write_invalidator(
+                            &full_path,
                             invalidator,
-                            write_content,
-                        );
+                            WriteContent::File(self.content.clone()),
+                        )
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+
+                // We perform an untracked comparison here, so that this write is not dependent
+                // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
+                // be freed immediately. Given this is an output file, it's unlikely any Turbo
+                // code will need to read the file from disk into a Vc<FileContent>, so we're
+                // not wasting cycles.
+                let compare = self
+                    .content
+                    .streaming_compare(&full_path)
+                    .instrument(tracing::info_span!("read file before write", name = ?full_path))
+                    .concurrency_limited(&self.inner.read_semaphore)
+                    .await?;
+                if compare == FileComparison::Equal {
+                    if !old_invalidators.is_empty() {
+                        for (invalidator, write_content) in old_invalidators {
+                            self.inner.invalidator_map.insert(
+                                full_path.clone().into_owned(),
+                                invalidator,
+                                write_content,
+                            );
+                        }
                     }
+                    return Ok(());
                 }
-                return Ok(());
-            }
 
-            match &*content {
-                FileContent::Content(..) => {
-                    let create_directory = compare == FileComparison::Create;
-                    if create_directory && let Some(parent) = full_path.parent() {
-                        inner.create_directory(parent).await.with_context(|| {
-                            format!(
-                                "failed to create directory {parent:?} for write to {full_path:?}",
-                            )
-                        })?;
-                    }
+                match &*self.content {
+                    FileContent::Content(..) => {
+                        let create_directory = compare == FileComparison::Create;
+                        if create_directory && let Some(parent) = full_path.parent() {
+                            self.inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {parent:?} for write to \
+                                     {full_path:?}",
+                                )
+                            })?;
+                        }
 
-                    let content = content.clone();
-                    retry_blocking(|| {
-                        let mut f = std::fs::File::create(&full_path)?;
-                        let FileContent::Content(file) = &*content else {
-                            unreachable!()
-                        };
-                        std::io::copy(&mut file.read(), &mut f)?;
-                        #[cfg(unix)]
-                        f.set_permissions(file.meta.permissions.into())?;
-                        f.flush()?;
-
-                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
-                                .is_some_and(|v| v == "1" || v == "true")
-                        });
-                        if *WRITE_VERSION {
-                            let mut full_path = full_path.clone().into_owned();
-                            let hash = hash_xxh3_hash64(file);
-                            let ext = full_path.extension();
-                            let ext = if let Some(ext) = ext {
-                                format!("{:016x}.{}", hash, ext.to_string_lossy())
-                            } else {
-                                format!("{hash:016x}")
-                            };
-                            full_path.set_extension(ext);
+                        let content = self.content.clone();
+                        retry_blocking(|| {
                             let mut f = std::fs::File::create(&full_path)?;
+                            let FileContent::Content(file) = &*content else {
+                                unreachable!()
+                            };
                             std::io::copy(&mut file.read(), &mut f)?;
                             #[cfg(unix)]
                             f.set_permissions(file.meta.permissions.into())?;
                             f.flush()?;
-                        }
-                        Ok::<(), io::Error>(())
-                    })
-                    .instrument(tracing::info_span!("write file", name = ?full_path))
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .with_context(|| format!("failed to write to {full_path:?}"))?;
-                }
-                FileContent::NotFound => {
-                    retry_blocking(|| std::fs::remove_file(&full_path))
-                        .instrument(tracing::info_span!("remove file", name = ?full_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
+
+                            static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                                std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                    .is_some_and(|v| v == "1" || v == "true")
+                            });
+                            if *WRITE_VERSION {
+                                let mut full_path = full_path.clone().into_owned();
+                                let hash = hash_xxh3_hash64(file);
+                                let ext = full_path.extension();
+                                let ext = if let Some(ext) = ext {
+                                    format!("{:016x}.{}", hash, ext.to_string_lossy())
+                                } else {
+                                    format!("{hash:016x}")
+                                };
+                                full_path.set_extension(ext);
+                                let mut f = std::fs::File::create(&full_path)?;
+                                std::io::copy(&mut file.read(), &mut f)?;
+                                #[cfg(unix)]
+                                f.set_permissions(file.meta.permissions.into())?;
+                                f.flush()?;
                             }
+                            Ok::<(), io::Error>(())
                         })
-                        .with_context(|| format!("removing {full_path:?} failed"))?;
+                        .instrument(tracing::info_span!("write file", name = ?full_path))
+                        .concurrency_limited(&self.inner.write_semaphore)
+                        .await
+                        .with_context(|| format!("failed to write to {full_path:?}"))?;
+                    }
+                    FileContent::NotFound => {
+                        retry_blocking(|| std::fs::remove_file(&full_path))
+                            .instrument(tracing::info_span!("remove file", name = ?full_path))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .or_else(|err| {
+                                if err.kind() == ErrorKind::NotFound {
+                                    Ok(())
+                                } else {
+                                    Err(err)
+                                }
+                            })
+                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                    }
                 }
+
+                self.inner
+                    .invalidate_from_write(&full_path, old_invalidators);
+
+                Ok(())
             }
+        }
 
-            inner.invalidate_from_write(&full_path, old_invalidators);
-
-            Ok(())
+        emit_effect(WriteEffect {
+            full_path,
+            inner,
+            invalidator,
+            content,
         });
 
         Ok(())
@@ -1105,196 +1128,219 @@ impl FileSystem for DiskFileSystem {
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
-            let full_path = validate_path_length(&full_path)?;
+        struct WriteLinkEffect {
+            full_path: PathBuf,
+            inner: Arc<DiskFileSystemInner>,
+            invalidator: Option<Invalidator>,
+            content: ReadRef<LinkContent>,
+        }
 
-            let _lock = inner.lock_path(&full_path).await;
+        impl Effect for WriteLinkEffect {
+            type Error = AnyhowWrapper;
 
-            let old_invalidators = invalidator
-                .map(|invalidator| {
-                    inner.register_write_invalidator(
-                        &full_path,
-                        invalidator,
-                        WriteContent::Link(content.clone()),
-                    )
-                })
-                .transpose()?
-                .unwrap_or_default();
+            async fn apply(self) -> Result<(), Self::Error> {
+                let full_path = validate_path_length(&self.full_path)?;
 
-            enum OsSpecificLinkContent {
-                Link {
-                    #[cfg(windows)]
-                    is_directory: bool,
-                    target: PathBuf,
-                },
-                NotFound,
-                Invalid,
-            }
+                let _lock = self.inner.lock_path(&full_path).await;
 
-            let os_specific_link_content = match &*content {
-                LinkContent::Link { target, link_type } => {
-                    let is_directory = link_type.contains(LinkType::DIRECTORY);
-                    let target_path = if link_type.contains(LinkType::ABSOLUTE) {
-                        Path::new(&inner.root).join(unix_to_sys(target).as_ref())
-                    } else {
-                        let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
-                        if cfg!(windows) && is_directory {
-                            // Windows junction points must always be stored as absolute
-                            full_path
-                                .parent()
-                                .unwrap_or(&full_path)
-                                .join(relative_target)
+                let old_invalidators = self
+                    .invalidator
+                    .map(|invalidator| {
+                        self.inner.register_write_invalidator(
+                            &full_path,
+                            invalidator,
+                            WriteContent::Link(self.content.clone()),
+                        )
+                    })
+                    .transpose()?
+                    .unwrap_or_default();
+
+                enum OsSpecificLinkContent {
+                    Link {
+                        #[cfg(windows)]
+                        is_directory: bool,
+                        target: PathBuf,
+                    },
+                    NotFound,
+                    Invalid,
+                }
+
+                let os_specific_link_content = match &*self.content {
+                    LinkContent::Link { target, link_type } => {
+                        let is_directory = link_type.contains(LinkType::DIRECTORY);
+                        let target_path = if link_type.contains(LinkType::ABSOLUTE) {
+                            Path::new(&self.inner.root).join(unix_to_sys(target).as_ref())
                         } else {
-                            relative_target
+                            let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
+                            if cfg!(windows) && is_directory {
+                                // Windows junction points must always be stored as absolute
+                                full_path
+                                    .parent()
+                                    .unwrap_or(&full_path)
+                                    .join(relative_target)
+                            } else {
+                                relative_target
+                            }
+                        };
+                        OsSpecificLinkContent::Link {
+                            #[cfg(windows)]
+                            is_directory,
+                            target: target_path,
                         }
-                    };
+                    }
+                    LinkContent::Invalid => OsSpecificLinkContent::Invalid,
+                    LinkContent::NotFound => OsSpecificLinkContent::NotFound,
+                };
+
+                let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
+                    .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
+                    .concurrency_limited(&self.inner.read_semaphore)
+                    .await
+                {
+                    Ok(res) => Some((res.is_absolute(), res)),
+                    Err(_) => None,
+                };
+                let is_equal = match (&os_specific_link_content, &old_content) {
+                    (
+                        OsSpecificLinkContent::Link { target, .. },
+                        Some((old_is_absolute, old_target)),
+                    ) => target == old_target && target.is_absolute() == *old_is_absolute,
+                    (OsSpecificLinkContent::NotFound, None) => true,
+                    _ => false,
+                };
+                if is_equal {
+                    if !old_invalidators.is_empty() {
+                        for (invalidator, write_content) in old_invalidators {
+                            self.inner.invalidator_map.insert(
+                                full_path.clone().into_owned(),
+                                invalidator,
+                                write_content,
+                            );
+                        }
+                    }
+                    return Ok(());
+                }
+
+                match os_specific_link_content {
                     OsSpecificLinkContent::Link {
+                        target,
                         #[cfg(windows)]
                         is_directory,
-                        target: target_path,
-                    }
-                }
-                LinkContent::Invalid => OsSpecificLinkContent::Invalid,
-                LinkContent::NotFound => OsSpecificLinkContent::NotFound,
-            };
+                        ..
+                    } => {
+                        let full_path = full_path.into_owned();
 
-            let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
-                .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
-                .concurrency_limited(&inner.read_semaphore)
-                .await
-            {
-                Ok(res) => Some((res.is_absolute(), res)),
-                Err(_) => None,
-            };
-            let is_equal = match (&os_specific_link_content, &old_content) {
-                (
-                    OsSpecificLinkContent::Link { target, .. },
-                    Some((old_is_absolute, old_target)),
-                ) => target == old_target && target.is_absolute() == *old_is_absolute,
-                (OsSpecificLinkContent::NotFound, None) => true,
-                _ => false,
-            };
-            if is_equal {
-                if !old_invalidators.is_empty() {
-                    for (invalidator, write_content) in old_invalidators {
-                        inner.invalidator_map.insert(
-                            full_path.clone().into_owned(),
-                            invalidator,
-                            write_content,
-                        );
-                    }
-                }
-                return Ok(());
-            }
+                        let create_directory = old_content.is_none();
+                        if create_directory && let Some(parent) = full_path.parent() {
+                            self.inner.create_directory(parent).await.with_context(|| {
+                                format!(
+                                    "failed to create directory {parent:?} for write link to \
+                                     {full_path:?}",
+                                )
+                            })?;
+                        }
 
-            match os_specific_link_content {
-                OsSpecificLinkContent::Link {
-                    target,
-                    #[cfg(windows)]
-                    is_directory,
-                    ..
-                } => {
-                    let full_path = full_path.into_owned();
+                        #[derive(thiserror::Error, Debug)]
+                        #[error("{msg}: {source}")]
+                        struct SymlinkCreationError {
+                            msg: &'static str,
+                            #[source]
+                            source: io::Error,
+                        }
 
-                    let create_directory = old_content.is_none();
-                    if create_directory && let Some(parent) = full_path.parent() {
-                        inner.create_directory(parent).await.with_context(|| {
-                            format!(
-                                "failed to create directory {parent:?} for write link to \
-                                 {full_path:?}",
-                            )
-                        })?;
-                    }
-
-                    #[derive(thiserror::Error, Debug)]
-                    #[error("{msg}: {source}")]
-                    struct SymlinkCreationError {
-                        msg: &'static str,
-                        #[source]
-                        source: io::Error,
-                    }
-
-                    let mut has_old_content = old_content.is_some();
-                    let try_create_link = || {
-                        if has_old_content {
-                            // Remove existing symlink before creating a new one. On Unix,
-                            // symlink(2) fails with EEXIST if the link already exists instead of
-                            // overwriting it. Windows has similar behavior with junction points.
-                            remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                        let mut has_old_content = old_content.is_some();
+                        let try_create_link = || {
+                            if has_old_content {
+                                // Remove existing symlink before creating a new one. On Unix,
+                                // symlink(2) fails with EEXIST if the link already exists instead
+                                // of overwriting it. Windows has similar behavior with junction
+                                // points.
+                                remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                                    SymlinkCreationError {
+                                        msg: "removal of existing symbolic link or junction point \
+                                              failed",
+                                        source: err,
+                                    }
+                                })?;
+                                has_old_content = false;
+                            }
+                            #[cfg(not(windows))]
+                            let io_result = std::os::unix::fs::symlink(&target, &full_path);
+                            #[cfg(windows)]
+                            let io_result = if is_directory {
+                                std::os::windows::fs::junction_point(&target, &full_path)
+                            } else {
+                                std::os::windows::fs::symlink_file(&target, &full_path)
+                            };
+                            io_result.map_err(|err| {
+                                if err.kind() == ErrorKind::AlreadyExists {
+                                    // try to remove the symlink on the next iteration of the loop
+                                    has_old_content = true;
+                                }
                                 SymlinkCreationError {
-                                    msg: "removal of existing symbolic link or junction point \
-                                          failed",
+                                    msg: "creation of a new symbolic link or junction point failed",
                                     source: err,
                                 }
-                            })?;
-                            has_old_content = false;
+                            })
+                        };
+                        fn can_retry_link(err: &SymlinkCreationError) -> bool {
+                            err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
                         }
-                        #[cfg(not(windows))]
-                        let io_result = std::os::unix::fs::symlink(&target, &full_path);
-                        #[cfg(windows)]
-                        let io_result = if is_directory {
-                            std::os::windows::fs::junction_point(&target, &full_path)
-                        } else {
-                            std::os::windows::fs::symlink_file(&target, &full_path)
+                        let err_context = || {
+                            #[cfg(not(windows))]
+                            let message = format!(
+                                "failed to create symlink at {full_path:?} pointing to {target:?}"
+                            );
+                            #[cfg(windows)]
+                            let message = if is_directory {
+                                format!(
+                                    "failed to create junction point at {full_path:?} pointing to \
+                                     {target:?}"
+                                )
+                            } else {
+                                format!(
+                                    "failed to create symlink at {full_path:?} pointing to \
+                                     {target:?}\n\
+                                    (Note: creating file symlinks on Windows require developer \
+                                     mode or admin permissions: \
+                                     https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
+                                )
+                            };
+                            message
                         };
-                        io_result.map_err(|err| {
-                            if err.kind() == ErrorKind::AlreadyExists {
-                                // try to remove the symlink on the next iteration of the loop
-                                has_old_content = true;
-                            }
-                            SymlinkCreationError {
-                                msg: "creation of a new symbolic link or junction point failed",
-                                source: err,
-                            }
-                        })
-                    };
-                    fn can_retry_link(err: &SymlinkCreationError) -> bool {
-                        err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
+                        retry_blocking_custom(try_create_link, can_retry_link)
+                            .instrument(tracing::info_span!(
+                                "write symlink",
+                                name = ?full_path,
+                                target = ?target,
+                            ))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .with_context(err_context)?;
                     }
-                    let err_context = || {
-                        #[cfg(not(windows))]
-                        let message = format!(
-                            "failed to create symlink at {full_path:?} pointing to {target:?}"
-                        );
-                        #[cfg(windows)]
-                        let message = if is_directory {
-                            format!(
-                                "failed to create junction point at {full_path:?} pointing to \
-                                 {target:?}"
-                            )
-                        } else {
-                            format!(
-                                "failed to create symlink at {full_path:?} pointing to {target:?}\n\
-                                (Note: creating file symlinks on Windows require developer mode or \
-                                admin permissions: \
-                                https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                            )
-                        };
-                        message
-                    };
-                    retry_blocking_custom(try_create_link, can_retry_link)
-                        .instrument(tracing::info_span!(
-                            "write symlink",
-                            name = ?full_path,
-                            target = ?target,
-                        ))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .with_context(err_context)?;
+                    OsSpecificLinkContent::Invalid => {
+                        return Err(AnyhowWrapper(anyhow!(
+                            "invalid symlink target: {full_path:?}"
+                        )));
+                    }
+                    OsSpecificLinkContent::NotFound => {
+                        retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
+                            .instrument(tracing::info_span!("remove symlink", name = ?full_path))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                    }
                 }
-                OsSpecificLinkContent::Invalid => {
-                    bail!("invalid symlink target: {full_path:?}")
-                }
-                OsSpecificLinkContent::NotFound => {
-                    retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
-                        .instrument(tracing::info_span!("remove symlink", name = ?full_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .with_context(|| format!("removing {full_path:?} failed"))?;
-                }
-            }
 
-            Ok(())
+                Ok(())
+            }
+        }
+
+        emit_effect(WriteLinkEffect {
+            full_path,
+            inner,
+            invalidator,
+            content,
         });
         Ok(())
     }
@@ -2813,6 +2859,34 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
+}
+
+/// Wrapper to convert `anyhow::Error` to `impl std::error::Error` for use in `Effect::apply`.
+// TODO(bgw): use a structured error type instead of anyhow for write/write_link
+struct AnyhowWrapper(anyhow::Error);
+
+impl std::fmt::Display for AnyhowWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl std::fmt::Debug for AnyhowWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl StdError for AnyhowWrapper {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
+
+impl From<anyhow::Error> for AnyhowWrapper {
+    fn from(err: anyhow::Error) -> Self {
+        AnyhowWrapper(err)
+    }
 }
 
 #[cfg(test)]
