@@ -455,7 +455,7 @@ describe('opentelemetry', () => {
                 runtime: 'nodejs',
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
-                name: expect.any(String),
+                name: 'GET /behind-middleware',
                 attributes: {
                   'http.method': 'GET',
                   'http.target': '/behind-middleware',
