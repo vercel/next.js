@@ -45,8 +45,9 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo, chunk_group_operation, concatenate_chunk_group_result,
-        empty_chunk_group_result_operation, evaluated_chunk_group_operation,
+        availability_info::AvailabilityInfo, chunk_group_operation,
+        concatenate_chunk_group_result_operation, empty_chunk_group_result_operation,
+        evaluated_chunk_group_operation,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -1012,8 +1013,10 @@ impl PageEndpoint {
                         current_chunk_group.connect().await?.availability_info,
                     );
 
-                    current_chunk_group =
-                        concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
+                    current_chunk_group = concatenate_chunk_group_result_operation(
+                        current_chunk_group,
+                        chunk_group_op,
+                    );
 
                     anyhow::Ok(())
                 }
@@ -1032,8 +1035,10 @@ impl PageEndpoint {
                     current_chunk_group.connect().await?.availability_info,
                 );
 
-                let final_chunk_group =
-                    concatenate_chunk_group_result(current_chunk_group, edge_chunk_group_op);
+                let final_chunk_group = concatenate_chunk_group_result_operation(
+                    current_chunk_group,
+                    edge_chunk_group_op,
+                );
                 let final_ref = final_chunk_group.connect().await?;
 
                 Ok(SsrChunk::Edge {

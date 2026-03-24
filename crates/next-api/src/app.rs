@@ -52,7 +52,7 @@ use turbopack_core::{
     chunk::{
         ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
         SourceMapsType, availability_info::AvailabilityInfo, chunk_group_operation,
-        concatenate_chunk_group_result, empty_chunk_group_result_operation,
+        concatenate_chunk_group_result_operation, empty_chunk_group_result_operation,
         evaluated_chunk_group_operation,
     },
     file_source::FileSource,
@@ -1785,7 +1785,7 @@ impl AppEndpoint {
 
         Ok(match runtime {
             NextRuntime::Edge => {
-                let chunk_group1_op = chunk_group_operation(
+                let manifest_chunk_op = chunk_group_operation(
                     chunking_context_resolved,
                     server_action_manifest_loader.ident().to_resolved().await?,
                     ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
@@ -1793,15 +1793,15 @@ impl AppEndpoint {
                     AvailabilityInfo::root(),
                 );
 
-                let chunk_group2_op = evaluated_chunk_group_operation(
+                let rsc_chunk_op = evaluated_chunk_group_operation(
                     chunking_context_resolved,
                     app_entry.rsc_entry.ident().to_resolved().await?,
                     ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                     module_graph_resolved,
-                    chunk_group1_op.connect().await?.availability_info,
+                    manifest_chunk_op.connect().await?.availability_info,
                 );
 
-                concatenate_chunk_group_result(chunk_group1_op, chunk_group2_op)
+                concatenate_chunk_group_result_operation(manifest_chunk_op, rsc_chunk_op)
                     .connect()
                     .output_assets_with_referenced()
             }
@@ -1847,8 +1847,10 @@ impl AppEndpoint {
                             AvailabilityInfo::root(),
                         );
 
-                        current_chunk_group =
-                            concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
+                        current_chunk_group = concatenate_chunk_group_result_operation(
+                            current_chunk_group,
+                            chunk_group_op,
+                        );
 
                         anyhow::Ok(())
                     }
@@ -1878,8 +1880,10 @@ impl AppEndpoint {
                                 current_chunk_group.connect().await?.availability_info,
                             );
 
-                            current_chunk_group =
-                                concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
+                            current_chunk_group = concatenate_chunk_group_result_operation(
+                                current_chunk_group,
+                                chunk_group_op,
+                            );
 
                             anyhow::Ok(())
                         }
@@ -1896,15 +1900,17 @@ impl AppEndpoint {
                             current_chunk_group.connect().await?.availability_info,
                         );
 
-                        current_chunk_group =
-                            concatenate_chunk_group_result(current_chunk_group, chunk_group_op);
+                        current_chunk_group = concatenate_chunk_group_result_operation(
+                            current_chunk_group,
+                            chunk_group_op,
+                        );
                     }
 
-                    let current_vc = current_chunk_group.connect();
-                    let chunk_group = current_vc.await?;
+                    let chunk_group_vc = current_chunk_group.connect();
+                    let chunk_group = chunk_group_vc.await?;
                     let current_availability_info = chunk_group.availability_info;
                     let current_chunks = chunk_group.assets;
-                    let current_referenced_assets = current_vc.referenced_assets();
+                    let current_referenced_assets = chunk_group_vc.referenced_assets();
 
                     anyhow::Ok(
                         OutputAssetsWithReferenced {

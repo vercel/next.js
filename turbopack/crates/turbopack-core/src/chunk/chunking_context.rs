@@ -808,25 +808,10 @@ pub fn empty_chunk_group_result_operation() -> Vc<ChunkGroupResult> {
     ChunkGroupResult::empty()
 }
 
-/// Returns an operation that produces an empty [`ChunkGroupResult`] with the given
-/// `availability_info`. Used as a starting point when the initial availability is not root.
-#[turbo_tasks::function(operation)]
-pub fn initial_chunk_group_result_operation(
-    availability_info: AvailabilityInfo,
-) -> Vc<ChunkGroupResult> {
-    ChunkGroupResult {
-        assets: ResolvedVc::cell(vec![]),
-        referenced_assets: ResolvedVc::cell(vec![]),
-        references: ResolvedVc::cell(vec![]),
-        availability_info,
-    }
-    .cell()
-}
-
 /// Concatenates two [`ChunkGroupResult`] values, merging assets, referenced_assets,
 /// and references (as set unions), with `b`'s `availability_info`.
 #[turbo_tasks::function]
-pub async fn concatenate_chunk_group_result_plain(
+pub async fn concatenate_chunk_group_result(
     a: Vc<ChunkGroupResult>,
     b: Vc<ChunkGroupResult>,
 ) -> Result<Vc<ChunkGroupResult>> {
@@ -851,30 +836,11 @@ pub async fn concatenate_chunk_group_result_plain(
     .cell())
 }
 
-/// Concatenates two [`ChunkGroupResult`] operations, merging assets, referenced_assets,
-/// and references (as set unions), with `b`'s `availability_info`.
+/// Operation-wrapped version of [`concatenate_chunk_group_result`] for use in operation contexts.
 #[turbo_tasks::function(operation)]
-pub async fn concatenate_chunk_group_result(
+pub fn concatenate_chunk_group_result_operation(
     a: OperationVc<ChunkGroupResult>,
     b: OperationVc<ChunkGroupResult>,
-) -> Result<Vc<ChunkGroupResult>> {
-    let a = a.connect().await?;
-    let b = b.connect().await?;
-
-    let mut assets: FxIndexSet<_> = a.assets.await?.iter().copied().collect();
-    assets.extend(b.assets.await?.iter().copied());
-
-    let mut referenced_assets: FxIndexSet<_> = a.referenced_assets.await?.iter().copied().collect();
-    referenced_assets.extend(b.referenced_assets.await?.iter().copied());
-
-    let mut references: FxIndexSet<_> = a.references.await?.iter().copied().collect();
-    references.extend(b.references.await?.iter().copied());
-
-    Ok(ChunkGroupResult {
-        assets: ResolvedVc::cell(assets.into_iter().collect()),
-        referenced_assets: ResolvedVc::cell(referenced_assets.into_iter().collect()),
-        references: ResolvedVc::cell(references.into_iter().collect()),
-        availability_info: b.availability_info,
-    }
-    .cell())
+) -> Vc<ChunkGroupResult> {
+    concatenate_chunk_group_result(a.connect(), b.connect())
 }
