@@ -18,10 +18,9 @@ set -xeo pipefail
 
 BUILD_TASK="${BUILD_TASK:-build-native-release}"
 
-# Node.js is used only as a build tool (runs npm/napi-cli). The glibc-linked
-# node works for all targets — the output .node file's linking is determined
+# Node.js (installed via nodesource) is used only as a build tool (runs
+# npm/napi-cli). The output .node shared library's linking is determined
 # by cargo's --target, not the node binary.
-export PATH="/opt/node-gnu/bin:${PATH}"
 
 # --- RUSTFLAGS via cargo-rustflags ---
 # We use `linker=clang` + `linker-flavor=gnu-lld-cc` rather than
