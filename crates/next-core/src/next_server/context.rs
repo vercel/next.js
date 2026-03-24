@@ -283,7 +283,9 @@ pub async fn get_server_resolve_options_context(
         enable_node_modules: Some(root_dir.clone()),
         enable_node_externals: true,
         enable_node_native_modules: true,
-        module: true,
+        // The "module" condition is intended for browser bundlers that support ESM
+        // tree-shaking. It must NOT be used for server-side bundling.
+        module: false,
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),

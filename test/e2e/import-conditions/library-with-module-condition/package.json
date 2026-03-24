@@ -1,0 +1,12 @@
+{
+  "name": "library-with-module-condition",
+  "version": "1.0.0",
+  "exports": {
+    ".": {
+      "module": "./module-esm.mjs",
+      "import": "./cjs-wrapper.mjs",
+      "require": "./cjs.cjs",
+      "default": "./cjs.cjs"
+    }
+  }
+}

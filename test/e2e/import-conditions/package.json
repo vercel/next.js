@@ -2,6 +2,7 @@
   "private": true,
   "name": "import-conditions",
   "dependencies": {
-    "library-with-exports": "link:./library-with-exports"
+    "library-with-exports": "link:./library-with-exports",
+    "library-with-module-condition": "link:./library-with-module-condition"
   }
 }

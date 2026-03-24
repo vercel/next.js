@@ -794,6 +794,26 @@ export default async function getBaseWebpackConfig(
       : undefined),
     // default main fields use pages dir ones, and customize app router ones in loaders.
     mainFields: getMainField(compilerType, false),
+    // On the node server, override byDependency.esm to not include the "module"
+    // condition. The "module" condition is intended for browser bundlers that
+    // support ESM tree-shaking and must not be applied to server-side bundling.
+    // Using '...' would expand to byDependency.esm defaults which include "module",
+    // so we must provide an explicit list. This mirrors webpack's byDependency.esm
+    // defaults for a node target but without "module".
+    ...(isNodeServer
+      ? {
+          byDependency: {
+            esm: {
+              conditionNames: [
+                'import',
+                'webpack',
+                dev ? 'development' : 'production',
+                'node',
+              ],
+            },
+          },
+        }
+      : {}),
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],

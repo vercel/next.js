@@ -5,9 +5,11 @@ describe('react version', () => {
     ? // `link` is incompatible with the npm version used when this test is deployed
       {
         'library-with-exports': 'file:./library-with-exports',
+        'library-with-module-condition': 'file:./library-with-module-condition',
       }
     : {
         'library-with-exports': 'link:./library-with-exports',
+        'library-with-module-condition': 'link:./library-with-module-condition',
       }
 
   const { next } = nextTestSetup({
@@ -283,5 +285,14 @@ describe('react version', () => {
         serverFavoringEdge: 'edge-light',
       },
     })
+  })
+
+  it('App Router Route Handler with nodejs runtime does not use "module" condition on server', async () => {
+    const response = await next.fetch('/module-condition-node-route')
+    const data = await response.json()
+    // The "module" export condition is intended for browser bundlers that support
+    // ESM tree-shaking. It must NOT be applied to server-side bundling.
+    // Both webpack and Turbopack must resolve "import" -> cjs-wrapper.mjs -> source = 'cjs'
+    expect(data).toEqual({ source: 'cjs' })
   })
 })
