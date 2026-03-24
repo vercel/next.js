@@ -564,8 +564,8 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.0bi3upmbca6o8.svg),url(../media/dark2.0bi3upmbca6o8.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.0-fs_bhu4mhnn.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.0-9yl04ewdb5w.svg),url(../media/dark2.0-9yl04ewdb5w.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.37p36_ay21lu_.svg);font-weight:bolder}
              .blue-text{color:#00f}",
              ]
             `)
@@ -573,8 +573,8 @@ module.exports = {
             expect(cssContent).toMatchInlineSnapshot(`
              [
                "/_next/static/chunks/HASH.css:
-             .red-text{color:red;background-image:url(../media/dark.0bi3upmbca6o8.svg),url(../media/dark2.0bi3upmbca6o8.svg)}
-             .blue-text{color:orange;background-image:url(../media/light.0-fs_bhu4mhnn.svg);font-weight:bolder}
+             .red-text{color:red;background-image:url(../media/dark.0-9yl04ewdb5w.svg),url(../media/dark2.0-9yl04ewdb5w.svg)}
+             .blue-text{color:orange;background-image:url(../media/light.37p36_ay21lu_.svg);font-weight:bolder}
              .blue-text{color:#00f}",
              ]
             `)
@@ -640,8 +640,8 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.0bi3upmbca6o8.svg) url(../media/dark2.0bi3upmbca6o8.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.0-fs_bhu4mhnn.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.0-9yl04ewdb5w.svg) url(../media/dark2.0-9yl04ewdb5w.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.37p36_ay21lu_.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)
@@ -692,8 +692,8 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
           expect(cssContent).toMatchInlineSnapshot(`
            [
              "/_next/static/chunks/HASH.css:
-           .red-text{color:red;background-image:url(../media/dark.0bi3upmbca6o8.svg) url(../media/dark2.0bi3upmbca6o8.svg)}
-           .blue-text{color:orange;background-image:url(../media/light.0-fs_bhu4mhnn.svg);font-weight:bolder}
+           .red-text{color:red;background-image:url(../media/dark.0-9yl04ewdb5w.svg) url(../media/dark2.0-9yl04ewdb5w.svg)}
+           .blue-text{color:orange;background-image:url(../media/light.37p36_ay21lu_.svg);font-weight:bolder}
            .blue-text{color:#00f}",
            ]
           `)
