@@ -55,6 +55,26 @@ export async function getTypeScriptConfiguration(
 
     let configToParse: any = config
     if (semver.gte(typescript.version, '6.0.0')) {
+      const target = configToParse.compilerOptions?.target
+      if (
+        typeof target === 'string' &&
+        (target.toLowerCase() === 'es3' || target.toLowerCase() === 'es5')
+      ) {
+        const { target: _target, ...restCompilerOptions } =
+          configToParse.compilerOptions ?? {}
+
+        // TypeScript 6 deprecates ES3/ES5 targets. Rewrite deprecated
+        // targets in-memory to keep typechecking working without requiring
+        // `ignoreDeprecations`.
+        configToParse = {
+          ...configToParse,
+          compilerOptions: {
+            ...restCompilerOptions,
+            target: 'es2015',
+          },
+        }
+      }
+
       const baseUrl = configToParse.compilerOptions?.baseUrl
       const hasBaseUrl = typeof baseUrl === 'string' && baseUrl.length > 0
 
