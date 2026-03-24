@@ -143,7 +143,6 @@
   "with-react-toolbox": true,
   "with-reactstrap": true,
   "with-realm-web": true,
-  "with-rebass": true,
   "with-redis": true,
   "with-redux": true,
   "with-reflexjs": true,
