@@ -3,6 +3,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash128Hasher, encode_base40_128};
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -162,6 +163,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn hash_salt(mut self, salt: Option<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -234,6 +240,9 @@ pub struct NodeJsChunkingContext {
     worker_forwarded_globals: Vec<RcStr>,
     /// Content hashing for asset filenames.
     asset_content_hashing: ContentHashing,
+    /// An optional salt to mix into asset content hashes, allowing users to
+    /// force new filenames without changing file content.
+    hash_salt: Option<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -279,6 +288,7 @@ impl NodeJsChunkingContext {
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
+                hash_salt: None,
             },
         }
     }
@@ -308,6 +318,13 @@ impl NodeJsChunkingContext {
 }
 
 impl NodeJsChunkingContext {
+    fn apply_hash_salt(hash: &str, salt: &str) -> RcStr {
+        let mut hasher = Xxh3Hash128Hasher::new();
+        hasher.write_bytes(salt.as_bytes());
+        hasher.write_bytes(hash.as_bytes());
+        encode_base40_128(hasher.finish()).into()
+    }
+
     async fn generate_chunk(
         self: Vc<Self>,
         chunk: ResolvedVc<Box<dyn Chunk>>,
@@ -471,7 +488,13 @@ impl ChunkingContext for NodeJsChunkingContext {
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let short_hash = &content_hash[..length as usize];
+        let salted_hash;
+        let short_hash = if let Some(salt) = &self.hash_salt {
+            salted_hash = Self::apply_hash_salt(&content_hash, salt);
+            &salted_hash[..length as usize]
+        } else {
+            &content_hash[..length as usize]
+        };
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",

@@ -3,7 +3,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::HashAlgorithm;
+use turbo_tasks_hash::{DeterministicHasher, HashAlgorithm, Xxh3Hash128Hasher, encode_base40_128};
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -219,6 +219,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn hash_salt(mut self, salt: Option<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -315,6 +320,9 @@ pub struct BrowserChunkingContext {
     /// The global variable name used for chunk loading.
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
+    /// An optional salt to mix into chunk and asset content hashes, allowing
+    /// users to force new filenames without changing file content.
+    hash_salt: Option<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -367,6 +375,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
+                hash_salt: None,
             },
         }
     }
@@ -423,6 +432,13 @@ impl BrowserChunkingContext {
                 bail!("Unable to generate output asset for chunk");
             },
         )
+    }
+
+    fn apply_hash_salt(hash: &str, salt: &str) -> RcStr {
+        let mut hasher = Xxh3Hash128Hasher::new();
+        hasher.write_bytes(salt.as_bytes());
+        hasher.write_bytes(hash.as_bytes());
+        encode_base40_128(hasher.finish()).into()
     }
 }
 #[turbo_tasks::value_impl]
@@ -564,6 +580,14 @@ impl ChunkingContext for BrowserChunkingContext {
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
+                let this = self.await?;
+                let salted_hash;
+                let hash = if let Some(salt) = &this.hash_salt {
+                    salted_hash = Self::apply_hash_salt(hash, salt);
+                    &salted_hash
+                } else {
+                    hash
+                };
                 let length = length as usize;
                 let hash = &hash[0..length];
                 if let Some(prefix) = prefix {
@@ -633,7 +657,13 @@ impl ChunkingContext for BrowserChunkingContext {
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let short_hash = &content_hash[..length as usize];
+        let salted_hash;
+        let short_hash = if let Some(salt) = &self.hash_salt {
+            salted_hash = Self::apply_hash_salt(&content_hash, salt);
+            &salted_hash[..length as usize]
+        } else {
+            &content_hash[..length as usize]
+        };
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
