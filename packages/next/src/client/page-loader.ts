@@ -8,12 +8,16 @@ import { addLocale } from './add-locale'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { createRouteLoader, getClientBuildManifest } from './route-loader'
+import {
+  createRouteLoader,
+  getClientBuildManifest,
+  markAssetError,
+} from './route-loader'
 import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
-  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
+import { resolvePromiseWithTimeout } from './lib/promise'
 
 declare global {
   interface Window {
@@ -101,24 +105,24 @@ export default class PageLoader {
       if (window.__MIDDLEWARE_MATCHERS) {
         return window.__MIDDLEWARE_MATCHERS
       } else {
-        if (!this.promisedMiddlewareMatchers) {
-          // TODO: Decide what should happen when fetching fails instead of asserting
-          // @ts-ignore
-          this.promisedMiddlewareMatchers = fetch(
-            `${this.assetPrefix}/_next/static/${this.buildId}/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`,
-            { credentials: 'same-origin' }
-          )
-            .then((res) => res.json())
-            .then((matchers: ProxyMatcher[]) => {
-              window.__MIDDLEWARE_MATCHERS = matchers
-              return matchers
-            })
-            .catch((err) => {
-              console.log(`Failed to fetch _devMiddlewareManifest`, err)
-            })
-        }
-        // TODO Remove this assertion as this could be undefined
-        return this.promisedMiddlewareMatchers!
+        const onClientMiddlewareManifest = new Promise<ProxyMatcher[]>(
+          (resolve) => {
+            // Mandatory because this is not concurrent safe:
+            const cb = self.__MIDDLEWARE_MATCHERS_CB
+            self.__MIDDLEWARE_MATCHERS_CB = () => {
+              resolve(self.__MIDDLEWARE_MATCHERS!)
+              cb && cb()
+            }
+          }
+        )
+
+        return resolvePromiseWithTimeout(
+          onClientMiddlewareManifest,
+          markAssetError(
+            new Error('Failed to load client middleware manifest')
+          ),
+          undefined
+        )
       }
       // Development both Turbopack and Webpack
     } else {

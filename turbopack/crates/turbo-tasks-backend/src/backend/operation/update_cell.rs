@@ -1,10 +1,13 @@
 use std::mem::take;
 
 use bincode::{Decode, Encode};
+use once_cell::unsync::Lazy;
+use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
-#[cfg(not(feature = "verify_determinism"))]
-use turbo_tasks::backend::VerificationMode;
-use turbo_tasks::{CellId, TaskId, TypedSharedReference, backend::CellContent};
+use turbo_tasks::{
+    CellId, FxIndexMap, TaskId, TypedSharedReference,
+    backend::{CellContent, VerificationMode},
+};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -15,9 +18,9 @@ use crate::{
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
             invalidate::make_task_dirty_internal,
         },
-        storage::{get_many, remove},
+        storage_schema::TaskStorageAccessors,
     },
-    data::{CachedDataItem, CachedDataItemKey, CellRef},
+    data::CellRef,
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -26,7 +29,10 @@ pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
         is_serializable_cell_content: bool,
         cell_ref: CellRef,
-        dependent_tasks: SmallVec<[TaskId; 4]>,
+        #[bincode(with = "turbo_bincode::indexmap")]
+        dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
+        #[cfg(feature = "trace_task_dirty")]
+        has_updated_key_hashes: bool,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
     },
@@ -49,9 +55,10 @@ impl UpdateCellOperation {
         cell: CellId,
         content: CellContent,
         is_serializable_cell_content: bool,
+        updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let content = if let CellContent(Some(new_content)) = content {
             Some(new_content.into_typed(cell.type_id))
@@ -64,8 +71,7 @@ impl UpdateCellOperation {
         // We need to detect recomputation, because here the content has not actually changed (even
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
-        let assume_unchanged =
-            !ctx.should_track_dependencies() || !task.has_key(&CachedDataItemKey::Dirty {});
+        let assume_unchanged = !ctx.should_track_dependencies() || !task.has_dirty();
 
         if assume_unchanged {
             let has_old_content = task.has_cell_data(is_serializable_cell_content, cell);
@@ -75,12 +81,17 @@ impl UpdateCellOperation {
 
                 // Check if this assumption holds.
                 #[cfg(feature = "verify_determinism")]
-                if !is_stateful
-                    && matches!(verification_mode, VerificationMode::EqualityCheck)
+                if !task.stateful()
+                    && matches!(
+                        verification_mode,
+                        turbo_tasks::backend::VerificationMode::EqualityCheck
+                    )
                     && content != task.get_cell_data(is_serializable_cell_content, cell)
                 {
-                    let task_description = ctx.get_task_description(task_id);
-                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
+                    let task_description = task.get_task_description();
+                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
+                        .ty
+                        .global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type
@@ -96,12 +107,28 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            let dependent_tasks: SmallVec<[TaskId; 4]> = get_many!(
-                task,
-                CellDependent { cell: dependent_cell, task }
-                if dependent_cell == cell
-                => task
-            );
+            #[cfg(feature = "trace_task_dirty")]
+            let has_updated_key_hashes = updated_key_hashes.is_some();
+            let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
+                Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
+            });
+
+            let tasks_with_keys =
+                task.iter_cell_dependents()
+                    .filter_map(|(dependent_cell, key, task)| {
+                        (dependent_cell == cell
+                            && key.is_none_or(|key_hash| {
+                                updated_key_hashes_set
+                                    .as_ref()
+                                    .is_none_or(|set| set.contains(&key_hash))
+                            }))
+                        .then_some((task, key))
+                    });
+            let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
+                FxIndexMap::default();
+            for (task, key) in tasks_with_keys {
+                dependent_tasks.entry(task).or_default().push(key);
+            }
 
             if !dependent_tasks.is_empty() {
                 // Slow path: We need to invalidate tasks depending on this cell.
@@ -117,13 +144,16 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove(&CachedDataItemKey::cell_data(
-                    is_serializable_cell_content,
-                    cell,
-                ));
+                let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
 
                 drop(task);
                 drop(old_content);
+
+                ctx.prepare_tasks(
+                    dependent_tasks
+                        .keys()
+                        .map(|&id| (id, TaskDataCategory::All)),
+                );
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
                     is_serializable_cell_content,
@@ -132,6 +162,8 @@ impl UpdateCellOperation {
                         cell,
                     },
                     dependent_tasks,
+                    #[cfg(feature = "trace_task_dirty")]
+                    has_updated_key_hashes,
                     content,
                     queue: AggregationUpdateQueue::new(),
                 }
@@ -144,19 +176,12 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert(CachedDataItem::cell_data(
-                is_serializable_cell_content,
-                cell,
-                new_content,
-            ))
+            task.set_cell_data(is_serializable_cell_content, cell, new_content)
         } else {
-            task.remove(&CachedDataItemKey::cell_data(
-                is_serializable_cell_content,
-                cell,
-            ))
+            task.remove_cell_data(is_serializable_cell_content, cell)
         };
 
-        let in_progress_cell = remove!(task, InProgressCell { cell });
+        let in_progress_cell = task.remove_in_progress_cells(&cell);
 
         drop(task);
         drop(old_content);
@@ -183,7 +208,7 @@ impl UpdateCellOperation {
 }
 
 impl Operation for UpdateCellOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             if self.is_serializable() {
                 ctx.operation_suspend_point(&self);
@@ -193,31 +218,30 @@ impl Operation for UpdateCellOperation {
                     is_serializable_cell_content,
                     cell_ref,
                     ref mut dependent_tasks,
+                    #[cfg(feature = "trace_task_dirty")]
+                    has_updated_key_hashes,
                     ref mut content,
                     ref mut queue,
                 } => {
-                    if let Some(dependent_task_id) = dependent_tasks.pop() {
-                        if ctx.is_once_task(dependent_task_id) {
-                            // once tasks are never invalidated
-                            continue;
-                        }
-                        let mut make_stale = true;
+                    if let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
+                        let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
-                        if dependent.has_key(&CachedDataItemKey::OutdatedCellDependency {
-                            target: cell_ref,
-                        }) {
-                            // cell dependency is outdated, so it hasn't read the cell yet
-                            // and doesn't need to be invalidated.
-                            // But importantly we still need to make the task dirty as it should no
-                            // longer be considered as "recomputation".
-                            make_stale = false;
-                        } else if !dependent
-                            .has_key(&CachedDataItemKey::CellDependency { target: cell_ref })
-                        {
-                            // cell dependency has been removed, so the task doesn't depend on the
-                            // cell anymore and doesn't need to be
-                            // invalidated
-                            continue;
+                        for key in keys.iter().copied() {
+                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
+                                // cell dependency is outdated, so it hasn't read the cell yet
+                                // and doesn't need to be invalidated.
+                                // We do not need to make the task stale in this case.
+                                // But importantly we still need to make the task dirty as it should
+                                // no longer be considered as
+                                // "recomputation".
+                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
+                                // cell dependency has been removed, so the task doesn't depend on
+                                // the cell anymore and doesn't need
+                                // to be invalidated
+                                continue;
+                            } else {
+                                make_stale = true;
+                            }
                         }
                         make_task_dirty_internal(
                             dependent,
@@ -226,6 +250,7 @@ impl Operation for UpdateCellOperation {
                             #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CellChange {
                                 value_type: cell_ref.cell.type_id,
+                                keys: has_updated_key_hashes.then_some(keys).unwrap_or_default(),
                             },
                             queue,
                             ctx,
@@ -249,14 +274,10 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_new(CachedDataItem::cell_data(
-                            is_serializable_cell_content,
-                            cell,
-                            content,
-                        ));
+                        task.add_cell_data(is_serializable_cell_content, cell, content);
                     }
 
-                    let in_progress_cell = remove!(task, InProgressCell { cell });
+                    let in_progress_cell = task.remove_in_progress_cells(&cell);
 
                     drop(task);
 

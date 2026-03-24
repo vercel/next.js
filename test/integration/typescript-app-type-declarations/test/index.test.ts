@@ -6,8 +6,34 @@ import { promises as fs } from 'fs'
 
 const appDir = join(__dirname, '..')
 const appTypeDeclarations = join(appDir, 'next-env.d.ts')
+const appTypeDeclarationsStrictRouteTypes = join(
+  appDir,
+  'next-env.strictRouteTypes.d.ts'
+)
+
+const strictRouteTypes =
+  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('TypeScript App Type Declarations', () => {
+  beforeAll(async () => {
+    if (strictRouteTypes) {
+      await fs.rename(appTypeDeclarations, appTypeDeclarations + '.bak')
+      await fs.copyFile(
+        appTypeDeclarationsStrictRouteTypes,
+        appTypeDeclarations
+      )
+    }
+  })
+
+  afterAll(async () => {
+    if (strictRouteTypes) {
+      await fs.rename(
+        join(appDir, 'next-env.d.ts') + '.bak',
+        join(appDir, 'next-env.d.ts')
+      )
+    }
+  })
+
   it('should write a new next-env.d.ts if none exist', async () => {
     const prevContent = await fs.readFile(appTypeDeclarations, 'utf8')
     try {
@@ -16,6 +42,7 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        await fetch(`http://localhost:${appPort}`)
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {
@@ -34,6 +61,7 @@ describe('TypeScript App Type Declarations', () => {
       let app
       try {
         app = await launchApp(appDir, appPort, {})
+        await fetch(`http://localhost:${appPort}`)
         const content = await fs.readFile(appTypeDeclarations, 'utf8')
         expect(content).toEqual(prevContent)
       } finally {

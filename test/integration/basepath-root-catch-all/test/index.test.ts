@@ -8,7 +8,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs-extra'
-import url from 'url'
 
 let app
 let appPort
@@ -22,7 +21,7 @@ const runTests = () => {
     await browser.waitForElementByCss('#url')
 
     const dataUrl = await browser.elementByCss('#url').text()
-    const { pathname } = url.parse(dataUrl)
+    const { pathname } = new URL(dataUrl, await browser.url())
     expect(pathname).toBe(`/_next/data/${buildId}/root/catch-all.json`)
   })
 }

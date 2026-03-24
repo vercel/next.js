@@ -1,77 +1,7 @@
 import * as React from 'react'
 import { cx } from '../../utils/cx'
 
-function useCopyLegacy(content: string) {
-  type CopyState =
-    | {
-        state: 'initial'
-      }
-    | {
-        state: 'error'
-        error: unknown
-      }
-    | { state: 'success' }
-    | { state: 'pending' }
-
-  // This would be simpler with useActionState but we need to support React 18 here.
-  // React 18 also doesn't have async transitions.
-  const [copyState, dispatch] = React.useReducer(
-    (
-      state: CopyState,
-      action:
-        | { type: 'reset' | 'copied' | 'copying' }
-        | { type: 'error'; error: unknown }
-    ): CopyState => {
-      if (action.type === 'reset') {
-        return { state: 'initial' }
-      }
-      if (action.type === 'copied') {
-        return { state: 'success' }
-      }
-      if (action.type === 'copying') {
-        return { state: 'pending' }
-      }
-      if (action.type === 'error') {
-        return { state: 'error', error: action.error }
-      }
-      return state
-    },
-    {
-      state: 'initial',
-    }
-  )
-  function copy() {
-    if (isPending) {
-      return
-    }
-
-    if (!navigator.clipboard) {
-      dispatch({
-        type: 'error',
-        error: 'Copy to clipboard is not supported in this browser',
-      })
-    } else {
-      dispatch({ type: 'copying' })
-      navigator.clipboard.writeText(content).then(
-        () => {
-          dispatch({ type: 'copied' })
-        },
-        (error) => {
-          dispatch({ type: 'error', error })
-        }
-      )
-    }
-  }
-  const reset = React.useCallback(() => {
-    dispatch({ type: 'reset' })
-  }, [])
-
-  const isPending = copyState.state === 'pending'
-
-  return [copyState, copy, reset, isPending] as const
-}
-
-function useCopyModern(content: string) {
+function useCopy(getContent: () => Promise<string>) {
   type CopyState =
     | {
         state: 'initial'
@@ -97,14 +27,16 @@ function useCopyModern(content: string) {
             error: 'Copy to clipboard is not supported in this browser',
           }
         }
-        return navigator.clipboard.writeText(content).then(
-          () => {
-            return { state: 'success' }
-          },
-          (error) => {
-            return { state: 'error', error }
-          }
-        )
+        return getContent().then((content) => {
+          return navigator.clipboard.writeText(content).then(
+            () => {
+              return { state: 'success' }
+            },
+            (error) => {
+              return { state: 'error', error }
+            }
+          )
+        })
       }
       return state
     },
@@ -130,9 +62,6 @@ function useCopyModern(content: string) {
   return [copyState, copy, reset, isPending] as const
 }
 
-const useCopy =
-  typeof React.useActionState === 'function' ? useCopyModern : useCopyLegacy
-
 type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
   actionLabel: string
   successLabel: string
@@ -140,7 +69,10 @@ type CopyButtonProps = React.HTMLProps<HTMLButtonElement> & {
 }
 
 export function CopyButton(
-  props: CopyButtonProps & { content?: string; getContent?: () => string }
+  props: CopyButtonProps & {
+    content?: string
+    getContent?: () => Promise<string>
+  }
 ) {
   const {
     content,
@@ -151,17 +83,16 @@ export function CopyButton(
     disabled,
     ...rest
   } = props
-  const getContentString = (): string => {
+  const getContentString = (): Promise<string> => {
     if (content) {
-      return content
+      return Promise.resolve(content)
     }
     if (getContent) {
       return getContent()
     }
-    return ''
+    return Promise.resolve('')
   }
-  const contentString = getContentString()
-  const [copyState, copy, reset, isPending] = useCopy(contentString)
+  const [copyState, copy, reset, isPending] = useCopy(getContentString)
 
   const error = copyState.state === 'error' ? copyState.error : null
   React.useEffect(() => {
@@ -206,8 +137,8 @@ export function CopyButton(
       title={label}
       aria-label={label}
       aria-disabled={isDisabled}
-      disabled={isDisabled}
       data-nextjs-copy-button
+      data-pending={isPending}
       className={cx(
         props.className,
         'nextjs-data-copy-button',
@@ -269,18 +200,21 @@ export const COPY_BUTTON_STYLES = `
       height: var(--size-16);
     }
   }
-  .nextjs-data-copy-button:disabled {
+  .nextjs-data-copy-button[aria-disabled="true"] {
     background-color: var(--color-gray-100);
     cursor: not-allowed;
   }
-  .nextjs-data-copy-button--initial:hover:not(:disabled) {
+  .nextjs-data-copy-button[data-pending="true"] {
+    cursor: wait;
+  }
+  .nextjs-data-copy-button--initial:hover:not([aria-disabled="true"]) {
     cursor: pointer;
   }
-  .nextjs-data-copy-button--error:not(:disabled),
-  .nextjs-data-copy-button--error:hover:not(:disabled) {
+  .nextjs-data-copy-button--error:not([aria-disabled="true"]),
+  .nextjs-data-copy-button--error:hover:not([aria-disabled="true"]) {
     color: var(--color-ansi-red);
   }
-  .nextjs-data-copy-button--success:not(:disabled) {
+  .nextjs-data-copy-button--success:not([aria-disabled="true"]) {
     color: var(--color-ansi-green);
   }
 `

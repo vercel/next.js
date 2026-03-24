@@ -40,9 +40,7 @@
                 Module(
                     ModuleValue {
                         module: "@upstash/redis",
-                        annotations: ImportAnnotations {
-                            map: {},
-                        },
+                        annotations: None,
                     },
                 ),
                 Constant(

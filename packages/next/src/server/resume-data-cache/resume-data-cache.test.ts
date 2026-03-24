@@ -15,12 +15,17 @@ function createMockedCache() {
   cache.cache.set(
     'success',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 300,
-      revalidate: 1,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 300,
+        revalidate: 1,
+      },
+      hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
@@ -28,12 +33,17 @@ function createMockedCache() {
   cache.cache.set(
     'dynamic-expire',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 299,
-      revalidate: 1,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 299,
+        revalidate: 1,
+      },
+      hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
@@ -41,12 +51,17 @@ function createMockedCache() {
   cache.cache.set(
     'zero-revalidate',
     Promise.resolve({
-      value: streamFromString('value'),
-      tags: [],
-      stale: 0,
-      timestamp: 0,
-      expire: 300,
-      revalidate: 0,
+      entry: {
+        value: streamFromString('value'),
+        tags: [],
+        stale: 0,
+        timestamp: 0,
+        expire: 300,
+        revalidate: 0,
+      },
+      hasExplicitRevalidate: true,
+      hasExplicitExpire: true,
+      readRootParamNames: undefined,
     })
   )
 
@@ -89,7 +104,7 @@ describe('stringifyResumeDataCache', () => {
       )
     } else {
       expect(decompressed).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
@@ -117,7 +132,7 @@ describe('stringifyResumeDataCache', () => {
       )
     } else {
       expect(decompressed).toMatchInlineSnapshot(
-        `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+        `"{"store":{"fetch":{},"cache":{"success":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"dynamic-expire":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"hasExplicitRevalidate":true,"hasExplicitExpire":true},"zero-revalidate":{"entry":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0},"hasExplicitRevalidate":true,"hasExplicitExpire":true}},"encryptedBoundArgs":{}}}"`
       )
     }
   })
@@ -125,7 +140,7 @@ describe('stringifyResumeDataCache', () => {
 
 describe('parseResumeDataCache', () => {
   it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null')).toEqual(
+    expect(createRenderResumeDataCache('null', undefined)).toEqual(
       createPrerenderResumeDataCache()
     )
   })
@@ -137,7 +152,7 @@ describe('parseResumeDataCache', () => {
       isCacheComponentsEnabled
     )
 
-    const parsed = createRenderResumeDataCache(serialized)
+    const parsed = createRenderResumeDataCache(serialized, undefined)
 
     expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
     expect(parsed.fetch.size).toBe(0)

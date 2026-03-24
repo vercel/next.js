@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('Imports of server/client-only with noUncheckedSideEffectImports', () => {
+describe('Side-effect imports with noUncheckedSideEffectImports', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    dependencies: { sass: '1.54.0' },
     skipDeployment: true, // No need to run this in deployment mode.
     skipStart: true,
   })
@@ -15,9 +16,12 @@ describe('Imports of server/client-only with noUncheckedSideEffectImports', () =
 
   it('Should build without typescript errors', async () => {
     // If something's wrong with our declarations of these modules, TSC will error with:
-    //   `Type error: Cannot find module 'server-only' or its corresponding type declarations.`
+    //   `Type error: Cannot find module '...' or its corresponding type declarations.`
     expect(buildResult.cliOutput).not.toContain('server-only')
     expect(buildResult.cliOutput).not.toContain('client-only')
+    expect(buildResult.cliOutput).not.toContain('globals.css')
+    expect(buildResult.cliOutput).not.toContain('globals.sass')
+    expect(buildResult.cliOutput).not.toContain('globals.scss')
     expect(buildResult.exitCode).toBe(0)
   })
 })

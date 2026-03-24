@@ -10,6 +10,7 @@ import type { CacheLife } from '../use-cache/cache-life'
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
+import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -30,14 +31,6 @@ export interface WorkStore {
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
-
-  /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  readonly hasReadableErrorStacks?: boolean
 
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
@@ -61,7 +54,7 @@ export interface WorkStore {
   invalidDynamicUsageError?: Error
 
   nextFetchId?: number
-  pathWasRevalidated?: boolean
+  pathWasRevalidated?: ActionRevalidationKind
 
   /**
    * Tags that were revalidated during the current request. They need to be sent
@@ -93,6 +86,9 @@ export interface WorkStore {
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
 
+  /**
+   * Prefer `sharedContext.buildId` instead. This only exists because it's needed in use-cache-wrapper
+   */
   buildId: string
 
   readonly reactLoadableManifest?: DeepReadonly<
@@ -102,7 +98,6 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
-  dev: boolean
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

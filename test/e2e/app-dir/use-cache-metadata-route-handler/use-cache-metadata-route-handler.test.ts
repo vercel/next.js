@@ -97,7 +97,7 @@ describe('use-cache-metadata-route-handler', () => {
   it('should generate robots.txt with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/robots.txt')
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('text/plain')
+    expect(res.headers.get('content-type')).toContain('text/plain')
 
     const body = await res.text()
 
@@ -121,7 +121,9 @@ describe('use-cache-metadata-route-handler', () => {
   it('should generate manifest.json with a metadata route handler that uses "use cache"', async () => {
     const res = await next.fetch('/manifest.webmanifest')
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('application/manifest+json')
+    expect(res.headers.get('content-type')).toContain(
+      'application/manifest+json'
+    )
 
     const body = await res.json()
 

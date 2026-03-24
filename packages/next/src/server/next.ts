@@ -3,7 +3,6 @@ import type {
   NodeRequestHandler,
   Options as ServerOptions,
 } from './next-server'
-import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
@@ -148,7 +147,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
         const requestHandler = await this.getServerRequestHandler()
@@ -165,7 +164,7 @@ export class NextServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       return getTracer().trace(
         NextServerSpan.getRequestHandlerWithMetadata,
@@ -403,6 +402,10 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async prepare() {
+    if (this.options.dev) {
+      process.env.__NEXT_DEV_SERVER = '1'
+    }
+
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
@@ -444,7 +447,7 @@ class NextCustomServer implements NextWrapperServer {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
-      parsedUrl?: UrlWithParsedQuery
+      parsedUrl?: NextUrlWithParsedQuery
     ) => {
       this.setupWebSocketHandler(this.options.httpServer, req)
 

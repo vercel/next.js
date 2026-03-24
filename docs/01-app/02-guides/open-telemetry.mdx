@@ -32,8 +32,20 @@ That's why we prepared a package `@vercel/otel` that helps you get started quick
 
 To get started, install the following packages:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
+```
+
+```bash package="npm"
 npm install @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
+```
+
+```bash package="yarn"
+yarn add @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
+```
+
+```bash package="bun"
+bun add @vercel/otel @opentelemetry/sdk-logs @opentelemetry/api-logs @opentelemetry/instrumentation
 ```
 
 <AppOnly>
@@ -92,8 +104,20 @@ The `@vercel/otel` package provides many configuration options and should serve 
 
 Firstly you need to install OpenTelemetry packages:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
+```
+
+```bash package="npm"
 npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
+```
+
+```bash package="yarn"
+yarn add @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
+```
+
+```bash package="bun"
+bun add @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/semantic-conventions @opentelemetry/sdk-trace-node @opentelemetry/exporter-trace-otlp-http
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
@@ -189,8 +213,20 @@ OpenTelemetry Collector is not necessary. You can use a custom OpenTelemetry exp
 
 You can add a custom span with [OpenTelemetry APIs](https://opentelemetry.io/docs/instrumentation/js/instrumentation).
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add @opentelemetry/api
+```
+
+```bash package="npm"
 npm install @opentelemetry/api
+```
+
+```bash package="yarn"
+yarn add @opentelemetry/api
+```
+
+```bash package="bun"
+bun add @opentelemetry/api
 ```
 
 The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:

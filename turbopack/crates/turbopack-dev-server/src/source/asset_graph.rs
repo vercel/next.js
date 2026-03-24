@@ -13,7 +13,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssetsReference, OutputAssetsSet},
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceSideEffect,
     GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
@@ -59,33 +59,6 @@ impl AssetGraphContentSource {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
-            expanded: Some(State::new(FxHashSet::default())),
-        })
-    }
-
-    /// Serves all assets references by all root_assets.
-    #[turbo_tasks::function]
-    pub fn new_eager_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
-            expanded: None,
-        })
-    }
-
-    /// Serves all assets references by all root_assets. Only serve references
-    /// of an asset when it has served its content before.
-    #[turbo_tasks::function]
-    pub fn new_lazy_multiple(
-        root_path: FileSystemPath,
-        root_assets: ResolvedVc<OutputAssetsSet>,
-    ) -> Vc<Self> {
-        Self::cell(AssetGraphContentSource {
-            root_path,
-            root_assets,
             expanded: Some(State::new(FxHashSet::default())),
         })
     }

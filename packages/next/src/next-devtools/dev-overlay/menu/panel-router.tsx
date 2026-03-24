@@ -28,6 +28,7 @@ import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/de
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
+import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
 
 const MenuPanel = () => {
@@ -104,6 +105,18 @@ const MenuPanel = () => {
           label: 'Cache Components',
           value: 'Enabled',
         },
+        isAppRouter &&
+          !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
+            title: 'Test instant navigation behavior.',
+            label: 'Instant Navs',
+            value: <ChevronRight />,
+            onClick: () => {
+              setPanel('instant-navs')
+            },
+            attributes: {
+              'data-instant-nav': true,
+            },
+          },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,
@@ -240,6 +253,22 @@ export const PanelRouter = () => {
             header={<DevToolsHeader title="Route Info" />}
           >
             <PageSegmentTree page={state.page} />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && !!process.env.__NEXT_INSTANT_NAV_TOGGLE && (
+        <PanelRoute name="instant-navs">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sizeConfig={{
+              kind: 'fixed',
+              height: 300 / state.scale,
+              width: 480 / state.scale,
+            }}
+            header={<DevToolsHeader title="Instant Navs" />}
+          >
+            <InstantNavsPanel />
           </DynamicPanel>
         </PanelRoute>
       )}

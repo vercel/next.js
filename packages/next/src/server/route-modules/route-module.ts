@@ -1,3 +1,4 @@
+import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   InstrumentationOnRequestError,
@@ -64,7 +65,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -136,10 +137,34 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
-    this.isDev = process.env.NODE_ENV === 'development'
+    this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
   }
+
+  private getRouterServerContext(
+    req: NextIncomingMessage
+  ): RouterServerContext[string] | undefined {
+    const hostname = getRequestMeta(req, 'hostname')
+    const revalidate = getRequestMeta(req, 'revalidate')
+    const render404 = getRequestMeta(req, 'render404')
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
+    return {
+      ...routerServerContext,
+      ...(hostname !== undefined ? { hostname } : {}),
+      ...(revalidate !== undefined ? { revalidate } : {}),
+      ...(render404 !== undefined ? { render404 } : {}),
+    }
+  }
+
+  public normalizeUrl(
+    _req: IncomingMessage | BaseNextRequest,
+    _parsedUrl: UrlWithParsedQuery
+  ) {}
 
   public async instrumentationOnRequestError(
     req: IncomingMessage | BaseNextRequest,
@@ -222,6 +247,7 @@ export abstract class RouteModule<
           },
           redirects: [],
           headers: [],
+          onMatchHeaders: [],
           i18n:
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
           skipProxyUrlNormalize: Boolean(
@@ -340,6 +366,7 @@ export abstract class RouteModule<
           : loadManifestFromRelativePath<RequiredServerFilesManifest>({
               projectDir,
               distDir: this.distDir,
+              shouldCache: true,
               manifest: `${SERVER_FILES_MANIFEST}.json`,
             }),
         this.isDev
@@ -349,11 +376,13 @@ export abstract class RouteModule<
               distDir: this.distDir,
               manifest: BUILD_ID_FILE,
               skipParse: true,
+              shouldCache: true,
             }),
         loadManifestFromRelativePath<any>({
           projectDir,
           distDir: this.distDir,
           manifest: DYNAMIC_CSS_MANIFEST,
+          shouldCache: !this.isDev,
           handleMissing: true,
         }),
       ]
@@ -519,10 +548,7 @@ export abstract class RouteModule<
     let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
       | RequiredServerFilesManifest
       | undefined
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -559,6 +585,7 @@ export abstract class RouteModule<
     | {
         buildId: string
         deploymentId: string
+        clientAssetToken: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -621,16 +648,36 @@ export abstract class RouteModule<
       // onRequestError below
       ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
+    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
+
+    const routerServerContext = this.getRouterServerContext(req)
+    const nextConfig =
+      routerServerContext?.nextConfig || serverFilesManifest?.config
+
+    // Injected in base-server.ts
+    const protocol = req.headers['x-forwarded-proto']?.includes('https')
+      ? 'https'
+      : 'http'
+
+    // When there are hostname and port we build an absolute URL
+    if (!getRequestMeta(req, 'initURL')) {
+      const initUrl = serverFilesManifest?.config.experimental.trustHostHeader
+        ? `${protocol}://${req.headers.host || 'localhost'}${req.url}`
+        : `${protocol}://${routerServerContext?.hostname || 'localhost'}${req.url}`
+
+      addRequestMeta(req, 'initURL', initUrl)
+      addRequestMeta(req, 'initProtocol', protocol)
+    }
 
     if (basePath) {
       req.url = removePathPrefix(req.url || '/', basePath)
     }
 
     const parsedUrl = parseReqUrl(req.url || '/')
+    addRequestMeta(req, 'initQuery', { ...parsedUrl?.query })
     // if we couldn't parse the URL we can't continue
     if (!parsedUrl) {
       return
@@ -641,6 +688,7 @@ export abstract class RouteModule<
       isNextDataRequest = true
       parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
     }
+    this.normalizeUrl(req, parsedUrl)
     let originalPathname = parsedUrl.pathname || '/'
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)
@@ -684,9 +732,15 @@ export abstract class RouteModule<
       getHostname(parsedUrl, req.headers),
       detectedLocale
     )
-    addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
 
-    const defaultLocale = domainLocale?.defaultLocale || i18n?.defaultLocale
+    if (Boolean(domainLocale)) {
+      addRequestMeta(req, 'isLocaleDomain', Boolean(domainLocale))
+    }
+
+    const defaultLocale =
+      getRequestMeta(req, 'defaultLocale') ||
+      domainLocale?.defaultLocale ||
+      i18n?.defaultLocale
 
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.
@@ -803,12 +857,14 @@ export abstract class RouteModule<
 
       if (
         // if both query and params are valid but one
-        // provided more information rely on that one
+        // provided more information and the query params
+        // were nxtP prefixed rely on that one
         query &&
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        Object.keys(paramsResult.params).length <
+        routeParamKeys.size > 0 &&
+        Object.keys(paramsResult.params).length <=
           Object.keys(queryResult.params).length
       ) {
         paramsToInterpolate = queryResult.params
@@ -868,6 +924,15 @@ export abstract class RouteModule<
     for (const key of routeParamKeys) {
       if (!(key in originalQuery)) {
         delete query[key]
+        // handle the case where there's collision and we
+        // normalized nxtPid=123 -> id=123 but user also
+        // sends id=456 as separate key
+      } else if (
+        originalQuery[key] &&
+        query[key] &&
+        originalQuery[key] !== query[key]
+      ) {
+        query[key] = originalQuery[key]
       }
     }
 
@@ -891,16 +956,19 @@ export abstract class RouteModule<
       isDraftMode = previewData !== false
     }
 
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
-    const nextConfig =
-      routerServerContext?.nextConfig || serverFilesManifest?.config
-
     if (!nextConfig) {
       throw new Error("Invariant: nextConfig couldn't be loaded")
+    }
+
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { installProcessErrorHandlers } =
+        require('../node-environment-extensions/process-error-handlers') as typeof import('../node-environment-extensions/process-error-handlers')
+
+      installProcessErrorHandlers(
+        Boolean(
+          nextConfig.experimental.removeUncaughtErrorAndRejectionListeners
+        )
+      )
     }
 
     let resolvedPathname = normalizedSrcPage
@@ -914,6 +982,17 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+
+    if (
+      res &&
+      Boolean(req.headers['x-nextjs-data']) &&
+      (!res.statusCode || res.statusCode === 200)
+    ) {
+      res.setHeader(
+        'x-nextjs-matched-path',
+        removeTrailingSlash(`${locale ? `/${locale}` : ''}${normalizedSrcPage}`)
+      )
+    }
     const encodedResolvedPathname = resolvedPathname
 
     // we decode for cache key/manifest usage encoded is
@@ -923,6 +1002,7 @@ export abstract class RouteModule<
     } catch (_) {}
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
+    addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
     let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {
@@ -960,15 +1040,14 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
+      clientAssetToken:
+        nextConfig.experimental.immutableAssetToken || deploymentId,
     }
   }
 
   public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
-      const minimalMode =
-        (Boolean(process.env.MINIMAL_MODE) ||
-          getRequestMeta(req, 'minimalMode')) ??
-        false
+      const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
       this.responseCache = new ResponseCache(minimalMode)
     }
     return this.responseCache
@@ -1008,6 +1087,9 @@ export abstract class RouteModule<
       isRoutePPREnabled,
       isOnDemandRevalidate,
       isPrefetch: req.headers.purpose === 'prefetch',
+      // Use x-invocation-id header to scope the in-memory cache to a single
+      // revalidation request in minimal mode.
+      invocationID: req.headers['x-invocation-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,

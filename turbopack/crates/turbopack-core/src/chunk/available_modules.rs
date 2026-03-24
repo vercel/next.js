@@ -1,9 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -14,19 +13,7 @@ use crate::{
 };
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum AvailableModuleItem {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
@@ -43,9 +30,9 @@ impl AvailableModuleItem {
             AvailableModuleItem::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
             }
-            AvailableModuleItem::AsyncLoader(module) => IdentStrings::Single(
-                format!("async loader {}", module.ident().to_string().await?).into(),
-            ),
+            AvailableModuleItem::AsyncLoader(module) => {
+                IdentStrings::Single(turbofmt!("async loader {}", module.ident()).await?)
+            }
         })
     }
 }

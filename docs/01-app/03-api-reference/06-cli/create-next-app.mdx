@@ -9,8 +9,20 @@ The `create-next-app` CLI allow you to create a new Next.js application using th
 
 Basic usage:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app [project-name] [options]
+```
+
+```bash package="npm"
 npx create-next-app@latest [project-name] [options]
+```
+
+```bash package="yarn"
+yarn create next-app [project-name] [options]
+```
+
+```bash package="bun"
+bun create next-app [project-name] [options]
 ```
 
 ## Reference
@@ -45,6 +57,7 @@ The following options are available:
 | `--reset-preferences`                   | Explicitly tell the CLI to reset any stored preferences               |
 | `--skip-install`                        | Explicitly tell the CLI to skip installing packages                   |
 | `--disable-git`                         | Explicitly tell the CLI to disable git initialization                 |
+| `--agents-md`                           | Include `AGENTS.md` and `CLAUDE.md` to guide coding agents (default)  |
 | `--yes`                                 | Use previous preferences or defaults for all options                  |
 
 ## Examples
@@ -53,8 +66,20 @@ The following options are available:
 
 To create a new app using the default template, run the following command in your terminal:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app
+```
+
+```bash package="npm"
 npx create-next-app@latest
+```
+
+```bash package="yarn"
+yarn create next-app
+```
+
+```bash package="bun"
+bun create next-app
 ```
 
 On installation, you'll see the following prompts:
@@ -62,7 +87,7 @@ On installation, you'll see the following prompts:
 ```txt filename="Terminal"
 What is your project named? my-app
 Would you like to use the recommended Next.js defaults?
-    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, AGENTS.md
     No, reuse previous settings
     No, customize settings - Choose your own preferences
 ```
@@ -78,6 +103,7 @@ Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
+Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code? No / Yes
 ```
 
 After the prompts, `create-next-app` will create a folder with your project name and install the required dependencies.
@@ -96,8 +122,20 @@ Once you've answered the prompts, a new project will be created with your chosen
 
 To create a new app using an official Next.js example, use the `--example` flag. For example:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --example [example-name] [your-project-name]
+```
+
+```bash package="npm"
 npx create-next-app@latest --example [example-name] [your-project-name]
+```
+
+```bash package="yarn"
+yarn create next-app --example [example-name] [your-project-name]
+```
+
+```bash package="bun"
+bun create next-app --example [example-name] [your-project-name]
 ```
 
 You can view a list of all available examples along with setup instructions in the [Next.js repository](https://github.com/vercel/next.js/tree/canary/examples).
@@ -106,6 +144,18 @@ You can view a list of all available examples along with setup instructions in t
 
 To create a new app using any public GitHub example, use the `--example` option with the GitHub repo's URL. For example:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --example "https://github.com/.../" [your-project-name]
+```
+
+```bash package="npm"
 npx create-next-app@latest --example "https://github.com/.../" [your-project-name]
+```
+
+```bash package="yarn"
+yarn create next-app --example "https://github.com/.../" [your-project-name]
+```
+
+```bash package="bun"
+bun create next-app --example "https://github.com/.../" [your-project-name]
 ```

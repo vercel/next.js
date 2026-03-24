@@ -91,7 +91,7 @@ async function nextMetadataImageLoader(
     function getImageMetadata(imageMetadata, idParam, resolvedParams) {
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
-      )}, resolvedParams, ${JSON.stringify(pageSegment)})
+      )}, resolvedParams, ${JSON.stringify(pageSegment)}, false)
       const data = {
         alt: imageMetadata.alt,
         type: imageMetadata.contentType || 'image/png',
@@ -175,7 +175,7 @@ async function nextMetadataImageLoader(
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
       pathnamePrefix
-    )}, await props.params, ${JSON.stringify(pageSegment)})
+    )}, await props.params, ${JSON.stringify(pageSegment)}, true)
 
     return [{
       ...imageData,

@@ -13,6 +13,7 @@ default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 task_id_details = []
+verify_determinism = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
@@ -36,6 +37,7 @@ indexmap = { workspace = true, features = ["serde"] }
 inventory = { workspace = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
+phf = { workspace = true }
 pin-project-lite = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
@@ -44,19 +46,18 @@ serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 smallvec = { workspace = true }
-thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }
 turbo-dyn-eq-hash = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
-pot = "3.0.0"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

@@ -127,6 +127,7 @@ export class NextDevInstance extends NextInstance {
 
     const useTurbo =
       !process.env.NEXT_TEST_WASM &&
+      !process.env.NEXT_TEST_WASM_AFTER_JEST &&
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
@@ -150,7 +151,7 @@ export class NextDevInstance extends NextInstance {
       }
     }
 
-    console.log('running', shellQuote(startArgs))
+    require('console').log('running', shellQuote(startArgs))
     await new Promise<void>((resolve, reject) => {
       try {
         this.childProcess = spawn(startArgs[0], startArgs.slice(1), {
@@ -291,7 +292,7 @@ export class NextDevInstance extends NextInstance {
         }
 
         if (this.patchFileDelay > 0) {
-          console.warn(
+          require('console').warn(
             `Applying patch delay of ${this.patchFileDelay}ms. Note: Introducing artificial delays is generally discouraged, as it may affect test reliability. However, this delay is configurable on a per-test basis.`
           )
           await waitFor(this.patchFileDelay)

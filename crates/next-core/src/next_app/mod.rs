@@ -13,7 +13,6 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
@@ -30,8 +29,6 @@ pub use crate::next_app::{
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -137,8 +134,6 @@ impl Display for PageSegment {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -173,8 +168,6 @@ impl Display for PageType {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
@@ -251,6 +244,18 @@ impl AppPage {
 
         for segment in page.split('/') {
             app_page.push_str(segment)?;
+        }
+
+        if let Some(last) = app_page.0.last_mut()
+            && let PageSegment::Static(last_name) = &*last
+        {
+            // Next.js internals sometimes omit extensions when creating synthetic page entries
+            if last_name == "page" || last_name.starts_with("page.") {
+                *last = PageSegment::PageType(PageType::Page);
+            } else if last_name == "route" || last_name.starts_with("route.") {
+                *last = PageSegment::PageType(PageType::Route);
+            }
+            // can also be metadata (and be neither Page nor Route)
         }
 
         Ok(app_page)
@@ -355,8 +360,6 @@ impl PartialOrd for AppPage {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -413,8 +416,6 @@ impl Display for PathSegment {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
@@ -538,5 +539,71 @@ impl From<AppPage> for AppPath {
                 })
                 .collect(),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::next_app::{AppPage, PageSegment, PageType};
+
+    #[test]
+    fn test_normalize_metadata_route() {
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/page.tsx").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Page),
+            ])
+        );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/page").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Page),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/route.tsx").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Route),
+            ])
+        );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/route").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Route),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("foo/sitemap").unwrap(),
+            AppPage(vec![
+                PageSegment::Static("foo".into()),
+                PageSegment::Static("sitemap".into()),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("foo/robots.txt").unwrap(),
+            AppPage(vec![
+                PageSegment::Static("foo".into()),
+                PageSegment::Static("robots.txt".into()),
+            ])
+        );
     }
 }

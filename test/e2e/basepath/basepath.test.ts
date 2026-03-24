@@ -1,4 +1,3 @@
-import url from 'url'
 import assert from 'assert'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -456,23 +455,25 @@ describe('basePath', () => {
   it('should have correct href for a link', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     const href = await browser.elementByCss('a').getAttribute('href')
-    const { pathname } = url.parse(href)
+    const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}/other-page`)
   })
 
   it('should have correct href for a link to /', async () => {
     const browser = await webdriver(next.url, `${basePath}/link-to-root`)
     const href = await browser.elementByCss('#link-back').getAttribute('href')
-    const { pathname } = url.parse(href)
+    const { pathname } = new URL(href, await browser.url())
     expect(pathname).toBe(`${basePath}`)
   })
 
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(
-      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
-    )
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
+      expect(text).toContain('This page could not be found')
+    }
   })
 
   it('should show the other-page page under the /docs prefix', async () => {

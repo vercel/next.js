@@ -50,15 +50,19 @@ pub fn mangle(content: &str) -> String {
 }
 
 /// Decodes a magic identifier into a string.
-pub fn unmangle(identifier: &str) -> String {
-    static DECODE_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"^__TURBOPACK__([a-zA-Z0-9_$]+)__$").unwrap());
+/// Returns None if the identifier is not mangled.
+pub fn unmangle(identifier: &str) -> Option<String> {
+    // Check for magic identifier prefix and suffix
+    if !identifier.starts_with("__TURBOPACK__") || !identifier.ends_with("__") {
+        return None;
+    }
 
-    let Some(captures) = DECODE_REGEX.captures(identifier) else {
-        return identifier.to_string();
-    };
+    // Extract the content between __TURBOPACK__ and the trailing __
+    let content = &identifier[13..identifier.len() - 2];
 
-    let content = captures.get(1).unwrap().as_str();
+    if content.is_empty() {
+        return None;
+    }
 
     enum Mode {
         Text,
@@ -74,7 +78,8 @@ pub fn unmangle(identifier: &str) -> String {
             Mode::Text => match char {
                 '_' => mode = Mode::Underscore,
                 '$' => mode = Mode::Hex,
-                c => output.push(c),
+                c if c.is_ascii_alphanumeric() => output.push(c),
+                _ => return None,
             },
             Mode::Underscore => match char {
                 '_' => {
@@ -85,11 +90,12 @@ pub fn unmangle(identifier: &str) -> String {
                     output.push('_');
                     mode = Mode::Hex;
                 }
-                c => {
+                c if c.is_ascii_alphanumeric() => {
                     output.push('_');
                     output.push(c);
                     mode = Mode::Text;
                 }
+                _ => return None,
             },
             Mode::Hex => {
                 if buffer.len() == 2 {
@@ -107,9 +113,10 @@ pub fn unmangle(identifier: &str) -> String {
                         debug_assert!(buffer.is_empty());
                         mode = Mode::Text;
                     }
-                    c => {
+                    c if c.is_ascii_hexdigit() => {
                         buffer.push(c);
                     }
+                    _ => return None,
                 }
             }
             Mode::LongHex => {
@@ -122,15 +129,16 @@ pub fn unmangle(identifier: &str) -> String {
                         buffer.clear();
                         mode = Mode::Text;
                     }
-                    c => {
+                    c if c.is_ascii_hexdigit() => {
                         buffer.push(c);
                     }
+                    _ => return None,
                 }
             }
         }
     }
     debug_assert!(matches!(mode, Mode::Text));
-    output
+    Some(output)
 }
 
 /// Decode all magic identifiers in a string.
@@ -142,7 +150,9 @@ pub fn unmangle_identifiers<T: Display>(text: &str, magic: impl Fn(String) -> T)
 
     impl<T: Fn(String) -> O, O: Display> Replacer for Rep<T, O> {
         fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
-            write!(dst, "{}", self.0(unmangle(caps.get(0).unwrap().as_str()))).unwrap();
+            let matched = caps.get(0).unwrap().as_str();
+            let unmangled = unmangle(matched).unwrap();
+            write!(dst, "{}", self.0(unmangled)).unwrap();
         }
     }
 
@@ -176,28 +186,50 @@ mod tests {
 
     #[test]
     fn test_decode() {
-        assert_eq!(unmangle("__TURBOPACK__Hello__World__"), "Hello World");
-        assert_eq!(unmangle("__TURBOPACK__Hello_World__"), "Hello_World");
-        assert_eq!(unmangle("__TURBOPACK__Hello_$5f$World__"), "Hello__World");
-        assert_eq!(unmangle("__TURBOPACK__Hello_$5f$_World__"), "Hello___World");
-        assert_eq!(unmangle("__TURBOPACK__Hello$2f$World__"), "Hello/World");
+        assert_eq!(unmangle("foobar"), None);
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello__World__"),
+            Some("Hello World".to_string())
+        );
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello_World__"),
+            Some("Hello_World".to_string())
+        );
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello_$5f$World__"),
+            Some("Hello__World".to_string())
+        );
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello_$5f$_World__"),
+            Some("Hello___World".to_string())
+        );
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello$2f$World__"),
+            Some("Hello/World".to_string())
+        );
         assert_eq!(
             unmangle("__TURBOPACK__Hello$2f2f2f$World__"),
-            "Hello///World"
+            Some("Hello///World".to_string())
         );
-        assert_eq!(unmangle("__TURBOPACK__Hello$2f$_World__"), "Hello/_World");
-        assert_eq!(unmangle("__TURBOPACK__Hello_$2f$_World__"), "Hello_/_World");
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello$2f$_World__"),
+            Some("Hello/_World".to_string())
+        );
+        assert_eq!(
+            unmangle("__TURBOPACK__Hello_$2f$_World__"),
+            Some("Hello_/_World".to_string())
+        );
         assert_eq!(
             unmangle("__TURBOPACK__Hello$_1f600$World__"),
-            "Hello😀World"
+            Some("Hello😀World".to_string())
         );
         assert_eq!(
             unmangle("__TURBOPACK__Hello$2f_1f600$$2f$World__"),
-            "Hello/😀/World"
+            Some("Hello/😀/World".to_string())
         );
         assert_eq!(
             unmangle("__TURBOPACK__Hello$_1f600$$_1f600$World__"),
-            "Hello😀😀World"
+            Some("Hello😀😀World".to_string())
         );
     }
 

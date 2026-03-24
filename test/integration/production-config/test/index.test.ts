@@ -20,9 +20,11 @@ describe('Production Config Usage', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await nextBuild(appDir)
+        await nextBuild(appDir, undefined, { disableAutoSkewProtection: true })
         appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        app = await nextStart(appDir, appPort, {
+          disableAutoSkewProtection: true,
+        })
       })
       afterAll(() => killApp(app))
 

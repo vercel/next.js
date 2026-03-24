@@ -1,7 +1,6 @@
-import { nextTestSetup } from 'e2e-utils'
 import {
+  nextTestSetupActionTreeShaking,
   getActionsRoutesStateByRuntime,
-  markLayoutAsEdge,
 } from '../_testing/utils'
 import { retry } from 'next-test-utils'
 
@@ -9,36 +8,43 @@ import { retry } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - reexport',
   () => {
-    const { next } = nextTestSetup({
+    const { next } = nextTestSetupActionTreeShaking({
       files: __dirname,
       skipDeployment: true,
     })
 
-    if (process.env.TEST_EDGE) {
-      markLayoutAsEdge(next)
-    }
-
     it('should not tree-shake namespace exports the manifest', async () => {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
 
-      expect(actionsRoutesState).toMatchObject({
-        'app/namespace-reexport/server/page': {
-          // Turbopack does not tree-shake server side chunks
-          rsc: process.env.IS_TURBOPACK_TEST ? 3 : 1,
-        },
-        'app/namespace-reexport/client/page': {
-          'action-browser': 1,
-        },
-        // We're not able to tree-shake these re-exports here in webpack mode
-        'app/named-reexport/server/page': {
-          // Turbopack supports tree-shaking these re-exports
-          rsc: 3,
-        },
-        'app/named-reexport/client/page': {
-          // Turbopack supports tree-shaking these re-exports
-          'action-browser': process.env.IS_TURBOPACK_TEST ? 1 : 3,
-        },
-      })
+      expect(actionsRoutesState).toMatchInlineSnapshot(`
+       {
+         "app/named-reexport/client/page": [
+           "app/named-reexport/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/named-reexport/server/page": [
+           "app/named-reexport/server/actions.js#sharedServerLayerAction",
+           "app/named-reexport/server/actions.js#unusedServerLayerAction1",
+           "app/named-reexport/server/actions.js#unusedServerLayerAction2",
+         ],
+         "app/namespace-reexport-2/client/page": [
+           "app/namespace-reexport-2/actions/action-modules.js#action",
+           "app/namespace-reexport-2/nested.js#getFoo",
+         ],
+         "app/namespace-reexport-2/server/page": [
+           "app/namespace-reexport-2/actions/action-modules.js#action",
+           "app/namespace-reexport-2/nested.js#foo",
+           "app/namespace-reexport-2/nested.js#getFoo",
+         ],
+         "app/namespace-reexport/client/page": [
+           "app/namespace-reexport/client/actions.js#sharedClientLayerAction",
+         ],
+         "app/namespace-reexport/server/page": [
+           "app/namespace-reexport/server/actions.js#sharedServerLayerAction",
+           "app/namespace-reexport/server/actions.js#unusedServerLayerAction1",
+           "app/namespace-reexport/server/actions.js#unusedServerLayerAction2",
+         ],
+       }
+      `)
     })
 
     it('should keep all the action exports for namespace export case on client layer', async () => {

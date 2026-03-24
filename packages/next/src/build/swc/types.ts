@@ -7,18 +7,25 @@ import type {
   NapiSourceDiagnostic,
   NapiProjectOptions,
   NapiPartialProjectOptions,
+  NapiCodeFrameOptions,
+  NapiCodeFrameLocation,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: NapiTurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
     startTurbopackTraceServer(
       traceFilePath: string,
@@ -45,6 +52,7 @@ export interface Binding {
     lightning: {
       transform(transformOptions: any): Promise<any>
       transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
     }
   }
 
@@ -68,10 +76,18 @@ export interface Binding {
     imports: Record<string, string | null>
   ): string
 
-  lockfileTryAcquire(path: string): Promise<Lockfile | null>
-  lockfileTryAcquireSync(path: string): Lockfile | null
+  lockfileTryAcquire(
+    path: string,
+    content?: string | null
+  ): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
   lockfileUnlock(lockfile: Lockfile): Promise<void>
   lockfileUnlockSync(lockfile: Lockfile): void
+  codeFrameColumns(
+    source: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | undefined
 }
 
 export type StyledString =
@@ -96,6 +112,30 @@ export type StyledString =
       value: StyledString[]
     }
 
+/** 0-indexed line and column position within a source file. */
+export interface SourcePosition {
+  line: number
+  column: number
+}
+
+export interface IssueSource {
+  source: {
+    ident: string
+    filePath: string
+  }
+  range?: {
+    start: SourcePosition
+    end: SourcePosition
+  }
+}
+
+export interface AdditionalIssueSource {
+  description: string
+  source: IssueSource
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
+}
+
 export interface Issue {
   severity: string
   stage: string
@@ -103,28 +143,12 @@ export interface Issue {
   title: StyledString
   description?: StyledString
   detail?: StyledString
-  source?: {
-    source: {
-      ident: string
-      content?: string
-    }
-    range?: {
-      start: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-      end: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-    }
-  }
+  source?: IssueSource
+  additionalSources?: AdditionalIssueSource[]
   documentationLink: string
   importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 export interface PlainTraceItem {
   fsName: string
@@ -192,14 +216,43 @@ interface PartialUpdate extends BaseUpdate {
 
 export type Update = IssuesUpdate | PartialUpdate
 
-export interface HmrIdentifiers {
-  identifiers: string[]
+/**
+ * IMPORTANT: This type is duplicated in:
+ * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
+ *
+ * The runtime file cannot import from this ES module without triggering module semantics,
+ * so we maintain a copy there. Please keep both definitions in sync.
+ */
+export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'EcmascriptMergedUpdate'
+    entries: Record<
+      string,
+      { code: string; url: string; map?: string | undefined }
+    >
+    chunks?: Record<string, { type: 'partial' }>
+  }
 }
 
-/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/packages/next-swc/crates/napi/src/next_api/project.rs#L824-L833 */
+export interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}
+
+export type NodeJsHmrUpdate =
+  | IssuesUpdate
+  | NodeJsPartialHmrUpdate
+  | NodeJsRestartHmrUpdate
+
+export interface HmrChunkNames {
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  chunkNames: string[]
+}
+
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
 export interface TurbopackStackFrame {
   isServer: boolean
-  isInternal?: boolean
+  isIgnored?: boolean
   file: string
   originalFile?: string
   /** 1-indexed, unlike source map tokens */
@@ -222,6 +275,7 @@ export type CompilationEvent = {
   typeName: string
   message: string
   severity: string
+  eventJson: string
   eventData: any
 }
 
@@ -243,11 +297,18 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Client
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
 
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<
-    TurbopackResult<HmrIdentifiers>
-  >
+  hmrChunkNamesSubscribe(
+    target: import('./index').HmrTarget
+  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
 
   getSourceForAsset(filePath: string): Promise<string | null>
 

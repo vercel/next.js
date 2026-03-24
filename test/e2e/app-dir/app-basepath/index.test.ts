@@ -75,22 +75,8 @@ describe('app dir - basepath', () => {
       let rscRequests = []
       const browser = await next.browser(path, {
         beforePageLoad(page) {
-          page.on('request', async (request) => {
-            let headers: { [key: string]: string }
-            try {
-              headers = await request.allHeaders()
-            } catch (e) {
-              if (
-                e.message.includes(
-                  'Target page, context or browser has been closed'
-                )
-              ) {
-                // Ignore errors caused by closed browser during test teardown
-                return
-              }
-              throw e
-            }
-
+          page.on('request', (request) => {
+            const headers = request.headers()
             if (
               headers['rsc'] === '1' &&
               // Prefetches also include `rsc`
@@ -103,6 +89,7 @@ describe('app dir - basepath', () => {
       })
 
       await browser.elementByCss('button').click()
+      await browser.waitForIdleNetwork()
       await retry(async () => {
         expect(rscRequests).toEqual([
           expect.stringContaining(`${next.url}${path}`),

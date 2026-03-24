@@ -1,0 +1,1 @@
+The UserDashboard component needs to fetch user-specific data that changes on each request. Implement this component as an async server component to fetch from `https://api.example.com/user/preferences` and display the data. Follow the async server component patterns in this codebase.

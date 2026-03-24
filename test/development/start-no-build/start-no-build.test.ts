@@ -6,7 +6,7 @@ describe('next start without next build', () => {
       files: __dirname,
       skipStart: true,
       startCommand: `pnpm next start`,
-      serverReadyPattern: /✓ Starting.../,
+      serverReadyPattern: /Local:/,
     })
 
     await next.start()

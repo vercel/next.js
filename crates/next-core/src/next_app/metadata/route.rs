@@ -2,11 +2,11 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{Ok, Result, bail};
+use anyhow::{Ok, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{Vc, turbobail, turbofmt};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -83,19 +83,18 @@ pub async fn get_app_metadata_route_entry(
     // Map dynamic sitemap and image routes based on the exports.
     // if there's generator export: add /[__metadata_id__] to the route;
     // otherwise keep the original route.
-    // For sitemap, if the last segment is sitemap, appending .xml suffix.
     if is_dynamic_metadata {
         // remove the last /route segment of page
         page.0.pop();
 
         if is_multi_dynamic {
-            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
-        } else {
-            // if page last segment is sitemap, change to sitemap.xml
-            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap"))) {
+            // For sitemap.xml routes with generateSitemaps, revert to sitemap
+            // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
+            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
                 page.0.pop();
-                page.push(PageSegment::Static(rcstr!("sitemap.xml")))?
+                page.push(PageSegment::Static(rcstr!("sitemap")))?;
             }
+            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
         };
         // Push /route back
         page.push(PageSegment::PageType(PageType::Route))?;
@@ -124,10 +123,7 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
             Base64Display::new(&content, &STANDARD).to_string()
         }
         FileContent::NotFound => {
-            bail!(
-                "metadata file not found: {}",
-                &path.value_to_string().await?
-            );
+            turbobail!("metadata file not found: {path}")
         }
     })
 }
@@ -202,9 +198,13 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
     };
 
+    // Use full filename (stem + extension) to avoid conflicts when multiple icon
+    // formats exist (e.g., icon.png and icon.svg)
+    let filename = path.file_name();
+
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
+        path.parent().join(&format!("{filename}--route-entry.js"))?,
         AssetContent::file(FileContent::Content(file).cell()),
     );
 
@@ -567,16 +567,16 @@ impl Issue for StaticMetadataFileSizeIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
         Ok(Vc::cell(Some(
             StyledString::Text(
-                format!(
-                    "File size for {} image \"{}\" exceeds {}MB. (Current: {:.1}MB)",
+                turbofmt!(
+                    "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
                     self.img_name,
-                    self.path.value_to_string().await?,
+                    self.path,
                     self.file_size_limit_mb,
-                    (self.file_size as f32) / 1024.0 / 1024.0
                 )
-                .into(),
+                .await?,
             )
             .resolved_cell(),
         )))

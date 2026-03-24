@@ -1,0 +1,11 @@
+{
+  "name": "test-pkg-sync-cjs",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "module-sync": "./module-sync.js",
+      "import": "./import.js",
+      "default": "./fallback.js"
+    }
+  }
+}
