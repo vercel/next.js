@@ -8,6 +8,14 @@ use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
+/// Returns an empty salt `Vc<RcStr>` meaning "no salt applied to this hash".
+///
+/// Use this instead of `Vc::cell(RcStr::default())` at call sites that don't control the
+/// hash salt — e.g. internal hashes not exposed to the user as filenames.
+pub fn no_hash_salt() -> Vc<RcStr> {
+    Vc::cell(RcStr::default())
+}
+
 /// A file or intermediate result containing content as a [`Rope`] or a symlink.
 ///
 /// This is a supertrait for [`Source`], [`OutputAsset`], and [`OutputChunk`].

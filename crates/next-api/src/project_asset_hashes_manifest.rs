@@ -8,7 +8,7 @@ use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIt
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::{Asset, AssetContent, no_hash_salt},
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReference,
         expand_output_assets,
@@ -143,7 +143,7 @@ impl Asset for AssetHashesManifestAsset {
                 Ok((
                     path,
                     asset
-                        .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::Xxh3Hash128Base38)
+                        .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                         .await?,
                 ))
             })

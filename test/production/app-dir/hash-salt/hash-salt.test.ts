@@ -25,45 +25,43 @@ describe('NEXT_HASH_SALT', () => {
   const chunksDir = () => join(next.testDir, '.next/static/chunks')
   const mediaDir = () => join(next.testDir, '.next/static/media')
 
-  // Three builds: salt-a (first), salt-a (second, same salt), salt-b (different salt)
-  let saltAFirst: string[] = []
-  let saltAImages: string[] = []
-  let saltASecond: string[] = []
-  let saltB: string[] = []
-  let saltBImages: string[] = []
+  /** Build with the given salt and return { chunks, images } filename lists. */
+  async function buildWithSalt(salt: string) {
+    await next.build({ env: { NEXT_HASH_SALT: salt } })
+    const chunks = await getFilenames(chunksDir(), '.js')
+    const images = await getFilenames(mediaDir(), '.png')
+    await next.clean()
+    return { chunks, images }
+  }
+
+  // Three builds: salt-a (twice for reproducibility check) and salt-b.
+  let saltAFirst: Awaited<ReturnType<typeof buildWithSalt>>
+  let saltASecond: Awaited<ReturnType<typeof buildWithSalt>>
+  let saltB: Awaited<ReturnType<typeof buildWithSalt>>
 
   beforeAll(async () => {
-    await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
-    saltAFirst = await getFilenames(chunksDir(), '.js')
-    saltAImages = await getFilenames(mediaDir(), '.png')
-
-    await next.clean()
-    await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
-    saltASecond = await getFilenames(chunksDir(), '.js')
-
-    await next.clean()
-    await next.build({ env: { NEXT_HASH_SALT: 'salt-b' } })
-    saltB = await getFilenames(chunksDir(), '.js')
-    saltBImages = await getFilenames(mediaDir(), '.png')
+    saltAFirst = await buildWithSalt('salt-a')
+    saltASecond = await buildWithSalt('salt-a')
+    saltB = await buildWithSalt('salt-b')
   })
 
   it('should produce chunk files', () => {
-    expect(saltAFirst.length).toBeGreaterThan(0)
+    expect(saltAFirst.chunks.length).toBeGreaterThan(0)
   })
 
   it('same salt produces identical chunk filenames', () => {
-    expect(saltAFirst.sort()).toEqual(saltASecond.sort())
+    expect(saltAFirst.chunks.sort()).toEqual(saltASecond.chunks.sort())
   })
 
   it('different salt produces different chunk filenames', () => {
-    expect(saltAFirst.sort()).not.toEqual(saltB.sort())
+    expect(saltAFirst.chunks.sort()).not.toEqual(saltB.chunks.sort())
   })
 
   it('should produce image files', () => {
-    expect(saltAImages.length).toBeGreaterThan(0)
+    expect(saltAFirst.images.length).toBeGreaterThan(0)
   })
 
   it('different salt produces different image filenames', () => {
-    expect(saltAImages.sort()).not.toEqual(saltBImages.sort())
+    expect(saltAFirst.images.sort()).not.toEqual(saltB.images.sort())
   })
 })
