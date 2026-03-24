@@ -443,23 +443,23 @@ impl<Context> Decode<Context> for RcStr {
             .try_into()
             .map_err(|_| DecodeError::OutsideUsizeRange(len))?;
 
-        // Try to peek at the bytes without copying. If the reader supports
-        // peek (e.g. TurboBincodeReader backed by &[u8]), we can check for
-        // inline/static matches before allocating.
-        if let Some(bytes) = decoder.reader().peek_read(len) {
+        if unty::type_equal::<D::R, turbo_bincode::TurboBincodeReader>() {
+            // We know the reader is a TurboBincodeReader backed by &[u8], so peek_read
+            // returning None means data corruption (not enough bytes), not "unsupported".
+            let bytes = decoder
+                .reader()
+                .peek_read(len)
+                .ok_or(DecodeError::UnexpectedEnd { additional: len })?;
             let s = core::str::from_utf8(bytes).map_err(|inner| DecodeError::Utf8 { inner })?;
             let rcstr = RcStr::from_deserialized(s);
             decoder.reader().consume(len);
-            return Ok(rcstr);
+            Ok(rcstr)
+        } else {
+            unreachable!(
+                "RcStr::decode expected TurboBincodeReader, but was called with a {} reader",
+                std::any::type_name::<D::R>(),
+            )
         }
-
-        // Fallback: reader doesn't support peek, read into a buffer
-        let mut bytes = vec![0u8; len];
-        decoder.reader().read(&mut bytes)?;
-        let s = String::from_utf8(bytes).map_err(|e| DecodeError::Utf8 {
-            inner: e.utf8_error(),
-        })?;
-        Ok(RcStr::from_deserialized(&s))
     }
 }
 
@@ -526,6 +526,8 @@ static STATIC_TABLE: LazyLock<
     for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
         let entries = map.entry(phs.hash).or_default();
         // Deduplicate: skip if an entry with the same string content exists
+        // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
+        // on pointer equality.
         if !entries
             .iter()
             .any(|e| e.value.as_str() == phs.value.as_str())
@@ -615,8 +617,6 @@ mod napi_impl {
 #[cfg(test)]
 mod tests {
     use std::mem::ManuallyDrop;
-
-    use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
 
     use super::*;
 

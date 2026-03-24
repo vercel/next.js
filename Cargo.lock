@@ -9497,6 +9497,7 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-tasks-hash",
+ "unty",
 ]
 
 [[package]]
