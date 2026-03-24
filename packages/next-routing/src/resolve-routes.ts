@@ -367,6 +367,30 @@ function checkDynamicRoutes(
   return { matched: false }
 }
 
+function shouldInvokeMiddlewareForRequest(
+  middlewareMatchers: Route[] | undefined,
+  url: URL,
+  requestHeaders: Headers
+): boolean {
+  // Preserve legacy behavior for callers that don't yet provide matchers.
+  if (middlewareMatchers === undefined) {
+    return true
+  }
+
+  if (middlewareMatchers.length === 0) {
+    return false
+  }
+
+  for (const matcher of middlewareMatchers) {
+    const match = matchRoute(matcher, url, requestHeaders)
+    if (match.matched) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export async function resolveRoutes(
   params: ResolveRoutesParams
 ): Promise<ResolveRoutesResult> {
@@ -530,58 +554,66 @@ export async function resolveRoutes(
     currentUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
   }
 
-  // Invoke middleware
-  const middlewareResult = await invokeMiddleware({
-    url: currentUrl,
-    headers: currentRequestHeaders,
-    requestBody,
-  })
+  const shouldInvokeMiddleware = shouldInvokeMiddlewareForRequest(
+    routes.middlewareMatchers,
+    currentUrl,
+    currentRequestHeaders
+  )
 
-  // Check if middleware sent the response body
-  if (middlewareResult.bodySent) {
-    return { middlewareResponded: true }
-  }
-
-  // Apply request headers from middleware
-  if (middlewareResult.requestHeaders) {
-    currentRequestHeaders = new Headers(middlewareResult.requestHeaders)
-  }
-
-  // Apply response headers from middleware
-  if (middlewareResult.responseHeaders) {
-    middlewareResult.responseHeaders.forEach((value, key) => {
-      if (key.toLowerCase() === 'set-cookie') {
-        currentResponseHeaders.append(key, value)
-      } else {
-        currentResponseHeaders.set(key, value)
-      }
+  if (shouldInvokeMiddleware) {
+    // Invoke middleware
+    const middlewareResult = await invokeMiddleware({
+      url: currentUrl,
+      headers: currentRequestHeaders,
+      requestBody,
     })
-  }
 
-  // Handle middleware redirect
-  if (middlewareResult.redirect) {
-    if (!currentResponseHeaders.has('location')) {
-      currentResponseHeaders.set(
-        'Location',
-        middlewareResult.redirect.url.toString()
-      )
+    // Check if middleware sent the response body
+    if (middlewareResult.bodySent) {
+      return { middlewareResponded: true }
     }
-    return {
-      resolvedHeaders: currentResponseHeaders,
-      status: middlewareResult.redirect.status,
+
+    // Apply request headers from middleware
+    if (middlewareResult.requestHeaders) {
+      currentRequestHeaders = new Headers(middlewareResult.requestHeaders)
     }
-  }
 
-  // Handle middleware rewrite
-  if (middlewareResult.rewrite) {
-    currentUrl = middlewareResult.rewrite
+    // Apply response headers from middleware
+    if (middlewareResult.responseHeaders) {
+      middlewareResult.responseHeaders.forEach((value, key) => {
+        if (key.toLowerCase() === 'set-cookie') {
+          currentResponseHeaders.append(key, value)
+        } else {
+          currentResponseHeaders.set(key, value)
+        }
+      })
+    }
 
-    // Check if it's an external rewrite
-    if (currentUrl.origin !== initialOrigin) {
+    // Handle middleware redirect
+    if (middlewareResult.redirect) {
+      if (!currentResponseHeaders.has('location')) {
+        currentResponseHeaders.set(
+          'Location',
+          middlewareResult.redirect.url.toString()
+        )
+      }
       return {
-        externalRewrite: currentUrl,
         resolvedHeaders: currentResponseHeaders,
-        status: currentStatus,
+        status: middlewareResult.redirect.status,
+      }
+    }
+
+    // Handle middleware rewrite
+    if (middlewareResult.rewrite) {
+      currentUrl = middlewareResult.rewrite
+
+      // Check if it's an external rewrite
+      if (currentUrl.origin !== initialOrigin) {
+        return {
+          externalRewrite: currentUrl,
+          resolvedHeaders: currentResponseHeaders,
+          status: currentStatus,
+        }
       }
     }
   }

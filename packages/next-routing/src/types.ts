@@ -59,6 +59,11 @@ export type ResolveRoutesParams = {
   }
   routes: {
     beforeMiddleware: Array<Route>
+    /**
+     * Middleware matcher definitions used to decide whether middleware should
+     * be invoked for the current request.
+     */
+    middlewareMatchers?: Array<Route>
     beforeFiles: Array<Route>
     afterFiles: Array<Route>
     dynamicRoutes: Array<Route>

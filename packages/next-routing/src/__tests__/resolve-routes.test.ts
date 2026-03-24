@@ -143,6 +143,122 @@ describe('resolveRoutes - beforeMiddleware', () => {
 })
 
 describe('resolveRoutes - invokeMiddleware', () => {
+  it('should skip invokeMiddleware when middleware matchers are empty', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/no-matchers'),
+      pathnames: ['/no-matchers'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
+    expect(result.resolvedPathname).toBe('/no-matchers')
+  })
+
+  it('should skip invokeMiddleware when middleware matchers do not match', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/no-match'),
+      pathnames: ['/no-match'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/middleware-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
+    expect(result.resolvedPathname).toBe('/no-match')
+  })
+
+  it('should call invokeMiddleware when a middleware matcher matches', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/middleware-only'),
+      pathnames: ['/middleware-only'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/middleware-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('should evaluate has conditions in middleware matchers', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/has-header'),
+      pathnames: ['/has-header'],
+      headers: new Headers({
+        'x-test': 'enabled',
+      }),
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/has-header$',
+            has: [
+              {
+                type: 'header',
+                key: 'x-test',
+                value: 'enabled',
+              },
+            ],
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
   it('should call invokeMiddleware with current URL and headers', async () => {
     const middlewareMock = jest.fn().mockResolvedValue({})
 
