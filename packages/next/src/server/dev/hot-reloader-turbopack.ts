@@ -100,7 +100,8 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/get-supported-browsers'
+import { printBuildErrors } from '../../build/print-build-errors'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -158,9 +159,9 @@ type ServerHmrSubscriptions = Map<
 function setupServerHmr(
   project: Project,
   {
-    onUpdateFailed,
+    clear,
   }: {
-    onUpdateFailed: () => void | Promise<void>
+    clear: () => void | Promise<void>
   }
 ) {
   const serverHmrSubscriptions: ServerHmrSubscriptions = new Map()
@@ -184,6 +185,14 @@ function setupServerHmr(
 
       for await (const result of subscription) {
         const update = result as NodeJsHmrUpdate
+
+        // Fully re-evaluate all chunks from disk. Clears the module cache and
+        // notifies browsers to refetch RSC.
+        if (update.type === 'restart') {
+          await clear()
+          continue
+        }
+
         if (update.type !== 'partial') {
           continue
         }
@@ -196,14 +205,14 @@ function setupServerHmr(
         if (typeof __turbopack_server_hmr_apply__ === 'function') {
           const applied = __turbopack_server_hmr_apply__(update)
           if (!applied) {
-            await onUpdateFailed()
+            await clear()
           }
         }
       }
     })().catch(async (err) => {
       console.error('[Server HMR] Subscription error:', err)
       serverHmrSubscriptions.delete(chunkPath)
-      await onUpdateFailed()
+      await clear()
     })
   }
 
@@ -300,7 +309,7 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -403,6 +412,8 @@ export async function createHotReloaderTurbopack(
       isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(
         opts.nextConfig
       ),
+      nextVersion: process.env.__NEXT_VERSION as string,
+      serverHmr: serverFastRefresh,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -414,11 +425,19 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'TraceEvent',
     ],
+    parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
+
+  // Set up code frame renderer using native bindings
+  const { installCodeFrameSupport } =
+    require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
+  installCodeFrameSupport()
+
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     await project.onExit()
@@ -449,7 +468,7 @@ export async function createHotReloaderTurbopack(
     distDir,
     encryptionKey,
     dev: true,
-    deploymentId: nextConfig.deploymentId,
+    sriEnabled: false,
   })
 
   // Dev specific
@@ -579,32 +598,52 @@ export async function createHotReloaderTurbopack(
       }
     }
 
-    resetFetch()
-
     const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
       join(distDir, p)
     )
 
-    for (const file of serverPaths) {
-      // Skip clearing cache for server chunks with active HMR subscriptions
-      // Server HMR already applied granular updates to the turbopack module cache
-      const relativePath = relative(distDir, file)
-      if (serverHmrSubscriptions?.has(relativePath)) {
-        continue
-      }
+    const { type: entryType } = splitEntryKey(key)
 
+    // Server HMR applies to all App Router entries built with the Turbopack
+    // Node.js runtime: both app pages and route handlers. Edge routes,
+    // Pages Router pages, and middleware/instrumentation do not use the
+    // Turbopack Node.js dev runtime and are excluded.
+    const usesServerHmr =
+      serverFastRefresh &&
+      entryType === 'app' &&
+      writtenEndpoint.type !== 'edge'
+
+    const filesToDelete: string[] = []
+    for (const file of serverPaths) {
       clearModuleContext(file)
-      deleteCache(file)
+
+      const relativePath = relative(distDir, file)
+      if (
+        // For Pages Router, edge routes, middleware, and manifest files:
+        // clear the sharedCache in evalManifest(), Node.js require.cache,
+        // and edge runtime module contexts.
+        force ||
+        !usesServerHmr ||
+        !serverHmrSubscriptions?.has(relativePath)
+      ) {
+        filesToDelete.push(file)
+      }
+    }
+    deleteCache(filesToDelete)
+
+    // Reset the fetch patch so patchFetch() can re-wrap on the next request.
+    if (serverPaths.length > 0) {
+      resetFetch()
     }
 
-    // Clear Turbopack's module cache when server HMR is not active.
-    // When server HMR IS active, HMR manages the module cache granularly,
-    // so we must not clear it here.
-    // Not available in:
-    // - Pages Router (no server-side HMR)
-    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+    // Clear Turbopack's chunk-loading cache so chunks are re-required from disk on
+    // the next request.
+    //
+    // For App Router with server HMR, this is normally skipped as server HMR
+    // manages module updates in-place. However, it *is* required when force is `true`
+    // (like for .env file or tsconfig changes).
     if (
-      !serverHmrSubscriptions &&
+      (!usesServerHmr || force) &&
       typeof __next__clear_chunk_cache__ === 'function'
     ) {
       __next__clear_chunk_cache__()
@@ -1794,15 +1833,24 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  if (experimentalServerFastRefresh) {
+  if (serverFastRefresh) {
     serverHmrSubscriptions = setupServerHmr(project, {
-      onUpdateFailed: async () => {
+      clear: async () => {
+        // Clear Node's require cache of all Turbopack-built modules
+        const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
+          (chunkPath) => join(distDir, chunkPath)
+        )
+        deleteCache(chunkPaths)
+
+        // Clear Turbopack's runtime caches
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
 
-        // Clear all module contexts so they're re-evaluated on next request
+        // Clear all edge contexts
         await clearAllModuleContexts()
+
+        resetFetch()
 
         // Tell browsers to refetch RSC (soft refresh, not full page reload)
         hotReloader.send({

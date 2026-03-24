@@ -364,6 +364,7 @@ export function createPatchedFetcher(
             case 'prerender-runtime':
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
+            case 'validation-client':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'cache':
@@ -372,6 +373,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -404,12 +406,14 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'validation-client':
             case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
             case 'cache':
             case 'private-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -560,6 +564,8 @@ export function createPatchedFetcher(
                 workStore.route,
                 'fetch()'
               )
+            case 'validation-client':
+              break
             case 'request':
               if (
                 process.env.NODE_ENV === 'development' &&
@@ -579,6 +585,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -677,6 +684,12 @@ export function createPatchedFetcher(
                 case 'prerender':
                 case 'prerender-client':
                 case 'prerender-runtime':
+                // If we're in an instant validation, a dynamic fetch won't
+                // have time to resolve during the validation prerender anyway,
+                // so we leave it hanging. This can cause false negatives in shared parents,
+                // but we accept that for now, because client data fetching is non-idiomatic.
+                // eslint-disable-next-line no-fallthrough
+                case 'validation-client':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
@@ -705,6 +718,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -744,10 +758,12 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'validation-client':
             case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -864,6 +880,7 @@ export function createPatchedFetcher(
                 switch (workUnitStore?.type) {
                   case 'prerender':
                   case 'prerender-client':
+                  case 'validation-client':
                   case 'prerender-runtime':
                     return createCachedPrerenderResponse(
                       res,
@@ -901,6 +918,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
+                  case 'generate-static-params':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -960,6 +978,7 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'validation-client':
                 case 'prerender-runtime':
                   // We sometimes use the cache to dedupe fetches that do not
                   // specify a cache configuration. In these cases we want to
@@ -983,6 +1002,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1083,6 +1103,7 @@ export function createPatchedFetcher(
                 case 'prerender':
                 case 'prerender-client':
                 case 'prerender-runtime':
+                case 'validation-client':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
@@ -1111,6 +1132,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
+                case 'generate-static-params':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1137,6 +1159,7 @@ export function createPatchedFetcher(
                   case 'prerender':
                   case 'prerender-client':
                   case 'prerender-runtime':
+                  case 'validation-client':
                     return makeHangingPromise<Response>(
                       workUnitStore.renderSignal,
                       workStore.route,
@@ -1157,6 +1180,7 @@ export function createPatchedFetcher(
                   case 'unstable-cache':
                   case 'prerender-legacy':
                   case 'prerender-ppr':
+                  case 'generate-static-params':
                     break
                   default:
                     workUnitStore satisfies never

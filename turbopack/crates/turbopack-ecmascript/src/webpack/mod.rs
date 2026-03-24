@@ -80,7 +80,7 @@ pub struct WebpackChunkAssetReference {
 }
 
 impl WebpackChunkAssetReference {
-    pub fn chunk_id(&self) -> RcStr {
+    fn chunk_id(&self) -> RcStr {
         match &self.chunk_id {
             Lit::Str(s) => RcStr::from(s.value.to_string_lossy().to_string()),
             Lit::Num(n) => RcStr::from(n.to_string()),

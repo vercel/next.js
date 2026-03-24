@@ -12,10 +12,13 @@ import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
 import React, {
   Activity,
+  Fragment,
   useContext,
   use,
   Suspense,
   useDeferredValue,
+  useLayoutEffect,
+  type FragmentInstance,
   type JSX,
   type ActivityProps,
 } from 'react'
@@ -27,7 +30,6 @@ import {
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
-import { matchSegment } from './match-segments'
 import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
@@ -44,6 +46,8 @@ import {
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
 import { isDeferredRsc } from './router-reducer/ppr-navigations'
+
+const enableNewScrollHandler = process.env.__NEXT_APP_NEW_SCROLL_HANDLER
 
 const __DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = (
   ReactDOM as any
@@ -96,9 +100,23 @@ function shouldSkipElement(element: HTMLElement) {
 /**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
-function topOfElementInViewport(element: HTMLElement, viewportHeight: number) {
-  const rect = element.getBoundingClientRect()
-  return rect.top >= 0 && rect.top <= viewportHeight
+function topOfElementInViewport(
+  instance: HTMLElement | FragmentInstance,
+  viewportHeight: number
+): boolean {
+  const rects = instance.getClientRects()
+  if (rects.length === 0) {
+    // Just to be explicit.
+    return false
+  }
+  let elementTop = Number.POSITIVE_INFINITY
+  for (let i = 0; i < rects.length; i++) {
+    const rect = rects[i]
+    if (rect.top < elementTop) {
+      elementTop = rect.top
+    }
+  }
+  return elementTop >= 0 && elementTop <= viewportHeight
 }
 
 /**
@@ -120,117 +138,105 @@ function getHashFragmentDomNode(hashFragment: string) {
     document.getElementsByName(hashFragment)[0]
   )
 }
-interface ScrollAndFocusHandlerProps {
+interface ScrollAndMaybeFocusHandlerProps {
   focusAndScrollRef: FocusAndScrollRef
   children: React.ReactNode
-  segmentPath: FlightSegmentPath
+  cacheNode: CacheNode
 }
-class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerProps> {
+class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusHandlerProps> {
   handlePotentialScroll = () => {
     // Handle scroll and focus, it's only applied once.
-    const { focusAndScrollRef, segmentPath } = this.props
+    const { focusAndScrollRef, cacheNode } = this.props
 
-    if (focusAndScrollRef.apply) {
-      // segmentPaths is an array of segment paths that should be scrolled to
-      // if the current segment path is not in the array, the scroll is not applied
-      // unless the array is empty, in which case the scroll is always applied
-      if (
-        focusAndScrollRef.segmentPaths.length !== 0 &&
-        !focusAndScrollRef.segmentPaths.some((scrollRefSegmentPath) =>
-          segmentPath.every((segment, index) =>
-            matchSegment(segment, scrollRefSegmentPath[index])
-          )
-        )
-      ) {
-        return
-      }
+    const scrollRef = focusAndScrollRef.forceScroll
+      ? focusAndScrollRef.scrollRef
+      : cacheNode.scrollRef
+    if (scrollRef === null || !scrollRef.current) return
 
-      let domNode:
-        | ReturnType<typeof getHashFragmentDomNode>
-        | ReturnType<typeof findDOMNode> = null
-      const hashFragment = focusAndScrollRef.hashFragment
+    let domNode:
+      | ReturnType<typeof getHashFragmentDomNode>
+      | ReturnType<typeof findDOMNode> = null
+    const hashFragment = focusAndScrollRef.hashFragment
 
-      if (hashFragment) {
-        domNode = getHashFragmentDomNode(hashFragment)
-      }
+    if (hashFragment) {
+      domNode = getHashFragmentDomNode(hashFragment)
+    }
 
-      // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
-      // This already caused a bug where the first child was a <link/> in head.
-      if (!domNode) {
-        domNode = findDOMNode(this)
-      }
+    // `findDOMNode` is tricky because it returns just the first child if the component is a fragment.
+    // This already caused a bug where the first child was a <link/> in head.
+    if (!domNode) {
+      domNode = findDOMNode(this)
+    }
 
-      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
-      if (!(domNode instanceof Element)) {
-        return
-      }
+    // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+    if (!(domNode instanceof Element)) {
+      return
+    }
 
-      // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
-      // If the element is skipped, try to select the next sibling and try again.
-      while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
-        if (process.env.NODE_ENV !== 'production') {
-          if (domNode.parentElement?.localName === 'head') {
-            // TODO: We enter this state when metadata was rendered as part of the page or via Next.js.
-            // This is always a bug in Next.js and caused by React hoisting metadata.
-            // We need to replace `findDOMNode` in favor of Fragment Refs (when available) so that we can skip over metadata.
-          }
+    // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
+    // If the element is skipped, try to select the next sibling and try again.
+    while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+      if (process.env.NODE_ENV !== 'production') {
+        if (domNode.parentElement?.localName === 'head') {
+          // We enter this state when metadata was rendered as part of the page or via Next.js.
+          // This is always a bug in Next.js and caused by React hoisting metadata.
+          // Fixed with `experimental.appNewScrollHandler`
         }
+      }
 
-        // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
-        if (domNode.nextElementSibling === null) {
+      // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
+      if (domNode.nextElementSibling === null) {
+        return
+      }
+      domNode = domNode.nextElementSibling
+    }
+
+    // Mark as scrolled so no other segment scrolls for this navigation.
+    scrollRef.current = false
+
+    disableSmoothScrollDuringRouteTransition(
+      () => {
+        // In case of hash scroll, we only need to scroll the element into view
+        if (hashFragment) {
+          domNode.scrollIntoView()
+
           return
         }
-        domNode = domNode.nextElementSibling
-      }
+        // Store the current viewport height because reading `clientHeight` causes a reflow,
+        // and it won't change during this function.
+        const htmlElement = document.documentElement
+        const viewportHeight = htmlElement.clientHeight
 
-      // State is mutated to ensure that the focus and scroll is applied only once.
-      focusAndScrollRef.apply = false
-      focusAndScrollRef.hashFragment = null
-      focusAndScrollRef.segmentPaths = []
-
-      disableSmoothScrollDuringRouteTransition(
-        () => {
-          // In case of hash scroll, we only need to scroll the element into view
-          if (hashFragment) {
-            domNode.scrollIntoView()
-
-            return
-          }
-          // Store the current viewport height because reading `clientHeight` causes a reflow,
-          // and it won't change during this function.
-          const htmlElement = document.documentElement
-          const viewportHeight = htmlElement.clientHeight
-
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(domNode, viewportHeight)) {
-            return
-          }
-
-          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
-          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
-          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
-          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
-          htmlElement.scrollTop = 0
-
-          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
-          if (!topOfElementInViewport(domNode, viewportHeight)) {
-            // Scroll into view doesn't scroll horizontally by default when not needed
-            domNode.scrollIntoView()
-          }
-        },
-        {
-          // We will force layout by querying domNode position
-          dontForceLayout: true,
-          onlyHashChange: focusAndScrollRef.onlyHashChange,
+        // If the element's top edge is already in the viewport, exit early.
+        if (topOfElementInViewport(domNode, viewportHeight)) {
+          return
         }
-      )
 
-      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
-      focusAndScrollRef.onlyHashChange = false
+        // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+        // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+        // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+        // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+        htmlElement.scrollTop = 0
 
-      // Set focus on the element
-      domNode.focus()
-    }
+        // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+        if (!topOfElementInViewport(domNode, viewportHeight)) {
+          // Scroll into view doesn't scroll horizontally by default when not needed
+          domNode.scrollIntoView()
+        }
+      },
+      {
+        // We will force layout by querying domNode position
+        dontForceLayout: true,
+        onlyHashChange: focusAndScrollRef.onlyHashChange,
+      }
+    )
+
+    // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
+    focusAndScrollRef.onlyHashChange = false
+    focusAndScrollRef.hashFragment = null
+
+    // Set focus on the element
+    domNode.focus()
   }
 
   componentDidMount() {
@@ -246,12 +252,116 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
   }
 }
 
-function ScrollAndFocusHandler({
-  segmentPath,
+/**
+ * Fork of InnerScrollAndFocusHandlerOld using Fragment refs for scrolling.
+ * No longer focuses the first host descendant.
+ */
+function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
+  const childrenRef = React.useRef<FragmentInstance>(null)
+
+  useLayoutEffect(
+    () => {
+      const { focusAndScrollRef, cacheNode } = props
+
+      const scrollRef = focusAndScrollRef.forceScroll
+        ? focusAndScrollRef.scrollRef
+        : cacheNode.scrollRef
+      if (scrollRef === null || !scrollRef.current) return
+
+      let instance: FragmentInstance | HTMLElement | null = null
+      const hashFragment = focusAndScrollRef.hashFragment
+
+      if (hashFragment) {
+        instance = getHashFragmentDomNode(hashFragment)
+      }
+
+      if (!instance) {
+        instance = childrenRef.current
+      }
+
+      // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
+      if (instance === null) {
+        return
+      }
+
+      // Mark as scrolled so no other segment scrolls for this navigation.
+      scrollRef.current = false
+
+      const activeElement = document.activeElement
+      if (
+        activeElement !== null &&
+        'blur' in activeElement &&
+        typeof activeElement.blur === 'function'
+      ) {
+        // Trying to match hard navigations.
+        // Ideally we'd move the internal focus cursor either to the top
+        // or at least before the segment. But there's no DOM API to do that,
+        // so we just blur.
+        // We could workaround this by moving focus to a temporary element in
+        // the body. But adding elements might trigger layout or other effects
+        // so it should be well motivated.
+        activeElement.blur()
+      }
+
+      disableSmoothScrollDuringRouteTransition(
+        () => {
+          // In case of hash scroll, we only need to scroll the element into view
+          if (hashFragment) {
+            instance.scrollIntoView()
+
+            return
+          }
+          // Store the current viewport height because reading `clientHeight` causes a reflow,
+          // and it won't change during this function.
+          const htmlElement = document.documentElement
+          const viewportHeight = htmlElement.clientHeight
+
+          // If the element's top edge is already in the viewport, exit early.
+          if (topOfElementInViewport(instance, viewportHeight)) {
+            return
+          }
+
+          // Otherwise, try scrolling go the top of the document to be backward compatible with pages
+          // scrollIntoView() called on `<html/>` element scrolls horizontally on chrome and firefox (that shouldn't happen)
+          // We could use it to scroll horizontally following RTL but that also seems to be broken - it will always scroll left
+          // scrollLeft = 0 also seems to ignore RTL and manually checking for RTL is too much hassle so we will scroll just vertically
+          htmlElement.scrollTop = 0
+
+          // Scroll to domNode if domNode is not in viewport when scrolled to top of document
+          if (!topOfElementInViewport(instance, viewportHeight)) {
+            // Scroll into view doesn't scroll horizontally by default when not needed
+            instance.scrollIntoView()
+          }
+        },
+        {
+          // We will force layout by querying domNode position
+          dontForceLayout: true,
+          onlyHashChange: focusAndScrollRef.onlyHashChange,
+        }
+      )
+
+      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
+      focusAndScrollRef.onlyHashChange = false
+      focusAndScrollRef.hashFragment = null
+    },
+    // Used to run on every commit. We may be able to be smarter about this
+    // but be prepared for lots of manual testing.
+    undefined
+  )
+
+  return <Fragment ref={childrenRef}>{props.children}</Fragment>
+}
+
+const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
+  ? InnerScrollHandlerNew
+  : InnerScrollAndFocusHandlerOld
+
+function ScrollAndMaybeFocusHandler({
   children,
+  cacheNode,
 }: {
-  segmentPath: FlightSegmentPath
   children: React.ReactNode
+  cacheNode: CacheNode
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   if (!context) {
@@ -259,12 +369,12 @@ function ScrollAndFocusHandler({
   }
 
   return (
-    <InnerScrollAndFocusHandler
-      segmentPath={segmentPath}
+    <InnerScrollAndMaybeFocusHandler
       focusAndScrollRef={context.focusAndScrollRef}
+      cacheNode={cacheNode}
     >
       {children}
-    </InnerScrollAndFocusHandler>
+    </InnerScrollAndMaybeFocusHandler>
   )
 }
 
@@ -558,6 +668,13 @@ export default function OuterLayoutRouter({
     use(unresolvedThenable) as never
   }
 
+  let maybeValidationBoundaryId: string | null = null
+  if (typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS) {
+    const { InstantValidationBoundaryContext } =
+      require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
+    maybeValidationBoundaryId = use(InstantValidationBoundaryContext)
+  }
+
   const activeSegment = activeTree[0]
   const activeCacheNode = maybeParentSlots![parallelRouterKey] ?? null
   const activeStateKey = createRouterCacheKey(activeSegment, true) // no search params
@@ -643,54 +760,67 @@ export default function OuterLayoutRouter({
     const isVirtual = debugName === undefined
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
-    let child = (
-      <TemplateContext.Provider
-        key={stateKey}
-        value={
-          <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundary
-              errorComponent={error}
-              errorStyles={errorStyles}
-              errorScripts={errorScripts}
+    let templateValue = (
+      <ScrollAndMaybeFocusHandler cacheNode={cacheNode}>
+        <ErrorBoundary
+          errorComponent={error}
+          errorStyles={errorStyles}
+          errorScripts={errorScripts}
+        >
+          <LoadingBoundary
+            name={debugNameToDisplay}
+            // TODO: The loading module data for a segment is stored on the
+            // parent, then applied to each of that parent segment's
+            // parallel route slots. In the simple case where there's only
+            // one parallel route (the `children` slot), this is no
+            // different from if the loading module data were stored on the
+            // child directly. But I'm not sure this actually makes sense
+            // when there are multiple parallel routes. It's not a huge
+            // issue because you always have the option to define a narrower
+            // loading boundary for a particular slot. But this sort of
+            // smells like an implementation accident to me.
+            loading={parentLoadingData}
+          >
+            <HTTPAccessFallbackBoundary
+              notFound={notFound}
+              forbidden={forbidden}
+              unauthorized={unauthorized}
             >
-              <LoadingBoundary
-                name={debugNameToDisplay}
-                // TODO: The loading module data for a segment is stored on the
-                // parent, then applied to each of that parent segment's
-                // parallel route slots. In the simple case where there's only
-                // one parallel route (the `children` slot), this is no
-                // different from if the loading module data were stored on the
-                // child directly. But I'm not sure this actually makes sense
-                // when there are multiple parallel routes. It's not a huge
-                // issue because you always have the option to define a narrower
-                // loading boundary for a particular slot. But this sort of
-                // smells like an implementation accident to me.
-                loading={parentLoadingData}
-              >
-                <HTTPAccessFallbackBoundary
-                  notFound={notFound}
-                  forbidden={forbidden}
-                  unauthorized={unauthorized}
-                >
-                  <RedirectBoundary>
-                    <InnerLayoutRouter
-                      url={url}
-                      tree={tree}
-                      params={params}
-                      cacheNode={cacheNode}
-                      segmentPath={segmentPath}
-                      debugNameContext={childDebugNameContext}
-                      isActive={isActive && stateKey === activeStateKey}
-                    />
-                    {segmentBoundaryTriggerNode}
-                  </RedirectBoundary>
-                </HTTPAccessFallbackBoundary>
-              </LoadingBoundary>
-            </ErrorBoundary>
-            {segmentViewStateNode}
-          </ScrollAndFocusHandler>
-        }
-      >
+              <RedirectBoundary>
+                <InnerLayoutRouter
+                  url={url}
+                  tree={tree}
+                  params={params}
+                  cacheNode={cacheNode}
+                  segmentPath={segmentPath}
+                  debugNameContext={childDebugNameContext}
+                  isActive={isActive && stateKey === activeStateKey}
+                />
+                {segmentBoundaryTriggerNode}
+              </RedirectBoundary>
+            </HTTPAccessFallbackBoundary>
+          </LoadingBoundary>
+        </ErrorBoundary>
+        {segmentViewStateNode}
+      </ScrollAndMaybeFocusHandler>
+    )
+
+    if (
+      typeof window === 'undefined' &&
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      typeof maybeValidationBoundaryId === 'string'
+    ) {
+      const { RenderValidationBoundaryAtThisLevel } =
+        require('./instant-validation/boundary') as typeof import('./instant-validation/boundary')
+      templateValue = (
+        <RenderValidationBoundaryAtThisLevel id={maybeValidationBoundaryId}>
+          {templateValue}
+        </RenderValidationBoundaryAtThisLevel>
+      )
+    }
+
+    let child = (
+      <TemplateContext.Provider key={stateKey} value={templateValue}>
         {templateStyles}
         {templateScripts}
         {template}
@@ -747,9 +877,9 @@ function getBoundaryDebugNameFromSegment(segment: Segment): string | undefined {
 
 function isVirtualLayout(segment: string): boolean {
   return (
-    // This is inserted by the loader. We should consider encoding these
-    // in a more special way instead of checking the name, to distinguish them
-    // from app-defined groups.
-    segment === '(slot)'
+    // This is inserted by the loader. Uses double-underscore convention
+    // (like __PAGE__ and __DEFAULT__) to avoid collisions with
+    // user-defined route groups.
+    segment === '(__SLOT__)'
   )
 }

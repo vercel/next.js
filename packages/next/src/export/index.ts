@@ -64,7 +64,7 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
@@ -477,7 +477,6 @@ async function exportAppImpl(
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
-    dev: false,
     basePath: nextConfig.basePath,
     cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
@@ -510,20 +509,14 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-    hasReadableErrorStacks:
-      nextConfig.experimental.serverSourceMaps === true &&
-      // TODO(NDX-531): Checking (and setting) the minify flags should be
-      // unnecessary once name mapping is fixed.
-      (process.env.TURBOPACK
-        ? nextConfig.experimental.turbopackMinify === false
-        : nextConfig.experimental.serverMinification === false) &&
-      nextConfig.enablePrerenderSourceMaps === true,
   }
 
   // We need this for server rendering the Link component.
@@ -713,6 +706,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
+            clientAssetToken:
+              nextConfig.experimental.immutableAssetToken ||
+              nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
@@ -737,11 +733,20 @@ async function exportAppImpl(
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
   if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
       } else {
         initialPhaseExportPaths.push(exportPath)
+      }
+
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
       }
     }
   } else {
@@ -1006,7 +1011,7 @@ async function exportAppImpl(
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )

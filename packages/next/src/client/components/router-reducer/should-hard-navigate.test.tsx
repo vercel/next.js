@@ -1,7 +1,8 @@
 import React from 'react'
-import type {
-  FlightData,
-  FlightRouterState,
+import {
+  PrefetchHint,
+  type FlightData,
+  type FlightRouterState,
 } from '../../../shared/lib/app-router-types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
@@ -19,7 +20,7 @@ describe('shouldHardNavigate', () => {
       },
       undefined,
       undefined,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -78,7 +79,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {
@@ -135,7 +136,7 @@ describe('shouldHardNavigate', () => {
       },
       null,
       null,
-      true,
+      PrefetchHint.IsRootLayout,
     ]
     const initialRouterStateTree = getInitialRouterStateTree()
     const getFlightData = (): FlightData => {

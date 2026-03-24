@@ -29,18 +29,12 @@ describe('instant validation - opting out of static shells', () => {
   })
 })
 
-describe.each([
-  { debugChannelEnabled: true, description: 'with debug channel' },
-  { debugChannelEnabled: false, description: 'without debug channel' },
-])('instant validation - $description', ({ debugChannelEnabled }) => {
+describe('instant validation', () => {
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
       skipDeployment: true,
-      env: {
-        REACT_DEBUG_CHANNEL: debugChannelEnabled ? '1' : '',
-      },
     })
     if (skipped) return
 
@@ -51,6 +45,7 @@ describe.each([
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E1084",
            "description": "Data that blocks navigation was accessed outside of <Suspense>
 
          This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.

@@ -1,6 +1,6 @@
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::rope::Rope;
-use twox_hash::xxhash3_128;
+use turbo_tasks_hash::Xxh3Hash128Hasher;
 
 /// Generate a deterministic debug ID from content using hash-based UUID generation
 ///
@@ -8,11 +8,9 @@ use twox_hash::xxhash3_128;
 /// based on the content, ensuring reproducible builds while maintaining uniqueness.
 /// Uses xxHash3-128 for fast, stable, and collision-resistant hashing.
 pub fn generate_debug_id(content: &Rope) -> RcStr {
-    let mut hasher = xxhash3_128::Hasher::new();
-    for bytes in content.read() {
-        hasher.write(bytes.as_ref());
-    }
-    let hash = hasher.finish_128();
+    let mut hasher = Xxh3Hash128Hasher::new();
+    hasher.write_value(content.content_hash());
+    let hash = hasher.finish();
     uuid::Uuid::from_u128(hash)
         .as_hyphenated()
         .to_string()

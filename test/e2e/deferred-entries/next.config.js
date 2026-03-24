@@ -4,6 +4,12 @@ const path = require('path')
 const logFile = path.join(__dirname, '.entry-log')
 const callbackLogFile = path.join(__dirname, '.callback-log')
 const deferredPageFile = path.join(__dirname, 'app', 'deferred', 'page.tsx')
+const routeHandlerFile = path.join(
+  __dirname,
+  'app',
+  'route-handler',
+  'route.ts'
+)
 const homePageFile = path.join(__dirname, 'app', 'page.tsx')
 
 let lastHomePageContent = null
@@ -11,7 +17,7 @@ let lastHomePageContent = null
 /** @type {import('next').NextConfig} */
 module.exports = {
   experimental: {
-    deferredEntries: ['/deferred'],
+    deferredEntries: ['/deferred', '/route-handler'],
     onBeforeDeferredEntries: async () => {
       const timestamp = Date.now()
       const homePageContent = fs.readFileSync(homePageFile, 'utf-8')
@@ -32,6 +38,18 @@ module.exports = {
           )
         }
         fs.writeFileSync(deferredPageFile, nextDeferredPageContent)
+
+        const routeHandlerContent = fs.readFileSync(routeHandlerFile, 'utf-8')
+        const nextRouteHandlerContent = routeHandlerContent.replace(
+          /const ROUTE_HANDLER_CALLBACK_TIMESTAMP = \d+/,
+          `const ROUTE_HANDLER_CALLBACK_TIMESTAMP = ${timestamp}`
+        )
+        if (nextRouteHandlerContent === routeHandlerContent) {
+          throw new Error(
+            'Failed to update ROUTE_HANDLER_CALLBACK_TIMESTAMP in route handler entry'
+          )
+        }
+        fs.writeFileSync(routeHandlerFile, nextRouteHandlerContent)
 
         // Persist only write-triggering callback timestamps.
         // This avoids deferred self-rebuild callback loops in webpack dev.
@@ -54,6 +72,13 @@ module.exports = {
   // Turbopack loader configuration
   turbopack: {
     rules: {
+      '*ts': {
+        loaders: [
+          {
+            loader: path.join(__dirname, 'entry-logger-loader.js'),
+          },
+        ],
+      },
       '*.tsx': {
         loaders: [
           {

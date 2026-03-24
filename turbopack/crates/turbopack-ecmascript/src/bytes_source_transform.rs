@@ -5,6 +5,7 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     source::Source,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
@@ -30,7 +31,11 @@ impl BytesSourceTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for BytesSourceTransform {
     #[turbo_tasks::function]
-    async fn transform(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
+    async fn transform(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        _asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<Box<dyn Source>>> {
         let ident = source.ident();
         let path = ident.path().await?;
         let content = source.content().file_content().await?;
@@ -47,9 +52,6 @@ impl SourceTransform for BytesSourceTransform {
 
         // Generate ES module that decodes base64 to Uint8Array with inline source map.
         // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments.
-        // The /*#__PURE__*/ annotation marks the decode call as side-effect free for tree shaking.
-        // For binary files, we use an empty string as sourcesContent since the
-        // original content isn't meaningful text.
         let code = format!(
             r#"
 "use turbopack no side effects";
@@ -66,6 +68,8 @@ const decode = Uint8Array.fromBase64 || function(base64) {{
 export default decode({});
 {}"#,
             StringifyJs(&encoded),
+            // For binary files, we use an empty string as sourcesContent since the
+            // original content isn't meaningful text.
             inline_source_map_comment(&path.path, "")
         );
 

@@ -3,14 +3,14 @@ import { retry, waitForNoRedbox, waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('turbopack-ignore-issue', () => {
-  describe('with turbopackIgnoreIssue config', () => {
+  describe('with turbopack.ignoreIssue config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
-      // turbopackIgnoreIssue is turbopack-only
+      // turbopack.ignoreIssue is turbopack-only
       skipDeployment: true,
       nextConfig: {
-        experimental: {
-          turbopackIgnoreIssue: [
+        turbopack: {
+          ignoreIssue: [
             {
               // glob string pattern for path
               path: '**/with-warning/**',
@@ -37,7 +37,7 @@ describe('turbopack-ignore-issue', () => {
 
     if (skipped) return
     if (!isTurbopack) {
-      it('should skip tests since turbopackIgnoreIssue only works with Turbopack', () => {})
+      it('should skip tests since turbopack.ignoreIssue only works with Turbopack', () => {})
       return
     }
 
@@ -54,7 +54,7 @@ describe('turbopack-ignore-issue', () => {
       })
 
       // Now that compilation is complete, the warning should be absent
-      // because our turbopackIgnoreIssue rule matches the path.
+      // because our turbopack.ignoreIssue rule matches the path.
       const output = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(output).not.toContain('a-missing-module-for-testing')
     })
@@ -122,7 +122,7 @@ describe('turbopack-ignore-issue', () => {
     })
   })
 
-  describe('without turbopackIgnoreIssue config', () => {
+  describe('without turbopack.ignoreIssue config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
@@ -136,7 +136,7 @@ describe('turbopack-ignore-issue', () => {
       await next.fetch('/with-warning')
 
       // The warning about 'a-missing-module-for-testing' should appear
-      // since there is no turbopackIgnoreIssue config
+      // since there is no turbopack.ignoreIssue config
       await retry(async () => {
         const output = stripAnsi(next.cliOutput.slice(outputIndex))
         expect(output).toContain('a-missing-module-for-testing')
@@ -145,12 +145,12 @@ describe('turbopack-ignore-issue', () => {
 
     it('should show error in error overlay when not ignored', async () => {
       if (!isTurbopack) {
-        // turbopackIgnoreIssue only works with Turbopack
+        // turbopack.ignoreIssue only works with Turbopack
         return
       }
 
       // Navigate to the page with a top-level require of a missing module.
-      // Without turbopackIgnoreIssue, the error should appear in the overlay.
+      // Without turbopack.ignoreIssue, the error should appear in the overlay.
       const browser = await next.browser('/with-error')
       await waitForRedbox(browser)
     })

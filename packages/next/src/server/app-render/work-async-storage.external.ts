@@ -32,14 +32,6 @@ export interface WorkStore {
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
 
-  /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  readonly hasReadableErrorStacks?: boolean
-
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
@@ -106,7 +98,6 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
-  dev: boolean
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

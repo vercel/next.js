@@ -2,12 +2,6 @@
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
-import {
-  normalizeMetadataPageToRoute,
-  normalizeMetadataRoute,
-} from '../../lib/metadata/get-metadata-route'
-import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
@@ -21,86 +15,24 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../trace'
+import {
+  setGlobal,
+  trace,
+  initializeTraceState,
+  getTraceEvents,
+} from '../../trace'
+import type { TraceState } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../utils'
+import { getSupportedBrowsers } from '../get-supported-browsers'
+import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
-import {
-  collectAppFiles,
-  collectPagesFiles,
-  getPageFromPath,
-} from '../route-discovery'
-import { createValidFileMatcher } from '../../server/lib/find-page-file'
 import type {
   ProjectOptions,
   RawEntrypoints,
   TurbopackResult,
 } from '../swc/types'
-
-/**
- * Convert an app route path to debugBuildPaths format.
- * e.g. '/' -> '/page', '/blog' -> '/blog/page'
- */
-function toAppDebugPath(route: string, leaf: 'page' | 'route'): string {
-  const routePath = route.startsWith('/') ? route : `/${route}`
-  return routePath === '/' ? `/${leaf}` : `${routePath}/${leaf}`
-}
-
-/**
- * Convert deferred entry routes to debugBuildPaths format.
- * Routes like '/deferred' become '/deferred/page' for the filter.
- * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
- */
-function getDeferredBuildPaths(
-  deferredEntries: string[],
-  pagesPaths: string[],
-  metadataAppPaths: string[]
-): {
-  app: string[]
-  pages: string[]
-} {
-  return {
-    app: [
-      ...new Set([
-        ...deferredEntries.map((route) => toAppDebugPath(route, 'page')),
-        ...metadataAppPaths,
-      ]),
-    ],
-    // Include all pages routes so they are not filtered out
-    pages: pagesPaths,
-  }
-}
-
-/**
- * Collect app entries and filter out deferred app pages only.
- * This keeps non-page app entries (e.g. route handlers) in the non-deferred build.
- * @param pagesPaths - All pages routes to include (deferred entries only affects app routes)
- */
-function getNonDeferredBuildPaths(
-  appPaths: string[],
-  deferredEntries: string[],
-  pageExtensions: string[],
-  pagesPaths: string[]
-): { app: string[]; pages: string[] } | null {
-  if (deferredEntries.length === 0) {
-    return null
-  }
-
-  const deferredPagePaths = new Set(
-    deferredEntries.map((route) => toAppDebugPath(route, 'page'))
-  )
-  const nonDeferredAppPaths = appPaths.filter(
-    (appPath) =>
-      !deferredPagePaths.has(getPageFromPath(appPath, pageExtensions))
-  )
-
-  return {
-    app: nonDeferredAppPaths,
-    // Include all pages routes so they are not filtered out
-    pages: pagesPaths,
-  }
-}
+import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -140,72 +72,11 @@ export async function turbopackBuild(): Promise<{
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  // Handle deferred entries configuration
-  const deferredEntries = config.experimental.deferredEntries || []
-  const hasDeferredEntries = deferredEntries.length > 0
-  const onBeforeDeferredEntries = config.experimental.onBeforeDeferredEntries
+  const hasDeferredEntries =
+    (config.experimental.deferredEntries?.length ?? 0) > 0
 
-  // Collect all pages paths when using deferred entries to ensure pages routes
-  // are not filtered out (deferred entries only affects app routes)
-  let pagesPaths: string[] = []
-  let appPaths: string[] = []
-  let metadataAppPaths: string[] = []
-  if (hasDeferredEntries && NextBuildContext.pagesDir) {
-    const validFileMatcher = createValidFileMatcher(
-      config.pageExtensions!,
-      NextBuildContext.appDir
-    )
-    pagesPaths = await collectPagesFiles(
-      NextBuildContext.pagesDir,
-      validFileMatcher
-    )
-  }
-  if (hasDeferredEntries && NextBuildContext.appDir) {
-    const validFileMatcher = createValidFileMatcher(
-      config.pageExtensions!,
-      NextBuildContext.appDir
-    )
-    ;({ appPaths } = await collectAppFiles(
-      NextBuildContext.appDir,
-      validFileMatcher
-    ))
-    metadataAppPaths = Array.from(
-      new Set(
-        appPaths.flatMap((appPath) => {
-          if (!isMetadataRouteFile(appPath, config.pageExtensions!, true)) {
-            return []
-          }
-          const page = getPageFromPath(appPath, config.pageExtensions!)
-          const route = normalizeMetadataRoute(page)
-          return [
-            appPath,
-            page,
-            route,
-            normalizeMetadataPageToRoute(route, false),
-            normalizeMetadataPageToRoute(route, true),
-          ]
-        })
-      )
-    )
-  }
-
-  // For deferred entries, we use debugBuildPaths to control which routes are built
-  // First build excludes deferred entries, second build includes only deferred entries
-  const nonDeferredBuildPaths =
-    hasDeferredEntries && NextBuildContext.appDir
-      ? getNonDeferredBuildPaths(
-          appPaths,
-          deferredEntries,
-          config.pageExtensions!,
-          pagesPaths
-        )
-      : null
-  const deferredBuildPaths =
-    hasDeferredEntries && NextBuildContext.appDir
-      ? getDeferredBuildPaths(deferredEntries, pagesPaths, metadataAppPaths)
-      : null
-
-  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
+  const persistentCaching =
+    config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Shared options for createProject calls
@@ -241,36 +112,58 @@ export async function turbopackBuild(): Promise<{
       !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
     currentNodeJsVersion,
     isPersistentCachingEnabled: persistentCaching,
+    deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
   }
 
   const sharedTurboOptions = {
     memoryLimit: config.experimental?.turbopackMemoryLimit,
-    dependencyTracking: persistentCaching,
+    dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
   }
 
+  const sriEnabled = Boolean(config.experimental.sri?.algorithm)
+
   const project = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
-      // For deferred entries, first build only non-deferred routes
-      debugBuildPaths:
-        nonDeferredBuildPaths ?? NextBuildContext.debugBuildPaths,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
-    sharedTurboOptions
-  )
-  try {
-    backgroundLogCompilationEvents(project)
+    sharedTurboOptions,
+    hasDeferredEntries && config.experimental.onBeforeDeferredEntries
+      ? {
+          onBeforeDeferredEntries: async () => {
+            const workerConfig = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+              debugPrerender: NextBuildContext.debugPrerender,
+              reactProductionProfiling:
+                NextBuildContext.reactProductionProfiling,
+              bundler: Bundler.Turbopack,
+            })
 
+            await workerConfig.experimental.onBeforeDeferredEntries?.()
+          },
+        }
+      : undefined
+  )
+  const buildEventsSpan = trace('turbopack-build-events')
+  // Stop immediately: this span is only used as a parent for
+  // manualTraceChild calls which carry their own timestamps.
+  buildEventsSpan.stop()
+  const shutdownController = new AbortController()
+  const compilationEvents = backgroundLogCompilationEvents(project, {
+    parentSpan: buildEventsSpan,
+    signal: shutdownController.signal,
+  })
+
+  try {
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-    if (!config.deploymentId) {
-      await fs.mkdir(path.join(distDir, 'static', buildId), {
-        recursive: true,
-      })
-    }
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
+    })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
       '{"type": "commonjs"}'
@@ -278,62 +171,14 @@ export async function turbopackBuild(): Promise<{
 
     let appDirOnly = NextBuildContext.appDirOnly!
 
-    // First build: without deferred entries (they're renamed to .deferred)
-    let entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
 
-    let routes = entrypoints.routes
+    const routes = entrypoints.routes
     if (!routes) {
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
       throw new Error(`Turbopack build failed`)
-    }
-
-    // Track which project to shutdown at the end
-    let activeProject = project
-
-    // Handle deferred entries: call callback and do second build
-    if (deferredBuildPaths) {
-      // Call onBeforeDeferredEntries callback after first build completes
-      if (onBeforeDeferredEntries) {
-        await onBeforeDeferredEntries()
-      }
-
-      // Shutdown the first project instance
-      await project.shutdown()
-
-      // Create a new project instance with debugBuildPaths for only deferred routes
-      // A new project is needed because turbo_tasks caches entrypoints discovery
-      activeProject = await bindings.turbo.createProject(
-        {
-          ...sharedProjectOptions,
-          debugBuildPaths: deferredBuildPaths,
-        },
-        sharedTurboOptions
-      )
-
-      backgroundLogCompilationEvents(activeProject)
-
-      // Second build: only build deferred entries
-      const deferredEntrypoints =
-        await activeProject.writeAllEntrypointsToDisk(appDirOnly)
-      printBuildErrors(deferredEntrypoints, dev)
-
-      const deferredRoutes = deferredEntrypoints.routes
-      if (!deferredRoutes) {
-        throw new Error(`Turbopack build failed`)
-      }
-
-      // Merge deferred routes into the main routes
-      for (const [key, value] of deferredRoutes) {
-        routes.set(key, value)
-      }
-
-      // Update entrypoints to include merged routes for manifest processing
-      entrypoints = {
-        ...entrypoints,
-        routes,
-      }
     }
 
     const hasPagesEntries = Array.from(routes.values()).some((route) => {
@@ -352,7 +197,7 @@ export async function turbopackBuild(): Promise<{
       distDir,
       encryptionKey,
       dev: false,
-      deploymentId: config.deploymentId,
+      sriEnabled,
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
@@ -418,10 +263,17 @@ export async function turbopackBuild(): Promise<{
     })
 
     if (NextBuildContext.analyze) {
-      await activeProject.writeAnalyzeData(appDirOnly)
+      await project.writeAnalyzeData(appDirOnly)
     }
 
-    const shutdownPromise = activeProject.shutdown()
+    // Shutdown may trigger final compilation events (e.g. persistence,
+    // compaction trace spans).  This is the last chance to capture them.
+    // After shutdown resolves we abort the signal to close the iterator
+    // and drain any remaining buffered events.
+    const shutdownPromise = project.shutdown().then(() => {
+      shutdownController.abort()
+      return compilationEvents.catch(() => {})
+    })
 
     const time = process.hrtime(startTime)
     return {
@@ -431,6 +283,8 @@ export async function turbopackBuild(): Promise<{
     }
   } catch (err) {
     await project.shutdown()
+    shutdownController.abort()
+    await compilationEvents.catch(() => {})
     throw err
   }
 }
@@ -438,11 +292,13 @@ export async function turbopackBuild(): Promise<{
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
+  traceState: TraceState & { shouldSaveTraceEvents: boolean }
 }): Promise<
   Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
 > {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+  initializeTraceState(workerData.traceState)
 
   /// load the config because it's not serializable
   const config = await loadConfig(
@@ -451,6 +307,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     }
   )
   NextBuildContext.config = config
@@ -488,8 +345,13 @@ export async function workerMain(workerData: {
   }
 }
 
-export async function waitForShutdown(): Promise<void> {
+export async function waitForShutdown(): Promise<{
+  debugTraceEvents?: ReturnType<typeof getTraceEvents>
+}> {
   if (shutdownPromise) {
     await shutdownPromise
   }
+  // Collect trace events after shutdown completes so that all compilation
+  // events (e.g. persistence trace spans) have been processed.
+  return { debugTraceEvents: getTraceEvents() }
 }

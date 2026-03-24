@@ -194,6 +194,10 @@ program
     'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
   )
   .action((directory: string, options: NextBuildOptions) => {
+    if (options.debugPrerender) {
+      // @ts-expect-error not readonly
+      process.env.NODE_ENV = 'development'
+    }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
@@ -309,10 +313,7 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
-  .option(
-    '--experimental-server-fast-refresh',
-    'Enable experimental server-side Fast Refresh.'
-  )
+  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'

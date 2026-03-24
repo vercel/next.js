@@ -1,12 +1,13 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { execSync } from 'child_process'
 
-// Currently broken: https://github.com/yowainwright/es-check/issues/321
-describe.skip('ES Check .next output', () => {
-  let next: NextInstance
-  afterEach(() => next.destroy())
+const dependencies = {
+  'es-check': '9.6.1',
+  browserslist: '4.28.1',
+}
 
-  it('should downlevel JS according to manual browserslist with es2020', async () => {
+describe('escheck-output', () => {
+  describe('es2020', () => {
     let browserslist = [
       'chrome 64',
       'edge 79',
@@ -14,38 +15,63 @@ describe.skip('ES Check .next output', () => {
       'opera 51',
       'safari 12',
     ]
-    next = await createNext({
+    const { next } = nextTestSetup({
       files: __dirname,
-      dependencies: { 'es-check': '9.4.3' },
+      dependencies,
       packageJson: {
-        browserslist: browserslist,
-        scripts: {
-          build: 'next build && es-check es2020 ".next/static/**/*.js"',
-        },
+        browserslist,
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain(
-      'info: ES-Check: there were no ES version matching errors!  🎉'
-    )
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        'node_modules/.bin/es-check es2020 ".next/static/**/*.js" --noCache',
+        { cwd: next.testDir, encoding: 'utf8' }
+      )
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
   })
 
-  it('should downlevel JS according to default browserslist', async () => {
+  describe('default browserslist', () => {
     let browserslist = ['chrome 111', 'edge 111', 'firefox 111', 'safari 16.4']
-    next = await createNext({
+
+    const { next } = nextTestSetup({
       files: __dirname,
-      dependencies: { 'es-check': '9.4.3' },
+      dependencies,
       packageJson: {
-        scripts: {
-          build: `next build && es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}"`,
-        },
+        browserslist,
       },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
     })
-    expect(next.cliOutput).toContain(
-      'info: ES-Check: there were no ES version matching errors!  🎉'
-    )
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}" --noCache`,
+        { cwd: next.testDir, encoding: 'utf8' }
+      )
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+  })
+
+  describe('nomodule browsers', () => {
+    let browserslist = ['chrome 60']
+
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies,
+      packageJson: {
+        browserslist,
+      },
+    })
+
+    it('should downlevel JS', () => {
+      let esCheckOutput = execSync(
+        `node_modules/.bin/es-check checkBrowser ".next/static/**/*.js" --browserslistQuery="${browserslist.join(', ')}" --noCache`,
+        { cwd: next.testDir, encoding: 'utf8' }
+      )
+
+      expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
   })
 })

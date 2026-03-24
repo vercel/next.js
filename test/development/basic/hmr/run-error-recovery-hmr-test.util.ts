@@ -164,14 +164,14 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(source).toMatchInlineSnapshot(`
                   "./pages/hmr/about2.js (7:1)
-                  Parsing ecmascript source code failed
+                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
                     5 |     div
                     6 |   )
                   > 7 | }
                       | ^
                     8 |
 
-                  Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+                  Parsing ecmascript source code failed"
                 `)
         } else if (process.env.NEXT_RSPACK) {
           expect(trimEndMultiline(source)).toMatchInlineSnapshot(`
@@ -514,7 +514,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           expect(next.normalizeTestDirContent(redboxSource))
             .toMatchInlineSnapshot(`
                     "./components/parse-error.js (3:1)
-                    Parsing ecmascript source code failed
+                    Expression expected
                       1 | This
                       2 | is
                     > 3 | }}}
@@ -522,7 +522,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
                       4 | invalid
                       5 | js
 
-                    Expression expected
+                    Parsing ecmascript source code failed
 
                     Import traces:
                       Browser:

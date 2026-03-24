@@ -2,7 +2,14 @@ import type { SupportedErrorEvent } from '../container/runtime-error/render-erro
 import { getOriginalStackFrames } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
 import { getErrorSource } from '../../../shared/lib/error-source'
+import { parseStack } from '../../../server/lib/parse-stack'
 import React from 'react'
+
+export type ReadyErrorCause = {
+  error: Error
+  frames: () => Promise<readonly OriginalStackFrame[]>
+  cause?: ReadyErrorCause
+}
 
 export type ReadyRuntimeError = {
   id: number
@@ -10,6 +17,7 @@ export type ReadyRuntimeError = {
   error: Error & { environmentName?: string }
   frames: () => Promise<readonly OriginalStackFrame[]>
   type: 'runtime' | 'console' | 'recoverable'
+  cause?: ReadyErrorCause
 }
 
 export const useFrames = (
@@ -38,8 +46,32 @@ export function getErrorByType(
         isAppDir
       )
     }),
+    cause: getCauseChain(event.error, isAppDir),
   }
   return readyRuntimeError
+}
+
+function getCauseChain(
+  error: Error,
+  isAppDir: boolean,
+  depth: number = 0
+): ReadyErrorCause | undefined {
+  if (depth >= 5) return undefined
+  const cause = error.cause
+  if (!(cause instanceof Error)) return undefined
+
+  const frames = parseStack(cause.stack || '')
+  return {
+    error: cause,
+    frames: createMemoizedPromise(async () => {
+      return await getOriginalStackFrames(
+        frames,
+        getErrorSource(cause),
+        isAppDir
+      )
+    }),
+    cause: getCauseChain(cause, isAppDir, depth + 1),
+  }
 }
 
 function createMemoizedPromise<T>(

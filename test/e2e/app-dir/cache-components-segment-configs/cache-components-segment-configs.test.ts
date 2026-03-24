@@ -34,7 +34,7 @@ describe('cache-components-segment-configs', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
@@ -94,8 +94,10 @@ describe('cache-components-segment-configs', () => {
           }
 
           if (isTurbopack) {
+            // The page-level error is shown first in the redbox, but
+            // the layout error is also present in the CLI output.
             expect(redbox.description).toMatchInlineSnapshot(
-              `"Ecmascript file had an error"`
+              `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
             )
           } else {
             expect(redbox.description).toMatchInlineSnapshot(
@@ -103,6 +105,12 @@ describe('cache-components-segment-configs', () => {
             )
           }
           expect(redbox.source).toContain(
+            'is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+          )
+          // Verify that the "runtime" error from the layout propagation
+          // is present in the CLI output even if it's not the first error
+          // shown in the redbox.
+          expect(next.cliOutput).toContain(
             '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
           )
         } else {

@@ -234,7 +234,6 @@ Some features are not yet implemented or not planned:
   Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
 - **Some Next.js Experimental Flags**
   - `experimental.nextScriptWorkers`
-  - `experimental.sri.algorithm`
   - `experimental.fallbackNodePolyfills`
     We plan to implement these in the future.
 
@@ -250,6 +249,8 @@ Turbopack can be configured via `next.config.js` (or `next.config.ts`) under the
   Create manual aliases (like `resolve.alias` in webpack).
 - **`resolveExtensions`**
   Change or extend file extensions for module resolution.
+- **[`ignoreIssue`](/docs/app/api-reference/config/next-config-js/turbopackIgnoreIssue)**
+  Suppress specific Turbopack errors and warnings from the CLI output and error overlay.
 
 Additionally, the following experimental options are available under `experimental` in `next.config.js`:
 
@@ -257,7 +258,6 @@ Additionally, the following experimental options are available under `experiment
 | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------- | ----------------------------- |
 | [`turbopackFileSystemCacheForDev`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache)   | Enable filesystem cache for the dev server.                                            | `true`        | N/A                           |
 | [`turbopackFileSystemCacheForBuild`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) | Enable filesystem cache for builds.                                                    | N/A           | `false`                       |
-| [`turbopackIgnoreIssue`](/docs/app/api-reference/config/next-config-js/turbopackIgnoreIssue)                 | Suppress specific Turbopack errors and warnings from the CLI output and error overlay. | `[]`          | `[]`                          |
 | `turbopackMinify`                                                                                            | Enable minification.                                                                   | `false`       | `true`                        |
 | `turbopackSourceMaps`                                                                                        | Enable source maps.                                                                    | `true`        | `productionBrowserSourceMaps` |
 | `turbopackInputSourceMaps`                                                                                   | Enable extraction of source maps from input files.                                     | `true`        | `true`                        |

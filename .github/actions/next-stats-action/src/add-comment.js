@@ -973,6 +973,21 @@ function generateDiffsSection(result) {
   return content
 }
 
+function generatePrTarballSection(actionInfo) {
+  if (actionInfo.isRelease || !actionInfo.githubHeadSha) return ''
+
+  return `<details>
+<summary><strong>📎 Tarball URL</strong></summary>
+
+\`\`\`
+https://vercel-packages.vercel.app/next/commits/${actionInfo.githubHeadSha}/next
+\`\`\`
+
+</details>
+
+`
+}
+
 // ============================================================================
 // Main Export
 // ============================================================================
@@ -1033,6 +1048,8 @@ module.exports = async function addComment(
       comment += '<hr/>\n\n'
     }
   }
+
+  comment += generatePrTarballSection(actionInfo)
 
   // Save canary stats to history (only for releases, not PR comparisons)
   // This ensures we only track official canary metrics, not PR-specific data

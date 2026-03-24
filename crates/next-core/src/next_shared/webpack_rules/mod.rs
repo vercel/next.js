@@ -151,10 +151,6 @@ pub async fn webpack_loader_options(
             .await?,
     );
 
-    if rules.is_empty() {
-        return Ok(Vc::cell(None));
-    }
-
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
             rules: ResolvedVc::cell(rules),

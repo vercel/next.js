@@ -6,10 +6,7 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
-import {
-  DEFAULT_MAX_POSTPONED_STATE_SIZE,
-  parseMaxPostponedStateSize,
-} from './config-shared'
+import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -155,6 +152,11 @@ import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from './lib/postponed-request-body'
 
 export type FindComponentsResult<
   NextModule extends GenericComponentMod = GenericComponentMod,
@@ -326,6 +328,7 @@ export default abstract class Server<
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
   protected readonly deploymentId: string
+  protected readonly dev: boolean
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -444,6 +447,7 @@ export default abstract class Server<
       experimentalTestProxy,
     } = options
 
+    this.dev = dev
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
@@ -463,9 +467,6 @@ export default abstract class Server<
         )
       }
       this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = this.deploymentId
-        ? `?dpl=${this.deploymentId}`
-        : ''
     } else {
       let id = this.nextConfig.experimental.useSkewCookie
         ? ''
@@ -473,8 +474,11 @@ export default abstract class Server<
 
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
-      ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX = id ? `?dpl=${id}` : ''
     }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
+        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
+        : ''
 
     this.hostname = hostname
     if (this.hostname) {
@@ -569,13 +573,18 @@ export default abstract class Server<
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
         typeof this.nextConfig.logging === 'object' &&
@@ -870,6 +879,13 @@ export default abstract class Server<
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
+      // Capture the parent span before creating the handleRequest span.
+      // When deployed with an adapter, the platform's runtime may create its
+      // own OTEL HTTP server span before Next.js runs. We propagate http.route
+      // to this parent span so APM tools (e.g. Datadog) can derive the
+      // resource name correctly.
+      const parentSpan = tracer.getActiveScopeSpan()
+
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -928,6 +944,14 @@ export default abstract class Server<
                 'next.span_name': name,
               })
               span.updateName(name)
+
+              // Propagate http.route to the parent span if one exists and
+              // is different from the handleRequest span. This ensures APM
+              // tools that read attributes from the outermost span (e.g.
+              // a platform-created HTTP span) can derive the resource name.
+              if (parentSpan && parentSpan !== span) {
+                parentSpan.setAttribute('http.route', route)
+              }
             } else {
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
@@ -1067,37 +1091,28 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
-            // Get the configured max postponed state size.
-            const maxPostponedStateSize =
-              this.nextConfig.experimental.maxPostponedStateSize ??
-              DEFAULT_MAX_POSTPONED_STATE_SIZE
-            const maxPostponedStateSizeBytes = parseMaxPostponedStateSize(
-              this.nextConfig.experimental.maxPostponedStateSize
-            )
-            if (maxPostponedStateSizeBytes === undefined) {
-              throw new Error(
-                'maxPostponedStateSize must be a valid number (bytes) or filesize format string (e.g., "5mb")'
+            const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+              getMaxPostponedStateSize(
+                this.nextConfig.experimental.maxPostponedStateSize
               )
-            }
 
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
-            const body: Array<Buffer> = []
-            let size = 0
-            for await (const chunk of req.body) {
-              size += Buffer.byteLength(chunk)
-              if (size > maxPostponedStateSizeBytes) {
-                res.statusCode = 413
-                const errorMessage =
-                  `Postponed state exceeded ${maxPostponedStateSize} limit. ` +
-                  `To configure the limit, see: https://nextjs.org/docs/app/api-reference/config/next-config-js/max-postponed-state-size`
-                res.body(errorMessage).send()
-                return
-              }
-              body.push(chunk)
+            const body = await readBodyWithSizeLimit(
+              req.body,
+              maxPostponedStateSizeBytes
+            )
+            if (body === null) {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
             }
-            const postponed = Buffer.concat(body).toString('utf8')
+            const postponed = body.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
@@ -1593,11 +1608,7 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (
-        this.minimalMode ||
-        this.renderOpts.dev ||
-        (isBubbledError(err) && err.bubble)
-      ) {
+      if (this.minimalMode || this.dev || (isBubbledError(err) && err.bubble)) {
         throw err
       }
       this.logError(getProperError(err))
@@ -1788,16 +1799,11 @@ export default abstract class Server<
     const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      const { generateEtags, poweredByHeader } = this.renderOpts
 
       // In dev, we should not cache pages for any reason.
-      if (dev) {
-        res.setHeader(
-          'Cache-Control',
-          this.nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
-        )
+      if (this.dev) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         cacheControl = undefined
       }
 
@@ -2122,7 +2128,7 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
-    } else if (!this.renderOpts.dev) {
+    } else if (!this.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
@@ -2199,7 +2205,7 @@ export default abstract class Server<
 
     // Whether the testing API is exposed (dev mode or explicit flag)
     const exposeTestingApi =
-      this.renderOpts.dev === true ||
+      this.dev === true ||
       this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
 
     // Check for the instant test cookie for MPA navigations (page reload, full
@@ -2292,7 +2298,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (!isNextDataRequest && isAppPath && opts.dev) {
+    if (!isNextDataRequest && isAppPath && this.dev) {
       opts.supportsDynamicResponse = true
     }
 
@@ -2329,7 +2335,7 @@ export default abstract class Server<
       (components.getStaticPaths || isAppPath)
     ) {
       let getStaticPathsStart: bigint | undefined
-      if (opts.dev) {
+      if (this.dev) {
         getStaticPathsStart = process.hrtime.bigint()
       }
 
@@ -2341,7 +2347,7 @@ export default abstract class Server<
         isAppPath,
       })
 
-      if (opts.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+      if (this.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
         addRequestMeta(
           req,
           'devGenerateStaticParamsDuration',
@@ -2369,7 +2375,7 @@ export default abstract class Server<
           if (smallestFallbackRouteParams) {
             addRequestMeta(
               req,
-              'devFallbackParams',
+              'fallbackParams',
               createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
@@ -2676,7 +2682,7 @@ export default abstract class Server<
       const isWrappedError = err instanceof WrappedBuildError
 
       if (!isWrappedError) {
-        if (this.minimalMode || this.renderOpts.dev) {
+        if (this.minimalMode || this.dev) {
           if (isError(err)) err.page = page
           throw err
         }
@@ -2798,7 +2804,7 @@ export default abstract class Server<
   ): Promise<ResponsePayload | null> {
     // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
     // Since favicon.ico is automatically requested by the browser.
-    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+    if (this.dev && ctx.pathname === '/favicon.ico') {
       return {
         body: RenderResult.EMPTY,
       }
@@ -2850,7 +2856,7 @@ export default abstract class Server<
       ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
-        if (statusPage !== '/500' || !this.renderOpts.dev) {
+        if (statusPage !== '/500' || !this.dev) {
           if (!result && hasAppDir) {
             // Otherwise if app router present, load app router built-in 500 page
             result = await this.findPageComponents({
@@ -2907,7 +2913,7 @@ export default abstract class Server<
       if (!result) {
         // this can occur when a project directory has been moved/deleted
         // which is handled in the parent process in development
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           return {
             // wait for dev-server to restart before refreshing
             body: RenderResult.fromStatic(

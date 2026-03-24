@@ -1,16 +1,27 @@
 use anyhow::Result;
-use swc_core::{ecma::ast::Expr, quote};
+use bincode::{Decode, Encode};
+use swc_core::{
+    common::{
+        Span,
+        errors::{DiagnosticId, HANDLER},
+    },
+    ecma::ast::Expr,
+    quote,
+};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
+    chunk::ChunkingType,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
     resolve::{ModuleResolveResult, parse::Request, pattern::Pattern},
 };
+
+use crate::errors;
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
 /// given request string
@@ -92,13 +103,13 @@ impl Issue for TooManyMatchesWarning {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
-            format!(
-                "The file pattern {pattern} matches {num_matches} files in {context_dir}",
-                pattern = self.pattern.to_string().await?,
-                context_dir = self.context_dir.value_to_string().await?,
-                num_matches = self.num_matches
+            turbofmt!(
+                "The file pattern {} matches {} files in {}",
+                self.pattern,
+                self.num_matches,
+                self.context_dir
             )
-            .into(),
+            .await?,
         )
         .cell())
     }
@@ -130,5 +141,54 @@ impl Issue for TooManyMatchesWarning {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
         Vc::cell(Some(self.source))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs, NonLocalValue)]
+pub enum SpecifiedChunkingType {
+    Parallel,
+    Shared,
+    None,
+}
+
+impl SpecifiedChunkingType {
+    pub fn as_chunking_type(&self, inherit_async: bool, hoisted: bool) -> Option<ChunkingType> {
+        match self {
+            SpecifiedChunkingType::Parallel => Some(ChunkingType::Parallel {
+                inherit_async,
+                hoisted,
+            }),
+            SpecifiedChunkingType::Shared => Some(ChunkingType::Shared {
+                inherit_async,
+                merge_tag: None,
+            }),
+            SpecifiedChunkingType::None => None,
+        }
+    }
+}
+
+pub fn parse_chunking_type_annotation(
+    span: Span,
+    chunking_type_annotation: &str,
+) -> Option<SpecifiedChunkingType> {
+    match chunking_type_annotation {
+        "parallel" => Some(SpecifiedChunkingType::Parallel),
+        "shared" => Some(SpecifiedChunkingType::Shared),
+        "none" => Some(SpecifiedChunkingType::None),
+        _ => {
+            HANDLER.with(|handler| {
+                handler.span_err_with_code(
+                    span,
+                    &format!(
+                        "Unknown specified chunking-type: \"{chunking_type_annotation}\", \
+                         expected \"parallel\", \"shared\" or \"none\""
+                    ),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::CHUNKING_TYPE.into(),
+                    ),
+                );
+            });
+            None
+        }
     }
 }

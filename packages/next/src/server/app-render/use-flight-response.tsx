@@ -114,6 +114,7 @@ export function getFlightStream<T>(
 
     switch (workUnitStore.type) {
       case 'prerender-client':
+      case 'validation-client':
         const responseOnNextTick = new Promise<T>((resolve) => {
           process.nextTick(() => {
             resolve(newResponse)
@@ -129,6 +130,7 @@ export function getFlightStream<T>(
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -240,7 +242,14 @@ function writeFlightDataInstruction(
     // Instead let's inline it in base64.
     // Credits to Devon Govett (devongovett) for the technique.
     // https://github.com/devongovett/rsc-html-stream
-    const base64 = btoa(String.fromCodePoint(...chunk))
+    const base64 =
+      typeof Buffer !== 'undefined'
+        ? Buffer.from(
+            chunk.buffer,
+            chunk.byteOffset,
+            chunk.byteLength
+          ).toString('base64')
+        : btoa(String.fromCodePoint(...chunk))
     htmlInlinedData = htmlEscapeJsonString(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
     )

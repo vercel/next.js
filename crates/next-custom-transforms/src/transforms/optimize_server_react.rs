@@ -10,7 +10,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{fold_pass, Fold, FoldWith},
+        visit::{Fold, FoldWith, fold_pass},
     },
 };
 
@@ -139,31 +139,30 @@ impl Fold for OptimizeServerReact {
         if let Expr::Call(call) = &expr {
             if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
                 // Mark `useEffect` as DCE'able
-                if let Some(use_effect_ident) = &self.use_effect_ident {
-                    if &f.to_id() == use_effect_ident && !effect_has_side_effect_deps(call) {
-                        // return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
-                        return wrap_expr_with_env_prod_condition(call.clone());
-                    }
+                if let Some(use_effect_ident) = &self.use_effect_ident
+                    && &f.to_id() == use_effect_ident
+                    && !effect_has_side_effect_deps(call)
+                {
+                    // return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+                    return wrap_expr_with_env_prod_condition(call.clone());
                 }
                 // Mark `useLayoutEffect` as DCE'able
-                if let Some(use_layout_effect_ident) = &self.use_layout_effect_ident {
-                    if &f.to_id() == use_layout_effect_ident && !effect_has_side_effect_deps(call) {
-                        return wrap_expr_with_env_prod_condition(call.clone());
-                    }
+                if let Some(use_layout_effect_ident) = &self.use_layout_effect_ident
+                    && &f.to_id() == use_layout_effect_ident
+                    && !effect_has_side_effect_deps(call)
+                {
+                    return wrap_expr_with_env_prod_condition(call.clone());
                 }
-            } else if let Some(react_ident) = &self.react_ident {
-                if let Callee::Expr(box Expr::Member(member)) = &call.callee {
-                    if let box Expr::Ident(f) = &member.obj {
-                        if &f.to_id() == react_ident {
-                            if let MemberProp::Ident(i) = &member.prop {
-                                // Mark `React.useEffect` and `React.useLayoutEffect` as DCE'able
-                                // calls in production
-                                if i.sym == "useEffect" || i.sym == "useLayoutEffect" {
-                                    return wrap_expr_with_env_prod_condition(call.clone());
-                                }
-                            }
-                        }
-                    }
+            } else if let Some(react_ident) = &self.react_ident
+                && let Callee::Expr(box Expr::Member(member)) = &call.callee
+                && let box Expr::Ident(f) = &member.obj
+                && &f.to_id() == react_ident
+                && let MemberProp::Ident(i) = &member.prop
+            {
+                // Mark `React.useEffect` and `React.useLayoutEffect` as DCE'able
+                // calls in production
+                if i.sym == "useEffect" || i.sym == "useLayoutEffect" {
+                    return wrap_expr_with_env_prod_condition(call.clone());
                 }
             }
         }
@@ -178,53 +177,48 @@ impl Fold for OptimizeServerReact {
             return decl;
         }
 
-        if let Pat::Array(array_pat) = &decl.name {
-            if array_pat.elems.len() == 2 {
-                if let Some(box Expr::Call(call)) = &decl.init {
-                    if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
-                        if let Some(use_state_ident) = &self.use_state_ident {
-                            if &f.to_id() == use_state_ident && call.args.len() == 1 {
-                                // We do the optimization only if the arg is a literal or a
-                                // type that we can
-                                // be sure is not a function (e.g. {} or [] lit).
-                                // This is because useState allows a function as the
-                                // initialiser.
-                                match &call.args[0].expr {
-                                    box Expr::Lit(_) | box Expr::Object(_) | box Expr::Array(_) => {
-                                        // const [state, setState] = [x, () => {}];
-                                        return VarDeclarator {
-                                            definite: false,
-                                            name: decl.name.clone(),
-                                            init: Some(Box::new(Expr::Array(ArrayLit {
-                                                elems: vec![
-                                                    Some(call.args[0].expr.clone().into()),
-                                                    Some(
-                                                        Expr::Arrow(ArrowExpr {
-                                                            span: DUMMY_SP,
-                                                            body: Box::new(BlockStmtOrExpr::Expr(
-                                                                Box::new(Expr::Lit(Lit::Null(
-                                                                    Null { span: DUMMY_SP },
-                                                                ))),
-                                                            )),
-                                                            is_async: false,
-                                                            is_generator: false,
-                                                            params: vec![],
-                                                            ..Default::default()
-                                                        })
-                                                        .into(),
-                                                    ),
-                                                ],
-                                                span: DUMMY_SP,
-                                            }))),
-                                            span: DUMMY_SP,
-                                        };
-                                    }
-                                    _ => {}
-                                }
-                            }
-                        }
-                    }
+        if let Pat::Array(array_pat) = &decl.name
+            && array_pat.elems.len() == 2
+            && let Some(box Expr::Call(call)) = &decl.init
+            && let Callee::Expr(box Expr::Ident(f)) = &call.callee
+            && let Some(use_state_ident) = &self.use_state_ident
+            && &f.to_id() == use_state_ident
+            && call.args.len() == 1
+        {
+            // We do the optimization only if the arg is a literal or a
+            // type that we can
+            // be sure is not a function (e.g. {} or [] lit).
+            // This is because useState allows a function as the
+            // initialiser.
+            match &call.args[0].expr {
+                box Expr::Lit(_) | box Expr::Object(_) | box Expr::Array(_) => {
+                    // const [state, setState] = [x, () => {}];
+                    return VarDeclarator {
+                        definite: false,
+                        name: decl.name.clone(),
+                        init: Some(Box::new(Expr::Array(ArrayLit {
+                            elems: vec![
+                                Some(call.args[0].expr.clone().into()),
+                                Some(
+                                    Expr::Arrow(ArrowExpr {
+                                        span: DUMMY_SP,
+                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Lit(
+                                            Lit::Null(Null { span: DUMMY_SP }),
+                                        )))),
+                                        is_async: false,
+                                        is_generator: false,
+                                        params: vec![],
+                                        ..Default::default()
+                                    })
+                                    .into(),
+                                ),
+                            ],
+                            span: DUMMY_SP,
+                        }))),
+                        span: DUMMY_SP,
+                    };
                 }
+                _ => {}
             }
         }
 

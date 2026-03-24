@@ -13,11 +13,13 @@ use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
 use memmap2::{Mmap, MmapOptions};
+use smallvec::SmallVec;
 use turbo_bincode::turbo_bincode_decode;
 
 use crate::{
     QueryKey,
     lookup_entry::LookupValue,
+    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -129,7 +131,7 @@ impl MetaEntry {
 
     pub fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open(&meta.db_path, self.sst_data.clone()).with_context(|| {
+            StaticSortedFile::open(&meta.db_path, self.sst_data).with_context(|| {
                 format!(
                     "Unable to open static sorted file referenced from {:08}.meta",
                     meta.sequence_number()
@@ -155,12 +157,14 @@ impl MetaEntry {
         self.max_hash
     }
 
-    pub fn key_compression_dictionary_length(&self) -> u16 {
-        self.sst_data.key_compression_dictionary_length
-    }
-
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
+    }
+
+    /// Returns the SST metadata needed to open the file independently.
+    /// Used during compaction to avoid caching mmaps on the MetaEntry.
+    pub fn sst_metadata(&self) -> StaticSortedFileMetaData {
+        self.sst_data
     }
 }
 
@@ -225,6 +229,8 @@ pub struct MetaFile {
     /// The offset of the end of the "used keys" AMQF data in the the meta file relative to the end
     /// of the header.
     end_of_used_keys_amqf_data_offset: u32,
+    /// Byte offset of the start of AMQF data within the mmap (= end of the header).
+    amqf_data_start: usize,
     /// The memory mapped file.
     mmap: Mmap,
 }
@@ -240,7 +246,7 @@ impl MetaFile {
     }
 
     fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let mut file = BufReader::new(File::open(path)?);
+        let mut file = BufReader::new(File::open(path).context("Failed to open meta file")?);
         let magic = file.read_u32::<BE>()?;
         if magic != 0xFE4ADA4A {
             bail!("Invalid magic number");
@@ -259,7 +265,6 @@ impl MetaFile {
             let entry = MetaEntry {
                 sst_data: StaticSortedFileMetaData {
                     sequence_number: file.read_u32::<BE>()?,
-                    key_compression_dictionary_length: file.read_u16::<BE>()?,
                     block_count: file.read_u16::<BE>()?,
                 },
                 family,
@@ -278,13 +283,15 @@ impl MetaFile {
         let start_of_used_keys_amqf_data_offset = start_of_amqf_data_offset;
         let end_of_used_keys_amqf_data_offset = file.read_u32::<BE>()?;
 
-        let offset = file.stream_position()?;
+        let offset = file
+            .stream_position()
+            .context("Failed to get stream position")?;
         let file = file.into_inner();
-        let mut options = MmapOptions::new();
-        options.offset(offset);
-        let mmap = unsafe { options.map(&file)? };
+        let mmap = unsafe { MmapOptions::new().map(&file) }.context("Failed to mmap")?;
         #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Random)?;
+        mmap.advise(memmap2::Advice::Random)
+            .context("Failed to advise mmap")?;
+        advise_mmap_for_persistence(&mmap)?;
         let file = Self {
             db_path,
             sequence_number,
@@ -294,6 +301,7 @@ impl MetaFile {
             obsolete_sst_files,
             start_of_used_keys_amqf_data_offset,
             end_of_used_keys_amqf_data_offset,
+            amqf_data_start: offset as usize,
             mmap,
         };
         Ok(file)
@@ -331,7 +339,7 @@ impl MetaFile {
     }
 
     pub fn amqf_data(&self) -> &[u8] {
-        &self.mmap
+        &self.mmap[self.amqf_data_start..]
     }
 
     pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::Filter>> {
@@ -373,7 +381,12 @@ impl MetaFile {
         &self.obsolete_sst_files
     }
 
-    pub fn lookup<K: QueryKey>(
+    /// Looks up a key in this meta file.
+    ///
+    /// If `FIND_ALL` is false, returns after finding the first match.
+    /// If `FIND_ALL` is true, returns all entries with the same key from all SST files
+    /// (useful for keyspaces where keys are hashes and collisions are possible).
+    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
         &self,
         key_family: u32,
         key_hash: u64,
@@ -385,25 +398,54 @@ impl MetaFile {
             return Ok(MetaLookupResult::FamilyMiss);
         }
         let mut miss_result = MetaLookupResult::RangeMiss;
+        let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
+
         for entry in self.entries.iter().rev() {
             if key_hash < entry.min_hash || key_hash > entry.max_hash {
                 continue;
             }
-            {
-                let amqf = entry.amqf(self)?;
-                if !amqf.contains_fingerprint(key_hash) {
-                    miss_result = MetaLookupResult::QuickFilterMiss;
-                    continue;
+            let amqf = entry.amqf(self)?;
+            if !amqf.contains_fingerprint(key_hash) {
+                miss_result = MetaLookupResult::QuickFilterMiss;
+                continue;
+            }
+
+            let result = entry.sst(self)?.lookup::<K, FIND_ALL>(
+                key_hash,
+                key,
+                key_block_cache,
+                value_block_cache,
+            )?;
+
+            match result {
+                SstLookupResult::NotFound => {
+                    // continue searching other sst files
+                }
+                SstLookupResult::Found(values) => {
+                    if !FIND_ALL {
+                        // Return immediately with the first result
+                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
+                    }
+                    // Check for tombstone — stops search across older SSTs within this meta file.
+                    // Since tombstones sort last within a key group, if the last value is Deleted,
+                    // we have a tombstone.
+                    let has_tombstone = values.last().is_some_and(|v| *v == LookupValue::Deleted);
+                    all_results.extend(values);
+                    if has_tombstone {
+                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
+                            all_results,
+                        )));
+                    }
                 }
             }
-            let result =
-                entry
-                    .sst(self)?
-                    .lookup(key_hash, key, key_block_cache, value_block_cache)?;
-            if !matches!(result, SstLookupResult::NotFound) {
-                return Ok(MetaLookupResult::SstLookup(result));
-            }
         }
+
+        if FIND_ALL && !all_results.is_empty() {
+            return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
+                all_results,
+            )));
+        }
+
         Ok(miss_result)
     }
 
@@ -478,13 +520,18 @@ impl MetaFile {
                     }
                     continue;
                 }
-                let sst_result = entry.sst(self)?.lookup(
+                let sst_result = entry.sst(self)?.lookup::<_, false>(
                     *hash,
                     &keys[*index],
                     key_block_cache,
                     value_block_cache,
                 )?;
-                if let SstLookupResult::Found(value) = sst_result {
+                if let SstLookupResult::Found(mut values) = sst_result {
+                    // find_all=false guarantees exactly one result
+                    debug_assert!(values.len() == 1);
+                    let Some(value) = values.pop() else {
+                        unreachable!()
+                    };
                     *result = Some(value);
                     *empty_cells -= 1;
                     #[cfg(feature = "stats")]

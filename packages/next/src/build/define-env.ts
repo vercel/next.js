@@ -123,6 +123,7 @@ export function getDefineEnv({
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
+  const isUseNodeStreamsEnabled = !!config.experimental.useNodeStreams
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -157,6 +158,7 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -171,7 +173,18 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
+      config.experimental.cachedNavigations
+    ),
+    'process.env.__NEXT_INSTANT_NAV_TOGGLE':
+      !!config.experimental.instantNavigationDevToolsToggle,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
+      ? false
+      : isUseNodeStreamsEnabled,
+
+    'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
+      config.experimental.immutableAssetToken || '',
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
@@ -231,6 +244,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
+    ),
+    'process.env.__NEXT_PREFETCH_INLINING': Boolean(
+      config.experimental.prefetchInlining
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,

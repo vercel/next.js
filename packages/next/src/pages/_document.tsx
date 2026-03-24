@@ -138,6 +138,7 @@ function getScripts(
     buildManifest,
     isDevelopment,
     assetQueryString,
+    mutableAssetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -148,10 +149,15 @@ function getScripts(
   )
 
   return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    // static/chunks/51e975e7b637a580.js should use the immutable id, while
+    // static/Yj152X97rfGgF7NPcJEZs/_ssgManifest.js should use the deployment id
+    const query = file.startsWith('static/chunks')
+      ? assetQueryString
+      : mutableAssetQueryString
     return (
       <script
         key={file}
-        src={`${assetPrefix}/_next/${encodeURIPath(file)}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeURIPath(file)}${query}`}
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
@@ -311,7 +317,8 @@ function getHeadHTMLProps(props: HeadProps) {
 function getNextFontLinkTags(
   nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = ''
+  assetPrefix: string = '',
+  assetQueryString: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -351,7 +358,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}${assetQueryString}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -582,6 +589,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
+      assetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -650,7 +658,8 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix
+      assetPrefix,
+      assetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(

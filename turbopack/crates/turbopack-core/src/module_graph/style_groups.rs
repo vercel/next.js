@@ -79,7 +79,7 @@ pub async fn compute_style_groups(
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
-    let async_info = module_graph.async_module_info().await?;
+    let async_module_info = module_graph.async_module_info();
     let mut module_info_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>> =
         FxIndexMap::default();
 
@@ -227,7 +227,7 @@ pub async fn compute_style_groups(
         .map(async |&module| {
             let chunk_item = attach_async_info_to_chunkable_module(
                 module,
-                &async_info,
+                async_module_info,
                 module_graph,
                 chunking_context,
             )

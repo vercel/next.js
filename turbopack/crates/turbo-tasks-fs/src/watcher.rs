@@ -276,6 +276,7 @@ mod non_recursive_helpers {
                 ..
             }) => Ok(()),
             Err(err) => {
+                // ast-grep-ignore: no-context-format
                 return Err(err).context(format!("Unable to watch {}", dir_path.display(),));
             }
         }

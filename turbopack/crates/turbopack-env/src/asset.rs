@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
@@ -35,6 +36,11 @@ impl Source for ProcessEnvAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(AssetIdent::from_path(self.root.join(".env.js")?))
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("process environment"))
     }
 }
 

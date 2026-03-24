@@ -1785,7 +1785,9 @@
     function initializeDebugChunk(response, chunk) {
       var debugChunk = chunk._debugChunk;
       if (null !== debugChunk) {
-        var debugInfo = chunk._debugInfo;
+        var debugInfo = chunk._debugInfo,
+          prevIsInitializingDebugInfo = isInitializingDebugInfo;
+        isInitializingDebugInfo = !0;
         try {
           if ("resolved_model" === debugChunk.status) {
             for (
@@ -1838,6 +1840,8 @@
             }
         } catch (error) {
           triggerErrorOnChunk(response, chunk, error);
+        } finally {
+          isInitializingDebugInfo = prevIsInitializingDebugInfo;
         }
       }
     }
@@ -1853,7 +1857,7 @@
       initializingChunk = chunk;
       initializeDebugChunk(response, chunk);
       try {
-        var value = JSON.parse(resolvedModel, response._fromJSON),
+        var value = parseModel(response, resolvedModel),
           resolveListeners = chunk.value;
         if (null !== resolveListeners)
           for (
@@ -1876,6 +1880,7 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
         filterDebugInfo(response, chunk);
         moveDebugInfoFromChunkToInnerValue(chunk, value);
       } catch (error) {
@@ -1889,6 +1894,7 @@
         var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       }
@@ -2407,7 +2413,7 @@
                     response,
                     map,
                     path.slice(i - 1),
-                    !1
+                    isInitializingDebugInfo
                   );
                 case "halted":
                   return (
@@ -2467,9 +2473,12 @@
             break;
           }
           response = map(response, value, parentObject, key);
-          (parentObject[0] !== REACT_ELEMENT_TYPE ||
-            ("4" !== key && "5" !== key)) &&
-            transferReferencedDebugInfo(initializingChunk, reference);
+          if (
+            parentObject[0] !== REACT_ELEMENT_TYPE ||
+            ("4" !== key && "5" !== key)
+          )
+            isInitializingDebugInfo ||
+              transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
         case "blocked":
@@ -2480,7 +2489,7 @@
             response,
             map,
             path,
-            !1
+            isInitializingDebugInfo
           );
         case "halted":
           return (
@@ -2545,6 +2554,7 @@
             }
             return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
           },
+          set: function () {},
           enumerable: !0,
           configurable: !1
         });
@@ -2756,6 +2766,7 @@
                 get: function () {
                   return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
                 },
+                set: function () {},
                 enumerable: !0,
                 configurable: !1
               });
@@ -2802,7 +2813,6 @@
       this._nonce = nonce;
       this._chunks = chunks;
       this._stringDecoder = new TextDecoder();
-      this._fromJSON = null;
       this._closed = !1;
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;
@@ -2838,7 +2848,6 @@
           ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
           : debugChannelRegistry.register(this, debugChannel, this));
       replayConsole && markAllTracksInOrder();
-      this._fromJSON = createFromJSONCallback(this);
     }
     function createStreamState(weakResponse, streamDebugValue) {
       var streamState = {
@@ -2925,7 +2934,7 @@
     function resolveModule(response, id, model, streamState) {
       var chunks = response._chunks,
         chunk = chunks.get(id);
-      model = JSON.parse(model, response._fromJSON);
+      model = parseModel(response, model);
       var clientReference = resolveClientReference(
         response._bundlerConfig,
         model
@@ -3208,19 +3217,33 @@
     }
     function resolveErrorDev(response, errorInfo) {
       var name = errorInfo.name,
-        env = errorInfo.env;
-      var error = buildFakeCallStack(
+        message = errorInfo.message,
+        stack = errorInfo.stack,
+        env = errorInfo.env,
+        errorOptions =
+          "cause" in errorInfo
+            ? {
+                cause: reviveModel(
+                  response,
+                  errorInfo.cause,
+                  errorInfo,
+                  "cause"
+                )
+              }
+            : void 0;
+      message = buildFakeCallStack(
         response,
-        errorInfo.stack,
+        stack,
         env,
         !1,
         Error.bind(
           null,
-          errorInfo.message ||
-            "An error occurred in the Server Components render but no message was provided"
+          message ||
+            "An error occurred in the Server Components render but no message was provided",
+          errorOptions
         )
       );
-      var ownerTask = null;
+      stack = null;
       null != errorInfo.owner &&
         ((errorInfo = errorInfo.owner.slice(1)),
         (errorInfo = getOutlinedModel(
@@ -3231,14 +3254,14 @@
           createModel
         )),
         null !== errorInfo &&
-          (ownerTask = initializeFakeTask(response, errorInfo)));
-      null === ownerTask
+          (stack = initializeFakeTask(response, errorInfo)));
+      null === stack
         ? ((response = getRootTask(response, env)),
-          (error = null != response ? response.run(error) : error()))
-        : (error = ownerTask.run(error));
-      error.name = name;
-      error.environmentName = env;
-      return error;
+          (response = null != response ? response.run(message) : message()))
+        : (response = stack.run(message));
+      response.name = name;
+      response.environmentName = env;
+      return response;
     }
     function createFakeFunction(
       name,
@@ -3582,13 +3605,19 @@
     }
     function resolveIOInfo(response, id, model) {
       var chunks = response._chunks,
-        chunk = chunks.get(id);
-      chunk
-        ? (resolveModelChunk(response, chunk, model),
-          "resolved_model" === chunk.status && initializeModelChunk(chunk))
-        : ((chunk = createResolvedModelChunk(response, model)),
-          chunks.set(id, chunk),
-          initializeModelChunk(chunk));
+        chunk = chunks.get(id),
+        prevIsInitializingDebugInfo = isInitializingDebugInfo;
+      isInitializingDebugInfo = !0;
+      try {
+        chunk
+          ? (resolveModelChunk(response, chunk, model),
+            "resolved_model" === chunk.status && initializeModelChunk(chunk))
+          : ((chunk = createResolvedModelChunk(response, model)),
+            chunks.set(id, chunk),
+            initializeModelChunk(chunk));
+      } finally {
+        isInitializingDebugInfo = prevIsInitializingDebugInfo;
+      }
       "fulfilled" === chunk.status
         ? initializeIOInfo(response, chunk.value)
         : chunk.then(
@@ -4348,7 +4377,7 @@
         case 72:
           id = row[0];
           streamState = row.slice(1);
-          response = JSON.parse(streamState, response._fromJSON);
+          response = parseModel(response, streamState);
           streamState = ReactDOMSharedInternals.d;
           switch (id) {
             case "D":
@@ -4588,88 +4617,104 @@
         streamState._rowLength = rowLength;
       }
     }
-    function createFromJSONCallback(response) {
-      return function (key, value) {
-        if ("__proto__" !== key) {
-          if ("string" === typeof value)
-            return parseModelString(response, this, key, value);
-          if ("object" === typeof value && null !== value) {
-            if (value[0] === REACT_ELEMENT_TYPE)
-              b: {
-                var owner = value[4],
-                  stack = value[5];
-                key = value[6];
-                value = {
-                  $$typeof: REACT_ELEMENT_TYPE,
-                  type: value[1],
-                  key: value[2],
-                  props: value[3],
-                  _owner: void 0 === owner ? null : owner
-                };
-                Object.defineProperty(value, "ref", {
-                  enumerable: !1,
-                  get: nullRefGetter
-                });
-                value._store = {};
-                Object.defineProperty(value._store, "validated", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: key
-                });
-                Object.defineProperty(value, "_debugInfo", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: null
-                });
-                Object.defineProperty(value, "_debugStack", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: void 0 === stack ? null : stack
-                });
-                Object.defineProperty(value, "_debugTask", {
-                  configurable: !1,
-                  enumerable: !1,
-                  writable: !0,
-                  value: null
-                });
-                if (null !== initializingHandler) {
-                  owner = initializingHandler;
-                  initializingHandler = owner.parent;
-                  if (owner.errored) {
-                    stack = new ReactPromise("rejected", null, owner.reason);
-                    initializeElement(response, value, null);
-                    owner = {
-                      name: getComponentNameFromType(value.type) || "",
-                      owner: value._owner
-                    };
-                    owner.debugStack = value._debugStack;
-                    supportsCreateTask && (owner.debugTask = value._debugTask);
-                    stack._debugInfo = [owner];
-                    key = createLazyChunkWrapper(stack, key);
-                    break b;
-                  }
-                  if (0 < owner.deps) {
-                    stack = new ReactPromise("blocked", null, null);
-                    owner.value = value;
-                    owner.chunk = stack;
-                    key = createLazyChunkWrapper(stack, key);
-                    value = initializeElement.bind(null, response, value, key);
-                    stack.then(value, value);
-                    break b;
-                  }
+    function parseModel(response, json) {
+      json = JSON.parse(json);
+      return reviveModel(response, json, { "": json }, "");
+    }
+    function reviveModel(response, value, parentObject, key) {
+      if ("string" === typeof value)
+        return "$" === value[0]
+          ? parseModelString(response, parentObject, key, value)
+          : value;
+      if ("object" !== typeof value || null === value) return value;
+      if (isArrayImpl(value)) {
+        for (var i = 0; i < value.length; i++)
+          value[i] = reviveModel(response, value[i], value, "" + i);
+        if (value[0] === REACT_ELEMENT_TYPE) {
+          if (value[0] === REACT_ELEMENT_TYPE)
+            b: {
+              key = value[4];
+              parentObject = value[5];
+              i = value[6];
+              value = {
+                $$typeof: REACT_ELEMENT_TYPE,
+                type: value[1],
+                key: value[2],
+                props: value[3],
+                _owner: void 0 === key ? null : key
+              };
+              Object.defineProperty(value, "ref", {
+                enumerable: !1,
+                get: nullRefGetter
+              });
+              value._store = {};
+              Object.defineProperty(value._store, "validated", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: i
+              });
+              Object.defineProperty(value, "_debugInfo", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              });
+              Object.defineProperty(value, "_debugStack", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: void 0 === parentObject ? null : parentObject
+              });
+              Object.defineProperty(value, "_debugTask", {
+                configurable: !1,
+                enumerable: !1,
+                writable: !0,
+                value: null
+              });
+              if (null !== initializingHandler) {
+                key = initializingHandler;
+                initializingHandler = key.parent;
+                if (key.errored) {
+                  parentObject = new ReactPromise("rejected", null, key.reason);
+                  initializeElement(response, value, null);
+                  response = {
+                    name: getComponentNameFromType(value.type) || "",
+                    owner: value._owner
+                  };
+                  response.debugStack = value._debugStack;
+                  supportsCreateTask && (response.debugTask = value._debugTask);
+                  parentObject._debugInfo = [response];
+                  response = createLazyChunkWrapper(parentObject, i);
+                  break b;
                 }
-                initializeElement(response, value, null);
-                key = value;
+                if (0 < key.deps) {
+                  parentObject = new ReactPromise("blocked", null, null);
+                  key.value = value;
+                  key.chunk = parentObject;
+                  i = createLazyChunkWrapper(parentObject, i);
+                  response = initializeElement.bind(null, response, value, i);
+                  parentObject.then(response, response);
+                  response = i;
+                  break b;
+                }
               }
-            else key = value;
-            return key;
-          }
-          return value;
+              initializeElement(response, value, null);
+              response = value;
+            }
+          else response = value;
+          return response;
         }
-      };
+        return value;
+      }
+      for (i in value)
+        "__proto__" === i
+          ? delete value[i]
+          : ((parentObject = reviveModel(response, value[i], value, i)),
+            void 0 !== parentObject
+              ? (value[i] = parentObject)
+              : delete value[i]);
+      return value;
     }
     function close(weakResponse) {
       if (!hasGCedResponse(weakResponse)) {
@@ -4990,6 +5035,7 @@
           : null,
       initializingHandler = null,
       initializingChunk = null,
+      isInitializingDebugInfo = !1,
       mightHaveStaticConstructor = /\bclass\b.*\bstatic\b/,
       MIN_CHUNK_SIZE = 65536,
       supportsCreateTask = !!console.createTask,
@@ -5100,10 +5146,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-6066c782-20260212",
+      version: "19.3.0-canary-8b2e903a-20260320",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-6066c782-20260212",
+      reconcilerVersion: "19.3.0-canary-8b2e903a-20260320",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
