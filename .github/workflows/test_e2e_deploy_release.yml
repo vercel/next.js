@@ -220,6 +220,7 @@ jobs:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-deploy-${{ matrix.group }}'
+      testReportsArtifactPrefix: 'adapter-test-reports'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
@@ -244,6 +245,53 @@ jobs:
           if [ -d ./test/test-junit-report ]; then
             DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
+
+  upload-adapter-test-results:
+    name: Upload adapter test results
+    needs: [test-deploy-adapter]
+    if: ${{ always() && github.event.inputs.deployScriptPath == '' && github.repository_owner == 'vercel' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+          check-latest: true
+
+      - name: Download adapter test result artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: adapter-test-reports-*
+          path: adapter-test-results
+          merge-multiple: true
+
+      - name: Upload adapter test results
+        run: |
+          if [ -z "${ADAPTER_TEST_RESULTS_SECRET:-}" ]; then
+            echo "ADAPTER_TEST_RESULTS_SECRET is not configured, skipping upload"
+            exit 0
+          fi
+
+          if [ ! -d adapter-test-results ]; then
+            echo "No adapter test artifact directory found, skipping upload"
+            exit 0
+          fi
+
+          if ! find adapter-test-results -type f -name '*.results.json' | grep -q .; then
+            echo "No adapter .results.json files found, skipping upload"
+            exit 0
+          fi
+
+          node scripts/upload-adapter-test-results.mjs \
+            --results-root adapter-test-results \
+            --provider vercel \
+            --commit-sha "${{ github.sha }}"
+        env:
+          ADAPTER_TEST_RESULTS_SECRET: ${{ secrets.ADAPTER_TEST_RESULTS_SECRET }}
 
   create-draft-prs:
     name: Immediately open draft prs
