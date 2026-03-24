@@ -48,42 +48,31 @@ const HOST_ARCH =
   os.arch() === 'arm64' || os.arch() === 'aarch64' ? 'aarch64' : 'x86_64'
 
 // --- Parse args ---
-const args = process.argv.slice(2)
-let quick = false
-let hostTarget = false
-let rebuild = false
-let test = false
-let filter = ''
+const { parseArgs } = require('node:util')
+const { values: flags, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    quick: { type: 'boolean', default: false },
+    'host-target': { type: 'boolean', default: false },
+    rebuild: { type: 'boolean', default: false },
+    test: { type: 'boolean', default: false },
+    help: { type: 'boolean', short: 'h', default: false },
+  },
+  allowPositionals: true,
+})
 
-for (const arg of args) {
-  switch (arg) {
-    case '--quick':
-      quick = true
-      break
-    case '--host-target':
-      hostTarget = true
-      break
-    case '--rebuild':
-      rebuild = true
-      break
-    case '--test':
-      test = true
-      break
-    case '--help':
-    case '-h':
-      console.log(
-        'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
-      )
-      process.exit(0)
-      break // eslint: no-fallthrough
-    default:
-      if (arg.startsWith('--')) {
-        console.error(`Unknown flag: ${arg}`)
-        process.exit(1)
-      }
-      filter = arg
-  }
+if (flags.help) {
+  console.log(
+    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
+  )
+  process.exit(0)
 }
+
+const quick = flags.quick
+const hostTarget = flags['host-target']
+const rebuild = flags.rebuild
+const test = flags.test
+const filter = positionals[0] || ''
 
 // --- Filter targets ---
 let targets = TARGETS

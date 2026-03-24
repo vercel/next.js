@@ -25,11 +25,20 @@ const path = require('path')
 const fs = require('fs')
 const os = require('os')
 
+const { parseArgs } = require('node:util')
+const { values: flags } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    force: { type: 'boolean', default: false },
+    load: { type: 'boolean', default: false },
+  },
+})
+
 const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'next-swc-builder:latest'
 const IMAGE_TAR = path.join(REPO_ROOT, 'target/docker-image.tar')
-const force = process.argv.includes('--force')
-const load = process.argv.includes('--load')
+const force = flags.force
+const load = flags.load
 
 function imageExists() {
   try {
