@@ -51,9 +51,10 @@ rustflags = ["-Clink-arg=--icf=all"]
 
 # Windows: statically link the CRT and opt into rust-lld for fast linking.
 # rust-lld is not yet the default on Windows (tracking: rust-lang/rust#71520).
+# ICF (Identical Code Folding) reduces binary size with negligible build time impact.
 [target.'cfg(windows)']
 linker = "rust-lld"
-rustflags = ["-Ctarget-feature=+crt-static"]
+rustflags = ["-Ctarget-feature=+crt-static", "-Clink-arg=-Wl,--icf=all"]
 
 # Musl targets: disable static CRT linking. We produce dynamic .node shared
 # libraries (N-API addons), not static binaries.
