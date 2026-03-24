@@ -1,0 +1,52 @@
+---
+title: watchOptions
+description: Configure filesystem watcher behavior for the Next.js development server.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+The `watchOptions` configuration controls how the development server watches the filesystem for changes.
+
+```js filename="next.config.js"
+module.exports = {
+  watchOptions: {
+    // ...
+  },
+}
+```
+
+## Options
+
+| Option           | Type       | Description                                                                                        |
+| ---------------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| `pollIntervalMs` | `number`   | Enable polling at the specified interval (in milliseconds). Useful when native file watching doesn't work, e.g. inside Docker containers or network-mounted filesystems. |
+| `ignoredPaths`   | `string[]` | Additional paths (relative to the project root) whose filesystem events should be ignored by the file watcher. |
+
+## `ignoredPaths`
+
+By default, Next.js ignores the `distDir` (`.next` by default) from the filesystem watcher. The `ignoredPaths` option lets you specify additional directories to ignore.
+
+This is useful when multiple development servers share the same project directory with separate `distDir` values. Without it, one server's build output can trigger excessive file watcher events in the other server, leading to unnecessary recompilation.
+
+```js filename="next.config.js"
+module.exports = {
+  distDir: '.next-darwin',
+  watchOptions: {
+    ignoredPaths: ['.next-linux', '.next'],
+  },
+}
+```
+
+Paths are relative to the project root directory.
+
+## `pollIntervalMs`
+
+When native file watching doesn't work reliably (e.g. inside Docker containers or on network-mounted filesystems), you can fall back to polling:
+
+```js filename="next.config.js"
+module.exports = {
+  watchOptions: {
+    pollIntervalMs: 1000,
+  },
+}
+```
