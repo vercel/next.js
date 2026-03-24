@@ -11,12 +11,13 @@
 
 import path from 'path'
 import fs from 'fs-extra'
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDeploy, isNextDev } from 'e2e-utils'
 import type { NextInstance } from 'e2e-utils'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 jest.setTimeout(15 * 60 * 1000)
 
-if ((global as any).isNextDeploy || (global as any).isNextDev) {
+if (isNextDeploy || isNextDev || shouldUseTurbopack()) {
   it('skipped: production-rspack-only test', () => {})
 } else {
   describe('rspack + yarn pnp — cache invalidated on .pnp.cjs change', () => {
