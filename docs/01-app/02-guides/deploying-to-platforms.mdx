@@ -67,11 +67,26 @@ These are available building blocks, not finished integrations. Most community a
 
 ## Adapters
 
-Next.js provides a [Deployment Adapter API](/docs/app/api-reference/config/next-config-js/adapterPath) that lets platforms customize how Next.js applications are built and deployed for their infrastructure. Adapters run at build time and produce platform-specific output from the standard Next.js build.
+Next.js provides a [Deployment Adapter API](/docs/app/api-reference/config/next-config-js/adapterPath) that lets platforms customize how Next.js applications are built and deployed for their infrastructure. Adapters run at build time and produce platform-specific output from the standard Next.js build. Anyone can build an adapter using the public API with no special access required.
 
 The adapter API plus Next.js caching interfaces form the complete platform integration surface. The adapter handles build-time output, while `cacheHandler` and `cacheHandlers` cover different runtime caching paths. `cacheHandler` (singular) covers server cache paths like ISR, route handlers, patched `fetch`/`unstable_cache`, and image optimization. `cacheHandlers` (plural) configures `'use cache'` directive backends.
 
-For a list of available platform adapters, see the [Deploying](/docs/app/getting-started/deploying#adapters) page.
+### Verified Adapters
+
+A **verified adapter** is one that meets two requirements:
+
+1. **Open source.** The adapter source code is publicly available so the community and the Next.js team can inspect, contribute to, and verify it.
+2. **Runs the compatibility test suite.** The platform provides a way to run the full [Next.js compatibility test suite](/docs/app/api-reference/config/next-config-js/adapterPath#testing-adapters) against their adapter. This gives visibility into which features work, which are in progress, and where gaps remain.
+
+Verified adapters are hosted under the [Next.js GitHub organization](https://github.com/nextjs), listed as supported deployment targets in the Next.js documentation, and maintained by their respective platform teams. There are no private framework hooks or integration paths: Vercel's adapter uses the same public API as every other adapter.
+
+For verified adapters and platforms working toward verified status through the [Ecosystem Working Group](https://nextjs.org/ecosystem-working-group), the Next.js team commits to:
+
+- **Coordinated testing.** Before major releases, we work with platform teams to run the compatibility test suite and surface issues early.
+- **Early access.** Adapter authors receive early access to API changes during RFCs and release candidates.
+- **Direct support.** When the adapter contract needs updating, we work directly with adapter teams.
+
+> **Good to know:** Platforms can build closed-source adapters on the same public API and test suite. However, closed-source adapters will not be listed as verified, since the Next.js team cannot verify what it cannot inspect.
 
 ## A Note on Infrastructure Requirements
 
