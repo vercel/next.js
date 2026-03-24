@@ -7,7 +7,7 @@ use turbo_dyn_eq_hash::{
 };
 
 use crate::{
-    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId, TurboTasksApi,
     manager::{current_task_if_available, mark_invalidator},
     trace::TraceRawVcs,
     util::StaticOrArc,
@@ -54,6 +54,9 @@ impl TraceRawVcs for Invalidator {
         // nothing here
     }
 }
+
+unsafe impl NonLocalValue for Invalidator {}
+unsafe impl OperationValue for Invalidator {}
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.
