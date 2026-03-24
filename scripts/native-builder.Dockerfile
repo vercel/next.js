@@ -46,10 +46,11 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
 # crossbuild-essential installs headers + libs in the multiarch layout
 # that clang finds via --target. Both archs installed so the image
 # works on either host architecture.
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends \
     nodejs \
-    clang lld llvm pkg-config curl wget git ca-certificates xz-utils \
+    clang lld llvm pkg-config wget git xz-utils \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
