@@ -202,7 +202,7 @@ pub struct EdgeChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
-    pub hash_salt: Option<RcStr>,
+    pub hash_salt: Vc<Option<RcStr>>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -258,7 +258,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .hash_salt(hash_salt)
+    .hash_salt(hash_salt.owned().await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
@@ -351,7 +351,7 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .hash_salt(hash_salt)
+    .hash_salt(hash_salt.owned().await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
