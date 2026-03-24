@@ -53,6 +53,7 @@ const program = new Command(packageJson.name)
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
+  .option('--ultracite', 'Initialize with Ultracite config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--rspack', 'Enable Rspack as the bundler.')
@@ -258,7 +259,10 @@ async function run(): Promise<void> {
         key: 'typescript',
         values: { true: 'TypeScript', false: 'JavaScript' },
       },
-      { key: 'linter', values: { eslint: 'ESLint', biome: 'Biome' } },
+      {
+        key: 'linter',
+        values: { eslint: 'ESLint', biome: 'Biome', ultracite: 'Ultracite' },
+      },
       { key: 'reactCompiler', values: { true: 'React Compiler' } },
       { key: 'tailwind', values: { true: 'Tailwind CSS' } },
       { key: 'srcDir', values: { true: 'src/ dir' } },
@@ -407,17 +411,25 @@ async function run(): Promise<void> {
     const noLinter =
       args.includes('--no-linter') || args.includes('--no-eslint')
 
-    if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
+    if (
+      !opts.eslint &&
+      !opts.biome &&
+      !opts.ultracite &&
+      !noLinter &&
+      !opts.api
+    ) {
       if (skipPrompt) {
         const preferredLinter = getPrefOrDefault('linter')
         opts.eslint = preferredLinter === 'eslint'
         opts.biome = preferredLinter === 'biome'
+        opts.ultracite = preferredLinter === 'ultracite'
         // No need to set noLinter flag since we check args at runtime
       } else {
         const linterIndexMap = {
           eslint: 0,
           biome: 1,
-          none: 2,
+          ultracite: 2,
+          none: 3,
         }
         const { linter } = await prompts({
           onState: onPromptState,
@@ -436,6 +448,11 @@ async function run(): Promise<void> {
               description: 'Fast formatter and linter (fewer rules)',
             },
             {
+              title: 'Ultracite',
+              value: 'ultracite',
+              description: 'Zero-config, AI-ready Biome configuration',
+            },
+            {
               title: 'None',
               value: 'none',
               description: 'Skip linter configuration',
@@ -449,6 +466,7 @@ async function run(): Promise<void> {
 
         opts.eslint = linter === 'eslint'
         opts.biome = linter === 'biome'
+        opts.ultracite = linter === 'ultracite'
         preferences.linter = linter
 
         // Keep backwards compatibility with old eslint preference
@@ -456,15 +474,23 @@ async function run(): Promise<void> {
       }
     } else if (opts.eslint) {
       opts.biome = false
+      opts.ultracite = false
       preferences.linter = 'eslint'
       preferences.eslint = true
     } else if (opts.biome) {
       opts.eslint = false
+      opts.ultracite = false
       preferences.linter = 'biome'
+      preferences.eslint = false
+    } else if (opts.ultracite) {
+      opts.eslint = false
+      opts.biome = false
+      preferences.linter = 'ultracite'
       preferences.eslint = false
     } else if (noLinter) {
       opts.eslint = false
       opts.biome = false
+      opts.ultracite = false
       preferences.linter = 'none'
       preferences.eslint = false
     }
@@ -634,6 +660,7 @@ async function run(): Promise<void> {
       tailwind: opts.tailwind,
       eslint: opts.eslint,
       biome: opts.biome,
+      ultracite: opts.ultracite,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
@@ -669,6 +696,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       biome: opts.biome,
+      ultracite: opts.ultracite,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,

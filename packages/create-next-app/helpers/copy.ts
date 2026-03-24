@@ -34,12 +34,21 @@ export const copy = async (
   return Promise.all(
     sourceFiles.map(async (p) => {
       const dirName = dirname(p)
-      const baseName = rename(basename(p))
+      const baseName = basename(p)
+
+      // Apply rename to both directory path and basename
+      let renamedDirName = dirName
+      if (parents && dirName !== '.') {
+        // Split the directory path and apply rename to each component
+        const dirParts = dirName.split('/')
+        renamedDirName = dirParts.map((part) => rename(part)).join('/')
+      }
+      const renamedBaseName = rename(baseName)
 
       const from = cwd ? resolve(cwd, p) : p
       const to = parents
-        ? join(destRelativeToCwd, dirName, baseName)
-        : join(destRelativeToCwd, baseName)
+        ? join(destRelativeToCwd, renamedDirName, renamedBaseName)
+        : join(destRelativeToCwd, renamedBaseName)
 
       // Ensure the destination directory exists
       await mkdir(dirname(to), { recursive: true })

@@ -52,6 +52,7 @@ export const installTemplate = async ({
   tailwind,
   eslint,
   biome,
+  ultracite,
   srcDir,
   importAlias,
   skipInstall,
@@ -68,7 +69,15 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
+  // biome.json is for regular Biome, biome.jsonc is for Ultracite
   if (!biome) copySource.push("!biome.json");
+  if (!ultracite) {
+    copySource.push("!biome.jsonc");
+    // Ultracite-specific configuration directories (without dots in source)
+    copySource.push("!vscode/**");
+    copySource.push("!claude/**");
+    copySource.push("!cursor/**");
+  }
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -83,6 +92,12 @@ export const installTemplate = async ({
         // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
         case "README-template.md": {
           return "README.md";
+        }
+        // Directories without leading dots to avoid being filtered by ncc
+        case "claude":
+        case "cursor":
+        case "vscode": {
+          return `.${name}`;
         }
         default: {
           return name;
@@ -222,6 +237,10 @@ export const installTemplate = async ({
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
+      ...(ultracite && {
+        check: "ultracite check",
+        fix: "ultracite fix",
+      }),
     },
     /**
      * Default dependencies.
@@ -292,6 +311,15 @@ export const installTemplate = async ({
     };
   }
 
+  /* Ultracite dependencies. */
+  if (ultracite) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      "@biomejs/biome": "2.4.0",
+      ultracite: "7.2.3",
+    };
+  }
+
   if (isApi) {
     delete packageJson.dependencies.react;
     delete packageJson.dependencies["react-dom"];
@@ -306,6 +334,8 @@ export const installTemplate = async ({
     // Remove linting scripts for API-only templates
     delete packageJson.scripts.lint;
     delete packageJson.scripts.format;
+    delete packageJson.scripts.check;
+    delete packageJson.scripts.fix;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

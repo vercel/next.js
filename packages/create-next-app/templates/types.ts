@@ -27,6 +27,7 @@ export interface InstallTemplateArgs {
   mode: TemplateMode;
   eslint: boolean;
   biome: boolean;
+  ultracite: boolean;
   tailwind: boolean;
   srcDir: boolean;
   importAlias: string;
