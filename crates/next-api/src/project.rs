@@ -149,6 +149,13 @@ pub struct WatchOptions {
     /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
     /// docker).
     pub poll_interval: Option<Duration>,
+
+    /// Additional paths (relative to project root) whose filesystem events should be ignored.
+    /// Useful when multiple dev servers share the same project directory (e.g. multi-target
+    /// setups) to prevent one server's build output from triggering file watcher cascades
+    /// in another.
+    #[serde(default)]
+    pub ignored_paths: Vec<RcStr>,
 }
 
 #[derive(
@@ -1045,8 +1052,11 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let denied_path = match join_path(&self.project_path, &self.dist_dir_root) {
-            Some(dist_dir_root) => dist_dir_root.into(),
+        let mut denied_paths = Vec::new();
+
+        // Always deny own dist dir
+        match join_path(&self.project_path, &self.dist_dir_root) {
+            Some(dist_dir_root) => denied_paths.push(dist_dir_root.into()),
             None => {
                 bail!(
                     "Invalid distDirRoot: {:?}. distDirRoot should not navigate out of the \
@@ -1056,10 +1066,17 @@ impl Project {
             }
         };
 
+        // Deny additional paths from watchOptions.ignoredPaths
+        for ignored in &self.watch.ignored_paths {
+            if let Some(path) = join_path(&self.project_path, ignored) {
+                denied_paths.push(path.into());
+            }
+        }
+
         Ok(DiskFileSystem::new_with_denied_paths(
             rcstr!(PROJECT_FILESYSTEM_NAME),
             self.root_path.clone(),
-            vec![denied_path],
+            denied_paths,
         ))
     }
 

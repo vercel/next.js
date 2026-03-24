@@ -386,6 +386,7 @@ export async function createHotReloaderTurbopack(
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+        ignoredPaths: nextConfig.watchOptions?.ignoredPaths,
       },
       dev,
       env: process.env as Record<string, string>,

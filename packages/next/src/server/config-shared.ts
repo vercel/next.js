@@ -1589,6 +1589,19 @@ export interface NextConfig {
 
   watchOptions?: {
     pollIntervalMs?: number
+    /**
+     * Additional paths (relative to project root) whose filesystem events
+     * should be ignored by Turbopack's file watcher. This is the Turbopack
+     * equivalent of webpack's `watchOptions.ignored`.
+     *
+     * Useful when multiple dev servers share the same project directory
+     * (e.g. multi-target setups with separate distDir values) to prevent
+     * one server's build output from triggering file watcher cascades in
+     * another.
+     *
+     * @example ['.next-linux', '.next']
+     */
+    ignoredPaths?: string[]
   }
 
   /**

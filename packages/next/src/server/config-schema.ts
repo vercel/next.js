@@ -779,6 +779,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     watchOptions: z
       .strictObject({
         pollIntervalMs: z.number().positive().finite().optional(),
+        ignoredPaths: z.array(z.string()).optional(),
       })
       .optional(),
   })

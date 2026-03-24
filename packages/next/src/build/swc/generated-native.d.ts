@@ -196,6 +196,11 @@ export interface NapiWatchOptions {
    * docker).
    */
   pollIntervalMs?: number
+  /**
+   * Additional paths (relative to project root) whose filesystem events should
+   * be ignored. Analogous to webpack's `watchOptions.ignored`.
+   */
+  ignoredPaths?: string[]
 }
 export interface NapiProjectOptions {
   /**
