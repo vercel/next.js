@@ -78,6 +78,17 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
     }
 }
 
+/// Re-hashes `hash` with `salt` prepended, using XXH3-128 and base40-128
+/// encoding. This produces a new hash string so that content-addressed
+/// filenames can be forced to change (via `NEXT_HASH_SALT`) without modifying
+/// the underlying file content.
+pub fn hash_with_salt(hash: &str, salt: &str) -> String {
+    let mut hasher = Xxh3Hash128Hasher::new();
+    hasher.write_bytes(salt.as_bytes());
+    hasher.write_bytes(hash.as_bytes());
+    encode_base40_128(hasher.finish())
+}
+
 pub use crate::{
     base38::{BASE38_LEN_64, BASE38_LEN_128, encode_base38, encode_base38_128},
     base64::encode_base64,

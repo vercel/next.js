@@ -5,8 +5,7 @@ import { readdir } from 'fs/promises'
 async function getChunkFilenames(dir: string): Promise<string[]> {
   const entries: string[] = []
   try {
-    const dirEntries = await readdir(dir, { withFileTypes: true })
-    for (const entry of dirEntries) {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
       if (!entry.isDirectory() && entry.name.endsWith('.js')) {
         entries.push(entry.name)
       }
@@ -17,69 +16,41 @@ async function getChunkFilenames(dir: string): Promise<string[]> {
   return entries
 }
 
-describe('hash-salt', () => {
-  describe('with different salts', () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
-
-    let saltAChunks: string[] = []
-    let saltBChunks: string[] = []
-
-    beforeAll(async () => {
-      const chunksDir = join(next.testDir, '.next/static/chunks')
-
-      // Build with salt "salt-a"
-      await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
-      saltAChunks = await getChunkFilenames(chunksDir)
-
-      // Rebuild with salt "salt-b"
-      await next.clean()
-      await next.build({ env: { NEXT_HASH_SALT: 'salt-b' } })
-      saltBChunks = await getChunkFilenames(chunksDir)
-    })
-
-    it('should produce chunk files', () => {
-      expect(saltAChunks.length).toBeGreaterThan(0)
-      expect(saltBChunks.length).toBeGreaterThan(0)
-    })
-
-    it('should produce different chunk hashes when NEXT_HASH_SALT changes', () => {
-      // With different salts, the content-hashed chunk filenames should differ
-      expect(saltAChunks.sort()).not.toEqual(saltBChunks.sort())
-    })
+describe('NEXT_HASH_SALT', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
   })
 
-  describe('with same salt', () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
+  const chunksDir = () => join(next.testDir, '.next/static/chunks')
 
-    let firstBuildChunks: string[] = []
-    let secondBuildChunks: string[] = []
+  // Three builds: salt-a (first), salt-a (second, same salt), salt-b (different salt)
+  let saltAFirst: string[] = []
+  let saltASecond: string[] = []
+  let saltB: string[] = []
 
-    beforeAll(async () => {
-      const chunksDir = join(next.testDir, '.next/static/chunks')
+  beforeAll(async () => {
+    await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
+    saltAFirst = await getChunkFilenames(chunksDir())
 
-      // Build with salt "salt-a"
-      await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
-      firstBuildChunks = await getChunkFilenames(chunksDir)
+    await next.clean()
+    await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
+    saltASecond = await getChunkFilenames(chunksDir())
 
-      // Rebuild with the same salt
-      await next.clean()
-      await next.build({ env: { NEXT_HASH_SALT: 'salt-a' } })
-      secondBuildChunks = await getChunkFilenames(chunksDir)
-    })
+    await next.clean()
+    await next.build({ env: { NEXT_HASH_SALT: 'salt-b' } })
+    saltB = await getChunkFilenames(chunksDir())
+  })
 
-    it('should produce chunk files', () => {
-      expect(firstBuildChunks.length).toBeGreaterThan(0)
-    })
+  it('should produce chunk files', () => {
+    expect(saltAFirst.length).toBeGreaterThan(0)
+  })
 
-    it('should produce identical chunk hashes when NEXT_HASH_SALT is the same', () => {
-      // Same salt should produce same hashes
-      expect(firstBuildChunks.sort()).toEqual(secondBuildChunks.sort())
-    })
+  it('same salt produces identical chunk filenames', () => {
+    expect(saltAFirst.sort()).toEqual(saltASecond.sort())
+  })
+
+  it('different salt produces different chunk filenames', () => {
+    expect(saltAFirst.sort()).not.toEqual(saltB.sort())
   })
 })

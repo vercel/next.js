@@ -3,7 +3,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHasher, HashAlgorithm, Xxh3Hash128Hasher, encode_base40_128};
+use turbo_tasks_hash::{HashAlgorithm, hash_with_salt};
 use turbopack_core::{
     asset::Asset,
     chunk::{
@@ -433,14 +433,8 @@ impl BrowserChunkingContext {
             },
         )
     }
-
-    fn apply_hash_salt(hash: &str, salt: &str) -> RcStr {
-        let mut hasher = Xxh3Hash128Hasher::new();
-        hasher.write_bytes(salt.as_bytes());
-        hasher.write_bytes(hash.as_bytes());
-        encode_base40_128(hasher.finish()).into()
-    }
 }
+
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
@@ -581,15 +575,15 @@ impl ChunkingContext for BrowserChunkingContext {
                      enabled",
                 )?;
                 let this = self.await?;
-                let salted_hash;
-                let hash = if let Some(salt) = &this.hash_salt {
-                    salted_hash = Self::apply_hash_salt(hash, salt);
-                    &salted_hash
-                } else {
-                    hash
-                };
                 let length = length as usize;
-                let hash = &hash[0..length];
+                let effective_hash;
+                let hash = match this.hash_salt.as_deref() {
+                    Some(salt) => {
+                        effective_hash = hash_with_salt(hash, salt);
+                        &effective_hash[..length]
+                    }
+                    None => &hash[..length],
+                };
                 if let Some(prefix) = prefix {
                     format!("{prefix}-{hash}{extension}").into()
                 } else {
@@ -657,12 +651,13 @@ impl ChunkingContext for BrowserChunkingContext {
         let basename = source_path.file_name();
         let content_hash = content_hash.await?;
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let salted_hash;
-        let short_hash = if let Some(salt) = &self.hash_salt {
-            salted_hash = Self::apply_hash_salt(&content_hash, salt);
-            &salted_hash[..length as usize]
-        } else {
-            &content_hash[..length as usize]
+        let effective_hash;
+        let short_hash = match self.hash_salt.as_deref() {
+            Some(salt) => {
+                effective_hash = hash_with_salt(&content_hash, salt);
+                &effective_hash[..length as usize]
+            }
+            None => &content_hash[..length as usize],
         };
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
