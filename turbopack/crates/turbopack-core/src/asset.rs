@@ -139,4 +139,18 @@ impl AssetContent {
             AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }
+
+    /// Like [`content_hash`][Self::content_hash], but writes `salt` into the
+    /// hasher before the file bytes so the two are mixed in a single pass.
+    #[turbo_tasks::function]
+    pub async fn content_hash_with_salt(
+        &self,
+        salt: RcStr,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            AssetContent::File(content) => Ok(content.content_hash_with_salt(salt, algorithm)),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+        }
+    }
 }

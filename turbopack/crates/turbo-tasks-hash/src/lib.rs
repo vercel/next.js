@@ -78,15 +78,59 @@ pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorit
     }
 }
 
-/// Re-hashes `hash` with `salt` prepended, using XXH3-128 and base40-128
-/// encoding. This produces a new hash string so that content-addressed
-/// filenames can be forced to change (via `NEXT_HASH_SALT`) without modifying
-/// the underlying file content.
-pub fn hash_with_salt(hash: &str, salt: &str) -> String {
-    let mut hasher = Xxh3Hash128Hasher::new();
-    hasher.write_bytes(salt.as_bytes());
-    hasher.write_bytes(hash.as_bytes());
-    encode_base40_128(hasher.finish())
+/// Like [`deterministic_hash`], but writes `salt` into the hasher first so
+/// that `NEXT_HASH_SALT` can force new content-addressed filenames without
+/// changing the underlying file content. Salt and content are fed into the
+/// same hasher in a single pass, not composed via nested hashing.
+pub fn deterministic_hash_with_salt<T: DeterministicHash>(
+    salt: &str,
+    input: T,
+    algorithm: HashAlgorithm,
+) -> String {
+    match algorithm {
+        HashAlgorithm::Xxh3Hash64Hex => {
+            let mut hasher = Xxh3Hash64Hasher::new();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            encode_hex(hasher.finish())
+        }
+        HashAlgorithm::Xxh3Hash128Hex => {
+            let mut hasher = Xxh3Hash128Hasher::new();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            encode_hex_128(hasher.finish())
+        }
+        HashAlgorithm::Xxh3Hash64Base40 => {
+            let mut hasher = Xxh3Hash64Hasher::new();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            encode_base40(hasher.finish())
+        }
+        HashAlgorithm::Xxh3Hash128Base40 => {
+            let mut hasher = Xxh3Hash128Hasher::new();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            encode_base40_128(hasher.finish())
+        }
+        HashAlgorithm::Sha256Base64 => {
+            let mut hasher = ShaHasher::new_sha256();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            hasher.finish_base64()
+        }
+        HashAlgorithm::Sha384Base64 => {
+            let mut hasher = ShaHasher::new_sha384();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            hasher.finish_base64()
+        }
+        HashAlgorithm::Sha512Base64 => {
+            let mut hasher = ShaHasher::new_sha512();
+            hasher.write_bytes(salt.as_bytes());
+            input.deterministic_hash(&mut hasher);
+            hasher.finish_base64()
+        }
+    }
 }
 
 pub use crate::{

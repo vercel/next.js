@@ -70,7 +70,8 @@ use turbo_tasks::{
     turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
-    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash,
+    deterministic_hash_with_salt, hash_xxh3_hash64,
 };
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
@@ -2416,6 +2417,23 @@ impl FileContent {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
                 deterministic_hash(file.content().content_hash(), algorithm).into(),
+            ))),
+            FileContent::NotFound => Ok(Vc::cell(None)),
+        }
+    }
+
+    /// Like [`content_hash`][Self::content_hash], but writes `salt` into the
+    /// hasher before the file bytes so the two are mixed in a single pass.
+    #[turbo_tasks::function]
+    pub async fn content_hash_with_salt(
+        &self,
+        salt: RcStr,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            FileContent::Content(file) => Ok(Vc::cell(Some(
+                deterministic_hash_with_salt(&salt, file.content().content_hash(), algorithm)
+                    .into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }

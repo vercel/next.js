@@ -3,9 +3,9 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{HashAlgorithm, hash_with_salt};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
@@ -566,24 +566,23 @@ impl ChunkingContext for BrowserChunkingContext {
                 let Some(asset) = asset else {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
-                let hash = asset
-                    .content()
-                    .content_hash(HashAlgorithm::Xxh3Hash128Base38)
-                    .await?;
+                let this = self.await?;
+                let content = asset.content();
+                let hash = if let Some(salt) = &this.hash_salt {
+                    content
+                        .content_hash_with_salt(salt.clone(), HashAlgorithm::Xxh3Hash128Base38)
+                        .await?
+                } else {
+                    content
+                        .content_hash(HashAlgorithm::Xxh3Hash128Base38)
+                        .await?
+                };
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
-                let this = self.await?;
                 let length = length as usize;
-                let effective_hash;
-                let hash = match this.hash_salt.as_deref() {
-                    Some(salt) => {
-                        effective_hash = hash_with_salt(hash, salt);
-                        &effective_hash[..length]
-                    }
-                    None => &hash[..length],
-                };
+                let hash = &hash[..length];
                 if let Some(prefix) = prefix {
                     format!("{prefix}-{hash}{extension}").into()
                 } else {
@@ -643,22 +642,26 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn asset_path(
         &self,
-        content_hash: Vc<RcStr>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = content_hash.await?;
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let effective_hash;
-        let short_hash = match self.hash_salt.as_deref() {
-            Some(salt) => {
-                effective_hash = hash_with_salt(&content_hash, salt);
-                &effective_hash[..length as usize]
-            }
-            None => &content_hash[..length as usize],
+        let hash = if let Some(salt) = &self.hash_salt {
+            content
+                .content_hash_with_salt(salt.clone(), HashAlgorithm::Xxh3Hash128Base40)
+                .await?
+        } else {
+            content
+                .content_hash(HashAlgorithm::Xxh3Hash128Base40)
+                .await?
         };
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
