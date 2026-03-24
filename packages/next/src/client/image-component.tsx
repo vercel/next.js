@@ -27,7 +27,6 @@ import type {
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../shared/lib/utils/warn-once'
-import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -307,13 +306,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   }
 )
 
-function ImagePreload({
-  isAppRouter,
-  imgAttributes,
-}: {
-  isAppRouter: boolean
-  imgAttributes: ImgProps
-}) {
+function ImagePreload({ imgAttributes }: { imgAttributes: ImgProps }) {
   const opts: ReactDOM.PreloadOptions = {
     as: 'image',
     imageSrcSet: imgAttributes.srcSet,
@@ -323,7 +316,7 @@ function ImagePreload({
     ...getDynamicProps(imgAttributes.fetchPriority),
   }
 
-  if (isAppRouter && ReactDOM.preload) {
+  if (ReactDOM.preload) {
     ReactDOM.preload(imgAttributes.src, opts)
     return null
   }
@@ -357,10 +350,6 @@ function ImagePreload({
  */
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
-    const pagesRouter = useContext(RouterContext)
-    // We're in the app directory if there is no pages router.
-    const isAppRouter = !pagesRouter
-
     const configContext = useContext(ImageConfigContext)
     const config = useMemo(() => {
       const c = configEnv || configContext || imageConfigDefault
@@ -423,10 +412,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
           />
         }
         {imgMeta.preload ? (
-          <ImagePreload
-            isAppRouter={isAppRouter}
-            imgAttributes={imgAttributes}
-          />
+          <ImagePreload imgAttributes={imgAttributes} />
         ) : null}
       </>
     )

@@ -97,4 +97,23 @@ describe('Image rendering', () => {
     expect($2('noscript').length).toBe(0)
     expect($3('noscript').length).toBe(0)
   })
+
+  it('should preload priority images with srcset without href', async () => {
+    const element = React.createElement(Image, {
+      alt: 'priority image',
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: true,
+    })
+    const html = ReactDOMServer.renderToString(element)
+    const $ = cheerio.load(html)
+    const img = $('img[data-nimg]')
+    const preload = $('link[rel="preload"][as="image"]')
+    const preloadAttrs = preload.get(0)?.attribs
+
+    expect(preload.length).toBe(1)
+    expect(preloadAttrs?.href).toBeUndefined()
+    expect(preloadAttrs?.imagesrcset).toBe(img.attr('srcset'))
+  })
 })

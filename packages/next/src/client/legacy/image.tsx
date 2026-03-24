@@ -1168,26 +1168,39 @@ export default function Image({
         ) : null}
         <ImageElement {...imgElementArgs} />
       </span>
-      {!supportsFloat && priority ? (
+      {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
         // it would likely cause the incorrect image to be preloaded.
         //
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        <Head>
-          <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
-            rel="preload"
-            as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            {...linkProps}
-          />
-        </Head>
+        supportsFloat ? (
+          (() => {
+            ReactDOM.preload(imgAttributes.src, {
+              as: 'image',
+              imageSrcSet: imgAttributes.srcSet,
+              imageSizes: imgAttributes.sizes,
+              crossOrigin: rest.crossOrigin,
+              referrerPolicy: rest.referrerPolicy,
+            })
+            return null
+          })()
+        ) : (
+          <Head>
+            <link
+              key={
+                '__nimg-' +
+                imgAttributes.src +
+                imgAttributes.srcSet +
+                imgAttributes.sizes
+              }
+              rel="preload"
+              as="image"
+              href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+              {...linkProps}
+            />
+          </Head>
+        )
       ) : null}
     </>
   )

@@ -213,4 +213,21 @@ describe('Image Legacy Rendering', () => {
       }
     }
   )
+
+  it('should preload priority images with srcset without href', async () => {
+    const element = React.createElement(Image, {
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: true,
+    })
+    const $ = cheerio.load(ReactDOM.renderToString(element))
+    const img = $('img[data-nimg]')
+    const preload = $('link[rel="preload"][as="image"]')
+    const preloadAttrs = preload.get(0)?.attribs
+
+    expect(preload.length).toBe(1)
+    expect(preloadAttrs?.href).toBeUndefined()
+    expect(preloadAttrs?.imagesrcset).toBe(img.attr('srcset'))
+  })
 })
