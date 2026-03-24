@@ -2,6 +2,7 @@ use std::{
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
+    sync::Arc,
     task::Poll,
 };
 
@@ -9,32 +10,20 @@ use anyhow::Result;
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 use crate::{
     CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
-    backend::{CellContent, TypedCellContent},
+    TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
+    backend::TypedCellContent,
     event::EventListener,
     id::{ExecutionId, LocalTaskId},
     manager::{
-        ReadTracking, read_local_output, read_task_cell, read_task_output, with_turbo_tasks,
+        ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
+        TurboTasksApi, read_local_output, read_task_output, with_turbo_tasks,
     },
     registry::{self, get_value_type},
     turbo_tasks,
 };
-
-#[derive(Error, Debug)]
-pub enum ResolveTypeError {
-    #[error("no content in the cell")]
-    NoContent,
-    #[error("the content in the cell has no type")]
-    UntypedContent,
-    #[error("content is not available as task execution failed")]
-    TaskError { source: anyhow::Error },
-    #[error("reading the cell content failed")]
-    ReadError { source: anyhow::Error },
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub struct CellId {
@@ -47,20 +36,21 @@ impl Display for CellId {
         write!(
             f,
             "{}#{}",
-            registry::get_value_type(self.type_id).name,
+            registry::get_value_type(self.type_id).ty.name,
             self.index
         )
     }
 }
 
-/// A type-erased representation of [`Vc`][crate::Vc].
+/// A type-erased representation of [`Vc`].
 ///
 /// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
-/// required to support [`Vc`][crate::Vc].
+/// required to support [`Vc`].
 ///
 /// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
 ///
+/// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum RawVc {
@@ -79,6 +69,8 @@ pub enum RawVc {
     /// Local outputs are only valid within the context of their parent "non-local" task. Turbo
     /// Task's APIs are designed to prevent escapes of local [`Vc`]s, but [`ExecutionId`] is used
     /// for a fallback runtime assertion.
+    ///
+    /// [`Vc`]: crate::Vc
     LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
 }
 
@@ -160,94 +152,23 @@ impl RawVc {
         ReadRawVcFuture::new(self, None)
     }
 
-    pub(crate) async fn resolve_trait(
-        self,
-        trait_type: TraitTypeId,
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        self.resolve_type_inner(|value_type_id| {
-            let value_type = get_value_type(value_type_id);
-            (value_type.has_trait(&trait_type), Some(value_type))
-        })
-        .await
-    }
-
-    pub(crate) async fn resolve_value(
-        self,
-        value_type: ValueTypeId,
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        self.resolve_type_inner(|cell_value_type| (cell_value_type == value_type, None))
-            .await
-    }
-
-    /// Helper for `resolve_trait` and `resolve_value`.
-    ///
-    /// After finding a cell, returns `Ok(Some(...))` when `conditional` returns
-    /// `true`, and `Ok(None)` when `conditional` returns `false`.
-    ///
-    /// As an optimization, `conditional` may return the `&'static ValueType` to
-    /// avoid a potential extra lookup later.
-    async fn resolve_type_inner(
-        self,
-        conditional: impl FnOnce(ValueTypeId) -> (bool, Option<&'static ValueType>),
-    ) -> Result<Option<RawVc>, ResolveTypeError> {
-        let tt = turbo_tasks();
-        let mut current = self;
-        loop {
-            match current {
-                RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, ReadOutputOptions::default())
-                        .await
-                        .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-                RawVc::TaskCell(task, index) => {
-                    let (ok, value_type) = conditional(index.type_id);
-                    if !ok {
-                        return Ok(None);
-                    }
-                    let value_type =
-                        value_type.unwrap_or_else(|| registry::get_value_type(index.type_id));
-                    let content = read_task_cell(
-                        &*tt,
-                        task,
-                        index,
-                        ReadCellOptions {
-                            is_serializable_cell_content: value_type.bincode.is_some(),
-                            final_read_hint: false,
-                            tracking: ReadTracking::default(),
-                        },
-                    )
-                    .await
-                    .map_err(|source| ResolveTypeError::ReadError { source })?;
-                    if let TypedCellContent(_, CellContent(Some(_))) = content {
-                        return Ok(Some(RawVc::TaskCell(task, index)));
-                    } else {
-                        return Err(ResolveTypeError::NoContent);
-                    }
-                }
-                RawVc::LocalOutput(execution_id, local_task_id, ..) => {
-                    current = read_local_output(&*tt, execution_id, local_task_id)
-                        .await
-                        .map_err(|source| ResolveTypeError::TaskError { source })?;
-                }
-            }
-        }
-    }
-
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
         self.resolve_inner(ReadOutputOptions {
-            tracking: ReadTracking::default(),
             consistency: ReadConsistency::Eventual,
+            ..Default::default()
         })
         .await
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
-        self.resolve_inner(ReadOutputOptions {
-            tracking: ReadTracking::default(),
-            consistency: ReadConsistency::Strong,
-        })
+        SuppressTopLevelTaskCheckFuture {
+            inner: self.resolve_inner(ReadOutputOptions {
+                consistency: ReadConsistency::Strong,
+                ..Default::default()
+            }),
+        }
         .await
     }
 
@@ -376,11 +297,37 @@ impl CollectiblesSource for RawVc {
     }
 }
 
+/// A future wrapper that suppresses the top-level task eventual consistency check
+/// during each [`poll`][Future::poll] call. The suppression is applied via
+/// [`sync_scope`][tokio::task_local!] so it is only active during the synchronous
+/// execution of the inner future's `poll`, and is never held across await points.
+struct SuppressTopLevelTaskCheckFuture<F> {
+    inner: F,
+}
+
+impl<F: Future> Future for SuppressTopLevelTaskCheckFuture<F> {
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are only projecting the pin to the inner field, not moving it
+        let inner = unsafe { self.map_unchecked_mut(|this| &mut this.inner) };
+        if cfg!(debug_assertions) {
+            SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, || inner.poll(cx))
+        } else {
+            inner.poll(cx)
+        }
+    }
+}
+
+#[must_use]
 pub struct ReadRawVcFuture {
     current: RawVc,
     read_output_options: ReadOutputOptions,
     read_cell_options: ReadCellOptions,
     is_serializable_cell_content_unknown: bool,
+    /// This flag redundant with `read_output_options`, but `read_output_options` is mutated during
+    /// the read. This flag indicates that the initial read was strongly consistent.
+    strongly_consistent: bool,
     listener: Option<EventListener>,
 }
 
@@ -394,12 +341,22 @@ impl ReadRawVcFuture {
                 ..Default::default()
             },
             is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
+            strongly_consistent: false,
             listener: None,
         }
     }
 
+    /// Make reads strongly consistent.
     pub fn strongly_consistent(mut self) -> Self {
         self.read_output_options.consistency = ReadConsistency::Strong;
+        self.strongly_consistent = true;
+        self
+    }
+
+    /// Track the value as a dependency with an key.
+    pub fn track_with_key(mut self, key: u64) -> Self {
+        self.read_output_options.tracking = ReadTracking::Tracked;
+        self.read_cell_options.tracking = ReadCellTracking::Tracked { key: Some(key) };
         self
     }
 
@@ -410,21 +367,11 @@ impl ReadRawVcFuture {
     /// using it could break cache invalidation.
     pub fn untracked(mut self) -> Self {
         self.read_output_options.tracking = ReadTracking::TrackOnlyError;
-        self.read_cell_options.tracking = ReadTracking::TrackOnlyError;
+        self.read_cell_options.tracking = ReadCellTracking::TrackOnlyError;
         self
     }
 
-    /// This will not track the value or the error as dependency.
-    /// Make sure to handle eventual consistency errors.
-    ///
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub fn untracked_including_errors(mut self) -> Self {
-        self.read_output_options.tracking = ReadTracking::Untracked;
-        self.read_cell_options.tracking = ReadTracking::Untracked;
-        self
-    }
-
+    /// Hint that this is the final read of the cell content.
     pub fn final_read_hint(mut self) -> Self {
         self.read_cell_options.final_read_hint = true;
         self
@@ -435,9 +382,11 @@ impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        with_turbo_tasks(|tt| {
-            // SAFETY: we are not moving this
-            let this = unsafe { self.get_unchecked_mut() };
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+
+        // Extract the closure to avoid deep nesting
+        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             'outer: loop {
                 if let Some(listener) = &mut this.listener {
                     // SAFETY: listener is from previous pinned this
@@ -452,9 +401,14 @@ impl Future for ReadRawVcFuture {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
                             Ok(Ok(vc)) => {
-                                // We no longer need to read strongly consistent, as any Vc returned
-                                // from the first task will be inside of the scope of the first
-                                // task. So it's already strongly consistent.
+                                // turbo-tasks-backend doesn't currently have any sort of
+                                // "transaction" or global lock mechanism to group together chains
+                                // of `TaskOutput`/`TaskCell` reads.
+                                //
+                                // If we ignore the theoretical TOCTOU issues, we no longer need to
+                                // read strongly consistent, as any Vc returned from the first task
+                                // will be inside of the scope of the first task. So it's already
+                                // strongly consistent.
                                 this.read_output_options.consistency = ReadConsistency::Eventual;
                                 this.current = vc;
                                 continue 'outer;
@@ -505,7 +459,24 @@ impl Future for ReadRawVcFuture {
                     }
                 };
             }
-        })
+        };
+
+        fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() -> R) -> R {
+            if cfg!(debug_assertions) && strongly_consistent {
+                // Temporarily suppress the top-level task check
+                SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK.sync_scope(true, f)
+            } else {
+                f()
+            }
+        }
+
+        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
+        //
+        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
+        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
+        // `TaskCell` could get mutated after the strongly consistent read of the outer
+        // `TaskOutput`.
+        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
     }
 }
 

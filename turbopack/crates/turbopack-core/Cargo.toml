@@ -24,6 +24,7 @@ const_format = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
+num-bigint = "0.4"
 once_cell = { workspace = true }
 patricia_tree = { version = "0.10.1", features = ["serde"] }
 petgraph = { workspace = true, features = ["serde-1"] }
@@ -32,13 +33,14 @@ ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
-serde_bytes = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order", "raw_value"] }
 smallvec = { workspace = true }
 swc_sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
+turbo-esregex = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-prehash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -46,17 +48,16 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
-twox-hash = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 uuid = { workspace = true}
-
 
 [dev-dependencies]
 rstest = { workspace = true }
 tokio = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
+tempfile = { workspace = true }
 
 [features]
 default = []

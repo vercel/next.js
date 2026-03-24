@@ -72,13 +72,13 @@ describe('build trace with extra entries', () => {
         )
 
         // Skip hello.json check for Turbopack as it doesn't support webpack entry modifications
-        if (!process.env.TURBOPACK_BUILD) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(
             appTrace.files.some((file) => file.endsWith('hello.json'))
           ).toBe(true)
         }
         // Skip lib/get-data.js check for Turbopack as it doesn't support webpack entry modifications
-        if (!process.env.TURBOPACK_BUILD) {
+        if (!process.env.IS_TURBOPACK_TEST) {
           expect(
             appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
           ).toBe(true)

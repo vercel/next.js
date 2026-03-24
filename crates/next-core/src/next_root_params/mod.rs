@@ -191,8 +191,9 @@ impl NextRootParamsMapper {
         .to_resolved()
         .await?;
 
-        let import_map_result =
-            ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(virtual_source)));
+        let import_map_result = ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
+        );
         Ok(import_map_result.cell())
     }
 
@@ -222,8 +223,9 @@ impl NextRootParamsMapper {
         .to_resolved()
         .await?;
 
-        let import_map_result =
-            ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(virtual_source)));
+        let import_map_result = ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
+        );
         Ok(import_map_result.cell())
     }
 }

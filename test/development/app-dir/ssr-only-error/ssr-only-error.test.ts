@@ -12,6 +12,7 @@ describe('ssr-only-error', () => {
     // TODO(veil): Missing Owner Stack (NDX-905)
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "SSR only error",
        "environmentLabel": null,
        "label": "Runtime Error",

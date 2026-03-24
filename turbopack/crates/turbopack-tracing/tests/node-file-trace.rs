@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use regex::Regex;
@@ -24,14 +24,14 @@ use rstest::*;
 use rstest_reuse::{
     *, {self},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
@@ -40,6 +40,7 @@ use turbopack::{
     },
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -63,8 +64,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::apollo("integration/apollo.js")]
 #[case::argon2("integration/argon2.js")]
 #[case::auth0("integration/auth0.js")]
+#[case::aws_sdk_old("integration/aws-sdk-old.js")]
 #[case::aws_sdk("integration/aws-sdk.js")]
-#[case::aws_sdk3("integration/aws-sdk3.js")]
 #[case::axios("integration/axios.js")]
 #[case::azure_cosmos("integration/azure-cosmos.js")]
 #[case::azure_storage("integration/azure-storage.js")]
@@ -146,7 +147,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::passport("integration/passport.js")]
 #[case::path_platform("integration/path-platform.js")]
 #[case::pixelmatch("integration/pixelmatch.js")]
-#[case::pdf2json("integration/pdf2json.mjs")]
+#[case::pdf2json("integration/pdf2json.js")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
 #[case::pino("integration/pino.js")]
@@ -182,6 +183,15 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
+#[cfg_attr(
+    not(target_os = "windows"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
 #[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]
@@ -303,7 +313,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
     node_file_trace(input, "persistent_cache", 2, 240, |directory_path| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
-            turbo_tasks_backend::default_backing_storage(
+            turbo_tasks_backend::turbo_backing_storage(
                 &directory_path.join(".cache"),
                 &turbo_tasks_backend::GitVersionInfo {
                     describe: "test-unversioned",
@@ -373,10 +383,12 @@ async fn node_file_trace_operation(
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                // enable_types is required here to ensure .d.ts files are collected.
                 enable_types: true,
                 ..Default::default()
             },
             css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
                 enable_raw_css: true,
                 ..Default::default()
             },
@@ -456,7 +468,7 @@ fn node_file_trace<B: Backend + 'static>(
                     Err(err)
                 }
             })
-            .context(format!("Failed to remove directory: {directory}"))
+            .with_context(|| format!("Failed to remove directory: {directory}"))
             .unwrap();
 
         for _ in 0..run_count {
@@ -466,10 +478,7 @@ fn node_file_trace<B: Backend + 'static>(
             let input = input.clone();
             let directory = directory.clone();
             let task = async move {
-                #[allow(unused)]
-                let bench_suites = bench_suites.clone();
                 let before_start = Instant::now();
-
                 let rebased = node_file_trace_operation(
                     package_root.clone(),
                     input.clone(),
@@ -477,11 +486,13 @@ fn node_file_trace<B: Backend + 'static>(
                 )
                 .resolve_strongly_consistent()
                 .await?;
+                let duration = before_start.elapsed();
 
-                print_graph(ResolvedVc::upcast(rebased)).await?;
+                print_graph_operation(ResolvedVc::upcast(rebased))
+                    .read_strongly_consistent()
+                    .await?;
 
                 if cfg!(feature = "bench_against_node_nft") {
-                    let duration = before_start.elapsed();
                     let node_start = Instant::now();
                     exec_node(&package_root, &input).await?;
                     let node_duration = node_start.elapsed();
@@ -514,7 +525,10 @@ fn node_file_trace<B: Backend + 'static>(
                         stderr: String::new(),
                     })
                 } else {
-                    let output_path = &rebased.path().await?.path;
+                    let output_path = &asset_path_operation(ResolvedVc::upcast(rebased))
+                        .read_strongly_consistent()
+                        .await?
+                        .path;
                     let original_output =
                         exec_node(&package_root, &format!("{package_root}/tests/{input}")).await?;
                     let output = exec_node(&directory, output_path).await?;
@@ -642,8 +656,8 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
-        .with_context(|| anyhow!("node execution of {path} is hanging"))?
-        .with_context(|| anyhow!("failed to spawn node process of {path}"))?;
+        .with_context(|| format!("node execution of {path} is hanging"))?
+        .with_context(|| format!("failed to spawn node process of {path}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -702,7 +716,7 @@ fn assert_output(
     })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct BenchSuite {
     suite: String,
     node_duration: String,
@@ -744,7 +758,13 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+#[turbo_tasks::function(operation)]
+async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
+    asset.path()
+}
+
+#[turbo_tasks::function(operation)]
+async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));

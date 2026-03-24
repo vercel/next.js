@@ -1,12 +1,10 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
-    source::Source,
+    context::AssetContext, module::Module, reference_type::ReferenceType, source::Source,
 };
 use turbopack_ecmascript::EcmascriptInputTransforms;
 use turbopack_static::ecma::StaticUrlJsModule;
@@ -25,8 +23,6 @@ use super::source_asset::StructuredImageFileSource;
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     Encode,
     Decode,
 )]
@@ -93,7 +89,7 @@ impl CustomModuleType for StructuredImageModuleType {
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _part: Option<ModulePart>,
+        _reference_type: ReferenceType,
     ) -> Vc<Box<dyn Module>> {
         StructuredImageModuleType::create_module(
             source,

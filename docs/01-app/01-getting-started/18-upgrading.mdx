@@ -14,11 +14,23 @@ related:
 
 To update to the latest version of Next.js, you can use the `upgrade` command:
 
-```bash filename="Terminal"
-next upgrade
+```bash package="pnpm"
+pnpm next upgrade
 ```
 
-Next.js 15 and earlier do not support the `upgrade` command and need to use a separate package instead:
+```bash package="npm"
+npx next upgrade
+```
+
+```bash package="yarn"
+yarn next upgrade
+```
+
+```bash package="bun"
+bunx next upgrade
+```
+
+Versions before Next.js 16.1.0 do not support the `upgrade` command and need to use a separate package instead:
 
 ```bash filename="Terminal"
 npx @next/codemod@canary upgrade latest
@@ -46,8 +58,20 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 
 To update to the latest canary, make sure you're on the latest version of Next.js and everything is working as expected. Then, run the following command:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add next@canary
+```
+
+```bash package="npm"
 npm i next@canary
+```
+
+```bash package="yarn"
+yarn add next@canary
+```
+
+```bash package="bun"
+bun add next@canary
 ```
 
 ### Features available in canary

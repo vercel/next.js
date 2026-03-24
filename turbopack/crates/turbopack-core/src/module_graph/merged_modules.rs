@@ -17,42 +17,63 @@ use crate::{
     resolve::ExportUsage,
 };
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesReplacements(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesOriginalModules(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
+);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesIncluded(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
     /// A map of modules to the merged module containing the module plus additional modules.
-    #[allow(clippy::type_complexity)]
-    pub replacements: FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub replacements: ResolvedVc<MergedModulesReplacements>,
     /// A map of replacement modules to their corresponding chunk group info (which is the same as
     /// the chunk group info of the original module it replaced).
-    #[allow(clippy::type_complexity)]
-    pub replacements_to_original:
-        FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
+    pub replacements_to_original: ResolvedVc<MergedModulesOriginalModules>,
     /// A map of modules that are already contained as values in replacements.
-    pub included: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    pub included: ResolvedVc<MergedModulesIncluded>,
 }
 
 impl MergedModuleInfo {
     /// Whether the given module should be replaced with a merged module.
-    pub fn should_replace_module(
+    pub async fn should_replace_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Option<ResolvedVc<Box<dyn ChunkableModule>>> {
-        self.replacements.get(&module).copied()
+    ) -> Result<Option<ResolvedVc<Box<dyn ChunkableModule>>>> {
+        Ok(self.replacements.get(&module).await?.as_deref().copied())
     }
 
     /// Returns the original module for the given replacement module (useful for retrieving the
     /// chunk group info).
-    pub fn get_original_module(
+    pub async fn get_original_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Option<ResolvedVc<Box<dyn Module>>> {
-        self.replacements_to_original.get(&module).copied()
+    ) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+        Ok(self
+            .replacements_to_original
+            .get(&module)
+            .await?
+            .as_deref()
+            .copied())
     }
 
     // Whether the given module should be skipped during chunking, as it is already included in a
     // module returned by some `should_replace_module` call.
-    pub fn should_create_chunk_item_for(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
-        !self.included.contains(&module)
+    pub async fn should_create_chunk_item_for(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<bool> {
+        Ok(!self.included.contains_key(&module).await?)
     }
 }
 
@@ -72,9 +93,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
     let span = span_outer.clone();
     async move {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
 
         let graphs = &module_graph.graphs;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
@@ -93,21 +114,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let mut module_depth =
                 FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            module_graph.traverse_edges_from_entries_bfs(
-                entries.iter().copied(),
-                |parent, node| {
-                    if let Some((parent, _)) = parent {
-                        let parent_depth = *module_depth
-                            .get(&parent)
-                            .context("Module depth not found")?;
-                        module_depth.entry(node).or_insert(parent_depth + 1);
-                    } else {
-                        module_depth.insert(node, 0);
-                    };
+            module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
+                if let Some((parent, _)) = parent {
+                    let parent_depth = *module_depth
+                        .get(&parent)
+                        .context("Module depth not found")?;
+                    module_depth.entry(node).or_insert(parent_depth + 1);
+                } else {
+                    module_depth.insert(node, 0);
+                };
 
-                    Ok(GraphTraversalAction::Continue)
-                },
-            )?;
+                Ok(GraphTraversalAction::Continue)
+            })?;
             module_depth
         };
 
@@ -138,6 +156,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .await?
             .into_iter()
             .collect::<FxHashSet<_>>();
+
+        // Pre-fetch async status for all mergeable modules using keyed access to avoid
+        // reading the full AsyncModulesInfo set during the synchronous traversal below.
+        let inner_span = tracing::info_span!("pre-fetch async module status");
+        let async_modules: FxHashSet<_> = mergeable
+            .iter()
+            .map(async |&module| Ok(async_module_info.is_async(module).await?.then_some(module)))
+            .try_flat_join()
+            .instrument(inner_span)
+            .await?
+            .into_iter()
+            .collect();
 
         let inner_span = tracing::info_span!("fixed point traversal").entered();
 
@@ -173,8 +203,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     && let Some(parent_module) = parent_module
                     && mergeable.contains(&parent_module)
                     && mergeable.contains(&module)
-                    && !async_module_info.contains(&parent_module)
-                    && !async_module_info.contains(&module)
+                    && !async_modules.contains(&parent_module)
+                    && !async_modules.contains(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
@@ -326,7 +356,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // leading to the list `a, b` which is not execution order.
                         let mut visited = FxHashSet::default();
 
-                        module_graph.traverse_edges_from_entries_dfs(
+                        module_graph.traverse_edges_dfs(
                             chunk_group.entries(),
                             &mut (),
                             |parent_info, node, _| {
@@ -468,7 +498,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut exposed_modules_namespace: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             entries,
             &mut (),
             |_, _, _| Ok(GraphTraversalAction::Continue),
@@ -508,9 +538,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info
-                    .is_some_and(|(_, r)| matches!(r.binding_usage.export, ExportUsage::All))
-                {
+                if parent_info.is_some_and(|(_, r)| {
+                    matches!(
+                        r.binding_usage.export,
+                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                    )
+                }) {
                     // This module needs to be exposed:
                     // - namespace import from another group
                     exposed_modules_namespace.insert(module);
@@ -761,9 +794,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("included_modules", included.len());
 
         Ok(MergedModuleInfo {
-            replacements,
-            replacements_to_original,
-            included,
+            replacements: ResolvedVc::cell(replacements),
+            replacements_to_original: ResolvedVc::cell(replacements_to_original),
+            included: ResolvedVc::cell(included),
         }
         .cell())
     }

@@ -10,7 +10,6 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
-import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -27,10 +26,9 @@ import {
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
-import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -66,7 +64,10 @@ import {
   isMetadataRouteFile,
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
-import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import {
+  fillMetadataSegment,
+  normalizeMetadataPageToRoute,
+} from '../../../lib/metadata/get-metadata-route'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -81,15 +82,24 @@ import {
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import { parseUrl } from '../../../lib/url'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
-import { isParallelRouteSegment } from '../../../shared/lib/segment'
+import {
+  addSlotIfNew,
+  type RouteInfo,
+  type SlotInfo,
+} from '../../../build/file-classifier'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { Lockfile } from '../../../build/lockfile'
+import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 
 export type SetupOpts = {
@@ -107,6 +117,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
+  serverFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -116,6 +127,7 @@ export interface DevRoutesManifest {
   rewrites: RoutesManifest['rewrites']
   redirects: RoutesManifest['redirects']
   headers: RoutesManifest['headers']
+  onMatchHeaders: RoutesManifest['headers']
   i18n: RoutesManifest['i18n']
   skipProxyUrlNormalize: RoutesManifest['skipProxyUrlNormalize']
 }
@@ -140,16 +152,18 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  const verifyResult = await verifyTypeScriptSetup({
+  const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
-    intentDirs: [opts.pagesDir, opts.appDir].filter(Boolean) as string[],
-    typeCheckPreflight: false,
+    strictRouteTypes: Boolean(opts.nextConfig.experimental.strictRouteTypes),
+    shouldRunTypeCheck: false,
     tsconfigPath: opts.nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(opts.nextConfig.typedRoutes),
     disableStaticImages: opts.nextConfig.images.disableStaticImages,
     hasAppDir: !!opts.appDir,
     hasPagesDir: !!opts.pagesDir,
-    isolatedDevBuild: opts.nextConfig.experimental.isolatedDevBuild,
+    appDir: opts.appDir,
+    pagesDir: opts.pagesDir,
   })
 
   if (verifyResult.version) {
@@ -182,9 +196,25 @@ async function startWatcher(
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {
     fs.mkdirSync(distDir, { recursive: true })
+
+    // Create server info to store in the lockfile itself
+    // This allows other processes to discover the running server
+    const appUrl = `http://localhost:${opts.port}`
+    const serverInfo: DevServerInfo = {
+      pid: process.pid,
+      port: opts.port,
+      hostname: 'localhost',
+      appUrl,
+      startedAt: Date.now(),
+    }
+
     lockfile = await Lockfile.acquireWithRetriesOrExit(
       path.join(distDir, 'lock'),
-      'next dev'
+      'next dev',
+      true,
+      JSON.stringify(serverInfo),
+      opts.dir,
+      opts.nextConfig.distDir
     )
   }
 
@@ -210,14 +240,19 @@ async function startWatcher(
           serverFields,
           distDir,
           resetFetch,
-          lockfile
+          lockfile,
+          opts.serverFastRefresh
         )
       })()
     : await (async () => {
-        const HotReloaderWebpack = (
-          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-        ).default
-        return new HotReloaderWebpack(opts.dir, {
+        const HotReloader = process.env.NEXT_RSPACK
+          ? (
+              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
+            ).default
+          : (
+              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+            ).default
+        return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
           pagesDir,
@@ -230,7 +265,7 @@ async function startWatcher(
           }),
           telemetry: opts.telemetry,
           rewrites: opts.fsChecker.rewrites,
-          previewProps: opts.fsChecker.prerenderManifest.preview,
+          previewProps: opts.fsChecker.previewProps,
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
@@ -239,8 +274,6 @@ async function startWatcher(
 
   await hotReloader.start()
 
-  // have to write this after starting hot-reloader since that
-  // cleans the dist dir
   const distTypesDir = path.join(distDir, 'types')
   await writeRouteTypesManifest(
     {
@@ -269,6 +302,7 @@ async function startWatcher(
     rewrites: opts.fsChecker.rewrites,
     redirects: opts.fsChecker.redirects,
     headers: opts.fsChecker.headers,
+    onMatchHeaders: opts.fsChecker.onMatchHeaders,
     i18n: nextConfig.i18n || undefined,
     skipProxyUrlNormalize: nextConfig.skipProxyUrlNormalize,
   }
@@ -280,7 +314,17 @@ async function startWatcher(
   const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
   await fs.promises.writeFile(
     prerenderManifestPath,
-    JSON.stringify(opts.fsChecker.prerenderManifest, null, 2)
+    JSON.stringify(
+      {
+        version: 4,
+        routes: {},
+        dynamicRoutes: {},
+        notFoundRoutes: [],
+        preview: opts.fsChecker.previewProps,
+      },
+      null,
+      2
+    )
   )
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
@@ -384,13 +428,12 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const appRouteHandlers: Array<{ route: string; filePath: string }> = []
-      const pageApiRoutes: Array<{ route: string; filePath: string }> = []
-
-      const pageRoutes: Array<{ route: string; filePath: string }> = []
-      const appRoutes: Array<{ route: string; filePath: string }> = []
-      const layoutRoutes: Array<{ route: string; filePath: string }> = []
-      const slots: Array<{ name: string; parent: string }> = []
+      const appRouteHandlers: RouteInfo[] = []
+      const pageApiRoutes: RouteInfo[] = []
+      const pageRoutes: RouteInfo[] = []
+      const appRoutes: RouteInfo[] = []
+      const layoutRoutes: RouteInfo[] = []
+      const slots: SlotInfo[] = []
 
       let envChange = false
       let tsconfigChange = false
@@ -601,117 +644,82 @@ async function startWatcher(
         }
 
         if (isAppPath) {
-          const isRootNotFound = validFileMatcher.isRootNotFound(fileName)
-          hasRootAppNotFound = true
-
-          if (isRootNotFound) {
+          // Track root not-found
+          if (validFileMatcher.isRootNotFound(fileName)) {
+            hasRootAppNotFound = true
             continue
           }
 
-          // Ignore files/directories starting with `_` in the app directory
-          if (normalizePathSep(pageName).includes('/_')) {
-            continue
-          }
+          const normalizedPageName = normalizePathSep(pageName)
 
-          // Record parallel route slots for layout typing
-          // May run multiple times (e.g. if a parallel route
-          // has both a layout and a page, and children) but that's fine
-          const segments = normalizePathSep(pageName).split('/')
-          for (let i = segments.length - 1; i >= 0; i--) {
-            const segment = segments[i]
-            if (isParallelRouteSegment(segment)) {
-              const parentPath = normalizeAppPath(
-                segments.slice(0, i).join('/')
-              )
+          // Skip files/directories starting with `_` in the app directory
+          if (normalizedPageName.includes('/_')) continue
 
-              const slotName = segment.slice(1)
-              // check if the slot already exists
-              if (
-                slots.some(
-                  (s) => s.name === slotName && s.parent === parentPath
-                )
-              )
-                continue
+          // Record parallel route slots
+          addSlotIfNew(slots, normalizedPageName)
 
-              slots.push({
-                name: slotName,
-                parent: parentPath,
-              })
-              break
-            }
-          }
-
-          // Record layouts
+          // Handle layouts separately - they don't get added to appPaths
           if (validFileMatcher.isAppLayoutPage(fileName)) {
-            layoutRoutes.push({
-              route: ensureLeadingSlash(
-                normalizeAppPath(normalizePathSep(pageName)).replace(
-                  /\/layout$/,
-                  ''
-                )
-              ),
-              filePath: fileName,
-            })
-          }
-
-          if (!validFileMatcher.isAppRouterPage(fileName)) {
+            const layoutRoute = ensureLeadingSlash(
+              normalizeAppPath(normalizedPageName).replace(/\/layout$/, '')
+            )
+            layoutRoutes.push({ route: layoutRoute, filePath: fileName })
             continue
           }
+
+          // Skip non-router pages (loading.tsx, error.tsx, etc.)
+          if (!validFileMatcher.isAppRouterPage(fileName)) continue
 
           const originalPageName = pageName
           pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
+          const appRoute = normalizePathSep(pageName)
+
           if (!appPaths[pageName]) {
             appPaths[pageName] = []
           }
           appPaths[pageName].push(
             opts.turbo
-              ? // Turbopack outputs the correct path which is normalized with the `_`.
-                originalPageName.replace(/%5F/g, '_')
+              ? originalPageName.replace(/%5F/g, '_')
               : originalPageName
           )
 
           if (useFileSystemPublicRoutes) {
-            // Static metadata files will be served from filesystem.
             if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
-              staticMetadataFiles.set(pageName, fileName)
+              const segment = path.posix.dirname(pageName)
+              const lastSegment = path.posix.basename(pageName)
+              const normalizedPath = fillMetadataSegment(
+                segment,
+                {},
+                lastSegment,
+                true
+              )
+              staticMetadataFiles.set(normalizedPath, fileName)
             } else {
               appFiles.add(pageName)
             }
           }
 
+          const routeEntry = { route: appRoute, filePath: fileName }
           if (validFileMatcher.isAppRouterRoute(fileName)) {
-            appRouteHandlers.push({
-              route: normalizePathSep(pageName),
-              filePath: fileName,
-            })
+            appRouteHandlers.push(routeEntry)
           } else {
-            appRoutes.push({
-              route: normalizePathSep(pageName),
-              filePath: fileName,
-            })
+            appRoutes.push(routeEntry)
           }
 
-          if (routedPages.includes(pageName)) {
-            continue
-          }
+          if (routedPages.includes(pageName)) continue
         } else {
+          // Pages router
           if (useFileSystemPublicRoutes) {
             pageFiles.add(pageName)
-            // always add to nextDataRoutes for now but in future only add
-            // entries that actually use getStaticProps/getServerSideProps
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
 
+          const route = normalizePathSep(pageName)
+          const routeEntry = { route, filePath: fileName }
           if (pageName.startsWith('/api/')) {
-            pageApiRoutes.push({
-              route: normalizePathSep(pageName),
-              filePath: fileName,
-            })
+            pageApiRoutes.push(routeEntry)
           } else {
-            pageRoutes.push({
-              route: normalizePathSep(pageName),
-              filePath: fileName,
-            })
+            pageRoutes.push(routeEntry)
           }
         }
 
@@ -946,7 +954,7 @@ async function startWatcher(
 
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
       await propagateServerField(
         opts,
@@ -1174,7 +1182,11 @@ async function startWatcher(
             routeTypesFilePath,
             opts.nextConfig
           )
-          await writeValidatorFile(routeTypesManifest, validatorFilePath)
+          await writeValidatorFile(
+            routeTypesManifest,
+            validatorFilePath,
+            Boolean(nextConfig.experimental.strictRouteTypes)
+          )
 
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
@@ -1208,9 +1220,10 @@ async function startWatcher(
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
-    const parsedUrl = url.parse(req.url || '/')
+    const parsedUrl = parseUrl(req.url || '/')
+    const pathname = parsedUrl !== undefined ? parsedUrl.pathname : null
 
-    if (parsedUrl.pathname?.includes(clientPagesManifestPath)) {
+    if (pathname !== null && pathname.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
@@ -1224,8 +1237,9 @@ async function startWatcher(
     }
 
     if (
-      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
-      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+      pathname !== null &&
+      (pathname.includes(devMiddlewareManifestPath) ||
+        pathname.includes(devTurbopackMiddlewareManifestPath))
     ) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
@@ -1282,6 +1296,12 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Set up code frame renderer for error formatting
+  const { installCodeFrameSupport } =
+    require('../install-code-frame') as typeof import('../install-code-frame')
+  installCodeFrameSupport()
+
   const result = await startWatcher({
     ...opts,
     isSrcDir,

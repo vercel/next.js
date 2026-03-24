@@ -252,7 +252,7 @@ impl Default for MiddlewaresManifest {
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
-    // When skipped next.js with fill that during merging.
+    // When skipped, next.js will fill the field during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
     #[serde(skip_serializing_if = "bool_is_true")]
@@ -285,6 +285,7 @@ pub struct EdgeFunctionDefinition {
     pub files: Vec<RcStr>,
     pub name: RcStr,
     pub page: RcStr,
+    pub entrypoint: RcStr,
     pub matchers: Vec<ProxyMatcher>,
     pub wasm: Vec<AssetBinding>,
     pub assets: Vec<AssetBinding>,
@@ -384,12 +385,18 @@ pub struct ActionManifestEntry<'a> {
     /// module that exports it.
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
-    pub layer: FxIndexMap<&'a str, ActionLayer>,
-
     #[serde(rename = "exportedName")]
     pub exported_name: &'a str,
 
     pub filename: &'a str,
+
+    /// Source location line number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+
+    /// Source location column number (1-indexed), if available
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub col: Option<u32>,
 }
 
 #[derive(Serialize, Debug)]

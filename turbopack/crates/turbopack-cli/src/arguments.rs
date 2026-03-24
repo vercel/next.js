@@ -7,7 +7,6 @@ use std::{
 use anyhow::anyhow;
 use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::issue::IssueSeverity;
 
@@ -43,8 +42,6 @@ impl Arguments {
     ValueEnum,
     PartialEq,
     Eq,
-    Serialize,
-    Deserialize,
     Hash,
     TaskInput,
     NonLocalValue,
@@ -98,6 +95,16 @@ pub struct CommonArguments {
     /// Number of worker threads to use for parallel processing
     #[clap(long)]
     pub worker_threads: Option<usize>,
+
+    /// Enable filesystem-backed persistent caching.
+    /// Cache is stored at `<cache-dir>/<git-version>`.
+    #[clap(long)]
+    pub persistent_caching: bool,
+
+    /// Directory to store the persistent cache.
+    /// Defaults to `.turbopack/cache` relative to the project directory.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
     // Enable experimental garbage collection with the provided memory limit in
     // MB.
     // #[clap(long)]
@@ -166,20 +173,6 @@ pub struct BuildArguments {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct IssueSeverityCliOption(pub IssueSeverity);
-
-impl serde::Serialize for IssueSeverityCliOption {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for IssueSeverityCliOption {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        <IssueSeverityCliOption as std::str::FromStr>::from_str(&s)
-            .map_err(serde::de::Error::custom)
-    }
-}
 
 impl ValueEnum for IssueSeverityCliOption {
     fn value_variants<'a>() -> &'a [Self] {

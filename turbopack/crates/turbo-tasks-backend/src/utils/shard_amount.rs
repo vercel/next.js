@@ -31,14 +31,14 @@ pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: boo
     // 16` and more than 256 worker threads for `k = 1`.
 
     if small_preallocation {
-        // We also clamp the minimum number of workers to 256 so all following multiplications can't
+        // We also clamp the maximum number of workers to 256 so all following multiplications can't
         // overflow.
-        let num_workers = num_workers.max(256);
+        let num_workers = num_workers.min(256);
         (num_workers * num_workers).next_power_of_two()
     } else {
-        // We also clamp the minimum number of workers to 64 so all following multiplications can't
+        // We also clamp the maximum number of workers to 64 so all following multiplications can't
         // overflow.
-        let num_workers = num_workers.max(64);
+        let num_workers = num_workers.min(64);
         (num_workers * num_workers * 16).next_power_of_two()
     }
 }

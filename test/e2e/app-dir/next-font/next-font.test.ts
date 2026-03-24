@@ -291,7 +291,7 @@ describe('app dir - next/font', () => {
             .filter((link) => link.match(/as=.*font/))
           expect(fontPreloadlinksInHeaders.length).toBeGreaterThan(2)
           for (const link of fontPreloadlinksInHeaders) {
-            expect(link).toMatch(/<[^>]*?_next[^>]*?\.woff2>/)
+            expect(link).toMatch(/<[^>]*?_next[^>]*?\.woff2(\?dpl=[^>]*)?>/)
             expect(link).toMatch(/rel=.*preload/)
             expect(link).toMatch(/crossorigin=""/)
           }

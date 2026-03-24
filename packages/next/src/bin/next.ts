@@ -49,8 +49,7 @@ if (
   process.exit(1)
 }
 
-// Start performance profiling after Node.js version is checked
-performance.mark('next-start')
+process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
 for (const dependency of ['react', 'react-dom']) {
   try {
@@ -89,7 +88,11 @@ class NextRootCommand extends Command {
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-      if (commandName !== 'dev' && event.getOptionValue('inspect') === true) {
+      if (
+        commandName !== 'dev' &&
+        commandName !== 'start' &&
+        event.getOptionValue('inspect') === true
+      ) {
         console.error(
           `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${commandName}`
         )
@@ -184,17 +187,38 @@ program
   )
   .option(
     '--debug-build-paths <patterns>',
-    'Comma-separated glob patterns or explicit paths for selective builds. Examples: "app/*", "app/page.tsx", "app/**/page.tsx"'
+    'Comma-separated glob patterns or explicit paths for selective builds. Use "!" prefix to exclude. Examples: "app/*", "app/page.tsx", "app/**/page.tsx", "app/**,!app/[slug]/**"'
+  )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
   )
   .action((directory: string, options: NextBuildOptions) => {
+    if (options.debugPrerender) {
+      // @ts-expect-error not readonly
+      process.env.NODE_ENV = 'development'
+    }
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    if (options.experimentalCpuProf) {
+      process.env.NEXT_CPU_PROF = '1'
+      process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
+      const { join } = require('path') as typeof import('path')
+      const dir = directory || process.cwd()
+      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
     }
 
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
     return import('../cli/next-build.js').then((mod) =>
-      mod.nextBuild(options, directory).then(() => process.exit(0))
+      mod.nextBuild(options, directory).then(async () => {
+        // Save CPU profile before exiting if enabled
+        if (options.experimentalCpuProf) {
+          await mod.saveCpuProfile()
+        }
+        process.exit(0)
+      })
     )
   })
   .usage('[directory] [options]')
@@ -202,7 +226,7 @@ program
 program
   .command('experimental-analyze')
   .description(
-    'Analyze bundle output. Does not produce build artifacts. Only compatible with Turbopack.'
+    'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
   .argument(
     '[directory]',
@@ -212,7 +236,10 @@ program
   )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
-  .option('--serve', 'Serve the bundle analyzer in a browser after analysis.')
+  .option(
+    '-o, --output',
+    'Only write analysis files to disk. Does not start the server.'
+  )
   .addOption(
     new Option(
       '--port <port>',
@@ -227,7 +254,7 @@ program
     return import('../cli/next-analyze.js')
       .then((mod) => mod.nextAnalyze(options, directory))
       .then(() => {
-        if (!options.serve) {
+        if (options.output) {
           // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
           // TODO: Fix the underlying issue so this is not necessary.
           process.exit(0)
@@ -286,6 +313,7 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
+  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
@@ -294,10 +322,21 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.experimentalCpuProf) {
+        process.env.NEXT_CPU_PROF = '1'
+        process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
+        const { join } = require('path') as typeof import('path')
+        const dir = directory || process.cwd()
+        process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
       }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
@@ -352,6 +391,12 @@ program
   )
   .addOption(
     new Option(
+      '--inspect [[host:]port]',
+      'Allows inspecting server-side code. See https://nextjs.org/docs/app/guides/debugging#server-side-code'
+    ).argParser(parseValidInspectAddress)
+  )
+  .addOption(
+    new Option(
       '--keepAliveTimeout <keepAliveTimeout>',
       'Specify the maximum amount of milliseconds to wait before closing inactive connections.'
     ).argParser(parseValidPositiveInteger)
@@ -360,9 +405,20 @@ program
     '--experimental-next-config-strip-types',
     'Use Node.js native TypeScript resolution for next.config.(ts|mts)'
   )
+  .option(
+    '--experimental-cpu-prof',
+    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+  )
   .action((directory: string, options: NextStartOptions) => {
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+    }
+    if (options.experimentalCpuProf) {
+      process.env.NEXT_CPU_PROF = '1'
+      process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
+      const { join } = require('path') as typeof import('path')
+      const dir = directory || process.cwd()
+      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
     }
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)

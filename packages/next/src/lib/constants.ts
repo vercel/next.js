@@ -19,12 +19,15 @@ export const NEXT_DATA_SUFFIX = '.json'
 export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
+export const NEXT_NAV_DEPLOYMENT_ID_HEADER = 'x-nextjs-deployment-id'
+
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
 export const NEXT_RESUME_HEADER = 'next-resume'
+export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
 
 // if these change make sure we update the related
 // documentation as well
@@ -32,9 +35,10 @@ export const NEXT_CACHE_TAG_MAX_ITEMS = 128
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
+export const NEXT_CACHE_ROOT_PARAM_TAG_ID = '_N_RP_'
 
 // in seconds
-export const CACHE_ONE_YEAR = 31536000
+export const CACHE_ONE_YEAR_SECONDS = 31536000
 
 // in seconds, represents revalidate=false. I.e. never revaliate.
 // We use this value since it can be represented as a V8 SMI for optimal performance.

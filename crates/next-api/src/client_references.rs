@@ -5,25 +5,14 @@ use next_core::{
     next_server_component::server_component_module::NextServerComponentModule,
 };
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
-use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
+use turbopack_core::{module::Module, module_graph::ModuleGraphLayer};
 use turbopack_css::chunk::CssChunkPlaceable;
 
 #[derive(
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    Eq,
-    PartialEq,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ClientManifestEntryType {
     EcmascriptClientReference {
@@ -40,7 +29,7 @@ pub struct ClientReferenceData(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientMani
 
 #[turbo_tasks::function]
 pub async fn map_client_references(
-    graph: Vc<SingleModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
 ) -> Result<Vc<ClientReferenceData>> {
     let graph = graph.await?;
     let manifest = graph

@@ -85,7 +85,6 @@ export type PHASE_TYPE =
   | typeof PHASE_DEVELOPMENT_SERVER
 
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
@@ -95,13 +94,14 @@ export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
+export const PREFETCH_HINTS = 'prefetch-hints.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
-  '_clientMiddlewareManifest.json'
+  '_clientMiddlewareManifest.js'
 export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'

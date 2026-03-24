@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { retry } from 'next-test-utils'
-import stripAnsi from 'strip-ansi'
 import { launchStandaloneSession } from './test-utils'
 
 describe('mcp-server get_page_metadata tool', () => {
@@ -35,68 +34,70 @@ describe('mcp-server get_page_metadata tool', () => {
 
     it('should return metadata for basic page', async () => {
       await next.browser('/')
-      const metadata = await callGetPageMetadata(next.url, 'test-basic')
+      const metadataText = await callGetPageMetadata(next.url, 'test-basic')
+      const metadata = JSON.parse(metadataText)
 
-      expect(stripAnsi(metadata)).toMatchInlineSnapshot(`
-       "# Page metadata from 1 browser session(s)
-
-       ## Session: /
-
-       **Router type:** app
-
-       ### Files powering this page:
-
-       - app/layout.tsx
-       - global-error.js (boundary, builtin)
-       - app/error.tsx (boundary)
-       - app/loading.tsx (boundary)
-       - app/not-found.tsx (boundary)
-       - app/page.tsx
-
-       ---"
-      `)
+      expect(metadata.sessions).toHaveLength(1)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/',
+        routerType: 'app',
+      })
+      expect(metadata.sessions[0].segments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: 'app/layout.tsx' }),
+          expect.objectContaining({
+            path: 'global-error.js',
+            isBoundary: true,
+            isBuiltin: true,
+          }),
+          expect.objectContaining({ path: 'app/error.tsx', isBoundary: true }),
+          expect.objectContaining({
+            path: 'app/loading.tsx',
+            isBoundary: true,
+          }),
+          expect.objectContaining({
+            path: 'app/not-found.tsx',
+            isBoundary: true,
+          }),
+          expect.objectContaining({ path: 'app/page.tsx' }),
+        ])
+      )
     })
 
     it('should return metadata for parallel routes', async () => {
       await next.browser('/parallel')
 
-      let metadata: string = ''
+      let metadata: any = null
       await retry(async () => {
         const sessionId = 'test-parallel-' + Date.now()
-        metadata = await callGetPageMetadata(next.url, sessionId)
-        expect(metadata).toContain('Page metadata from 1 browser session')
-        expect(metadata).toContain('Files powering this page')
+        const metadataText = await callGetPageMetadata(next.url, sessionId)
+        metadata = JSON.parse(metadataText)
+        expect(metadata.sessions).toHaveLength(1)
         // Ensure we have the parallel route files
-        expect(metadata).toContain('app/parallel/@sidebar/page.tsx')
-        expect(metadata).toContain('app/parallel/@content/page.tsx')
-        expect(metadata).toContain('app/parallel/page.tsx')
+        const paths = metadata.sessions[0].segments.map((s: any) => s.path)
+        expect(paths).toContain('app/parallel/@sidebar/page.tsx')
+        expect(paths).toContain('app/parallel/@content/page.tsx')
+        expect(paths).toContain('app/parallel/page.tsx')
       })
 
-      expect(stripAnsi(metadata)).toMatchInlineSnapshot(`
-       "# Page metadata from 1 browser session(s)
-
-       ## Session: /parallel
-
-       **Router type:** app
-
-       ### Files powering this page:
-
-       - app/layout.tsx
-       - app/parallel/layout.tsx
-       - global-error.js (boundary, builtin)
-       - app/error.tsx (boundary)
-       - app/loading.tsx (boundary)
-       - app/not-found.tsx (boundary)
-       - app/parallel/@content/error.tsx (boundary)
-       - app/parallel/@sidebar/loading.tsx (boundary)
-       - app/parallel/error.tsx (boundary)
-       - app/parallel/loading.tsx (boundary)
-       - app/parallel/@content/page.tsx
-       - app/parallel/@sidebar/page.tsx
-       - app/parallel/page.tsx
-
-       ---"
-      `)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/parallel',
+        routerType: 'app',
+      })
+      expect(metadata.sessions[0].segments).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ path: 'app/layout.tsx' }),
+          expect.objectContaining({ path: 'app/parallel/layout.tsx' }),
+          expect.objectContaining({
+            path: 'global-error.js',
+            isBoundary: true,
+            isBuiltin: true,
+          }),
+          expect.objectContaining({ path: 'app/parallel/@content/page.tsx' }),
+          expect.objectContaining({ path: 'app/parallel/@sidebar/page.tsx' }),
+          expect.objectContaining({ path: 'app/parallel/page.tsx' }),
+        ])
+      )
     })
 
     it('should handle multiple browser sessions', async () => {
@@ -107,73 +108,48 @@ describe('mcp-server get_page_metadata tool', () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        let metadata: string = ''
+        let metadata: any = null
         await retry(async () => {
           const sessionId = 'test-multi-' + Date.now()
-          metadata = await callGetPageMetadata(next.url, sessionId)
-          expect(metadata).toMatch(/Page metadata from \d+ browser session/)
+          const metadataText = await callGetPageMetadata(next.url, sessionId)
+          metadata = JSON.parse(metadataText)
+          expect(metadata.sessions.length).toBeGreaterThanOrEqual(2)
           // Ensure both our sessions are present
-          expect(metadata).toContain('Session: /')
-          expect(metadata).toContain('Session: /parallel')
+          const urls = metadata.sessions.map((s: any) => s.url)
+          expect(urls).toContain('/')
+          expect(urls).toContain('/parallel')
         })
 
-        const strippedMetadata = stripAnsi(metadata)
-
-        // Extract each session's content to check them independently
-        const session1Match = strippedMetadata.match(
-          /## Session: \/\n[\s\S]*?(?=(\n## Session:|\n?$))/
-        )
-        const session2Match = strippedMetadata.match(
-          /## Session: \/parallel\n[\s\S]*?(?=(\n## Session:|\n?$))/
+        // Find each session's metadata
+        const rootSession = metadata.sessions.find((s: any) => s.url === '/')
+        const parallelSession = metadata.sessions.find(
+          (s: any) => s.url === '/parallel'
         )
 
-        // Trim trailing newline if present
-        if (session1Match) session1Match[0] = session1Match[0].trimEnd()
-        if (session2Match) session2Match[0] = session2Match[0].trimEnd()
+        expect(rootSession).toMatchObject({
+          url: '/',
+          routerType: 'app',
+        })
+        expect(rootSession.segments).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ path: 'app/layout.tsx' }),
+            expect.objectContaining({ path: 'app/page.tsx' }),
+          ])
+        )
 
-        expect(session1Match).toBeTruthy()
-        expect(session2Match).toBeTruthy()
-
-        expect(session1Match?.[0]).toMatchInlineSnapshot(`
-         "## Session: /
-
-         **Router type:** app
-
-         ### Files powering this page:
-
-         - app/layout.tsx
-         - global-error.js (boundary, builtin)
-         - app/error.tsx (boundary)
-         - app/loading.tsx (boundary)
-         - app/not-found.tsx (boundary)
-         - app/page.tsx
-
-         ---"
-        `)
-
-        expect(session2Match?.[0]).toMatchInlineSnapshot(`
-         "## Session: /parallel
-
-         **Router type:** app
-
-         ### Files powering this page:
-
-         - app/layout.tsx
-         - app/parallel/layout.tsx
-         - global-error.js (boundary, builtin)
-         - app/error.tsx (boundary)
-         - app/loading.tsx (boundary)
-         - app/not-found.tsx (boundary)
-         - app/parallel/@content/error.tsx (boundary)
-         - app/parallel/@sidebar/loading.tsx (boundary)
-         - app/parallel/error.tsx (boundary)
-         - app/parallel/loading.tsx (boundary)
-         - app/parallel/@content/page.tsx
-         - app/parallel/@sidebar/page.tsx
-         - app/parallel/page.tsx
-
-         ---"
-        `)
+        expect(parallelSession).toMatchObject({
+          url: '/parallel',
+          routerType: 'app',
+        })
+        expect(parallelSession.segments).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ path: 'app/layout.tsx' }),
+            expect.objectContaining({ path: 'app/parallel/layout.tsx' }),
+            expect.objectContaining({ path: 'app/parallel/@content/page.tsx' }),
+            expect.objectContaining({ path: 'app/parallel/@sidebar/page.tsx' }),
+            expect.objectContaining({ path: 'app/parallel/page.tsx' }),
+          ])
+        )
       } finally {
         // Clean up sessions
         await session1.close()
@@ -190,17 +166,20 @@ describe('mcp-server get_page_metadata tool', () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        let metadata: string = ''
+        let metadata: any = null
         await retry(async () => {
           const sessionId = 'test-same-url-' + Date.now()
-          metadata = await callGetPageMetadata(next.url, sessionId)
-          const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
-            .length
+          const metadataText = await callGetPageMetadata(next.url, sessionId)
+          metadata = JSON.parse(metadataText)
+          const rootSessions = metadata.sessions.filter(
+            (s: any) => s.url === '/'
+          ).length
           expect(rootSessions).toBeGreaterThanOrEqual(2)
         })
 
-        const rootSessions = (metadata.match(/## Session: \/(?!\w)/g) || [])
-          .length
+        const rootSessions = metadata.sessions.filter(
+          (s: any) => s.url === '/'
+        ).length
         expect(rootSessions).toBeGreaterThanOrEqual(2)
       } finally {
         await session1.close()
@@ -219,47 +198,37 @@ describe('mcp-server get_page_metadata tool', () => {
     it('should return metadata showing pages router type', async () => {
       await next.browser('/')
 
-      let metadata: string = ''
+      let metadata: any = null
       await retry(async () => {
         const sessionId = 'test-pages-' + Date.now()
-        metadata = await callGetPageMetadata(next.url, sessionId)
-        expect(metadata).toContain('Page metadata from 1 browser session')
+        const metadataText = await callGetPageMetadata(next.url, sessionId)
+        metadata = JSON.parse(metadataText)
+        expect(metadata.sessions).toHaveLength(1)
       })
 
-      expect(stripAnsi(metadata)).toMatchInlineSnapshot(`
-          "# Page metadata from 1 browser session(s)
-
-          ## Session: /
-
-          **Router type:** pages
-
-          *No segments found*
-
-          ---"
-        `)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/',
+        routerType: 'pages',
+        segments: [],
+      })
     })
 
     it('should show pages router type for about page', async () => {
       await next.browser('/about')
 
-      let metadata: string = ''
+      let metadata: any = null
       await retry(async () => {
         const sessionId = 'test-pages-about-' + Date.now()
-        metadata = await callGetPageMetadata(next.url, sessionId)
-        expect(metadata).toContain('Page metadata from 1 browser session')
+        const metadataText = await callGetPageMetadata(next.url, sessionId)
+        metadata = JSON.parse(metadataText)
+        expect(metadata.sessions).toHaveLength(1)
       })
 
-      expect(stripAnsi(metadata)).toMatchInlineSnapshot(`
-          "# Page metadata from 1 browser session(s)
-
-          ## Session: /about
-
-          **Router type:** pages
-
-          *No segments found*
-
-          ---"
-        `)
+      expect(metadata.sessions[0]).toMatchObject({
+        url: '/about',
+        routerType: 'pages',
+        segments: [],
+      })
     })
   })
 })

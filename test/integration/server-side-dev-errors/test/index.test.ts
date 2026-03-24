@@ -84,17 +84,18 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gsp.js (6:3) @ getStaticProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getStaticProps pages/gsp.js (6:3)",
-          ],
-        }
+       {
+         "code": "E394",
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "pages/gsp.js (6:3) @ getStaticProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getStaticProps pages/gsp.js (6:3)",
+         ],
+       }
       `)
 
       await fs.writeFile(gspPage, content, { flush: true })
@@ -134,17 +135,18 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/gssp.js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/gssp.js (6:3)",
-          ],
-        }
+       {
+         "code": "E394",
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "pages/gssp.js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps pages/gssp.js (6:3)",
+         ],
+       }
       `)
 
       await fs.writeFile(gsspPage, content)
@@ -184,17 +186,18 @@ describe('server-side dev errors', () => {
       )
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
-        > 6 |   missingVar;return {
-            |   ^",
-          "stack": [
-            "getServerSideProps pages/blog/[slug].js (6:3)",
-          ],
-        }
+       {
+         "code": "E394",
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
+       > 6 |   missingVar;return {
+           |   ^",
+         "stack": [
+           "getServerSideProps pages/blog/[slug].js (6:3)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicGsspPage, content)
@@ -244,17 +247,18 @@ describe('server-side dev errors', () => {
       }
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/hello.js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ hello: 'world' })
-            |   ^",
-          "stack": [
-            "handler pages/api/hello.js (2:3)",
-          ],
-        }
+       {
+         "code": "E394",
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "pages/api/hello.js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+           |   ^",
+         "stack": [
+           "handler pages/api/hello.js (2:3)",
+         ],
+       }
       `)
 
       await fs.writeFile(apiPage, content, { flush: true })
@@ -310,17 +314,18 @@ describe('server-side dev errors', () => {
       }
 
       await expect(browser).toDisplayRedbox(`
-        {
-          "description": "missingVar is not defined",
-          "environmentLabel": null,
-          "label": "Runtime ReferenceError",
-          "source": "pages/api/blog/[slug].js (2:3) @ handler
-        > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
-            |   ^",
-          "stack": [
-            "handler pages/api/blog/[slug].js (2:3)",
-          ],
-        }
+       {
+         "code": "E394",
+         "description": "missingVar is not defined",
+         "environmentLabel": null,
+         "label": "Runtime ReferenceError",
+         "source": "pages/api/blog/[slug].js (2:3) @ handler
+       > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+           |   ^",
+         "stack": [
+           "handler pages/api/blog/[slug].js (2:3)",
+         ],
+       }
       `)
 
       await fs.writeFile(dynamicApiPage, content, { flush: true })

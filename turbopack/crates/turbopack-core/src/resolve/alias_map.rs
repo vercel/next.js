@@ -15,9 +15,9 @@ use turbo_tasks::{
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
-use super::pattern::Pattern;
+use crate::resolve::pattern::Pattern;
 
-/// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
+/// A map of [`AliasPattern`]s as keys implemented using [`PatriciaMap`].
 ///
 /// If a pattern has a wildcard character (*) within it, it will capture any
 /// number of characters, including path separators. The result of the capture
@@ -25,8 +25,7 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone, Serialize, Deserialize, Encode, Decode)]
-#[serde(transparent)]
+#[derive(Clone, Encode, Decode)]
 #[bincode(
     encode_bounds = "T: Serialize",
     decode_bounds = "T: DeserializeOwned",
@@ -579,7 +578,10 @@ where
     }
 }
 
-/// An alias pattern.
+/// An alias pattern commonly used for import paths. This should support [the functionality used in
+/// Typescript's tsconfig file][tsconfig].
+///
+/// [tsconfig]: https://www.typescriptlang.org/tsconfig/#paths
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum AliasPattern {
     /// Will match an exact string.
@@ -695,7 +697,7 @@ pub trait AliasTemplate {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
+    use core::assert_matches;
 
     use anyhow::Result;
     use turbo_rcstr::rcstr;

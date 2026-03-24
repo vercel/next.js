@@ -17,8 +17,4 @@ bincode = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
-serde_bytes = "0.11.9"
 turbo-tasks = { workspace = true }
-
-[dev-dependencies]
-serde_test = "1.0.157"

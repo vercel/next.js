@@ -4,21 +4,33 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
-use turbo_tasks_hash::Xxh3Hash64Hasher;
+use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
-/// An asset. It also forms a graph when following [Asset::references].
+/// A file or intermediate result containing content as a [`Rope`] or a symlink.
+///
+/// This is a supertrait for [`Source`], [`OutputAsset`], and [`OutputChunk`].
+///
+/// [`Rope`]: turbo_tasks_fs::rope::Rope
+/// [`Source`]: crate::source::Source
+/// [`OutputAsset`]: crate::output::OutputAsset
+/// [`OutputChunk`]: crate::chunk::OutputChunk
 #[turbo_tasks::value_trait]
 pub trait Asset {
-    /// The content of the [Asset].
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
-    /// The content of the [Asset] alongside its version.
+    /// The content of the `Asset` alongside its version.
     #[turbo_tasks::function]
     fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
+    }
+
+    /// Hash of the content of the `Asset`.
+    #[turbo_tasks::function]
+    fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
+        self.content().content_hash(algorithm)
     }
 }
 
@@ -40,65 +52,57 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.parse_json()),
-            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
-                "a redirect can't be parsed as json"
-            ))
-            .cell()),
+    pub fn parse_json(&self) -> Vc<FileJsonContent> {
+        match self {
+            AssetContent::File(content) => content.parse_json(),
+            AssetContent::Redirect { .. } => {
+                FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
+            }
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn file_content(self: Vc<Self>) -> Result<Vc<FileContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(**content),
-            AssetContent::Redirect { .. } => Ok(FileContent::NotFound.cell()),
+    pub fn file_content(&self) -> Vc<FileContent> {
+        match self {
+            AssetContent::File(content) => **content,
+            AssetContent::Redirect { .. } => FileContent::NotFound.cell(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.lines()),
-            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparsable.cell()),
+    pub fn lines(&self) -> Vc<FileLinesContent> {
+        match self {
+            AssetContent::File(content) => content.lines(),
+            AssetContent::Redirect { .. } => FileLinesContent::Unparsable.cell(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.len()),
-            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+    pub fn len(&self) -> Vc<Option<u64>> {
+        match self {
+            AssetContent::File(content) => content.len(),
+            AssetContent::Redirect { .. } => Vc::cell(None),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
-        let this = self.await?;
-        match &*this {
-            AssetContent::File(content) => Ok(content.parse_json_with_comments()),
-            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
-                "a redirect can't be parsed as json"
-            ))
-            .cell()),
+    pub fn parse_json_with_comments(&self) -> Vc<FileJsonContent> {
+        match self {
+            AssetContent::File(content) => content.parse_json_with_comments(),
+            AssetContent::Redirect { .. } => {
+                FileJsonContent::unparsable(rcstr!("a redirect can't be parsed as json")).cell()
+            }
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: FileSystemPath) -> Result<()> {
-        let this = self.await?;
-        match &*this {
+    pub async fn write(&self, path: FileSystemPath) -> Result<()> {
+        match self {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;
             }
             AssetContent::Redirect { target, link_type } => {
-                path.write_link(
+                path.write_symbolic_link_dir(
                     LinkContent::Link {
                         target: target.clone(),
                         link_type: *link_type,
@@ -123,6 +127,16 @@ impl AssetContent {
                 link_type.deterministic_hash(&mut hasher);
                 Ok(Vc::cell(hasher.finish()))
             }
+        }
+    }
+
+    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
+    /// else. If there is no file content, it returns `None`.
+    #[turbo_tasks::function]
+    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            AssetContent::File(content) => Ok(content.content_hash(algorithm)),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }
 }

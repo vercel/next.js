@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_env::ProcessEnv;
@@ -12,7 +12,7 @@ use turbopack_core::{
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
@@ -113,7 +113,7 @@ pub async fn create_web_entry_source(
     source_maps_type: SourceMapsType,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
+    let compile_time_info = get_client_compile_time_info(browserslist_query, node_env, true);
     let asset_context = get_client_asset_context(
         root_path.clone(),
         execution_context,
@@ -139,7 +139,7 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()), ty)
+                .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
                 .resolve()
                 .await?
@@ -161,13 +161,12 @@ pub async fn create_web_entry_source(
                 .map(|&entry| ResolvedVc::upcast(entry)),
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
         false,
         false,
-    )
-    .to_resolved()
-    .await?;
+    ));
+    let module_graph = module_graph.connect().to_resolved().await?;
 
     let entries: Vec<_> = entries
         .into_iter()
@@ -195,10 +194,10 @@ pub async fn create_web_entry_source(
                 })
             } else {
                 // TODO convert into a serve-able asset
-                Err(anyhow!(
+                bail!(
                     "Entry module is not chunkable, so it can't be used to bootstrap the \
                      application"
-                ))
+                )
             }
         })
         .try_join()

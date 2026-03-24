@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 const CASES = [
   [
@@ -47,8 +48,10 @@ describe('persistent-caching-migration', () => {
         })
       } else {
         it('error on old option in dev', async () => {
-          await expect(next.start()).toReject()
-          expect(next.cliOutput).toContain(error)
+          await next.start()
+          await retry(async () => {
+            expect(next.cliOutput).toContain(error)
+          })
         })
       }
     })

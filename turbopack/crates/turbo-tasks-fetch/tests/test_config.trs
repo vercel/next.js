@@ -12,7 +12,7 @@
         small_preallocation: true,
         ..Default::default()
       },
-      turbo_tasks_backend::default_backing_storage(
+      turbo_tasks_backend::turbo_backing_storage(
         path.as_path(),
         &turbo_tasks_backend::GitVersionInfo {
           describe: "test-unversioned",

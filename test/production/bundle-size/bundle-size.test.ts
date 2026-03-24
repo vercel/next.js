@@ -55,10 +55,11 @@ describe('bundle-size', () => {
 
         const browser = await next.browser(from, {
           beforePageLoad(page) {
-            page.on('response', async (res) => {
+            page.on('response', (res) => {
+              const url = new URL(res.url())
               if (
-                res.url().includes('static/chunks') &&
-                res.url().endsWith('.js')
+                url.pathname.includes('static/chunks') &&
+                url.pathname.endsWith('.js')
               ) {
                 jsResources.push(res.text())
               }
@@ -97,10 +98,11 @@ describe('bundle-size', () => {
         let jsResources = []
         let browser = await next.browser(to, {
           beforePageLoad(page) {
-            page.on('response', async (res) => {
+            page.on('response', (res) => {
+              const url = new URL(res.url())
               if (
-                res.url().includes('static/chunks') &&
-                res.url().endsWith('.js')
+                url.pathname.includes('static/chunks') &&
+                url.pathname.endsWith('.js')
               ) {
                 jsResources.push(res.text())
               }

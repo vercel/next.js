@@ -7,8 +7,7 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind, imports::ImportAnnotations,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -60,6 +59,17 @@ pub async fn replace_well_known(
             ),
             _ => (value, false),
         },
+        // module.hot → WellKnownObject(ModuleHot) (only when HMR is enabled)
+        JsValue::Member(_, box JsValue::FreeVar(ref name), box ref prop)
+            if &**name == "module"
+                && prop.as_str() == Some("hot")
+                && compile_time_info.await?.hot_module_replacement_enabled =>
+        {
+            (
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+                true,
+            )
+        }
         _ => (value, false),
     })
 }
@@ -348,7 +358,7 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
         [JsValue::Constant(ConstantValue::Str(v))] => {
             JsValue::promise(JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             }))
         }
         _ => JsValue::unknown(
@@ -369,7 +379,7 @@ fn require(args: Vec<JsValue>) -> JsValue {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
                 module: s.into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             })
         } else {
             JsValue::unknown(
@@ -437,7 +447,7 @@ fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Resu
 
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
-        annotations: ImportAnnotations::default(),
+        annotations: None,
     }))
 }
 
@@ -624,6 +634,32 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
+            Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
+            }
+            _ => {
+                return Ok((
+                    JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                    false,
+                ));
+            }
+        },
+        WellKnownObjectKind::ModuleHot => match prop.as_str() {
+            Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
+            Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
+            _ => {
+                return Ok((
+                    JsValue::unknown(
+                        JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                        true,
+                        "unsupported property on module.hot",
+                    ),
+                    true,
+                ));
+            }
+        },
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((

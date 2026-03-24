@@ -12,7 +12,7 @@ import './node-environment-extensions/console-file'
 import './node-environment-extensions/console-exit'
 import './node-environment-extensions/console-dim.external'
 
-import './node-environment-extensions/unhandled-rejection'
+import './node-environment-extensions/unhandled-rejection.external'
 import './node-environment-extensions/random'
 import './node-environment-extensions/date'
 import './node-environment-extensions/web-crypto'

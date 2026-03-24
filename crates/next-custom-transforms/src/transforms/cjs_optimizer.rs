@@ -1,16 +1,16 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    atoms::{atom, Wtf8Atom},
-    common::{util::take::Take, SyntaxContext, DUMMY_SP},
+    atoms::{Wtf8Atom, atom},
+    common::{DUMMY_SP, SyntaxContext, util::take::Take},
     ecma::{
         ast::{
             CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
             Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::Atom,
-        utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
-        visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
+        utils::{ExprFactory, IdentRenamer, prepend_stmts, private_ident},
+        visit::{Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type},
     },
 };
 
@@ -83,82 +83,77 @@ impl VisitMut for CjsOptimizer {
     fn visit_mut_expr(&mut self, e: &mut Expr) {
         e.visit_mut_children_with(self);
 
-        if let Expr::Member(n) = e {
-            if let MemberProp::Ident(prop) = &n.prop {
-                if let Expr::Ident(obj) = &*n.obj {
-                    let key = obj.to_id();
-                    if self.data.ignored.contains(&key) {
-                        return;
-                    }
+        if let Expr::Member(n) = e
+            && let MemberProp::Ident(prop) = &n.prop
+            && let Expr::Ident(obj) = &*n.obj
+        {
+            let key = obj.to_id();
+            if self.data.ignored.contains(&key) {
+                return;
+            }
 
-                    if let Some(record) = self.data.imports.get(&key) {
-                        let mut replaced = false;
+            if let Some(record) = self.data.imports.get(&key) {
+                let mut replaced = false;
 
-                        let new_id = self
-                            .data
-                            .replaced
-                            .entry((record.module_specifier.clone(), prop.sym.clone()))
-                            .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
-                            .clone();
+                let new_id = self
+                    .data
+                    .replaced
+                    .entry((record.module_specifier.clone(), prop.sym.clone()))
+                    .or_insert_with(|| private_ident!(prop.sym.clone()).to_id())
+                    .clone();
 
-                        if let Some(map) = self.should_rewrite(&record.module_specifier) {
-                            if let Some(renamed) = map.get(&prop.sym) {
-                                replaced = true;
-                                if !self.data.is_prepass {
-                                    // Transform as `require('foo').bar`
-                                    let var = VarDeclarator {
-                                        span: DUMMY_SP,
-                                        name: Pat::Ident(new_id.clone().into()),
-                                        init: Some(Box::new(Expr::Member(MemberExpr {
-                                            span: DUMMY_SP,
-                                            obj: Box::new(Expr::Call(CallExpr {
-                                                span: DUMMY_SP,
-                                                callee: Ident::new(
-                                                    atom!("require"),
-                                                    DUMMY_SP,
-                                                    self.unresolved_ctxt,
-                                                )
-                                                .as_callee(),
-                                                args: vec![Expr::Lit(Lit::Str(
-                                                    renamed.clone().into(),
-                                                ))
-                                                .as_arg()],
-                                                ..Default::default()
-                                            })),
-                                            prop: MemberProp::Ident(IdentName::new(
-                                                prop.sym.clone(),
-                                                DUMMY_SP,
-                                            )),
-                                        }))),
-                                        definite: false,
-                                    };
+                if let Some(map) = self.should_rewrite(&record.module_specifier)
+                    && let Some(renamed) = map.get(&prop.sym)
+                {
+                    replaced = true;
+                    if !self.data.is_prepass {
+                        // Transform as `require('foo').bar`
+                        let var = VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Pat::Ident(new_id.clone().into()),
+                            init: Some(Box::new(Expr::Member(MemberExpr {
+                                span: DUMMY_SP,
+                                obj: Box::new(Expr::Call(CallExpr {
+                                    span: DUMMY_SP,
+                                    callee: Ident::new(
+                                        atom!("require"),
+                                        DUMMY_SP,
+                                        self.unresolved_ctxt,
+                                    )
+                                    .as_callee(),
+                                    args: vec![
+                                        Expr::Lit(Lit::Str(renamed.clone().into())).as_arg(),
+                                    ],
+                                    ..Default::default()
+                                })),
+                                prop: MemberProp::Ident(IdentName::new(prop.sym.clone(), DUMMY_SP)),
+                            }))),
+                            definite: false,
+                        };
 
-                                    if !self.data.extra_stmts.iter().any(|s| {
-                                        if let Stmt::Decl(Decl::Var(v)) = &s {
-                                            v.decls.iter().any(|d| d.name == var.name)
-                                        } else {
-                                            false
-                                        }
-                                    }) {
-                                        self.data.extra_stmts.push(Stmt::Decl(Decl::Var(
-                                            Box::new(VarDecl {
-                                                span: DUMMY_SP,
-                                                kind: VarDeclKind::Const,
-                                                decls: vec![var],
-                                                ..Default::default()
-                                            }),
-                                        )));
-                                    }
-
-                                    *e = Expr::Ident(new_id.into());
-                                }
+                        if !self.data.extra_stmts.iter().any(|s| {
+                            if let Stmt::Decl(Decl::Var(v)) = &s {
+                                v.decls.iter().any(|d| d.name == var.name)
+                            } else {
+                                false
                             }
+                        }) {
+                            self.data
+                                .extra_stmts
+                                .push(Stmt::Decl(Decl::Var(Box::new(VarDecl {
+                                    span: DUMMY_SP,
+                                    kind: VarDeclKind::Const,
+                                    decls: vec![var],
+                                    ..Default::default()
+                                }))));
                         }
 
-                        if !replaced {
-                            self.data.ignored.insert(key);
-                        }
+                        *e = Expr::Ident(new_id.into());
                     }
+                }
+
+                if !replaced {
+                    self.data.ignored.insert(key);
                 }
             }
         }
@@ -196,10 +191,10 @@ impl VisitMut for CjsOptimizer {
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
         n.visit_mut_children_with(self);
 
-        if let Stmt::Decl(Decl::Var(v)) = n {
-            if v.decls.is_empty() {
-                n.take();
-            }
+        if let Stmt::Decl(Decl::Var(v)) = n
+            && v.decls.is_empty()
+        {
+            n.take();
         }
     }
 
@@ -212,34 +207,31 @@ impl VisitMut for CjsOptimizer {
             args,
             ..
         })) = n.init.as_deref()
+            && let Expr::Ident(ident) = &**callee
+            && ident.ctxt == self.unresolved_ctxt
+            && ident.sym == *"require"
+            && let Some(arg) = args.first()
+            && let Expr::Lit(Lit::Str(v)) = &*arg.expr
         {
-            if let Expr::Ident(ident) = &**callee {
-                if ident.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
-                    if let Some(arg) = args.first() {
-                        if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
-                            // TODO: Config
+            // TODO: Config
 
-                            if let Pat::Ident(name) = &n.name {
-                                if self.should_rewrite(&v.value).is_some() {
-                                    let key = name.to_id();
+            if let Pat::Ident(name) = &n.name
+                && self.should_rewrite(&v.value).is_some()
+            {
+                let key = name.to_id();
 
-                                    if !self.data.is_prepass {
-                                        if !self.data.ignored.contains(&key) {
-                                            // Drop variable declarator.
-                                            n.name.take();
-                                        }
-                                    } else {
-                                        self.data.imports.insert(
-                                            key,
-                                            ImportRecord {
-                                                module_specifier: v.value.clone(),
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                        }
+                if !self.data.is_prepass {
+                    if !self.data.ignored.contains(&key) {
+                        // Drop variable declarator.
+                        n.name.take();
                     }
+                } else {
+                    self.data.imports.insert(
+                        key,
+                        ImportRecord {
+                            module_specifier: v.value.clone(),
+                        },
+                    );
                 }
             }
         }
@@ -269,12 +261,10 @@ impl Visit for Analyzer<'_> {
             callee: Callee::Expr(callee),
             ..
         })) = n.init.as_deref()
+            && let Expr::Ident(ident) = &**callee
+            && ident.sym == *"require"
         {
-            if let Expr::Ident(ident) = &**callee {
-                if ident.sym == *"require" {
-                    safe_to_ignore = true;
-                }
-            }
+            safe_to_ignore = true;
         }
 
         if safe_to_ignore {

@@ -5,12 +5,13 @@ import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
 import {
   type ModernSourceMapPayload,
+  devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
-import { getOriginalCodeFrame } from '../next-devtools/server/shared'
+import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim, italic } from '../lib/picocolors'
 
@@ -29,8 +30,29 @@ export function setBundlerFindSourceMapImplementation(
   bundlerFindSourceMapPayload = findSourceMapImplementation
 }
 
-interface IgnorableStackFrame extends StackFrame {
-  ignored: boolean
+// Code frame renderer - injected by dev/build to avoid hard dependency on native bindings
+type CodeFrameRenderer = (
+  frame: IgnorableStackFrame,
+  source: string | null,
+  colors: boolean
+) => string | null
+
+let codeFrameRenderer: CodeFrameRenderer | undefined
+
+export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
+  codeFrameRenderer = renderer
+}
+
+function getOriginalCodeFrame(
+  frame: IgnorableStackFrame,
+  source: string | null,
+  colors: boolean = process.stdout.isTTY
+): string | null {
+  if (!codeFrameRenderer) {
+    // No renderer available - gracefully degrade
+    return null
+  }
+  return codeFrameRenderer(frame, source, colors)
 }
 
 type SourceMapCache = Map<
@@ -201,11 +223,15 @@ function getSourcemappedFrameIfPossible(
     sourceMapPayload = maybeSourceMapPayload
     try {
       // Pass the source map URL as the second parameter so that the consumer
-      // can resolve relative paths in the source map's `sources` array.
-      // This is a guess!  Turbopack places .map files as siblings to the chunks so this is sufficient to compute
-      // relative paths but is actually wrong (the chunk and sourcemap have different content hashes).
-      // We are using the node API to read the sourcemap and it doesn't give us access to the URI.
-      const sourceMapURL = sourceURL + '.map'
+      // can resolve relative paths in the source map's `sources` array. This is
+      // a guess! Turbopack places .map files as siblings to the chunks so this
+      // is sufficient to compute relative paths but is actually wrong (the
+      // chunk and sourcemap have different content hashes). We are using the
+      // node API to read the sourcemap and it doesn't give us access to the
+      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
+      // `file:///path/to/chunk.js` so that relative `sources` in the source map
+      // resolve against the real chunk URL, not the virtual one.
+      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
       sourceMapConsumer = new SyncSourceMapConsumer(
         sourceMapPayload,
         // @ts-expect-error: our typings don't include this parameter but it is here.
@@ -298,33 +324,27 @@ function getSourcemappedFrameIfPossible(
     ignored,
   }
 
-  /** undefined = not yet computed*/
+  /** undefined = not yet computed */
   let codeFrame: string | null | undefined
 
-  return Object.defineProperty(
-    {
-      stack: originalFrame,
-      code: null,
+  return {
+    stack: originalFrame,
+    get code() {
+      if (codeFrame === undefined) {
+        const sourceContent: string | null =
+          sourceMapConsumer.sourceContentFor(
+            sourcePosition.source,
+            /* returnNullOnMissing */ true
+          ) ?? null
+        codeFrame = getOriginalCodeFrame(
+          originalFrame,
+          sourceContent,
+          inspectOptions.colors
+        )
+      }
+      return codeFrame
     },
-    'code',
-    {
-      get: () => {
-        if (codeFrame === undefined) {
-          const sourceContent: string | null =
-            sourceMapConsumer.sourceContentFor(
-              sourcePosition.source,
-              /* returnNullOnMissing */ true
-            ) ?? null
-          codeFrame = getOriginalCodeFrame(
-            originalFrame,
-            sourceContent,
-            inspectOptions.colors
-          )
-        }
-        return codeFrame
-      },
-    }
-  )
+  }
 }
 
 function parseAndSourceMap(
@@ -451,13 +471,16 @@ function sourceMapError(
   error: Error,
   inspectOptions: util.InspectOptions
 ): Error {
+  // Setting an undefined `cause` would print `[cause]: undefined`
+  const options = error.cause !== undefined ? { cause: error.cause } : undefined
+
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
-    error.cause !== undefined
-      ? // Setting an undefined `cause` would print `[cause]: undefined`
-        new Error(error.message, { cause: error.cause })
-      : new Error(error.message)
+    error instanceof AggregateError
+      ? // Preserve AggregateError's `errors` instance property
+        new AggregateError(error.errors, error.message, options)
+      : new Error(error.message, options)
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
   newError.stack = parseAndSourceMap(error, inspectOptions)
@@ -501,10 +524,7 @@ export function patchErrorInspectNodeJS(
       try {
         return inspect(newError, {
           ...inspectOptions,
-          depth:
-            (inspectOptions.depth ??
-              // Default in Node.js
-              2) - depth,
+          depth,
         })
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect

@@ -102,9 +102,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 let JsValue::Constant(ConstantValue::Num(num)) = arg else {
                     return false;
                 };
-                sum += num.0;
+                sum += *num.0;
             }
-            *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
+            *value = JsValue::Constant(ConstantValue::Num(sum.into()));
             true
         }
 
@@ -403,7 +403,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                     vec![
                                                         item,
                                                         JsValue::Constant(ConstantValue::Num(
-                                                            ConstantNumber(i as f64),
+                                                            (i as f64).into(),
                                                         )),
                                                     ],
                                                 )

@@ -3,12 +3,9 @@ use std::{borrow::Cow, io::Write};
 use anyhow::Result;
 use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -25,9 +22,6 @@ use turbopack_core::{
 
 use crate::route::ModuleGraphs;
 
-#[derive(
-    Default, Clone, Debug, Deserialize, Eq, NonLocalValue, PartialEq, Serialize, TraceRawVcs,
-)]
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -81,6 +75,7 @@ pub struct AnalyzeChunkPart {
     pub source_index: u32,
     pub output_file_index: u32,
     pub size: u32,
+    pub compressed_size: u32,
 }
 
 #[derive(Serialize)]
@@ -356,6 +351,19 @@ impl ModulesDataBuilder {
     }
 }
 
+/// Merges two sets of output assets into one. Used to combine per-route output
+/// assets with shared assets (e.g. `_app`, `_document`) at report generation time.
+#[turbo_tasks::function]
+pub async fn combine_output_assets(
+    primary: Vc<OutputAssets>,
+    extra: Vc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
+    let mut combined: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
+        primary.await?.iter().copied().collect();
+    combined.extend(extra.await?.iter().copied());
+    Ok(Vc::cell(combined))
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
@@ -390,6 +398,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
                 source_index,
                 output_file_index,
                 size: chunk_part.real_size + chunk_part.unaccounted_size,
+                compressed_size: chunk_part.get_compressed_size().await?,
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -429,8 +438,8 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
     for &module_graph in module_graphs.await? {
-        let module_graph = module_graph.read_graphs().await?;
-        module_graph.traverse_all_edges_unordered(|parent, node| {
+        let module_graph = module_graph.await?;
+        module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, reference)) = parent {
                 all_modules.insert(parent_node);
                 all_modules.insert(node);

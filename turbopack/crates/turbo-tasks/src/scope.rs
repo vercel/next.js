@@ -155,10 +155,10 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     handle: Handle,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
-    /// Invariance over 'env, to make sure 'env cannot shrink,
-    /// which is necessary for soundness.
+    /// Invariance over 'env, to make sure 'env cannot shrink, which is necessary for soundness.
     ///
-    /// see https://doc.rust-lang.org/src/std/thread/scoped.rs.html#12-29
+    /// See the comment in the stdlib implementation:
+    /// <https://github.com/rust-lang/rust/blob/3b1b0ef4d8/library/std/src/thread/scoped.rs#L12-L33>
     env: PhantomData<&'env mut &'env ()>,
 }
 
@@ -209,13 +209,16 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
             *result_cell.lock() = Some(result);
         });
         let f: *mut (dyn FnOnce() + Send + 'scope) = Box::into_raw(f);
+
         // SAFETY: Scope ensures (e. g. in Drop) that spawned tasks is awaited before the
         // lifetime `'env` ends.
-        #[allow(
-            clippy::unnecessary_cast,
-            reason = "Clippy thinks this is unnecessary, but it actually changes the lifetime"
-        )]
-        let f = f as *mut (dyn FnOnce() + Send + 'static);
+        let f = unsafe {
+            std::mem::transmute::<
+                *mut (dyn FnOnce() + Send + 'scope),
+                *mut (dyn FnOnce() + Send + 'static),
+            >(f)
+        };
+
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
 

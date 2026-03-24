@@ -16,7 +16,7 @@ error[E0277]: the trait bound `Vc<i32>: NonLocalValue` is not satisfied
           and $N others
   = note: required for `[Vc<i32>; 4]` to implement `NonLocalValue`
   = note: 2 redundant requirements hidden
-  = note: required for `std::option::Option<Box<[Vc<i32>; 4]>>` to implement `NonLocalValue`
+  = note: required for `Option<Box<[Vc<i32>; 4]>>` to implement `NonLocalValue`
 note: required by a bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
  --> tests/derive_non_local_value/fail_contains_vc_inside_generic.rs:5:10
   |

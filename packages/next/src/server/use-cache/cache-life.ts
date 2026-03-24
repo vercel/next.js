@@ -86,11 +86,13 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   switch (workUnitStore?.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
+    case 'generate-static-params':
     case undefined:
       throw new Error(
         '`cacheLife()` can only be called inside a "use cache" function.'

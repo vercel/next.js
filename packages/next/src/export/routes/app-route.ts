@@ -66,21 +66,15 @@ export async function exportAppRoute(
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest: {
-      version: 4,
-      routes: {},
-      dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
-      notFoundRoutes: [],
+    previewProps: {
+      previewModeEncryptionKey: '',
+      previewModeId: '',
+      previewModeSigningKey: '',
     },
     renderOpts: {
       cacheComponents,
       experimental,
-      nextExport: true,
+      isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,

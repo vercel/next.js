@@ -3,6 +3,8 @@ export const ENCODED_TAGS = {
   OPENING: {
     // <html
     HTML: new Uint8Array([60, 104, 116, 109, 108]),
+    // <head
+    HEAD: new Uint8Array([60, 104, 101, 97, 100]),
     // <body
     BODY: new Uint8Array([60, 98, 111, 100, 121]),
   },
