@@ -1144,5 +1144,6 @@
   "1143": "Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route.",
   "1144": "Prefetch inlining is enabled but no hints were found for route \"%s\". This is a bug in the Next.js build pipeline — prefetch-hints.json should contain an entry for every route that produces segment data.",
   "1145": "Internal Next.js Error: Prefetch inlining is enabled but no hints were found for route \"%s\". prefetch-hints.json should contain an entry for every route that produces segment data. This is a bug in Next.js.",
-  "1146": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js."
+  "1146": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js.",
+  "1147": "Turbopack database compaction is not supported on this platform"
 }

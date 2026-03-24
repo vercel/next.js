@@ -317,6 +317,8 @@ export interface NapiTurboEngineOptions {
   isCi?: boolean
   /** Whether the project is running in a short session. */
   isShortSession?: boolean
+  /** Whether to skip database compaction during shutdown. */
+  skipCompaction?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -481,6 +483,12 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+ *
+ * The `path` should point to the `<distDir>/cache/turbopack` directory.
+ */
+export declare function turbopackDatabaseCompact(path: string): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

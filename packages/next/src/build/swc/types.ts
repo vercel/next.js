@@ -31,6 +31,7 @@ export interface Binding {
       traceFilePath: string,
       port: number | undefined
     ): void
+    databaseCompact(path: string): Promise<void>
 
     nextBuild?: any
   }
