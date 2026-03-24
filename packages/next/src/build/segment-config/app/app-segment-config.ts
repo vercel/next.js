@@ -146,6 +146,13 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime: z.number().int().nonnegative().optional(),
+
+  /**
    * The preferred region for the page.
    */
   preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
@@ -186,6 +193,11 @@ export function parseAppSegmentConfig(
             return {
               // @TODO replace this link with a link to the docs when they are written
               message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+            }
+          }
+          case 'unstable_dynamicStaleTime': {
+            return {
+              message: `Invalid unstable_dynamicStaleTime value ${JSON.stringify(ctx.data)} on "${route}", must be a non-negative number`,
             }
           }
           default:
@@ -241,6 +253,13 @@ export type AppSegmentConfig = {
    * How this segment should be prefetched.
    */
   unstable_instant?: Instant
+
+  /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime?: number
 
   /**
    * The preferred region for the page.

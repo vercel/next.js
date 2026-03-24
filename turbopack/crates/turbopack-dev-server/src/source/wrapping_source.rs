@@ -7,23 +7,21 @@ use crate::source::{
     GetContentSourceContents, Rewrite, RewriteType,
 };
 
-/// A ContentSourceProcessor handles the final processing of an eventual
-/// [ContentSourceContent].
+/// Handles the final processing of an eventual [`ContentSourceContent`].
 ///
-/// Used in conjunction with [WrappedGetContentSourceContent], this allows a
-/// [ContentSource] implementation to easily register a final process step over
-/// some inner ContentSource's fully resolved [ContentSourceResult] and
-/// [ContentSourceContent].
+/// Used in conjunction with [`WrappedGetContentSourceContent`], this allows a [`ContentSource`]
+/// implementation to easily register a final process step over some inner [`ContentSource`]'s fully
+/// resolved [`ContentSourceContent`].
+///
+/// [`ContentSource`]: crate::source::ContentSource
 #[turbo_tasks::value_trait]
 pub trait ContentSourceProcessor {
     #[turbo_tasks::function]
     fn process(self: Vc<Self>, content: Vc<ContentSourceContent>) -> Vc<ContentSourceContent>;
 }
 
-/// A WrappedGetContentSourceContent simply wraps the get_content of a
-/// [ContentSourceResult], allowing us to process whatever
-/// [ContentSourceContent] it would have returned.
-
+/// Wraps the `get_content` of a [`GetContentSourceContent`], allowing us to
+/// [post-process][ContentSourceProcessor] whatever [`ContentSourceContent`] it returns.
 #[turbo_tasks::value]
 pub struct WrappedGetContentSourceContent {
     inner: ResolvedVc<Box<dyn GetContentSourceContent>>,

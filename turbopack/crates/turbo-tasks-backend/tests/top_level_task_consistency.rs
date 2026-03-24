@@ -36,13 +36,13 @@ async fn test_eventual_read_in_top_level_task_fails() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[should_panic]
-async fn test_cell_read_in_top_level_task_fails() {
+async fn test_cell_read_in_top_level_task_succeeds() {
     run_once(&REGISTRATION, || async {
         let cell = returns_value_operation()
             .resolve_strongly_consistent()
             .await?;
-        let _ = cell.await?;
+        let value = cell.await?;
+        assert_eq!(value.value, 42);
         Ok(())
     })
     .await

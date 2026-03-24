@@ -18,7 +18,7 @@ module.exports = {
         {
           source: '/to-websocket',
           destination:
-            'http://localhost:__EXTERNAL_PORT__/_next/webpack-hmr?page=/about',
+            'http://localhost:__EXTERNAL_PORT__/_next/hmr?page=/about',
         },
         {
           source: '/websocket-to-page',

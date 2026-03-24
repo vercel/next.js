@@ -16,6 +16,7 @@ import {
   completeTraverseNavigation,
   convertServerPatchToFullTree,
 } from '../../segment-cache/navigation'
+import { UnknownDynamicStaleTime } from '../../segment-cache/bfcache'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -44,14 +45,18 @@ export function restoreReducer(
     extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
 
   const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
   }
   const restoreSeed = convertServerPatchToFullTree(
+    now,
     treeToRestore,
     null,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   const task = startPPRNavigation(
     now,
@@ -64,6 +69,7 @@ export function restoreReducer(
     FreshnessPolicy.HistoryTraversal,
     null,
     null,
+    restoreSeed.dynamicStaleAt,
     false,
     accumulation
   )

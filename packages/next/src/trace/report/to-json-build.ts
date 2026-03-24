@@ -15,6 +15,9 @@ const allowlistedEvents = new Set([
   'adapter-handle-build-complete',
   'output-standalone',
   'telemetry-flush',
+  'turbopack-build-events',
+  'turbopack-persistence',
+  'turbopack-compaction',
 ])
 
 export default createJsonReporter({

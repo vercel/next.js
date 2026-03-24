@@ -198,7 +198,7 @@ async fn build_manifest(
     }
 
     // Now create the manifest entries
-    for (hash_id, (layer, name, filename)) in &action_metadata {
+    for (hash_id, (_layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
@@ -211,7 +211,6 @@ async fn build_manifest(
                 filename: filename.as_str(),
             },
         );
-        entry.layer.insert(&key, *layer);
 
         // Hoist the filename and exported_name to the entry level
         entry.exported_name = name.as_str();

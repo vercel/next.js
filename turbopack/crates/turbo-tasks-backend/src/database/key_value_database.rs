@@ -82,6 +82,14 @@ pub trait KeyValueDatabase {
         // this is an optional performance hint to the database
     }
 
+    /// Triggers compaction of the database.
+    ///
+    /// Returns `Ok(true)` if compaction actually merged files, `Ok(false)` if there was nothing
+    /// to compact. The default implementation is a no-op.
+    fn compact(&self) -> Result<bool> {
+        Ok(false)
+    }
+
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
