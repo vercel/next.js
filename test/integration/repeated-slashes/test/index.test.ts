@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
 import fs from 'fs-extra'
-import url from 'url'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
@@ -66,11 +65,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       )
 
       expect(res.status).toBe(307)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
 
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.pathname).toBe('/test/google.com')
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/test/google.com')
 
       const res2 = await fetchViaHTTP(
@@ -83,11 +82,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       )
 
       expect(res2.status).toBe(307)
-      const parsedUrl2 = url.parse(res2.headers.get('location'), true)
+      const parsedUrl2 = new URL(res2.headers.get('location'))
 
       expect(parsedUrl2.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl2.pathname).toBe('/test/google.com')
-      expect(parsedUrl2.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl2.searchParams.entries())).toEqual({})
       expect(await res2.text()).toBe('/test/google.com')
     })
   }
@@ -99,10 +98,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       })
       expect(res.status).toBe(308)
 
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
     const browser = await webdriver(appPort, '//google.com')
@@ -128,10 +127,12 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         }
       )
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({ h: '1' })
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({
+        h: '1',
+      })
     }
 
     const browser = await webdriver(appPort, '//google.com?h=1')
@@ -152,10 +153,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
     const browser = await webdriver(appPort, '//google.com#hello')
@@ -240,10 +241,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
@@ -265,10 +266,10 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = url.parse(res.headers.get('location'), true)
+      const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
-      expect(parsedUrl.query).toEqual({})
+      expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
@@ -410,24 +411,11 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
 }
 
 describe('404 handling', () => {
-  let nextOpts = {}
-  beforeAll(async () => {
-    const hasLocalNext = fs.existsSync(join(appDir, 'node_modules/next'))
-
-    if (hasLocalNext) {
-      nextOpts = {
-        nextBin: join(appDir, 'node_modules/next/dist/bin/next'),
-        cwd: appDir,
-      }
-      console.log('Using next options', nextOpts)
-    }
-  })
-
   const devStartAndExport = (isPages404) => {
     describe('next dev', () => {
       beforeAll(async () => {
         appPort = await findPort()
-        app = await launchApp(appDir, appPort, nextOpts)
+        app = await launchApp(appDir, appPort)
 
         // prebuild pages
         await renderViaHTTP(appPort, '/')
@@ -445,21 +433,19 @@ describe('404 handling', () => {
       () => {
         describe('next start', () => {
           beforeAll(async () => {
-            await nextBuild(appDir, [], nextOpts)
+            await nextBuild(appDir)
             appPort = await findPort()
-            app = await nextStart(appDir, appPort, nextOpts)
+            app = await nextStart(appDir, appPort)
           })
           afterAll(() => killApp(app))
-
           runTests({
             isPages404,
           })
         })
-
         describe('next export', () => {
           beforeAll(async () => {
             nextConfig.write(`module.exports = { output: 'export' }`)
-            await nextBuild(appDir, [], nextOpts)
+            await nextBuild(appDir)
             app = await startStaticServer(outdir, join(outdir, '404.html'))
             appPort = app.address().port
           })
@@ -467,7 +453,6 @@ describe('404 handling', () => {
             await stopApp(app)
             nextConfig.restore()
           })
-
           runTests({
             isPages404,
             isExport: true,
@@ -482,17 +467,14 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        const pagesErr = join(appDir, 'pages/_error.js')
-        const pages404 = join(appDir, 'pages/404.js')
+    const pagesErr = join(appDir, 'pages/_error.js')
+    const pages404 = join(appDir, 'pages/404.js')
 
-        beforeAll(async () => {
-          await fs.move(pagesErr, pagesErr + '.bak')
-          await fs.writeFile(
-            pages404,
-            `
+    beforeAll(async () => {
+      await fs.move(pagesErr, pagesErr + '.bak')
+      await fs.writeFile(
+        pages404,
+        `
           if (typeof window !== 'undefined') {
             window.errorLoad = true
           }
@@ -500,16 +482,13 @@ describe('404 handling', () => {
             return <p id='error'>custom 404</p>
           }
         `
-          )
-          await nextBuild(appDir, [], nextOpts)
-        })
-        afterAll(async () => {
-          await fs.move(pagesErr + '.bak', pagesErr)
-          await fs.remove(pages404)
-        })
+      )
+    })
+    afterAll(async () => {
+      await fs.move(pagesErr + '.bak', pagesErr)
+      await fs.remove(pages404)
+    })
 
-        devStartAndExport(true)
-      }
-    )
+    devStartAndExport(true)
   })
 })

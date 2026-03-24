@@ -18,7 +18,7 @@ permissions:
 jobs:
   retry-on-failure:
     name: retry failed jobs
-    # Retry the build-and-test workflow up to 3 times
+    # Retry the build-and-test workflow up to 2 times
     if: >-
       ${{ 
         github.event.workflow_run.conclusion == 'failure' &&

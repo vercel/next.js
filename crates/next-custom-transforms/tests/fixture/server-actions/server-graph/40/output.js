@@ -2,7 +2,7 @@ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { cache as $$reactCache__ } from "react";
-/* __next_internal_action_entry_do_not_use__ {"6090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","e03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { Form } from 'components';
+/* __next_internal_action_entry_do_not_use__ {"6090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"e03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ import { Form } from 'components';
 const $$RSC_SERVER_CACHE_0_INNER = async function cache([$$ACTION_ARG_0, $$ACTION_ARG_1], e) {
     const f = $$ACTION_ARG_0 + e;
     return [
@@ -13,7 +13,7 @@ const $$RSC_SERVER_CACHE_0_INNER = async function cache([$$ACTION_ARG_0, $$ACTIO
     ];
 };
 export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function cache() {
-    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, arguments);
+    return $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 2));
 });
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {

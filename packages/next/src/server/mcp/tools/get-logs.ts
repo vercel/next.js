@@ -31,7 +31,9 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
             content: [
               {
                 type: 'text',
-                text: `Log file not found at ${logFilePath}.`,
+                text: JSON.stringify({
+                  error: `Log file not found at ${logFilePath}.`,
+                }),
               },
             ],
           }
@@ -41,7 +43,9 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Next.js log file path: ${logFilePath}`,
+              text: JSON.stringify({
+                logFilePath,
+              }),
             },
           ],
         }
@@ -50,7 +54,9 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: `Error getting log file path: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: `Error getting log file path: ${error instanceof Error ? error.message : String(error)}`,
+              }),
             },
           ],
         }

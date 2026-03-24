@@ -116,7 +116,7 @@ export function createRequestStoreForRender(
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
   renderResumeDataCache: RenderResumeDataCache | null,
-  devFallbackParams: OpaqueFallbackRouteParams | null
+  fallbackParams: OpaqueFallbackRouteParams | null
 ): RequestStore {
   return createRequestStoreImpl(
     // Pages start in render phase by default
@@ -131,7 +131,7 @@ export function createRequestStoreForRender(
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
-    devFallbackParams
+    fallbackParams
   )
 }
 
@@ -171,7 +171,7 @@ function createRequestStoreImpl(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  devFallbackParams: OpaqueFallbackRouteParams | null | undefined
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined
 ): RequestStore {
   function defaultOnUpdateCookies(cookies: string[]) {
     if (res) {
@@ -263,7 +263,7 @@ function createRequestStoreImpl(
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
-    devFallbackParams,
+    fallbackParams,
   }
 }
 

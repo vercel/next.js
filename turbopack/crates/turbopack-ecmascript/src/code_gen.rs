@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use swc_core::{
     base::SwcComments,
     ecma::{
@@ -34,6 +33,7 @@ use crate::{
             url::UrlAssetReferenceCodeGen,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
@@ -175,17 +175,7 @@ impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
 #[derive(
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
-    Hash,
-    Debug,
-    Encode,
-    Decode,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
@@ -210,6 +200,7 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
 }
 
 impl CodeGen {
@@ -242,6 +233,9 @@ impl CodeGen {
             Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
             Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ModuleHotReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
         }
     }
 }

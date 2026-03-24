@@ -1,6 +1,6 @@
 ---
 title: use cache
-description: Learn how to use the use cache directive to cache data in your Next.js application.
+description: Learn how to use the "use cache" directive to cache data in your Next.js application.
 related:
   title: Related
   description: View related API references.
@@ -189,11 +189,15 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 
 ## Constraints
 
+Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
+
+### Request-time APIs
+
 Cached functions and components **cannot** directly access runtime APIs like `cookies()`, `headers()`, or `searchParams`. Instead, read these values outside the cached scope and pass them as arguments.
 
 ### Runtime caching considerations
 
-While `use cache` is designed primarily to include dynamic data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
+While `use cache` is designed primarily to include uncached data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
 Runtime cache behavior depends on your hosting environment:
 
@@ -205,6 +209,34 @@ Runtime cache behavior depends on your hosting environment:
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
+
+### React.cache isolation
+
+[`React.cache`](https://react.dev/reference/react/cache) operates in an isolated scope inside `use cache` boundaries. Values stored via `React.cache` outside a `use cache` function are not visible inside it.
+
+This means you cannot use `React.cache` to pass data into a `use cache` scope:
+
+```tsx
+import { cache } from 'react'
+
+const store = cache(() => ({ current: null as string | null }))
+
+function Parent() {
+  const shared = store()
+  shared.current = 'value from parent'
+  return <Child />
+}
+
+async function Child() {
+  'use cache'
+  const shared = store()
+  // shared.current is null, not 'value from parent'
+  // use cache has its own isolated React.cache scope
+  return <div>{shared.current}</div>
+}
+```
+
+This isolation ensures cached functions have predictable, self-contained behavior. To pass data into a `use cache` scope, use function arguments instead.
 
 ## `use cache` at runtime
 
@@ -275,7 +307,7 @@ Both `cacheLife` and `cacheTag` integrate across client and server caching layer
 
 ### Caching an entire route with `use cache`
 
-To pre-render an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
@@ -518,13 +550,31 @@ export default function ClientComponent({ action }) {
 
 ## Troubleshooting
 
+### Debugging cache behavior
+
+#### Verbose logging
+
+Set `NEXT_PRIVATE_DEBUG_CACHE=1` for verbose cache logging:
+
+```bash
+NEXT_PRIVATE_DEBUG_CACHE=1 npm run dev
+# or for production
+NEXT_PRIVATE_DEBUG_CACHE=1 npm run start
+```
+
+> **Good to know:** This environment variable also logs ISR and other caching mechanisms. See [Verifying correct production behavior](/docs/app/guides/incremental-static-regeneration#verifying-correct-production-behavior) for more details.
+
+#### Console log replays
+
+In development, console logs from cached functions appear with a `Cache` prefix.
+
 ### Build Hangs (Cache Timeout)
 
-If your build hangs, you're accessing Promises that resolve to dynamic or runtime data, created outside a `use cache` boundary. The cached function waits for data that can't resolve during the build, causing a timeout after 50 seconds.
+If your build hangs, you're accessing Promises that resolve to uncached or runtime data, created outside a `use cache` boundary. The cached function waits for data that can't resolve during the build, causing a timeout after 50 seconds.
 
 When the build timeouts you'll see this error message:
 
-> Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+> Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or uncached data were used inside "use cache".
 
 Common ways this happens: passing such Promises as props, accessing them via closure, or retrieving them from shared storage (Maps).
 

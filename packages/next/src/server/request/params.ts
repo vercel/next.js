@@ -3,12 +3,16 @@ import {
   type WorkStore,
 } from '../app-render/work-async-storage.external'
 import type { OpaqueFallbackRouteParams } from './fallback-params'
+import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import {
+  createVaryingParams,
+  getMetadataVaryParamsAccumulator,
+} from '../app-render/vary-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
-  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -20,6 +24,7 @@ import {
   throwInvariantForMissingStore,
   type PrerenderStoreModernRuntime,
   type RequestStore,
+  type ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -38,9 +43,12 @@ export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
 
 export function createParamsFromClient(
-  underlyingParams: Params,
-  workStore: WorkStore
+  underlyingParams: Params
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -48,10 +56,22 @@ export function createParamsFromClient(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
+        // Client params don't need additional vary tracking because by the
+        // time they reach the client, the access would have already been
+        // tracked by the server.
+        const varyParamsAccumulator = null
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'validation-client':
+        return createClientParamsInInstantValidation(
+          underlyingParams,
+          workStore,
+          workUnitStore.validationSamples
         )
       case 'cache':
       case 'private-cache':
@@ -63,17 +83,30 @@ export function createParamsFromClient(
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createParamsFromClient should not be called inside generateStaticParams.'
+        )
       case 'request':
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
           // but since you would never use next dev with production NODE_ENV we use this
           // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
+          const fallbackParams = workUnitStore.fallbackParams
+          // Client params are not runtime prefetchable
+          const isRuntimePrefetchable = false
           return createRenderParamsInDev(
             underlyingParams,
-            devFallbackParams,
+            fallbackParams,
             workStore,
-            workUnitStore
+            workUnitStore,
+            isRuntimePrefetchable
+          )
+        } else if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -87,24 +120,46 @@ export function createParamsFromClient(
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
-export const createServerParamsForMetadata = createServerParamsForServerSegment
+export function createServerParamsForMetadata(
+  underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
+  isRuntimePrefetchable: boolean
+): Promise<Params> {
+  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+  return createServerParamsForServerSegment(
+    underlyingParams,
+    optionalCatchAllParamName,
+    metadataVaryParamsAccumulator,
+    isRuntimePrefetchable
+  )
+}
 
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  workStore: WorkStore
+  varyParamsAccumulator: VaryParamsAccumulator | null = null
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          null,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'prerender-client':
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called in client contexts.'
         )
       case 'cache':
       case 'private-cache':
@@ -112,19 +167,35 @@ export function createServerParamsForRoute(
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
-      case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called inside generateStaticParams.'
+        )
+      case 'prerender-runtime': {
+        // Route params are not runtime prefetchable
+        const isRuntimePrefetchable = false
+        return createRuntimePrerenderParams(
+          underlyingParams,
+          null,
+          workUnitStore,
+          varyParamsAccumulator,
+          isRuntimePrefetchable
+        )
+      }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
           // but since you would never use next dev with production NODE_ENV we use this
           // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
+          const fallbackParams = workUnitStore.fallbackParams
+          // Route params are not runtime prefetchable
+          const isRuntimePrefetchable = false
           return createRenderParamsInDev(
             underlyingParams,
-            devFallbackParams,
+            fallbackParams,
             workStore,
-            workUnitStore
+            workUnitStore,
+            isRuntimePrefetchable
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -138,8 +209,14 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  workStore: WorkStore
+  optionalCatchAllParamName: string | null,
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean
 ): Promise<Params> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -149,8 +226,14 @@ export function createServerParamsForServerSegment(
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
+          optionalCatchAllParamName,
           workStore,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator
+        )
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called in client contexts.'
         )
       case 'cache':
       case 'private-cache':
@@ -158,20 +241,51 @@ export function createServerParamsForServerSegment(
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called inside generateStaticParams.'
+        )
       case 'prerender-runtime':
-        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
+        return createRuntimePrerenderParams(
+          underlyingParams,
+          optionalCatchAllParamName,
+          workUnitStore,
+          varyParamsAccumulator,
+          isRuntimePrefetchable
+        )
       case 'request':
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
           // but since you would never use next dev with production NODE_ENV we use this
           // as a proxy so we can statically exclude this code from production builds.
-          const devFallbackParams = workUnitStore.devFallbackParams
+          const fallbackParams = workUnitStore.fallbackParams
           return createRenderParamsInDev(
             underlyingParams,
-            devFallbackParams,
+            fallbackParams,
             workStore,
-            workUnitStore
+            workUnitStore,
+            isRuntimePrefetchable
           )
+        } else if (
+          workUnitStore.asyncApiPromises &&
+          workUnitStore.validationSamples
+        ) {
+          return createServerParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples,
+            workUnitStore.asyncApiPromises,
+            isRuntimePrefetchable
+          )
+        } else if (
+          workUnitStore.asyncApiPromises &&
+          hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)
+        ) {
+          return (
+            isRuntimePrefetchable
+              ? workUnitStore.asyncApiPromises.earlySharedParamsParent
+              : workUnitStore.asyncApiPromises.sharedParamsParent
+          ).then(() => underlyingParams)
         } else {
           return createRenderParamsInProd(underlyingParams)
         }
@@ -214,11 +328,20 @@ export function createPrerenderParamsForClientSegment(
           }
         }
         break
+      case 'validation-client':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called in validation contexts.'
+        )
+        break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -237,9 +360,20 @@ export function createPrerenderParamsForClientSegment(
 
 function createStaticPrerenderParams(
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
+  prerenderStore: StaticPrerenderStore,
+  varyParamsAccumulator: VaryParamsAccumulator | null
 ): Promise<Params> {
+  const underlyingParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
+      : underlyingParams
+
   switch (prerenderStore.type) {
     case 'prerender':
     case 'prerender-client': {
@@ -252,7 +386,7 @@ function createStaticPrerenderParams(
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
             return makeHangingParams(
-              underlyingParams,
+              underlyingParamsWithVarying,
               workStore,
               prerenderStore
             )
@@ -267,7 +401,7 @@ function createStaticPrerenderParams(
         for (const key in underlyingParams) {
           if (fallbackParams.has(key)) {
             return makeErroringParams(
-              underlyingParams,
+              underlyingParamsWithVarying,
               fallbackParams,
               workStore,
               prerenderStore
@@ -283,17 +417,86 @@ function createStaticPrerenderParams(
       prerenderStore satisfies never
   }
 
-  return makeUntrackedParams(underlyingParams)
+  return makeUntrackedParams(underlyingParamsWithVarying)
 }
 
 function createRuntimePrerenderParams(
   underlyingParams: Params,
-  workUnitStore: PrerenderStoreModernRuntime
+  optionalCatchAllParamName: string | null,
+  workUnitStore: PrerenderStoreModernRuntime,
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean
 ): Promise<Params> {
-  return delayUntilRuntimeStage(
-    workUnitStore,
-    makeUntrackedParams(underlyingParams)
+  const underlyingParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingParams(
+          varyParamsAccumulator,
+          underlyingParams,
+          optionalCatchAllParamName
+        )
+      : underlyingParams
+
+  const result = makeUntrackedParams(underlyingParamsWithVarying)
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return result
+  }
+  const stage = isRuntimePrefetchable
+    ? RenderStage.EarlyRuntime
+    : RenderStage.Runtime
+  return stagedRendering.waitForStage(stage).then(() => result)
+}
+
+function hasFallbackRouteParams(
+  underlyingParams: Params,
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined
+): boolean {
+  if (fallbackParams) {
+    for (let key in underlyingParams) {
+      if (fallbackParams.has(key)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function createServerParamsInInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: NonNullable<RequestStore['validationSamples']>,
+  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
+  isRuntimePrefetchable: boolean
+): Promise<Params> {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples.params ?? {}))
+  const proxiedUnderlying = createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
   )
+  return (
+    isRuntimePrefetchable
+      ? asyncApiPromises.earlySharedParamsParent
+      : asyncApiPromises.sharedParamsParent
+  ).then(() => proxiedUnderlying)
+}
+
+function createClientParamsInInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: ValidationStoreClient['validationSamples']
+): Promise<Params> {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples?.params ?? {}))
+  const proxiedUnderlying = createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
+  )
+  return Promise.resolve(proxiedUnderlying)
 }
 
 function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
@@ -302,25 +505,17 @@ function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
 
 function createRenderParamsInDev(
   underlyingParams: Params,
-  devFallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  isRuntimePrefetchable: boolean
 ): Promise<Params> {
-  let hasFallbackParams = false
-  if (devFallbackParams) {
-    for (let key in underlyingParams) {
-      if (devFallbackParams.has(key)) {
-        hasFallbackParams = true
-        break
-      }
-    }
-  }
-
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
-    hasFallbackParams,
+    hasFallbackRouteParams(underlyingParams, fallbackParams),
     workStore,
-    requestStore
+    requestStore,
+    isRuntimePrefetchable
   )
 }
 
@@ -453,7 +648,8 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
   hasFallbackParams: boolean,
   workStore: WorkStore,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  isRuntimePrefetchable: boolean
 ): Promise<Params> {
   if (requestStore.asyncApiPromises && hasFallbackParams) {
     // We wrap each instance of params in a `new Promise()`, because deduping
@@ -461,7 +657,9 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     // await a different set of values. This is important when all awaits
     // are in third party which would otherwise track all the way to the
     // internal params.
-    const sharedParamsParent = requestStore.asyncApiPromises.sharedParamsParent
+    const sharedParamsParent = isRuntimePrefetchable
+      ? requestStore.asyncApiPromises.earlySharedParamsParent
+      : requestStore.asyncApiPromises.sharedParamsParent
     const promise: Promise<Params> = new Promise((resolve, reject) => {
       sharedParamsParent.then(() => resolve(underlyingParams), reject)
     })

@@ -5,7 +5,7 @@ export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUN
     console.log($$ACTION_ARG_0.find((x)=>x === $$ACTION_ARG_1));
 };
 registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
-/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","4090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1"} */ export function ComponentA({ list, y }) {
+/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"4090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"}} */ export function ComponentA({ list, y }) {
     return <form action={$$RSC_SERVER_ACTION_0.bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", list, y))}>
       <button>submit</button>
     </form>;

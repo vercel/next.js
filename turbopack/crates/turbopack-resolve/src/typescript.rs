@@ -15,7 +15,8 @@ use turbopack_core::{
     },
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
-        AliasPattern, ModuleResolveResult, handle_resolve_error,
+        AliasPattern, ModuleResolveResult, RequestKey, ResolveErrorMode,
+        error::handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
             ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
@@ -27,7 +28,6 @@ use turbopack_core::{
         resolve,
     },
     source::{OptionSource, Source},
-    source_pos::SourcePos,
 };
 
 use crate::ecmascript::get_condition_maps;
@@ -68,29 +68,7 @@ pub async fn read_tsconfigs(
         match &*parsed_data.await? {
             FileJsonContent::Unparsable(e) => {
                 let message = format!("tsconfig is not parseable: invalid JSON: {}", e.message);
-                let source = match (e.start_location, e.end_location) {
-                    (None, None) => IssueSource::from_source_only(tsconfig),
-                    (Some((line, column)), None) | (None, Some((line, column))) => {
-                        IssueSource::from_line_col(
-                            tsconfig,
-                            SourcePos { line, column },
-                            SourcePos { line, column },
-                        )
-                    }
-                    (Some((start_line, start_column)), Some((end_line, end_column))) => {
-                        IssueSource::from_line_col(
-                            tsconfig,
-                            SourcePos {
-                                line: start_line,
-                                column: start_column,
-                            },
-                            SourcePos {
-                                line: end_line,
-                                column: end_column,
-                            },
-                        )
-                    }
-                };
+                let source = IssueSource::from_unparsable_json(tsconfig, e);
                 TsConfigIssue {
                     severity: IssueSeverity::Error,
                     source,
@@ -417,7 +395,7 @@ pub async fn type_resolve(
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
     let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options(ty.clone());
+    let options = origin.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -472,16 +450,30 @@ pub async fn type_resolve(
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
-    handle_resolve_error(result, ty, origin, request, options, false, None).await
+    handle_resolve_error(
+        result,
+        ty,
+        origin,
+        request,
+        options,
+        ResolveErrorMode::Error,
+        None,
+    )
+    .await
 }
 
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
     result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(mut k, v)| {
-            k.conditions.insert("types".to_string(), true);
-            (k, v)
+        .map(|(k, v)| {
+            (
+                RequestKey {
+                    request: k.request.clone(),
+                    conditions: k.conditions.extend([(rcstr!("types"), true)]),
+                },
+                v,
+            )
         })
         .collect();
     Ok(result.cell())

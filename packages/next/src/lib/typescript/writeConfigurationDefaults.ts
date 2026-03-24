@@ -6,7 +6,6 @@ import os from 'os'
 import type { CompilerOptions } from 'typescript'
 import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
-import { defaultConfig } from '../../server/config-shared'
 
 type DesiredCompilerOptionsShape = {
   [K in keyof CompilerOptions]:
@@ -190,15 +189,13 @@ export async function writeConfigurationDefaults(
   hasAppDir: boolean,
   distDir: string,
   hasPagesDir: boolean,
-  isolatedDevBuild: boolean | undefined
+  strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
   }
 
-  const userTsConfigContent = readFileSync(tsConfigPath, {
-    encoding: 'utf8',
-  })
+  const userTsConfigContent = readFileSync(tsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
 
   // Bail automatic setup when the user has extended or referenced another config
@@ -269,34 +266,26 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const resolvedIsolatedDevBuild =
-    isolatedDevBuild === undefined
-      ? defaultConfig.experimental.isolatedDevBuild
-      : isolatedDevBuild
-
   // Get type definition glob patterns using shared utility to ensure consistency
   // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
-  const nextAppTypes = getTypeDefinitionGlobPatterns(
-    distDir,
-    resolvedIsolatedDevBuild
-  )
+  const nextTypes = getTypeDefinitionGlobPatterns(distDir)
 
   if (!('include' in userTsConfig)) {
-    userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', ...nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+    const defaultInclude =
+      hasAppDir && !strictRouteTypes
+        ? ['next-env.d.ts', ...nextTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+        : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+
+    userTsConfig.include = defaultInclude
     suggestedActions.push(
       cyan('include') +
-        ' was set to ' +
-        bold(
-          hasAppDir
-            ? `['next-env.d.ts', ${nextAppTypes.map((type) => `'${type}'`).join(', ')}, '**/*.mts', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
-        )
+        ' was set to [' +
+        bold(defaultInclude.map((type) => `'${type}'`).join(', ')) +
+        ']'
     )
-  } else if (hasAppDir) {
+  } else if (hasAppDir && !strictRouteTypes) {
     const missingFromResolved = []
-    for (const type of nextAppTypes) {
+    for (const type of nextTypes) {
       if (!userTsConfig.include.includes(type)) {
         missingFromResolved.push(type)
       }

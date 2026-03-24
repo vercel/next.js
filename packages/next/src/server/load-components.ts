@@ -146,7 +146,7 @@ async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
-) {
+): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
@@ -308,7 +308,9 @@ async function loadComponentsImpl<
       ComponentMod
 
     return {
+      // @ts-expect-error this is indeed `{} || AppType` and not always `AppType`
       App,
+      // @ts-expect-error this is indeed `{} || DocumentType` and not always `DocumentType`
       Document,
       Component,
       buildManifest,

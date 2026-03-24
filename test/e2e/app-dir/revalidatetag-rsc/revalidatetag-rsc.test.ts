@@ -36,7 +36,7 @@ describe('revalidateTag-rsc', () => {
         await retry(async () => {
           expect(
             await browser.eval('document.documentElement.innerHTML')
-          ).toContain('Application error: a server-side exception has occurred')
+          ).toContain('This page couldn\u2019t load')
         })
       }
 

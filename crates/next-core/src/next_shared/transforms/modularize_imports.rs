@@ -10,7 +10,7 @@ use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, trace::
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
-use super::module_rule_match_js_no_url;
+use crate::next_shared::transforms::module_rule_match_js_no_url;
 
 #[derive(
     Clone,

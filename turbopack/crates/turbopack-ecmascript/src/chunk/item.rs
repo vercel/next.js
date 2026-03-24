@@ -2,28 +2,30 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder},
-    error::PrettyPrintError,
+    ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
+    module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
 use crate::{
     EcmascriptModuleContent,
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -35,8 +37,6 @@ use crate::{
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
     NonLocalValue,
@@ -51,12 +51,14 @@ pub enum RewriteSourcePath {
     None,
 }
 
-#[turbo_tasks::value(shared)]
+// Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
+// persisted and we want to avoid duplicating it.
+#[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
     pub placeholder_for_future_extensions: (),
@@ -125,8 +127,8 @@ impl EcmascriptChunkItemContent {
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
-        for additional_id in self.additional_ids.iter().try_join().await? {
-            writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
+        for additional_id in self.additional_ids.iter() {
+            writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
         if self.options.module_and_exports {
             code += "((__turbopack_context__, module, exports) => {\n";
@@ -179,19 +181,7 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(
-    PartialEq,
-    Eq,
-    Default,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -208,18 +198,7 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
@@ -298,6 +277,8 @@ async fn module_factory_with_code_generation_issue(
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+
+            // ast-grep-ignore: no-context-format
             let error = error.context(format!(
                 "An error occurred while generating the chunk item {id}"
             ));
@@ -309,6 +290,7 @@ async fn module_factory_with_code_generation_issue(
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -319,4 +301,91 @@ async fn module_factory_with_code_generation_issue(
             code.build().cell()
         }
     })
+}
+
+/// Generic chunk item that wraps any EcmascriptChunkPlaceable module.
+/// This replaces the need for individual per-module ChunkItem wrapper structs.
+#[turbo_tasks::value]
+pub struct EcmascriptModuleChunkItem {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+}
+
+/// Factory function to create an EcmascriptModuleChunkItem.
+/// Use this instead of implementing ChunkableModule::as_chunk_item() on each module.
+pub fn ecmascript_chunk_item(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+) -> Vc<Box<dyn ChunkItem>> {
+    Vc::upcast(
+        EcmascriptModuleChunkItem {
+            module,
+            chunking_context,
+            module_graph,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn content_ident(&self) -> Vc<AssetIdent> {
+        self.module
+            .chunk_item_content_ident(*self.chunking_context, *self.module_graph)
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<turbopack_core::output::OutputAssetsWithReferenced> {
+        self.module
+            .chunk_item_output_assets(*self.chunking_context, *self.module_graph)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
+        self.module
+            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
+    }
+
+    #[turbo_tasks::function]
+    fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent> {
+        self.module.chunk_item_content(
+            *self.chunking_context,
+            *self.module_graph,
+            async_module_info,
+            estimated,
+        )
+    }
 }

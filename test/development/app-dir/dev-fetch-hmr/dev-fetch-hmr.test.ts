@@ -22,9 +22,15 @@ describe('dev-fetch-hmr', () => {
     const update = cheerio.load(html2)('#update').text()
     expect(update).toBe('touch to trigger HMR')
 
-    // trigger HMR
     await next.patchFile('app/page.tsx', (content) =>
       content.replace('touch to trigger HMR', 'touch to trigger HMR 2')
+    )
+    // For server hmr, we must touch the exact module to trigger re-evaluation
+    await next.patchFile('app/layout.tsx', (content) =>
+      content.replace(
+        'const magicNumber = Math.random()',
+        '// hmr trigger\nconst magicNumber = Math.random()'
+      )
     )
 
     await retry(async () => {

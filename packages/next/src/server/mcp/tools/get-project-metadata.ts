@@ -23,7 +23,10 @@ export function registerGetProjectMetadataTool(
             content: [
               {
                 type: 'text',
-                text: 'Unable to determine the absolute path of the Next.js project.',
+                text: JSON.stringify({
+                  error:
+                    'Unable to determine the absolute path of the Next.js project.',
+                }),
               },
             ],
           }
@@ -47,7 +50,9 @@ export function registerGetProjectMetadataTool(
           content: [
             {
               type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+              text: JSON.stringify({
+                error: error instanceof Error ? error.message : String(error),
+              }),
             },
           ],
         }

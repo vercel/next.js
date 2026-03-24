@@ -184,6 +184,11 @@ fn main() {
                 no_mangling: false,
                 write_routes_hashes_manifest: false,
                 current_node_js_version: rcstr!("18.0.0"),
+                debug_build_paths: None,
+                deferred_entries: None,
+                is_persistent_caching_enabled: false,
+                next_version: rcstr!("0.0.0"),
+                server_hmr: false,
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

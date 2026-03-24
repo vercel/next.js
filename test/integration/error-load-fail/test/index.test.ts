@@ -30,7 +30,7 @@ describe('Failing to load _error', () => {
         const browser = await webdriver(appPort, '/', {
           beforePageLoad(page) {
             // Make _error route fail to load
-            page.route('**/' + chunk, (route) => {
+            page.route(`**/${chunk}*`, (route) => {
               route.abort('blockedbyclient')
             })
           },

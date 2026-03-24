@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('use-router-with-rewrites', () => {
   const { next } = nextTestSetup({
@@ -68,30 +69,33 @@ describe('use-router-with-rewrites', () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementById('router-push').click()
 
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('1')
+      })
       const url = new URL(await browser.url())
       expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/1')
-
-      expect(await browser.elementByCss('p').text()).toBe('1')
     })
 
     it('should preserve current pathname when using useRouter.replace with rewrites on dynamic route', async () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementById('router-replace').click()
 
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('2')
+      })
       const url = new URL(await browser.url())
       expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/2')
-
-      expect(await browser.elementByCss('p').text()).toBe('2')
     })
 
     it('should preserve current pathname when using Link with rewrites on dynamic route', async () => {
       const browser = await next.browser('/rewrite-to-same-segment/0')
       await browser.elementByCss('a').click()
 
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('3')
+      })
       const url = new URL(await browser.url())
       expect(url.pathname + url.search).toBe('/rewrite-to-same-segment/3')
-
-      expect(await browser.elementByCss('p').text()).toBe('3')
     })
   })
 })

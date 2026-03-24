@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import url from 'url'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -79,7 +78,7 @@ const runTests = (mode = 'dev', didReload = false) => {
     const res = await fetchViaHTTP(appPort, '/hello', undefined, {
       redirect: 'manual',
     })
-    const { pathname } = url.parse(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'))
 
     expect(res.status).toBe(307)
     expect(pathname).toBe('/another')

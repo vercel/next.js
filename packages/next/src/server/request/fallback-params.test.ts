@@ -11,6 +11,7 @@ type TestLoaderTree = [
   segment: string,
   parallelRoutes: { [key: string]: TestLoaderTree },
   modules: Record<string, unknown>,
+  staticSiblings: readonly string[] | null,
 ]
 
 function createLoaderTree(
@@ -19,7 +20,7 @@ function createLoaderTree(
   children?: TestLoaderTree
 ): TestLoaderTree {
   const routes = children ? { ...parallelRoutes, children } : parallelRoutes
-  return [segment, routes, {}]
+  return [segment, routes, {}, null]
 }
 
 /**
@@ -186,6 +187,24 @@ describe('getFallbackRouteParams', () => {
 
       expect(result).not.toBeNull()
       // Only projectSlug should be a fallback param, vercel is static
+      expect(result!.has('projectSlug')).toBe(true)
+      expect(result!.has('teamSlug')).toBe(false)
+    })
+
+    it('should treat encoded placeholders as dynamic segments', () => {
+      // Tree: /[teamSlug]/[projectSlug] but page is /vercel/%5BprojectSlug%5D
+      const loaderTree = createLoaderTree(
+        '',
+        {},
+        createLoaderTree('[teamSlug]', {}, createLoaderTree('[projectSlug]'))
+      )
+      const routeModule = createMockRouteModule(loaderTree)
+      const result = getFallbackRouteParams(
+        '/vercel/%5BprojectSlug%5D',
+        routeModule
+      )
+
+      expect(result).not.toBeNull()
       expect(result!.has('projectSlug')).toBe(true)
       expect(result!.has('teamSlug')).toBe(false)
     })

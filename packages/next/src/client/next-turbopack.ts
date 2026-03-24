@@ -1,6 +1,7 @@
 // A client-side entry point for Turbopack builds. Includes logic to load chunks,
 // but does not include development-time features like hot module reloading.
 
+import './register-deployment-id-global'
 import '../lib/require-instrumentation-client'
 
 // TODO: Remove use of `any` type.

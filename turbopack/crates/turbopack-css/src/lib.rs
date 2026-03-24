@@ -13,16 +13,12 @@ mod lifetime_util;
 mod module_asset;
 pub(crate) mod process;
 pub(crate) mod references;
-pub(crate) mod util;
 
-pub use asset::CssModuleAsset;
 use bincode::{Decode, Encode};
-pub use module_asset::ModuleCssAsset;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
-pub use self::process::*;
 use crate::references::import::ImportAssetReference;
+pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*};
 
 #[derive(
     PartialOrd,
@@ -34,18 +30,27 @@ use crate::references::import::ImportAssetReference;
     Copy,
     Clone,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
     Encode,
     Decode,
 )]
-pub enum CssModuleAssetType {
+pub enum CssModuleType {
     /// Default parsing mode.
     #[default]
     Default,
     /// The CSS is parsed as CSS modules.
     Module,
+}
+
+/// User-specified lightningcss feature flags (from `experimental.lightningCssFeatures`).
+///
+/// Both fields are raw `Features` bitmasks. `include` bits are OR-ed into the
+/// default feature set; `exclude` bits are masked off.
+#[turbo_tasks::value(shared, serialization = "auto")]
+#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default, TaskInput)]
+pub struct LightningCssFeatureFlags {
+    pub include: u32,
+    pub exclude: u32,
 }
