@@ -2422,7 +2422,7 @@ impl FileContent {
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(&*salt.await?, file.content().content_hash(), algorithm).into(),
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }
