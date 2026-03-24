@@ -7,7 +7,10 @@ import type {
   HeadData,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
-import { PrefetchHint } from '../../shared/lib/app-router-types'
+import {
+  PrefetchHint,
+  StaticPrefetchDisabled,
+} from '../../shared/lib/app-router-types'
 import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -73,8 +76,16 @@ export type TreePrefetch = {
   prefetchHints: number
 }
 
+/**
+ * Top-level response for a segment prefetch request. Contains the build ID
+ * and an array of segment data (one per segment in the bundle).
+ */
+export type SegmentPrefetchResponse = {
+  buildId: string
+  data: Array<SegmentPrefetch | null>
+}
+
 export type SegmentPrefetch = {
-  buildId?: string
   rsc: React.ReactNode | null
   isPartial: boolean
   staleTime: number
@@ -110,6 +121,7 @@ export type InlinedSegmentPrefetch = {
  * data for a route bundled into a single tree structure, plus the head segment.
  */
 export type InlinedPrefetchResponse = {
+  buildId: string
   tree: InlinedSegmentPrefetch
   head: SegmentPrefetch
 }
@@ -312,8 +324,15 @@ export async function collectPrefetchHints(
   )
   const headGzipSize = await getGzipSize(headBuffer)
 
-  // Mutable accumulator: the first page leaf that can fit the head sets
-  // this to true. Once set, subsequent leaves skip the check.
+  // Mutable accumulator: the first segment that accepts the head sets this
+  // to true. Once set, subsequent segments skip the check.
+  //
+  // When the route has any runtime prefetch segment, the head is only
+  // assigned to a runtime segment (since the runtime response already
+  // includes it). Static pages are skipped to avoid duplication.
+  const rootHints = flightRouterState[4] ?? 0
+  const subtreeHasRuntimePrefetch =
+    (rootHints & PrefetchHint.SubtreeHasRuntimePrefetch) !== 0
   const headInlineState = { inlined: false }
 
   // Walk the tree with the parent-first, child-decides algorithm.
@@ -328,7 +347,8 @@ export async function collectPrefetchHints(
     maxSize,
     maxBundleSize,
     headGzipSize,
-    headInlineState
+    headInlineState,
+    subtreeHasRuntimePrefetch
   )
 
   if (!headInlineState.inlined) {
@@ -380,16 +400,28 @@ async function collectPrefetchHintsImpl(
   maxSize: number,
   maxBundleSize: number,
   headGzipSize: number,
-  headInlineState: { inlined: boolean }
+  headInlineState: { inlined: boolean },
+  routeHasRuntimePrefetch: boolean
 ): Promise<{
   node: PrefetchHints
   // Total inlined bytes accumulated along the deepest accepting path in this
   // subtree. Used by ancestors for budget checks.
   inlinedBytes: number
 }> {
-  // Render current segment and measure its gzip size.
+  // Check if static prefetching is disabled for this segment (runtime
+  // prefetch or unstable_instant = false). Such segments act as transparent
+  // pass-throughs in the bundle chain: they contribute zero bytes of their
+  // own and pass parent data through to children. However, they cannot be
+  // the terminal of a chain — if no child accepts the parent data, the
+  // parent cannot be inlined into this segment because there's no static
+  // response to carry it. See the ParentInlinedIntoSelf check below.
+  const isStaticPrefetchDisabled =
+    ((route[4] ?? 0) & StaticPrefetchDisabled) !== 0
+
+  // Render current segment and measure its gzip size. Skip measurement for
+  // segments with static prefetching disabled since they contribute nothing.
   let currentGzipSize: number | null = null
-  if (seedData !== null) {
+  if (!isStaticPrefetchDisabled && seedData !== null) {
     const varyParamsThenable = seedData[4]
     const varyParams =
       varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
@@ -406,7 +438,8 @@ async function collectPrefetchHintsImpl(
   }
 
   // Only offer this segment to its children for inlining if its gzip size
-  // is below maxSize. Segments above this get their own response.
+  // is below maxSize. Segments with static prefetching disabled have
+  // nothing to offer (their slot in the bundle is null).
   const sizeToInline =
     currentGzipSize !== null && currentGzipSize < maxSize
       ? currentGzipSize
@@ -445,6 +478,15 @@ async function collectPrefetchHintsImpl(
       createSegmentRequestKeyPart(childSegment)
     )
 
+    // Determine what size to offer children for inlining. Normally we offer
+    // our own size. But if static prefetching is disabled for this segment,
+    // it has no data of its own — instead it passes the parent's offer
+    // through to children. This allows a static grandparent to inline
+    // through a disabled intermediate segment into a static grandchild.
+    const sizeToOfferChild = isStaticPrefetchDisabled
+      ? parentGzipSize
+      : sizeToInline
+
     const childResult = await collectPrefetchHintsImpl(
       childRoute,
       buildId,
@@ -453,11 +495,12 @@ async function collectPrefetchHintsImpl(
       clientModules,
       childRequestKey,
       // Once a child has accepted us, stop offering to remaining siblings.
-      didInlineIntoChild ? null : sizeToInline,
+      didInlineIntoChild ? null : sizeToOfferChild,
       maxSize,
       maxBundleSize,
       headGzipSize,
-      headInlineState
+      headInlineState,
+      routeHasRuntimePrefetch
     )
 
     if (slots === null) {
@@ -501,20 +544,45 @@ async function collectPrefetchHintsImpl(
     ? acceptingChildInlinedBytes
     : smallestChildInlinedBytes
 
-  // At leaf nodes (pages), try to inline the head (metadata/viewport) into
-  // this page's response. The head is treated like an additional inlined
-  // entry — it counts against the same total budget. Only the first page
-  // that has room gets the head; subsequent pages skip via the shared
-  // headInlineState accumulator.
-  if (!hasChildren && !headInlineState.inlined) {
-    if (inlinedBytes + headGzipSize < maxBundleSize) {
+  // Determine which segment is responsible for the head (metadata/viewport).
+  //
+  // When the route has any runtime prefetch segment, the head is only
+  // assigned to a runtime segment — the runtime response already includes
+  // the head, so assigning it to a static page would duplicate it.
+  //
+  // When the route has no runtime prefetch segments, the head is assigned
+  // to the first static page terminal that has budget room. Head can only
+  // be inlined into a page, not a layout, because pages may access
+  // additional params (e.g. searchParams) that layouts cannot.
+  //
+  // A disabled segment with PrefetchDisabled (instant = false) is never a
+  // valid target — it has no response at all.
+  const hasRuntimePrefetch =
+    ((route[4] ?? 0) & PrefetchHint.HasRuntimePrefetch) !== 0
+  const isBundleTerminal = !didInlineIntoChild && !isStaticPrefetchDisabled
+  const segment = route[0]
+  const isPageSegment =
+    typeof segment === 'string'
+      ? segment === PAGE_SEGMENT_KEY
+      : segment[0] === PAGE_SEGMENT_KEY
+  if (!headInlineState.inlined) {
+    if (hasRuntimePrefetch) {
+      // Runtime prefetch segment — the runtime response includes the head.
+      // No budget cost since it's already part of that response.
       hints |= PrefetchHint.HeadInlinedIntoSelf
-      inlinedBytes += headGzipSize
       headInlineState.inlined = true
+    } else if (isBundleTerminal && isPageSegment && !routeHasRuntimePrefetch) {
+      // Static page terminal — only used when no runtime segments exist.
+      // The head counts against the bundle budget.
+      if (inlinedBytes + headGzipSize < maxBundleSize) {
+        hints |= PrefetchHint.HeadInlinedIntoSelf
+        inlinedBytes += headGzipSize
+        headInlineState.inlined = true
+      }
     }
   }
 
-  // Decide whether to accept our own parent's data. Two conditions:
+  // Decide whether to accept our own parent's data. Conditions:
   //
   // 1. The parent offered us a size (parentGzipSize is not null). It's null
   //    when the parent is too large to inline or when this is the root.
@@ -524,6 +592,13 @@ async function collectPrefetchHintsImpl(
   //    longer makes sense to keep adding bytes because the combined response
   //    is unique per URL and can't be deduped.
   //
+  // 3. If this segment has static prefetching disabled, it can only accept
+  //    the parent if it has successfully inlined into a child. A disabled
+  //    segment is a transparent pass-through — it passes parent data through
+  //    to descendants. But if no descendant accepted, there's no static
+  //    response to carry the parent's data, so the parent must remain
+  //    outlined.
+  //
   // A node can be both InlinedIntoChild and ParentInlinedIntoSelf. This
   // happens in multi-level chains: GP → P → C where all are small. C
   // accepts P (P is InlinedIntoChild), then P also accepts GP (P is
@@ -531,7 +606,10 @@ async function collectPrefetchHintsImpl(
   // and GP's data. The parent's data flows through to the deepest
   // accepting descendant.
   if (parentGzipSize !== null) {
-    if (inlinedBytes + parentGzipSize < maxBundleSize) {
+    // A disabled segment can only pass through — it needs a child to
+    // ultimately accept the parent's data.
+    const canAcceptParent = !isStaticPrefetchDisabled || didInlineIntoChild
+    if (canAcceptParent && inlinedBytes + parentGzipSize < maxBundleSize) {
       hints |= PrefetchHint.ParentInlinedIntoSelf
       inlinedBytes += parentGzipSize
     }
@@ -733,8 +811,14 @@ function collectSegmentDataImpl(
   // inlining hints (ParentInlinedIntoSelf, InlinedIntoChild) won't be in
   // route[4] yet. On subsequent renders the hints are already in the
   // FlightRouterState, so the union is idempotent.
+  //
+  // Strip InliningHintsStale — it's a transient flag set on the initial
+  // build-time FlightRouterState and must never appear in /_tree responses.
+  // If it leaked through, the client would re-fetch the tree in an infinite
+  // loop.
   const prefetchHints =
-    (route[4] ?? 0) | (hintTree !== null ? hintTree.hints : 0)
+    ((route[4] ?? 0) & ~PrefetchHint.InliningHintsStale) |
+    (hintTree !== null ? hintTree.hints : 0)
 
   // Determine which params this segment varies on.
   // Read the vary params thenable directly from the seed data. By the time
@@ -816,23 +900,22 @@ async function renderSegmentPrefetch(
     staleTime,
     varyParams,
   }
-  if (buildId) {
-    segmentPrefetch.buildId = buildId
+  // Wrap in a SegmentPrefetchResponse with a top-level buildId.
+  // For non-bundled responses, the data array has a single element.
+  const response: SegmentPrefetchResponse = {
+    buildId: buildId ?? '',
+    data: [segmentPrefetch],
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
   // caused by dynamic data. Abort the stream at the end of the current task.
   const abortController = new AbortController()
   waitAtLeastOneReactRenderTask().then(() => abortController.abort())
-  const { prelude: segmentStream } = await prerender(
-    segmentPrefetch,
-    clientModules,
-    {
-      filterStackFrame,
-      signal: abortController.signal,
-      onError: onSegmentPrerenderError,
-    }
-  )
+  const { prelude: segmentStream } = await prerender(response, clientModules, {
+    filterStackFrame,
+    signal: abortController.signal,
+    onError: onSegmentPrerenderError,
+  })
   const segmentBuffer = await streamToBuffer(segmentStream)
   if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
     return ['/_index' as SegmentRequestKey, segmentBuffer]
@@ -866,11 +949,9 @@ async function renderInlinedPrefetchResponse(
     staleTime,
     varyParams: headVaryParams,
   }
-  if (buildId) {
-    headPrefetch.buildId = buildId
-  }
 
   const response: InlinedPrefetchResponse = {
+    buildId: buildId ?? '',
     tree: inlinedTree,
     head: headPrefetch,
   }
@@ -927,9 +1008,6 @@ async function buildInlinedSegmentPrefetch(
     isPartial: rsc !== null ? await isPartialRSCData(rsc, clientModules) : true,
     staleTime,
     varyParams,
-  }
-  if (buildId) {
-    segment.buildId = buildId
   }
   return { segment, slots }
 }

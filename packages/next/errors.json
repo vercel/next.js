@@ -1140,5 +1140,9 @@
   "1139": "`unstable_catchError` can only be used in Client Components.",
   "1140": "Route %s used \\`import('next/root-params').%s()\\` inside \\`\"use cache\"\\` nested within \\`unstable_cache\\`. Root params are not available in this context.",
   "1141": "Route %s used \\`import('next/root-params').%s()\\` inside \\`unstable_cache\\`. This is not supported. Use \\`\"use cache\"\\` instead.",
-  "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them."
+  "1142": "Route %s used \\`import('next/root-params').%s()\\` inside \\`generateStaticParams\\`, but the \\`%s\\` parameter was not provided by a parent \\`generateStaticParams\\`. In \\`generateStaticParams\\`, root params are only available for segments nested below the segment that provides them.",
+  "1143": "Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route.",
+  "1144": "Prefetch inlining is enabled but no hints were found for route \"%s\". This is a bug in the Next.js build pipeline — prefetch-hints.json should contain an entry for every route that produces segment data.",
+  "1145": "Internal Next.js Error: Prefetch inlining is enabled but no hints were found for route \"%s\". prefetch-hints.json should contain an entry for every route that produces segment data. This is a bug in Next.js.",
+  "1146": "Internal Next.js Error: Prefetch inlining is enabled but no hint tree was provided during incremental static revalidation. The prefetch-hints.json manifest should contain an entry for this route. This is a bug in Next.js."
 }
