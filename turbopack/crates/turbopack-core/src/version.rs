@@ -231,7 +231,7 @@ impl FileHashVersion {
         match asset_content {
             AssetContent::File(file_vc) => {
                 let hash = file_vc
-                    .content_hash(HashAlgorithm::Xxh3Hash128Base38)
+                    .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::Xxh3Hash128Base38)
                     .owned()
                     .await?
                     .context("file not found")?;

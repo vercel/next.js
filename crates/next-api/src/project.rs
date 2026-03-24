@@ -1239,8 +1239,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn hash_salt(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.hash_salt.clone())
+    pub(super) fn hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash_salt.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]

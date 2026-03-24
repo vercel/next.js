@@ -27,10 +27,15 @@ pub trait Asset {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 
-    /// Hash of the content of the `Asset`.
+    /// Hash of the content of the `Asset`. If `salt` is non-empty it is mixed
+    /// into the hash in a single pass before the file bytes.
     #[turbo_tasks::function]
-    fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
-        self.content().content_hash(algorithm)
+    fn content_hash(
+        self: Vc<Self>,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Vc<Option<RcStr>> {
+        self.content().content_hash(salt, algorithm)
     }
 }
 
@@ -130,26 +135,19 @@ impl AssetContent {
         }
     }
 
-    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
+    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` for redirects or missing files.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
-        match self {
-            AssetContent::File(content) => Ok(content.content_hash(algorithm)),
-            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
-        }
-    }
-
-    /// Like [`content_hash`][Self::content_hash], but writes `salt` into the
-    /// hasher before the file bytes so the two are mixed in a single pass.
-    #[turbo_tasks::function]
-    pub async fn content_hash_with_salt(
+    pub async fn content_hash(
         &self,
-        salt: RcStr,
+        salt: Vc<RcStr>,
         algorithm: HashAlgorithm,
     ) -> Result<Vc<Option<RcStr>>> {
         match self {
-            AssetContent::File(content) => Ok(content.content_hash_with_salt(salt, algorithm)),
+            AssetContent::File(content) => Ok(content.content_hash(salt, algorithm)),
             AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }

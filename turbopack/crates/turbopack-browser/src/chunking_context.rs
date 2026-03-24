@@ -219,7 +219,7 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn hash_salt(mut self, salt: Option<RcStr>) -> Self {
+    pub fn hash_salt(mut self, salt: RcStr) -> Self {
         self.chunking_context.hash_salt = salt;
         self
     }
@@ -320,9 +320,8 @@ pub struct BrowserChunkingContext {
     /// The global variable name used for chunk loading.
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
-    /// An optional salt to mix into chunk and asset content hashes, allowing
-    /// users to force new filenames without changing file content.
-    hash_salt: Option<RcStr>,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: RcStr,
 }
 
 impl BrowserChunkingContext {
@@ -375,7 +374,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
-                hash_salt: None,
+                hash_salt: RcStr::default(),
             },
         }
     }
@@ -567,22 +566,18 @@ impl ChunkingContext for BrowserChunkingContext {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
                 let this = self.await?;
-                let content = asset.content();
-                let hash = if let Some(salt) = &this.hash_salt {
-                    content
-                        .content_hash_with_salt(salt.clone(), HashAlgorithm::Xxh3Hash128Base38)
-                        .await?
-                } else {
-                    content
-                        .content_hash(HashAlgorithm::Xxh3Hash128Base38)
-                        .await?
-                };
+                let hash = asset
+                    .content()
+                    .content_hash(
+                        Vc::cell(this.hash_salt.clone()),
+                        HashAlgorithm::Xxh3Hash128Base38,
+                    )
+                    .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
-                let length = length as usize;
-                let hash = &hash[..length];
+                let hash = &hash[..length as usize];
                 if let Some(prefix) = prefix {
                     format!("{prefix}-{hash}{extension}").into()
                 } else {
@@ -649,15 +644,12 @@ impl ChunkingContext for BrowserChunkingContext {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let hash = if let Some(salt) = &self.hash_salt {
-            content
-                .content_hash_with_salt(salt.clone(), HashAlgorithm::Xxh3Hash128Base40)
-                .await?
-        } else {
-            content
-                .content_hash(HashAlgorithm::Xxh3Hash128Base40)
-                .await?
-        };
+        let hash = content
+            .content_hash(
+                Vc::cell(self.hash_salt.clone()),
+                HashAlgorithm::Xxh3Hash128Base40,
+            )
+            .await?;
         let hash = hash
             .as_ref()
             .context("Missing content when trying to generate the content hash for static asset")?;

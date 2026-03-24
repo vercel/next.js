@@ -163,7 +163,7 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn hash_salt(mut self, salt: Option<RcStr>) -> Self {
+    pub fn hash_salt(mut self, salt: RcStr) -> Self {
         self.chunking_context.hash_salt = salt;
         self
     }
@@ -240,9 +240,8 @@ pub struct NodeJsChunkingContext {
     worker_forwarded_globals: Vec<RcStr>,
     /// Content hashing for asset filenames.
     asset_content_hashing: ContentHashing,
-    /// An optional salt to mix into asset content hashes, allowing users to
-    /// force new filenames without changing file content.
-    hash_salt: Option<RcStr>,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: RcStr,
 }
 
 impl NodeJsChunkingContext {
@@ -288,7 +287,7 @@ impl NodeJsChunkingContext {
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
-                hash_salt: None,
+                hash_salt: RcStr::default(),
             },
         }
     }
@@ -480,15 +479,12 @@ impl ChunkingContext for NodeJsChunkingContext {
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let hash = if let Some(salt) = &self.hash_salt {
-            content
-                .content_hash_with_salt(salt.clone(), HashAlgorithm::Xxh3Hash128Base40)
-                .await?
-        } else {
-            content
-                .content_hash(HashAlgorithm::Xxh3Hash128Base40)
-                .await?
-        };
+        let hash = content
+            .content_hash(
+                Vc::cell(self.hash_salt.clone()),
+                HashAlgorithm::Xxh3Hash128Base40,
+            )
+            .await?;
         let hash = hash
             .as_ref()
             .context("Missing content when trying to generate the content hash for static asset")?;

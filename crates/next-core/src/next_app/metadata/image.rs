@@ -34,7 +34,10 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = path
+        .read()
+        .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::default())
+        .await?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
@@ -109,7 +112,10 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = path
+        .read()
+        .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::default())
+        .await?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";

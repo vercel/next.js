@@ -39,7 +39,7 @@ async fn asset_path(
             let hash = if let Some(algorithm) = should_content_hash {
                 asset
                     .content()
-                    .content_hash(algorithm)
+                    .content_hash(Vc::cell(RcStr::default()), algorithm)
                     .owned()
                     .await?
                     .context("asset content not found")?

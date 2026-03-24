@@ -445,7 +445,7 @@ pub struct ClientChunkingContextOptions {
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
-    pub hash_salt: Vc<Option<RcStr>>,
+    pub hash_salt: Vc<RcStr>,
 }
 
 #[turbo_tasks::function]

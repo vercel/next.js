@@ -38,51 +38,11 @@ pub enum HashAlgorithm {
     Sha512Base64,
 }
 
-pub fn deterministic_hash<T: DeterministicHash>(input: T, algorithm: HashAlgorithm) -> String {
-    match algorithm {
-        HashAlgorithm::Xxh3Hash64Hex => {
-            let mut hasher = Xxh3Hash64Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_hex(hasher.finish())
-        }
-        HashAlgorithm::Xxh3Hash128Hex => {
-            let mut hasher = Xxh3Hash128Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_hex_128(hasher.finish())
-        }
-        HashAlgorithm::Xxh3Hash64Base38 => {
-            let mut hasher = Xxh3Hash64Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_base38(hasher.finish())
-        }
-        HashAlgorithm::Xxh3Hash128Base38 => {
-            let mut hasher = Xxh3Hash128Hasher::new();
-            input.deterministic_hash(&mut hasher);
-            encode_base38_128(hasher.finish())
-        }
-        HashAlgorithm::Sha256Base64 => {
-            let mut hasher = ShaHasher::new_sha256();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
-        HashAlgorithm::Sha384Base64 => {
-            let mut hasher = ShaHasher::new_sha384();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
-        HashAlgorithm::Sha512Base64 => {
-            let mut hasher = ShaHasher::new_sha512();
-            input.deterministic_hash(&mut hasher);
-            hasher.finish_base64()
-        }
-    }
-}
-
-/// Like [`deterministic_hash`], but writes `salt` into the hasher first so
-/// that `NEXT_HASH_SALT` can force new content-addressed filenames without
-/// changing the underlying file content. Salt and content are fed into the
-/// same hasher in a single pass, not composed via nested hashing.
-pub fn deterministic_hash_with_salt<T: DeterministicHash>(
+/// Hash `input` with `algorithm`. If `salt` is non-empty it is written into
+/// the hasher before the content so the two are mixed in a single pass —
+/// never as a hash-of-hash composition. An empty salt produces the same
+/// result as calling the hasher with no prefix.
+pub fn deterministic_hash<T: DeterministicHash>(
     salt: &str,
     input: T,
     algorithm: HashAlgorithm,
@@ -100,17 +60,17 @@ pub fn deterministic_hash_with_salt<T: DeterministicHash>(
             input.deterministic_hash(&mut hasher);
             encode_hex_128(hasher.finish())
         }
-        HashAlgorithm::Xxh3Hash64Base40 => {
+        HashAlgorithm::Xxh3Hash64Base38 => {
             let mut hasher = Xxh3Hash64Hasher::new();
             hasher.write_bytes(salt.as_bytes());
             input.deterministic_hash(&mut hasher);
-            encode_base40(hasher.finish())
+            encode_base38(hasher.finish())
         }
-        HashAlgorithm::Xxh3Hash128Base40 => {
+        HashAlgorithm::Xxh3Hash128Base38 => {
             let mut hasher = Xxh3Hash128Hasher::new();
             hasher.write_bytes(salt.as_bytes());
             input.deterministic_hash(&mut hasher);
-            encode_base40_128(hasher.finish())
+            encode_base38_128(hasher.finish())
         }
         HashAlgorithm::Sha256Base64 => {
             let mut hasher = ShaHasher::new_sha256();

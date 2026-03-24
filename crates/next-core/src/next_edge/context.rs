@@ -202,7 +202,7 @@ pub struct EdgeChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
-    pub hash_salt: Vc<Option<RcStr>>,
+    pub hash_salt: Vc<RcStr>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
