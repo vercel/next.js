@@ -540,7 +540,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
         let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session)?;
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {

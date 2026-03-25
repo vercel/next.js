@@ -167,7 +167,6 @@
   "with-stripe-typescript": true,
   "with-styled-components": true,
   "with-styled-jsx": true,
-  "with-styletron": true,
   "with-supabase": true,
   "with-supertokens": true,
   "with-three-js": true,

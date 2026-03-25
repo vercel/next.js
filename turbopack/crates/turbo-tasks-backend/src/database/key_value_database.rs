@@ -12,6 +12,21 @@ pub enum KeySpace {
     TaskCache = 3,
 }
 impl KeySpace {
+    /// Constructs a [`KeySpace`] from its numeric index (i.e., the `usize` discriminant).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i` is out of range (i.e., `>= FAMILIES`).
+    pub const fn from_index(i: usize) -> Self {
+        match i {
+            0 => KeySpace::Infra,
+            1 => KeySpace::TaskMeta,
+            2 => KeySpace::TaskData,
+            3 => KeySpace::TaskCache,
+            _ => panic!("KeySpace index out of range"),
+        }
+    }
+
     /// Returns the persistence configuration for this keyspace.
     pub const fn family_config(&self) -> FamilyConfig {
         match self {
