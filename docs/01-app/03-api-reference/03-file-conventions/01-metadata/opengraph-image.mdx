@@ -250,9 +250,9 @@ export default async function Image({ params }) {
 
 ### Returns
 
-The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray` | `DataView` | `ReadableStream` | `Response`.
+The default export function must return a `Response` object.
 
-> **Good to know**: `ImageResponse` satisfies this return type.
+> **Good to know**: `ImageResponse` extends `Response` and is valid as well.
 
 ### Config exports
 
@@ -466,7 +466,7 @@ export default async function Image() {
     )
   )
 }
-```
+
 
 Passing an `ArrayBuffer` to the `src` attribute of an `<img>` element is not part of the HTML spec. The rendering engine used by `next/og` supports it, but because TypeScript definitions follow the spec, you need a `@ts-expect-error` directive or similar to use this [feature](https://github.com/vercel/satori/issues/606#issuecomment-2144000453).
 
@@ -518,6 +518,26 @@ export default async function Image() {
       </div>
     )
   )
+}
+```
+
+> **Note**: While `ImageResponse` satisfies the return type, in some environments returning it directly may cause build failures. In such cases, you can wrap it in a standard `Response` object.
+
+```jsx filename="app/opengraph-image.js"
+import { ImageResponse } from 'next/og'
+
+export const contentType = 'image/png'
+
+export default async function Image() {
+  const image = new ImageResponse(
+    <div>Hello</div>
+  )
+
+  return new Response(image.body, {
+    headers: {
+      'Content-Type': 'image/png',
+    },
+  })
 }
 ```
 
