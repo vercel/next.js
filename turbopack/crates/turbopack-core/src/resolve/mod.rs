@@ -1439,9 +1439,22 @@ async fn find_package(
                                             .split("/.pnpm/")
                                             .nth(1)
                                             .and_then(|s| s.split('/').next())
-                                            .and_then(|s| {
-                                                // Strip peer dep hash: react@19.2.4_hash -> react@19.2.4
-                                                s.split('_').next()
+                                            .map(|s| {
+                                                // Strip peer dep hash after version:
+                                                // react@19.2.4_hash -> react@19.2.4
+                                                // connect_mongo@5.0.0_hash -> connect_mongo@5.0.0
+                                                // Find last '@' (version separator), then
+                                                // find first '_' after it (peer dep hash).
+                                                if let Some(at_pos) = s.rfind('@') {
+                                                    let after_at = &s[at_pos..];
+                                                    if let Some(underscore_pos) = after_at.find('_') {
+                                                        &s[..at_pos + underscore_pos]
+                                                    } else {
+                                                        s
+                                                    }
+                                                } else {
+                                                    s
+                                                }
                                             })
                                             .unwrap_or("");
 
@@ -1459,9 +1472,17 @@ async fn find_package(
                                                             s.split('/')
                                                                 .next()
                                                         })
-                                                        .and_then(|s| {
-                                                            s.split('_')
-                                                                .next()
+                                                        .map(|s| {
+                                                            if let Some(at_pos) = s.rfind('@') {
+                                                                let after_at = &s[at_pos..];
+                                                                if let Some(underscore_pos) = after_at.find('_') {
+                                                                    &s[..at_pos + underscore_pos]
+                                                                } else {
+                                                                    s
+                                                                }
+                                                            } else {
+                                                                s
+                                                            }
                                                         })
                                                         .unwrap_or("")
                                                         == pnpm_pkg_id
