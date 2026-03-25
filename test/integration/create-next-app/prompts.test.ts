@@ -57,7 +57,7 @@ describe('create-next-app prompts', () => {
     })
   })
 
-  it('should prompt user for choice if --js or --ts flag is absent', async () => {
+  it('should use default for --ts when other flags are provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'ts-js'
       const childProcess = createNextApp(
@@ -77,9 +77,11 @@ describe('create-next-app prompts', () => {
         nextTgzFilename
       )
 
+      // No stdin interaction needed - defaults are used automatically
       await new Promise<void>((resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          // Default is TypeScript
           projectFilesShouldExist({
             cwd,
             projectName,
@@ -87,14 +89,11 @@ describe('create-next-app prompts', () => {
           })
           resolve()
         })
-
-        // select default choice: typescript
-        childProcess.stdin.write('\n')
       })
     })
   })
 
-  it('should prompt user for choice if --tailwind is absent', async () => {
+  it('should use default for --tailwind when other flags are provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'tw'
       const childProcess = createNextApp(
@@ -114,9 +113,11 @@ describe('create-next-app prompts', () => {
         nextTgzFilename
       )
 
+      // No stdin interaction needed - defaults are used automatically
       await new Promise<void>((resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          // Default is Tailwind enabled
           projectFilesShouldExist({
             cwd,
             projectName,
@@ -124,14 +125,11 @@ describe('create-next-app prompts', () => {
           })
           resolve()
         })
-
-        // select default choice: tailwind
-        childProcess.stdin.write('\n')
       })
     })
   })
 
-  it('should prompt user for choice if --import-alias is absent', async () => {
+  it('should use default import alias when other flags are provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'import-alias'
       const childProcess = createNextApp(
@@ -151,27 +149,18 @@ describe('create-next-app prompts', () => {
         nextTgzFilename
       )
 
-      await new Promise<void>(async (resolve) => {
+      // No stdin interaction needed - default import alias @/* is used
+      await new Promise<void>((resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
           resolve()
         })
-        let output = ''
-        childProcess.stdout.on('data', (data) => {
-          output += data
-          process.stdout.write(data)
-        })
-        // cursor forward, choose 'Yes' for custom import alias
-        childProcess.stdin.write('\u001b[C\n')
-        // used check here since it needs to wait for the prompt
-        await check(() => output, /What import alias would you like configured/)
-        childProcess.stdin.write('@/something/*\n')
       })
 
       const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
         {
-          "@/something/*": [
+          "@/*": [
             "./*",
           ],
         }

@@ -233,8 +233,12 @@ describe('create-next-app --example', () => {
         [
           projectName,
           '--js',
+          '--no-app',
           '--no-tailwind',
           '--eslint',
+          '--no-src-dir',
+          '--no-react-compiler',
+          '--no-agents-md',
           '--example',
           'default',
           '--import-alias=@/*',
