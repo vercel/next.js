@@ -249,7 +249,16 @@ jobs:
   upload-adapter-test-results:
     name: Upload adapter test results
     needs: [test-deploy-adapter]
-    if: ${{ always() && github.event.inputs.deployScriptPath == '' && github.repository_owner == 'vercel' }}
+    if: >-
+      ${{
+        always() &&
+        github.event.inputs.deployScriptPath == '' &&
+        github.repository_owner == 'vercel' &&
+        (
+          (github.event_name == 'workflow_dispatch' && github.ref_name == 'canary') ||
+          (github.event_name == 'release' && github.event.release.target_commitish == 'canary')
+        )
+      }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
