@@ -110,6 +110,7 @@ export default function nextJest(options: { dir?: string } = {}) {
             qualities: nextConfig.images.qualities,
             path: nextConfig.images.path,
             loader: nextConfig.images.loader,
+            loaderFile: nextConfig.images.loaderFile,
             dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
             unoptimized: nextConfig.images.unoptimized,
           }
@@ -170,6 +171,17 @@ export default function nextJest(options: { dir?: string } = {}) {
           'next/font/(.*)': require.resolve('./__mocks__/nextFontMock.js'),
           // Disable server-only
           '^server-only$': require.resolve('./__mocks__/empty.js'),
+
+          // Map image-loader to the custom loaderFile when configured
+          // This mirrors what webpack does via create-compiler-aliases.ts
+          ...(nextConfig?.images?.loaderFile
+            ? {
+                'next/dist/shared/lib/image-loader':
+                  nextConfig.images.loaderFile,
+                'next/dist/esm/shared/lib/image-loader':
+                  nextConfig.images.loaderFile,
+              }
+            : {}),
 
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
