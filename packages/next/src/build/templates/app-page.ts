@@ -1338,17 +1338,68 @@ export async function handler(
         }
       }
 
+      // In minimal mode (adapter deployments), compute effective fallback
+      // params by filtering to only params that still have placeholder
+      // values. This produces intermediate PPR shells where resolved params
+      // appear in the static shell and only truly unknown params suspend.
+      let effectiveFallbackRouteParams: FallbackRouteParam[] | null = null
+      if (
+        isMinimalMode &&
+        nextConfig.cacheComponents &&
+        !isPrerendered &&
+        prerenderInfo?.fallbackRouteParams
+      ) {
+        effectiveFallbackRouteParams = prerenderInfo.fallbackRouteParams.filter(
+          (param) => {
+            const value = params?.[param.paramName]
+            if (value === undefined) return true
+            const placeholder = buildDynamicSegmentPlaceholder(param)
+            return (
+              value === placeholder ||
+              (Array.isArray(value) &&
+                value.length === 1 &&
+                value[0] === placeholder)
+            )
+          }
+        )
+      }
+
       const fallbackRouteParams =
         // In production or when debugging the static shell for a
         // non-prerendered URL, use the prerender manifest's fallback route
         // params which correctly identifies which params are unknown.
         ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+          // In minimal mode (adapter deployments), dynamic matched-path
+          // requests can reach the lambda with placeholder params like
+          // "[teamSlug]" and no renderFallbackShell metadata. Treat these as
+          // fallback-shell renders so static and resumed renders use
+          // consistent param semantics.
+          (isMinimalMode &&
+            pageIsDynamic &&
+            prerenderInfo?.fallbackRouteParams?.every((param) => {
+              const placeholder = buildDynamicSegmentPlaceholder(param)
+              const value = params?.[param.paramName]
+              return (
+                value === placeholder ||
+                (Array.isArray(value) &&
+                  value.length === 1 &&
+                  value[0] === placeholder)
+              )
+            })) ||
           (isDebugStaticShell && !isPrerendered)) &&
         prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : isDebugFallbackShell
-            ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-            : null
+          : // For intermediate shells where some params are resolved and
+            // others still have placeholders, use the filtered subset so the
+            // prerender suspends only for the unresolved params.
+            effectiveFallbackRouteParams &&
+              effectiveFallbackRouteParams.length > 0 &&
+              effectiveFallbackRouteParams.length <
+                (prerenderInfo?.fallbackRouteParams?.length ?? 0)
+            ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
+            : isDebugFallbackShell
+              ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+              : null
 
       // For staged dynamic rendering (Cached Navigations) and debug static
       // shell rendering, pass the fallback params via request meta so the
