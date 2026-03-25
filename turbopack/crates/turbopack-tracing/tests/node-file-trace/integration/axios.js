@@ -1,10 +1,10 @@
 const axios = require('axios')
 
 ;(async () => {
-  const { data } = await axios({
-    url: 'https://dog.ceo/api/breeds/image/random',
+  const { status } = await axios({
+    url: 'https://example.vercel.sh',
   })
-  if (data.status !== 'success') {
+  if (status !== 200) {
     throw new Error('Unexpected response: ' + JSON.stringify(data))
   }
 })()
