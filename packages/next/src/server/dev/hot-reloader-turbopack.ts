@@ -42,6 +42,7 @@ import {
   clearAllModuleContexts,
   clearModuleContext,
 } from '../lib/render-server'
+import { Batcher } from '../../lib/batcher'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
 import {
@@ -52,6 +53,7 @@ import {
   handlePagesErrorRoute,
   handleRouteType,
   hasEntrypointForKey,
+  type HandleWrittenEndpoint,
   msToNs,
   type ReadyIds,
   type SendHmr,
@@ -481,6 +483,23 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+
+  // Deduplicate concurrent ensurePage('/_error') calls so that concurrent
+  // requests do not race to call handlePagesErrorRoute simultaneously.
+  const ensureErrorPageBatcher = Batcher.create<string, void>()
+
+  // Shared handleWrittenEndpoint implementation used by both the entrypoints
+  // subscription and on-demand ensurePage calls, so that assetMapper is always
+  // updated consistently.
+  const handleWrittenEndpoint: HandleWrittenEndpoint = (
+    id,
+    result,
+    forceDeleteCache
+  ) => {
+    currentWrittenEntrypoints.set(id, result)
+    assetMapper.setPathsForKey(id, result.clientPaths)
+    return clearRequireCache(id, result, { force: forceDeleteCache })
+  }
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -944,10 +963,7 @@ export async function createHotReloaderTurbopack(
           serverFields,
 
           hooks: {
-            handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-              currentWrittenEntrypoints.set(id, result)
-              return clearRequireCache(id, result, { force: forceDeleteCache })
-            },
+            handleWrittenEndpoint,
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
             startBuilding,
@@ -1612,29 +1628,25 @@ export async function createHotReloaderTurbopack(
           const pathname = definition?.pathname ?? inputPage
 
           if (page === '/_error') {
-            let finishBuilding = startBuilding(pathname, requestUrl, false)
-            try {
-              await handlePagesErrorRoute({
-                currentEntryIssues,
-                entrypoints: currentEntrypoints,
-                manifestLoader,
-                devRewrites: opts.fsChecker.rewrites,
-                productionRewrites: undefined,
-                logErrors: true,
-                hooks: {
-                  subscribeToChanges: subscribeToClientChanges,
-                  handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                    currentWrittenEntrypoints.set(id, result)
-                    assetMapper.setPathsForKey(id, result.clientPaths)
-                    return clearRequireCache(id, result, {
-                      force: forceDeleteCache,
-                    })
+            await ensureErrorPageBatcher.batch('/_error', async () => {
+              let finishBuilding = startBuilding(pathname, requestUrl, false)
+              try {
+                await handlePagesErrorRoute({
+                  currentEntryIssues,
+                  entrypoints: currentEntrypoints,
+                  manifestLoader,
+                  devRewrites: opts.fsChecker.rewrites,
+                  productionRewrites: undefined,
+                  logErrors: true,
+                  hooks: {
+                    subscribeToChanges: subscribeToClientChanges,
+                    handleWrittenEndpoint,
                   },
-                },
-              })
-            } finally {
-              finishBuilding()
-            }
+                })
+              } finally {
+                finishBuilding()
+              }
+            })
             return
           }
 
@@ -1691,13 +1703,7 @@ export async function createHotReloaderTurbopack(
 
               hooks: {
                 subscribeToChanges: subscribeToClientChanges,
-                handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                  currentWrittenEntrypoints.set(id, result)
-                  assetMapper.setPathsForKey(id, result.clientPaths)
-                  return clearRequireCache(id, result, {
-                    force: forceDeleteCache,
-                  })
-                },
+                handleWrittenEndpoint,
               },
             })
           } finally {
