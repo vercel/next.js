@@ -13,6 +13,7 @@ import type {
   FlightDataPath,
   PrefetchHints,
 } from '../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
 import {
   workAsyncStorage,
@@ -1733,9 +1734,15 @@ async function getRSCPayload(
   } = ctx
 
   const hints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
+  const prefetchInliningEnabled = Boolean(
+    ctx.renderOpts.experimental.prefetchInlining
+  )
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     hints,
+    prefetchInliningEnabled,
+    workStore.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -1924,9 +1931,15 @@ async function getErrorRSCPayload(
   )
 
   const errorHints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
+  const errorPrefetchInliningEnabled = Boolean(
+    ctx.renderOpts.experimental.prefetchInlining
+  )
   const initialTree = await createFlightRouterStateFromLoaderTree(
     tree,
     errorHints,
+    errorPrefetchInliningEnabled,
+    workStore.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -2116,6 +2129,79 @@ function ErrorApp<T>({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 
+/**
+ * Extracted to a separate function to prevent V8 from retaining the entire
+ * `renderToHTMLOrFlightImpl` closure scope through globalThis.__next_require__.
+ * V8 shares a single Context object per scope for all closures; by creating
+ * these closures in their own function scope, the globalThis references only
+ * retain `instrumented` and `cacheComponents`, not request-specific data like
+ * req/res/workStore.
+ */
+function installGlobalModuleLoadingHandlers(
+  ComponentMod: AppPageModule,
+  cacheComponents: boolean
+) {
+  const instrumented = wrapClientComponentLoader(ComponentMod)
+
+  // When we are prerendering if there is a cacheSignal for tracking
+  // cache reads we track calls to `loadChunk` and `require`. This allows us
+  // to treat chunk/module loading with similar semantics as cache reads to avoid
+  // module loading from causing a prerender to abort too early.
+  const shouldTrackModuleLoading = () => {
+    if (!cacheComponents) {
+      return false
+    }
+    if (process.env.__NEXT_DEV_SERVER) {
+      return true
+    }
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (!workUnitStore) {
+      return false
+    }
+
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'prerender-runtime':
+      case 'cache':
+      case 'private-cache':
+        return true
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'unstable-cache':
+      case 'generate-static-params':
+        return false
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  // @ts-expect-error
+  globalThis.__next_require__ = (
+    ...args: Parameters<typeof instrumented.require>
+  ) => {
+    const exportsOrPromise = instrumented.require(...args)
+    if (shouldTrackModuleLoading()) {
+      trackPendingImport(exportsOrPromise)
+    }
+    return exportsOrPromise
+  }
+
+  // @ts-expect-error
+  globalThis.__next_chunk_load__ = (
+    ...args: Parameters<typeof instrumented.loadChunk>
+  ) => {
+    const loadingChunk = instrumented.loadChunk(...args)
+    if (shouldTrackModuleLoading()) {
+      trackPendingChunkLoad(loadingChunk)
+    }
+    return loadingChunk
+  }
+}
+
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -2157,65 +2243,7 @@ async function renderToHTMLOrFlightImpl(
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
-    const instrumented = wrapClientComponentLoader(ComponentMod)
-
-    // When we are prerendering if there is a cacheSignal for tracking
-    // cache reads we track calls to `loadChunk` and `require`. This allows us
-    // to treat chunk/module loading with similar semantics as cache reads to avoid
-    // module loading from causing a prerender to abort too early.
-
-    const shouldTrackModuleLoading = () => {
-      if (!cacheComponents) {
-        return false
-      }
-      if (process.env.__NEXT_DEV_SERVER) {
-        return true
-      }
-      const workUnitStore = workUnitAsyncStorage.getStore()
-
-      if (!workUnitStore) {
-        return false
-      }
-
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'prerender-runtime':
-        case 'cache':
-        case 'private-cache':
-          return true
-        case 'prerender-ppr':
-        case 'prerender-legacy':
-        case 'request':
-        case 'unstable-cache':
-        case 'generate-static-params':
-          return false
-        default:
-          workUnitStore satisfies never
-      }
-    }
-
-    const __next_require__: typeof instrumented.require = (...args) => {
-      const exportsOrPromise = instrumented.require(...args)
-      if (shouldTrackModuleLoading()) {
-        // requiring an async module returns a promise.
-        trackPendingImport(exportsOrPromise)
-      }
-      return exportsOrPromise
-    }
-    // @ts-expect-error
-    globalThis.__next_require__ = __next_require__
-
-    const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
-      const loadingChunk = instrumented.loadChunk(...args)
-      if (shouldTrackModuleLoading()) {
-        trackPendingChunkLoad(loadingChunk)
-      }
-      return loadingChunk
-    }
-    // @ts-expect-error
-    globalThis.__next_chunk_load__ = __next_chunk_load__
+    installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
   }
 
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
@@ -3364,9 +3392,9 @@ async function renderToStream(
         onError: htmlRendererErrorHandler,
         nonce,
         onHeaders: (headers: Headers) => {
-          headers.forEach((value, key) => {
+          for (const [key, value] of headers) {
             appendHeader(key, value)
-          })
+          }
         },
         maxHeadersLength: reactMaxHeadersLength,
         bootstrapScriptContent,
@@ -4766,7 +4794,7 @@ async function validateInstantConfigs(
       )
 
     const instantValidationState = createInstantValidationState(
-      payloadResult.createInstantStack
+      payloadResult.slotStacks
     )
 
     const validationSampleTracking =
@@ -7244,7 +7272,27 @@ async function collectSegmentData(
   } else {
     // Runtime: use hints from the manifest. Never compute fresh hints
     // during ISR/revalidation.
-    hints = renderOpts.prefetchHints?.[pagePath] ?? null
+    const manifestHints = renderOpts.prefetchHints?.[pagePath]
+    if (manifestHints === undefined) {
+      // TODO(#91407): No hints found for this route. This currently
+      // happens for routes with `instant = false` at the root segment,
+      // which causes the prerender to run per-request and the hints
+      // manifest to be unavailable at runtime.
+      //
+      // Fall back to a hint tree that marks everything as unprefetchable.
+      // The root gets PrefetchDisabled, and children inherit null hints
+      // which triggers PrefetchDisabled in createFlightRouterStateFromLoaderTree.
+      //
+      // Once the instant:false bug is fixed, this should become an error —
+      // the manifest should always have an entry for every route that
+      // reaches collectSegmentData.
+      hints = {
+        hints: PrefetchHint.PrefetchDisabled,
+        slots: null,
+      }
+    } else {
+      hints = manifestHints
+    }
   }
 
   // Pass the resolved hints so collectSegmentData can union them into

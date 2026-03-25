@@ -30,6 +30,7 @@ import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
+import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -550,5 +551,25 @@ internal
       mod.startTurboTraceServerCli(file, options.port)
     )
   })
+
+internal
+  .command('post-build')
+  .description(
+    'Runs post-build optimization steps (e.g. Turbopack database compaction).'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to run post-build steps. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string, options: NextPostBuildOptions) => {
+    return (
+      require('../cli/next-post-build.js') as typeof import('../cli/next-post-build.js')
+    )
+      .nextPostBuild(options, directory)
+      .then(() => process.exit(0))
+  })
+  .usage('[directory] [options]')
 
 program.parse(process.argv)
