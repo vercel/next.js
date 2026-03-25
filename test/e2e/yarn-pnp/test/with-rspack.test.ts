@@ -49,7 +49,7 @@ export default function Page() {
           ].join(' && '),
         buildCommand: 'yarn next build',
         startCommand: 'yarn next start',
-        env: { NEXT_RSPACK: '1' },
+        env: { NEXT_RSPACK: '1', IS_WEBPACK_TEST: '' },
       })
       // We only need the build output, not a running server.
       await next.stop()
