@@ -171,6 +171,16 @@ export default function nextJest(options: { dir?: string } = {}) {
           // Disable server-only
           '^server-only$': require.resolve('./__mocks__/empty.js'),
 
+          // Handle custom image loader - alias the default image loader to
+          // the user's loaderFile so that `next/image` uses the custom loader
+          // in Jest tests (mirrors the webpack/turbopack alias behavior).
+          ...(nextConfig?.images?.loaderFile
+            ? {
+                'next/dist/shared/lib/image-loader':
+                  nextConfig.images.loaderFile,
+              }
+            : undefined),
+
           // custom config comes last to ensure the above rules are matched,
           // fixes the case where @pages/(.*) -> src/pages/$! doesn't break
           // CSS/image mocks
