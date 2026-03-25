@@ -558,7 +558,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let hash = asset
                     .content()
-                    .content_hash(HashAlgorithm::Xxh3Hash128Base40)
+                    .content_hash(HashAlgorithm::Xxh3Hash128Base38)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
