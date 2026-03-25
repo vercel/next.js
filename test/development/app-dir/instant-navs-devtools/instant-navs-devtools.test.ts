@@ -38,7 +38,10 @@ describe('instant-nav-panel', () => {
   }
 
   async function clickStartClientNav(browser: Playwright) {
-    await browser.elementByCssInstant('[data-instant-nav-client]').click()
+    await browser
+      // TODO: Monitor if we need to increase timeouts for all *instant calls
+      .elementByCss('[data-instant-nav-client]', { timeout: 50 })
+      .click()
     await waitForInstantModeCookie(browser)
   }
 
