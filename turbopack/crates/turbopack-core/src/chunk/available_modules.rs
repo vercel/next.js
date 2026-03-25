@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -49,55 +49,44 @@ impl From<ChunkableModuleOrBatch> for AvailableModuleItem {
     }
 }
 
+/// A flat set of modules/items that are already available in the current chunk
+/// group context and therefore do not need to be included again.
+///
+/// This is a `#[turbo_tasks::value(transparent)]` wrapping
+/// `FxIndexSet<AvailableModuleItem>`. Awaiting a `Vc<AvailableModulesSet>`
+/// yields a `ReadRef` whose `Deref` target is the inner `FxIndexSet`, and
+/// `Vc::cell` takes an `FxIndexSet<AvailableModuleItem>` directly.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSet(
     #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<AvailableModuleItem>,
 );
 
-/// Allows to gather information about which assets are already available.
-/// Adding more roots will form a linked list like structure to allow caching
-/// `include` queries.
-#[turbo_tasks::value]
-pub struct AvailableModules {
-    parent: Option<ResolvedVc<AvailableModules>>,
-    modules: ResolvedVc<AvailableModulesSet>,
-}
-
 #[turbo_tasks::value_impl]
-impl AvailableModules {
+impl AvailableModulesSet {
+    /// Returns a new set that is the union of `self` and `extra`.
     #[turbo_tasks::function]
-    pub fn new(modules: ResolvedVc<AvailableModulesSet>) -> Vc<Self> {
-        AvailableModules {
-            parent: None,
-            modules,
-        }
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_modules(
+    pub async fn with_modules(
         self: ResolvedVc<Self>,
-        modules: ResolvedVc<AvailableModulesSet>,
+        extra: Vc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
-        Ok(AvailableModules {
-            parent: Some(self),
-            modules,
-        }
-        .cell())
+        // For transparent Vc, .await? yields a ReadRef whose Deref target is the
+        // inner FxIndexSet<AvailableModuleItem>. Explicitly dereferencing with `*`
+        // gives the inner set.
+        let base = self.await?;
+        let extra = extra.await?;
+        let mut merged = (*base).clone();
+        merged.extend(extra.iter().copied());
+        Ok(Vc::cell(merged))
     }
 
+    /// Returns a stable hash of the set contents, suitable for use in asset
+    /// identifiers.
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
+    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
+        let set = self.await?;
         let mut hasher = Xxh3Hash64Hasher::new();
-        if let Some(parent) = self.parent {
-            hasher.write_value(parent.hash().await?);
-        } else {
-            hasher.write_value(0u64);
-        }
-        let item_idents = self
-            .modules
-            .await?
+        let item_idents = set
             .iter()
             .map(async |&module| module.ident_strings().await)
             .try_join()
@@ -115,40 +104,12 @@ impl AvailableModules {
         }
         Ok(Vc::cell(hasher.finish()))
     }
-
-    #[turbo_tasks::function]
-    pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
-        if self.modules.await?.contains(&item) {
-            return Ok(Vc::cell(true));
-        };
-        if let Some(parent) = self.parent {
-            return Ok(parent.get(item));
-        }
-        Ok(Vc::cell(false))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.await?;
-        let parent = if let Some(parent) = self.parent {
-            Some(parent.snapshot().await?)
-        } else {
-            None
-        };
-
-        Ok(AvailableModulesSnapshot { parent, modules }.cell())
-    }
 }
 
-#[turbo_tasks::value(serialization = "none")]
-#[derive(Debug, Clone)]
-pub struct AvailableModulesSnapshot {
-    parent: Option<ReadRef<AvailableModulesSnapshot>>,
-    modules: ReadRef<AvailableModulesSet>,
-}
-
-impl AvailableModulesSnapshot {
-    pub fn get(&self, item: AvailableModuleItem) -> bool {
-        self.modules.contains(&item) || self.parent.as_ref().is_some_and(|parent| parent.get(item))
+impl AvailableModulesSet {
+    /// Returns true if this set contains the given item.
+    pub fn contains(&self, item: &AvailableModuleItem) -> bool {
+        // Self is #[repr(transparent)] over FxIndexSet; field .0 is accessible here.
+        self.0.contains(item)
     }
 }

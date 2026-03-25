@@ -239,7 +239,7 @@ pub async fn chunk_group_content(
     };
 
     let available_modules = match availability_info.available_modules() {
-        Some(available_modules) => Some(available_modules.snapshot().await?),
+        Some(available_modules) => Some(available_modules.await?),
         None => None,
     };
 
@@ -278,9 +278,9 @@ pub async fn chunk_group_content(
                 return Ok(GraphTraversalAction::Exclude);
             };
 
-            let is_available = available_modules
-                .as_ref()
-                .is_some_and(|available_modules| available_modules.get(chunkable_node.into()));
+            let is_available = available_modules.as_ref().is_some_and(|available_modules| {
+                available_modules.contains(&AvailableModuleItem::from(chunkable_node))
+            });
 
             let Some((_, edge)) = parent_info else {
                 // An entry from the entries list
@@ -318,7 +318,7 @@ pub async fn chunk_group_content(
                         let is_async_loader_available =
                             available_modules.as_ref().is_some_and(|available_modules| {
                                 available_modules
-                                    .get(AvailableModuleItem::AsyncLoader(chunkable_module))
+                                    .contains(&AvailableModuleItem::AsyncLoader(chunkable_module))
                             });
                         if !is_async_loader_available {
                             state.async_modules.insert(chunkable_module);
