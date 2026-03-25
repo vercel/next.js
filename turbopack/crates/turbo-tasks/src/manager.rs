@@ -1473,9 +1473,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let reader = current_task_if_available("reading Vcs");
-        if cfg!(debug_assertions) && reader != Some(task) {
-            debug_assert_not_in_top_level_task("read_task_cell");
-        }
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
     }

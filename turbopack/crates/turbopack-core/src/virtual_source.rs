@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -39,6 +40,12 @@ impl Source for VirtualSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         *self.ident
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let ident = self.ident.to_string().await?;
+        Ok(Vc::cell(format!("virtual source {}", ident).into()))
     }
 }
 

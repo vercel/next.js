@@ -65,7 +65,7 @@ pub enum ContentHashing {
     /// Benefit: No hash manifest needed.
     /// Downside: Causes cascading hash invalidation.
     Direct {
-        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// The length of the content hash in base38 chars. Anything lower than 7 is not
         /// recommended due to the high risk of collisions.
         length: u8,
     },
@@ -102,7 +102,7 @@ impl ModuleId {
 #[turbo_tasks::value(transparent, shared)]
 pub struct ModuleIds(Vec<ModuleId>);
 
-/// A [Module] that can be converted into a [Chunk].
+/// A [Module] that can be converted into a [ChunkItem].
 #[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module {
     #[turbo_tasks::function]
@@ -202,25 +202,25 @@ pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 
 #[turbo_tasks::value_impl]
 impl Chunks {
-    /// Creates a new empty [Vc<Chunks>].
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(vec![])
     }
 }
 
-/// A [Chunk] group chunk items together into something that will become an [OutputAsset].
-/// It usually contains multiple chunk items.
-// TODO This could be simplified to and merged with [OutputChunk]
+/// Groups chunk items together into something that will become an [`OutputAsset`]. It usually
+/// contains multiple chunk items.
+///
+/// [`OutputAsset`]: crate::output::OutputAsset
+//
+// TODO: This could be simplified to and merged with OutputChunk
 #[turbo_tasks::value_trait]
 pub trait Chunk: OutputAssetsReference {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
+
     #[turbo_tasks::function]
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
-    //     self.ident().path()
-    // }
 
     #[turbo_tasks::function]
     fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {

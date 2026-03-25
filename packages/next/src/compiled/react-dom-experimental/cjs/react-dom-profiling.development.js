@@ -14667,16 +14667,17 @@
     ) {
       for (var inViewport = !1; null !== child; ) {
         if (5 === child.tag) {
-          var instance = child.stateNode;
+          var _instance = child.stateNode;
           if (null !== collectMeasurements) {
-            var measurement = measureInstance(instance);
+            var measurement = measureInstance(_instance);
             collectMeasurements.push(measurement);
             measurement.view && (inViewport = !0);
           } else
-            inViewport || (measureInstance(instance).view && (inViewport = !0));
+            inViewport ||
+              (measureInstance(_instance).view && (inViewport = !0));
           shouldStartViewTransition = !0;
           applyViewTransitionName(
-            instance,
+            _instance,
             0 === viewTransitionHostInstanceIdx
               ? name
               : name + "_" + viewTransitionHostInstanceIdx,
@@ -14924,14 +14925,14 @@
     ) {
       for (var inViewport = !1; null !== child; ) {
         if (5 === child.tag) {
-          var instance = child.stateNode;
+          var _instance2 = child.stateNode;
           if (
             null !== previousMeasurements &&
             viewTransitionHostInstanceIdx < previousMeasurements.length
           ) {
             var previousMeasurement =
                 previousMeasurements[viewTransitionHostInstanceIdx],
-              nextMeasurement = measureInstance(instance);
+              nextMeasurement = measureInstance(_instance2);
             if (previousMeasurement.view || nextMeasurement.view)
               inViewport = !0;
             var JSCompiler_temp;
@@ -14958,7 +14959,7 @@
           } else parentViewTransition.flags |= 32;
           0 !== (parentViewTransition.flags & 4) &&
             applyViewTransitionName(
-              instance,
+              _instance2,
               0 === viewTransitionHostInstanceIdx
                 ? newName
                 : newName + "_" + viewTransitionHostInstanceIdx,
@@ -14968,7 +14969,7 @@
             (null === viewTransitionCancelableChildren &&
               (viewTransitionCancelableChildren = []),
             viewTransitionCancelableChildren.push(
-              instance,
+              _instance2,
               0 === viewTransitionHostInstanceIdx
                 ? oldName
                 : oldName + "_" + viewTransitionHostInstanceIdx,
@@ -21195,7 +21196,7 @@
             root === rootWithNestedUpdates
               ? nestedUpdateCount++
               : ((nestedUpdateCount = 0), (rootWithNestedUpdates = root)))
-          : (nestedUpdateCount = 0);
+          : ((nestedUpdateCount = 0), (rootWithNestedUpdates = null));
         passiveSubtreeMask || finalizeRender(lanes, commitEndTime);
         if (hasScheduledReplayAttempt) {
           hasScheduledReplayAttempt = !1;
@@ -26976,12 +26977,13 @@
       function handleFocus() {
         didFocus = !0;
       }
+      if (node.ownerDocument.activeElement === node) return !0;
       var didFocus = !1;
       try {
-        node.addEventListener("focus", handleFocus),
+        node.ownerDocument.addEventListener("focus", handleFocus, !0),
           (node.focus || HTMLElement.prototype.focus).call(node, focusOptions);
       } finally {
-        node.removeEventListener("focus", handleFocus);
+        node.ownerDocument.removeEventListener("focus", handleFocus, !0);
       }
       return didFocus;
     }
@@ -28827,6 +28829,11 @@
           "borderBottomColor borderBottomStyle borderBottomWidth borderImageOutset borderImageRepeat borderImageSlice borderImageSource borderImageWidth borderLeftColor borderLeftStyle borderLeftWidth borderRightColor borderRightStyle borderRightWidth borderTopColor borderTopStyle borderTopWidth".split(
             " "
           ),
+        borderBlock:
+          "borderBlockEndColor borderBlockEndStyle borderBlockEndWidth borderBlockStartColor borderBlockStartStyle borderBlockStartWidth".split(
+            " "
+          ),
+        borderBlockColor: ["borderBlockEndColor", "borderBlockStartColor"],
         borderBlockEnd: [
           "borderBlockEndColor",
           "borderBlockEndStyle",
@@ -28837,6 +28844,8 @@
           "borderBlockStartStyle",
           "borderBlockStartWidth"
         ],
+        borderBlockStyle: ["borderBlockEndStyle", "borderBlockStartStyle"],
+        borderBlockWidth: ["borderBlockEndWidth", "borderBlockStartWidth"],
         borderBottom: [
           "borderBottomColor",
           "borderBottomStyle",
@@ -28855,6 +28864,11 @@
           "borderImageSource",
           "borderImageWidth"
         ],
+        borderInline:
+          "borderInlineEndColor borderInlineEndStyle borderInlineEndWidth borderInlineStartColor borderInlineStartStyle borderInlineStartWidth".split(
+            " "
+          ),
+        borderInlineColor: ["borderInlineEndColor", "borderInlineStartColor"],
         borderInlineEnd: [
           "borderInlineEndColor",
           "borderInlineEndStyle",
@@ -28865,6 +28879,8 @@
           "borderInlineStartStyle",
           "borderInlineStartWidth"
         ],
+        borderInlineStyle: ["borderInlineEndStyle", "borderInlineStartStyle"],
+        borderInlineWidth: ["borderInlineEndWidth", "borderInlineStartWidth"],
         borderLeft: ["borderLeftColor", "borderLeftStyle", "borderLeftWidth"],
         borderRadius: [
           "borderBottomLeftRadius",
@@ -28890,13 +28906,25 @@
           "borderRightWidth",
           "borderTopWidth"
         ],
+        colorAdjust: ["printColorAdjust"],
         columnRule: ["columnRuleColor", "columnRuleStyle", "columnRuleWidth"],
         columns: ["columnCount", "columnWidth"],
+        containIntrinsicSize: [
+          "containIntrinsicHeight",
+          "containIntrinsicWidth"
+        ],
+        container: ["containerName", "containerType"],
         flex: ["flexBasis", "flexGrow", "flexShrink"],
         flexFlow: ["flexDirection", "flexWrap"],
         font: "fontFamily fontFeatureSettings fontKerning fontLanguageOverride fontSize fontSizeAdjust fontStretch fontStyle fontVariant fontVariantAlternates fontVariantCaps fontVariantEastAsian fontVariantLigatures fontVariantNumeric fontVariantPosition fontWeight lineHeight".split(
           " "
         ),
+        fontSynthesis: [
+          "fontSynthesisPosition",
+          "fontSynthesisSmallCaps",
+          "fontSynthesisStyle",
+          "fontSynthesisWeight"
+        ],
         fontVariant:
           "fontVariantAlternates fontVariantCaps fontVariantEastAsian fontVariantLigatures fontVariantNumeric fontVariantPosition".split(
             " "
@@ -28921,31 +28949,79 @@
           "gridTemplateColumns",
           "gridTemplateRows"
         ],
+        inset: ["bottom", "left", "right", "top"],
+        insetBlock: ["insetBlockEnd", "insetBlockStart"],
+        insetInline: ["insetInlineEnd", "insetInlineStart"],
         listStyle: ["listStyleImage", "listStylePosition", "listStyleType"],
         margin: ["marginBottom", "marginLeft", "marginRight", "marginTop"],
+        marginBlock: ["marginBlockEnd", "marginBlockStart"],
+        marginInline: ["marginInlineEnd", "marginInlineStart"],
         marker: ["markerEnd", "markerMid", "markerStart"],
         mask: "maskClip maskComposite maskImage maskMode maskOrigin maskPositionX maskPositionY maskRepeat maskSize".split(
           " "
         ),
         maskPosition: ["maskPositionX", "maskPositionY"],
+        offset: [
+          "offsetAnchor",
+          "offsetDistance",
+          "offsetPath",
+          "offsetPosition",
+          "offsetRotate"
+        ],
         outline: ["outlineColor", "outlineStyle", "outlineWidth"],
         overflow: ["overflowX", "overflowY"],
+        overscrollBehavior: ["overscrollBehaviorX", "overscrollBehaviorY"],
         padding: ["paddingBottom", "paddingLeft", "paddingRight", "paddingTop"],
+        paddingBlock: ["paddingBlockEnd", "paddingBlockStart"],
+        paddingInline: ["paddingInlineEnd", "paddingInlineStart"],
+        pageBreakAfter: ["breakAfter"],
+        pageBreakBefore: ["breakBefore"],
+        pageBreakInside: ["breakInside"],
         placeContent: ["alignContent", "justifyContent"],
         placeItems: ["alignItems", "justifyItems"],
         placeSelf: ["alignSelf", "justifySelf"],
+        scrollMargin: [
+          "scrollMarginBottom",
+          "scrollMarginLeft",
+          "scrollMarginRight",
+          "scrollMarginTop"
+        ],
+        scrollMarginBlock: ["scrollMarginBlockEnd", "scrollMarginBlockStart"],
+        scrollMarginInline: [
+          "scrollMarginInlineEnd",
+          "scrollMarginInlineStart"
+        ],
+        scrollPadding: [
+          "scrollPaddingBottom",
+          "scrollPaddingLeft",
+          "scrollPaddingRight",
+          "scrollPaddingTop"
+        ],
+        scrollPaddingBlock: [
+          "scrollPaddingBlockEnd",
+          "scrollPaddingBlockStart"
+        ],
+        scrollPaddingInline: [
+          "scrollPaddingInlineEnd",
+          "scrollPaddingInlineStart"
+        ],
         textDecoration: [
           "textDecorationColor",
           "textDecorationLine",
-          "textDecorationStyle"
+          "textDecorationStyle",
+          "textDecorationThickness"
         ],
         textEmphasis: ["textEmphasisColor", "textEmphasisStyle"],
+        textWrap: ["textWrapMode", "textWrapStyle"],
         transition: [
+          "transitionBehavior",
           "transitionDelay",
           "transitionDuration",
           "transitionProperty",
           "transitionTimingFunction"
         ],
+        verticalAlign: ["alignmentBaseline", "baselineShift", "baselineSource"],
+        whiteSpace: ["textWrapMode", "whiteSpaceCollapse"],
         wordWrap: ["overflowWrap"]
       },
       uppercasePattern = /([A-Z])/g,
@@ -32844,11 +32920,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-5e9eedb5-20260312" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-8b2e903a-20260320" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-5e9eedb5-20260312\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-8b2e903a-20260320\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -32885,10 +32961,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-5e9eedb5-20260312",
+          version: "19.3.0-experimental-8b2e903a-20260320",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-5e9eedb5-20260312"
+          reconcilerVersion: "19.3.0-experimental-8b2e903a-20260320"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33366,7 +33442,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-5e9eedb5-20260312";
+    exports.version = "19.3.0-experimental-8b2e903a-20260320";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
