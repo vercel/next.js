@@ -2369,8 +2369,8 @@ export default async function build(
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
                             const hasGenerateStaticParams =
-                              workerResult.prerenderedRoutes &&
-                              workerResult.prerenderedRoutes.length > 0
+                              workerResult.prerenderedRoutes !== undefined &&
+                              workerResult.prerenderedRoutes !== null
 
                             if (
                               config.output === 'export' &&
