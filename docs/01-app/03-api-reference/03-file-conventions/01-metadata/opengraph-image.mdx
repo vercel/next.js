@@ -206,6 +206,20 @@ export default async function Image() {
 }
 ```
 
+> **Note**: While `ImageResponse` satisfies the return type, in some environments returning it directly may cause build failures. In such cases, you can wrap it in a standard `Response` object.
+
+```js filename="app/about/opengraph-image-wrap.js"
+export default async function Image() {
+  const image = await getImageResponse() // returns ImageResponse
+
+  return new Response(image.body, {
+    headers: {
+      'Content-Type': 'image/png',
+    },
+  })
+}
+```
+
 ```html filename="<head> output"
 <meta property="og:image" content="<generated>" />
 <meta property="og:image:alt" content="About Acme" />
@@ -250,9 +264,9 @@ export default async function Image({ params }) {
 
 ### Returns
 
-The default export function must return a `Response` object.
+The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray` | `DataView` | `ReadableStream` | `Response`.
 
-> **Good to know**: `ImageResponse` extends `Response` and is valid as well.
+> **Good to know**: `ImageResponse` satisfies this return type.
 
 ### Config exports
 
@@ -466,7 +480,7 @@ export default async function Image() {
     )
   )
 }
-
+```
 
 Passing an `ArrayBuffer` to the `src` attribute of an `<img>` element is not part of the HTML spec. The rendering engine used by `next/og` supports it, but because TypeScript definitions follow the spec, you need a `@ts-expect-error` directive or similar to use this [feature](https://github.com/vercel/satori/issues/606#issuecomment-2144000453).
 
