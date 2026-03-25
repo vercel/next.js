@@ -872,6 +872,41 @@ describe('resolveRoutes - dynamic routes', () => {
     })
   })
 
+  it('should replace missing optional dynamic placeholders with empty values', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/catch-all-optional'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex:
+              '^[/]?/catch-all-optional(?:/(?<nxtPslug>.+?))?(?:/)?$',
+            destination: '/catch-all-optional/[[...slug]]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/catch-all-optional/[[...slug]]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/catch-all-optional/[[...slug]]')
+    expect(result.routeMatches).toEqual({})
+    expect(result.resolvedQuery).toEqual({
+      nxtPslug: '',
+    })
+    expect(result.invocationTarget).toEqual({
+      pathname: '/catch-all-optional',
+      query: {
+        nxtPslug: '',
+      },
+    })
+  })
+
   it('should match dynamic route with multiple segments', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/posts/2024/my-article'),
