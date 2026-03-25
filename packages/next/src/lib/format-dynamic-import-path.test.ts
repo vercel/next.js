@@ -33,4 +33,16 @@ describe('formatDynamicImportPath', () => {
     )
     expect(result).toBe('file:///C:/app/cache-handler.js')
   })
+
+  it('should handle uppercase FILE:// URLs case-insensitively', () => {
+    const fileUrl = 'FILE:///app/cache-handler.js'
+    const result = formatDynamicImportPath('/any/dir', fileUrl)
+    expect(result).toBe(fileUrl)
+  })
+
+  it('should handle Windows-style file:///C:/ paths passed directly', () => {
+    const fileUrl = 'file:///C:/app/cache-handler.js'
+    const result = formatDynamicImportPath('C:\\app\\.next', fileUrl)
+    expect(result).toBe(fileUrl)
+  })
 })

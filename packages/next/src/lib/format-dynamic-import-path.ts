@@ -12,7 +12,8 @@ import { pathToFileURL } from 'url'
 export const formatDynamicImportPath = (dir: string, filePath: string) => {
   // If the filePath is already a file:// URL, return it as-is
   // This handles cases where users pass import.meta.resolve() results in ESM projects
-  if (filePath.startsWith('file://')) {
+  // Note: We use lowercase check because Node.js and browsers always emit lowercase 'file://'
+  if (filePath.toLowerCase().startsWith('file://')) {
     return filePath
   }
 
