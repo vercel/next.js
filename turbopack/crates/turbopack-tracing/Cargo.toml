@@ -33,6 +33,7 @@ turbo-tasks-backend = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-ecmascript = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 
 criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"

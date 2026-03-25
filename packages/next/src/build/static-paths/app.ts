@@ -28,6 +28,12 @@ import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/emp
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
+import type {
+  GenerateStaticParamsStore,
+  WorkUnitAsyncStorage,
+} from '../../server/app-render/work-unit-async-storage.external'
+import type { ImplicitTags } from '../../server/lib/implicit-tags'
+import { getImplicitTags } from '../../server/lib/implicit-tags'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -595,6 +601,36 @@ export function assignStaticShellMetadata(
 }
 
 /**
+ * Calls a single generateStaticParams function within a WorkUnitStore context,
+ * making root param getters available during static param generation.
+ */
+async function callGenerateStaticParams(
+  generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
+  workUnitAsyncStorage: WorkUnitAsyncStorage,
+  parentParams: Params,
+  rootParamKeys: readonly string[],
+  implicitTags: ImplicitTags
+): Promise<Params[]> {
+  const rootParams: Params = {}
+  for (const key of rootParamKeys) {
+    if (key in parentParams) {
+      rootParams[key] = parentParams[key]
+    }
+  }
+
+  const workUnitStore: GenerateStaticParamsStore = {
+    type: 'generate-static-params',
+    phase: 'render',
+    implicitTags,
+    rootParams,
+  }
+
+  return workUnitAsyncStorage.run(workUnitStore, generateStaticParams, {
+    params: parentParams,
+  })
+}
+
+/**
  * Processes app directory segments to build route parameters from generateStaticParams functions.
  * This function walks through the segments array and calls generateStaticParams for each segment that has it,
  * combining parent parameters with child parameters to build the complete parameter combinations.
@@ -602,17 +638,24 @@ export function assignStaticShellMetadata(
  *
  * @param segments - Array of app directory segments to process
  * @param store - Work store for tracking fetch cache configuration
+ * @param workUnitAsyncStorage - AsyncLocalStorage for work unit stores
+ * @param isRoutePPREnabled - Whether PPR is enabled for this route
+ * @param rootParamKeys - The keys identifying which params are root params
  * @returns Promise that resolves to an array of all parameter combinations
  */
 export async function generateRouteStaticParams(
   segments: ReadonlyArray<
     Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
   >,
-  store: Pick<WorkStore, 'fetchCache'>,
-  isRoutePPREnabled: boolean
+  store: Pick<WorkStore, 'fetchCache' | 'page'>,
+  workUnitAsyncStorage: WorkUnitAsyncStorage,
+  isRoutePPREnabled: boolean,
+  rootParamKeys: readonly string[]
 ): Promise<Params[]> {
   // Early return if no segments to process
   if (segments.length === 0) return []
+
+  const implicitTags = await getImplicitTags(store.page, store.page, null)
 
   // Use iterative processing with a work queue to avoid recursion overhead
   interface WorkItem {
@@ -651,9 +694,13 @@ export async function generateRouteStaticParams(
     if (params.length > 0) {
       // Process each parent parameter combination
       for (const parentParams of params) {
-        const result = await current.generateStaticParams({
-          params: parentParams,
-        })
+        const result = await callGenerateStaticParams(
+          current.generateStaticParams,
+          workUnitAsyncStorage,
+          parentParams,
+          rootParamKeys,
+          implicitTags
+        )
 
         if (result.length > 0) {
           // Merge parent params with each result item
@@ -669,7 +716,13 @@ export async function generateRouteStaticParams(
       }
     } else {
       // No parent params, call generateStaticParams with empty object
-      const result = await current.generateStaticParams({ params: {} })
+      const result = await callGenerateStaticParams(
+        current.generateStaticParams,
+        workUnitAsyncStorage,
+        {},
+        rootParamKeys,
+        implicitTags
+      )
       if (result.length === 0 && isRoutePPREnabled) {
         throwEmptyGenerateStaticParamsError()
       }
@@ -826,7 +879,9 @@ export async function buildAppStaticPaths({
     generateRouteStaticParams,
     segments,
     store,
-    isRoutePPREnabled
+    ComponentMod.workUnitAsyncStorage,
+    isRoutePPREnabled,
+    rootParamKeys
   )
   const generatedParamNames = new Set<string>()
   for (const params of routeParams) {

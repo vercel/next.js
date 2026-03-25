@@ -1053,9 +1053,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[derive(Default)]
         struct TaskCacheStats {
             data: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             data_compressed: usize,
             data_count: usize,
             meta: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             meta_compressed: usize,
             meta_count: usize,
             upper_count: usize,
@@ -1067,8 +1069,36 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             aggregated_dirty_containers_count: usize,
             output_size: usize,
         }
+        /// Formats a byte size, optionally including the compressed size when the
+        /// `print_cache_item_size_with_compressed` feature is enabled.
+        #[cfg(feature = "print_cache_item_size")]
+        struct FormatSizes {
+            size: usize,
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
+            compressed_size: usize,
+        }
+        #[cfg(feature = "print_cache_item_size")]
+        impl std::fmt::Display for FormatSizes {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                use turbo_tasks::util::FormatBytes;
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    write!(
+                        f,
+                        "{} ({} compressed)",
+                        FormatBytes(self.size),
+                        FormatBytes(self.compressed_size)
+                    )
+                }
+                #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                {
+                    write!(f, "{}", FormatBytes(self.size))
+                }
+            }
+        }
         #[cfg(feature = "print_cache_item_size")]
         impl TaskCacheStats {
+            #[cfg(feature = "print_cache_item_size_with_compressed")]
             fn compressed_size(data: &[u8]) -> Result<usize> {
                 Ok(lzzzz::lz4::Compressor::new()?.next_to_vec(
                     data,
@@ -1079,13 +1109,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
             fn add_data(&mut self, data: &[u8]) {
                 self.data += data.len();
-                self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.data_compressed += Self::compressed_size(data).unwrap_or(0);
+                }
                 self.data_count += 1;
             }
 
             fn add_meta(&mut self, data: &[u8]) {
                 self.meta += data.len();
-                self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.meta_compressed += Self::compressed_size(data).unwrap_or(0);
+                }
                 self.meta_count += 1;
             }
 
@@ -1106,111 +1142,151 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .unwrap_or(0);
                 }
             }
+
+            /// Returns the task name used as the stats grouping key.
+            fn task_name(storage: &TaskStorage) -> String {
+                storage
+                    .get_persistent_task_type()
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "<unknown>".to_string())
+            }
+
+            /// Returns the primary sort key: compressed total when
+            /// `print_cache_item_size_with_compressed` is enabled, raw total otherwise.
+            fn sort_key(&self) -> usize {
+                #[cfg(feature = "print_cache_item_size_with_compressed")]
+                {
+                    self.data_compressed + self.meta_compressed
+                }
+                #[cfg(not(feature = "print_cache_item_size_with_compressed"))]
+                {
+                    self.data + self.meta
+                }
+            }
+
+            fn format_total(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data + self.meta,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.data_compressed + self.meta_compressed,
+                }
+            }
+
+            fn format_data(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.data_compressed,
+                }
+            }
+
+            fn format_avg_data(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.data.checked_div(self.data_count).unwrap_or(0),
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self
+                        .data_compressed
+                        .checked_div(self.data_count)
+                        .unwrap_or(0),
+                }
+            }
+
+            fn format_meta(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.meta,
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self.meta_compressed,
+                }
+            }
+
+            fn format_avg_meta(&self) -> FormatSizes {
+                FormatSizes {
+                    size: self.meta.checked_div(self.meta_count).unwrap_or(0),
+                    #[cfg(feature = "print_cache_item_size_with_compressed")]
+                    compressed_size: self
+                        .meta_compressed
+                        .checked_div(self.meta_count)
+                        .unwrap_or(0),
+                }
+            }
         }
         #[cfg(feature = "print_cache_item_size")]
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        // Helper to encode a TaskStorage into a SnapshotItem
-        // encode_meta/encode_data control whether to encode each category
-        let encode_snapshot_item =
-            |task_id: TaskId,
-             inner: &TaskStorage,
-             encode_meta: bool,
-             encode_data: bool,
-             buffer: &mut TurboBincodeBuffer| {
-                let encode_category = |task_id: TaskId,
-                                       data: &TaskStorage,
-                                       category: SpecificTaskDataCategory,
-                                       buffer: &mut TurboBincodeBuffer|
-                 -> Option<TurboBincodeBuffer> {
-                    match encode_task_data(task_id, data, category, buffer) {
-                        Ok(encoded) => {
-                            #[cfg(feature = "print_cache_item_size")]
-                            {
-                                let mut stats = task_cache_stats.lock();
-                                let entry = stats
-                                    .entry(self.get_task_name(task_id, turbo_tasks))
-                                    .or_default();
-                                match category {
-                                    SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                    SpecificTaskDataCategory::Data => entry.add_data(&encoded),
-                                }
+        // Encode each task's modified categories. We only encode categories with `modified` set,
+        // meaning the category was actually dirtied. Categories restored from disk but never
+        // modified don't need re-persisting since the on-disk version is still valid.
+        // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
+        // flags were copied from the live task at snapshot creation time, reflecting which
+        // categories were dirtied before the snapshot was taken.
+        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            let encode_category = |task_id: TaskId,
+                                   data: &TaskStorage,
+                                   category: SpecificTaskDataCategory,
+                                   buffer: &mut TurboBincodeBuffer|
+             -> Option<TurboBincodeBuffer> {
+                match encode_task_data(task_id, data, category, buffer) {
+                    Ok(encoded) => {
+                        #[cfg(feature = "print_cache_item_size")]
+                        {
+                            let mut stats = task_cache_stats.lock();
+                            let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
+                            match category {
+                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
+                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
                             }
-                            Some(encoded)
                         }
-                        Err(err) => {
-                            eprintln!(
-                                "Serializing task {} failed ({:?}): {:?}",
-                                self.debug_get_task_description(task_id),
-                                category,
-                                err
-                            );
-                            None
-                        }
+                        Some(encoded)
                     }
-                };
-                if task_id.is_transient() {
-                    return SnapshotItem {
-                        task_id,
-                        data: None,
-                        meta: None,
-                    };
-                }
-
-                #[cfg(feature = "print_cache_item_size")]
-                if encode_meta {
-                    task_cache_stats
-                        .lock()
-                        .entry(self.get_task_name(task_id, turbo_tasks))
-                        .or_default()
-                        .add_counts(inner);
-                }
-
-                let meta = if encode_meta {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
-                } else {
-                    None
-                };
-
-                let data = if encode_data {
-                    encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
-                } else {
-                    None
-                };
-
-                SnapshotItem {
-                    task_id,
-                    meta,
-                    data,
+                    Err(err) => {
+                        eprintln!(
+                            "Serializing task {} failed ({:?}): {:?}",
+                            self.debug_get_task_description(task_id),
+                            category,
+                            err
+                        );
+                        None
+                    }
                 }
             };
+            if task_id.is_transient() {
+                unreachable!("transient task_ids should never be enqueued to be persisted");
+            }
 
-        // Process tasks from the main storage map (uses restored flags)
-        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(
+            let encode_meta = inner.flags.meta_modified();
+            let encode_data = inner.flags.data_modified();
+
+            #[cfg(feature = "print_cache_item_size")]
+            if encode_data || encode_meta {
+                task_cache_stats
+                    .lock()
+                    .entry(TaskCacheStats::task_name(inner))
+                    .or_default()
+                    .add_counts(inner);
+            }
+
+            let meta = if encode_meta {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
+            } else {
+                None
+            };
+
+            let data = if encode_data {
+                encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
+            } else {
+                None
+            };
+
+            SnapshotItem {
                 task_id,
-                inner,
-                inner.flags.meta_restored(),
-                inner.flags.data_restored(),
-                buffer,
-            )
+                meta,
+                data,
+            }
         };
 
-        // Process tasks that were accessed during snapshot mode (uses modified flags)
-        let process_snapshot =
-            |task_id: TaskId, inner: Box<TaskStorage>, buffer: &mut TurboBincodeBuffer| {
-                encode_snapshot_item(
-                    task_id,
-                    &inner,
-                    inner.flags.meta_modified(),
-                    inner.flags.data_modified(),
-                    buffer,
-                )
-            };
-
         // take_snapshot already filters empty items and empty shards in parallel
-        let task_snapshots = self.storage.take_snapshot(&process, &process_snapshot);
+        let task_snapshots = self.storage.take_snapshot(&process);
 
         swap_retain(&mut persisted_task_cache_log, |shard| !shard.is_empty());
 
@@ -1245,23 +1321,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     use crate::utils::markdown_table::print_markdown_table;
 
                     task_cache_stats.sort_unstable_by(|(key_a, stats_a), (key_b, stats_b)| {
-                        (stats_b.data_compressed + stats_b.meta_compressed, key_b)
-                            .cmp(&(stats_a.data_compressed + stats_a.meta_compressed, key_a))
+                        (stats_b.sort_key(), key_b).cmp(&(stats_a.sort_key(), key_a))
                     });
+
                     println!(
-                        "Task cache stats: {} ({})",
-                        FormatBytes(
-                            task_cache_stats
+                        "Task cache stats: {}",
+                        FormatSizes {
+                            size: task_cache_stats
+                                .iter()
+                                .map(|(_, s)| s.data + s.meta)
+                                .sum::<usize>(),
+                            #[cfg(feature = "print_cache_item_size_with_compressed")]
+                            compressed_size: task_cache_stats
                                 .iter()
                                 .map(|(_, s)| s.data_compressed + s.meta_compressed)
                                 .sum::<usize>()
-                        ),
-                        FormatBytes(
-                            task_cache_stats
-                                .iter()
-                                .map(|(_, s)| s.data + s.meta)
-                                .sum::<usize>()
-                        )
+                        },
                     );
 
                     print_markdown_table(
@@ -1287,47 +1362,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         |(task_desc, stats)| {
                             [
                                 task_desc.to_string(),
-                                format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.data_compressed + stats.meta_compressed),
-                                    FormatBytes(stats.data + stats.meta)
-                                ),
-                                format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.data_compressed),
-                                    FormatBytes(stats.data)
-                                ),
-                                format!(" {} x", stats.data_count,),
-                                format!(
-                                    "{} ({})",
-                                    FormatBytes(
-                                        stats
-                                            .data_compressed
-                                            .checked_div(stats.data_count)
-                                            .unwrap_or(0)
-                                    ),
-                                    FormatBytes(
-                                        stats.data.checked_div(stats.data_count).unwrap_or(0)
-                                    ),
-                                ),
-                                format!(
-                                    " {} ({})",
-                                    FormatBytes(stats.meta_compressed),
-                                    FormatBytes(stats.meta)
-                                ),
-                                format!(" {} x", stats.meta_count,),
-                                format!(
-                                    "{} ({})",
-                                    FormatBytes(
-                                        stats
-                                            .meta_compressed
-                                            .checked_div(stats.meta_count)
-                                            .unwrap_or(0)
-                                    ),
-                                    FormatBytes(
-                                        stats.meta.checked_div(stats.meta_count).unwrap_or(0)
-                                    ),
-                                ),
+                                format!(" {}", stats.format_total()),
+                                format!(" {}", stats.format_data()),
+                                format!(" {} x", stats.data_count),
+                                format!("{}", stats.format_avg_data()),
+                                format!(" {}", stats.format_meta()),
+                                format!(" {} x", stats.meta_count),
+                                format!("{}", stats.format_avg_meta()),
                                 format!(" {}", stats.upper_count),
                                 format!(" {}", stats.collectibles_count),
                                 format!(" {}", stats.aggregated_collectibles_count),
@@ -2794,9 +2835,53 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         }
 
                         let this = self.clone();
-                        let snapshot = this.snapshot_and_persist(None, reason, turbo_tasks);
+                        // Create a root span shared by both the snapshot/persist
+                        // work and the subsequent compaction so they appear
+                        // grouped together in trace viewers.
+                        let background_span =
+                            tracing::info_span!(parent: None, "background snapshot");
+                        let snapshot =
+                            this.snapshot_and_persist(background_span.id(), reason, turbo_tasks);
                         if let Some((snapshot_start, new_data)) = snapshot {
                             last_snapshot = snapshot_start;
+
+                            // Compact while idle (up to limit), regardless of
+                            // whether the snapshot had new data.
+                            // `background_span` is not entered here because
+                            // `EnteredSpan` is `!Send` and would prevent the
+                            // future from being sent across threads when it
+                            // suspends at the `select!` await below.
+                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
+                                let idle_ended = tokio::select! {
+                                    biased;
+                                    _ = &mut idle_end_listener => {
+                                        idle_end_listener = self.idle_end_event.listen();
+                                        true
+                                    },
+                                    _ = std::future::ready(()) => false,
+                                };
+                                if idle_ended {
+                                    break;
+                                }
+                                // Enter the span only around the synchronous
+                                // compact() call so we never hold an
+                                // `EnteredSpan` across an await point.
+                                let _compact_span = tracing::info_span!(
+                                    parent: background_span.id(),
+                                    "compact database"
+                                )
+                                .entered();
+                                match self.backing_storage.compact() {
+                                    Ok(true) => {}
+                                    Ok(false) => break,
+                                    Err(err) => {
+                                        eprintln!("Compaction failed: {err:?}");
+                                        break;
+                                    }
+                                }
+                            }
+
                             if !new_data {
                                 fresh_idle = false;
                                 continue;

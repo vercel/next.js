@@ -138,7 +138,8 @@ jobs:
         with:
           name: test-timings
           path: test-timings.json
-          retention-days: 1
+          # Allows "rerun failed jobs" for N days
+          retention-days: 5
           if-no-files-found: error
 
   lint:
@@ -192,7 +193,6 @@ jobs:
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit --remote-cache-timeout 60 --log-order stream
-      mold: 'yes'
       stepName: 'test-cargo-unit'
     secrets: inherit
 

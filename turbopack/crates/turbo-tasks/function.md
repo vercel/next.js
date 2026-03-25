@@ -28,7 +28,7 @@ The `#[turbo_tasks::function]` macro **rewrites the arguments and return values*
 - Method arguments of **`&self`** are **rewritten to `self: Vc<Self>`**.
 
 [`ResolvedVc<T>`]: crate::ResolvedVc
-[`FromTaskInput`]: crate::FromTaskInput
+[`FromTaskInput`]: crate::task::FromTaskInput
 
 ### Return Type Rewrite Rules
 

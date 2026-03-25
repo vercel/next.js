@@ -28,7 +28,7 @@
 
 ## Resolving Review Threads
 
-After addressing a review comment (e.g., making the requested code change):
+After addressing a review comment (e.g., making the requested code change), or when you detect the current code already addresses it:
 
 1. Reply to the thread describing what action was taken:
    ```bash

@@ -44,7 +44,7 @@ export function InstantNavsPanel() {
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,
-        value: '[0]',
+        value: JSON.stringify([0, `p${Math.random()}`]),
         path: '/',
       })
     }
@@ -55,7 +55,7 @@ export function InstantNavsPanel() {
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,
-        value: '[0]',
+        value: JSON.stringify([0, `p${Math.random()}`]),
         path: '/',
       })
     }

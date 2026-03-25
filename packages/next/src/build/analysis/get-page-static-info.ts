@@ -691,6 +691,23 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  // Prevent unstable_dynamicStaleTime in layouts.
+  if ('unstable_dynamicStaleTime' in config) {
+    const isLayout = /\/layout\.[^/]+$/.test(pageFilePath)
+    if (isLayout) {
+      throw new Error(
+        `"${page}" cannot use \`export const unstable_dynamicStaleTime\`. This config is only supported in page files, not layouts.`
+      )
+    }
+  }
+
+  // Prevent combining unstable_dynamicStaleTime and unstable_instant.
+  if ('unstable_dynamicStaleTime' in config && 'unstable_instant' in config) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const unstable_instant\`.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,
