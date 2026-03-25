@@ -170,28 +170,14 @@ jobs:
                     build_task: build-native-no-plugin-release
               linux:
                 host: "['self-hosted', 'linux', 'x64', 'metal']"
+                docker: next-swc-builder:latest
                 vendor: unknown
                 sys: linux
                 abi:
                   gnu:
-                    verify_cmd: "objdump -T native/next-swc.*.node | grep GLIBC_"
-                    extra_apt_packages: "xz-utils"
-                    arch:
-                      x86_64:
-                        docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
-                      aarch64:
-                        docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
-                        cc: '/usr/bin/clang'
-                        cflags: '--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu'
+                    arch: [x86_64, aarch64]
                   musl:
-                    docker: "ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian"
-                    arch:
-                      x86_64:
-                        extra_apt_packages: musl-tools musl-dev
-                        cc: musl-gcc
-                      aarch64:
-                        cc: aarch64-linux-musl-gcc
-                        cxx: aarch64-linux-musl-g++
+                    arch: [x86_64, aarch64]
 
   # Build binaries for publishing
   build-native:
@@ -257,18 +243,19 @@ jobs:
           cache-provider: 'turbo'
           shared-key: build-${{ matrix.target }}-${{ hashFiles('.cargo/config.toml') }}
 
-      - name: Set RUSTFLAGS for docker builds
-        if: ${{ matrix.docker }}
-        run: |
-          RUSTFLAGS=$(cargo xtask print-rustflags --target ${{ matrix.target }})
-          echo "RUSTFLAGS=$RUSTFLAGS" >> $GITHUB_ENV
-
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # we only need custom caching for docker builds
-      # as they are on an older Node.js version and have
-      # issues with turbo caching
+      # Build or restore the Docker image via turbo remote cache.
+      # Step 1: turbo either runs the build (cache miss) or restores image.tar (cache hit).
+      # Step 2: --load ensures the tar is loaded into docker (turbo skips the script on hit).
+      - name: Build/restore Docker image
+        if: ${{ matrix.docker }}
+        run: |
+          pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90 --log-order stream
+          node scripts/docker-image-cache.js --load
+
+      # Try to restore previously-built native binary from turbo cache
       - name: pull build cache
         if: ${{ matrix.docker }}
         run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.target }}
@@ -280,67 +267,22 @@ jobs:
 
       - name: Build in docker
         if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        env:
-          # Single build script with if-blocks for per-variant dispatch.
-          # Notes:
-          # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
-          #   environment.
-          BUILD_SCRIPT: |
-            # Musl builds: clear GNU-specific env vars baked into the Debian image
-            if [ "${{ matrix.abi }}" = "musl" ]; then
-              unset LDFLAGS CFLAGS CXXFLAGS C_INCLUDE_PATH CC CXX TARGET_CC
-            fi
-
-            apt-get update
-            apt-get install -y --no-install-recommends pkg-config dav1d libdav1d-dev ${{ matrix.extra_apt_packages }}
-
-            # Ensure ld.lld is available for -fuse-ld=lld (these docker images
-            # ship ancient GNU ld that doesn't support --icf=all or other modern flags).
-            if command -v lld >/dev/null 2>&1 && ! command -v ld.lld >/dev/null 2>&1; then
-              ln -sf "$(command -v lld)" /usr/local/bin/ld.lld
-            fi
-
-            # Cross-compilation toolchain for musl/aarch64
-            if [ "${{ matrix.abi }}" = "musl" ] && [ "${{ matrix.arch }}" = "aarch64" ]; then
-              wget -qO- "https://github.com/napi-rs/napi-rs/releases/download/linux-musl-cross%4010/aarch64-linux-musl-cross.tgz" | tar xz -C /
-              export PATH="/aarch64-linux-musl-cross/bin:$PATH"
-              # -fuse-ld=lld makes gcc look for 'ld.lld' in its toolchain bin dir.
-              # Create the symlink so the cross-compiler finds host lld.
-              ln -sf /usr/bin/lld /aarch64-linux-musl-cross/aarch64-linux-musl/bin/ld.lld
-            fi
-
-            # Set per-target compiler from matrix vars (CC_<target>, CXX_<target>, CFLAGS_<target>)
-            TARGET_US=$(echo "${{ matrix.target }}" | tr '-' '_')
-            unset "CC_${TARGET_US}"
-            if [ -n "${{ matrix.cc }}" ]; then export "CC_${TARGET_US}=${{ matrix.cc }}"; fi
-            if [ -n "${{ matrix.cxx }}" ]; then export "CXX_${TARGET_US}=${{ matrix.cxx }}"; fi
-            if [ -n "${{ matrix.cflags }}" ]; then export "CFLAGS_${TARGET_US}=${{ matrix.cflags }}"; fi
-
-            # aarch64 needs larger page size for jemalloc
-            if [ "${{ matrix.arch }}" = "aarch64" ]; then
-              export JEMALLOC_SYS_WITH_LG_PAGE=16
-            fi
-
-            node -v
-            rustup show
-            rustup target add ${{ matrix.target }}
-            npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-            cd packages/next-swc
-            npm run ${{ matrix.build_task }} -- --target ${{ matrix.target }}
-            llvm-strip -x native/next-swc.*.node
-            ${{ matrix.verify_cmd }}
         run: |
-          docker run -v "/var/run/docker.sock":"/var/run/docker.sock" \
-            -e CI -e RUST_BACKTRACE -e RUSTFLAGS -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR \
+          docker run --rm \
+            -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
             -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
             -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
+            -e TARGET="${{ matrix.target }}" \
+            -e ABI="${{ matrix.abi }}" \
+            -e ARCH="${{ matrix.arch }}" \
+            -e BUILD_TASK="${{ matrix.build_task }}" \
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
             -v ${{ github.workspace }}:/build \
             -w /build \
-            --entrypoint=bash \
+            --entrypoint bash \
             ${{ matrix.docker }} \
-            -xeo pipefail -c "$BUILD_SCRIPT" # these args are passed to the entrypoint (bash)
+            -xeo pipefail scripts/docker-native-build.sh
 
       - name: cache build
         if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}

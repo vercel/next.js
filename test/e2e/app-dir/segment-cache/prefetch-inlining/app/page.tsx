@@ -26,6 +26,11 @@ export default function Page() {
           <LinkAccordion href="/test-dynamic/hello">Dynamic</LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/test-runtime-bailout">
+            Runtime bailout
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/test-stale-hints/nested/deep">
             Stale hints
           </LinkAccordion>
@@ -33,6 +38,21 @@ export default function Page() {
         <li>
           <LinkAccordion href="/test-instant-false-root">
             Instant false root
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-runtime-passthrough/inner">
+            Runtime passthrough
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-instant-false-passthrough/inner">
+            Instant false passthrough
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/test-runtime-parallel/inner">
+            Runtime parallel
           </LinkAccordion>
         </li>
       </ul>
