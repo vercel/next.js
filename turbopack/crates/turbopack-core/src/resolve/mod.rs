@@ -1398,15 +1398,58 @@ async fn find_package(
                                     .await?;
                             for m in &*matches {
                                 if let PatternMatch::Directory(_, package_dir) = m {
-                                    packages.push(FindPackageItem::PackageDirectory {
-                                        name: get_package_name(&fs_path, package_dir)?,
-                                        dir: realpath(
-                                            package_dir,
-                                            collect_affecting_sources
-                                                .then_some(&mut affecting_sources),
-                                        )
-                                        .await?,
-                                    });
+                                    let resolved_dir = realpath(
+                                        package_dir,
+                                        collect_affecting_sources
+                                            .then_some(&mut affecting_sources),
+                                    )
+                                    .await?;
+                                    let pkg_name =
+                                        get_package_name(&fs_path, package_dir)?;
+
+                                    // pnpm virtual store deduplication:
+                                    // In pnpm monorepos, each workspace package
+                                    // gets its own symlink into `.pnpm/` virtual
+                                    // store, causing realpath() to resolve the
+                                    // same logical package (e.g. `react`) to
+                                    // different physical paths. This creates
+                                    // duplicate module instances and breaks React
+                                    // Hooks and other singleton-dependent libraries.
+                                    //
+                                    // When a resolved path goes through `.pnpm/`,
+                                    // skip it if we already have a resolution for
+                                    // the same package name from a higher-level
+                                    // node_modules (closer to root).
+                                    let resolved_path =
+                                        resolved_dir.to_string();
+                                    let is_pnpm_virtual_store =
+                                        resolved_path.contains("/.pnpm/");
+
+                                    if is_pnpm_virtual_store {
+                                        let already_resolved =
+                                            packages.iter().any(|p| match p {
+                                                FindPackageItem::PackageDirectory {
+                                                    name,
+                                                    ..
+                                                } => *name == pkg_name,
+                                                _ => false,
+                                            });
+                                        if !already_resolved {
+                                            packages.push(
+                                                FindPackageItem::PackageDirectory {
+                                                    name: pkg_name,
+                                                    dir: resolved_dir,
+                                                },
+                                            );
+                                        }
+                                    } else {
+                                        packages.push(
+                                            FindPackageItem::PackageDirectory {
+                                                name: pkg_name,
+                                                dir: resolved_dir,
+                                            },
+                                        );
+                                    }
                                 }
                             }
                         }
