@@ -13,7 +13,9 @@ describe('app dir - basepath', () => {
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#page-2')
+    // First load of an App Router page in dev mode triggers on-demand compilation.
+    // Give it extra time so slow CI runners don't hit the 10s default timeout.
+    await browser.waitForElementByCss('#page-2', 30000)
   })
 
   it('should support `basePath`', async () => {
