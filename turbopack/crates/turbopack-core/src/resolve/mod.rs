@@ -1412,26 +1412,60 @@ async fn find_package(
                                     // gets its own symlink into `.pnpm/` virtual
                                     // store, causing realpath() to resolve the
                                     // same logical package (e.g. `react`) to
-                                    // different physical paths. This creates
-                                    // duplicate module instances and breaks React
-                                    // Hooks and other singleton-dependent libraries.
+                                    // different physical paths with identical
+                                    // versions but different peer dep context
+                                    // hashes. This creates duplicate module
+                                    // instances and breaks React Hooks and other
+                                    // singleton-dependent libraries.
                                     //
                                     // When a resolved path goes through `.pnpm/`,
-                                    // skip it if we already have a resolution for
-                                    // the same package name from a higher-level
-                                    // node_modules (closer to root).
+                                    // extract the versioned package identifier
+                                    // (e.g. `react@19.2.4`) and skip if an entry
+                                    // with the same name+version already exists.
+                                    // This preserves legitimate multi-version
+                                    // scenarios while deduplicating identical
+                                    // versions with different peer dep contexts.
                                     let resolved_path =
                                         resolved_dir.to_string();
                                     let is_pnpm_virtual_store =
                                         resolved_path.contains("/.pnpm/");
 
                                     if is_pnpm_virtual_store {
+                                        // Extract versioned identifier from pnpm
+                                        // path: .pnpm/react@19.2.4_peer-hash/...
+                                        // We compare name@version, ignoring the
+                                        // peer dep hash suffix after underscore.
+                                        let pnpm_pkg_id = resolved_path
+                                            .split("/.pnpm/")
+                                            .nth(1)
+                                            .and_then(|s| s.split('/').next())
+                                            .and_then(|s| {
+                                                // Strip peer dep hash: react@19.2.4_hash -> react@19.2.4
+                                                s.split('_').next()
+                                            })
+                                            .unwrap_or("");
+
                                         let already_resolved =
                                             packages.iter().any(|p| match p {
                                                 FindPackageItem::PackageDirectory {
-                                                    name,
-                                                    ..
-                                                } => *name == pkg_name,
+                                                    dir, ..
+                                                } => {
+                                                    let existing =
+                                                        dir.to_string();
+                                                    existing
+                                                        .split("/.pnpm/")
+                                                        .nth(1)
+                                                        .and_then(|s| {
+                                                            s.split('/')
+                                                                .next()
+                                                        })
+                                                        .and_then(|s| {
+                                                            s.split('_')
+                                                                .next()
+                                                        })
+                                                        .unwrap_or("")
+                                                        == pnpm_pkg_id
+                                                }
                                                 _ => false,
                                             });
                                         if !already_resolved {
