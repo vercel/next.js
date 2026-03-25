@@ -1,4 +1,4 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { NextApiResponse } from '../../shared/lib/utils'
@@ -83,12 +83,26 @@ export function checkIsOnDemandRevalidate(
   isOnDemandRevalidate: boolean
   revalidateOnlyGenerated: boolean
 } {
-  const headers = HeadersAdapter.from(req.headers)
+  // Headers is a plain object for Node.js, Headers object in Edge runtime
+  if (typeof req.headers.get === 'function') {
+    const headers = HeadersAdapter.from(req.headers)
 
-  const previewModeId = headers.get(PRERENDER_REVALIDATE_HEADER)
+    const previewModeId = headers.get(PRERENDER_REVALIDATE_HEADER)
+    const isOnDemandRevalidate = previewModeId === previewProps.previewModeId
+
+    const revalidateOnlyGenerated = headers.has(
+      PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
+    )
+
+    return { isOnDemandRevalidate, revalidateOnlyGenerated }
+  }
+
+  const headers = req.headers as IncomingHttpHeaders
+
+  const previewModeId = headers[PRERENDER_REVALIDATE_HEADER]
   const isOnDemandRevalidate = previewModeId === previewProps.previewModeId
 
-  const revalidateOnlyGenerated = headers.has(
+  const revalidateOnlyGenerated = headers.hasOwnProperty(
     PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER
   )
 
