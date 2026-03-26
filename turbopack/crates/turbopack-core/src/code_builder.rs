@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -25,13 +26,17 @@ use crate::{
 pub type Mapping = (usize, Option<Rope>);
 
 /// Code stores combined output code and the source map of that output code.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
     mappings: Vec<Mapping>,
     should_generate_debug_id: bool,
 }
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct PersistedCode(Code);
 
 impl Code {
     pub fn source_code(&self) -> &Rope {
@@ -284,6 +289,16 @@ impl Code {
         } else {
             None
         })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn persisted(self: Vc<Self>) -> Result<Vc<Code>> {
+        Ok(self.persisted_internal().owned().await?.cell())
+    }
+
+    #[turbo_tasks::function]
+    fn persisted_internal(&self) -> Vc<PersistedCode> {
+        Vc::cell(self.clone())
     }
 }
 

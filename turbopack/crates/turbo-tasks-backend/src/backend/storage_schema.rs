@@ -275,6 +275,16 @@ struct TaskStorageSchema {
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     transient_cell_data: AutoMap<CellId, SharedReference>,
 
+    /// Hash of transient cell data, persisted for hash-based change detection when
+    /// transient data has been evicted from memory.
+    ///
+    /// Stored as `[u8; 16]` (little-endian bytes of a u128) rather than `u128` to keep
+    /// the 1-byte alignment out of the `AutoMap` and therefore out of the `LazyField`
+    /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
+    /// alignment requirement.
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
+    cell_data_hash: AutoMap<CellId, [u8; 16]>,
+
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
     cell_type_max_index: AutoMap<ValueTypeId, u32>,
