@@ -3469,6 +3469,7 @@ mod tests {
             pattern: rcstr!("./foo.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.js", "foo.ts")],
         })
         .await;
@@ -3481,6 +3482,7 @@ mod tests {
             pattern: rcstr!("./foo").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo", "foo.ts")],
         })
         .await;
@@ -3493,6 +3495,7 @@ mod tests {
             pattern: rcstr!("./posts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./posts", "posts.ts")],
         })
         .await;
@@ -3505,6 +3508,7 @@ mod tests {
             pattern: rcstr!("./bar.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./bar.js", "bar.js")],
         })
         .await;
@@ -3517,6 +3521,7 @@ mod tests {
             pattern: rcstr!("./foo.ts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.ts", "foo.ts")],
         })
         .await;
@@ -3530,6 +3535,7 @@ mod tests {
             pattern: rcstr!("./client#frag").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3543,6 +3549,7 @@ mod tests {
             pattern: rcstr!("./client#component.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             // Whether or not this request key is correct somewhat ambiguous.  It depends on whether
             // or not we consider this fragment to be part of the request pattern
             expected: vec![("./client", "client#component.ts")],
@@ -3558,6 +3565,7 @@ mod tests {
             pattern: rcstr!("./page#section").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./page", "page#section.ts")],
         })
         .await;
@@ -3570,6 +3578,7 @@ mod tests {
             pattern: rcstr!("./client?q=s").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3590,6 +3599,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/foo.js", "src/foo.ts"),
                 ("./src/bar.js", "src/bar.js"),
@@ -3611,6 +3621,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/bar.js", "src/bar.js"),
                 ("./src/bar", "src/bar.js"),
@@ -3627,12 +3638,61 @@ mod tests {
         .await;
     }
 
+    /// Test that custom `resolveExtensions` ordering is respected:
+    /// `.web.tsx` appears before `.tsx` in the list, so it must win when both exist.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_web_before_default() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.web.tsx", "Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.web.tsx")],
+        })
+        .await;
+    }
+
+    /// Test that when `.web.tsx` doesn't exist, resolution falls back to `.tsx`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_fallback_when_web_missing() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.tsx")],
+        })
+        .await;
+    }
+
     /// Parameters for resolve_relative_request_test
     struct TestParams<'a> {
         files: Vec<&'a str>,
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
+        /// Custom extensions list; when `None`, uses the default `[".ts", ".js", ".json"]`
+        custom_extensions: Option<Vec<RcStr>>,
         expected: Vec<(&'a str, &'a str)>,
     }
 
@@ -3643,6 +3703,7 @@ mod tests {
             pattern,
             enable_typescript_with_output_extension,
             fully_specified,
+            custom_extensions,
             expected,
         }: TestParams<'_>,
     ) {
@@ -3673,6 +3734,8 @@ mod tests {
             noop_backing_storage(),
         ));
 
+        let custom_extensions_owned = custom_extensions;
+
         tt.run_once(async move {
             #[turbo_tasks::value(transparent)]
             struct ResolveRelativeRequestOutput(Vec<(String, String)>);
@@ -3683,6 +3746,7 @@ mod tests {
                 pattern: Pattern,
                 enable_typescript_with_output_extension: bool,
                 fully_specified: bool,
+                custom_extensions: Option<Vec<RcStr>>,
             ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
                 let fs = DiskFileSystem::new(rcstr!("temp"), path);
                 let lookup_path = fs.root().owned().await?;
@@ -3692,6 +3756,7 @@ mod tests {
                     pattern,
                     enable_typescript_with_output_extension,
                     fully_specified,
+                    custom_extensions,
                 )
                 .await?;
 
@@ -3719,6 +3784,7 @@ mod tests {
                 pattern,
                 enable_typescript_with_output_extension,
                 fully_specified,
+                custom_extensions_owned,
             )
             .read_strongly_consistent()
             .await?;
@@ -3737,12 +3803,15 @@ mod tests {
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
+        custom_extensions: Option<Vec<RcStr>>,
     ) -> anyhow::Result<Vc<ResolveResult>> {
         let request = Request::parse(pattern.clone());
 
+        let extensions = custom_extensions
+            .unwrap_or_else(|| vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")]);
         let mut options_value = node_esm_resolve_options(lookup_path.clone())
             .with_fully_specified(fully_specified)
-            .with_extensions(vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")])
+            .with_extensions(extensions)
             .owned()
             .await?;
         options_value.enable_typescript_with_output_extension =
