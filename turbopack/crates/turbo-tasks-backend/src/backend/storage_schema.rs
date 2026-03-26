@@ -277,8 +277,11 @@ struct TaskStorageSchema {
 
     /// Hash of transient cell data, persisted for hash-based change detection when
     /// transient data has been evicted from memory.
+    ///
+    /// Boxed to avoid increasing the size of the `LazyField` enum, since `AutoMap` with inline
+    /// capacity stores one `(CellId, u128)` entry inline and u128 has a large alignment.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: AutoMap<CellId, u128>,
+    cell_data_hash: Box<AutoMap<CellId, u128>>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
@@ -1053,7 +1056,7 @@ mod tests {
         );
         assert_eq!(
             size_of::<LazyField>(),
-            64,
+            56,
             "LazyField size changed! If this is intentional, update this test."
         );
     }
