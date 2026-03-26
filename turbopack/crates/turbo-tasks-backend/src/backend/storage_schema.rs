@@ -1053,7 +1053,7 @@ mod tests {
         );
         assert_eq!(
             size_of::<LazyField>(),
-            56,
+            64,
             "LazyField size changed! If this is intentional, update this test."
         );
     }
