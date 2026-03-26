@@ -183,6 +183,8 @@ async fn assets_diff(
                     if content1 == content2 {
                         Ok(Vc::cell(None))
                     } else {
+                        // TODO: Produce an actual diff, e.g. write both versions to
+                        // scratch space under `.next/` and run a text diff on them.
                         Ok(Vc::cell(Some(rcstr!("file content differs"))))
                     }
                 }
