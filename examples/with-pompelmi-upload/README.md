@@ -18,6 +18,6 @@ pnpm dev
 
 Open http://localhost:3000 and upload a file.
 
-Notes
+## Notes
 
 This example demonstrates how to place scanning logic at the upload boundary using @pompelmi/next-upload.
