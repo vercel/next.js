@@ -885,16 +885,42 @@ export default abstract class Server<
       // to this parent span so APM tools (e.g. Datadog) can derive the
       // resource name correctly.
       const parentSpan = tracer.getActiveScopeSpan()
+      const httpScheme =
+        req.headers['x-forwarded-proto'] ??
+        (req?.body?.socket?.encrypted ? 'https' : 'http')
+      const attributes: Record<
+        `http.${string}` | `net.${string}`,
+        string | undefined
+      > = {
+        'http.scheme': httpScheme as string,
+        'http.method': method,
+        'http.target': req.url,
+      }
+
+      try {
+        const url = new URL(`${httpScheme}://${req.headers.host}${req.url}`)
+        attributes['http.url'] = url.href
+        attributes['net.host.name'] = url.host
+        if (url.port !== '') {
+          attributes['net.host.port'] = url.port
+        }
+      } catch (err) {
+        console.error('Failed construct url', err)
+        const [host, port] = req.headers.host?.split(':') ?? []
+        if (host) {
+          attributes['net.host.name'] = host
+        }
+        if (port) {
+          attributes['net.host.port'] = port
+        }
+      }
 
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
           spanName: `${method}`,
           kind: SpanKind.SERVER,
-          attributes: {
-            'http.method': method,
-            'http.target': req.url,
-          },
+          attributes,
         },
         async (span) =>
           this.handleRequestImpl(req, res, parsedUrl).finally(() => {
