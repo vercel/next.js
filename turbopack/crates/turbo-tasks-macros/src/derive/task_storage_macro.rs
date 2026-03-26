@@ -2610,25 +2610,8 @@ fn extract_map_types(ty: &Type, expected_name: &str) -> Option<(TokenStream, Tok
 }
 
 /// Extract key and value types from a map type, returning the raw Type references.
-///
-/// Also looks through `Box<MapType<K, V>>` wrappers, so fields declared as
-/// `Box<AutoMap<K, V>>` are handled the same as `AutoMap<K, V>` for accessor generation.
-/// The generated accessors use Rust's auto-deref, so `&Box<AutoMap<K,V>>` and
-/// `&mut Box<AutoMap<K,V>>` transparently call `AutoMap` methods.
 fn extract_map_types_raw<'a>(ty: &'a Type, expected_name: &str) -> Option<(&'a Type, &'a Type)> {
-    // Unwrap Box<...> if present
-    let inner_ty = if let Type::Path(type_path) = ty
-        && let Some(segment) = type_path.path.segments.last()
-        && segment.ident == "Box"
-        && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
-        && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
-    {
-        inner
-    } else {
-        ty
-    };
-
-    if let Type::Path(type_path) = inner_ty
+    if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
         && segment.ident == expected_name
         && let syn::PathArguments::AngleBracketed(args) = &segment.arguments

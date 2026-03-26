@@ -278,11 +278,11 @@ struct TaskStorageSchema {
     /// Hash of transient cell data, persisted for hash-based change detection when
     /// transient data has been evicted from memory.
     ///
-    /// Boxed to avoid increasing the size of the `LazyField` enum: `u128` has alignment 16,
-    /// so any `AutoMap<_, u128, _, N>` variant in the enum forces the enum alignment to 16
-    /// and its size up to 64 bytes. `Box<T>` has pointer alignment (8), keeping the enum at 56.
+    /// The value is boxed (`Box<u128>`) to keep `u128`'s 16-byte alignment out of the
+    /// `AutoMap` and therefore out of the `LazyField` enum; without it the enum would
+    /// grow from 56 to 64 bytes.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: Box<AutoMap<CellId, u128>>,
+    cell_data_hash: AutoMap<CellId, Box<u128>>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
