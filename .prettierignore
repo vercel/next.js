@@ -59,6 +59,7 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
+# Intentionally broken fixture (syntax error for MCP compilation-issues test)
 test/development/mcp-server/fixtures/compilation-issues-app/app/broken/page.tsx
 # Tested against auto-generated content that isn't formatted
 test/integration/typescript-app-type-declarations/next-env.strictRouteTypes.d.ts

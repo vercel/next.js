@@ -300,12 +300,16 @@ pub fn endpoint_client_changed_subscribe(
     )
 }
 
+/// Like [`WrittenEndpointWithIssues`] but without writing to disk or collecting
+/// effects. Used for a read-only peek at current compilation issues.
 #[turbo_tasks::value(serialization = "none")]
 struct EndpointIssuesPeek {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
 
+/// Peeks issues from [`endpoint_server_changed_operation`] without triggering a
+/// disk write (unlike [`get_written_endpoint_with_issues_operation`]).
 #[turbo_tasks::function(operation)]
 async fn peek_endpoint_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
@@ -328,8 +332,7 @@ pub async fn endpoint_get_issues(
 ) -> napi::Result<TurbopackResult<()>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
-    let (issues, diags) = endpoint
-        .turbopack_ctx()
+    let (issues, diags) = ctx
         .turbo_tasks()
         .run(async move {
             let peek_op = peek_endpoint_issues_operation(endpoint_op);

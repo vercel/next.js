@@ -60,6 +60,8 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     appDir: options.appDir,
   })
 
+  // Turbopack-only: these options provide live access to compiled endpoint
+  // state that the webpack dev server does not expose.
   if (options.getCurrentEntrypoints && options.getWrittenEntrypoints) {
     registerGetCompilationIssuesTool(mcpServer, {
       getCurrentEntrypoints: options.getCurrentEntrypoints,

@@ -14,7 +14,7 @@ describe('mcp-server get_compilation_issues tool', () => {
     return
   }
 
-  async function callGetCompilationIssues(id: string): Promise<string> {
+  async function callGetCompilationIssues(): Promise<string> {
     const response = await fetch(`${next.url}/_next/mcp`, {
       method: 'POST',
       headers: {
@@ -23,7 +23,7 @@ describe('mcp-server get_compilation_issues tool', () => {
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
-        id,
+        id: `test-${Date.now()}`,
         method: 'tools/call',
         params: { name: 'get_compilation_issues', arguments: {} },
       }),
@@ -40,8 +40,7 @@ describe('mcp-server get_compilation_issues tool', () => {
 
     let response: any = null
     await retry(async () => {
-      const sessionId = 'test-clean-' + Date.now()
-      const responseText = await callGetCompilationIssues(sessionId)
+      const responseText = await callGetCompilationIssues()
       response = JSON.parse(responseText)
       // The '/page' route should be present once the page has been compiled
       expect(response.routes).toHaveProperty('/page')
@@ -55,8 +54,7 @@ describe('mcp-server get_compilation_issues tool', () => {
 
     let response: any = null
     await retry(async () => {
-      const sessionId = 'test-broken-' + Date.now()
-      const responseText = await callGetCompilationIssues(sessionId)
+      const responseText = await callGetCompilationIssues()
       response = JSON.parse(responseText)
       expect(response.routes['/broken/page']?.issues?.length).toBeGreaterThan(0)
     })
@@ -73,9 +71,7 @@ describe('mcp-server get_compilation_issues tool', () => {
 
     // Confirm there are issues before patching
     await retry(async () => {
-      const sessionId = 'test-before-fix-' + Date.now()
-      const responseText = await callGetCompilationIssues(sessionId)
-      const resp = JSON.parse(responseText)
+      const resp = JSON.parse(await callGetCompilationIssues())
       expect(resp.routes['/broken/page']?.issues?.length).toBeGreaterThan(0)
     })
 
@@ -89,9 +85,7 @@ describe('mcp-server get_compilation_issues tool', () => {
 
     // After the fix, the issues for '/broken/page' should be empty
     await retry(async () => {
-      const sessionId = 'test-after-fix-' + Date.now()
-      const responseText = await callGetCompilationIssues(sessionId)
-      const resp = JSON.parse(responseText)
+      const resp = JSON.parse(await callGetCompilationIssues())
       expect(
         resp.routes['/broken/page'] == null ||
           resp.routes['/broken/page'].issues.length === 0

@@ -47,6 +47,7 @@ export default globalIgnores([
   'examples/with-typescript-graphql/lib/gql/',
   'test/development/basic/hmr/components/parse-error.js',
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
+  // Intentionally broken fixture (syntax error for MCP compilation-issues test)
   'test/development/mcp-server/fixtures/compilation-issues-app/app/broken/page.tsx',
   'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
   'packages/next-swc/native/index.d.ts',

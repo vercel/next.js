@@ -11,48 +11,44 @@
  *   return JSON grouped by route.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
-import type { Entrypoints, Issue } from '../../../build/swc/types'
+import type {
+  AppRoute,
+  Endpoint,
+  Entrypoints,
+  Issue,
+  PageRoute,
+} from '../../../build/swc/types'
 import type { EntryKey } from '../../../shared/lib/turbopack/entry-key'
 import { splitEntryKey } from '../../../shared/lib/turbopack/entry-key'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
 
 export interface GetCompilationIssuesOptions {
   getCurrentEntrypoints: () => Entrypoints
+  /**
+   * Only the keys are used to determine which routes have been compiled;
+   * the value type is intentionally opaque.
+   */
   getWrittenEntrypoints: () => ReadonlyMap<EntryKey, unknown>
 }
 
-interface CompilationIssueOutput {
-  severity: string
-  stage: string
-  filePath: string
-  title: unknown
-  description?: unknown
-  detail?: unknown
-  source?: unknown
-  additionalSources?: unknown[]
-  documentationLink: string
-  importTraces?: unknown
-  codeFrame?: string
-}
-
-interface CompilationIssuesOutput {
-  routes: Record<string, { issues: CompilationIssueOutput[] }>
-  message?: string
-}
-
-function formatIssue(issue: Issue): CompilationIssueOutput {
-  return {
-    severity: issue.severity,
-    stage: issue.stage,
-    filePath: issue.filePath,
-    title: issue.title,
-    description: issue.description,
-    detail: issue.detail,
-    source: issue.source,
-    additionalSources: issue.additionalSources ?? [],
-    documentationLink: issue.documentationLink,
-    importTraces: issue.importTraces,
-    codeFrame: issue.codeFrame,
+/**
+ * Returns the primary endpoint for a route entry.
+ *
+ * For page-rendering routes (`app-page`, `page`), `htmlEndpoint` is used because
+ * it is the primary compilation unit that aggregates issues from both client and
+ * server components. For API-style routes (`app-route`, `page-api`), `endpoint`
+ * is the only compilation unit.
+ */
+function getRouteEndpoint(route: AppRoute | PageRoute): Endpoint | null {
+  switch (route.type) {
+    case 'app-page':
+    case 'page':
+      return route.htmlEndpoint
+    case 'app-route':
+    case 'page-api':
+      return route.endpoint
+    default:
+      return null
   }
 }
 
@@ -97,57 +93,25 @@ export function registerGetCompilationIssuesTool(
           }
         }
 
-        // For each compiled route, find the Endpoint(s) and call getIssues()
-        const output: CompilationIssuesOutput = { routes: {} }
+        const routes: Record<string, { issues: Issue[] }> = {}
 
         await Promise.all(
           Array.from(compiledPages).map(async (page) => {
-            const appRoute = entrypoints.app.get(page)
-            const pageRoute = entrypoints.page.get(page)
-            const routeEntry = appRoute ?? pageRoute
+            const routeEntry =
+              entrypoints.app.get(page) ?? entrypoints.page.get(page)
+            if (!routeEntry) return
 
-            if (!routeEntry) {
-              // Route not found in current entrypoints (may have been removed)
-              return
-            }
-
-            const allIssues: Issue[] = []
+            const endpoint = getRouteEndpoint(routeEntry)
+            if (!endpoint) return
 
             try {
-              switch (routeEntry.type) {
-                case 'app-page': {
-                  const result = await routeEntry.htmlEndpoint.getIssues()
-                  allIssues.push(...result.issues)
-                  break
-                }
-                case 'app-route': {
-                  const result = await routeEntry.endpoint.getIssues()
-                  allIssues.push(...result.issues)
-                  break
-                }
-                case 'page': {
-                  const result = await routeEntry.htmlEndpoint.getIssues()
-                  allIssues.push(...result.issues)
-                  break
-                }
-                case 'page-api': {
-                  const result = await routeEntry.endpoint.getIssues()
-                  allIssues.push(...result.issues)
-                  break
-                }
-                default:
-                  break
-              }
+              const result = await endpoint.getIssues()
+              routes[page] = { issues: result.issues }
             } catch (err) {
               console.error(
                 `[MCP get_compilation_issues] Error getting issues for route ${page}:`,
                 err
               )
-              return
-            }
-
-            output.routes[page] = {
-              issues: allIssues.map(formatIssue),
             }
           })
         )
@@ -156,7 +120,7 @@ export function registerGetCompilationIssuesTool(
           content: [
             {
               type: 'text' as const,
-              text: JSON.stringify(output, null, 2),
+              text: JSON.stringify({ routes }, null, 2),
             },
           ],
         }
