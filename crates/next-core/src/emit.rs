@@ -75,13 +75,13 @@ pub async fn emit_assets(
             Location::Node => {
                 node_assets_by_path
                     .entry(path)
-                    .or_insert_with(|| Vec::new())
+                    .or_insert_with(Vec::new)
                     .push(asset);
             }
             Location::Client => {
                 client_assets_by_path
                     .entry(path)
-                    .or_insert_with(|| Vec::new())
+                    .or_insert_with(Vec::new)
                     .push(asset);
             }
         }
@@ -93,7 +93,7 @@ pub async fn emit_assets(
     ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
-        while let Some(next) = iter.next() {
+        for next in iter {
             if let Some(diff) = assets_diff(*next, *first).owned().await? {
                 bail!(
                     "Duplicate asset with different content: {}\n{}",
