@@ -3047,7 +3047,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u64>,
+        content_hash: Option<u128>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -3611,7 +3611,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u64>,
+        content_hash: Option<u128>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {

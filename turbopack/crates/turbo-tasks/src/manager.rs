@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tracing::{Instrument, Span, instrument};
-use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64};
+use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -175,7 +175,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u64>,
+        content_hash: Option<u128>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -1572,7 +1572,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u64>,
+        content_hash: Option<u128>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -2033,7 +2033,7 @@ impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
         &self,
-        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<u64>)>,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<u128>)>,
     ) where
         T: VcValueType,
     {
@@ -2054,7 +2054,7 @@ impl CurrentCellRef {
         functor: impl FnOnce(
             Option<&SharedReference>,
         )
-            -> Option<(SharedReference, Option<SmallVec<[u64; 2]>>, Option<u64>)>,
+            -> Option<(SharedReference, Option<SmallVec<[u64; 2]>>, Option<u128>)>,
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
@@ -2171,7 +2171,7 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            let content_hash = hash_xxh3_hash64(&new_value);
+            let content_hash = hash_xxh3_hash128(&new_value);
             Some((new_value, None, Some(content_hash)))
         });
     }
@@ -2195,7 +2195,7 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            let content_hash = hash_xxh3_hash64(extract_sr_value::<T>(&new_shared_reference));
+            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
             Some((new_shared_reference, None, Some(content_hash)))
         });
     }

@@ -56,7 +56,7 @@ impl UpdateCellOperation {
         content: CellContent,
         is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u64>,
+        content_hash: Option<u128>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,

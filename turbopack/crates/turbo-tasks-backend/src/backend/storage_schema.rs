@@ -278,7 +278,7 @@ struct TaskStorageSchema {
     /// Hash of transient cell data, persisted for hash-based change detection when
     /// transient data has been evicted from memory.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: AutoMap<CellId, u64>,
+    cell_data_hash: AutoMap<CellId, u128>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
