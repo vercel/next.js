@@ -119,7 +119,11 @@ impl UpdateCellOperation {
             let skip_invalidation = !is_serializable_cell_content && {
                 let has_old_content = task.has_cell_data(false, cell);
                 if !has_old_content {
-                    match (content_hash, task.get_cell_data_hash(&cell).map(|v| **v)) {
+                    match (
+                        content_hash,
+                        task.get_cell_data_hash(&cell)
+                            .map(|v| u128::from_ne_bytes(*v)),
+                    ) {
                         (Some(new_hash), Some(old_hash)) => new_hash == old_hash,
                         _ => false,
                     }
@@ -174,10 +178,12 @@ impl UpdateCellOperation {
 
                 // Update cell_data_hash before dropping the task lock
                 if !is_serializable_cell_content {
-                    let old_hash = task.get_cell_data_hash(&cell).map(|v| **v);
+                    let old_hash = task
+                        .get_cell_data_hash(&cell)
+                        .map(|v| u128::from_ne_bytes(*v));
                     if old_hash != content_hash {
                         if let Some(hash) = content_hash {
-                            task.insert_cell_data_hash(cell, Box::new(hash));
+                            task.insert_cell_data_hash(cell, hash.to_ne_bytes());
                         } else {
                             task.remove_cell_data_hash(&cell);
                         }
@@ -221,10 +227,12 @@ impl UpdateCellOperation {
 
         // Update cell_data_hash for non-serializable cells when not recomputing.
         if !is_serializable_cell_content {
-            let old_hash = task.get_cell_data_hash(&cell).map(|v| **v);
+            let old_hash = task
+                .get_cell_data_hash(&cell)
+                .map(|v| u128::from_ne_bytes(*v));
             if old_hash != content_hash {
                 if let Some(hash) = content_hash {
-                    task.insert_cell_data_hash(cell, Box::new(hash));
+                    task.insert_cell_data_hash(cell, hash.to_ne_bytes());
                 } else {
                     task.remove_cell_data_hash(&cell);
                 }
