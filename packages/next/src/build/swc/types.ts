@@ -368,6 +368,12 @@ export interface Endpoint {
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
 
   /**
+   * Peek the current compilation issues for this endpoint without writing to disk.
+   * Returns fresh issues from the last compilation.
+   */
+  getIssues(): Promise<TurbopackResult>
+
+  /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.

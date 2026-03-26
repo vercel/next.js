@@ -175,6 +175,9 @@ export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
+export declare function endpointGetIssues(endpoint: {
+  __napiType: 'Endpoint'
+}): Promise<TurbopackResult>
 export interface NapiEnvVar {
   name: RcStr
   value: RcStr

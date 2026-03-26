@@ -1041,6 +1041,8 @@ export async function createHotReloaderTurbopack(
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            getCurrentEntrypoints: () => currentEntrypoints,
+            getWrittenEntrypoints: () => currentWrittenEntrypoints,
           }),
         ]
       : []),
