@@ -85,7 +85,7 @@ impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         esm_resolve(
-            self.get_origin().resolve().await?,
+            *self.get_origin().to_resolved().await?,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,

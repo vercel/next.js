@@ -240,7 +240,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(rcstr!(".js")).resolve().await?;
+                    request = *request.append_path(rcstr!(".js")).to_resolved().await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it

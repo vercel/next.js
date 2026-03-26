@@ -141,7 +141,7 @@ pub async fn create_web_entry_source(
             Ok(origin
                 .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
-                .resolve()
+                .to_resolved()
                 .await?
                 .primary_modules()
                 .await?

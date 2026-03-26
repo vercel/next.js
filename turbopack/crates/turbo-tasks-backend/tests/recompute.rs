@@ -151,7 +151,7 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 async fn recompute_dependency() {
     run(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
-        let input = get_dependency_input().resolve().await?;
+        let input = *get_dependency_input().to_resolved().await?;
         // Reset state to 1 at the start of each iteration (important for multi-run tests)
         input.await?.state.set(1);
 

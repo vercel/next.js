@@ -26,7 +26,9 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
+    let asset_context = *get_runtime_asset_context(*environment)
+        .to_resolved()
+        .await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,

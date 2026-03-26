@@ -80,7 +80,7 @@ async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
         },
     ];
 
-    let it = create_iteration().resolve().await?;
+    let it = *create_iteration().to_resolved().await?;
     it.await?.set(0);
     println!("🚀 Initial");
     let task = run_task(Arc::new(spec), it, 0);

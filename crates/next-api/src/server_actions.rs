@@ -347,7 +347,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     }
 
-    let original_parsed = ecmascript_asset.parse_original().resolve().await?;
+    let original_parsed = *ecmascript_asset.parse_original().to_resolved().await?;
 
     let ParseResult::Ok {
         program: original,
@@ -364,7 +364,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     };
 
-    let fragment = ecmascript_asset.failsafe_parse().resolve().await?;
+    let fragment = *ecmascript_asset.failsafe_parse().to_resolved().await?;
 
     if fragment != original_parsed {
         let ParseResult::Ok {

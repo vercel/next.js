@@ -152,7 +152,7 @@ impl RawVc {
         ReadRawVcFuture::new(self, None)
     }
 
-    /// See [`crate::Vc::resolve`].
+    /// See [`crate::Vc::to_resolved`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
         self.resolve_inner(ReadOutputOptions {
             consistency: ReadConsistency::Eventual,

@@ -245,7 +245,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .map(|reference| async {
             reference
                 .resolve_reference()
-                .resolve()
+                .to_resolved()
                 .await?
                 .primary_modules()
                 .owned()
