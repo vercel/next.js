@@ -302,6 +302,10 @@ impl StorageWriteGuard<'_> {
         category: SpecificTaskDataCategory,
         #[allow(unused_variables)] name: &str,
     ) {
+        debug_assert!(
+            !self.inner.key().is_transient(),
+            "transient task_ids should never be enqueued to be persisted"
+        );
         self.track_modification_internal(
             category,
             #[cfg(feature = "trace_task_modification")]
