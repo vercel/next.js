@@ -647,7 +647,7 @@ impl ChunkingContext for BrowserChunkingContext {
         let hash = content
             .content_hash(
                 Vc::cell(self.hash_salt.clone()),
-                HashAlgorithm::Xxh3Hash128Base40,
+                HashAlgorithm::Xxh3Hash128Base38,
             )
             .await?;
         let hash = hash
