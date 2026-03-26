@@ -330,12 +330,12 @@ export const installTemplate = async ({
     const pnpmVersion = getPnpmVersion();
     if (pnpmVersion === null || pnpmVersion.major >= 10) {
       const pnpmWorkspaceYaml = [
-        "ignoredBuiltDependencies:",
         // In v10.5.0 below, the packages field is required
         // or else ` ERROR  packages field missing or empty` occurs when running `pnpm add`.
-        pnpmVersion?.minor && pnpmVersion?.minor < 5
+        pnpmVersion && pnpmVersion.major === 10 && pnpmVersion.minor < 5
           ? "packages: []"
           : undefined,
+        "ignoredBuiltDependencies:",
         // Sharp has prebuilt binaries for the platforms next-swc has binaries.
         // If it needs to build binaries from source, next-swc wouldn't work either.
         // See https://sharp.pixelplumbing.com/install/#:~:text=When%20using%20pnpm%2C%20add%20sharp%20to%20ignoredBuiltDependencies%20to%20silence%20warnings
