@@ -25,14 +25,25 @@ export default function Page() {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    })
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
 
-    const json = await response.json()
-    setResult(json)
-    setLoading(false)
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`)
+      }
+
+      const json = await response.json()
+      setResult(json)
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'An unexpected error occurred during upload.'
+      setResult({ error: message })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
