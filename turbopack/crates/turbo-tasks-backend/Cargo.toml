@@ -14,7 +14,8 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size = ["dep:lzzzz"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
 verify_serialization = []
