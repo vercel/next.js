@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Main content</p>
+  return <p id="page-parallel">Main content</p>
 }

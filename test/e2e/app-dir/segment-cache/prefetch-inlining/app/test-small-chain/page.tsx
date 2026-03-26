@@ -1,3 +1,3 @@
 export default function SmallChainPage() {
-  return <p>Small chain page</p>
+  return <p id="page-small-chain">Small chain page</p>
 }
