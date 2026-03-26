@@ -156,7 +156,11 @@ export default class DevServer extends Server {
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.
       maxWorkers: 1,
-      concurrencyPerWorker: 4,
+      // concurrencyPerWorker must be 1: the manifest read-modify-write in
+      // nextInvoke (next-dev-server.ts) is not safe for concurrent calls from
+      // different pages. Serializing ensures no race between concurrent
+      // loadStaticPaths completions writing the prerender-manifest.json.
+      concurrencyPerWorker: 1,
       exposedMethods: ['loadStaticPaths'],
       enableWorkerThreads: this.nextConfig.experimental.workerThreads,
       forkOptions: {
