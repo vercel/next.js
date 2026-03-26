@@ -448,6 +448,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
+  "Allkin": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Allura": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -535,6 +540,19 @@
       }
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
+  "Alyamama": {
+    "weights": ["300", "400", "500", "600", "700", "800", "900", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 300,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["arabic", "greek", "latin", "latin-ext"]
   },
   "Amarante": {
     "weights": ["400"],
@@ -1841,6 +1859,26 @@
     ],
     "subsets": ["latin", "latin-ext"]
   },
+  "Betania Patmos": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Betania Patmos In GDL": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Beth Ellen": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -2960,6 +2998,21 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Bpmf Huninn": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Bpmf Iansui": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Bpmf Zihi Kai Std": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Braah One": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -3761,7 +3814,7 @@
         "defaultValue": 1979
       }
     ],
-    "subsets": ["latin", "latin-ext"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext"]
   },
   "Coda": {
     "weights": ["400", "800"],
@@ -4233,6 +4286,36 @@
   "Darumadrop One": {
     "weights": ["400"],
     "styles": ["normal"],
+    "subsets": ["latin", "latin-ext"]
+  },
+  "Datatype": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 50,
+        "max": 150,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": ["latin", "latin-ext"]
   },
   "David Libre": {
@@ -6264,6 +6347,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "telugu"]
   },
+  "Gveret Levin": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["hebrew", "latin"]
+  },
   "Gwendolyn": {
     "weights": ["400", "700"],
     "styles": ["normal"],
@@ -6799,6 +6887,11 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Idiqlat": {
+    "weights": ["200", "300", "400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
+  },
   "Imbue": {
     "weights": [
       "100",
@@ -7025,6 +7118,42 @@
       "greek-ext",
       "latin",
       "latin-ext",
+      "vietnamese"
+    ]
+  },
+  "Iosevka Charon": {
+    "weights": ["300", "400", "500", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": [
+      "armenian",
+      "braille",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "symbols2",
+      "vietnamese"
+    ]
+  },
+  "Iosevka Charon Mono": {
+    "weights": ["300", "400", "500", "700"],
+    "styles": ["normal", "italic"],
+    "subsets": [
+      "armenian",
+      "braille",
+      "cyrillic",
+      "cyrillic-ext",
+      "greek",
+      "greek-ext",
+      "latin",
+      "latin-ext",
+      "math",
+      "symbols",
+      "symbols2",
       "vietnamese"
     ]
   },
@@ -14955,6 +15084,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["cyrillic", "latin", "latin-ext"]
+  },
+  "Ramsina": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "syriac"]
   },
   "Ranchers": {
     "weights": ["400"],
