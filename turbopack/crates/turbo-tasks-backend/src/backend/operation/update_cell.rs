@@ -56,7 +56,7 @@ impl UpdateCellOperation {
         content: CellContent,
         is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u128>,
+        content_hash: Option<[u8; 16]>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
@@ -119,12 +119,8 @@ impl UpdateCellOperation {
             let skip_invalidation = !is_serializable_cell_content && {
                 let has_old_content = task.has_cell_data(false, cell);
                 if !has_old_content {
-                    match (
-                        content_hash,
-                        task.get_cell_data_hash(&cell)
-                            .map(|v| u128::from_ne_bytes(*v)),
-                    ) {
-                        (Some(new_hash), Some(old_hash)) => new_hash == old_hash,
+                    match (content_hash, task.get_cell_data_hash(&cell)) {
+                        (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
                         _ => false,
                     }
                 } else {
@@ -178,12 +174,10 @@ impl UpdateCellOperation {
 
                 // Update cell_data_hash before dropping the task lock
                 if !is_serializable_cell_content {
-                    let old_hash = task
-                        .get_cell_data_hash(&cell)
-                        .map(|v| u128::from_ne_bytes(*v));
+                    let old_hash = task.get_cell_data_hash(&cell).copied();
                     if old_hash != content_hash {
                         if let Some(hash) = content_hash {
-                            task.insert_cell_data_hash(cell, hash.to_ne_bytes());
+                            task.insert_cell_data_hash(cell, hash);
                         } else {
                             task.remove_cell_data_hash(&cell);
                         }
@@ -227,12 +221,10 @@ impl UpdateCellOperation {
 
         // Update cell_data_hash for non-serializable cells when not recomputing.
         if !is_serializable_cell_content {
-            let old_hash = task
-                .get_cell_data_hash(&cell)
-                .map(|v| u128::from_ne_bytes(*v));
+            let old_hash = task.get_cell_data_hash(&cell).copied();
             if old_hash != content_hash {
                 if let Some(hash) = content_hash {
-                    task.insert_cell_data_hash(cell, hash.to_ne_bytes());
+                    task.insert_cell_data_hash(cell, hash);
                 } else {
                     task.remove_cell_data_hash(&cell);
                 }

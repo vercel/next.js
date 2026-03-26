@@ -175,7 +175,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u128>,
+        content_hash: Option<[u8; 16]>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -1572,7 +1572,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<u128>,
+        content_hash: Option<[u8; 16]>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -2033,7 +2033,7 @@ impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
         &self,
-        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<u128>)>,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<[u8; 16]>)>,
     ) where
         T: VcValueType,
     {
@@ -2053,8 +2053,11 @@ impl CurrentCellRef {
         &self,
         functor: impl FnOnce(
             Option<&SharedReference>,
-        )
-            -> Option<(SharedReference, Option<SmallVec<[u64; 2]>>, Option<u128>)>,
+        ) -> Option<(
+            SharedReference,
+            Option<SmallVec<[u64; 2]>>,
+            Option<[u8; 16]>,
+        )>,
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
