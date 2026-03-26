@@ -114,7 +114,7 @@ export async function turbopackBuild(): Promise<{
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
     nextVersion: process.env.__NEXT_VERSION as string,
-    hashSalt: process.env.NEXT_HASH_SALT || undefined,
+    hashSalt: process.env.NEXT_HASH_SALT || '',
   }
 
   const sharedTurboOptions = {

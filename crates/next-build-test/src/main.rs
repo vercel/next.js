@@ -189,7 +189,7 @@ fn main() {
                 is_persistent_caching_enabled: false,
                 next_version: rcstr!("0.0.0"),
                 server_hmr: false,
-                hash_salt: None,
+                hash_salt: rcstr!(""),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

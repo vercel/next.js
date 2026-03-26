@@ -371,9 +371,10 @@ pub struct ProjectOptions {
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
 
-    /// An optional salt to mix into chunk and asset content hashes, allowing
-    /// users to force new filenames without changing file content.
-    pub hash_salt: Option<RcStr>,
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 #[derive(Default)]
@@ -730,7 +731,7 @@ impl ProjectContainer {
                 new_options.debug_build_paths = Some(debug_build_paths);
             }
             if let Some(hash_salt) = hash_salt {
-                new_options.hash_salt = Some(hash_salt);
+                new_options.hash_salt = hash_salt;
             }
 
             // TODO: Handle mode switch, should prevent mode being switched.
@@ -977,8 +978,9 @@ pub struct Project {
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
 
-    /// An optional salt to mix into chunk and asset content hashes.
-    hash_salt: Option<RcStr>,
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    hash_salt: RcStr,
 }
 
 #[turbo_tasks::value]
@@ -1240,7 +1242,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(self.hash_salt.clone().unwrap_or_default())
+        Vc::cell(self.hash_salt.clone())
     }
 
     #[turbo_tasks::function]

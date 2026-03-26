@@ -215,9 +215,10 @@ pub struct NapiProjectOptions {
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
 
-    /// An optional salt to mix into chunk and asset content hashes, allowing
-    /// users to force new filenames without changing file content.
-    pub hash_salt: Option<RcStr>,
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.

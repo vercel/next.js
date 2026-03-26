@@ -262,7 +262,7 @@ export interface NapiProjectOptions {
    * An optional salt to mix into chunk and asset content hashes, allowing
    * users to force new filenames without changing file content.
    */
-  hashSalt?: RcStr
+  hashSalt: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {

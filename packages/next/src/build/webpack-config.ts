@@ -1345,7 +1345,7 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
-      hashSalt: process.env.NEXT_HASH_SALT || undefined,
+      hashSalt: process.env.NEXT_HASH_SALT || '',
     },
     performance: false,
     resolve: resolveConfig,
@@ -1797,6 +1797,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  hashSalt: process.env.NEXT_HASH_SALT || '',
                 },
               },
             ]
