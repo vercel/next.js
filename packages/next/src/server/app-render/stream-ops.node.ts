@@ -18,7 +18,6 @@ import { PassThrough, Readable } from 'node:stream'
 
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import {
-  continueFizzStream as webContinueFizzStream,
   continueStaticPrerender as webContinueStaticPrerender,
   continueDynamicPrerender as webContinueDynamicPrerender,
   continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
@@ -27,12 +26,23 @@ import {
   streamToString as webStreamToString,
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
+  createRootLayoutValidatorStream,
+  chainTransformers,
+  createBufferedTransformStream,
+  createHtmlDataDplIdTransformStream,
+  createMetadataTransformStream,
+  createDeferredSuffixStream,
+  createFlightDataInjectionTransformStream,
+  createMoveSuffixStream,
+  createHeadInsertionTransformStream,
+  CLOSE_TAG,
 } from '../stream-utils/node-web-streams-helper'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
+import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -135,45 +145,31 @@ export { renderToWebFizzStream } from './stream-ops.web'
 
 export async function renderToNodeFizzStream(
   element: React.ReactElement,
-  streamOptions: any,
-  runInContext?: <T>(fn: () => T) => T
+  streamOptions: any
 ): Promise<FizzStreamResult> {
-  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
-
   const pt = new PassThrough()
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
 
-  // Node.js renderToPipeableStream passes a plain object to onHeaders,
-  // but callers expect a web Headers instance.
-  const originalOnHeaders = streamOptions?.onHeaders
-  const wrappedOnHeaders = originalOnHeaders
-    ? (headers: Record<string, string>) => {
-        originalOnHeaders(new Headers(headers))
-      }
-    : undefined
-
-  const pipeable = run(() =>
-    getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
-      renderToPipeableStream(element, {
-        ...streamOptions,
-        onHeaders: wrappedOnHeaders,
-        onShellReady() {
-          streamOptions?.onShellReady?.()
-          pipeable.pipe(pt)
-          shellReady.resolve()
-        },
-        onShellError(error: unknown) {
-          streamOptions?.onShellError?.(error)
-          shellReady.reject(error)
-        },
-        onAllReady() {
-          streamOptions?.onAllReady?.()
-          allReady.resolve()
-        },
-        onError: streamOptions?.onError,
-      })
-    )
+  const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
+    renderToPipeableStream(element, {
+      ...streamOptions,
+      onHeaders: streamOptions?.onHeaders,
+      onShellReady() {
+        streamOptions?.onShellReady?.()
+        pipeable.pipe(pt)
+        shellReady.resolve()
+      },
+      onShellError(error: unknown) {
+        streamOptions?.onShellError?.(error)
+        shellReady.reject(error)
+      },
+      onAllReady() {
+        streamOptions?.onAllReady?.()
+        allReady.resolve()
+      },
+      onError: streamOptions?.onError,
+    })
   )
 
   await shellReady.promise
@@ -235,6 +231,71 @@ export async function resumeAndAbort(
 // Bridge Node Readable → web, apply existing web transforms, Readable.fromWeb()
 // ---------------------------------------------------------------------------
 
+export async function continueNodeFizzStream(
+  renderStream: ReactDOMServerReadableStream,
+  {
+    suffix,
+    inlinedDataStream,
+    isStaticGeneration,
+    deploymentId,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    validateRootLayout,
+  }: import('./stream-ops.web').ContinueFizzStreamOptions
+): Promise<ReadableStream<Uint8Array>> {
+  // Suffix itself might contain close tags at the end, so we need to split it.
+  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
+
+  if (isStaticGeneration) {
+    // If we're generating static HTML we need to wait for it to resolve before continuing.
+    await renderStream.allReady
+  } else {
+    // Otherwise, we want to make sure Fizz is done with all microtasky work
+    // before we start pulling the stream and cause a flush.
+    await waitAtLeastOneReactRenderTask()
+  }
+
+  return chainTransformers(
+    nodeReadableToWebReadableStream(renderStream) as ReadableStream<Uint8Array>,
+    [
+      // Buffer everything to avoid flushing too frequently
+      createBufferedTransformStream(),
+
+      // Insert data-dpl-id attribute on the html tag
+      deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+
+      // Transform metadata
+      createMetadataTransformStream(getServerInsertedMetadata),
+
+      // Insert suffix content
+      suffixUnclosed != null && suffixUnclosed.length > 0
+        ? createDeferredSuffixStream(suffixUnclosed)
+        : null,
+
+      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
+      inlinedDataStream
+        ? createFlightDataInjectionTransformStream(
+            nodeReadableToWebReadableStream(
+              inlinedDataStream
+            ) as ReadableStream<Uint8Array>,
+            true
+          )
+        : null,
+
+      // Validate the root layout for missing html or body tags
+      validateRootLayout ? createRootLayoutValidatorStream() : null,
+
+      // Close tags should always be deferred to the end
+      createMoveSuffixStream(),
+
+      // Special head insertions
+      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
+      // hydration errors. Remove this once it's ready to be handled by react itself.
+      createHeadInsertionTransformStream(getServerInsertedHTML),
+    ]
+  )
+}
+
 export async function continueFizzStream(
   renderStream: AnyStream,
   opts: import('./stream-ops.web').ContinueFizzStreamOptions
@@ -252,7 +313,7 @@ export async function continueFizzStream(
   const fizzLike = Object.assign(webStream, {
     allReady: opts.allReady ?? Promise.resolve(),
   }) as ReactDOMServerReadableStream
-  const webResult = await webContinueFizzStream(fizzLike, webOpts)
+  const webResult = await continueNodeFizzStream(fizzLike, webOpts)
   return webToReadable(webResult)
 }
 
