@@ -2579,3 +2579,29 @@ pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
     Ok(())
 }
+
+// ── Multi-project daemon support ──────────────────────────────────────────────
+
+/// Opaque handle wrapping a DaemonClient, passed as NAPI External.
+pub struct DaemonHandle {
+    pub client: next_api::ipc::client::DaemonClient,
+}
+
+/// Start the Turbopack daemon server. Blocks until the process is killed.
+/// Called by `next internal turbopack-daemon <socket-path>`.
+#[napi]
+pub async fn start_turbopack_daemon(socket_path: String) -> napi::Result<()> {
+    next_api::daemon::start_daemon(&socket_path)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// Connect to a Turbopack daemon at socket_path.
+/// Returns an opaque External handle for use in subsequent NAPI calls.
+#[napi(ts_return_type = "Promise<{ __napiType: \"DaemonHandle\" }>")]
+pub async fn connect_turbopack_daemon(socket_path: String) -> napi::Result<External<DaemonHandle>> {
+    let client = next_api::ipc::client::DaemonClient::connect(&socket_path)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    Ok(External::new(DaemonHandle { client }))
+}

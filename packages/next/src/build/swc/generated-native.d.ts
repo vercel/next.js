@@ -732,3 +732,15 @@ export declare function teardownTraceSubscriber(
  * query it without blocking Node.js with the WebSocket server loop.
  */
 export declare class TraceServerHandle {}
+/**
+ * Start the Turbopack daemon server. Blocks until the process is killed.
+ * Called by `next internal turbopack-daemon <socket-path>`.
+ */
+export declare function startTurbopackDaemon(socketPath: string): Promise<void>
+/**
+ * Connect to a Turbopack daemon at socketPath.
+ * Returns an opaque External handle for use in subsequent NAPI calls.
+ */
+export declare function connectTurbopackDaemon(
+  socketPath: string
+): Promise<{ __napiType: 'DaemonHandle' }>

@@ -34,10 +34,16 @@ export type NextBuildOptions = {
   debugBuildPaths?: string
   experimentalCpuProf?: boolean
   internalTrace?: string | boolean
+  turbopackDaemon?: string
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
+
+  if (options.turbopackDaemon) {
+    process.env.NEXT_TURBOPACK_DAEMON_SOCKET = options.turbopackDaemon
+  }
+
   process.on('SIGTERM', () => {
     saveCpuProfile()
     process.exit(143)

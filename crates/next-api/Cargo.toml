@@ -50,11 +50,11 @@ turbopack-node = { workspace = true, default-features = false }
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-wasm = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
-tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 

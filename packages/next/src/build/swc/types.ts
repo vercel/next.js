@@ -30,8 +30,13 @@ export interface Binding {
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions,
-      callbacks?: TurbopackProjectCallbacks
+      callbacks?: TurbopackProjectCallbacks,
+      daemon?: { __napiType: 'DaemonHandle' }
     ): Promise<Project>
+    startTurbopackDaemon(socketPath: string): Promise<void>
+    connectTurbopackDaemon(
+      socketPath: string
+    ): Promise<{ __napiType: 'DaemonHandle' }>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
