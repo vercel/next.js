@@ -215,9 +215,7 @@ describe('server-hmr config opt-out', () => {
       app: new FileRef(join(__dirname, 'app')),
     },
     nextConfig: {
-      experimental: {
-        serverFastRefresh: false,
-      },
+      serverFastRefresh: false,
     },
   })
 
@@ -258,9 +256,7 @@ describe('server-hmr CLI/config conflict warning', () => {
       app: new FileRef(join(__dirname, 'app')),
     },
     nextConfig: {
-      experimental: {
-        serverFastRefresh: true,
-      },
+      serverFastRefresh: true,
     },
     startArgs: ['--no-server-fast-refresh'],
   })
@@ -275,7 +271,7 @@ describe('server-hmr CLI/config conflict warning', () => {
     await next.render('/')
 
     expect(next.cliOutput).toContain(
-      'The CLI flag "--no-server-fast-refresh" conflicts with "experimental.serverFastRefresh: true" in your Next.js config. The CLI flag will take precedence.'
+      'The CLI flag "--no-server-fast-refresh" conflicts with "serverFastRefresh: true" in your Next.js config. The CLI flag will take precedence.'
     )
   })
 })
