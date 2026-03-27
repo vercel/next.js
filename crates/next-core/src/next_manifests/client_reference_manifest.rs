@@ -177,6 +177,8 @@ async fn build_manifest(
             rcstr!("")
         };
 
+        entry_manifest.module_loading.prefix =
+            format!("{}static/chunks", prefix_path).into();
         entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
@@ -282,10 +284,15 @@ async fn build_manifest(
                     // be handled separately.
                     .filter(|path| path.ends_with(".js"))
                     .map(|path| {
+                        // All client JS chunks are under `static/chunks/`. Strip
+                        // that prefix here since `moduleLoading.prefix` already
+                        // contains it, saving one repetition per entry.
+                        let relative = path
+                            .strip_prefix("static/chunks")
+                            .unwrap_or(&path);
                         format!(
-                            "{}{}{}",
-                            prefix_path,
-                            path.split('/').map(encode_uri_component).format("/"),
+                            "{}{}",
+                            relative.split('/').map(encode_uri_component).format("/"),
                             suffix_path
                         )
                     })

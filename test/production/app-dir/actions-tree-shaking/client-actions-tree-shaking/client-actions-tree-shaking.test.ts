@@ -43,11 +43,13 @@ describe('app-dir - client-actions-tree-shaking', () => {
           chunks.add(chunk)
         }
       }
-      // clientModules is a mapping from module name to a set of URLs
-      // So strip that prefix and add it to the chunks
+      // clientModules is a mapping from module name to a set of chunk paths
+      // relative to moduleLoading.prefix. Reconstruct the full URL and strip
+      // the /_next/ prefix to get the path relative to the dist directory.
       for (const clientModule of Object.values(clientManifest.clientModules)) {
         for (const chunk of clientModule.chunks) {
-          chunks.add(parseRelativeUrl(chunk).pathname.replace('/_next/', ''))
+          const fullPath = clientManifest.moduleLoading.prefix + chunk
+          chunks.add(parseRelativeUrl(fullPath).pathname.replace('/_next/', ''))
         }
       }
     } else {
