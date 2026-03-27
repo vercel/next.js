@@ -1,5 +1,6 @@
 import type { Response } from 'node-fetch'
-import { nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('server-hmr', () => {
@@ -204,6 +205,79 @@ describe('server-hmr', () => {
           expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
         })
       }
+    )
+  })
+})
+
+describe('server-hmr config opt-out', () => {
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      'tsconfig.json': new FileRef(join(__dirname, 'tsconfig.json')),
+    },
+    nextConfig: {
+      experimental: {
+        serverFastRefresh: false,
+      },
+    },
+  })
+
+  const itTurbopackDev = isTurbopack && isNextDev ? it : it.skip
+
+  itTurbopackDev(
+    're-evaluates unmodified dependencies when serverFastRefresh is disabled via config',
+    async () => {
+      const initial = await next
+        .fetch('/api/with-dep')
+        .then((res) => res.json())
+      expect(initial.routeVersion).toBe('v1')
+      const initialDepEvaluatedAt = initial.depEvaluatedAt
+
+      // Change only the route module, not the dependency
+      await next.patchFile('app/api/with-dep/route.ts', (content) =>
+        content.replace("'v1'", "'v2'")
+      )
+
+      await retry(async () => {
+        const updated = await next
+          .fetch('/api/with-dep')
+          .then((res) => res.json())
+
+        expect(updated.routeVersion).toBe('v2')
+
+        // With server HMR disabled, the dependency SHOULD be re-evaluated
+        // (full module graph is re-evaluated on changes)
+        expect(updated.depEvaluatedAt).not.toBe(initialDepEvaluatedAt)
+      })
+    }
+  )
+})
+
+describe('server-hmr CLI/config conflict warning', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      'tsconfig.json': new FileRef(join(__dirname, 'tsconfig.json')),
+    },
+    nextConfig: {
+      experimental: {
+        serverFastRefresh: true,
+      },
+    },
+    startArgs: ['--no-server-fast-refresh'],
+  })
+
+  if (!isNextDev) {
+    it('should be skipped in production', () => {})
+    return
+  }
+
+  it('should warn when CLI flag conflicts with config', async () => {
+    // Trigger a page load so the server is fully started
+    await next.render('/')
+
+    expect(next.cliOutput).toContain(
+      'The CLI flag "--no-server-fast-refresh" conflicts with "experimental.serverFastRefresh: true" in your Next.js config. The CLI flag will take precedence.'
     )
   })
 })

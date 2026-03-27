@@ -165,23 +165,23 @@ export async function initialize(opts: {
     let developmentConfig = config as NextConfigComplete
 
     // Resolve the effective serverFastRefresh value.
-    // CLI flag (opts.serverFastRefresh) takes precedence over config.
+    // Both default to enabled (true). CLI takes precedence over config.
+    const cliServerFastRefresh = opts.serverFastRefresh
     const configServerFastRefresh =
       developmentConfig.experimental.serverFastRefresh
-    let effectiveServerFastRefresh = opts.serverFastRefresh
-    if (opts.serverFastRefresh !== undefined) {
-      // CLI flag was explicitly set
-      if (
-        configServerFastRefresh !== undefined &&
-        configServerFastRefresh !== opts.serverFastRefresh
-      ) {
-        Log.warn(
-          `The CLI flag "${opts.serverFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.serverFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
-        )
-      }
-    } else if (configServerFastRefresh !== undefined) {
-      // Only config is set
-      effectiveServerFastRefresh = configServerFastRefresh
+    let effectiveServerFastRefresh: boolean | undefined
+    if (
+      cliServerFastRefresh !== undefined &&
+      configServerFastRefresh !== undefined &&
+      cliServerFastRefresh !== configServerFastRefresh
+    ) {
+      Log.warn(
+        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.serverFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+      )
+      effectiveServerFastRefresh = cliServerFastRefresh
+    } else {
+      effectiveServerFastRefresh =
+        cliServerFastRefresh ?? configServerFastRefresh
     }
 
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
