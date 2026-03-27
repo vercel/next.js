@@ -157,7 +157,7 @@ impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
     }
 }
 
-impl<T: TraceRawVcs> TraceRawVcs for Box<[T]> {
+impl<T: TraceRawVcs> TraceRawVcs for [T] {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
@@ -283,6 +283,12 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Box<T> {
 }
 
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&**self, trace_context);
+    }
+}
+
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for triomphe::Arc<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&**self, trace_context);
     }

@@ -80,7 +80,10 @@ pub use crate::{
     dyn_task_inputs::{
         DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
     },
-    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
+    effect::{
+        ConflictingEffectError, Effect, EffectError, EffectErrorCollection, EffectStateStorage,
+        Effects, emit_effect, take_effects,
+    },
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{

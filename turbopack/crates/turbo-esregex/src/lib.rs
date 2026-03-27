@@ -15,7 +15,7 @@ use bincode::{
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom", operation)]
 pub struct EsRegex {
     #[turbo_tasks(trace_ignore)]
     delegate: EsRegexImpl,

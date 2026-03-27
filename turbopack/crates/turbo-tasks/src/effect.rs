@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     collections::hash_map,
     error::Error as StdError,
     future::Future,
@@ -8,7 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
-use futures::{StreamExt, TryStreamExt};
+use futures::StreamExt;
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
@@ -66,8 +67,8 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
 /// So instead, we leave it up to the caller to figure out how to downcast these errors themselves.
 ///
 /// [`SharedError`]: crate::util::SharedError
-pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
-impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
+pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + Any {}
+impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + Any {}
 
 enum EffectLastApplied {
     Unapplied,
@@ -232,17 +233,11 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     })
 }
 
-#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
 #[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
-struct ConflictingEffectError {
+pub struct ConflictingEffectError {
     key_len: usize,
 }
-
-/// Cached result of grouping effects by key and dedup/conflict detection.
-/// Each entry is (index into `effects`, per-key state entry).
-/// The `EffectStateEntry` is resolved once and cached to avoid repeated map lookups on subsequent
-/// `apply()` calls.
-type UniqueEffectIndices = Result<Vec<(usize, EffectStateEntry)>, Arc<ConflictingEffectError>>;
 
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
@@ -254,9 +249,8 @@ pub struct Effects {
     /// Cached `(index, state_entry)` pairs after grouping by key and dedup/conflict detection.
     /// Computed once on first `apply()` call; reused on subsequent calls to avoid repeated
     /// key allocations and map lookups.
-    /// `Err` means a conflict was detected.
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    unique_indices: OnceLock<UniqueEffectIndices>,
+    unique_indices: OnceLock<Result<Vec<(usize, EffectStateEntry)>, ConflictingEffectError>>,
 }
 
 impl PartialEq for Effects {
@@ -279,27 +273,33 @@ impl PartialEq for Effects {
 impl Eq for Effects {}
 
 impl Effects {
-    /// Applies all effects that have been captured.
+    /// Applies all effects that have been captured, and returns an [`EffectErrorCollection`].
+    ///
+    /// Most callers should use `turbopack_core::effect::apply_effects_with_plain_issues` if they
+    /// want to convert effect errors to `Issue`s
     ///
     /// On first call: groups effects by key, detects duplicates/conflicts, caches deduped indices.
     /// On subsequent calls: skips grouping (reuses cached indices), only runs per-key state checks.
     ///
-    /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]), after
+    /// This must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]), after
     /// [`take_effects`] is called from an [operation read with strong
     /// consistency][crate::OperationVc::read_strongly_consistent].
     ///
     /// See [`take_effects`] for example usage.
-    pub async fn apply(&self) -> Result<(), Arc<dyn EffectError>> {
+    pub async fn apply_with_raw_errors(
+        &self,
+    ) -> Result<EffectErrorCollection, ConflictingEffectError> {
         debug_assert_in_top_level_task(
             "Effects::apply must be called from a top-level task to avoid unintended \
              re-executions due to eventual consistency",
         );
         if self.effects.is_empty() {
-            return Ok(());
+            // fast path if there are no effects
+            return Ok(EffectErrorCollection(Vec::new()));
         }
-
         let span = tracing::info_span!("apply effects", count = self.effects.len());
 
+        let errors: Mutex<Vec<Arc<dyn EffectError>>> = Mutex::new(Vec::new());
         async {
             // Compute unique (index, state_entry) pairs once; reuse on later calls.
             // The EffectStateEntry is resolved from the state map on first call and cached
@@ -317,9 +317,9 @@ impl Effects {
                                 if self.effects[*entry.get()].inner.value_hash()
                                     != effect.inner.value_hash()
                                 {
-                                    return Err(Arc::new(ConflictingEffectError {
+                                    return Err(ConflictingEffectError {
                                         key_len: entry.key().len(),
-                                    }));
+                                    });
                                 }
                             }
                         }
@@ -340,13 +340,12 @@ impl Effects {
                     Ok(indices)
                 })
                 .as_ref()
-                .map_err(|err| err.clone() as Arc<_>)?;
+                .map_err(|err| -> ConflictingEffectError { err.clone() })?;
 
             // Apply effects using cached (index, state_entry) pairs.
             // Hot path: no map lookup — EffectStateEntry is cached in unique_indices.
             futures::stream::iter(unique_indices.iter())
-                .map(Ok::<_, Arc<dyn EffectError>>)
-                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |(idx, entry)| {
+                .for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |(idx, entry)| {
                     let effect: &dyn DynEffect = &*self.effects[*idx].inner;
 
                     // If `effect.dyn_apply` panics or the apply future is dropped before
@@ -388,7 +387,10 @@ impl Effects {
                                 EffectLastApplied::Applied { value_hash, result } => {
                                     // Fast path: check if the stored value already matches
                                     if effect.value_hash() == *value_hash {
-                                        return result.clone();
+                                        if let Err(err) = result {
+                                            errors.lock().push(err.clone());
+                                        }
+                                        return;
                                     } else {
                                         break begin_in_progress(last_applied_guard);
                                     }
@@ -427,17 +429,42 @@ impl Effects {
                     };
                     write_event.notify(usize::MAX);
 
-                    effect_result
+                    if let Err(err) = effect_result {
+                        errors.lock().push(err);
+                    }
                 })
-                .await
+                .await;
+            Ok(())
         }
         .instrument(span)
-        .await
+        .await?;
+        Ok(EffectErrorCollection(errors.into_inner()))
+    }
+
+    /// Applies all effects and returns an [`anyhow::Error`] if any effect failed. This is intended
+    /// for unit tests and toy programs. Callers in Turbopack should use
+    /// `turbopack_core::effect::apply_effects_with_plain_issues` instead.
+    ///
+    /// This is a convenience wrapper around [`Effects::apply`] that returns the first error
+    /// as an `anyhow::Error`.
+    pub async fn apply_anyhow(&self) -> Result<()> {
+        let EffectErrorCollection(errors) = self.apply_with_raw_errors().await?;
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!(errors.into_iter().next().unwrap()))
+        }
     }
 }
 
+/// A wrapper type around [`EffectError`] that is annotated with `#[must_use]`.
+#[must_use]
+pub struct EffectErrorCollection(pub Vec<Arc<dyn EffectError>>);
+
 #[cfg(test)]
 mod tests {
+    use std::sync::OnceLock;
+
     use crate::{CollectiblesSource, Effects, take_effects};
 
     #[test]
@@ -451,6 +478,15 @@ mod tests {
                     unique_indices: Default::default(),
                 }
                 .apply(),
+            );
+        }
+        fn check_effects_apply_anyhow() {
+            assert_sync(
+                Effects {
+                    effects: Vec::new(),
+                    unique_indices: OnceLock::new(),
+                }
+                .apply_anyhow(),
             );
         }
         fn check_take_effects<T: CollectiblesSource + Send + Sync>(t: T) {

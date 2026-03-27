@@ -279,7 +279,7 @@ async fn endpoint_write_to_disk_with_apply(
         output_paths,
         effects,
     } = &*op.read_strongly_consistent().await?;
-    effects.apply().await?;
+    effects.apply_anyhow().await?;
 
     Ok(output_paths.clone())
 }

@@ -89,7 +89,7 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
         ))
         .read_strongly_consistent()
         .await?
-        .apply()
+        .apply_anyhow()
         .await?;
 
         println!(
@@ -126,7 +126,7 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
             ))
             .read_strongly_consistent()
             .await?
-            .apply()
+            .apply_anyhow()
             .await?;
 
             total_writes += parallelism as u64;

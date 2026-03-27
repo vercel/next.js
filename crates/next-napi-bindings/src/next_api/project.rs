@@ -62,12 +62,15 @@ use turbo_tasks_fs::{
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    issue::PlainIssue,
+    effect::apply_effects_with_plain_issues,
+    issue::{IssueFilter, PlainIssue, extend_issues},
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
-use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
+use turbopack_ecmascript_hmr_protocol::{
+    ClientUpdateInstruction, Issue as HmrIssue, ResourceIdentifier,
+};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
@@ -986,8 +989,9 @@ impl NapiEntrypoints {
 #[turbo_tasks::value(serialization = "skip")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1003,6 +1007,7 @@ async fn get_entrypoints_with_issues_operation(
         entrypoints,
         issues,
         effects,
+        filter,
     }
     .cell())
 }
@@ -1018,15 +1023,17 @@ fn project_container_entrypoints_operation(
 
 #[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::value(serialization = "skip")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[napi(object)]
@@ -1424,17 +1431,16 @@ pub async fn project_write_all_entrypoints_to_disk(
                 entrypoints,
                 issues,
                 effects,
+                filter,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
 
             // Apply phase side effects. Asset emission is performed once at the end.
-            effects.apply().await?;
+            let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+            let issues = extend_issues(issues, &effect_plain_issues);
 
-            Ok((
-                entrypoints.clone(),
-                issues.iter().cloned().collect::<Vec<_>>(),
-            ))
+            Ok((entrypoints.clone(), issues))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
@@ -1488,17 +1494,16 @@ pub async fn project_write_all_entrypoints_to_disk(
                     entrypoints,
                     issues,
                     effects,
+                    filter,
                 } = &*entrypoints_with_issues_op
                     .read_strongly_consistent()
                     .await?;
 
                 // Apply phase side effects. Asset emission is performed once at the end.
-                effects.apply().await?;
+                let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+                let issues = extend_issues(issues, &effect_plain_issues);
 
-                Ok((
-                    entrypoints.clone(),
-                    issues.iter().cloned().collect::<Vec<_>>(),
-                ))
+                Ok((entrypoints.clone(), issues))
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
             .await?;
@@ -1506,7 +1511,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         if deferred_entrypoints.is_some() {
             entrypoints = deferred_entrypoints;
         }
-        issues.extend(deferred_issues);
+        issues = extend_issues(&issues, &deferred_issues);
     }
 
     let emit_issues = tt
@@ -1516,17 +1521,20 @@ pub async fn project_write_all_entrypoints_to_disk(
                 app_dir_only,
                 has_deferred_entrypoints,
             );
-            let OperationResult { issues, effects } =
-                &*emit_result_op.read_strongly_consistent().await?;
+            let OperationResult {
+                issues,
+                effects,
+                filter,
+            } = &*emit_result_op.read_strongly_consistent().await?;
 
-            effects.apply().await?;
-
-            Ok(issues.iter().cloned().collect::<Vec<_>>())
+            let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+            let issues = extend_issues(issues, &effect_plain_issues);
+            Ok(issues)
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
-    issues.extend(emit_issues);
+    issues = extend_issues(&issues, &emit_issues);
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1559,6 +1567,7 @@ async fn get_all_written_entrypoints_with_issues_operation(
         entrypoints,
         issues,
         effects,
+        filter,
     }
     .cell())
 }
@@ -1639,7 +1648,12 @@ async fn emit_all_output_assets_once_with_issues_operation(
     let (_, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
 
-    Ok(OperationResult { issues, effects }.cell())
+    Ok(OperationResult {
+        issues,
+        effects,
+        filter,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -1720,6 +1734,7 @@ pub async fn project_entrypoints(
                 entrypoints,
                 issues,
                 effects: _,
+                filter: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
@@ -1761,12 +1776,14 @@ pub fn project_entrypoints_subscribe(
                     entrypoints,
                     issues,
                     effects,
+                    filter,
                 } = &*entrypoints_with_issues_op
                     .read_strongly_consistent()
                     .await?;
 
-                effects.apply().await?;
-                Ok((entrypoints.clone(), issues.clone()))
+                let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+                let issues = extend_issues(issues, &effect_plain_issues);
+                Ok((entrypoints.clone(), issues))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
@@ -1794,8 +1811,9 @@ pub fn project_entrypoints_subscribe(
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1828,6 +1846,7 @@ async fn hmr_update_with_issues_operation(
         update,
         issues,
         effects,
+        filter,
     }
     .cell())
 }
@@ -1875,12 +1894,15 @@ pub fn project_hmr_events(
                         update,
                         issues,
                         effects,
+                        filter,
                     } = &*update;
                     // HACK(bgw): Remove this mark call
                     mark_top_level_task();
-                    effects.apply().await?;
+                    let effect_plain_issues =
+                        apply_effects_with_plain_issues(effects, *filter).await?;
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
+                    let issues = extend_issues(issues, &effect_plain_issues);
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1890,7 +1912,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone()))
+                    Ok((Some(update.clone()), issues))
                 }
             }
         },
@@ -1903,7 +1925,7 @@ pub fn project_hmr_events(
                 .collect();
             let update_issues = issues
                 .iter()
-                .map(|issue| Issue::from(&**issue))
+                .map(|issue| HmrIssue::from(&**issue))
                 .collect::<Vec<_>>();
 
             let identifier = ResourceIdentifier {
@@ -1938,8 +1960,9 @@ struct HmrChunkNames {
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1970,6 +1993,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
         chunk_names: hmr_chunk_names,
         issues,
         effects,
+        filter,
     }
     .cell())
 }
@@ -1996,12 +2020,14 @@ pub fn project_hmr_chunk_names_subscribe(
                 chunk_names,
                 issues,
                 effects,
+                filter,
             } = &*hmr_chunk_names_with_issues_op
                 .read_strongly_consistent()
                 .await?;
-            effects.apply().await?;
+            let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+            let issues = extend_issues(issues, &effect_plain_issues);
 
-            Ok((chunk_names.clone(), issues.clone()))
+            Ok((chunk_names.clone(), issues))
         },
         move |ctx| {
             let (chunk_names, issues) = ctx.value;
@@ -2469,12 +2495,16 @@ pub async fn project_write_analyze_data(
         .turbo_tasks()
         .run_once(async move {
             let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
-            let WriteAnalyzeResult { issues, effects } =
-                &*analyze_data_op.read_strongly_consistent().await?;
+            let WriteAnalyzeResult {
+                issues,
+                effects,
+                filter,
+            } = &*analyze_data_op.read_strongly_consistent().await?;
 
             // Write the files to disk
-            effects.apply().await?;
-            Ok(issues.clone())
+            let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+            let issues = extend_issues(issues, &effect_plain_issues);
+            Ok(issues)
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -2508,8 +2538,13 @@ async fn get_all_compilation_issues_operation(
 ) -> Result<Vc<OperationResult>> {
     let inner_op = get_all_compilation_issues_inner_operation(container);
     let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
-    Ok(OperationResult { issues, effects }.cell())
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &*filter).await?;
+    Ok(OperationResult {
+        issues,
+        effects,
+        filter,
+    }
+    .cell())
 }
 
 /// Returns the build-feature-usage telemetry summary for this project — the set of
@@ -2559,7 +2594,11 @@ pub async fn project_get_all_compilation_issues(
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            let OperationResult {
+                issues,
+                effects: _,
+                filter: _,
+            } = &*op.read_strongly_consistent().await?;
             Ok(issues.clone())
         })
         .await

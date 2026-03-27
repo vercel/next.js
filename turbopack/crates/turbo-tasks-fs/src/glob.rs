@@ -26,8 +26,8 @@ use crate::globset::parse;
 // Note: a/**/b does match a/b, so we need some special logic about path
 // separators
 
-#[turbo_tasks::value(eq = "manual", serialization = "custom")]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(eq = "manual", serialization = "custom", operation)]
+#[derive(Debug, Clone, Hash)]
 pub struct Glob {
     glob: RcStr,
     #[turbo_tasks(trace_ignore)]
@@ -36,6 +36,12 @@ pub struct Glob {
     regex: Regex,
     #[turbo_tasks(trace_ignore)]
     directory_match_regex: Regex,
+}
+
+impl TaskInput for Glob {
+    fn is_transient(&self) -> bool {
+        false
+    }
 }
 
 impl PartialEq for Glob {

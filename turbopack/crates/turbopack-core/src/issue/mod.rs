@@ -7,6 +7,7 @@ pub mod resolve;
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
+    sync::Arc,
 };
 
 use anyhow::{Result, bail};
@@ -17,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString,
-    ValueToStringRef, Vc, emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationValue, OperationVc, RawVc, ReadRef, ResolvedVc,
+    TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
+    ValueToString, ValueToStringRef, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -39,7 +40,17 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 #[derive(
-    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
+    PartialOrd,
+    Ord,
+    Copy,
+    Clone,
+    Hash,
+    Debug,
+    DeterministicHash,
+    TaskInput,
+    Serialize,
+    Deserialize,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
@@ -239,11 +250,20 @@ where
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
-
 /// A pattern that can match by exact string, glob, or regex.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+    OperationValue,
+    Hash,
+    TaskInput,
+)]
 pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
     ExactString(RcStr),
@@ -266,7 +286,18 @@ impl IgnoreIssuePattern {
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+    OperationValue,
+    TaskInput,
+)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -276,7 +307,8 @@ pub struct IgnoreIssue {
     pub description: Option<IgnoreIssuePattern>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(TaskInput)]
 pub struct IssueFilter {
     /// The minimum severity for issues
     severity: IssueSeverity,
@@ -1122,6 +1154,31 @@ where
     fn drop_issues(self) {
         self.drop_collectibles::<Box<dyn Issue>>();
     }
+}
+
+/// Extends a sorted issue list returned by [`CapturedIssues::get_plain_issues`].
+pub fn extend_issues(
+    base: &Arc<[ReadRef<PlainIssue>]>,
+    other: &[ReadRef<PlainIssue>],
+) -> Arc<[ReadRef<PlainIssue>]> {
+    debug_assert!(
+        base.is_sorted(),
+        "extend_issues must be called with a sorted base list of issues"
+    );
+    // optimization: Return the given arc if the other one is empty
+    if other.is_empty() {
+        return base.clone();
+    }
+    if base.is_empty() {
+        let mut sorted = Box::<[_]>::from(other);
+        sorted.sort();
+        return Arc::from(sorted);
+    }
+    let mut extended = Vec::with_capacity(base.len() + other.len());
+    extended.extend_from_slice(base);
+    extended.extend_from_slice(other);
+    extended.sort();
+    Arc::from(extended)
 }
 
 /// A helper function to print out issues to the console.

@@ -111,7 +111,7 @@ pub async fn process_request_with_content_source(
         effects,
         content_source_side_effects,
     } = &*wrapper_op.read_strongly_consistent().await?;
-    effects.apply().await?;
+    effects.apply_anyhow().await?;
     handle_issues(
         wrapper_op,
         issue_reporter,
