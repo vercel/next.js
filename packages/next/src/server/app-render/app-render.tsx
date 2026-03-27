@@ -50,7 +50,7 @@ import {
   createPendingStream,
   createOnHeadersCallback,
   resumeAndAbort,
-  renderToFlightStream,
+  renderToWebFlightStream,
   resumeToFizzStream,
   getServerPrerender,
   getClientPrerender,
@@ -859,7 +859,7 @@ async function generateDynamicFlightRenderResult(
 
   const flightStream = workUnitAsyncStorage.run(
     requestStore,
-    renderToFlightStream,
+    renderToWebFlightStream,
     ctx.componentMod,
     rscPayload,
     clientModules,
@@ -1140,7 +1140,7 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
       stageController.advanceStage(RenderStage.Static)
       return workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ctx.componentMod,
         rscPayload,
         clientModules,
@@ -3351,7 +3351,7 @@ async function renderToStream(
           reactServerResult = new ReactServerResult(
             workUnitAsyncStorage.run(
               requestStore,
-              renderToFlightStream,
+              renderToWebFlightStream,
               ctx.componentMod,
               RSCPayload,
               clientModules,
@@ -3392,7 +3392,7 @@ async function renderToStream(
           reactServerResult = new ReactServerResult(
             workUnitAsyncStorage.run(
               requestStore,
-              renderToFlightStream,
+              renderToWebFlightStream,
               ctx.componentMod,
               RSCPayload,
               clientModules,
@@ -3769,7 +3769,7 @@ async function renderToStream(
 
         errorServerStream = workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ctx.componentMod,
           errorRSCPayload,
           clientModules,
@@ -3947,7 +3947,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ComponentMod,
           initialRscPayload,
           clientModules,
@@ -4114,7 +4114,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ComponentMod,
           finalRscPayload,
           clientModules,
@@ -4437,7 +4437,7 @@ async function logMessagesAndSendErrorsToBrowser(
 
     const { clientModules } = getClientReferenceManifest()
 
-    const errorsFlightStream = renderToFlightStream(
+    const errorsFlightStream = renderToWebFlightStream(
       ctx.componentMod,
       { errors, errorCodes },
       clientModules,
@@ -5021,7 +5021,7 @@ async function validateInstantConfigs(
     stageEndTimes,
   } = await collectStagedSegmentData(
     ctx.componentMod,
-    renderToFlightStream,
+    renderToWebFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -5098,7 +5098,7 @@ async function validateInstantConfigs(
     const { stream: serverStream, debugStream } =
       await createCombinedPayloadStream(
         ctx.componentMod,
-        renderToFlightStream,
+        renderToWebFlightStream,
         payloadResult.payload,
         extraChunksController,
         reactController.signal,
@@ -5412,7 +5412,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ComponentMod,
         initialRscPayload,
         clientModules,
@@ -5513,7 +5513,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ComponentMod,
         finalRscPayload,
         clientModules,
@@ -6886,7 +6886,7 @@ async function prerenderToStream(
           // segments, since those are the only ones whose data is not complete.
           const emptyReactServerResult =
             await createReactServerPrerenderResultFromRender(
-              renderToFlightStream(ComponentMod, [], clientModules, {
+              renderToWebFlightStream(ComponentMod, [], clientModules, {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
               })
@@ -6963,7 +6963,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             reactServerPrerenderStore,
-            renderToFlightStream,
+            renderToWebFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -7201,7 +7201,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             prerenderLegacyStore,
-            renderToFlightStream,
+            renderToWebFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -7401,7 +7401,7 @@ async function prerenderToStream(
 
     const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
-      renderToFlightStream,
+      renderToWebFlightStream,
       ComponentMod,
       errorRSCPayload,
       clientModules,

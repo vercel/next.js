@@ -214,7 +214,16 @@ export async function resumeAndAbort(
   )
 }
 
-export function renderToFlightStream(
+export function renderToNodeFlightStream(
+  _ComponentMod: FlightComponentMod,
+  _payload: FlightPayload,
+  _clientModules: FlightClientModules,
+  _opts: FlightRenderOptions
+): AnyStream {
+  throw new Error('not implemented')
+}
+
+export function renderToWebFlightStream(
   ComponentMod: FlightComponentMod,
   payload: FlightPayload,
   clientModules: FlightClientModules,

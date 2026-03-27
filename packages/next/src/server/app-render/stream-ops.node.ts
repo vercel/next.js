@@ -109,7 +109,9 @@ function webToReadable(
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
 
-export function renderToFlightStream(
+export { renderToWebFlightStream } from './stream-ops.web'
+
+export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
   payload: any,
   clientModules: any,
