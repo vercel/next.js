@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorAggregateErrors } from './error-aggregate-errors'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 type ErrorCauseProps = {
@@ -50,6 +51,13 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
 
       {cause.cause && (
         <ErrorCause cause={cause.cause} dialogResizerRef={dialogResizerRef} />
+      )}
+
+      {'aggregateErrors' in cause && cause.aggregateErrors !== null && (
+        <ErrorAggregateErrors
+          errors={cause.aggregateErrors}
+          dialogResizerRef={dialogResizerRef}
+        />
       )}
     </div>
   )

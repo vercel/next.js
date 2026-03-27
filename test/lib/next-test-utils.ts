@@ -1649,6 +1649,49 @@ export async function getRedboxCause(
   })
 }
 
+export async function getRedboxAggregateErrors(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const aggregateElements = root?.querySelectorAll(
+      '[data-nextjs-error-aggregate-error]'
+    )
+    if (!aggregateElements || aggregateElements.length === 0) return null
+
+    const entries: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of aggregateElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      entries.push({
+        label:
+          el.querySelector('.error-aggregate-error-label')?.innerText ?? null,
+        message:
+          el.querySelector('.error-aggregate-error-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return entries
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1665,8 +1708,11 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
-        // Skip frames that belong to an Error.cause section
-        if (frameElement.closest('[data-nextjs-error-cause]')) {
+        // Skip frames that belong to an Error.cause or AggregateError section
+        if (
+          frameElement.closest('[data-nextjs-error-cause]') ||
+          frameElement.closest('[data-nextjs-error-aggregate-error]')
+        ) {
           continue
         }
         // `innerText` will be "${methodName}\n${location}".
