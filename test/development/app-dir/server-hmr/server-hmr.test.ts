@@ -179,6 +179,32 @@ describe('server-hmr', () => {
     })
 
     itTurbopackDev(
+      'reflects route handler dynamic config changes after HMR',
+      async () => {
+        // With dynamic = 'force-static', search params are stripped from the
+        // request before the handler runs.
+        const initial = await next
+          .fetch('/api/dynamic-config?foo=bar')
+          .then((res) => res.json())
+        expect(initial.search).toBe('')
+
+        // Remove dynamic = 'force-static' to switch to auto mode.
+        await next.patchFile('app/api/dynamic-config/route.ts', (content) =>
+          content.replace("export const dynamic = 'force-static'\n\n", '')
+        )
+
+        // After HMR, the live userland should have no dynamic export, so the
+        // handler receives the real request with search params preserved.
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/dynamic-config?foo=bar')
+            .then((res) => res.json())
+          expect(updated.search).toBe('?foo=bar')
+        })
+      }
+    )
+
+    itTurbopackDev(
       'does not re-evaluate an unmodified dependency when route changes',
       async () => {
         const initial = await next
