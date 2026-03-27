@@ -1455,6 +1455,10 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
+  // Pre-compute the effective Turbopack hash salt: config option + env var concatenated.
+  ;(result as NextConfigComplete).turbopackHashSalt =
+    (result.turbopack?.outputHashSalt ?? '') +
+    (process.env.NEXT_HASH_SALT ?? '')
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }

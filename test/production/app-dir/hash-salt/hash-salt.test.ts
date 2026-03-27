@@ -66,91 +66,46 @@ describe('NEXT_HASH_SALT', () => {
   })
 })
 
-describe('turbopack.outputHashSalt (config)', () => {
-  const { next: nextNoSalt } = nextTestSetup({
+describe('turbopack.outputHashSalt', () => {
+  // Uses the fixture's next.config.js which reads OUTPUT_HASH_SALT_CONFIG from env,
+  // allowing multiple builds with different config salts from a single next instance.
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  const { next: nextWithConfigSalt } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    nextConfig: {
-      turbopack: { outputHashSalt: 'config-salt' },
-    },
-  })
+  const chunksDir = () => join(next.testDir, '.next/static/chunks')
+
+  async function buildWithSalts(opts: {
+    configSalt?: string
+    envSalt?: string
+  }) {
+    const env: Record<string, string> = {}
+    if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
+    if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
+    await next.build({ env })
+    const chunks = await getFilenames(chunksDir(), '.js')
+    await next.clean()
+    return chunks
+  }
 
   let noSaltChunks: string[]
-  let configSaltChunks: string[]
-
-  beforeAll(async () => {
-    await nextNoSalt.build()
-    noSaltChunks = await getFilenames(
-      join(nextNoSalt.testDir, '.next/static/chunks'),
-      '.js'
-    )
-    await nextNoSalt.clean()
-
-    await nextWithConfigSalt.build()
-    configSaltChunks = await getFilenames(
-      join(nextWithConfigSalt.testDir, '.next/static/chunks'),
-      '.js'
-    )
-    await nextWithConfigSalt.clean()
-  })
-
-  it('config salt produces different chunk filenames than no salt', () => {
-    expect(configSaltChunks.sort()).not.toEqual(noSaltChunks.sort())
-  })
-})
-
-describe('turbopack.outputHashSalt + NEXT_HASH_SALT combined', () => {
-  const { next: nextEnvOnly } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-  })
-
-  const { next: nextConfigOnly } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    nextConfig: {
-      turbopack: { outputHashSalt: 'config-salt' },
-    },
-  })
-
-  const { next: nextBoth } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    nextConfig: {
-      turbopack: { outputHashSalt: 'config-salt' },
-    },
-  })
-
-  let envOnlyChunks: string[]
   let configOnlyChunks: string[]
+  let envOnlyChunks: string[]
   let bothChunks: string[]
 
   beforeAll(async () => {
-    await nextEnvOnly.build({ env: { NEXT_HASH_SALT: 'env-salt' } })
-    envOnlyChunks = await getFilenames(
-      join(nextEnvOnly.testDir, '.next/static/chunks'),
-      '.js'
-    )
-    await nextEnvOnly.clean()
+    noSaltChunks = await buildWithSalts({})
+    configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
+    envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
+    bothChunks = await buildWithSalts({
+      configSalt: 'config-salt',
+      envSalt: 'env-salt',
+    })
+  })
 
-    await nextConfigOnly.build()
-    configOnlyChunks = await getFilenames(
-      join(nextConfigOnly.testDir, '.next/static/chunks'),
-      '.js'
-    )
-    await nextConfigOnly.clean()
-
-    await nextBoth.build({ env: { NEXT_HASH_SALT: 'env-salt' } })
-    bothChunks = await getFilenames(
-      join(nextBoth.testDir, '.next/static/chunks'),
-      '.js'
-    )
-    await nextBoth.clean()
+  it('config salt changes filenames compared to no salt', () => {
+    expect(configOnlyChunks.sort()).not.toEqual(noSaltChunks.sort())
   })
 
   it('combined salt differs from env-var-only salt', () => {

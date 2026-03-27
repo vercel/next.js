@@ -40,6 +40,9 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // Effective hash salt for Turbopack content-addressed output filenames.
+  // Combines turbopack.outputHashSalt (from config) with NEXT_HASH_SALT (from env).
+  turbopackHashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]

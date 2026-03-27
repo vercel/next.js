@@ -417,9 +417,7 @@ export async function createHotReloaderTurbopack(
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
       serverHmr: serverFastRefresh,
-      hashSalt:
-        (opts.nextConfig.turbopack?.outputHashSalt ?? '') +
-        (process.env.NEXT_HASH_SALT ?? ''),
+      hashSalt: opts.nextConfig.turbopackHashSalt,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
