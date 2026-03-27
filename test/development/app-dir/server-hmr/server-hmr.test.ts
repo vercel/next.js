@@ -213,7 +213,6 @@ describe('server-hmr config opt-out', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
-      'tsconfig.json': new FileRef(join(__dirname, 'tsconfig.json')),
     },
     nextConfig: {
       experimental: {
@@ -257,7 +256,6 @@ describe('server-hmr CLI/config conflict warning', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
-      'tsconfig.json': new FileRef(join(__dirname, 'tsconfig.json')),
     },
     nextConfig: {
       experimental: {

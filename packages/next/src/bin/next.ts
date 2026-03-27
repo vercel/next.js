@@ -314,11 +314,9 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
+  .addOption(new Option('--server-fast-refresh').default(undefined).hideHelp())
   .addOption(
-    new Option(
-      '--no-server-fast-refresh',
-      'Disable server-side Fast Refresh'
-    ).default(undefined)
+    new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
   )
   .option(
     '--experimental-upload-trace, <traceUrl>',

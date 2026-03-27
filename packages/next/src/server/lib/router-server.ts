@@ -180,8 +180,9 @@ export async function initialize(opts: {
       )
       effectiveServerFastRefresh = cliServerFastRefresh
     } else {
+      // Default to true when neither CLI nor config specifies a value.
       effectiveServerFastRefresh =
-        cliServerFastRefresh ?? configServerFastRefresh
+        cliServerFastRefresh ?? configServerFastRefresh ?? true
     }
 
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
