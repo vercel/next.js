@@ -3354,6 +3354,7 @@ async function renderToStream(
           reactServerResult = new ReactServerResult(
             workUnitAsyncStorage.run(
               requestStore,
+              renderToWebFlightStream,
               ctx.componentMod,
               RSCPayload,
               clientModules,
