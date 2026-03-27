@@ -314,6 +314,10 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
+  // `--server-fast-refresh` is hidden because it's the default behavior and
+  // only needs to be explicitly passed to override a `serverFastRefresh: false`
+  // in next.config. The `--no-server-fast-refresh` negation is the meaningful
+  // user-facing flag.
   .addOption(new Option('--server-fast-refresh').default(undefined).hideHelp())
   .addOption(
     new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
