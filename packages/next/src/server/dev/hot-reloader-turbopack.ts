@@ -1612,6 +1612,13 @@ export async function createHotReloaderTurbopack(
           const pathname = definition?.pathname ?? inputPage
 
           if (page === '/_error') {
+            // For app-router-only projects, skip building Pages Router error
+            // page infrastructure entirely. The dev server serves an in-memory
+            // __next_error__ HTML shell instead.
+            if (!opts.pagesDir) {
+              return
+            }
+
             let finishBuilding = startBuilding(pathname, requestUrl, false)
             try {
               await handlePagesErrorRoute({

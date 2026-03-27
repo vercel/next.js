@@ -327,6 +327,13 @@ export interface RequestMeta {
     location: string
     duration: number
   }
+
+  /**
+   * When true, the error being rendered originated from an App Router request.
+   * Used by renderErrorToResponseImpl to serve the in-memory __next_error__ HTML
+   * instead of going through the Pages Router _error pipeline in dev mode.
+   */
+  isAppRouteError?: boolean
 }
 
 /**

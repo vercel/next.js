@@ -2809,6 +2809,29 @@ export default abstract class Server<
         body: RenderResult.EMPTY,
       }
     }
+
+    // In dev mode, for App Router requests (or app-only projects), serve an
+    // in-memory __next_error__ HTML shell instead of going through the Pages
+    // Router _error/_app/_document rendering pipeline.
+    if (this.dev && this.enabledDirectories.app) {
+      const isAppOnly = !this.enabledDirectories.pages
+      const isAppRouteError = getRequestMeta(ctx.req, 'isAppRouteError')
+      // For app-only projects we always use the in-memory shell.
+      // For mixed projects we use it when the request was tagged as an
+      // app route error.
+      if (isAppOnly || isAppRouteError) {
+        const { buildAppRouterDevErrorHtml } =
+          require('./dev/build-dev-error-html') as typeof import('./dev/build-dev-error-html')
+        return {
+          body: await buildAppRouterDevErrorHtml(
+            this.distDir,
+            this.nextConfig.assetPrefix ?? '',
+            err
+          ),
+        }
+      }
+    }
+
     const { res, query } = ctx
 
     try {
