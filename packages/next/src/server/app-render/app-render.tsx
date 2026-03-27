@@ -3320,8 +3320,11 @@ async function renderToStream(
 
         reactServerResult = new ReactServerResult(flightStream)
       } else {
-        // Node.js streams
-        if (process.env.__NEXT_USE_NODE_STREAMS) {
+        // MARK: Node.js RSC
+        if (
+          process.env.__NEXT_USE_NODE_STREAMS &&
+          !process.env.__NEXT_DEV_SERVER
+        ) {
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
           const RSCPayload: RSCPayload & RSCPayloadDevProperties =
             await workUnitAsyncStorage.run(
@@ -3351,7 +3354,6 @@ async function renderToStream(
           reactServerResult = new ReactServerResult(
             workUnitAsyncStorage.run(
               requestStore,
-              renderToWebFlightStream,
               ctx.componentMod,
               RSCPayload,
               clientModules,
@@ -3411,7 +3413,10 @@ async function renderToStream(
       // one task before continuing
       await waitAtLeastOneReactRenderTask()
 
-      if (process.env.__NEXT_USE_NODE_STREAMS) {
+      if (
+        process.env.__NEXT_USE_NODE_STREAMS &&
+        !process.env.__NEXT_DEV_SERVER
+      ) {
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
         if (typeof renderOpts.postponed === 'string') {
