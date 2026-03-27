@@ -900,7 +900,7 @@ export default abstract class Server<
       try {
         const url = new URL(`${httpScheme}://${req.headers.host}${req.url}`)
         attributes['http.url'] = url.href
-        attributes['net.host.name'] = url.host
+        attributes['net.host.name'] = url.hostname
         if (url.port !== '') {
           attributes['net.host.port'] = url.port
         }
