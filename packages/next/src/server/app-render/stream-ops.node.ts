@@ -115,25 +115,20 @@ export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
   payload: any,
   clientModules: any,
-  opts: any,
-  runInContext?: <T>(fn: () => T) => T
+  opts: any
 ): AnyStream {
-  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
-
-  if (ComponentMod.renderToPipeableStream) {
-    const pt = new PassThrough()
-    const pipeable = run(() =>
-      ComponentMod.renderToPipeableStream!(payload, clientModules, opts)
-    )
-    pipeable.pipe(pt)
-    return pt
+  if (!ComponentMod.renderToPipeableStream) {
+    throw new Error('renderToPipeableStream is not implemented')
   }
 
-  // Fallback: use web API and convert
-  const webStream = run(() =>
-    ComponentMod.renderToReadableStream(payload, clientModules, opts)
+  const pt = new PassThrough()
+  const pipeable = ComponentMod.renderToPipeableStream!(
+    payload,
+    clientModules,
+    opts
   )
-  return webToReadable(webStream)
+  pipeable.pipe(pt)
+  return pt
 }
 
 export { renderToWebFizzStream } from './stream-ops.web'
