@@ -134,7 +134,9 @@ export function renderToFlightStream(
   return webToReadable(webStream)
 }
 
-export async function renderToFizzStream(
+export { renderToWebFizzStream } from './stream-ops.web'
+
+export async function renderToNodeFizzStream(
   element: React.ReactElement,
   streamOptions: any,
   runInContext?: <T>(fn: () => T) => T
