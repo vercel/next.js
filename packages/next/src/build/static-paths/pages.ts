@@ -9,6 +9,14 @@ import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { encodeParam, normalizePathname } from './utils'
 
+function safeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
 export async function buildPagesStaticPaths({
   page,
   getStaticPaths,
@@ -170,7 +178,7 @@ export async function buildPagesStaticPaths({
           throw new Error(
             `Parameter "${validParamKey}" from getStaticPaths for ${page} must be ${
               repeat ? 'an array' : 'a string'
-            }, but received ${typeof paramValue} (${JSON.stringify(paramValue)}). ` +
+            }, but received ${typeof paramValue} (${safeStringify(paramValue)}). ` +
             `See more info here: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
           )
         }
@@ -180,7 +188,7 @@ export async function buildPagesStaticPaths({
             if (typeof paramValue[i] !== 'string') {
               throw new Error(
                 `Parameter "${validParamKey}[${i}]" from getStaticPaths for ${page} must be a string, ` +
-                `but received ${typeof paramValue[i]} (${JSON.stringify(paramValue[i])}). ` +
+                `but received ${typeof paramValue[i]} (${safeStringify(paramValue[i])}). ` +
                 `All elements in catch-all parameter arrays must be strings.`
               )
             }
