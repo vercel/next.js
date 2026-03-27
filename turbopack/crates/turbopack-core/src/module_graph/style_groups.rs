@@ -22,6 +22,12 @@ use crate::{
     },
 };
 
+/// Maps each CSS module to the set of CSS modules that must be emitted after it.
+pub type ModuleDependents = FxHashMap<
+    ResolvedVc<Box<dyn ChunkableModule>>,
+    FxHashSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+>;
+
 #[derive(
     TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
@@ -40,6 +46,13 @@ pub struct StyleGroups {
     #[bincode(with = "turbo_bincode::indexmap")]
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
+    /// For each CSS module, the set of CSS modules that must be emitted after it (its dependents
+    /// in cascade order). A module X maps to {Y, Z, ...} meaning X must be loaded before Y and Z.
+    ///
+    /// This is used by `style_production.rs` to topologically sort emission units (shared batches
+    /// and non-shared items) into a correct CSS cascade order, taking into account that a shared
+    /// batch may group items whose DFS post-order positions interleave with non-shared items.
+    pub module_dependents: ModuleDependents,
 }
 
 /// Information about a CSS module and its presence across chunk groups.
@@ -426,5 +439,9 @@ pub async fn compute_style_groups(
         }
     }
 
-    Ok(StyleGroups { shared_chunk_items }.cell())
+    Ok(StyleGroups {
+        shared_chunk_items,
+        module_dependents,
+    }
+    .cell())
 }
