@@ -1196,6 +1196,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn server_hmr(&self) -> Vc<bool> {
+        Vc::cell(self.server_hmr)
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn next_mode(&self) -> Vc<NextMode> {
         *self.mode
     }

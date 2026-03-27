@@ -38,9 +38,14 @@ impl AppPageLoaderTreeBuilder {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        server_hmr: bool,
     ) -> Self {
         AppPageLoaderTreeBuilder {
-            base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
+            base: BaseLoaderTreeBuilder::new(
+                module_asset_context,
+                server_component_transition,
+                server_hmr,
+            ),
             loader_tree_code: String::new(),
             base_path,
         }
@@ -475,10 +480,16 @@ impl AppPageLoaderTreeModule {
         module_asset_context: ResolvedVc<ModuleAssetContext>,
         server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
+        server_hmr: bool,
     ) -> Result<Self> {
-        AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
-            .build(loader_tree)
-            .await
+        AppPageLoaderTreeBuilder::new(
+            module_asset_context,
+            server_component_transition,
+            base_path,
+            server_hmr,
+        )
+        .build(loader_tree)
+        .await
     }
 }
 

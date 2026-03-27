@@ -36,6 +36,7 @@ pub async fn get_app_page_entry(
     page: AppPage,
     project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
+    server_hmr: bool,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
@@ -54,6 +55,7 @@ pub async fn get_app_page_entry(
         module_asset_context,
         server_component_transition,
         base_path,
+        server_hmr,
     )
     .await?;
 
