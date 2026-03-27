@@ -176,6 +176,49 @@ describe('server-hmr', () => {
     })
   })
 
+  describe('layout segment boundary', () => {
+    itTurbopackDev(
+      'does not re-evaluate the root layout when a nested page changes',
+      async () => {
+        const getTimestampAndContent = async () => {
+          const html = await next
+            .fetch('/layout-boundary')
+            .then((r) => r.text())
+          // Extract root layout eval timestamp from the hidden element
+          const rootMatch = html.match(
+            /id="root-layout-eval-time"[^>]*>(\d+)<\/p>/
+          )
+          // Extract page content
+          const pageMatch = html.match(/id="page-content"[^>]*>([^<]+)<\/p>/)
+          return {
+            rootLayoutEvaluatedAt: rootMatch ? rootMatch[1] : null,
+            pageContent: pageMatch ? pageMatch[1] : null,
+          }
+        }
+
+        // Get the initial timestamps
+        const initial = await getTimestampAndContent()
+        expect(initial.rootLayoutEvaluatedAt).toMatch(/^\d+$/)
+        expect(initial.pageContent).toBe('page-version: 0')
+
+        // Patch the page — the root layout should NOT be re-evaluated
+        await next.patchFile('app/layout-boundary/page.tsx', (content) =>
+          content.replace('page-version: 0', 'page-version: 1')
+        )
+
+        // Wait for HMR to apply and verify the page updated
+        await retry(async () => {
+          const updated = await getTimestampAndContent()
+          expect(updated.pageContent).toBe('page-version: 1')
+
+          // The root layout must NOT have been re-evaluated
+          expect(updated.rootLayoutEvaluatedAt).toBe(
+            initial.rootLayoutEvaluatedAt
+          )
+        })
+      }
+    )
+  })
   describe('route handler hmr', () => {
     function getText(res: Response) {
       return res.ok

@@ -1123,6 +1123,7 @@ struct AppEndpoint {
 impl AppEndpoint {
     #[turbo_tasks::function]
     async fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Result<Vc<AppEntry>> {
+        let server_hmr = *self.app_project.project().server_hmr().await?;
         Ok(get_app_page_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
@@ -1130,6 +1131,7 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
             self.app_project.project().next_config(),
+            server_hmr,
         ))
     }
 
