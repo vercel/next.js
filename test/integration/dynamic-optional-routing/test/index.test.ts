@@ -314,7 +314,7 @@ describe('Dynamic Optional Routing', () => {
           )
           const { stderr } = await nextBuild(appDir, [], { stderr: true })
           await expect(stderr).toMatch(
-            'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
+            'Parameter "slug" from getStaticPaths for /invalid/[[...slug]] must be an array, but received undefined (undefined)'
           )
         } finally {
           await fs.unlink(invalidRoute)

@@ -5,15 +5,15 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
 
-describe('Invalid Prerender Catchall Params', () => {
+describe('Invalid Prerender Array Element Params', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      it('should fail the build', async () => {
+      it('should fail the build with array element type error', async () => {
         const out = await nextBuild(appDir, [], { stderr: true })
         expect(out.stderr).toMatch(`Build error occurred`)
         expect(out.stderr).toMatch(
-          'Parameter "slug" from getStaticPaths for /[...slug] must be an array, but received string ("hello")'
+          'Parameter "slug[1]" from getStaticPaths for /[...slug] must be a string, but received number (123)'
         )
       })
     }
