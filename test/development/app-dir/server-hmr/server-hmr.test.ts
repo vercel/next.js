@@ -205,5 +205,57 @@ describe('server-hmr', () => {
         })
       }
     )
+
+    itTurbopackDev(
+      'reflects changed `dynamic` export without process restart',
+      async () => {
+        const initial = await next
+          .fetch('/api/dynamic-config')
+          .then((res) => res.text())
+        expect(initial).toBe('auto')
+
+        await next.patchFile('app/api/dynamic-config/route.ts', (content) =>
+          content.replace(
+            "export const dynamic = 'auto'",
+            "export const dynamic = 'force-dynamic'"
+          )
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/dynamic-config')
+            .then((res) => res.text())
+          expect(updated).toBe('force-dynamic')
+        })
+      }
+    )
+
+    itTurbopackDev(
+      'reflects added HTTP method handler without process restart',
+      async () => {
+        // Initially, only GET is exported — POST should return 405
+        const initialPost = await next.fetch('/api/http-methods', {
+          method: 'POST',
+        })
+        expect(initialPost.status).toBe(405)
+
+        // Add a POST handler via HMR
+        await next.patchFile(
+          'app/api/http-methods/route.ts',
+          (content) =>
+            content +
+            "\nexport async function POST() {\n  return new Response('posted')\n}\n"
+        )
+
+        // After HMR, POST should be handled
+        await retry(async () => {
+          const updated = await next.fetch('/api/http-methods', {
+            method: 'POST',
+          })
+          expect(updated.status).toBe(200)
+          expect(await updated.text()).toBe('posted')
+        })
+      }
+    )
   })
 })
