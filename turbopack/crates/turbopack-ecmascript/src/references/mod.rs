@@ -3715,7 +3715,7 @@ async fn require_resolve_visitor(
             None,
             ResolveErrorMode::Warn,
         )
-        .resolve()
+        .to_resolved()
         .await?;
         let mut values = resolved
             .primary_sources()

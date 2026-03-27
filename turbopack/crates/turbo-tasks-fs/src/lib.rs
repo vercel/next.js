@@ -971,7 +971,12 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        let content = content.await?;
+        // Persist the file content so it is stored in the persistent cache.
+        // Since FileContent uses serialization = "hash", persisting it here ensures the full
+        // content is available in the persistent cache (via PersistedFileContent) and does not
+        // require recomputing the content on cache restore — avoiding unnecessary downstream
+        // recomputation.
+        let content = content.persist().await?;
 
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -981,7 +986,7 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             invalidator: Option<Invalidator>,
-            content: ReadRef<FileContent>,
+            content: ReadRef<PersistedFileContent>,
         }
 
         impl Effect for WriteEffect {
@@ -1030,7 +1035,7 @@ impl FileSystem for DiskFileSystem {
                 }
 
                 match &*self.content {
-                    FileContent::Content(..) => {
+                    PersistedFileContent::Content(..) => {
                         let create_directory = compare == FileComparison::Create;
                         if create_directory && let Some(parent) = full_path.parent() {
                             self.inner.create_directory(parent).await.with_context(|| {
@@ -1044,7 +1049,7 @@ impl FileSystem for DiskFileSystem {
                         let content = self.content.clone();
                         retry_blocking(|| {
                             let mut f = std::fs::File::create(&full_path)?;
-                            let FileContent::Content(file) = &*content else {
+                            let PersistedFileContent::Content(file) = &*content else {
                                 unreachable!()
                             };
                             std::io::copy(&mut file.read(), &mut f)?;
@@ -1079,7 +1084,7 @@ impl FileSystem for DiskFileSystem {
                         .await
                         .with_context(|| format!("failed to write to {full_path:?}"))?;
                     }
-                    FileContent::NotFound => {
+                    PersistedFileContent::NotFound => {
                         retry_blocking(|| std::fs::remove_file(&full_path))
                             .instrument(tracing::info_span!("remove file", name = ?full_path))
                             .concurrency_limited(&self.inner.write_semaphore)
@@ -1971,8 +1976,8 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1984,35 +1989,39 @@ impl From<File> for FileContent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum FileComparison {
-    Create,
-    Equal,
-    NotEqual,
+/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
+///
+/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
+/// When reading the file content back from the cache, the hash is compared to detect changes, but
+/// the actual data is not available. `PersistedFileContent` provides the full data so that
+/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+pub enum PersistedFileContent {
+    Content(File),
+    NotFound,
 }
 
-impl FileContent {
-    /// Performs a comparison of self's data against a disk file's streamed
-    /// read.
+impl PersistedFileContent {
+    /// Performs a comparison of self's data against a disk file's streamed read.
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
         let old_file =
             extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
         let Some(old_file) = old_file else {
             return Ok(match self {
-                FileContent::NotFound => FileComparison::Equal,
+                PersistedFileContent::NotFound => FileComparison::Equal,
                 _ => FileComparison::Create,
             });
         };
         // We know old file exists, does the new file?
-        let FileContent::Content(new_file) = self else {
+        let PersistedFileContent::Content(new_file) = self else {
             return Ok(FileComparison::NotEqual);
         };
 
         let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never
-            // existed.
+            // handle open. In which case, we just pretend the file never existed.
             return Ok(FileComparison::Create);
         };
         // If the meta is different, we need to rewrite the file to update it.
@@ -2047,6 +2056,13 @@ impl FileContent {
             old_contents.consume(len);
         })
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileComparison {
+    Create,
+    Equal,
+    NotEqual,
 }
 
 bitflags! {
@@ -2414,6 +2430,18 @@ impl FileContent {
     #[turbo_tasks::function]
     pub async fn hash(&self) -> Result<Vc<u64>> {
         Ok(Vc::cell(hash_xxh3_hash64(self)))
+    }
+
+    /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
+    ///
+    /// Use this in contexts where the full file content must be serialized to the persistent
+    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    #[turbo_tasks::function]
+    pub fn persist(&self) -> Vc<PersistedFileContent> {
+        match self {
+            FileContent::Content(file) => PersistedFileContent::Content(file.clone()).cell(),
+            FileContent::NotFound => PersistedFileContent::NotFound.cell(),
+        }
     }
 
     /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
