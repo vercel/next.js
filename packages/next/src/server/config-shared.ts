@@ -1063,6 +1063,18 @@ export interface ExperimentalConfig {
    * Only supported for Turbopack.
    */
   reportSystemEnvInlining?: 'error' | 'warn'
+
+  /**
+   * Enable server-side Fast Refresh (Hot Module Replacement) during development.
+   * When set to `false`, server-side HMR is disabled and a full restart is
+   * performed on server file changes.
+   *
+   * Can also be controlled via the `--no-server-fast-refresh` CLI flag.
+   * If both are set, the CLI flag takes precedence.
+   *
+   * @default true
+   */
+  serverFastRefresh?: boolean
 }
 
 export type ExportPathMap = {
