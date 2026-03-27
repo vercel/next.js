@@ -14,7 +14,7 @@ import {
   resumeToPipeableStream,
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
-import { PassThrough, Readable } from 'node:stream'
+import { PassThrough, Readable, Transform } from 'node:stream'
 
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import {
@@ -26,23 +26,25 @@ import {
   streamToString as webStreamToString,
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
-  createRootLayoutValidatorStream,
-  chainTransformers,
-  createBufferedTransformStream,
-  createHtmlDataDplIdTransformStream,
-  createMetadataTransformStream,
-  createDeferredSuffixStream,
-  createFlightDataInjectionTransformStream,
-  createMoveSuffixStream,
-  createHeadInsertionTransformStream,
-  CLOSE_TAG,
+  // createRootLayoutValidatorStream,
+  // chainTransformers,
+  // createHtmlDataDplIdTransformStream,
+  // createMetadataTransformStream,
+  // createDeferredSuffixStream,
+  // createMoveSuffixStream,
+  // CLOSE_TAG,
 } from '../stream-utils/node-web-streams-helper'
+import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
+import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
+import {
+  atLeastOneTask,
+  waitAtLeastOneReactRenderTask,
+} from '../../lib/scheduler'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -113,6 +115,196 @@ function webToReadable(
     return stream
   }
   return Readable.fromWeb(stream as WebReadableStream)
+}
+
+// ---------------------------------------------------------------------------
+// Buffered transform – Node.js Transform that coalesces chunks written in the
+// same microtask into a single Uint8Array before pushing downstream.
+// ---------------------------------------------------------------------------
+
+function createBufferedTransformStream(): Transform {
+  let bufferedChunks: Array<Uint8Array> = []
+  let bufferByteLength = 0
+  let flushScheduled = false
+
+  function flushBuffered(stream: Transform): void {
+    if (bufferedChunks.length === 0) return
+
+    const merged = new Uint8Array(bufferByteLength)
+    let copiedBytes = 0
+    for (let i = 0; i < bufferedChunks.length; i++) {
+      const bufferedChunk = bufferedChunks[i]
+      merged.set(bufferedChunk, copiedBytes)
+      copiedBytes += bufferedChunk.byteLength
+    }
+    bufferedChunks.length = 0
+    bufferByteLength = 0
+    stream.push(merged)
+  }
+
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      bufferedChunks.push(chunk)
+      bufferByteLength += chunk.byteLength
+
+      if (!flushScheduled) {
+        flushScheduled = true
+        queueMicrotask(() => {
+          flushScheduled = false
+          flushBuffered(this)
+        })
+      }
+      callback()
+    },
+    flush(callback) {
+      flushBuffered(this)
+      callback()
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Flight data injection – Node.js Transform that passes HTML chunks through
+// while pulling from a separate data stream and interleaving its chunks.
+// ---------------------------------------------------------------------------
+
+function createFlightDataInjectionTransform(
+  dataStream: Readable,
+  delayDataUntilFirstHtmlChunk: boolean
+): Transform {
+  let htmlStreamFinished = false
+  let pull: Promise<void> | null = null
+  let donePulling = false
+
+  function startOrContinuePulling(target: Transform) {
+    if (!pull) {
+      pull = startPulling(target)
+    }
+    return pull
+  }
+
+  async function startPulling(target: Transform) {
+    if (delayDataUntilFirstHtmlChunk) {
+      // Buffer the inlined data stream until we've left the current Task so
+      // it's inserted after flushing the shell.
+      await atLeastOneTask()
+    }
+
+    try {
+      const iterator = dataStream[Symbol.asyncIterator]()
+      while (true) {
+        const { done, value } = await iterator.next()
+        if (done) {
+          donePulling = true
+          return
+        }
+
+        // Prioritize HTML over RSC data: the SSR render produces HTML from
+        // the same RSC stream, so yield a task to let HTML flush first.
+        if (!delayDataUntilFirstHtmlChunk && !htmlStreamFinished) {
+          await atLeastOneTask()
+        }
+        target.push(value)
+      }
+    } catch (err) {
+      target.destroy(err as Error)
+    }
+  }
+
+  const nodeTransform = new Transform({
+    transform(chunk, _encoding, callback) {
+      this.push(chunk)
+      if (delayDataUntilFirstHtmlChunk) {
+        startOrContinuePulling(this)
+      }
+      callback()
+    },
+    flush(callback) {
+      htmlStreamFinished = true
+      if (donePulling) {
+        callback()
+        return
+      }
+      startOrContinuePulling(this).then(
+        () => callback(),
+        (err) => callback(err as Error)
+      )
+    },
+  })
+
+  if (!delayDataUntilFirstHtmlChunk) {
+    startOrContinuePulling(nodeTransform)
+  }
+
+  return nodeTransform
+}
+
+// ---------------------------------------------------------------------------
+// Head insertion – Node.js Transform that inserts server-generated HTML
+// (e.g. <script>, <style>) right before </head>, or prepends it if no
+// </head> tag is found (PPR resume case).
+// ---------------------------------------------------------------------------
+
+function createHeadInsertionTransform(
+  insert: () => Promise<string>
+): Transform {
+  let inserted = false
+  let hasBytes = false
+
+  return new Transform({
+    async transform(chunk, _encoding, callback) {
+      hasBytes = true
+
+      try {
+        const insertion = await insert()
+        if (inserted) {
+          if (insertion) {
+            this.push(Buffer.from(insertion))
+          }
+          this.push(chunk)
+        } else {
+          const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+          if (index !== -1) {
+            if (insertion) {
+              const encodedInsertion = Buffer.from(insertion)
+              const merged = Buffer.allocUnsafe(
+                chunk.length + encodedInsertion.length
+              )
+              merged.set(chunk.slice(0, index))
+              merged.set(encodedInsertion, index)
+              merged.set(chunk.slice(index), index + encodedInsertion.length)
+              this.push(merged)
+            } else {
+              this.push(chunk)
+            }
+            inserted = true
+          } else {
+            if (insertion) {
+              this.push(Buffer.from(insertion))
+            }
+            this.push(chunk)
+            inserted = true
+          }
+        }
+        callback()
+      } catch (err) {
+        callback(err as Error)
+      }
+    },
+    async flush(callback) {
+      try {
+        if (hasBytes) {
+          const insertion = await insert()
+          if (insertion) {
+            this.push(Buffer.from(insertion))
+          }
+        }
+        callback()
+      } catch (err) {
+        callback(err as Error)
+      }
+    },
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -234,17 +426,17 @@ export async function resumeAndAbort(
 export async function continueNodeFizzStream(
   renderStream: ReactDOMServerReadableStream,
   {
-    suffix,
+    // suffix,
     inlinedDataStream,
     isStaticGeneration,
-    deploymentId,
+    // deploymentId,
     getServerInsertedHTML,
-    getServerInsertedMetadata,
-    validateRootLayout,
+    // getServerInsertedMetadata,
+    // validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<Readable> {
   // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
+  // const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   if (isStaticGeneration) {
     // If we're generating static HTML we need to wait for it to resolve before continuing.
@@ -255,45 +447,52 @@ export async function continueNodeFizzStream(
     await waitAtLeastOneReactRenderTask()
   }
 
-  return chainTransformers(
-    nodeReadableToWebReadableStream(renderStream) as ReadableStream<Uint8Array>,
-    [
-      // Buffer everything to avoid flushing too frequently
-      createBufferedTransformStream(),
+  // Suffix itself might contain close tags at the end, so we need to split it.
+  // const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-      // Insert data-dpl-id attribute on the html tag
-      deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
+  // Pipe the render stream through Node.js Transforms:
+  // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
+  // 2. Flight data injection – interleaves RSC data chunks with the HTML stream
+  // 3. Head insertion – inserts server-generated HTML before </head>
+  const buffered = createBufferedTransformStream()
+  webToReadable(renderStream).pipe(buffered)
 
-      // Transform metadata
-      createMetadataTransformStream(getServerInsertedMetadata),
+  let source: Readable = buffered
+  if (inlinedDataStream) {
+    const flightInjection = createFlightDataInjectionTransform(
+      webToReadable(inlinedDataStream),
+      true
+    )
+    buffered.pipe(flightInjection)
+    source = flightInjection
+  }
 
-      // Insert suffix content
-      suffixUnclosed != null && suffixUnclosed.length > 0
-        ? createDeferredSuffixStream(suffixUnclosed)
-        : null,
+  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
+  source.pipe(headInsertion)
+  source = headInsertion
 
-      // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      inlinedDataStream
-        ? createFlightDataInjectionTransformStream(
-            nodeReadableToWebReadableStream(
-              inlinedDataStream
-            ) as ReadableStream<Uint8Array>,
-            true
-          )
-        : null,
+  return source
+  // return chainTransformers(nodeReadableToWebReadableStream(headInsertion), [
+  //   // Insert data-dpl-id attribute on the html tag
+  //   // TODO: We can do this in the first createBufferedTransformStream pass
+  //   // deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
 
-      // Validate the root layout for missing html or body tags
-      validateRootLayout ? createRootLayoutValidatorStream() : null,
+  //   // Transform metadata
+  //   // TODO:
+  //   // createMetadataTransformStream(getServerInsertedMetadata),
 
-      // Close tags should always be deferred to the end
-      createMoveSuffixStream(),
+  //   // Insert suffix content
+  //   // suffixUnclosed != null && suffixUnclosed.length > 0
+  //   //   ? createDeferredSuffixStream(suffixUnclosed)
+  //   //   : null,
 
-      // Special head insertions
-      // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
-      // hydration errors. Remove this once it's ready to be handled by react itself.
-      createHeadInsertionTransformStream(getServerInsertedHTML),
-    ]
-  )
+  //   // Validate the root layout for missing html or body tags
+  //   // TODO: Implement this. dev-only.
+  //   // validateRootLayout ? createRootLayoutValidatorStream() : null,
+
+  //   // Close tags should always be deferred to the end
+  //   // createMoveSuffixStream(),
+  // ])
 }
 
 export async function continueFizzStream(
@@ -313,8 +512,8 @@ export async function continueFizzStream(
   const fizzLike = Object.assign(webStream, {
     allReady: opts.allReady ?? Promise.resolve(),
   }) as ReactDOMServerReadableStream
-  const webResult = await continueNodeFizzStream(fizzLike, webOpts)
-  return webToReadable(webResult)
+  const result = await continueNodeFizzStream(fizzLike, webOpts)
+  return result
 }
 
 export async function continueStaticPrerender(
