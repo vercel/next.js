@@ -65,3 +65,99 @@ describe('NEXT_HASH_SALT', () => {
     expect(saltAFirst.images.sort()).not.toEqual(saltB.images.sort())
   })
 })
+
+describe('turbopack.outputHashSalt (config)', () => {
+  const { next: nextNoSalt } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  const { next: nextWithConfigSalt } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      turbopack: { outputHashSalt: 'config-salt' },
+    },
+  })
+
+  let noSaltChunks: string[]
+  let configSaltChunks: string[]
+
+  beforeAll(async () => {
+    await nextNoSalt.build()
+    noSaltChunks = await getFilenames(
+      join(nextNoSalt.testDir, '.next/static/chunks'),
+      '.js'
+    )
+    await nextNoSalt.clean()
+
+    await nextWithConfigSalt.build()
+    configSaltChunks = await getFilenames(
+      join(nextWithConfigSalt.testDir, '.next/static/chunks'),
+      '.js'
+    )
+    await nextWithConfigSalt.clean()
+  })
+
+  it('config salt produces different chunk filenames than no salt', () => {
+    expect(configSaltChunks.sort()).not.toEqual(noSaltChunks.sort())
+  })
+})
+
+describe('turbopack.outputHashSalt + NEXT_HASH_SALT combined', () => {
+  const { next: nextEnvOnly } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  const { next: nextConfigOnly } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      turbopack: { outputHashSalt: 'config-salt' },
+    },
+  })
+
+  const { next: nextBoth } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      turbopack: { outputHashSalt: 'config-salt' },
+    },
+  })
+
+  let envOnlyChunks: string[]
+  let configOnlyChunks: string[]
+  let bothChunks: string[]
+
+  beforeAll(async () => {
+    await nextEnvOnly.build({ env: { NEXT_HASH_SALT: 'env-salt' } })
+    envOnlyChunks = await getFilenames(
+      join(nextEnvOnly.testDir, '.next/static/chunks'),
+      '.js'
+    )
+    await nextEnvOnly.clean()
+
+    await nextConfigOnly.build()
+    configOnlyChunks = await getFilenames(
+      join(nextConfigOnly.testDir, '.next/static/chunks'),
+      '.js'
+    )
+    await nextConfigOnly.clean()
+
+    await nextBoth.build({ env: { NEXT_HASH_SALT: 'env-salt' } })
+    bothChunks = await getFilenames(
+      join(nextBoth.testDir, '.next/static/chunks'),
+      '.js'
+    )
+    await nextBoth.clean()
+  })
+
+  it('combined salt differs from env-var-only salt', () => {
+    expect(bothChunks.sort()).not.toEqual(envOnlyChunks.sort())
+  })
+
+  it('combined salt differs from config-only salt', () => {
+    expect(bothChunks.sort()).not.toEqual(configOnlyChunks.sort())
+  })
+})

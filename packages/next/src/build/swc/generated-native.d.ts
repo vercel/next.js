@@ -259,8 +259,9 @@ export interface NapiProjectOptions {
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
   /**
-   * An optional salt to mix into chunk and asset content hashes, allowing
-   * users to force new filenames without changing file content.
+   * A salt to mix into chunk and asset content hashes, allowing users to
+   * force new filenames without changing file content. Empty string means
+   * no salt.
    */
   hashSalt: RcStr
 }
