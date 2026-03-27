@@ -1309,7 +1309,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3053,7 +3053,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "tokio",
  "tower-service",
  "tracing",
@@ -3836,9 +3836,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.70"
+version = "1.0.0-alpha.71"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9efb6a77b2389e62735b0b8157be9cc10a159eb4d1c3b864e99db9f297ada1b0"
+checksum = "cb6314c2f0590ac93c86099b98bb7ba8abcf759bfd89604ffca906472bb54937"
 dependencies = [
  "ahash 0.8.12",
  "bitflags 2.9.1",
@@ -3874,23 +3874,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "lightningcss-napi"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f92fa166487749530838b46903116f90b4aad0edd3d829d2a4164a9f3edf6866"
-dependencies = [
- "cssparser",
- "lightningcss",
- "napi",
- "parcel_sourcemap",
- "serde",
- "serde-content",
- "serde-detach",
- "serde_bytes",
- "smallvec",
 ]
 
 [[package]]
@@ -4617,7 +4600,6 @@ dependencies = [
  "getrandom 0.2.15",
  "iana-time-zone",
  "lightningcss",
- "lightningcss-napi",
  "mdxjs",
  "napi",
  "napi-build",
@@ -4652,6 +4634,7 @@ dependencies = [
  "turbopack-core",
  "turbopack-ecmascript-hmr-protocol",
  "turbopack-ecmascript-plugins",
+ "turbopack-lightningcss-napi",
  "turbopack-node",
  "turbopack-trace-server",
  "turbopack-trace-utils",
@@ -5723,7 +5706,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
@@ -5761,7 +5744,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.2",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -10204,6 +10187,23 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-core",
+]
+
+[[package]]
+name = "turbopack-lightningcss-napi"
+version = "0.0.0"
+dependencies = [
+ "crossbeam-channel",
+ "cssparser",
+ "lightningcss",
+ "napi",
+ "parcel_sourcemap",
+ "rayon",
+ "serde",
+ "serde-content",
+ "serde-detach",
+ "serde_bytes",
+ "smallvec",
 ]
 
 [[package]]

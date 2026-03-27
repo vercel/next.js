@@ -5,13 +5,13 @@ use next_core::next_config::lightningcss_feature_names_to_mask;
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[js_function(1)]
 fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
-    lightningcss_napi::transform(ctx)
+    turbopack_lightningcss_napi::transform(ctx)
 }
 
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[js_function(1)]
 fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
-    lightningcss_napi::transform_style_attribute(ctx)
+    turbopack_lightningcss_napi::transform_style_attribute(ctx)
 }
 
 /// Convert an array of dash-case feature name strings to a lightningcss
