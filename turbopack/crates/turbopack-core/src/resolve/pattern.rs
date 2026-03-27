@@ -1632,7 +1632,7 @@ pub async fn read_matches(
                             continue;
                         };
                         nested.push((
-                            0,
+                            index,
                             read_matches(
                                 fs_path.clone(),
                                 concat(&prefix, subpath).into(),
@@ -2662,6 +2662,8 @@ mod tests {
                 dynamic: Vec<String>,
                 dynamic_file_suffix: Vec<String>,
                 node_modules_dynamic: Vec<String>,
+                extension_ordering: Vec<String>,
+                subpath_ordering: Vec<String>,
             }
 
             #[turbo_tasks::function(operation)]
@@ -2704,10 +2706,55 @@ mod tests {
                 .collect::<Vec<_>>();
 
                 let node_modules_dynamic = read_matches(
-                    root,
+                    root.clone(),
                     rcstr!(""),
                     false,
                     Pattern::new(Pattern::Constant(rcstr!("node_modules")).or_any_nested_file()),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: extension ordering is preserved (fast path, until_end=true)
+                // When both Component.web.tsx and Component.tsx exist, the order of
+                // alternatives determines which comes first in results.
+                let extension_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::Alternatives(vec![
+                        Pattern::Constant(rcstr!("extensions/Component")),
+                        Pattern::Constant(rcstr!("extensions/Component.web.tsx")),
+                        Pattern::Constant(rcstr!("extensions/Component.tsx")),
+                    ])),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: subpath ordering is preserved (fast path, until_end=false)
+                // When alternatives route to different subdirectories, the index ordering
+                // must be respected. This exercises the fix for the hardcoded `0` bug.
+                let subpath_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new({
+                        let mut p = Pattern::Alternatives(vec![
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/a/")),
+                                Pattern::Dynamic,
+                            ]),
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/b/")),
+                                Pattern::Dynamic,
+                            ]),
+                        ]);
+                        p.normalize();
+                        p
+                    }),
                 )
                 .await?
                 .into_iter()
@@ -2718,6 +2765,8 @@ mod tests {
                     dynamic,
                     dynamic_file_suffix,
                     node_modules_dynamic,
+                    extension_ordering,
+                    subpath_ordering,
                 }
                 .cell())
             }
@@ -2727,7 +2776,25 @@ mod tests {
             // node_modules shouldn't be matched by Dynamic here
             assert_eq!(
                 matches.dynamic,
-                &["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"]
+                &[
+                    "extensions",
+                    "extensions/",
+                    "extensions/Component.tsx",
+                    "extensions/Component.web.tsx",
+                    "index.js",
+                    "prio",
+                    "prio/",
+                    "prio/a",
+                    "prio/a/",
+                    "prio/a/Component.tsx",
+                    "prio/b",
+                    "prio/b/",
+                    "prio/b/Component.tsx",
+                    "sub",
+                    "sub/",
+                    "sub/foo-a.js",
+                    "sub/foo-b.js",
+                ]
             );
 
             // basic dynamic file suffix
@@ -2739,6 +2806,30 @@ mod tests {
             // read_matches "node_modules/<dynamic>" should not return anything inside. We never
             // want to enumerate the list of packages here.
             assert_eq!(matches.node_modules_dynamic, &["node_modules"]);
+
+            // extension ordering: .web.tsx (index 1) must come before .tsx (index 2)
+            assert_eq!(
+                matches.extension_ordering,
+                &["extensions/Component.web.tsx", "extensions/Component.tsx",]
+            );
+
+            // subpath ordering: prio/a/ alternatives (index 0) must come before prio/b/
+            // alternatives (index 1). This verifies the fix for the hardcoded `0` bug in
+            // the until_end=false branch of the fast path.
+            assert!(
+                matches
+                    .subpath_ordering
+                    .iter()
+                    .position(|s| s.starts_with("prio/a/"))
+                    .unwrap()
+                    < matches
+                        .subpath_ordering
+                        .iter()
+                        .position(|s| s.starts_with("prio/b/"))
+                        .unwrap(),
+                "Expected prio/a/ results before prio/b/ results, got: {:?}",
+                matches.subpath_ordering
+            );
 
             Ok(())
         })
