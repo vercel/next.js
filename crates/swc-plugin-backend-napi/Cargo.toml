@@ -9,6 +9,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+atomic-wait = "1.1.0"
 once_cell = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
