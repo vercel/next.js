@@ -786,7 +786,7 @@ pub struct AppPageNapiRoute {
 #[derive(Default)]
 pub struct NapiRoute {
     /// The router path
-    pub pathname: String,
+    pub pathname: RcStr,
     /// The relative path from project_path to the route file
     pub original_name: Option<RcStr>,
 
@@ -804,7 +804,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(
-        pathname: String,
+        pathname: RcStr,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
     ) -> Self {
@@ -928,7 +928,7 @@ impl NapiEntrypoints {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
+            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
