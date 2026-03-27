@@ -407,7 +407,6 @@ export const experimentalSchema = {
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),
-  serverFastRefresh: z.boolean().optional(),
 }
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
@@ -782,5 +781,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         pollIntervalMs: z.number().positive().finite().optional(),
       })
       .optional(),
+    serverFastRefresh: z.boolean().optional(),
   })
 )
