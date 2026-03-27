@@ -355,6 +355,7 @@ export const experimentalSchema = {
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),
@@ -781,6 +782,5 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         pollIntervalMs: z.number().positive().finite().optional(),
       })
       .optional(),
-    serverFastRefresh: z.boolean().optional(),
   })
 )

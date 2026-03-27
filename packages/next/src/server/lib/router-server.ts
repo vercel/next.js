@@ -167,7 +167,8 @@ export async function initialize(opts: {
     // Resolve the effective serverFastRefresh value.
     // Both default to enabled (true). CLI takes precedence over config.
     const cliServerFastRefresh = opts.serverFastRefresh
-    const configServerFastRefresh = developmentConfig.serverFastRefresh
+    const configServerFastRefresh =
+      developmentConfig.experimental?.turbopackServerFastRefresh
     let effectiveServerFastRefresh: boolean | undefined
     if (
       cliServerFastRefresh !== undefined &&
@@ -175,7 +176,7 @@ export async function initialize(opts: {
       cliServerFastRefresh !== configServerFastRefresh
     ) {
       Log.warn(
-        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "serverFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
       )
       effectiveServerFastRefresh = cliServerFastRefresh
     } else {
