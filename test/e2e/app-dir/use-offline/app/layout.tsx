@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { OfflineStatus } from '../components/offline-status'
 
 export default function RootLayout({
   children,
@@ -8,9 +8,8 @@ export default function RootLayout({
   return (
     <html>
       <body>
-        <Suspense fallback={<div id="loading">Loading...</div>}>
-          {children}
-        </Suspense>
+        <OfflineStatus />
+        {children}
       </body>
     </html>
   )

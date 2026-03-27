@@ -39,6 +39,8 @@
     "image.d.ts",
     "link.js",
     "link.d.ts",
+    "offline.js",
+    "offline.d.ts",
     "form.js",
     "form.d.ts",
     "router.js",

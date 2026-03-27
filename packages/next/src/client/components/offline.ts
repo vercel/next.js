@@ -33,6 +33,7 @@ const CONNECTIVITY_CHECK_TIMEOUT_MS = 200
 
 import { pingPrefetchScheduler } from './segment-cache/scheduler'
 import { RSC_HEADER } from './app-router-headers'
+import { dispatchOfflineChange } from './use-offline'
 
 export type OfflineState = {
   promise: Promise<void>
@@ -89,6 +90,7 @@ function notifyOffline(): OfflineState {
     timeoutHandle: null,
     backoffStep: 0,
   }
+  dispatchOfflineChange(true)
   checkConnectivity(offlineState)
   return offlineState
 }
@@ -108,6 +110,7 @@ export function notifyOnline(): void {
   const resolve = offlineState.resolve
   offlineState = null
   resolve()
+  dispatchOfflineChange(false)
   pingPrefetchScheduler()
 }
 
