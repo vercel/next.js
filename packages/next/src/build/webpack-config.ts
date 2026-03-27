@@ -1767,6 +1767,16 @@ export default async function getBaseWebpackConfig(
                 ]
               : []),
             {
+              test: codeCondition.test,
+              exclude: codeCondition.exclude,
+              issuerLayer: WEBPACK_LAYERS.pagesDirBrowser,
+              use: [
+                ...reactRefreshLoaders,
+                defaultLoaders.babel,
+                reactCompilerLoader,
+              ].filter(Boolean),
+            },
+            {
               ...codeCondition,
               use: [
                 ...reactRefreshLoaders,
