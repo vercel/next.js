@@ -298,7 +298,7 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = &js_error_message)?;
             code += "\n}})";
-            code.build().cell()
+            code.build().cell().persisted()
         }
     })
 }
