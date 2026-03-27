@@ -618,6 +618,11 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
+/**
+ * Register the NAPI-based WASM plugin runtime.
+ * Must be called from JS before any SWC transforms that use plugins.
+ */
+export declare function registerWasmPluginRuntime(jsManager: object): void
 export declare function startTurbopackTraceServer(
   path: string,
   port?: number | undefined | null

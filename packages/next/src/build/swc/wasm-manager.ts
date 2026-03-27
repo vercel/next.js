@@ -11,7 +11,7 @@
  * workers, and provide the shared memory pointers to Rust for direct access.
  */
 
-import { Worker } from 'worker_threads'
+import { Worker, type TransferListItem } from 'worker_threads'
 import path from 'path'
 
 // ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ function createWorker(): WorkerEntry {
 function sendToWorker(
   entry: WorkerEntry,
   msg: any,
-  transfer?: ArrayBuffer[]
+  transfer?: TransferListItem[]
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const id = nextMessageId++
@@ -261,7 +261,7 @@ export const wasmManager = {
     const ab = data.buffer.slice(
       data.byteOffset,
       data.byteOffset + data.byteLength
-    )
+    ) as ArrayBuffer
     return sendToWorker(
       workers[workerIndex],
       { type: 'writeMemory', instanceId, ptr, data: ab },
