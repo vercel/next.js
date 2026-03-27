@@ -1,11 +1,20 @@
 #![feature(box_patterns)]
 #![feature(bufreader_peek)]
 
-use std::{hash::BuildHasherDefault, path::PathBuf, sync::Arc};
+use std::{
+    hash::BuildHasherDefault,
+    path::PathBuf,
+    sync::Arc,
+    thread,
+    time::{Duration, Instant},
+};
 
 use rustc_hash::FxHasher;
 
-use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
+use self::{
+    reader::TraceReader, server::serve, span_graph_ref::SpanGraphEventRef, span_ref::SpanRef,
+    store_container::StoreContainer,
+};
 
 mod bottom_up;
 mod reader;
@@ -16,7 +25,7 @@ mod span_bottom_up_ref;
 mod span_graph_ref;
 mod span_ref;
 mod store;
-mod store_container;
+pub mod store_container;
 mod string_tuple_ref;
 mod timestamp;
 mod u64_empty_string;
@@ -36,4 +45,335 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) {
     serve(store, port.unwrap_or(5747));
 
     reader.join().unwrap();
+}
+
+/// Starts the trace server on a background thread and returns the store
+/// immediately. The WebSocket server runs non-blocking.
+pub fn start_turbopack_trace_server_non_blocking(
+    path: PathBuf,
+    port: Option<u16>,
+) -> Arc<StoreContainer> {
+    let store = Arc::new(StoreContainer::new());
+
+    let store_for_reader = store.clone();
+    let store_for_server = store.clone();
+
+    TraceReader::spawn(store_for_reader, path);
+
+    thread::spawn(move || {
+        serve(store_for_server, port.unwrap_or(5747));
+    });
+
+    store
+}
+
+const PAGE_SIZE: usize = 20;
+
+/// Options for querying spans from the trace store.
+pub struct QueryOptions {
+    /// Optional parent span ID (as produced by `SpanInfo::id`).
+    /// `None` means root level.
+    pub parent: Option<String>,
+    /// When true, aggregate child spans with the same name.
+    pub aggregated: bool,
+    /// When true, sort results by corrected duration descending.
+    pub sort: bool,
+    /// Optional substring search query.
+    pub search: Option<String>,
+    /// 1-based page number.
+    pub page: usize,
+}
+
+/// Information about a single span (or aggregated group of spans).
+pub struct SpanInfo {
+    /// Span ID string. For raw spans this is a decimal number; for aggregated
+    /// spans it is a dash-separated list of decimal span IDs forming the path
+    /// from root to this node (needed to uniquely identify aggregated spans).
+    pub id: String,
+    /// Display name: `"category title"` or just `"title"`.
+    pub name: String,
+    /// Raw CPU total time in internal ticks (100 ticks = 1 µs).
+    pub cpu_duration: u64,
+    /// Concurrency-corrected total time in internal ticks.
+    pub corrected_duration: u64,
+    /// Start of span relative to parent start, in internal ticks.
+    pub start_relative_to_parent: i64,
+    /// End of span relative to parent start, in internal ticks.
+    pub end_relative_to_parent: i64,
+    /// Key-value attributes from the span.
+    pub args: Vec<(String, String)>,
+    /// True if this entry represents an aggregated group of spans.
+    pub is_aggregated: bool,
+    /// Number of spans in the group (only set for aggregated spans).
+    pub count: Option<u64>,
+    /// Sum of cpu_duration across all spans in the group.
+    pub total_cpu_duration: Option<u64>,
+    /// Average cpu_duration across all spans in the group.
+    pub avg_cpu_duration: Option<u64>,
+    /// Sum of corrected_duration across all spans in the group.
+    pub total_corrected_duration: Option<u64>,
+    /// Average corrected_duration across all spans in the group.
+    pub avg_corrected_duration: Option<u64>,
+}
+
+/// Result of a `query_spans` call.
+pub struct QueryResult {
+    pub spans: Vec<SpanInfo>,
+    pub page: usize,
+    pub total_pages: usize,
+    pub total_count: usize,
+}
+
+/// Query spans from the store.
+///
+/// Waits up to 2 seconds for at least some data to be loaded before
+/// returning, so callers don't need to poll separately.
+pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryResult {
+    // Wait briefly for initial data if the store is empty.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        {
+            let guard = store.read();
+            // root span always exists (index 0); real spans start at index 1
+            if guard.spans.len() > 1 {
+                break;
+            }
+        }
+        if Instant::now() >= deadline {
+            break;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
+
+    let store_guard = store.read();
+    let store_ref = &*store_guard;
+
+    // Resolve the parent span.
+    let parent_span: Option<SpanRef<'_>> = if let Some(ref parent_id) = options.parent {
+        resolve_span_by_id(store_ref, parent_id)
+    } else {
+        None
+    };
+
+    let parent_start = parent_span.as_ref().map(|s| *s.start()).unwrap_or_default();
+
+    if options.aggregated {
+        // Collect aggregated children (SpanGraphRef) from either the resolved
+        // parent span or the root.
+        let graph_children: Vec<_> = if let Some(ref parent) = parent_span {
+            // The parent might be an aggregated node: look up which graph node
+            // the parent ID refers to, then iterate its children's graph events.
+            // For simplicity, resolve via the parent span's graph().
+            parent
+                .graph()
+                .filter_map(|event| match event {
+                    SpanGraphEventRef::Child { graph } => Some(graph),
+                    SpanGraphEventRef::SelfTime { .. } => None,
+                })
+                .collect()
+        } else {
+            // Root level: use root span's graph.
+            store_ref
+                .root_span()
+                .graph()
+                .filter_map(|event| match event {
+                    SpanGraphEventRef::Child { graph } => Some(graph),
+                    SpanGraphEventRef::SelfTime { .. } => None,
+                })
+                .collect()
+        };
+
+        // Apply search filter.
+        let mut filtered: Vec<_> = if let Some(ref query) = options.search {
+            graph_children
+                .into_iter()
+                .filter(|g| {
+                    let (cat, title) = g.nice_name();
+                    cat.contains(query.as_str()) || title.contains(query.as_str())
+                })
+                .collect()
+        } else {
+            graph_children
+        };
+
+        // Sort if requested.
+        if options.sort {
+            filtered.sort_by(|a, b| {
+                b.corrected_total_time()
+                    .cmp(&a.corrected_total_time())
+                    .then_with(|| b.total_time().cmp(&a.total_time()))
+            });
+        }
+
+        let total_count = filtered.len();
+        let total_pages = total_count.div_ceil(PAGE_SIZE).max(1);
+        let page = options.page.clamp(1, total_pages);
+        let start = (page - 1) * PAGE_SIZE;
+        let page_items: Vec<_> = filtered.into_iter().skip(start).take(PAGE_SIZE).collect();
+
+        let spans = page_items
+            .into_iter()
+            .map(|graph| {
+                let first = graph.first_span();
+                let (cat, title) = graph.nice_name();
+                let name = if cat.is_empty() {
+                    title.to_string()
+                } else {
+                    format!("{cat} {title}")
+                };
+                let count = graph.count() as u64;
+                let total_cpu = *graph.total_time();
+                let total_corrected = *graph.corrected_total_time();
+                let avg_cpu = if count > 0 { total_cpu / count } else { 0 };
+                let avg_corrected = if count > 0 {
+                    total_corrected / count
+                } else {
+                    0
+                };
+
+                // ID: the SpanGraphRef id is `(first_span_index << 1) | 1`.
+                // For MCP purposes we expose the example span index as a decimal
+                // plus a marker so the caller can pass it back as `parent`.
+                let first_index = first.index;
+                let graph_id = ((first_index << 1) | 1).to_string();
+
+                // start/end of the first/example span relative to parent.
+                let span_start = *first.start();
+                let span_end = *first.end();
+                let rel_start = (span_start as i64) - (parent_start as i64);
+                let rel_end = (span_end as i64) - (parent_start as i64);
+
+                SpanInfo {
+                    id: graph_id,
+                    name,
+                    cpu_duration: *first.total_time(),
+                    corrected_duration: *first.corrected_total_time(),
+                    start_relative_to_parent: rel_start,
+                    end_relative_to_parent: rel_end,
+                    args: first
+                        .args()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect(),
+                    is_aggregated: count > 1,
+                    count: Some(count),
+                    total_cpu_duration: Some(total_cpu),
+                    avg_cpu_duration: Some(avg_cpu),
+                    total_corrected_duration: Some(total_corrected),
+                    avg_corrected_duration: Some(avg_corrected),
+                }
+            })
+            .collect();
+
+        QueryResult {
+            spans,
+            page,
+            total_pages,
+            total_count,
+        }
+    } else {
+        // Raw spans mode.
+        let raw_children: Vec<SpanRef<'_>> = if let Some(ref parent) = parent_span {
+            parent.children().collect()
+        } else {
+            store_ref.root_spans().collect()
+        };
+
+        // Apply search filter.
+        let mut filtered: Vec<_> = if let Some(ref query) = options.search {
+            raw_children
+                .into_iter()
+                .filter(|s| {
+                    let (cat, title) = s.nice_name();
+                    cat.contains(query.as_str()) || title.contains(query.as_str())
+                })
+                .collect()
+        } else {
+            raw_children
+        };
+
+        // Sort if requested.
+        if options.sort {
+            filtered.sort_by(|a, b| {
+                b.corrected_total_time()
+                    .cmp(&a.corrected_total_time())
+                    .then_with(|| b.total_time().cmp(&a.total_time()))
+            });
+        }
+
+        let total_count = filtered.len();
+        let total_pages = total_count.div_ceil(PAGE_SIZE).max(1);
+        let page = options.page.clamp(1, total_pages);
+        let start = (page - 1) * PAGE_SIZE;
+        let page_items: Vec<_> = filtered.into_iter().skip(start).take(PAGE_SIZE).collect();
+
+        let spans = page_items
+            .into_iter()
+            .map(|span| {
+                let (cat, title) = span.nice_name();
+                let name = if cat.is_empty() {
+                    title.to_string()
+                } else {
+                    format!("{cat} {title}")
+                };
+                let span_start = *span.start();
+                let span_end = *span.end();
+                let rel_start = (span_start as i64) - (parent_start as i64);
+                let rel_end = (span_end as i64) - (parent_start as i64);
+
+                SpanInfo {
+                    id: (span.index << 1).to_string(),
+                    name,
+                    cpu_duration: *span.total_time(),
+                    corrected_duration: *span.corrected_total_time(),
+                    start_relative_to_parent: rel_start,
+                    end_relative_to_parent: rel_end,
+                    args: span
+                        .args()
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .collect(),
+                    is_aggregated: false,
+                    count: None,
+                    total_cpu_duration: None,
+                    avg_cpu_duration: None,
+                    total_corrected_duration: None,
+                    avg_corrected_duration: None,
+                }
+            })
+            .collect();
+
+        QueryResult {
+            spans,
+            page,
+            total_pages,
+            total_count,
+        }
+    }
+}
+
+/// Resolve a span by its MCP ID string.
+///
+/// - Even decimal string (e.g. `"42"`) → raw span at index `42 >> 1`.
+/// - Odd decimal string (e.g. `"43"`) → aggregated/graph span; look up the first span at index `43
+///   >> 1`, then return its children's graph children matching the next ID in the chain when used
+///   as a parent.
+///
+/// For the `parent` parameter we only need to navigate to the span whose
+/// *children* we want to enumerate. For aggregated parents we look up the
+/// underlying first span and return it so callers can call `.graph()` on it.
+fn resolve_span_by_id<'a>(store: &'a store::Store, id: &str) -> Option<SpanRef<'a>> {
+    let numeric: usize = id.parse().ok()?;
+    let is_graph = numeric & 1 == 1;
+    let index = numeric >> 1;
+    let span = store.spans.get(index).map(|s| SpanRef {
+        span: s,
+        store,
+        index,
+    })?;
+    if is_graph {
+        // For graph nodes, use the first span as the representative so we can
+        // call .graph() on it to get its children.
+        Some(span)
+    } else {
+        Some(span)
+    }
 }

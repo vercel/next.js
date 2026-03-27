@@ -619,6 +619,74 @@ export declare function startTurbopackTraceServer(
   path: string,
   port?: number | undefined | null
 ): void
+/** An opaque handle to a running trace server instance. */
+export declare class TraceServerHandle {}
+/** Options for `queryTraceSpans`. */
+export interface TraceQueryOptions {
+  /** Optional parent span ID (as returned by a previous query). Omit for root-level spans. */
+  parent?: string
+  /** When `true` (default), aggregate child spans with the same name. */
+  aggregated?: boolean
+  /** When `true`, sort results by corrected duration descending. Default `false`. */
+  sort?: boolean
+  /** Optional substring search query applied to span name/category. */
+  search?: string
+  /** 1-based page number. Default `1`. */
+  page?: number
+}
+/** Information about a single span or aggregated span group. */
+export interface TraceSpanInfo {
+  /** Span ID. Pass this as `parent` in a follow-up call to get children. */
+  id: string
+  /** Display name of the span. */
+  name: string
+  /** Raw CPU total time in internal ticks (100 ticks = 1 µs). */
+  cpuDuration: number
+  /** Concurrency-corrected total time in internal ticks (100 ticks = 1 µs). */
+  correctedDuration: number
+  /** Start time relative to parent start, in internal ticks. */
+  startRelativeToParent: number
+  /** End time relative to parent start, in internal ticks. */
+  endRelativeToParent: number
+  /** Key-value attributes attached to the span. */
+  args: string[][]
+  /** True if this entry represents an aggregated group of spans. */
+  isAggregated: boolean
+  /** Number of spans in this aggregated group (only set when `isAggregated`). */
+  count?: number
+  /** Sum of CPU duration across all spans in the group. */
+  totalCpuDuration?: number
+  /** Average CPU duration across spans in the group. */
+  avgCpuDuration?: number
+  /** Sum of corrected duration across all spans in the group. */
+  totalCorrectedDuration?: number
+  /** Average corrected duration across spans in the group. */
+  avgCorrectedDuration?: number
+}
+/** The result of a `queryTraceSpans` call. */
+export interface TraceQueryResult {
+  spans: TraceSpanInfo[]
+  /** Current page (1-based). */
+  page: number
+  /** Total number of pages available. */
+  totalPages: number
+  /** Total number of matching spans across all pages. */
+  totalCount: number
+}
+/**
+ * Starts the turbopack trace server on a background thread and returns a
+ * handle immediately (non-blocking). The WebSocket server will be available
+ * at `ws://127.0.0.1:<port>` (default port 5747).
+ */
+export declare function startTurbopackTraceServerHandle(
+  path: string,
+  port?: number | undefined | null
+): TraceServerHandle
+/** Query spans from the trace store held by a `TraceServerHandle`. */
+export declare function queryTraceSpans(
+  handle: TraceServerHandle,
+  options: TraceQueryOptions
+): TraceQueryResult
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string

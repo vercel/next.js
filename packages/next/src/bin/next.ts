@@ -564,11 +564,22 @@ internal
       parseValidPositiveInteger
     )
   )
-  .action((file: string, options: { port: number | undefined }) => {
-    return import('../cli/internal/turbo-trace-server.js').then((mod) =>
-      mod.startTurboTraceServerCli(file, options.port)
-    )
-  })
+  .addOption(
+    new Option(
+      '--mcp-port <mcpPort>',
+      'Port for the MCP (Model Context Protocol) server. Defaults to 5748.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action(
+    (
+      file: string,
+      options: { port: number | undefined; mcpPort: number | undefined }
+    ) => {
+      return import('../cli/internal/turbo-trace-server.js').then((mod) =>
+        mod.startTurboTraceServerCli(file, options.port, options.mcpPort)
+      )
+    }
+  )
 
 internal
   .command('post-build')
