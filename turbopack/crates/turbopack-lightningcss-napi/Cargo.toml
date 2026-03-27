@@ -8,18 +8,11 @@ license = "MPL-2.0"
 [lints]
 workspace = true
 
-[features]
-default = []
-visitor = ["lightningcss/visitor"]
-bundler = ["dep:crossbeam-channel", "dep:rayon"]
-
 [dependencies]
 cssparser = "0.33.0"
-crossbeam-channel = { workspace = true, optional = true }
-lightningcss = { workspace = true, features = ["nodejs", "serde"] }
+lightningcss = { workspace = true, features = ["nodejs", "serde", "visitor"] }
 napi = { workspace = true }
 parcel_sourcemap = { version = "2.1.1", features = ["json"] }
-rayon = { workspace = true, optional = true }
 serde = { workspace = true }
 serde-content = { version = "0.1.2", features = ["serde"] }
 serde-detach = "0.0.1"

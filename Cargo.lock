@@ -10193,12 +10193,10 @@ dependencies = [
 name = "turbopack-lightningcss-napi"
 version = "0.0.0"
 dependencies = [
- "crossbeam-channel",
  "cssparser",
  "lightningcss",
  "napi",
  "parcel_sourcemap",
- "rayon",
  "serde",
  "serde-content",
  "serde-detach",

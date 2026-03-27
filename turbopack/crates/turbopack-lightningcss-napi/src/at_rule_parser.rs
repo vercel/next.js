@@ -197,10 +197,8 @@ impl<'i> ToCss for AtRule<'i> {
     }
 }
 
-#[cfg(feature = "visitor")]
 use lightningcss::visitor::{Visit, VisitTypes, Visitor};
 
-#[cfg(feature = "visitor")]
 impl<'i, V: Visitor<'i, AtRule<'i>>> Visit<'i, AtRule<'i>, V> for AtRule<'i> {
     const CHILD_TYPES: VisitTypes = VisitTypes::empty();
 
