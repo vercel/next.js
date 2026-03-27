@@ -1,0 +1,11 @@
+{
+  "name": "module-sync-pkg",
+  "version": "0.0.0",
+  "exports": {
+    ".": {
+      "module-sync": "./require.mjs",
+      "import": "./index.mjs",
+      "default": "./index.js"
+    }
+  }
+}
