@@ -11,6 +11,7 @@ import {
   type ModernSourceMapPayload,
 } from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
+import { resolveAppRelativeEditorPath } from './resolve-app-relative-editor-path'
 import {
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
@@ -616,11 +617,7 @@ export function getOverlayMiddleware(options: {
       const isAppRelativePath = searchParams.get('isAppRelativePath') === '1'
       if (isAppRelativePath) {
         const relativeFilePath = searchParams.get('file') || ''
-        const appPath = path.join(
-          'app',
-          isSrcDir ? 'src' : '',
-          relativeFilePath
-        )
+        const appPath = resolveAppRelativeEditorPath(relativeFilePath, isSrcDir)
         openEditorResult = await openFileInEditor(appPath, 1, 1, rootDirectory)
       } else {
         // TODO: How do we differentiate layers and actual file paths with round brackets?
