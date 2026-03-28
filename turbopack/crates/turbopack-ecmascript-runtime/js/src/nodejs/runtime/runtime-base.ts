@@ -57,13 +57,11 @@ function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
 }
 
 const loadedChunks = new Set<ChunkPath>()
-const unsupportedLoadChunk = Promise.resolve(undefined)
-const loadedChunk: Promise<void> = Promise.resolve(undefined)
-const chunkCache = new Map<ChunkPath, Promise<void>>()
+const chunkErrors = new Map<ChunkPath, Error>()
 
 function clearChunkCache() {
-  chunkCache.clear()
   loadedChunks.clear()
+  chunkErrors.clear()
 }
 
 function loadRuntimeChunkPath(
@@ -98,50 +96,58 @@ function loadRuntimeChunkPath(
   }
 }
 
-function loadChunkAsync<TModule extends Module>(
+/**
+ * Synchronously loads a chunk using require(). On Node.js, chunk loading is
+ * always synchronous (file I/O via require), so there's no need for promises.
+ * Throws on failure.
+ */
+function loadChunkSync<TModule extends Module>(
   this: TurbopackBaseContext<TModule>,
   chunkData: ChunkData
-): Promise<void> {
+): void {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
-    return unsupportedLoadChunk
+    return
   }
 
-  let entry = chunkCache.get(chunkPath)
-  if (entry === undefined) {
-    try {
-      // resolve to an absolute path to simplify `require` handling
-      const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-      // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-      // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-      const chunkModules: CompressedModuleFactories = require(resolved)
-      installCompressedModuleFactories(chunkModules, 0, moduleFactories)
-      entry = loadedChunk
-    } catch (cause) {
-      const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
-      const error = new Error(errorMessage, { cause })
-      error.name = 'ChunkLoadError'
-
-      // Cache the failure promise, future requests will also get this same rejection
-      entry = Promise.reject(error)
-    }
-    chunkCache.set(chunkPath, entry)
+  if (loadedChunks.has(chunkPath)) {
+    return
   }
-  // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
-  return entry
+
+  const cachedError = chunkErrors.get(chunkPath)
+  if (cachedError !== undefined) {
+    throw cachedError
+  }
+
+  try {
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+    const chunkModules: CompressedModuleFactories = require(resolved)
+    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
+    loadedChunks.add(chunkPath)
+  } catch (cause) {
+    const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
+    const error = new Error(errorMessage, { cause })
+    error.name = 'ChunkLoadError'
+
+    // Cache the failure, future requests will also get this same error
+    chunkErrors.set(chunkPath, error)
+    throw error
+  }
 }
-contextPrototype.l = loadChunkAsync
+contextPrototype.l = loadChunkSync
 
-function loadChunkAsyncByUrl<TModule extends Module>(
+function loadChunkSyncByUrl<TModule extends Module>(
   this: TurbopackBaseContext<TModule>,
   chunkUrl: string
 ) {
-  const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath
-  return loadChunkAsync.call(this, path)
+  const chunkPath = url.fileURLToPath(
+    new URL(chunkUrl, RUNTIME_ROOT)
+  ) as ChunkPath
+  return loadChunkSync.call(this, chunkPath)
 }
-contextPrototype.L = loadChunkAsyncByUrl
+contextPrototype.L = loadChunkSyncByUrl
 
 function loadWebAssembly(
   chunkPath: ChunkPath,

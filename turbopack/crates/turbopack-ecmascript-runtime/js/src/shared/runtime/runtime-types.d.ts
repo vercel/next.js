@@ -48,7 +48,7 @@ type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
-type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
+type InvokeAsyncLoader = (moduleId: ModuleId) => Exports | Promise<Exports>
 type EsmExport = (
   exportGetters: Record<string, () => any>,
   id: ModuleId | undefined
@@ -61,8 +61,8 @@ type DynamicExport = (
   id: ModuleId | undefined
 ) => void
 
-type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
-type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
+type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | void
+type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | void
 type LoadWebAssembly = (
   wasmChunkPath: ChunkPath,
   edgeModule: () => WebAssembly.Module,

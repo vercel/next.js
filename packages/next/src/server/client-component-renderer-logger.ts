@@ -13,7 +13,7 @@ export function wrapClientComponentLoader(
   }
 
   return {
-    require: (...args) => {
+    require: (id) => {
       const startTime = performance.now()
 
       if (clientComponentLoadStart === 0) {
@@ -22,19 +22,24 @@ export function wrapClientComponentLoader(
 
       try {
         clientComponentLoadCount += 1
-        return ComponentMod.__next_app__.require(...args)
+        return ComponentMod.__next_app__.require(id)
       } finally {
         clientComponentLoadTimes += performance.now() - startTime
       }
     },
-    loadChunk: (...args) => {
+    loadChunk: (id) => {
       const startTime = performance.now()
-      const result = ComponentMod.__next_app__.loadChunk(...args)
-      // Avoid wrapping `loadChunk`'s result in an extra promise in case something like React depends on its identity.
-      // We only need to know when it's settled.
-      result.finally(() => {
+      const result = ComponentMod.__next_app__.loadChunk(id)
+      if (result) {
+        // Avoid wrapping `loadChunk`'s result in an extra promise in case something like React depends on its identity.
+        // We only need to know when it's settled.
+        result.finally(() => {
+          clientComponentLoadTimes += performance.now() - startTime
+        })
+      } else {
+        // Synchronous chunk load (e.g. Node.js Turbopack runtime)
         clientComponentLoadTimes += performance.now() - startTime
-      })
+      }
       return result
     },
   }

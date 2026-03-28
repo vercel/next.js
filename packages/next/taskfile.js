@@ -1738,7 +1738,20 @@ export async function copy_vendor_react(task_) {
             ])
           )
 
-          file.data = recast.print(ast).code
+          let code = recast.print(ast).code
+
+          // In Node.js builds, __next_chunk_load__ may return void when chunk
+          // loading is synchronous (Turbopack on Node.js uses require()). Patch
+          // preloadModule to skip promise tracking for sync loads so we avoid
+          // calling .then() on undefined.
+          if (file.base.includes('.node.')) {
+            code = code.replace(
+              /^([ \t]*)(var thenable = globalThis\.__next_chunk_load__\(chunks\[i\]\);)/gm,
+              '$1$2\n$1if (!thenable) continue;'
+            )
+          }
+
+          file.data = code
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
         }

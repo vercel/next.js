@@ -413,10 +413,10 @@ contextPrototype.i = esmImport
 function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
-): Promise<Exports> {
+): Exports | Promise<Exports> {
   const loader = this.r(moduleId) as (
     importFunction: EsmImport
-  ) => Promise<Exports>
+  ) => Exports | Promise<Exports>
   return loader(esmImport.bind(this))
 }
 contextPrototype.A = asyncLoader

@@ -2185,9 +2185,9 @@ function installGlobalModuleLoadingHandlers(
 
   // @ts-expect-error
   globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
+    id: Parameters<typeof instrumented.require>[0]
   ) => {
-    const exportsOrPromise = instrumented.require(...args)
+    const exportsOrPromise = instrumented.require(id)
     if (shouldTrackModuleLoading()) {
       trackPendingImport(exportsOrPromise)
     }
@@ -2196,13 +2196,13 @@ function installGlobalModuleLoadingHandlers(
 
   // @ts-expect-error
   globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
+    id: Parameters<typeof instrumented.loadChunk>[0]
   ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
+    const result = instrumented.loadChunk(id)
     if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
+      trackPendingChunkLoad(result)
     }
-    return loadingChunk
+    return result
   }
 }
 
