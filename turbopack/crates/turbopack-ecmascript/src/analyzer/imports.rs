@@ -673,6 +673,10 @@ impl Visit for Analyzer<'_> {
     fn visit_export_all(&mut self, export: &ExportAll) {
         self.data.has_exports = true;
 
+        if export.type_only {
+            return;
+        }
+
         let annotations = ImportAnnotations::parse(export.with.as_deref());
 
         self.ensure_reference(
@@ -705,8 +709,14 @@ impl Visit for Analyzer<'_> {
         let annotations = ImportAnnotations::parse(export.with.as_deref());
 
         let internal_symbol = parse_with(export.with.as_deref());
+        let has_runtime_export = !export.type_only
+            && (export.specifiers.is_empty()
+                || export
+                    .specifiers
+                    .iter()
+                    .any(|specifier| !is_type_only_export_specifier(specifier)));
 
-        if internal_symbol.is_none() || export.specifiers.is_empty() {
+        if has_runtime_export && (internal_symbol.is_none() || export.specifiers.is_empty()) {
             self.ensure_reference(
                 export.span,
                 src.value.clone(),
@@ -715,7 +725,15 @@ impl Visit for Analyzer<'_> {
             );
         }
 
+        if !has_runtime_export {
+            return;
+        }
+
         for spec in export.specifiers.iter() {
+            if is_type_only_export_specifier(spec) {
+                continue;
+            }
+
             let symbol = internal_symbol
                 .clone()
                 .unwrap_or_else(|| get_import_symbol_from_export(spec));
@@ -1045,6 +1063,16 @@ fn is_type_only_import_specifier(specifier: &ImportSpecifier) -> bool {
     )
 }
 
+fn is_type_only_export_specifier(specifier: &ExportSpecifier) -> bool {
+    matches!(
+        specifier,
+        ExportSpecifier::Named(ExportNamedSpecifier {
+            is_type_only: true,
+            ..
+        })
+    )
+}
+
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
@@ -1185,6 +1213,33 @@ mod tests {
     }
 
     #[test]
+    fn test_analyze_skips_full_type_only_re_exports() {
+        let program = parse_typescript_program("export type { Foo } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert!(import_map.references.is_empty());
+        assert!(import_map.reexports.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_skips_named_type_only_re_exports() {
+        let program = parse_typescript_program("export { type Foo } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert!(import_map.references.is_empty());
+        assert!(import_map.reexports.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_skips_type_only_export_star() {
+        let program = parse_typescript_program("export type * from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert!(import_map.references.is_empty());
+        assert!(import_map.reexports.is_empty());
+    }
+
+    #[test]
     fn test_analyze_keeps_runtime_edges_for_mixed_imports() {
         let program = parse_typescript_program("import { type Foo, bar as baz } from 'pkg';");
         let import_map = ImportMap::analyze(&program, None, None);
@@ -1209,5 +1264,31 @@ mod tests {
 
         assert_eq!(import_map.imports.len(), 1);
         assert!(import_map.namespace_imports.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_keeps_runtime_edges_for_mixed_re_exports() {
+        let program = parse_typescript_program("export { type Foo, bar as baz } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert_eq!(import_map.references.len(), 2);
+        assert_eq!(
+            import_map.references[0].imported_symbol,
+            ImportedSymbol::ModuleEvaluation
+        );
+        assert_eq!(
+            import_map.references[1].imported_symbol,
+            ImportedSymbol::Symbol(atom!("bar"))
+        );
+        assert_eq!(
+            import_map.references[0].module_path.to_string_lossy(),
+            "pkg"
+        );
+        assert_eq!(
+            import_map.references[1].module_path.to_string_lossy(),
+            "pkg"
+        );
+
+        assert_eq!(import_map.reexports.len(), 1);
     }
 }
