@@ -17,6 +17,22 @@ type ChunkRunner = {
   runtimeModuleIds: ModuleId[]
 }
 
+// Override the shared asyncLoader with an async version for Edge.
+// In the Edge runtime, chunk loading is synchronous (all chunks are pre-bundled),
+// so the loader may return a plain value or throw. Since dynamic import() must
+// always return a Promise per the spec, wrapping in async ensures both success
+// values and errors are properly wrapped in a Promise.
+async function asyncLoaderEdge(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Exports | Promise<Exports>
+  return loader(esmImport.bind(this))
+}
+contextPrototype.A = asyncLoaderEdge
+
 let BACKEND: RuntimeBackend
 ;(() => {
   BACKEND = {

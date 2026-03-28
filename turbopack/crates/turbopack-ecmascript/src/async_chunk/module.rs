@@ -197,12 +197,12 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
 
         let is_sync = matches!(
             *chunking_context.environment().chunk_loading().await?,
-            ChunkLoading::NodeJs
+            ChunkLoading::NodeJs | ChunkLoading::Edge
         );
 
         let code = if is_sync {
-            // Node.js: chunk loading is synchronous (require()), so we can avoid
-            // all promise overhead. The loader returns the result directly.
+            // Node.js/Edge: chunk loading is synchronous (require() on Node.js,
+            // pre-bundled on Edge), so we can avoid all promise overhead.
             match (id, chunks_data.is_empty()) {
                 (Some(id), true) => {
                     formatdoc! {
@@ -245,7 +245,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                 }
             }
         } else {
-            // Browser/Edge: chunk loading is async, use promises.
+            // Browser (DOM): chunk loading is async, use promises.
             // Single-chunk case avoids Promise.all + map overhead.
             match (id, chunks_data.len()) {
                 (Some(id), 0) => {

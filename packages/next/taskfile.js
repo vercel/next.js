@@ -1567,6 +1567,42 @@ export async function copy_vendor_react(task_) {
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
+    /**
+     * Replaces the body of a named function declaration/expression.
+     * Finds `function <name>(` and uses brace counting to locate the
+     * full body, then replaces it with the provided code.
+     */
+    function replaceFunctionBody(
+      /** @type {string} */ code,
+      /** @type {string} */ name,
+      /** @type {string} */ newBody
+    ) {
+      const needle = `function ${name}(`
+      const funcStart = code.indexOf(needle)
+      if (funcStart === -1) {
+        throw new Error(`replaceFunctionBody: "${name}" not found`)
+      }
+      // Find the opening brace of the function body
+      const openBrace = code.indexOf('{', funcStart + needle.length)
+      if (openBrace === -1) {
+        throw new Error(
+          `replaceFunctionBody: opening brace not found for "${name}"`
+        )
+      }
+      // Count braces to find the matching close
+      let depth = 1
+      let pos = openBrace + 1
+      while (depth > 0 && pos < code.length) {
+        if (code[pos] === '{') depth++
+        else if (code[pos] === '}') depth--
+        pos++
+      }
+      // pos is now one past the closing brace
+      const before = code.slice(0, openBrace + 1)
+      const after = code.slice(pos - 1) // includes the closing brace
+      return `${before}\n  ${newBody}\n${after}`
+    }
+
     function replaceIdentifiersInAst(
       /** @type {recast.types.namedTypes.File} */ ast,
       /** @type {Map<string, ExpressionKind>} */ replacements
@@ -1740,17 +1776,22 @@ export async function copy_vendor_react(task_) {
 
           let code = recast.print(ast).code
 
-          // In Node.js builds, __next_chunk_load__ may return void when chunk
-          // loading is synchronous (Turbopack on Node.js uses require()). Patch
-          // preloadModule to skip promise tracking for sync loads so we avoid
-          // calling .then() on undefined.
+          // In Node.js and Edge builds, __next_chunk_load__ returns void
+          // because chunk loading is synchronous (require() on Node.js,
+          // pre-bundled on Edge). Replace the entire preloadModule function
+          // to eliminate all promise tracking overhead — the chunks are
+          // already loaded synchronously, so we just need to call
+          // __next_chunk_load__ for side effects and handle async modules.
           if (
             file.base.startsWith('react-server-dom-turbopack-server') &&
-            file.base.includes('.node.')
+            (file.base.includes('.node.') || file.base.includes('.edge.'))
           ) {
-            code = code.replace(
-              /^([ \t]*)(var thenable = globalThis\.__next_chunk_load__\(chunks\[i\]\);)/gm,
-              '$1$2\n$1if (!thenable) continue;'
+            code = replaceFunctionBody(
+              code,
+              'preloadModule',
+              `for (var chunks = metadata[1], i = 0; i < chunks.length; i++)
+    globalThis.__next_chunk_load__(chunks[i]);
+  return 4 === metadata.length ? requireAsyncModule(metadata[0]) : null;`
             )
           }
 

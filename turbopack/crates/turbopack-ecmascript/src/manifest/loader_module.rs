@@ -162,13 +162,14 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
 
         let is_sync = matches!(
             *chunking_context.environment().chunk_loading().await?,
-            ChunkLoading::NodeJs
+            ChunkLoading::NodeJs | ChunkLoading::Edge
         );
 
         if is_sync {
-            // Node.js: all chunk loading is synchronous (require()), so we can
-            // avoid all promise overhead. Load chunks, require manifest, load
-            // dynamic chunks, import target — all synchronous.
+            // Node.js/Edge: all chunk loading is synchronous (require() on Node.js,
+            // pre-bundled on Edge), so we can avoid all promise overhead. Load
+            // chunks, require manifest, load dynamic chunks, import target — all
+            // synchronous.
             writedoc!(
                 code,
                 r#"
@@ -186,7 +187,7 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
                 dynamic_id = StringifyModuleId(&dynamic_id),
             )?;
         } else {
-            // Browser/Edge: chunk loading is async, use promises.
+            // Browser (DOM): chunk loading is async, use promises.
             // The second stage chunks come from TURBOPACK_REQUIRE at runtime so we
             // cannot know their count at codegen time.
             let load_dynamic = formatdoc! {
