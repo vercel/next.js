@@ -1744,7 +1744,10 @@ export async function copy_vendor_react(task_) {
           // loading is synchronous (Turbopack on Node.js uses require()). Patch
           // preloadModule to skip promise tracking for sync loads so we avoid
           // calling .then() on undefined.
-          if (file.base.includes('.node.')) {
+          if (
+            file.base.startsWith('react-server-dom-turbopack-server') &&
+            file.base.includes('.node.')
+          ) {
             code = code.replace(
               /^([ \t]*)(var thenable = globalThis\.__next_chunk_load__\(chunks\[i\]\);)/gm,
               '$1$2\n$1if (!thenable) continue;'

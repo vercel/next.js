@@ -76,7 +76,6 @@ function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
     var thenable = globalThis.__next_chunk_load__(chunks[i]);
-    if (!thenable) continue;
     loadedChunks.has(thenable) || promises.push(thenable);
     if (!instrumentedChunks.has(thenable)) {
       var resolve = loadedChunks.add.bind(loadedChunks, thenable);
