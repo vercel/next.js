@@ -612,8 +612,14 @@ pub mod smallvec {
         encoder: &mut E,
     ) -> Result<(), EncodeError> {
         usize::encode(&vec.len(), encoder)?;
-        for item in vec {
-            Encode::encode(item, encoder)?;
+        if unty::type_equal::<A::Item, u8>() {
+            // Safety: A::Item is u8, so transmuting &[A::Item] to &[u8] is valid.
+            let slice: &[u8] = unsafe { core::mem::transmute(vec.as_slice()) };
+            encoder.writer().write(slice)?;
+        } else {
+            for item in vec {
+                Encode::encode(item, encoder)?;
+            }
         }
         Ok(())
     }
@@ -622,9 +628,23 @@ pub mod smallvec {
         decoder: &mut D,
     ) -> Result<SmallVec<A>, DecodeError> {
         let len = usize::decode(decoder)?;
+        decoder.claim_container_read::<A::Item>(len)?;
         let mut vec = SmallVec::with_capacity(len);
-        for _ in 0..len {
-            vec.push(Decode::decode(decoder)?);
+        if unty::type_equal::<A::Item, u8>() {
+            // Safety: A::Item is u8 and `len` bytes have been allocated. We zero-initialize
+            // before marking live to avoid exposing uninitialized memory to the reader.
+            unsafe {
+                core::ptr::write_bytes(vec.as_mut_ptr(), 0, len);
+                vec.set_len(len);
+            }
+            // Safety: A::Item is u8, so transmuting &mut [A::Item] to &mut [u8] is valid.
+            let slice: &mut [u8] = unsafe { core::mem::transmute(vec.as_mut_slice()) };
+            decoder.reader().read(slice)?;
+        } else {
+            for _ in 0..len {
+                decoder.unclaim_bytes_read(core::mem::size_of::<A::Item>());
+                vec.push(Decode::decode(decoder)?);
+            }
         }
         Ok(vec)
     }
@@ -638,9 +658,22 @@ pub mod smallvec {
         decoder: &mut D,
     ) -> Result<SmallVec<A>, DecodeError> {
         let len = usize::decode(decoder)?;
+        decoder.claim_container_read::<A::Item>(len)?;
         let mut vec = SmallVec::with_capacity(len);
-        for _ in 0..len {
-            vec.push(BorrowDecode::borrow_decode(decoder)?);
+        if unty::type_equal::<A::Item, u8>() {
+            // Safety: A::Item is u8 and `len` bytes have been allocated.
+            unsafe {
+                core::ptr::write_bytes(vec.as_mut_ptr(), 0, len);
+                vec.set_len(len);
+            }
+            // Safety: A::Item is u8, so transmuting &mut [A::Item] to &mut [u8] is valid.
+            let slice: &mut [u8] = unsafe { core::mem::transmute(vec.as_mut_slice()) };
+            decoder.reader().read(slice)?;
+        } else {
+            for _ in 0..len {
+                decoder.unclaim_bytes_read(core::mem::size_of::<A::Item>());
+                vec.push(BorrowDecode::borrow_decode(decoder)?);
+            }
         }
         Ok(vec)
     }
@@ -665,6 +698,42 @@ pub mod smallvec {
                 .0;
 
             assert_eq!(vec1.0, vec2.0);
+        }
+
+        #[test]
+        fn test_roundtrip_u8() {
+            let cfg = bincode::config::standard();
+
+            #[derive(Encode, Decode)]
+            struct Wrapper(#[bincode(with = "crate::smallvec")] SmallVec<[u8; 4]>);
+
+            // Test with len > inline capacity (4) to exercise heap-spilled path
+            let vec1 = Wrapper(SmallVec::from_slice(&[1u8, 2, 3, 4, 5, 6]));
+
+            let vec2: Wrapper = decode_from_slice(&encode_to_vec(&vec1, cfg).unwrap(), cfg)
+                .unwrap()
+                .0;
+
+            assert_eq!(vec1.0, vec2.0);
+        }
+
+        #[test]
+        fn test_u8_wire_format() {
+            let cfg = bincode::config::standard();
+
+            #[derive(Encode, Decode)]
+            struct Wrapper(#[bincode(with = "crate::smallvec")] SmallVec<[u8; 4]>);
+
+            let data = [10u8, 20, 30];
+            let wrapper = Wrapper(SmallVec::from_slice(&data));
+            let encoded = encode_to_vec(&wrapper, cfg).unwrap();
+
+            // Standard config: usize encoded as varint. len=3 -> single byte 0x03.
+            // Followed by 3 raw bytes (bulk-copied, same wire format as per-element).
+            assert_eq!(encoded, vec![0x03, 10, 20, 30]);
+
+            let decoded: Wrapper = decode_from_slice(&encoded, cfg).unwrap().0;
+            assert_eq!(decoded.0.as_slice(), &data);
         }
     }
 }
