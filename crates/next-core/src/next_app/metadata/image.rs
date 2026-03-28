@@ -32,7 +32,7 @@ async fn dynamic_image_metadata_with_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension().unwrap_or_default();
+    let ext = path.extension();
 
     let hash = path
         .read()
@@ -44,7 +44,7 @@ async fn dynamic_image_metadata_with_generator_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if ext == "svg" {
+        let sizes = if ext == Some("svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
@@ -86,7 +86,7 @@ async fn dynamic_image_metadata_with_generator_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{stem}.{}", ext.unwrap_or(""))),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
@@ -110,7 +110,7 @@ async fn dynamic_image_metadata_without_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension().unwrap_or_default();
+    let ext = path.extension();
 
     let hash = path
         .read()
@@ -122,7 +122,7 @@ async fn dynamic_image_metadata_without_generator_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if ext == "svg" {
+        let sizes = if ext == Some("svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
@@ -158,7 +158,7 @@ async fn dynamic_image_metadata_without_generator_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{stem}.{}", ext.unwrap_or(""))),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
