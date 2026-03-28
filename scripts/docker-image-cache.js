@@ -48,15 +48,6 @@ function computeCacheKey() {
   return hash.digest('hex')
 }
 
-function imageExists() {
-  try {
-    execSync(`docker image inspect ${IMAGE_NAME}`, { stdio: 'ignore' })
-    return true
-  } catch {
-    return false
-  }
-}
-
 function buildImage() {
   console.log(`Building Docker image: ${IMAGE_NAME}`)
   const ctx = fs.mkdtempSync(path.join(os.tmpdir(), 'next-swc-docker-'))
