@@ -4,6 +4,8 @@ import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import RenderResult from '../render-result'
 import { tryLoadManifestWithRetries } from '../load-components'
 import type { BuildManifest } from '../get-page-files'
+import { randomUUID } from 'crypto'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 /**
  * Escapes HTML attribute special characters.
@@ -23,6 +25,13 @@ function escapeHtmlAttr(str: string): string {
  * `document.documentElement.id === '__next_error__'` and does CSR with
  * the dev overlay instead of hydrating. Error details are embedded in a
  * `<template>` tag for the overlay to pick up.
+ *
+ * The script loading mirrors what React's renderToReadableStream does:
+ * all rootMainFiles are loaded as `<script async>` tags. The last
+ * rootMainFile is the turbopack runtime bootstrap which contains the
+ * chunk loader, module system, and entry module IDs. When it executes,
+ * it processes all buffered chunk registrations and starts the app
+ * entry point (app-next-turbopack), which mounts the dev overlay.
  */
 export async function buildAppRouterDevErrorHtml(
   distDir: string,
@@ -34,14 +43,6 @@ export async function buildAppRouterDevErrorHtml(
     await tryLoadManifestWithRetries<BuildManifest>(manifestPath)
 
   const rootMainFiles: readonly string[] = buildManifest?.rootMainFiles ?? []
-
-  // Build <script> tags for bootstrap entry chunks
-  const scriptTags = rootMainFiles
-    .map(
-      (file) =>
-        `<script src="${escapeHtmlAttr(`${assetPrefix}/_next/${file}`)}" defer></script>`
-    )
-    .join('\n    ')
 
   // Build error template (dev only — passes error details to the overlay)
   let errorTemplate = ''
@@ -55,14 +56,30 @@ export async function buildAppRouterDevErrorHtml(
       `</template>`
   }
 
+  const requestId = randomUUID()
+
+  // Load all rootMainFiles as async scripts, mirroring React's behavior.
+  // Each chunk pushes module registrations onto the TURBOPACK global array.
+  // The last chunk is the turbopack runtime bootstrap which processes all
+  // registrations and executes the entry module (app-next-turbopack).
+  const scriptTags = rootMainFiles
+    .map(
+      (file) =>
+        `<script src="${escapeHtmlAttr(`${assetPrefix}/_next/${encodeURIPath(file)}`)}" async=""></script>`
+    )
+    .join('\n')
+
   const html = `<!DOCTYPE html>
 <html id="__next_error__">
   <head>
     <meta charset="utf-8">
-    ${scriptTags}
   </head>
   <body>
     ${errorTemplate}
+    <script>self.__next_r=${JSON.stringify(requestId)}</script>
+    <script>(self.__next_f=self.__next_f||[]).push([0])</script>
+    <script>self.__next_f.push([1,"0:null\\n"])</script>
+${scriptTags}
   </body>
 </html>`
 

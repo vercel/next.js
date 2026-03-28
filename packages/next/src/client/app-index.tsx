@@ -359,6 +359,38 @@ export async function hydrate(
 
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+
+    if (document.documentElement.id === '__next_error__') {
+      // Dev error page served from the in-memory __next_error__ shell.
+      // No real RSC payload exists and the full App Router machinery
+      // (ServerRoot, AppRouter, etc.) would crash without valid router
+      // state. Instead, we skip mounting the React tree entirely.
+      // The WebSocket is already connected so HMR can deliver
+      // build/runtime errors. The overlay itself is mounted independently
+      // by renderAppDevOverlay() in the bootstrap's finally block.
+      //
+      // Replay any error embedded in the <template> tag so the overlay
+      // shows the initial SSR/compilation error immediately.
+      const ssrErrorTemplate = document.querySelector(
+        'template[data-next-error-message]'
+      )
+      if (ssrErrorTemplate) {
+        const { handleClientError } =
+          require('../next-devtools/userspace/app/errors/use-error-handler') as typeof import('../next-devtools/userspace/app/errors/use-error-handler')
+        const message = ssrErrorTemplate.getAttribute(
+          'data-next-error-message'
+        )!
+        const stack = ssrErrorTemplate.getAttribute('data-next-error-stack')
+        const digest = ssrErrorTemplate.getAttribute('data-next-error-digest')
+        const error = new Error(message)
+        if (digest) {
+          ;(error as any).digest = digest
+        }
+        error.stack = stack || ''
+        handleClientError(error)
+      }
+      return
+    }
   }
   const initialRSCPayload = await initialServerResponse
 

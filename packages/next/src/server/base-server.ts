@@ -2814,12 +2814,14 @@ export default abstract class Server<
     // in-memory __next_error__ HTML shell instead of going through the Pages
     // Router _error/_app/_document rendering pipeline.
     if (this.dev && this.enabledDirectories.app) {
-      const isAppOnly = !this.enabledDirectories.pages
-      const isAppRouteError = getRequestMeta(ctx.req, 'isAppRouteError')
       // For app-only projects we always use the in-memory shell.
-      // For mixed projects we use it when the request was tagged as an
-      // app route error.
-      if (isAppOnly || isAppRouteError) {
+      // For mixed projects we auto-detect whether the failing route is an
+      // App Router route, so callers don't need to explicitly tag requests.
+      const isAppRoute =
+        !this.enabledDirectories.pages ||
+        getRequestMeta(ctx.req, 'isAppRouteError') ||
+        this.getOriginalAppPaths(ctx.pathname) != null
+      if (isAppRoute) {
         const { buildAppRouterDevErrorHtml } =
           require('./dev/build-dev-error-html') as typeof import('./dev/build-dev-error-html')
         return {
