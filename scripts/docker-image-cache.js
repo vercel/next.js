@@ -121,10 +121,8 @@ async function main() {
     }
   }
 
-  // Build the image
-  if (!imageExists() || flags.force) {
-    buildImage()
-  }
+  // Cache miss or --force: always rebuild since inputs changed
+  buildImage()
 
   // Compress and upload
   console.log('Compressing docker image with zstd...')
