@@ -311,7 +311,7 @@ impl NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn hash_salt_vc(&self) -> Vc<RcStr> {
+    pub fn hash_salt(&self) -> Vc<RcStr> {
         *self.hash_salt
     }
 
@@ -486,7 +486,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = this.asset_content_hashing;
         let hash = content
-            .content_hash(self.hash_salt_vc(), HashAlgorithm::Xxh3Hash128Base38)
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
             .await?;
         let hash = hash
             .as_ref()
