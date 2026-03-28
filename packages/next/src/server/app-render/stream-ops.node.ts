@@ -36,6 +36,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { htmlEscapeJsonString } from '../htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -635,9 +636,95 @@ export function createNodeInlinedDataStream(
   nonce: string | undefined,
   formState: unknown | null
 ): AnyStream {
-  const webSource = nodeReadableToWebReadableStream(source)
-  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
-  return webToReadable(webResult)
+  const startScriptTag = nonce
+    ? `<script nonce=${JSON.stringify(nonce)}>`
+    : '<script>'
+
+  const decoder = new TextDecoder('utf-8', { fatal: true })
+  const dataStream = webToReadable(source)
+  const pt = new PassThrough()
+
+  // Write initial bootstrap instructions
+  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+  )})`
+  if (formState != null) {
+    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+    )})`
+  }
+  pt.push(Buffer.from(`${startScriptTag}${scriptContents}</script>`))
+
+  // Pull from the flight data stream and wrap each chunk in a <script> tag
+  pullFlightData(dataStream, pt, startScriptTag, decoder)
+
+  return pt
+}
+
+const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
+const INLINE_FLIGHT_PAYLOAD_DATA = 1
+const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
+const INLINE_FLIGHT_PAYLOAD_BINARY = 3
+
+async function pullFlightData(
+  dataStream: Readable,
+  output: PassThrough,
+  startScriptTag: string,
+  decoder: TextDecoder
+): Promise<void> {
+  function waitForReadableOrEnd(): Promise<void> {
+    if (dataStream.readableLength > 0 || dataStream.readableEnded) {
+      return Promise.resolve()
+    }
+    return new Promise<void>((resolve) => {
+      function onDone() {
+        dataStream.removeListener('readable', onDone)
+        dataStream.removeListener('end', onDone)
+        resolve()
+      }
+      dataStream.on('readable', onDone)
+      dataStream.on('end', onDone)
+    })
+  }
+
+  try {
+    while (true) {
+      const chunk: Buffer | null = dataStream.read()
+      if (chunk !== null) {
+        let htmlInlinedData: string
+        try {
+          const decodedString = decoder.decode(chunk, { stream: true })
+          htmlInlinedData = htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
+          )
+        } catch {
+          const base64 = Buffer.from(
+            chunk.buffer,
+            chunk.byteOffset,
+            chunk.byteLength
+          ).toString('base64')
+          htmlInlinedData = htmlEscapeJsonString(
+            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+          )
+        }
+        output.push(
+          Buffer.from(
+            `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
+          )
+        )
+        continue
+      }
+
+      if (dataStream.readableEnded) {
+        output.end()
+        return
+      }
+
+      await waitForReadableOrEnd()
+    }
+  } catch (err) {
+    output.destroy(err as Error)
+  }
 }
 
 export function createPendingStream(): AnyStream {
