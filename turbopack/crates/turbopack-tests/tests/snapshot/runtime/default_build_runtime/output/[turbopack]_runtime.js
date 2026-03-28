@@ -698,12 +698,10 @@ function loadRuntimeChunk(sourcePath, chunkData) {
     }
 }
 const loadedChunks = new Set();
-const unsupportedLoadChunk = Promise.resolve(undefined);
-const loadedChunk = Promise.resolve(undefined);
-const chunkCache = new Map();
+const chunkErrors = new Map();
 function clearChunkCache() {
-    chunkCache.clear();
     loadedChunks.clear();
+    chunkErrors.clear();
 }
 function loadRuntimeChunkPath(sourcePath, chunkPath) {
     if (!isJs(chunkPath)) {
@@ -731,43 +729,46 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
         throw error;
     }
 }
-function loadChunkAsync(chunkData) {
+/**
+ * Synchronously loads a chunk using require(). On Node.js, chunk loading is
+ * always synchronous (file I/O via require), so there's no need for promises.
+ * Throws on failure.
+ */ function loadChunkSync(chunkData) {
     const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
-        return unsupportedLoadChunk;
+        return;
     }
-    let entry = chunkCache.get(chunkPath);
-    if (entry === undefined) {
-        try {
-            // resolve to an absolute path to simplify `require` handling
-            const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-            // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-            // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-            const chunkModules = require(resolved);
-            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
-            entry = loadedChunk;
-        } catch (cause) {
-            const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
-            const error = new Error(errorMessage, {
-                cause
-            });
-            error.name = 'ChunkLoadError';
-            // Cache the failure promise, future requests will also get this same rejection
-            entry = Promise.reject(error);
-        }
-        chunkCache.set(chunkPath, entry);
+    if (loadedChunks.has(chunkPath)) {
+        return;
     }
-    // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
-    return entry;
+    const cachedError = chunkErrors.get(chunkPath);
+    if (cachedError !== undefined) {
+        throw cachedError;
+    }
+    try {
+        const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+        const chunkModules = require(resolved);
+        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+        loadedChunks.add(chunkPath);
+    } catch (cause) {
+        const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
+        const error = new Error(errorMessage, {
+            cause
+        });
+        error.name = 'ChunkLoadError';
+        // Cache the failure, future requests will also get this same error
+        chunkErrors.set(chunkPath, error);
+        throw error;
+    }
 }
-contextPrototype.l = loadChunkAsync;
-function loadChunkAsyncByUrl(chunkUrl) {
-    const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
-    return loadChunkAsync.call(this, path1);
+contextPrototype.l = loadChunkSync;
+function loadChunkSyncByUrl(chunkUrl) {
+    const chunkPath = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
+    return loadChunkSync.call(this, chunkPath);
 }
-contextPrototype.L = loadChunkAsyncByUrl;
+contextPrototype.L = loadChunkSyncByUrl;
 function loadWebAssembly(chunkPath, _edgeModule, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return instantiateWebAssemblyFromPath(resolved, imports);
