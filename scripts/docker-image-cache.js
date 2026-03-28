@@ -1,44 +1,49 @@
 #!/usr/bin/env node
-// @ts-check
 //
-// Build or restore the next-swc-builder Docker image.
+// Build or restore the next-swc-builder Docker image using turbo remote cache.
 //
-// This script is both a turbo task AND a post-turbo loader:
-//
-// 1. `pnpm -F @next/swc build-docker-image` (turbo task):
-//    - On cache miss: turbo runs this script, which builds the image and saves
-//      target/docker-image.tar for turbo to cache as output.
-//    - On cache hit: turbo restores target/docker-image.tar and SKIPS this script.
-//
-// 2. `node scripts/docker-image-cache.js --load` (post-turbo step):
-//    - If target/docker-image.tar exists (turbo cache hit), loads it into docker.
-//    - If the image is already loaded, does nothing.
-//    - Cleans up the tar after loading.
+// Computes a cache key from the Dockerfile + rust-toolchain.toml contents,
+// then checks the turbo cache API via scripts/turbo-cache.js.
+// Images are compressed with zstd before upload (~2.8GB → ~500MB).
 //
 // Usage:
-//   node scripts/docker-image-cache.js           # build image + save tar (turbo task)
-//   node scripts/docker-image-cache.js --load    # load tar into docker if present
-//   node scripts/docker-image-cache.js --force   # always rebuild
+//   node scripts/docker-image-cache.js           # restore from cache or build + upload
+//   node scripts/docker-image-cache.js --force   # always rebuild and re-upload
 
 const { execSync } = require('child_process')
+const { createHash } = require('crypto')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
+const cache = require('./turbo-cache')
 
 const { parseArgs } = require('node:util')
 const { values: flags } = parseArgs({
   args: process.argv.slice(2),
   options: {
     force: { type: 'boolean', default: false },
-    load: { type: 'boolean', default: false },
   },
 })
 
 const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'next-swc-builder:latest'
-const IMAGE_TAR = path.join(REPO_ROOT, 'target/docker-image.tar')
-const force = flags.force
-const load = flags.load
+
+// Files that determine the docker image content — if any change, rebuild.
+const CACHE_INPUTS = [
+  path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile'),
+  path.join(REPO_ROOT, 'rust-toolchain.toml'),
+]
+
+function computeCacheKey() {
+  // Turbo cache keys must be hex-only (^[a-fA-F0-9]+$).
+  const hash = createHash('sha256')
+  hash.update('docker-image-v2\0')
+  for (const file of CACHE_INPUTS) {
+    hash.update(file + '\0')
+    hash.update(fs.readFileSync(file))
+  }
+  return hash.digest('hex')
+}
 
 function imageExists() {
   try {
@@ -66,30 +71,72 @@ function buildImage() {
   }
 }
 
-if (load) {
-  // Post-turbo step: load the cached tar if present, or build if missing
-  if (imageExists() && !force) {
-    console.log('Docker image already loaded')
-  } else if (fs.existsSync(IMAGE_TAR)) {
-    console.log('Loading Docker image from turbo cache...')
-    execSync(`docker load -i ${IMAGE_TAR}`, { stdio: 'inherit' })
-    fs.unlinkSync(IMAGE_TAR)
-    console.log('Docker image restored from cache')
-  } else {
-    console.log('No cached image — building from scratch')
-    buildImage()
-  }
-} else {
-  // Turbo task: build and save tar for caching
-  if (force && fs.existsSync(IMAGE_TAR)) fs.unlinkSync(IMAGE_TAR)
-  if (!imageExists() || force) {
-    buildImage()
-  }
-  if (!fs.existsSync(IMAGE_TAR)) {
-    console.log('Saving Docker image for turbo cache...')
-    fs.mkdirSync(path.dirname(IMAGE_TAR), { recursive: true })
-    execSync(`docker save ${IMAGE_NAME} -o ${IMAGE_TAR}`, { stdio: 'inherit' })
-    const size = fs.statSync(IMAGE_TAR).size
-    console.log(`Saved: ${(size / 1024 / 1024).toFixed(0)} MB`)
-  }
+function tmpFile(name) {
+  return path.join(process.env.RUNNER_TEMP || os.tmpdir(), name)
 }
+
+function sh(cmd) {
+  execSync(cmd, { stdio: 'inherit', shell: '/bin/bash' })
+}
+
+async function main() {
+  const key = computeCacheKey()
+  console.log(`Docker image cache key: ${key}`)
+
+  if (!process.env.TURBO_TOKEN) {
+    console.log('No TURBO_TOKEN — building without cache')
+    if (!imageExists()) buildImage()
+    return
+  }
+
+  // Try to restore from cache (unless --force)
+  if (!flags.force) {
+    const hit = await cache.exists(key)
+    console.log(hit ? 'Cache HIT' : 'Cache MISS')
+
+    if (hit) {
+      const zstdFile = tmpFile('docker-image-cache.tar.zst')
+      const ok = await cache.getToFile(key, zstdFile)
+      if (ok) {
+        const size = fs.statSync(zstdFile).size
+        console.log(
+          `Downloaded ${(size / 1024 / 1024).toFixed(0)} MB compressed`
+        )
+        sh(`zstd -d -c ${zstdFile} | docker load`)
+        fs.unlinkSync(zstdFile)
+        console.log('Docker image restored from turbo cache')
+        return
+      }
+    }
+  }
+
+  // Build the image
+  if (!imageExists() || flags.force) {
+    buildImage()
+  }
+
+  // Compress and upload
+  console.log('Compressing docker image with zstd...')
+  const zstdFile = tmpFile('docker-image-cache.tar.zst')
+  sh(`docker save ${IMAGE_NAME} | zstd -3 -T0 -o ${zstdFile}`)
+
+  const size = fs.statSync(zstdFile).size
+  console.log(
+    `Compressed: ${(size / 1024 / 1024).toFixed(0)} MB — uploading...`
+  )
+
+  try {
+    // Stream upload from file (avoids 2GB Buffer limit)
+    await cache.put(key, zstdFile)
+    console.log('Docker image uploaded to turbo cache')
+  } catch (e) {
+    console.log(`WARNING: Failed to upload: ${e.message}`)
+  }
+
+  fs.unlinkSync(zstdFile)
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})
