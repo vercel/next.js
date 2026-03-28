@@ -399,6 +399,40 @@ pub async fn compute_style_groups(
                     // Global CSS would leak into existing chunk_group
                     continue;
                 }
+                // Contiguity check: for every route that contains both the
+                // candidate and at least one existing batch member, ensure no
+                // unprocessed non-batch module sits between the watermark and
+                // the candidate. Without this, a shared chunk can break CSS
+                // cascade order when routes interleave shared and unique modules.
+                {
+                    let mut contiguous = true;
+                    'contiguity: for (&r_idx, &m_pos) in &info.chunk_group_indices {
+                        let Some(&watermark) = all_chunk_states.get(&r_idx) else {
+                            continue;
+                        };
+                        let (lo, hi) = if watermark < m_pos {
+                            (watermark + 1, m_pos)
+                        } else if m_pos < watermark {
+                            (m_pos + 1, watermark)
+                        } else {
+                            continue;
+                        };
+                        let styles = &chunk_group_state[r_idx].styles;
+                        for between in &styles[lo..hi] {
+                            if new_chunk_modules.contains(between) {
+                                continue;
+                            }
+                            if *ordered_modules_with_state.get(between).unwrap_or(&false) {
+                                continue;
+                            }
+                            contiguous = false;
+                            break 'contiguity;
+                        }
+                    }
+                    if !contiguous {
+                        continue;
+                    }
+                }
                 potential_next_modules.remove(&module);
                 current_size += info.size;
                 if is_global {
