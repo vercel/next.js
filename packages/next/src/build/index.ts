@@ -402,12 +402,6 @@ export type ManifestRoute = ManifestBuiltRoute & {
   routeKeys: { [key: string]: string }
 
   /**
-   * If true, this indicates that the route has fallback root params. This is
-   * used to simplify the route regex for matching.
-   */
-  hasFallbackRootParams?: boolean
-
-  /**
    * The prefetch segment data routes for this route. This is used to rewrite
    * the prefetch segment data routes (or the inverse) to the correct
    * destination.
