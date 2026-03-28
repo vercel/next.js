@@ -133,7 +133,7 @@ pub(crate) struct BatchingResult {
 /// - `max_chunk_size`: Maximum byte size for a single shared chunk.
 pub(crate) fn compute_style_batches(
     module_info: &FxIndexMap<usize, BatchingModuleInfo>,
-    chunk_group_styles: &[Vec<usize>],
+    chunk_group_styles: &[FxIndexSet<usize>],
     max_chunk_size: usize,
 ) -> BatchingResult {
     // --- Compute the dependents of each module ---
@@ -143,7 +143,7 @@ pub(crate) fn compute_style_batches(
     for (&module_key, info) in module_info {
         let mut dependents = FxHashSet::default();
         for (&cg_idx, &start_pos) in &info.chunk_group_indices {
-            let following = &chunk_group_styles[cg_idx][start_pos + 1..];
+            let following = &chunk_group_styles[cg_idx].as_slice()[start_pos + 1..];
             dependents.extend(following.iter().copied());
         }
 
@@ -188,10 +188,9 @@ pub(crate) fn compute_style_batches(
         // The current position of processing in all selected chunk groups
         let mut all_chunk_states = info.chunk_group_indices.clone();
 
-        // The list of modules that go into the new chunk, in insertion order.
+        // The set of modules that go into the new chunk, in insertion order.
         // Insertion order matters because it determines CSS cascade order within the chunk.
-        let mut new_batch_ordered: Vec<usize> = vec![module_key];
-        let mut new_batch_set: FxHashSet<usize> = [module_key].into_iter().collect();
+        let mut new_batch: FxIndexSet<usize> = [module_key].into_iter().collect();
 
         // The current size of the new chunk
         let mut current_size = info.size;
@@ -201,11 +200,11 @@ pub(crate) fn compute_style_batches(
         let mut potential_next = all_chunk_states
             .iter()
             .filter_map(|(&cg_idx, &pos)| {
-                let following = &chunk_group_styles[cg_idx][pos + 1..];
+                let following = &chunk_group_styles[cg_idx].as_slice()[pos + 1..];
                 following
                     .iter()
-                    .position(|m| !*processed.get(m).unwrap())
-                    .map(|i| following[i])
+                    .find(|&m| !*processed.get(m).unwrap())
+                    .copied()
             })
             .collect::<FxHashSet<_>>();
 
@@ -238,7 +237,7 @@ pub(crate) fn compute_style_batches(
                 }
                 // In loose mode we only check if the dependencies are not violated
                 if let Some(deps) = module_dependents.get(&m)
-                    && deps.iter().any(|d| new_batch_set.contains(d))
+                    && deps.iter().any(|d| new_batch.contains(d))
                 {
                     // A dependent of the module is already in the chunk, which would violate
                     // the order
@@ -289,8 +288,8 @@ pub(crate) fn compute_style_batches(
                         } else {
                             continue;
                         };
-                        for &between in &chunk_group_styles[r_idx][lo..hi] {
-                            if new_batch_set.contains(&between) {
+                        for &between in &chunk_group_styles[r_idx].as_slice()[lo..hi] {
+                            if new_batch.contains(&between) {
                                 continue;
                             }
                             if *processed.get(&between).unwrap_or(&false) {
@@ -314,30 +313,26 @@ pub(crate) fn compute_style_batches(
                         // This reduces the request count of the chunk group
                         chunk_group_requests[cg_idx] -= 1;
                     }
-                    let pos = chunk_group_styles[cg_idx]
-                        .iter()
-                        .position(|&x| x == m)
-                        .unwrap();
+                    let pos = chunk_group_styles[cg_idx].get_index_of(&m).unwrap();
                     all_chunk_states.insert(cg_idx, pos);
-                    let following = &chunk_group_styles[cg_idx][pos + 1..];
-                    if let Some(i) = following
+                    let following = &chunk_group_styles[cg_idx].as_slice()[pos + 1..];
+                    if let Some(&next) = following
                         .iter()
-                        .position(|x| !*processed.get(x).unwrap() && !new_batch_set.contains(x))
+                        .find(|&x| !*processed.get(x).unwrap() && !new_batch.contains(x))
                     {
-                        potential_next.insert(following[i]);
+                        potential_next.insert(next);
                     }
                 }
 
-                new_batch_ordered.push(m);
-                new_batch_set.insert(m);
+                new_batch.insert(m);
                 *processed.get_mut(&m).unwrap() = true;
                 continue 'outer;
             }
             break;
         }
 
-        if new_batch_ordered.len() > 1 {
-            batches.push(new_batch_ordered);
+        if new_batch.len() > 1 {
+            batches.push(new_batch.into_iter().collect());
         }
     }
 
@@ -509,7 +504,7 @@ pub async fn compute_style_groups(
         })
         .collect();
 
-    let batching_chunk_group_styles: Vec<Vec<usize>> = chunk_group_state
+    let batching_chunk_group_styles: Vec<FxIndexSet<usize>> = chunk_group_state
         .iter()
         .map(|cgs| cgs.styles.iter().map(|vc| vc_to_idx[vc]).collect())
         .collect();
@@ -551,7 +546,7 @@ pub async fn compute_style_groups(
 mod tests {
     use rustc_hash::FxHashSet;
     use turbo_rcstr::RcStr;
-    use turbo_tasks::FxIndexMap;
+    use turbo_tasks::{FxIndexMap, FxIndexSet};
 
     use super::{BatchingModuleInfo, compute_style_batches};
     use crate::module::StyleType;
@@ -565,7 +560,10 @@ mod tests {
     fn make_inputs(
         modules: &[(StyleType, usize)],
         routes: &[&[usize]],
-    ) -> (FxIndexMap<usize, BatchingModuleInfo>, Vec<Vec<usize>>) {
+    ) -> (
+        FxIndexMap<usize, BatchingModuleInfo>,
+        Vec<FxIndexSet<usize>>,
+    ) {
         let mut module_info: FxIndexMap<usize, BatchingModuleInfo> = FxIndexMap::default();
         // Compute index_sum per module for sorting (mirrors compute_style_groups behavior).
         let mut index_sums: Vec<usize> = vec![0; modules.len()];
@@ -593,7 +591,8 @@ mod tests {
                 .cmp(&index_sums[kb])
                 .then_with(|| a.ident.cmp(&b.ident))
         });
-        let styles: Vec<Vec<usize>> = routes.iter().map(|r| r.to_vec()).collect();
+        let styles: Vec<FxIndexSet<usize>> =
+            routes.iter().map(|r| r.iter().copied().collect()).collect();
         (module_info, styles)
     }
 
@@ -605,7 +604,7 @@ mod tests {
         })
     }
 
-    // ---- Test 1: Basic batching — contiguous shared modules batch together ----
+    // ---- Basic batching — contiguous shared modules batch together ----
 
     #[test]
     fn test_basic_shared_modules_batch_together() {
@@ -630,8 +629,7 @@ mod tests {
         );
     }
 
-    // ---- Test 2: Contiguity + size budget prevents shared modules from being batched
-    //              without the intervening modules ----
+    // ---- Contiguity + size budget prevents skipping intervening modules ----
 
     #[test]
     fn test_contiguity_with_size_budget_prevents_skipping_intervening() {
@@ -662,7 +660,7 @@ mod tests {
         );
     }
 
-    // ---- Test 2b: Contiguity check blocks shared2 until intervening unique is absorbed ----
+    // ---- Interleaved shared/unique modules: all absorbed with unlimited budget ----
 
     #[test]
     fn test_interleaved_shared_unique_all_absorbed() {
@@ -700,7 +698,7 @@ mod tests {
         );
     }
 
-    // ---- Test 2c: With size budget, shared modules can't absorb intervening unique ----
+    // ---- Interleaved shared/unique modules: size budget prevents full absorption ----
 
     #[test]
     fn test_interleaved_shared_unique_size_limited() {
@@ -733,7 +731,7 @@ mod tests {
         );
     }
 
-    // ---- Test 3a: Global CSS doesn't leak into routes that don't have it ----
+    // ---- Global CSS doesn't leak into routes that don't have it ----
 
     #[test]
     fn test_global_css_no_leak_into_new_route() {
@@ -754,7 +752,7 @@ mod tests {
         );
     }
 
-    // ---- Test 3b: Global CSS can batch with modules sharing exact same routes ----
+    // ---- Global CSS can batch with modules sharing exact same routes ----
 
     #[test]
     fn test_global_css_batches_with_same_routes() {
@@ -774,7 +772,7 @@ mod tests {
         );
     }
 
-    // ---- Test 4a: Size budget limits batch membership ----
+    // ---- Size budget limits batch membership ----
 
     #[test]
     fn test_size_budget_limits_batching() {
@@ -802,7 +800,7 @@ mod tests {
         );
     }
 
-    // ---- Test 4b: Oversized modules never batch ----
+    // ---- Oversized modules never batch ----
 
     #[test]
     fn test_oversized_modules_never_batch() {
@@ -819,7 +817,7 @@ mod tests {
         );
     }
 
-    // ---- Test 5: Contiguity allows absorbing all intervening modules ----
+    // ---- Contiguity allows absorbing all intervening modules ----
 
     #[test]
     fn test_contiguity_absorbs_intervening_modules() {
@@ -843,7 +841,7 @@ mod tests {
         );
     }
 
-    // ---- Test 7: Three routes, contiguity blocks when intervening can't be absorbed ----
+    // ---- Three routes: contiguity blocks when intervening can't be absorbed ----
 
     #[test]
     fn test_three_routes_size_limited() {
@@ -868,7 +866,7 @@ mod tests {
         );
     }
 
-    // ---- Test 8: Contiguity check handles the m_pos < watermark case ----
+    // ---- Contiguity check handles the m_pos < watermark direction ----
 
     #[test]
     fn test_contiguity_reverse_direction() {
@@ -906,7 +904,7 @@ mod tests {
         );
     }
 
-    // ---- Test 9: Contiguity with reverse direction and size limit ----
+    // ---- Reverse-direction contiguity blocked by size limit ----
 
     #[test]
     fn test_contiguity_reverse_direction_blocked() {
