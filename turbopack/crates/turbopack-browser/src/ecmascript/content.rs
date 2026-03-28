@@ -74,56 +74,76 @@ impl EcmascriptBrowserChunkContent {
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk))
             .await?;
-        // Lifetime hack to pull out the var into this scope
-        let chunk_path;
-        let script_or_path = match *this.chunking_context.current_chunk_method().await? {
-            CurrentChunkMethod::StringLiteral => {
-                let output_root = this.chunking_context.output_root().await?;
-                let chunk_path_vc = this.chunk.path();
-                chunk_path = chunk_path_vc.await?;
-                let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
-                    path
-                } else {
-                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
-                };
-                Either::Left(StringifyJs(chunk_server_path))
-            }
-            CurrentChunkMethod::DocumentCurrentScript => {
-                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
-            }
-        };
         let mut code = CodeBuilder::new(
             source_maps,
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
-        // When a chunk is executed, it will either register itself with the current
-        // instance of the runtime, or it will push itself onto the list of pending
-        // chunks (using the configured chunk loading global variable).
-        //
-        // When the runtime executes (see the `evaluate` module), it will pick up and
-        // register all pending chunks, and replace the list of pending chunks
-        // with itself so later chunks can register directly with it.
-        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
-        write!(
-            code,
-            // `||=` would be better but we need to be es2020 compatible
-            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
-            chunk_loading_global = StringifyJs(&chunk_loading_global),
-        )?;
-
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
-                code.push_code(item_code);
-                write!(code, ",")?;
-            }
-        }
 
-        write!(code, "\n]);")?;
+        let esm_chunks = *this.chunking_context.esm_chunks().await?;
+        if esm_chunks {
+            // ESM format: export default [id, factory, id, factory, ...]
+            // The runtime loads this via import() and reads the default export.
+            // No chunk path prefix — offset=0 for installCompressedModuleFactories.
+            write!(code, "export default [")?;
+            for item in chunk_items {
+                for (id, item_code) in item {
+                    write!(code, "\n{}, ", StringifyJs(&id))?;
+                    code.push_code(item_code);
+                    write!(code, ",")?;
+                }
+            }
+            write!(code, "\n];\n")?;
+        } else {
+            // Classic script format: TURBOPACK.push([chunkPath, id, factory, ...])
+            // Lifetime hack to pull out the var into this scope
+            let chunk_path;
+            let script_or_path = match *this.chunking_context.current_chunk_method().await? {
+                CurrentChunkMethod::StringLiteral => {
+                    let output_root = this.chunking_context.output_root().await?;
+                    let chunk_path_vc = this.chunk.path();
+                    chunk_path = chunk_path_vc.await?;
+                    let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path)
+                    {
+                        path
+                    } else {
+                        turbobail!("chunk path {chunk_path} is not in output root {output_root}");
+                    };
+                    Either::Left(StringifyJs(chunk_server_path))
+                }
+                CurrentChunkMethod::DocumentCurrentScript => {
+                    Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+                }
+            };
+
+            // When a chunk is executed, it will either register itself with the current
+            // instance of the runtime, or it will push itself onto the list of pending
+            // chunks (using the configured chunk loading global variable).
+            //
+            // When the runtime executes (see the `evaluate` module), it will pick up and
+            // register all pending chunks, and replace the list of pending chunks
+            // with itself so later chunks can register directly with it.
+            let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+            write!(
+                code,
+                // `||=` would be better but we need to be es2020 compatible
+                //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+                r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
+                chunk_loading_global = StringifyJs(&chunk_loading_global),
+            )?;
+
+            for item in chunk_items {
+                for (id, item_code) in item {
+                    write!(code, "\n{}, ", StringifyJs(&id))?;
+                    code.push_code(item_code);
+                    write!(code, ",")?;
+                }
+            }
+
+            write!(code, "\n]);")?;
+        }
 
         let mut code = code.build();
 

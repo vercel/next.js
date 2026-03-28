@@ -8,9 +8,9 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType,
+        UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -224,8 +224,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn cross_origin(mut self, cross_origin: CrossOrigin) -> Self {
-        self.chunking_context.cross_origin = cross_origin;
+    pub fn esm_chunks(mut self, esm_chunks: bool) -> Self {
+        self.chunking_context.esm_chunks = esm_chunks;
         self
     }
 
@@ -327,8 +327,10 @@ pub struct BrowserChunkingContext {
     chunk_loading_global: Option<RcStr>,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
     hash_salt: ResolvedVc<RcStr>,
-    /// The crossorigin mode for dynamically loaded chunks.
-    cross_origin: CrossOrigin,
+    /// Emit chunks as ES modules (`export default [factories...]`) instead of
+    /// `globalThis["TURBOPACK"].push([...])`. The runtime loads them via `import()`.
+    /// Requires `current_chunk_method` to be set to `ImportMetaUrl` when used.
+    esm_chunks: bool,
 }
 
 impl BrowserChunkingContext {
@@ -382,7 +384,7 @@ impl BrowserChunkingContext {
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
-                cross_origin: Default::default(),
+                esm_chunks: false,
             },
         }
     }
@@ -513,9 +515,10 @@ impl BrowserChunkingContext {
         )
     }
 
+    /// Returns whether chunks are emitted as ES modules.
     #[turbo_tasks::function]
-    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
-        self.cross_origin.cell()
+    pub fn esm_chunks(&self) -> Vc<bool> {
+        Vc::cell(self.esm_chunks)
     }
 }
 

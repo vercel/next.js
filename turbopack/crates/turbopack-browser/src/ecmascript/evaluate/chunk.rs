@@ -153,23 +153,39 @@ impl EcmascriptBrowserEvaluateChunk {
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
-        // Use the configured chunk loading global variable to store the chunk here.
-        // This allows multiple runtimes to coexist on the same page when using different global
-        // names.
-        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
-        writedoc!(
-            code,
-            // `||=` would be better but we need to be es2020 compatible
-            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"
-                (globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([
-                    {script_or_path},
-                    {params}
-                ]);
-            "#,
-            chunk_loading_global = StringifyJs(&chunk_loading_global),
-            params = StringifyJs(&params),
-        )?;
+        let esm_chunks = *this.chunking_context.esm_chunks().await?;
+        if esm_chunks {
+            // ESM mode: emit params as a local const read directly by the runtime IIFE below.
+            // No TURBOPACK.push — the evaluate chunk IS the runtime file, so the IIFE at the
+            // bottom of this same file can read __turbopack_params__ from module scope.
+            writedoc!(
+                code,
+                r#"
+                    const __turbopack_params__ = {params};
+                "#,
+                params = StringifyJs(&params),
+            )?;
+        } else {
+            // Classic script mode: push params onto the TURBOPACK global array so the runtime
+            // (which follows in the same file) can pick them up via `chunksToRegister.forEach`.
+            // Use the configured chunk loading global variable to store the chunk here.
+            // This allows multiple runtimes to coexist on the same page when using different global
+            // names.
+            let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+            writedoc!(
+                code,
+                // `||=` would be better but we need to be es2020 compatible
+                //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+                r#"
+                    (globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([
+                        {script_or_path},
+                        {params}
+                    ]);
+                "#,
+                chunk_loading_global = StringifyJs(&chunk_loading_global),
+                params = StringifyJs(&params),
+            )?;
+        }
 
         let asset_context = turbopack::get_runtime_asset_context(environment);
 
@@ -185,7 +201,7 @@ impl EcmascriptBrowserEvaluateChunk {
                     output_root_to_root_path,
                     source_maps,
                     this.chunking_context.chunk_loading_global(),
-                    this.chunking_context.cross_origin(),
+                    esm_chunks,
                 );
                 code.push_code(&*runtime_code.await?);
             }

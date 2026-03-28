@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{AssetSuffix, CrossOrigin},
+    chunk::AssetSuffix,
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
@@ -25,7 +25,7 @@ pub async fn get_browser_runtime_code(
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
-    cross_origin: Vc<CrossOrigin>,
+    esm_chunks: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -69,11 +69,19 @@ pub async fn get_browser_runtime_code(
             panic!("Node.js runtime is not supported in the browser runtime!")
         }
         (ChunkLoading::Dom, RuntimeType::Development) => {
-            runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
+            runtime_backend_code.push(if esm_chunks {
+                "browser/runtime/dom/runtime-backend-dom-esm.ts"
+            } else {
+                "browser/runtime/dom/runtime-backend-dom.ts"
+            });
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
+            runtime_backend_code.push(if esm_chunks {
+                "browser/runtime/dom/runtime-backend-dom-esm.ts"
+            } else {
+                "browser/runtime/dom/runtime-backend-dom.ts"
+            });
         }
 
         #[cfg(feature = "test")]
@@ -88,7 +96,6 @@ pub async fn get_browser_runtime_code(
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
-    let cross_origin = *cross_origin.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
     if *environment
@@ -104,15 +111,51 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
+<<<<<<< HEAD
             if (!Array.isArray(globalThis[{}])) {{
                 return;
             }}
+||||||| parent of 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
+            (() => {{
+            if (!Array.isArray(globalThis[{}])) {{
+                return;
+            }}
+=======
+            (() => {{
+        "#,
+    )?;
+    if !esm_chunks {
+        // In classic script mode the IIFE bails out if TURBOPACK is not yet an array
+        // (i.e., a second evaluate chunk ran before the first finished bootstrapping).
+        writedoc!(
+            code,
+            r#"
+                if (!Array.isArray(globalThis[{}])) {{
+                    return;
+                }}
+>>>>>>> 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
 
+<<<<<<< HEAD
             var CHUNK_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
+||||||| parent of 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
+            const CHUNK_BASE_PATH = {};
+            const RELATIVE_ROOT_PATH = {};
+            const RUNTIME_PUBLIC_PATH = {};
+=======
+            "#,
+            StringifyJs(&chunk_loading_global),
+        )?;
+    }
+    writedoc!(
+        code,
+        r#"
+            const CHUNK_BASE_PATH = {};
+            const RELATIVE_ROOT_PATH = {};
+            const RUNTIME_PUBLIC_PATH = {};
+>>>>>>> 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
         "#,
-        StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
@@ -157,15 +200,6 @@ pub async fn get_browser_runtime_code(
             )?;
         }
     }
-
-    let cross_origin = cross_origin.as_str();
-    writedoc!(
-        code,
-        r#"
-            var CROSS_ORIGIN = {};
-        "#,
-        StringifyJs(&cross_origin)
-    )?;
 
     // Output the list of global variable names to forward to workers
     let worker_forwarded_globals = worker_forwarded_globals.await?;
@@ -223,6 +257,7 @@ pub async fn get_browser_runtime_code(
 
     // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
     // specific runtime code, hence it must be appended after it.
+<<<<<<< HEAD
     writedoc!(
         code,
         r#"
@@ -233,15 +268,64 @@ pub async fn get_browser_runtime_code(
         chunk_loading_global = StringifyJs(&chunk_loading_global),
     )?;
     if matches!(runtime_type, RuntimeType::Development) {
+||||||| parent of 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
+    writedoc!(
+        code,
+        r#"
+            const chunksToRegister = globalThis[{chunk_loading_global}];
+            globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
+            chunksToRegister.forEach(registerChunk);
+        "#,
+        chunk_loading_global = StringifyJs(&chunk_loading_global),
+    )?;
+    if matches!(runtime_type, RuntimeType::Development) {
+=======
+    if esm_chunks {
+        // ESM mode: the RuntimeParams are in __turbopack_params__ (a const defined before
+        // the runtime IIFE in the same evaluate chunk file). No TURBOPACK global to drain.
+        // Pass an empty string as the chunk path — the ESM registerChunk ignores it.
+>>>>>>> 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
         writedoc!(
             code,
             r#"
+<<<<<<< HEAD
             var chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
             globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
             chunkListsToRegister.forEach(registerChunkList);
         "#,
             chunk_lists_global = StringifyJs(&chunk_lists_global),
+||||||| parent of 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
+            const chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+            globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
+        "#,
+            chunk_lists_global = StringifyJs(&chunk_lists_global),
+=======
+                BACKEND.registerChunk("", __turbopack_params__);
+            "#,
+>>>>>>> 8e64d2e2 (Add esm_chunks flag to BrowserChunkingContext for ES module chunk loading)
         )?;
+    } else {
+        writedoc!(
+            code,
+            r#"
+                const chunksToRegister = globalThis[{chunk_loading_global}];
+                globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
+                chunksToRegister.forEach(registerChunk);
+            "#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
+        )?;
+        if matches!(runtime_type, RuntimeType::Development) {
+            writedoc!(
+                code,
+                r#"
+                const chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+                globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
+                chunkListsToRegister.forEach(registerChunkList);
+            "#,
+                chunk_lists_global = StringifyJs(&chunk_lists_global),
+            )?;
+        }
     }
     writedoc!(
         code,
