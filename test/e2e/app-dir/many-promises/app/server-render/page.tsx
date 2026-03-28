@@ -1,6 +1,7 @@
 export default async function Page() {
+  const p = Promise.resolve()
   for (let i = 0; i < 2 ** 26; i++) {
-    await Promise.resolve()
+    await p
   }
   return <p>done</p>
 }

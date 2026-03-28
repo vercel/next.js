@@ -1,7 +1,8 @@
 let result = ''
 
+const p = Promise.resolve()
 for (let i = 0; i < 2 ** 26; i++) {
-  await Promise.resolve()
+  await p
 }
 
 result = 'done'
