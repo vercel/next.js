@@ -185,7 +185,11 @@ pub(crate) fn compute_style_batches(
         let info = &module_info[&module_key];
         let mut global_mode = info.style_type == StyleType::GlobalStyle;
 
-        // The current position of processing in all selected chunk groups
+        // The furthest position of any batch member seen so far in each chunk group.
+        // Only chunk groups containing at least one batch member are present.
+        // The watermark only ever moves forward (we use max on update) so that the
+        // contiguity gap check [watermark+1, m_pos) correctly reflects the full
+        // extent of the batch in each route.
         let mut all_chunk_states = info.chunk_group_indices.clone();
 
         // The set of modules that go into the new chunk, in insertion order.
@@ -309,12 +313,17 @@ pub(crate) fn compute_style_batches(
                     global_mode = true;
                 }
                 for &cg_idx in mi.chunk_group_indices.keys() {
-                    if all_chunk_states.contains_key(&cg_idx) {
-                        // This reduces the request count of the chunk group
-                        chunk_group_requests[cg_idx] -= 1;
-                    }
+                    // Always decrement: the candidate is absorbed regardless of whether
+                    // this chunk group was already tracked by the batch.
+                    chunk_group_requests[cg_idx] -= 1;
+
                     let pos = chunk_group_styles[cg_idx].get_index_of(&m).unwrap();
-                    all_chunk_states.insert(cg_idx, pos);
+                    // Use max so the watermark only ever moves forward, preserving its
+                    // semantic as "furthest extent of the batch in this route."
+                    all_chunk_states
+                        .entry(cg_idx)
+                        .and_modify(|w| *w = (*w).max(pos))
+                        .or_insert(pos);
                     let following = &chunk_group_styles[cg_idx].as_slice()[pos + 1..];
                     if let Some(&next) = following
                         .iter()
@@ -929,6 +938,63 @@ mod tests {
         assert!(
             !batch_contains_all(&result.batches, &[0, 1]),
             "B and A should NOT be in the same batch (size prevents absorbing X), got: {:?}",
+            result.batches
+        );
+    }
+
+    // ---- Newly-introduced route: contiguity still enforced ----
+
+    #[test]
+    fn test_newly_introduced_route_contiguity_enforced() {
+        // Route 0 (X): [Q(1), W(2), R(3)]
+        // Route 1 (Y): [P(0), Q(1), R(3)]
+        //
+        // Seed: P (only in Y). all_chunk_states = {Y: 0}.
+        // Q: route Y watermark=0, m_pos=1, gap empty → OK. Route X not tracked → skip.
+        //    Accepted. all_chunk_states = {Y: 1, X: 0}.
+        // W: size 10_000 exceeds budget → can't be absorbed.
+        // R: route Y watermark=1, m_pos=2, gap empty → OK.
+        //    Route X watermark=0, m_pos=2, gap [1..2] = [W]. W unprocessed → BLOCKED.
+        //
+        // R must NOT join {P, Q} because W blocks the gap in route X.
+        let iso = StyleType::IsolatedStyle;
+        let (info, styles) = make_inputs(
+            &[(iso, 100), (iso, 100), (iso, 10_000), (iso, 100)],
+            &[&[1, 2, 3], &[0, 1, 3]],
+        );
+        let result = compute_style_batches(&info, &styles, 500);
+
+        assert!(
+            !batch_contains_all(&result.batches, &[0, 1, 3]),
+            "R must not join P+Q batch: W blocks the gap in route X, got: {:?}",
+            result.batches
+        );
+        assert!(
+            batch_contains_all(&result.batches, &[0, 1]),
+            "P and Q should batch (Q introduces route X at pos 0, no gap), got: {:?}",
+            result.batches
+        );
+    }
+
+    // ---- Newly-introduced route: correct absorption when gap is clear ----
+
+    #[test]
+    fn test_newly_introduced_route_absorbs_correctly() {
+        // Route 0 (X): [Q(1), R(2)]   — no gap modules
+        // Route 1 (Y): [P(0), Q(1), R(2)]
+        //
+        // Seed: P. Q introduces route X. R is contiguous in both routes.
+        // All three should end up in one batch.
+        let iso = StyleType::IsolatedStyle;
+        let (info, styles) = make_inputs(
+            &[(iso, 100), (iso, 100), (iso, 100)],
+            &[&[1, 2], &[0, 1, 2]],
+        );
+        let result = compute_style_batches(&info, &styles, 1_000_000);
+
+        assert!(
+            batch_contains_all(&result.batches, &[0, 1, 2]),
+            "P, Q, and R should all batch when no gap modules block them, got: {:?}",
             result.batches
         );
     }
