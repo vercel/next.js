@@ -21,10 +21,11 @@ function escapeHtmlAttr(str: string): string {
 /**
  * Builds a minimal HTML shell for dev mode error pages in App Router apps.
  *
- * Reuses the `__next_error__` pattern: the client detects
- * `document.documentElement.id === '__next_error__'` and does CSR with
- * the dev overlay instead of hydrating. Error details are embedded in a
- * `<template>` tag for the overlay to pick up.
+ * Uses a `__next_dev_error_shell__` marker on the `<html>` element so the
+ * client can detect this shell and skip mounting the full App Router React
+ * tree. This is distinct from `__next_error__` which is used by
+ * app-render.tsx for SSR errors that have valid RSC payloads. Error details
+ * are embedded in a `<template>` tag for the overlay to pick up.
  *
  * The script loading mirrors what React's renderToReadableStream does:
  * all rootMainFiles are loaded as `<script async>` tags. The last
@@ -70,7 +71,7 @@ export async function buildAppRouterDevErrorHtml(
     .join('\n')
 
   const html = `<!DOCTYPE html>
-<html id="__next_error__">
+<html id="__next_dev_error_shell__">
   <head>
     <meta charset="utf-8">
   </head>

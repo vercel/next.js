@@ -2810,10 +2810,11 @@ export default abstract class Server<
       }
     }
 
-    // In dev mode, for App Router requests (or app-only projects), serve an
-    // in-memory __next_error__ HTML shell instead of going through the Pages
-    // Router _error/_app/_document rendering pipeline.
-    if (this.dev && this.enabledDirectories.app) {
+    // In dev mode, for App Router requests with real errors (compilation or
+    // SSR crashes — NOT 404s), serve an in-memory HTML shell instead of going
+    // through the Pages Router _error/_app/_document rendering pipeline.
+    // 404s must flow through to the normal not-found handling below.
+    if (this.dev && err != null && this.enabledDirectories.app) {
       // For app-only projects we always use the in-memory shell.
       // For mixed projects we auto-detect whether the failing route is an
       // App Router route, so callers don't need to explicitly tag requests.

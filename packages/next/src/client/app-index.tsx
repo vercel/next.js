@@ -360,14 +360,17 @@ export async function hydrate(
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(assetPrefix, staticIndicatorState)
 
-    if (document.documentElement.id === '__next_error__') {
-      // Dev error page served from the in-memory __next_error__ shell.
+    if (document.documentElement.id === '__next_dev_error_shell__') {
+      // Dev error page served from the in-memory error shell.
       // No real RSC payload exists and the full App Router machinery
       // (ServerRoot, AppRouter, etc.) would crash without valid router
       // state. Instead, we skip mounting the React tree entirely.
       // The WebSocket is already connected so HMR can deliver
       // build/runtime errors. The overlay itself is mounted independently
       // by renderAppDevOverlay() in the bootstrap's finally block.
+      //
+      // Note: this is distinct from __next_error__ which is used by
+      // app-render.tsx for SSR errors that have valid RSC payloads.
       //
       // Replay any error embedded in the <template> tag so the overlay
       // shows the initial SSR/compilation error immediately.
