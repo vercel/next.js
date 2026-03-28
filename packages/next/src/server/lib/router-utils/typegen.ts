@@ -200,26 +200,40 @@ function serializeRouteTypes(routeTypes: string[]) {
 export function generateLinkTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
-  // Generate serialized static and dynamic routes for the internal namespace
-  // Build a unified set of routes across app/pages/redirect/rewrite as well as
-  // app route handlers and Pages Router API routes.
-  const allRoutesSet = new Set<string>([
-    ...Object.keys(routesManifest.appRoutes),
-    ...Object.keys(routesManifest.pageRoutes),
-    ...Object.keys(routesManifest.redirectRoutes),
-    ...Object.keys(routesManifest.rewriteRoutes),
-    // Allow linking to App Route Handlers (e.g. `/logout/route.ts`)
-    ...Object.keys(routesManifest.appRouteHandlerRoutes),
-    // Allow linking to Pages Router API routes (e.g. `/api/*`)
-    ...Array.from(routesManifest.pageApiRoutes),
-  ])
-
+  const visited = new Set<string>()
   const staticRouteTypes: string[] = []
   const dynamicRouteTypes: string[] = []
 
-  // Process each route using the same logic as the plugin
-  for (const route of allRoutesSet) {
-    const { isDynamic, routeType } = formatRouteToRouteType(route)
+  for (const routeMap of [
+    routesManifest.appRoutes,
+    routesManifest.pageRoutes,
+    routesManifest.redirectRoutes,
+    routesManifest.rewriteRoutes,
+    routesManifest.appRouteHandlerRoutes,
+  ]) {
+    for (const route in routeMap) {
+      if (visited.has(route)) {
+        continue
+      }
+      visited.add(route)
+
+      const { isDynamic, routeType } = formatRouteToRouteType(route)
+      if (isDynamic) {
+        dynamicRouteTypes.push(routeType)
+      } else {
+        staticRouteTypes.push(routeType)
+      }
+    }
+  }
+
+  // Pages Router API routes are stored as file paths
+  for (const filePath of routesManifest.pageApiRoutes) {
+    if (visited.has(filePath)) {
+      continue
+    }
+    visited.add(filePath)
+
+    const { isDynamic, routeType } = formatRouteToRouteType(filePath)
     if (isDynamic) {
       dynamicRouteTypes.push(routeType)
     } else {
