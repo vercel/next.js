@@ -488,8 +488,11 @@ pub trait ChunkingContext {
     }
 
     /// Returns the worker entrypoint for this chunking context.
+    /// When `is_esm` is true, generates an ES module bootstrap (using import() instead of
+    /// importScripts).
     #[turbo_tasks::function]
-    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+    async fn worker_entrypoint(self: Vc<Self>, is_esm: bool) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let _ = is_esm;
         turbobail!("Worker entrypoint is not supported by {}", self.name());
     }
 }

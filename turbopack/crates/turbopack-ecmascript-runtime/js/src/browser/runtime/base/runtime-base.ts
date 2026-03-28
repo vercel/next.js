@@ -328,11 +328,7 @@ function createWorker(
     url.hash = '#params=' + encodeURIComponent(paramsJson)
   }
 
-  // Remove type: "module" from options since our worker entrypoint is not a module
-  const options = workerOptions
-    ? { ...workerOptions, type: undefined }
-    : undefined
-  return new WorkerConstructor(url, options)
+  return new WorkerConstructor(url, workerOptions)
 }
 browserContextPrototype.b = createWorker
 

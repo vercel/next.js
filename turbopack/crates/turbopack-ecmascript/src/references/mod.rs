@@ -2029,6 +2029,24 @@ where
                         }
                     }
 
+                    // Parse `type: "module"` from the options argument (second arg)
+                    let is_esm = if let Some(opts) = args.get(1) {
+                        match opts {
+                            JsValue::Object { parts, .. } => parts.iter().any(|part| {
+                                matches!(
+                                    part,
+                                    ObjectPart::KeyValue(
+                                        JsValue::Constant(JsConstantValue::Str(key)),
+                                        JsValue::Constant(JsConstantValue::Str(val)),
+                                    ) if key.as_str() == "type" && val.as_str() == "module"
+                                )
+                            }),
+                            _ => false,
+                        }
+                    } else {
+                        false
+                    };
+
                     if *compile_time_info.environment().rendering().await? == Rendering::Client {
                         let error_mode = if in_try {
                             ResolveErrorMode::Warn
@@ -2043,6 +2061,7 @@ where
                                 error_mode,
                                 tracing_only,
                                 is_shared,
+                                is_esm,
                             ),
                             ast_path.to_vec().into(),
                         );

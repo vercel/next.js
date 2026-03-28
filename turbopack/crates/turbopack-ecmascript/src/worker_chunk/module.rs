@@ -35,6 +35,8 @@ pub struct WorkerLoaderModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
     pub worker_type: WorkerType,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    /// When true, the worker uses ES module semantics (import() instead of importScripts).
+    pub is_esm: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -44,11 +46,13 @@ impl WorkerLoaderModule {
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         worker_type: WorkerType,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        is_esm: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerLoaderModule {
             inner: module,
             worker_type,
             asset_context,
+            is_esm,
         })
     }
 
@@ -134,7 +138,7 @@ impl WorkerLoaderModule {
         Ok(match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => self
                 .chunk_group(chunking_context, module_graph)
-                .concatenate_asset(chunking_context.worker_entrypoint()),
+                .concatenate_asset(chunking_context.worker_entrypoint(this.is_esm)),
             WorkerType::NodeWorkerThread => {
                 // Node.js workers don't need a separate entrypoint asset
                 self.chunk_group(chunking_context, module_graph)
@@ -147,9 +151,15 @@ impl WorkerLoaderModule {
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.inner
+        let ident = self
+            .inner
             .ident()
-            .with_modifier(self.worker_type.modifier_str())
+            .with_modifier(self.worker_type.modifier_str());
+        if self.is_esm {
+            ident.with_modifier(rcstr!("esm"))
+        } else {
+            ident
+        }
     }
 
     #[turbo_tasks::function]
@@ -236,7 +246,10 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // For web workers, generate code that exports a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the entrypoint and chunks baked in.
-                let entrypoint_full_path = chunking_context.worker_entrypoint().path().await?;
+                let entrypoint_full_path = chunking_context
+                    .worker_entrypoint(this.is_esm)
+                    .path()
+                    .await?;
 
                 // Get the entrypoint path relative to output root
                 let output_root = chunking_context.output_root().owned().await?;

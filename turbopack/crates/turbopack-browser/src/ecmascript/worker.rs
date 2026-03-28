@@ -29,6 +29,8 @@ pub struct EcmascriptBrowserWorkerEntrypoint {
     /// These are assigned to `self` in the worker scope before loading chunks.
     /// Values are passed via URL params at indices 2+.
     forwarded_globals: ResolvedVc<Vec<RcStr>>,
+    /// When true, generate an ES module bootstrap (using import() instead of importScripts).
+    is_esm: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -37,10 +39,12 @@ impl EcmascriptBrowserWorkerEntrypoint {
     pub async fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         forwarded_globals: Vc<Vec<RcStr>>,
+        is_esm: bool,
     ) -> Result<Vc<Self>> {
         Ok(EcmascriptBrowserWorkerEntrypoint {
             chunking_context,
             forwarded_globals: forwarded_globals.to_resolved().await?,
+            is_esm,
         }
         .cell())
     }
@@ -55,7 +59,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
             .await?;
 
         let forwarded_globals = this.forwarded_globals.await?;
-        let mut code = generate_worker_bootstrap_code(&forwarded_globals)?;
+        let mut code = generate_worker_bootstrap_code(&forwarded_globals, this.is_esm)?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
@@ -69,8 +73,13 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let chunk_root_path = self.chunking_context.chunk_root_path().owned().await?;
         let forwarded_globals = self.forwarded_globals.await?;
         let globals_hash = hash_xxh3_hash64(&*forwarded_globals);
+        let modifier = if self.is_esm {
+            rcstr!("turbopack module worker entrypoint")
+        } else {
+            rcstr!("turbopack worker entrypoint")
+        };
         let ident = AssetIdent::from_path(chunk_root_path)
-            .with_modifier(rcstr!("turbopack worker entrypoint"))
+            .with_modifier(modifier)
             .with_modifier(format!("{globals_hash:08x}").into());
         Ok(ident)
     }
@@ -102,10 +111,15 @@ impl OutputAsset for EcmascriptBrowserWorkerEntrypoint {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let ident = self.ident_for_path();
+        let extension_tag = if this.is_esm {
+            rcstr!("turbopack-module-worker")
+        } else {
+            rcstr!("turbopack-worker")
+        };
         Ok(this.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             ident,
-            Some(rcstr!("turbopack-worker")),
+            Some(extension_tag),
             rcstr!(".js"),
         ))
     }
@@ -138,7 +152,17 @@ impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
 ///
 /// The worker receives a JSON array via URL params of the following structure:
 /// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...forwarded_global_values]`
-fn generate_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
+fn generate_worker_bootstrap_code(forwarded_globals: &[RcStr], is_esm: bool) -> Result<Code> {
+    if is_esm {
+        generate_module_worker_bootstrap_code(forwarded_globals)
+    } else {
+        generate_classic_worker_bootstrap_code(forwarded_globals)
+    }
+}
+
+/// Generates bootstrap code for a classic (non-module) web worker.
+/// Uses `importScripts` to load chunks synchronously.
+fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     let mut code: CodeBuilder = CodeBuilder::default();
 
     // Generate the Object.assign properties for forwarded globals
@@ -215,6 +239,71 @@ fn generate_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
             importScripts.apply(self, scriptsToLoad);
         }}
         }})();
+        "##,
+        globals_js
+    )?;
+
+    Ok(code.build())
+}
+
+/// Generates bootstrap code for an ES module web worker.
+/// Uses dynamic `import()` to load chunks, enabling strict mode and ESM semantics.
+///
+/// Note: This file is served with `type: "module"`, so top-level `await` is available.
+/// All loaded chunks will run in strict mode.
+fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
+    let mut code: CodeBuilder = CodeBuilder::default();
+
+    // Generate the Object.assign properties for forwarded globals
+    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX, params[2+] = forwarded globals
+    let mut global_assignments = vec![
+        "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
+        "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
+    ];
+    for (i, name) in forwarded_globals.iter().enumerate() {
+        // Forwarded globals start at params[2]
+        global_assignments.push(format!("{name}: param({n})", n = i + 2));
+    }
+    let globals_js = global_assignments.join(",\n    ");
+
+    writedoc!(
+        code,
+        r##"
+        if (
+            typeof self["WorkerGlobalScope"] === "undefined" ||
+            !(self instanceof self["WorkerGlobalScope"])
+        ) {{
+            throw new Error("Worker entrypoint must be loaded in a worker context");
+        }}
+
+        // Try querystring first (SharedWorker), then hash (regular Worker)
+        var url = new URL(location.href);
+        var paramsString = url.searchParams.get("params");
+        if (!paramsString && url.hash.startsWith("#params=")) {{
+            paramsString = decodeURIComponent(url.hash.slice("#params=".length));
+        }}
+
+        if (!paramsString) throw new Error("Missing worker bootstrap config");
+
+        var params = JSON.parse(paramsString);
+        var param = (n) => typeof params[n] === 'string' ? params[n] : '';
+        var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
+
+        Object.assign(self, {{
+            {0}
+        }});
+
+        // Restore original chunk order (params are stored reversed) so that
+        // TURBOPACK_NEXT_CHUNK_URLS matches the original order.
+        chunkUrls.reverse();
+
+        await Promise.all(chunkUrls.map(function(chunk) {{
+            var chunkUrl = new URL(chunk, location.origin);
+            if (chunkUrl.origin !== location.origin) {{
+                throw new Error("Refusing to load script from foreign origin: " + chunkUrl.origin);
+            }}
+            return import(chunkUrl.toString());
+        }}));
         "##,
         globals_js
     )?;
