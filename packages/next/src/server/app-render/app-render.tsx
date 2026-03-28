@@ -60,6 +60,7 @@ import {
   renderToWebFizzStream,
   renderToNodeFlightStream,
   renderToNodeFizzStream,
+  createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
@@ -3546,7 +3547,7 @@ async function renderToStream(
         })
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
+          inlinedDataStream: createNodeInlinedDataStream(
             reactServerResult.consume(),
             nonce,
             formState
@@ -6902,7 +6903,7 @@ async function prerenderToStream(
               })
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               emptyReactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -6914,7 +6915,7 @@ async function prerenderToStream(
         } else {
           // Normal static prerender case, no fallback param handling needed
           finalStream = await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -7168,7 +7169,7 @@ async function prerenderToStream(
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -7266,7 +7267,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
             formState
@@ -7479,7 +7480,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             flightStream,
             nonce,
             formState
