@@ -1,4 +1,4 @@
-use std::collections::BinaryHeap;
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -148,16 +148,16 @@ pub async fn make_style_production_chunks(
         // --- Step 4: Kahn's algorithm, using a min-heap on `unit_min_pos` as tiebreaker ---
         // The heap stores (min_pos, unit_index) so that among units with in-degree 0,
         // we always pick the one that appeared earliest in the DFS post-order.
-        let mut heap: BinaryHeap<std::cmp::Reverse<(usize, usize)>> = BinaryHeap::new();
+        let mut heap: BinaryHeap<Reverse<(usize, usize)>> = BinaryHeap::new();
         for (i, unit) in units.iter().enumerate() {
             if in_degree[i] == 0 {
                 let pos = unit_min_pos.get(unit).copied().unwrap_or(usize::MAX);
-                heap.push(std::cmp::Reverse((pos, i)));
+                heap.push(Reverse((pos, i)));
             }
         }
 
         let mut sorted: Vec<usize> = Vec::with_capacity(n);
-        while let Some(std::cmp::Reverse((_, idx))) = heap.pop() {
+        while let Some(Reverse((_, idx))) = heap.pop() {
             sorted.push(idx);
             for &neighbor in &adj[idx] {
                 in_degree[neighbor] -= 1;
@@ -166,7 +166,7 @@ pub async fn make_style_production_chunks(
                         .get(&units[neighbor])
                         .copied()
                         .unwrap_or(usize::MAX);
-                    heap.push(std::cmp::Reverse((pos, neighbor)));
+                    heap.push(Reverse((pos, neighbor)));
                 }
             }
         }
