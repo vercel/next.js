@@ -10,7 +10,7 @@
 //   node scripts/docker-image-cache.js           # restore from cache or build + upload
 //   node scripts/docker-image-cache.js --force   # always rebuild and re-upload
 
-const { execSync } = require('child_process')
+const { execSync, spawn } = require('child_process')
 const { createHash } = require('crypto')
 const path = require('path')
 const fs = require('fs')
@@ -72,6 +72,26 @@ function sh(cmd) {
   execSync(cmd, { stdio: 'inherit', shell: true })
 }
 
+/** Pipe a Node.js Readable stream into a shell command's stdin. */
+function pipeToShell(stream, cmd) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, {
+      stdio: ['pipe', 'inherit', 'inherit'],
+      shell: true,
+    })
+    stream.pipe(child.stdin)
+    stream.on('error', (err) => {
+      child.kill()
+      reject(err)
+    })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code !== 0) reject(new Error(`Command failed with exit code ${code}`))
+      else resolve()
+    })
+  })
+}
+
 async function main() {
   const cache = await import('./turbo-cache.mjs')
   const key = computeCacheKey()
@@ -89,14 +109,10 @@ async function main() {
     console.log(hit ? 'Cache HIT' : 'Cache MISS')
 
     if (hit) {
-      const zstdFile = tmpFile('docker-image-cache.tar.zst')
       try {
-        await cache.getToFile(key, zstdFile)
-        const size = fs.statSync(zstdFile).size
-        console.log(
-          `Downloaded ${(size / 1024 / 1024).toFixed(0)} MB compressed`
-        )
-        sh(`zstd -d -c ${zstdFile} | docker load`)
+        console.log('Streaming cached image through zstd into docker load...')
+        const stream = await cache.getStream(key)
+        await pipeToShell(stream, `zstd -d | docker load`)
         console.log('Docker image restored from turbo cache')
         return
       } catch (e) {
@@ -105,10 +121,6 @@ async function main() {
         // Remove the partially-loaded image if it exists
         try {
           execSync(`docker rmi -f ${IMAGE_NAME}`, { stdio: 'ignore' })
-        } catch {}
-      } finally {
-        try {
-          fs.unlinkSync(zstdFile)
         } catch {}
       }
     }

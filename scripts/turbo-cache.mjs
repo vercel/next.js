@@ -63,10 +63,9 @@ export async function get(key) {
 }
 
 /**
- * Download an artifact to a file. Throws on failure.
- * Uses streaming to handle files larger than 2GB.
+ * Download an artifact as a Node.js Readable stream. Throws on failure.
  */
-export async function getToFile(key, destPath) {
+export async function getStream(key) {
   const res = await fetch(artifactUrl(key), {
     method: 'GET',
     headers: baseHeaders(),
@@ -74,15 +73,7 @@ export async function getToFile(key, destPath) {
   if (!res.ok) {
     throw new Error(`GET ${key} failed: ${res.status} ${res.statusText}`)
   }
-
-  const fileStream = fs.createWriteStream(destPath)
-  const nodeStream = Readable.fromWeb(res.body)
-  await new Promise((resolve, reject) => {
-    nodeStream.pipe(fileStream)
-    nodeStream.on('error', reject)
-    fileStream.on('error', reject)
-    fileStream.on('finish', resolve)
-  })
+  return Readable.fromWeb(res.body)
 }
 
 /**
