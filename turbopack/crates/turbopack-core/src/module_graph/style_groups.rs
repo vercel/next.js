@@ -22,12 +22,6 @@ use crate::{
     },
 };
 
-/// Maps each CSS module to the set of CSS modules that must be emitted after it.
-pub type ModuleDependents = FxHashMap<
-    ResolvedVc<Box<dyn ChunkableModule>>,
-    FxHashSet<ResolvedVc<Box<dyn ChunkableModule>>>,
->;
-
 #[derive(
     TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
@@ -46,13 +40,6 @@ pub struct StyleGroups {
     #[bincode(with = "turbo_bincode::indexmap")]
     pub shared_chunk_items:
         FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
-    /// For each CSS module, the set of CSS modules that must be emitted after it (its dependents
-    /// in cascade order). A module X maps to {Y, Z, ...} meaning X must be loaded before Y and Z.
-    ///
-    /// This is used by `style_production.rs` to topologically sort emission units (shared batches
-    /// and non-shared items) into a correct CSS cascade order, taking into account that a shared
-    /// batch may group items whose DFS post-order positions interleave with non-shared items.
-    pub module_dependents: ModuleDependents,
 }
 
 /// Information about a CSS module and its presence across chunk groups.
@@ -130,7 +117,6 @@ pub(crate) struct BatchingModuleInfo {
 /// share a single CSS chunk. Only multi-module batches are included.
 pub(crate) struct BatchingResult {
     pub batches: Vec<Vec<usize>>,
-    pub module_dependents: FxHashMap<usize, FxHashSet<usize>>,
 }
 
 /// Pure algorithmic core of the style-groups batching algorithm.
@@ -355,10 +341,7 @@ pub(crate) fn compute_style_batches(
         }
     }
 
-    BatchingResult {
-        batches,
-        module_dependents,
-    }
+    BatchingResult { batches }
 }
 
 pub async fn compute_style_groups(
@@ -561,23 +544,7 @@ pub async fn compute_style_groups(
         }
     }
 
-    // Convert module_dependents back to ResolvedVc keys
-    let module_dependents: ModuleDependents = result
-        .module_dependents
-        .into_iter()
-        .map(|(k, deps)| {
-            (
-                idx_to_vc[k],
-                deps.into_iter().map(|d| idx_to_vc[d]).collect(),
-            )
-        })
-        .collect();
-
-    Ok(StyleGroups {
-        shared_chunk_items,
-        module_dependents,
-    }
-    .cell())
+    Ok(StyleGroups { shared_chunk_items }.cell())
 }
 
 #[cfg(test)]
@@ -852,73 +819,7 @@ mod tests {
         );
     }
 
-    // ---- Test 5a: Dependents computation — universal predecessor ----
-
-    #[test]
-    fn test_dependents_universal_predecessor() {
-        // Route 0: [A(0), B(1), C(2)]
-        // Route 1: [A(0), B(1)]
-        //
-        // A appears before B in all routes B is in → A is a dependency of B.
-        // A appears before C in all routes C is in (only route 0) → A is a dep of C.
-        // B appears before C in all routes C is in (only route 0) → B is a dep of C.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1, 2], &[0, 1]],
-        );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        let deps_a = result
-            .module_dependents
-            .get(&0)
-            .cloned()
-            .unwrap_or_default();
-        assert!(deps_a.contains(&1), "A should have B as dependent");
-        assert!(deps_a.contains(&2), "A should have C as dependent");
-
-        let deps_b = result
-            .module_dependents
-            .get(&1)
-            .cloned()
-            .unwrap_or_default();
-        assert!(deps_b.contains(&2), "B should have C as dependent");
-
-        let deps_c = result
-            .module_dependents
-            .get(&2)
-            .cloned()
-            .unwrap_or_default();
-        assert!(deps_c.is_empty(), "C should have no dependents");
-    }
-
-    // ---- Test 5b: Non-universal appearance blocks dependent relationship ----
-
-    #[test]
-    fn test_dependents_non_universal_blocks() {
-        // Route 0: [A(0), B(1)]
-        // Route 1: [B(1)]
-        //
-        // A is only in route 0. B is in routes 0 and 1.
-        // A is NOT a dependency of B because A doesn't appear in route 1 where B does.
-        // (info.chunk_group_indices.len() >= dep.chunk_group_indices.len() fails: 1 < 2)
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(&[(iso, 100), (iso, 100)], &[&[0, 1], &[1]]);
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        let deps_a = result
-            .module_dependents
-            .get(&0)
-            .cloned()
-            .unwrap_or_default();
-        assert!(
-            !deps_a.contains(&1),
-            "A should NOT be a dependency of B (A missing from route 1), got A deps: {:?}",
-            deps_a
-        );
-    }
-
-    // ---- Test 6: Contiguity allows absorbing all intervening modules ----
+    // ---- Test 5: Contiguity allows absorbing all intervening modules ----
 
     #[test]
     fn test_contiguity_absorbs_intervening_modules() {
