@@ -852,11 +852,21 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              // Malformed request body (e.g. invalid JSON from vulnerability
+              // scanners) should return 400, not bubble up as 500 (#86945).
+              if (err instanceof SyntaxError) {
+                res.statusCode = 400
+                return
+              }
+              throw err
+            }
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -1061,11 +1071,21 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              // Malformed request body (e.g. invalid JSON from vulnerability
+              // scanners) should return 400, not bubble up as 500 (#86945).
+              if (err instanceof SyntaxError) {
+                res.statusCode = 400
+                return
+              }
+              throw err
+            }
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
