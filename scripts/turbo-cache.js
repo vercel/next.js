@@ -79,6 +79,7 @@ async function getToFile(key, destPath) {
   await new Promise((resolve, reject) => {
     nodeStream.pipe(fileStream)
     nodeStream.on('error', reject)
+    fileStream.on('error', reject)
     fileStream.on('finish', resolve)
   })
   return true
