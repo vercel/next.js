@@ -79,7 +79,7 @@ function tmpFile(name) {
 }
 
 function sh(cmd) {
-  execSync(cmd, { stdio: 'inherit', shell: '/bin/bash' })
+  execSync(cmd, { stdio: 'inherit', shell: true })
 }
 
 async function main() {
