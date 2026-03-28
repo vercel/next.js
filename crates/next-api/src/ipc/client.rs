@@ -41,14 +41,6 @@ impl DaemonClient {
     /// Spawns two background tasks: one to write outgoing messages, one to read
     /// responses.
     pub async fn connect(socket_path: &str) -> Result<Self> {
-        let inner = Arc::new(DaemonClientInner {
-            tx: mpsc::unbounded_channel().0,
-            pending: Mutex::new(HashMap::new()),
-            subscriptions: Mutex::new(HashMap::new()),
-            next_call_id: AtomicU64::new(1),
-            next_callback_id: AtomicU64::new(1),
-        });
-
         // Platform-specific connection
         #[cfg(unix)]
         let stream = {
