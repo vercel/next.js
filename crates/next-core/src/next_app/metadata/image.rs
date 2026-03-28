@@ -43,7 +43,7 @@ async fn dynamic_image_metadata_with_generator_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if path.has_extension("svg") {
+        let sizes = if path.has_extension(".svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
@@ -120,7 +120,7 @@ async fn dynamic_image_metadata_without_generator_source(
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if path.has_extension("svg") {
+        let sizes = if path.has_extension(".svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
