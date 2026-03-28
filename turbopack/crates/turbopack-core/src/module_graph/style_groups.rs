@@ -106,17 +106,17 @@ struct ChunkGroupState {
 /// Pure-data version of [`ModuleInfo`] for the batching algorithm. Free of Vc types so it can be
 /// used in unit tests without a turbo-tasks runtime.
 #[derive(Debug)]
-pub(crate) struct BatchingModuleInfo {
-    pub style_type: StyleType,
-    pub ident: RcStr,
-    pub chunk_group_indices: FxIndexMap<usize, usize>,
-    pub size: usize,
+struct BatchingModuleInfo {
+    style_type: StyleType,
+    ident: RcStr,
+    chunk_group_indices: FxIndexMap<usize, usize>,
+    size: usize,
 }
 
 /// Result of the pure batching algorithm. Each batch is a `Vec<usize>` of module keys that should
 /// share a single CSS chunk. Only multi-module batches are included.
-pub(crate) struct BatchingResult {
-    pub batches: Vec<Vec<usize>>,
+struct BatchingResult {
+    batches: Vec<Vec<usize>>,
 }
 
 /// Pure algorithmic core of the style-groups batching algorithm.
@@ -131,7 +131,7 @@ pub(crate) struct BatchingResult {
 /// - `chunk_group_styles`: For each chunk group, the ordered list of module keys in CSS cascade
 ///   order (postorder DFS).
 /// - `max_chunk_size`: Maximum byte size for a single shared chunk.
-pub(crate) fn compute_style_batches(
+fn compute_style_batches(
     module_info: &FxIndexMap<usize, BatchingModuleInfo>,
     chunk_group_styles: &[FxIndexSet<usize>],
     max_chunk_size: usize,
