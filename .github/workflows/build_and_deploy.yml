@@ -246,7 +246,7 @@ jobs:
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # Build or restore the Docker image via turbo remote cache.
+      # Build or restore the Docker image via turbo-cache.js.
       - name: Build/restore Docker image
         if: ${{ matrix.docker }}
         run: node scripts/docker-image-cache.js

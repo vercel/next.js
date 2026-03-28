@@ -87,13 +87,6 @@ if (targets.length === 0) {
 
 // --- Build/restore Docker image ---
 function ensureDockerImage() {
-  try {
-    execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
-    if (!rebuild) return // already loaded
-  } catch {
-    // not loaded — continue to build/restore
-  }
-
   const args = rebuild ? ['--force'] : []
   execFileSync(
     'node',

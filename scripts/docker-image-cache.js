@@ -23,7 +23,6 @@ const { values: flags } = parseArgs({
   options: {
     force: { type: 'boolean', default: false },
   },
-  strict: false,
 })
 
 const REPO_ROOT = path.resolve(__dirname, '..')
@@ -32,6 +31,9 @@ const IMAGE_NAME = 'next-swc-builder:latest'
 // Files that determine the docker image content — if any change, rebuild.
 const CACHE_INPUTS = [
   path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile'),
+  path.join(REPO_ROOT, 'scripts/docker-image-cache.js'),
+  path.join(REPO_ROOT, 'scripts/docker-native-build.js'),
+  path.join(REPO_ROOT, 'scripts/docker-native-build.sh'),
   path.join(REPO_ROOT, 'rust-toolchain.toml'),
 ]
 
@@ -86,7 +88,7 @@ async function main() {
 
   if (!process.env.TURBO_TOKEN) {
     console.log('No TURBO_TOKEN — building without cache')
-    if (!imageExists()) buildImage()
+    buildImage()
     return
   }
 
