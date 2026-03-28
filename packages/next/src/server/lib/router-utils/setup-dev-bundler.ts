@@ -10,6 +10,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
@@ -217,6 +218,31 @@ async function startWatcher(
       opts.nextConfig.distDir
     )
   }
+
+  // Create a global lockfile at ~/.next/dev/<port>/lock so external tools can
+  // enumerate all running dev servers by scanning ~/.next/dev/*/lock.
+  const globalLockDir = path.join(
+    os.homedir(),
+    '.next',
+    'dev',
+    String(opts.port)
+  )
+  fs.mkdirSync(globalLockDir, { recursive: true })
+  const globalServerInfo: DevServerInfo = {
+    pid: process.pid,
+    port: opts.port,
+    hostname: 'localhost',
+    appUrl: `http://localhost:${opts.port}`,
+    startedAt: Date.now(),
+  }
+  const globalLockfile = Lockfile.tryAcquire(
+    path.join(globalLockDir, 'lock'),
+    true,
+    JSON.stringify(globalServerInfo)
+  )
+  opts.onDevServerCleanup?.(async () => {
+    await globalLockfile?.unlock()
+  })
 
   const validFileMatcher = createValidFileMatcher(
     nextConfig.pageExtensions,
