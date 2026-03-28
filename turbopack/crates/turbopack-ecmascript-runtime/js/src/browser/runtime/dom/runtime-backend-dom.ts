@@ -156,13 +156,27 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       return resolver.promise
     }
 
-    if (typeof importScripts === 'function') {
-      // We're in a web worker
+    if (typeof importScripts === 'function' && !TURBOPACK_IS_MODULE_WORKER) {
+      // We're in a classic web worker
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
         importScripts(chunkUrl)
+      } else {
+        throw new Error(
+          `can't infer type of chunk from URL ${chunkUrl} in worker`
+        )
+      }
+    } else if (
+      typeof WorkerGlobalScope !== 'undefined' &&
+      self instanceof WorkerGlobalScope
+    ) {
+      // We're in a module web worker (importScripts is not allowed)
+      if (isCss(chunkUrl)) {
+        // ignore
+      } else if (isJs(chunkUrl)) {
+        import(chunkUrl).catch(() => resolver.reject())
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`

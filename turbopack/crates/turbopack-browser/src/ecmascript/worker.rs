@@ -270,6 +270,8 @@ fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<
         Object.assign(self, {{
             {0}
         }});
+        // Signal to the runtime that we're in a module worker (importScripts is not allowed).
+        self.TURBOPACK_IS_MODULE_WORKER = true;
 
         // Restore original chunk order (params are stored reversed) so that
         // TURBOPACK_NEXT_CHUNK_URLS matches the original order.

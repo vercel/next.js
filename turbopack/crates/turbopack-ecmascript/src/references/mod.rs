@@ -2030,19 +2030,16 @@ where
                     }
 
                     // Parse `type: "module"` from the options argument (second arg)
-                    let is_esm = if let Some(opts) = args.get(1) {
-                        match opts {
-                            JsValue::Object { parts, .. } => parts.iter().any(|part| {
-                                matches!(
-                                    part,
-                                    ObjectPart::KeyValue(
-                                        JsValue::Constant(JsConstantValue::Str(key)),
-                                        JsValue::Constant(JsConstantValue::Str(val)),
-                                    ) if key.as_str() == "type" && val.as_str() == "module"
-                                )
-                            }),
-                            _ => false,
-                        }
+                    let is_esm = if let Some(JsValue::Object { parts, .. }) = args.get(1) {
+                        parts.iter().any(|part| {
+                            matches!(
+                                part,
+                                ObjectPart::KeyValue(
+                                    JsValue::Constant(JsConstantValue::Str(key)),
+                                    JsValue::Constant(JsConstantValue::Str(val)),
+                                ) if key.as_str() == "type" && val.as_str() == "module"
+                            )
+                        })
                     } else {
                         false
                     };

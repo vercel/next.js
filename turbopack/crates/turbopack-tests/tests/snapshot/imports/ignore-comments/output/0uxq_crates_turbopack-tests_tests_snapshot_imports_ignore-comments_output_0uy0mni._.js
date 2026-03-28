@@ -32,7 +32,6 @@ if (chunkUrls.length > 0) {
     var scriptsToLoad = [];
     for (var i = 0; i < chunkUrls.length; i++) {
         var chunk = chunkUrls[i];
-        // Chunks are relative to the origin.
         var chunkUrl = new URL(chunk, location.origin);
         if (chunkUrl.origin !== location.origin) {
             abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
@@ -40,7 +39,7 @@ if (chunkUrls.length > 0) {
         scriptsToLoad.push(chunkUrl.toString());
     }
 
-    // As scripts are loaded, allow them to pop from the array
+    // Restore original order in TURBOPACK_NEXT_CHUNK_URLS (URL params store them reversed).
     chunkUrls.reverse();
     importScripts.apply(self, scriptsToLoad);
 }

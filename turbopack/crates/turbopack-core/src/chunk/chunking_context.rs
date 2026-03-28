@@ -491,8 +491,7 @@ pub trait ChunkingContext {
     /// When `is_esm` is true, generates an ES module bootstrap (using import() instead of
     /// importScripts).
     #[turbo_tasks::function]
-    async fn worker_entrypoint(self: Vc<Self>, is_esm: bool) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let _ = is_esm;
+    async fn worker_entrypoint(self: Vc<Self>, _is_esm: bool) -> Result<Vc<Box<dyn OutputAsset>>> {
         turbobail!("Worker entrypoint is not supported by {}", self.name());
     }
 }
