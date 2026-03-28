@@ -603,7 +603,14 @@ impl Visit for Analyzer<'_> {
 
         let internal_symbol = parse_with(import.with.as_deref());
 
-        if internal_symbol.is_none() {
+        let has_runtime_import = !import.type_only
+            && (import.specifiers.is_empty()
+                || import
+                    .specifiers
+                    .iter()
+                    .any(|specifier| !is_type_only_import_specifier(specifier)));
+
+        if internal_symbol.is_none() && has_runtime_import {
             self.ensure_reference(
                 import.span,
                 import.src.value.clone(),
@@ -612,7 +619,15 @@ impl Visit for Analyzer<'_> {
             );
         }
 
+        if import.type_only {
+            return;
+        }
+
         for s in &import.specifiers {
+            if is_type_only_import_specifier(s) {
+                continue;
+            }
+
             let symbol = internal_symbol
                 .clone()
                 .unwrap_or_else(|| get_import_symbol_from_import(s));
@@ -1020,6 +1035,16 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
     }
 }
 
+fn is_type_only_import_specifier(specifier: &ImportSpecifier) -> bool {
+    matches!(
+        specifier,
+        ImportSpecifier::Named(ImportNamedSpecifier {
+            is_type_only: true,
+            ..
+        })
+    )
+}
+
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
@@ -1032,7 +1057,16 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
 
 #[cfg(test)]
 mod tests {
-    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
+    use std::sync::Arc;
+
+    use swc_core::{
+        atoms::Atom,
+        common::{DUMMY_SP, FileName, SourceMap},
+        ecma::{
+            ast::*,
+            parser::{Parser, StringInput, Syntax, TsSyntax},
+        },
+    };
 
     use super::*;
 
@@ -1113,5 +1147,67 @@ mod tests {
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
         assert!(annotations.is_none());
+    }
+
+    fn parse_typescript_program(source: &str) -> Program {
+        let source_map = Arc::<SourceMap>::default();
+        let file = source_map.new_source_file(
+            FileName::Custom("test.ts".into()).into(),
+            source.to_string(),
+        );
+        let mut parser = Parser::new(
+            Syntax::Typescript(TsSyntax::default()),
+            StringInput::from(&*file),
+            None,
+        );
+
+        parser.parse_program().expect("valid program")
+    }
+
+    #[test]
+    fn test_analyze_skips_full_type_only_imports() {
+        let program = parse_typescript_program("import type { Foo } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert!(import_map.references.is_empty());
+        assert!(import_map.imports.is_empty());
+        assert!(import_map.namespace_imports.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_skips_named_type_only_imports() {
+        let program = parse_typescript_program("import { type Foo } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert!(import_map.references.is_empty());
+        assert!(import_map.imports.is_empty());
+        assert!(import_map.namespace_imports.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_keeps_runtime_edges_for_mixed_imports() {
+        let program = parse_typescript_program("import { type Foo, bar as baz } from 'pkg';");
+        let import_map = ImportMap::analyze(&program, None, None);
+
+        assert_eq!(import_map.references.len(), 2);
+        assert_eq!(
+            import_map.references[0].imported_symbol,
+            ImportedSymbol::ModuleEvaluation
+        );
+        assert_eq!(
+            import_map.references[1].imported_symbol,
+            ImportedSymbol::Symbol(atom!("bar"))
+        );
+        assert_eq!(
+            import_map.references[0].module_path.to_string_lossy(),
+            "pkg"
+        );
+        assert_eq!(
+            import_map.references[1].module_path.to_string_lossy(),
+            "pkg"
+        );
+
+        assert_eq!(import_map.imports.len(), 1);
+        assert!(import_map.namespace_imports.is_empty());
     }
 }
