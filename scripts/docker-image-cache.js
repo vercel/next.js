@@ -23,6 +23,7 @@ const { values: flags } = parseArgs({
   options: {
     force: { type: 'boolean', default: false },
   },
+  strict: false,
 })
 
 const REPO_ROOT = path.resolve(__dirname, '..')
