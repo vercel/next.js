@@ -1,5 +1,5 @@
 use std::{
-    hash::{BuildHasherDefault, Hash},
+    hash::Hash,
     ops::{Add, AddAssign, Sub},
 };
 
@@ -10,9 +10,8 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
-use rustc_hash::FxHasher;
 
-type InnerMap<K, V> = AutoMap<K, V, BuildHasherDefault<FxHasher>, 1>;
+type InnerMap<K, V> = AutoMap<K, V, 1>;
 
 /// A map optimized for reference counting, backed by AutoMap.
 ///

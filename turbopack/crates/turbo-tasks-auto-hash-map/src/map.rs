@@ -25,24 +25,24 @@ use smallvec::SmallVec;
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
 
 #[derive(Clone)]
-pub enum AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
+pub enum AutoMap<K, V, const I: usize, H = BuildHasherDefault<FxHasher>> {
     List(SmallVec<[(K, V); I]>),
     Map(Box<HashMap<K, V, H>>),
 }
 
-impl<K, V, H, const I: usize> Default for AutoMap<K, V, H, I> {
+impl<K, V, const I: usize, H> Default for AutoMap<K, V, I, H> {
     fn default() -> Self {
         Self::List(Default::default())
     }
 }
 
-impl<K: Debug, V: Debug, H, const I: usize> Debug for AutoMap<K, V, H, I> {
+impl<K: Debug, V: Debug, const I: usize, H> Debug for AutoMap<K, V, I, H> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
 }
 
-impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
+impl<K, V> AutoMap<K, V, 0> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
     pub const fn new() -> Self {
         AutoMap::List(SmallVec::new_const())
@@ -61,7 +61,7 @@ impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     }
 }
 
-impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
+impl<K, V, const I: usize, H> AutoMap<K, V, I, H> {
     /// see [HashMap::with_hasher](https://doc.rust-lang.org/std/collections/hash_map/struct.HashMap.html#method.with_hasher)
     pub const fn with_hasher() -> Self {
         AutoMap::List(SmallVec::new_const())
@@ -87,7 +87,7 @@ impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
     }
 }
 
-impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H, I> {
+impl<K: Eq + Hash, V, const I: usize, H: BuildHasher + Default> AutoMap<K, V, I, H> {
     fn convert_to_map(&mut self) -> &mut HashMap<K, V, H> {
         if let AutoMap::List(list) = self {
             let mut map = HashMap::with_capacity_and_hasher(MAX_LIST_SIZE * 2, Default::default());
@@ -176,7 +176,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
     }
 
     /// see [HashMap::entry](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.entry)
-    pub fn entry(&mut self, key: K) -> Entry<'_, K, V, H, I> {
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V, I, H> {
         let this = self as *mut Self;
         match self {
             AutoMap::List(list) => match list.iter().position(|(k, _)| *k == key) {
@@ -192,7 +192,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
         }
     }
 
-    pub fn raw_entry_mut<Q>(&mut self, key: &Q) -> RawEntry<'_, K, V, H, I>
+    pub fn raw_entry_mut<Q>(&mut self, key: &Q) -> RawEntry<'_, K, V, I, H>
     where
         K: Borrow<Q>,
         Q: Hash + Eq + ?Sized,
@@ -290,7 +290,7 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> AutoMap<K, V, H,
     }
 }
 
-impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
+impl<K: Eq + Hash, V, const I: usize, H: BuildHasher> AutoMap<K, V, I, H> {
     /// see [HashMap::get](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get)
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
@@ -324,7 +324,7 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
     }
 }
 
-impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
+impl<K, V, const I: usize, H> AutoMap<K, V, I, H> {
     /// see [HashMap::iter](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.iter)
     pub fn iter(&self) -> Iter<'_, K, V> {
         match self {
@@ -381,7 +381,7 @@ impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
     }
 }
 
-impl<K, V, H, const I: usize> IntoIterator for AutoMap<K, V, H, I> {
+impl<K, V, const I: usize, H> IntoIterator for AutoMap<K, V, I, H> {
     type Item = (K, V);
     type IntoIter = IntoIter<K, V, I>;
 
@@ -393,7 +393,7 @@ impl<K, V, H, const I: usize> IntoIterator for AutoMap<K, V, H, I> {
     }
 }
 
-impl<'a, K, V, H, const I: usize> IntoIterator for &'a AutoMap<K, V, H, I> {
+impl<'a, K, V, const I: usize, H> IntoIterator for &'a AutoMap<K, V, I, H> {
     type Item = (&'a K, &'a V);
     type IntoIter = Iter<'a, K, V>;
 
@@ -551,12 +551,12 @@ impl<K, V, const I: usize> Iterator for IntoValues<K, V, I> {
     }
 }
 
-pub enum Entry<'a, K, V, H, const I: usize> {
-    Occupied(OccupiedEntry<'a, K, V, H, I>),
-    Vacant(VacantEntry<'a, K, V, H, I>),
+pub enum Entry<'a, K, V, const I: usize, H> {
+    Occupied(OccupiedEntry<'a, K, V, I, H>),
+    Vacant(VacantEntry<'a, K, V, I, H>),
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize> Entry<'a, K, V, H, I> {
+impl<'a, K: Eq + Hash, V, const I: usize, H: BuildHasher + Default + 'a> Entry<'a, K, V, I, H> {
     /// see [HashMap::Entry::or_insert](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_insert)
     pub fn or_insert_with(self, default: impl FnOnce() -> V) -> &'a mut V {
         match self {
@@ -574,8 +574,8 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize> Entry<'
     }
 }
 
-impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize>
-    Entry<'a, K, V, H, I>
+impl<'a, K: Eq + Hash, V: Default, const I: usize, H: BuildHasher + Default + 'a>
+    Entry<'a, K, V, I, H>
 {
     /// see [HashMap::Entry::or_default](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_default)
     pub fn or_default(self) -> &'a mut V {
@@ -586,18 +586,18 @@ impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize
     }
 }
 
-pub enum OccupiedEntry<'a, K, V, H, const I: usize> {
+pub enum OccupiedEntry<'a, K, V, const I: usize, H> {
     List {
         list: &'a mut SmallVec<[(K, V); I]>,
         index: usize,
     },
     Map {
-        this: *mut AutoMap<K, V, H, I>,
+        this: *mut AutoMap<K, V, I, H>,
         entry: hashbrown::hash_map::OccupiedEntry<'a, K, V, H>,
     },
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedEntry<'a, K, V, H, I> {
+impl<'a, K: Eq + Hash, V, const I: usize, H: BuildHasher> OccupiedEntry<'a, K, V, I, H> {
     /// see [HashMap::OccupiedEntry::get_mut](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.get_mut)
     pub fn get_mut(&mut self) -> &mut V {
         match self {
@@ -615,7 +615,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedEntry<'a, K, V
     }
 }
 
-impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_, K, V, H, I> {
+impl<K: Eq + Hash, V, const I: usize, H: BuildHasher + Default> OccupiedEntry<'_, K, V, I, H> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -639,17 +639,17 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_
     }
 }
 
-pub enum VacantEntry<'a, K, V, H, const I: usize> {
+pub enum VacantEntry<'a, K, V, const I: usize, H> {
     List {
-        this: *mut AutoMap<K, V, H, I>,
+        this: *mut AutoMap<K, V, I, H>,
         list: &'a mut SmallVec<[(K, V); I]>,
         key: K,
     },
     Map(hashbrown::hash_map::VacantEntry<'a, K, V, H>),
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
-    VacantEntry<'a, K, V, H, I>
+impl<'a, K: Eq + Hash, V, const I: usize, H: BuildHasher + Default + 'a>
+    VacantEntry<'a, K, V, I, H>
 {
     /// see [HashMap::VacantEntry::insert](https://doc.rust-lang.org/std/collections/hash_map/enum.VacantEntry.html#method.insert)
     pub fn insert(self, value: V) -> &'a mut V {
@@ -668,23 +668,23 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
     }
 }
 
-pub enum RawEntry<'a, K, V, H, const I: usize> {
-    Occupied(OccupiedRawEntry<'a, K, V, H, I>),
-    Vacant(VacantRawEntry<'a, K, V, H, I>),
+pub enum RawEntry<'a, K, V, const I: usize, H> {
+    Occupied(OccupiedRawEntry<'a, K, V, I, H>),
+    Vacant(VacantRawEntry<'a, K, V, I, H>),
 }
 
-pub enum OccupiedRawEntry<'a, K, V, H, const I: usize> {
+pub enum OccupiedRawEntry<'a, K, V, const I: usize, H> {
     List {
         list: &'a mut SmallVec<[(K, V); I]>,
         index: usize,
     },
     Map {
-        this: *mut AutoMap<K, V, H, I>,
+        this: *mut AutoMap<K, V, I, H>,
         entry: hashbrown::hash_map::RawOccupiedEntryMut<'a, K, V, H>,
     },
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedRawEntry<'a, K, V, H, I> {
+impl<'a, K: Eq + Hash, V, const I: usize, H: BuildHasher> OccupiedRawEntry<'a, K, V, I, H> {
     /// see [HashMap::RawOccupiedEntryMut::get_mut](https://doc.rust-lang.org/std/collections/hash_map/struct.RawOccupiedEntryMut.html#method.get_mut)
     pub fn get_mut(&mut self) -> &mut V {
         match self {
@@ -702,7 +702,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedRawEntry<'a, K
     }
 }
 
-impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry<'_, K, V, H, I> {
+impl<K: Eq + Hash, V, const I: usize, H: BuildHasher + Default> OccupiedRawEntry<'_, K, V, I, H> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -712,16 +712,16 @@ impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry
     }
 }
 
-pub enum VacantRawEntry<'a, K, V, H, const I: usize> {
+pub enum VacantRawEntry<'a, K, V, const I: usize, H> {
     List {
-        this: *mut AutoMap<K, V, H, I>,
+        this: *mut AutoMap<K, V, I, H>,
         list: &'a mut SmallVec<[(K, V); I]>,
     },
     Map(hashbrown::hash_map::RawVacantEntryMut<'a, K, V, H>),
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
-    VacantRawEntry<'a, K, V, H, I>
+impl<'a, K: Eq + Hash, V, const I: usize, H: BuildHasher + Default + 'a>
+    VacantRawEntry<'a, K, V, I, H>
 {
     /// see [HashMap::RawVacantEntryMut::insert](https://doc.rust-lang.org/std/collections/hash_map/struct.RawVacantEntryMut.html#method.insert)
     pub fn insert(self, key: K, value: V) -> &'a mut V {
@@ -740,7 +740,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize>
     }
 }
 
-impl<K, V, H, const I: usize> Serialize for AutoMap<K, V, H, I>
+impl<K, V, const I: usize, H> Serialize for AutoMap<K, V, I, H>
 where
     K: Eq + Hash + Serialize,
     V: Serialize,
@@ -763,7 +763,7 @@ where
     }
 }
 
-impl<'de, K, V, H, const I: usize> Deserialize<'de> for AutoMap<K, V, H, I>
+impl<'de, K, V, const I: usize, H> Deserialize<'de> for AutoMap<K, V, I, H>
 where
     K: Eq + Hash + Deserialize<'de>,
     V: Deserialize<'de>,
@@ -773,17 +773,17 @@ where
     where
         D: Deserializer<'de>,
     {
-        struct AutoMapVisitor<K, V, H, const I: usize> {
-            phantom: PhantomData<AutoMap<K, V, H, I>>,
+        struct AutoMapVisitor<K, V, const I: usize, H> {
+            phantom: PhantomData<AutoMap<K, V, I, H>>,
         }
 
-        impl<'de, K, V, H, const I: usize> Visitor<'de> for AutoMapVisitor<K, V, H, I>
+        impl<'de, K, V, const I: usize, H> Visitor<'de> for AutoMapVisitor<K, V, I, H>
         where
             K: Eq + Hash + Deserialize<'de>,
             V: Deserialize<'de>,
             H: BuildHasher + Default,
         {
-            type Value = AutoMap<K, V, H, I>;
+            type Value = AutoMap<K, V, I, H>;
 
             fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
                 formatter.write_str("a map")
@@ -818,12 +818,12 @@ where
         }
 
         deserializer.deserialize_map(AutoMapVisitor {
-            phantom: PhantomData::<AutoMap<K, V, H, I>>,
+            phantom: PhantomData::<AutoMap<K, V, I, H>>,
         })
     }
 }
 
-impl<K, V, H, const I: usize> Encode for AutoMap<K, V, H, I>
+impl<K, V, const I: usize, H> Encode for AutoMap<K, V, I, H>
 where
     K: Encode,
     V: Encode,
@@ -839,7 +839,7 @@ where
     }
 }
 
-impl<Context, K, V, H, const I: usize> Decode<Context> for AutoMap<K, V, H, I>
+impl<Context, K, V, const I: usize, H> Decode<Context> for AutoMap<K, V, I, H>
 where
     K: Decode<Context> + Eq + Hash,
     V: Decode<Context>,
@@ -866,14 +866,14 @@ where
 }
 
 impl_borrow_decode!(
-    AutoMap<K, V, H, I>,
+    AutoMap<K, V, I, H>,
     K: Decode<__Context> + Eq + Hash,
     V: Decode<__Context>,
-    H: BuildHasher + Default,
     const I: usize,
+    H: BuildHasher + Default,
 );
 
-impl<K: Eq + Hash, V: Eq, H: BuildHasher, const I: usize> PartialEq for AutoMap<K, V, H, I> {
+impl<K: Eq + Hash, V: Eq, const I: usize, H: BuildHasher> PartialEq for AutoMap<K, V, I, H> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (AutoMap::Map(a), AutoMap::Map(b)) => a == b,
@@ -893,15 +893,15 @@ impl<K: Eq + Hash, V: Eq, H: BuildHasher, const I: usize> PartialEq for AutoMap<
     }
 }
 
-impl<K: Eq + Hash, V: Eq, H: BuildHasher, const I: usize> Eq for AutoMap<K, V, H, I>
+impl<K: Eq + Hash, V: Eq, const I: usize, H: BuildHasher> Eq for AutoMap<K, V, I, H>
 where
     K: Eq,
     V: Eq,
 {
 }
 
-impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher + Default, const I: usize> Hash
-    for AutoMap<K, V, MH, I>
+impl<K: Eq + Hash, V: Eq + Hash, const I: usize, MH: BuildHasher + Default> Hash
+    for AutoMap<K, V, I, MH>
 {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // Hash the length first to distinguish maps of different sizes
@@ -930,7 +930,7 @@ impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher + Default, const I: usize> Hash
     }
 }
 
-impl<K, V, H, const I: usize> FromIterator<(K, V)> for AutoMap<K, V, H, I>
+impl<K, V, const I: usize, H> FromIterator<(K, V)> for AutoMap<K, V, I, H>
 where
     K: Eq + Hash,
     H: BuildHasher + Default,
@@ -991,7 +991,7 @@ where
     }
 }
 
-impl<K, V, H, const I: usize> ShrinkToFit for AutoMap<K, V, H, I>
+impl<K, V, const I: usize, H> ShrinkToFit for AutoMap<K, V, I, H>
 where
     K: Eq + Hash,
     V: Eq,

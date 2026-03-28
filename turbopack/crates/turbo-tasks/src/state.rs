@@ -19,14 +19,14 @@ use crate::{
 #[derive(Encode, Decode)]
 struct StateInner<T> {
     value: T,
-    invalidators: AutoSet<Invalidator>,
+    invalidators: AutoSet<Invalidator, 4>,
 }
 
 impl<T> StateInner<T> {
     pub fn new(value: T) -> Self {
         Self {
             value,
-            invalidators: AutoSet::new(),
+            invalidators: AutoSet::default(),
         }
     }
 

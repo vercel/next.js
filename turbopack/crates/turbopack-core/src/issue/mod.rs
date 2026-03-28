@@ -203,7 +203,7 @@ pub trait ImportTracer {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DelegatingImportTracer {
-    delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
+    delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>, 1>,
 }
 
 impl DelegatingImportTracer {
@@ -409,7 +409,7 @@ impl IssueFilter {
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
-    issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
+    issues: AutoSet<ResolvedVc<Box<dyn Issue>>, 1>,
     tracer: ResolvedVc<DelegatingImportTracer>,
 }
 

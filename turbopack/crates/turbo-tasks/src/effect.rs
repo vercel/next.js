@@ -211,7 +211,7 @@ pub fn emit_effect(effect: impl Effect) {
 /// apply_effects(operation).await?;
 /// ```
 pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
-    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>, 1> = source.take_collectibles();
     if effects.is_empty() {
         return Ok(());
     }
@@ -254,7 +254,7 @@ pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
 /// result_with_effects.effects.apply().await?;
 /// ```
 pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
-    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>> = source.take_collectibles();
+    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>, 1> = source.take_collectibles();
     let effects = effects
         .into_iter()
         .map(|effect| async move {

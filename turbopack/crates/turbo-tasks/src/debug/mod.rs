@@ -191,7 +191,7 @@ where
     }
 }
 
-impl<K> ValueDebugFormat for AutoSet<K>
+impl<K, const I: usize> ValueDebugFormat for AutoSet<K, I>
 where
     K: ValueDebugFormat,
 {
@@ -259,7 +259,7 @@ where
     }
 }
 
-impl<K, V> ValueDebugFormat for AutoMap<K, V>
+impl<K, V, const I: usize> ValueDebugFormat for AutoMap<K, V, I>
 where
     K: Debug,
     V: ValueDebugFormat,

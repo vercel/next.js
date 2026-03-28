@@ -7,7 +7,6 @@ use std::{
     borrow::Cow,
     fmt::{self, Write},
     future::Future,
-    hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
     sync::{
@@ -21,7 +20,7 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
 use parking_lot::{Condvar, Mutex};
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
@@ -1785,7 +1784,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        tasks: &AutoSet<TaskId, 4>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         if !self.should_track_dependencies() {
@@ -1971,7 +1970,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
-        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, 2>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -2105,7 +2104,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(feature = "trace_task_details")] span: &Span,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
-        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, 2>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
@@ -2546,9 +2545,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         is_now_immutable: bool,
     ) -> (
         bool,
-        Option<
-            auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
-        >,
+        Option<auto_hash_map::AutoMap<CellId, InProgressCellState, 1>>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = task.take_in_progress() else {
@@ -2711,7 +2708,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
-        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, 2>,
         is_error: bool,
     ) -> Vec<SharedReference> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2926,7 +2923,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         collectible_type: TraitTypeId,
         reader_id: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
+    ) -> AutoMap<RawVc, i32, 0> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
@@ -3478,7 +3475,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn invalidate_tasks_set(
         &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        tasks: &AutoSet<TaskId, 4>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.invalidate_tasks_set(tasks, turbo_tasks);
@@ -3510,7 +3507,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
-        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, 2>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
@@ -3576,7 +3573,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         collectible_type: TraitTypeId,
         reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
+    ) -> AutoMap<RawVc, i32, 0> {
         self.0
             .read_task_collectibles(task_id, collectible_type, reader, turbo_tasks)
     }

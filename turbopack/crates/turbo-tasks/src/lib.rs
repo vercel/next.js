@@ -394,7 +394,7 @@ pub use turbo_tasks_macros::task_storage;
 #[rustfmt::skip]
 pub use turbo_tasks_macros::TaskInput;
 
-pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
+pub type TaskIdSet = AutoSet<TaskId, 4>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};

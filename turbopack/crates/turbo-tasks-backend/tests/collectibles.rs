@@ -163,7 +163,7 @@ async fn taking_collectibles_with_resolve() {
 }
 
 #[turbo_tasks::value(transparent)]
-struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
+struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>, 1>);
 
 #[turbo_tasks::function(operation)]
 async fn my_collecting_function() -> Result<Vc<Thing>> {

@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
-    hash::{BuildHasherDefault, Hash},
+    hash::Hash,
     pin::Pin,
     sync::Arc,
 };
@@ -17,7 +17,6 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
-use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
@@ -286,7 +285,7 @@ impl TryFrom<CellContent> for SharedReference {
     }
 }
 
-pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
+pub type TaskCollectiblesMap = AutoMap<RawVc, i32, 0>;
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
@@ -507,7 +506,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
-        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        cell_counters: &AutoMap<ValueTypeId, u32, 2>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,

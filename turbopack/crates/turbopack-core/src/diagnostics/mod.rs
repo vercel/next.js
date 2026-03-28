@@ -114,5 +114,5 @@ where
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {
-    pub diagnostics: AutoSet<ResolvedVc<Box<dyn Diagnostic>>>,
+    pub diagnostics: AutoSet<ResolvedVc<Box<dyn Diagnostic>>, 1>,
 }

@@ -238,11 +238,11 @@ where
         self.node.node.drop_collectibles::<Vt>();
     }
 
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
+    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>, 1> {
         self.node.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
+    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>, 1> {
         self.node.node.peek_collectibles()
     }
 }

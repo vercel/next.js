@@ -255,7 +255,7 @@ impl RawVc {
 
 /// This implementation of `CollectiblesSource` assumes that `self` is a `RawVc::TaskOutput`.
 impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>, 1> {
         let RawVc::TaskOutput(task_id) = self else {
             panic!(
                 "<RawVc as CollectiblesSource>::peek_collectibles() must only be called on a \
@@ -269,7 +269,7 @@ impl CollectiblesSource for RawVc {
             .collect()
     }
 
-    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>> {
+    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<ResolvedVc<T>, 1> {
         let RawVc::TaskOutput(task_id) = self else {
             panic!(
                 "<RawVc as CollectiblesSource>::take_collectibles() must only be called on a \

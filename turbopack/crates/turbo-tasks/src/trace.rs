@@ -189,7 +189,7 @@ impl<T: TraceRawVcs, S> TraceRawVcs for HashSet<T, S> {
     }
 }
 
-impl<T: TraceRawVcs, S, const I: usize> TraceRawVcs for AutoSet<T, S, I> {
+impl<T: TraceRawVcs, const I: usize, S> TraceRawVcs for AutoSet<T, I, S> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
@@ -230,7 +230,7 @@ impl<K: TraceRawVcs, V: TraceRawVcs, S> TraceRawVcs for HashMap<K, V, S> {
     }
 }
 
-impl<K: TraceRawVcs, V: TraceRawVcs, S, const I: usize> TraceRawVcs for AutoMap<K, V, S, I> {
+impl<K: TraceRawVcs, V: TraceRawVcs, const I: usize, S> TraceRawVcs for AutoMap<K, V, I, S> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for (key, value) in self.iter() {
             TraceRawVcs::trace_raw_vcs(key, trace_context);

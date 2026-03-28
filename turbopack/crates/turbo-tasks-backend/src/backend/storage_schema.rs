@@ -38,11 +38,10 @@ use crate::{
 
 /// Auto-set storage for small sets of keys with unit values.
 /// Optimized for small collections (< 8 items use SmallVec inline).
-type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+type AutoSet<K> = auto_hash_map::AutoSet<K, 1>;
 
 /// Auto-map storage for key-value pairs.
-type AutoMap<K, V> =
-    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+type AutoMap<K, V> = auto_hash_map::AutoMap<K, V, 1>;
 
 /// The complete task storage schema.
 ///

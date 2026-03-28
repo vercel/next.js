@@ -312,7 +312,7 @@ pub enum ModuleExportUsageInfo {
     /// Only the side effects are needed, no exports is used.
     #[default]
     Evaluation,
-    Exports(AutoSet<RcStr>),
+    Exports(AutoSet<RcStr, 2>),
     All,
 }
 

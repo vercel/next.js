@@ -474,7 +474,7 @@ pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
-    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn Module>>>,
+    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn Module>>, 1>,
 }
 
 #[turbo_tasks::value_impl]

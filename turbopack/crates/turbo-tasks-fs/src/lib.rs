@@ -2662,12 +2662,12 @@ impl From<&RawDirectoryEntry> for FileSystemEntryType {
 pub enum RawDirectoryContent {
     // The entry keys are the directory relative file names
     // e.g. for `/bar/foo`, it will be `foo`
-    Entries(AutoMap<RcStr, RawDirectoryEntry>),
+    Entries(AutoMap<RcStr, RawDirectoryEntry, 1>),
     NotFound,
 }
 
 impl RawDirectoryContent {
-    pub fn new(entries: AutoMap<RcStr, RawDirectoryEntry>) -> Vc<Self> {
+    pub fn new(entries: AutoMap<RcStr, RawDirectoryEntry, 1>) -> Vc<Self> {
         Self::cell(RawDirectoryContent::Entries(entries))
     }
 
@@ -2679,12 +2679,12 @@ impl RawDirectoryContent {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub enum DirectoryContent {
-    Entries(AutoMap<RcStr, DirectoryEntry>),
+    Entries(AutoMap<RcStr, DirectoryEntry, 0>),
     NotFound,
 }
 
 impl DirectoryContent {
-    pub fn new(entries: AutoMap<RcStr, DirectoryEntry>) -> Vc<Self> {
+    pub fn new(entries: AutoMap<RcStr, DirectoryEntry, 0>) -> Vc<Self> {
         Self::cell(DirectoryContent::Entries(entries))
     }
 
@@ -2803,7 +2803,7 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
 async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>> {
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
-    let mut visited: AutoSet<RcStr> = AutoSet::new();
+    let mut visited: AutoSet<RcStr, 2> = AutoSet::default();
     let mut error = RealPathResultError::TooManySymlinks;
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724

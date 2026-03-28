@@ -50,7 +50,7 @@ impl FileSystem for EmbeddedFileSystem {
             (_, None) => return Ok(RawDirectoryContent::NotFound.cell()),
         };
 
-        let mut converted_entries = AutoMap::new();
+        let mut converted_entries = AutoMap::default();
         for e in dir.entries() {
             let entry_name: RcStr = e
                 .path()

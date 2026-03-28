@@ -2,7 +2,7 @@ use std::{
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
-    hash::{BuildHasher, BuildHasherDefault},
+    hash::BuildHasher,
     mem::take,
     pin::Pin,
     sync::{
@@ -17,7 +17,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
 use futures::stream::FuturesUnordered;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -535,7 +535,7 @@ struct CurrentTaskState {
     /// When a task is re-executed, the cell count may not match the existing cell vec length.
     ///
     /// This is taken (and becomes `None`) during teardown of a task.
-    cell_counters: Option<AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>>,
+    cell_counters: Option<AutoMap<ValueTypeId, u32, 2>>,
 
     /// Local tasks created while this global task has been running. Indexed by `LocalTaskId`.
     local_tasks: Vec<LocalTask>,

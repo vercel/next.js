@@ -79,14 +79,14 @@ pub async fn process_request_with_content_source(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<(
     Response<hyper::Body>,
-    AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+    AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>, 1>,
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result_op = get_from_source_operation(source, TransientInstance::new(request));
     let resolved_result = result_op.resolve_strongly_consistent().await?;
     apply_effects(result_op).await?;
-    let side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>> =
+    let side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>, 1> =
         result_op.peek_collectibles();
     handle_issues(
         result_op,
