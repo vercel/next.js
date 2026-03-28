@@ -441,6 +441,11 @@ impl BrowserChunkingContext {
         self.current_chunk_method.cell()
     }
 
+    #[turbo_tasks::function]
+    pub fn hash_salt_vc(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash_salt.clone())
+    }
+
     /// Returns the kind of runtime to include in output chunks.
     ///
     /// This is defined directly on `BrowserChunkingContext` so it is zero-cost
@@ -565,13 +570,9 @@ impl ChunkingContext for BrowserChunkingContext {
                 let Some(asset) = asset else {
                     bail!("chunk_path requires an asset when content hashing is enabled");
                 };
-                let this = self.await?;
                 let hash = asset
                     .content()
-                    .content_hash(
-                        Vc::cell(this.hash_salt.clone()),
-                        HashAlgorithm::Xxh3Hash128Base38,
-                    )
+                    .content_hash(self.hash_salt_vc(), HashAlgorithm::Xxh3Hash128Base38)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \

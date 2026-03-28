@@ -24,14 +24,16 @@ describe('NEXT_HASH_SALT', () => {
 
   const chunksDir = () => join(next.testDir, '.next/static/chunks')
   const mediaDir = () => join(next.testDir, '.next/static/media')
+  const cssDir = () => join(next.testDir, '.next/static/css')
 
-  /** Build with the given salt and return { chunks, images } filename lists. */
+  /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
     await next.build({ env: { NEXT_HASH_SALT: salt } })
     const chunks = await getFilenames(chunksDir(), '.js')
     const images = await getFilenames(mediaDir(), '.png')
+    const css = await getFilenames(cssDir(), '.css')
     await next.clean()
-    return { chunks, images }
+    return { chunks, images, css }
   }
 
   // Three builds: salt-a (twice for reproducibility check) and salt-b.
@@ -63,6 +65,14 @@ describe('NEXT_HASH_SALT', () => {
 
   it('different salt produces different image filenames', () => {
     expect(saltAFirst.images.sort()).not.toEqual(saltB.images.sort())
+  })
+
+  it('should produce css files', () => {
+    expect(saltAFirst.css.length).toBeGreaterThan(0)
+  })
+
+  it('different salt produces different css filenames', () => {
+    expect(saltAFirst.css.sort()).not.toEqual(saltB.css.sort())
   })
 })
 

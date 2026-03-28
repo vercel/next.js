@@ -91,7 +91,9 @@ export async function turbopackAnalyze(
       currentNodeJsVersion,
       isPersistentCachingEnabled: persistentCaching,
       nextVersion: process.env.__NEXT_VERSION as string,
-      hashSalt: process.env.NEXT_HASH_SALT || '',
+      hashSalt:
+        (config.turbopack?.outputHashSalt ?? '') +
+        (process.env.NEXT_HASH_SALT ?? ''),
     },
     {
       memoryLimit: config.experimental?.turbopackMemoryLimit,

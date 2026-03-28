@@ -12,6 +12,7 @@ use crate::version::{VersionedAssetContent, VersionedContent};
 ///
 /// Use this instead of `Vc::cell(RcStr::default())` at call sites that don't control the
 /// hash salt — e.g. internal hashes not exposed to the user as filenames.
+#[turbo_tasks::function]
 pub fn no_hash_salt() -> Vc<RcStr> {
     Vc::cell(RcStr::default())
 }

@@ -311,6 +311,11 @@ impl NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    pub fn hash_salt_vc(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash_salt.clone())
+    }
+
+    #[turbo_tasks::function]
     pub fn asset_prefix(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.asset_prefix.clone())
     }

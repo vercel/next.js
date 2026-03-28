@@ -1241,7 +1241,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn hash_salt(&self) -> Vc<RcStr> {
+    pub(crate) fn hash_salt(&self) -> Vc<RcStr> {
         Vc::cell(self.hash_salt.clone())
     }
 
