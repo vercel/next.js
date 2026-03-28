@@ -163,7 +163,7 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn hash_salt(mut self, salt: RcStr) -> Self {
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
         self.chunking_context.hash_salt = salt;
         self
     }
@@ -241,7 +241,7 @@ pub struct NodeJsChunkingContext {
     /// Content hashing for asset filenames.
     asset_content_hashing: ContentHashing,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
-    hash_salt: RcStr,
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -287,7 +287,7 @@ impl NodeJsChunkingContext {
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
-                hash_salt: RcStr::default(),
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -312,7 +312,7 @@ impl NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     pub fn hash_salt_vc(&self) -> Vc<RcStr> {
-        Vc::cell(self.hash_salt.clone())
+        *self.hash_salt
     }
 
     #[turbo_tasks::function]

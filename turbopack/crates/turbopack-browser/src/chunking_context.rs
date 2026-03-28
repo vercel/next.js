@@ -219,7 +219,7 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn hash_salt(mut self, salt: RcStr) -> Self {
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
         self.chunking_context.hash_salt = salt;
         self
     }
@@ -321,7 +321,7 @@ pub struct BrowserChunkingContext {
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
-    hash_salt: RcStr,
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -374,7 +374,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
-                hash_salt: RcStr::default(),
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -443,7 +443,7 @@ impl BrowserChunkingContext {
 
     #[turbo_tasks::function]
     pub fn hash_salt_vc(&self) -> Vc<RcStr> {
-        Vc::cell(self.hash_salt.clone())
+        *self.hash_salt
     }
 
     /// Returns the kind of runtime to include in output chunks.

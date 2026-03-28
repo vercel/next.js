@@ -1591,7 +1591,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
-            hash_salt: self.hash_salt(),
+            hash_salt: self.hash_salt().to_resolved().await?,
         }))
     }
 
@@ -1621,7 +1621,7 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
-            hash_salt: self.hash_salt(),
+            hash_salt: self.hash_salt().to_resolved().await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1655,7 +1655,7 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
-            hash_salt: self.hash_salt(),
+            hash_salt: self.hash_salt().to_resolved().await?,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
