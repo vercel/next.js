@@ -17979,6 +17979,23 @@ async function* Ji(e, t) {
     let { textShadowColor: Y, textShadowOffset: j, textShadowRadius: fe } = r;
     Xe = Ya({ width: $e.width, height: $e.height, id: a }, { shadowColor: Y, shadowOffset: j, shadowRadius: fe }, Ki(r.color) || F && Ja(r.color)), Xe = M("defs", {}, Xe);
   }
+  var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
+  if (_rtlRegex.test(ue)) {
+    var _lineGroups = {};
+    for (var _v = 0; _v < De.length; _v++) {
+      var _ln = De[_v].line;
+      if (!_lineGroups[_ln]) _lineGroups[_ln] = [];
+      _lineGroups[_ln].push(_v);
+    }
+    for (var _ln2 in _lineGroups) {
+      var _indices = _lineGroups[_ln2];
+      var _lineWidth = J[_ln2];
+      for (var _idx = 0; _idx < _indices.length; _idx++) {
+        var _i2 = _indices[_idx];
+        De[_i2].x = _lineWidth - De[_i2].x - De[_i2].width;
+      }
+    }
+  }
   let ht = "", mt = "", Zt = "", qt = -1, Ge = {}, it = {}, Ze = null, gt = 0;
   for (let Y = 0; Y < Le.length; Y++) {
     let j = De[Y], fe = De[Y + 1];
