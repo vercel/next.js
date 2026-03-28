@@ -39,7 +39,7 @@ const CACHE_INPUTS = [
 function computeCacheKey() {
   // Turbo cache keys must be hex-only (^[a-fA-F0-9]+$).
   const hash = createHash('sha256')
-  hash.update('docker-image-v2\0')
+  hash.update('docker-image-v3\0')
   for (const file of CACHE_INPUTS) {
     hash.update(file + '\0')
     hash.update(fs.readFileSync(file))
