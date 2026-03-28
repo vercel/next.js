@@ -12,12 +12,12 @@ static REGISTRATION: Registration = register!();
 async fn test_hidden_mutate() {
     run_once(&REGISTRATION, || async {
         unmark_top_level_task_may_leak_eventually_consistent_state();
-        let input = create_input().resolve().await?;
+        let input = *create_input().to_resolved().await?;
         input.await?.state.set(1);
         let changing_value = compute(input);
         assert_eq!(changing_value.await?.value, 1);
 
-        let changing_value_resolved = changing_value.resolve().await?;
+        let changing_value_resolved = *changing_value.to_resolved().await?;
         let read_input = read_input(changing_value_resolved);
         let static_immutable = immutable_fn(changing_value_resolved);
         let read_self = changing_value_resolved.read_self();

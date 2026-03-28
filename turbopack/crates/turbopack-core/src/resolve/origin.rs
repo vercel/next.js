@@ -98,12 +98,12 @@ async fn resolve_asset(
     }
     Ok(resolve_origin
         .asset_context()
-        .resolve()
+        .to_resolved()
         .await?
         .resolve_asset(
             resolve_origin.origin_path().owned().await?,
-            request.resolve().await?,
-            options.resolve().await?,
+            *request.to_resolved().await?,
+            *options.to_resolved().await?,
             reference_type,
         ))
 }

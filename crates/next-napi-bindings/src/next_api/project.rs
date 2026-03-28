@@ -284,6 +284,8 @@ pub struct NapiTurboEngineOptions {
     pub is_ci: Option<bool>,
     /// Whether the project is running in a short session.
     pub is_short_session: Option<bool>,
+    /// Whether to skip database compaction during shutdown.
+    pub skip_compaction: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -539,6 +541,7 @@ pub fn project_new(
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
+            let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 options.is_persistent_caching_enabled,
@@ -546,6 +549,7 @@ pub fn project_new(
                 dependency_tracking,
                 is_ci,
                 is_short_session,
+                skip_compaction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -2490,4 +2494,16 @@ pub async fn project_write_analyze_data(
             .map(|d| NapiDiagnostic::from(d))
             .collect(),
     })
+}
+
+/// Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+///
+/// The `path` should point to the `<distDir>/cache/turbopack` directory.
+#[napi]
+pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
+    let version_info = crate::next_api::turbopack_ctx::git_version_info();
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
+        .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
+    Ok(())
 }
