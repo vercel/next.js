@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { readdir } from 'fs/promises'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 async function getFilenames(dir: string, ext: string): Promise<string[]> {
   const entries: string[] = []
@@ -24,14 +25,27 @@ describe('NEXT_HASH_SALT', () => {
 
   const chunksDir = () => join(next.testDir, '.next/static/chunks')
   const mediaDir = () => join(next.testDir, '.next/static/media')
-  const cssDir = () => join(next.testDir, '.next/static/css')
+  // Turbopack places CSS in .next/static/chunks/ rather than .next/static/css/,
+  // so search the entire static tree for .css files.
+  const staticDir = () => join(next.testDir, '.next/static')
+
+  async function getCssFilenames(): Promise<string[]> {
+    try {
+      const paths = await recursiveReadDir(staticDir(), {
+        pathnameFilter: (f) => f.endsWith('.css'),
+      })
+      return paths.map((p) => p.replace(/.*[\\/]/, ''))
+    } catch {
+      return []
+    }
+  }
 
   /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
     await next.build({ env: { NEXT_HASH_SALT: salt } })
     const chunks = await getFilenames(chunksDir(), '.js')
     const images = await getFilenames(mediaDir(), '.png')
-    const css = await getFilenames(cssDir(), '.css')
+    const css = await getCssFilenames()
     await next.clean()
     return { chunks, images, css }
   }
