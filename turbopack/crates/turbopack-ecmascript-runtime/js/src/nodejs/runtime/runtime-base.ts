@@ -138,6 +138,22 @@ function loadChunkSync<TModule extends Module>(
 }
 contextPrototype.l = loadChunkSync
 
+// Override the shared asyncLoader with an async version for Node.js.
+// In the Node.js runtime, chunk loading and module evaluation are synchronous,
+// so the loader may return a plain value or throw. Since dynamic import() must
+// always return a Promise per the spec, wrapping in async ensures both success
+// values and errors are properly wrapped in a Promise.
+async function asyncLoaderNodeJs(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Exports | Promise<Exports>
+  return loader(esmImport.bind(this))
+}
+contextPrototype.A = asyncLoaderNodeJs
+
 function loadChunkSyncByUrl<TModule extends Module>(
   this: TurbopackBaseContext<TModule>,
   chunkUrl: string

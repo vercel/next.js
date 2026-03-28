@@ -764,6 +764,16 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     }
 }
 contextPrototype.l = loadChunkSync;
+// Override the shared asyncLoader with an async version for Node.js.
+// In the Node.js runtime, chunk loading and module evaluation are synchronous,
+// so the loader may return a plain value or throw. Since dynamic import() must
+// always return a Promise per the spec, wrapping in async ensures both success
+// values and errors are properly wrapped in a Promise.
+async function asyncLoaderNodeJs(moduleId) {
+    const loader = this.r(moduleId);
+    return loader(esmImport.bind(this));
+}
+contextPrototype.A = asyncLoaderNodeJs;
 function loadChunkSyncByUrl(chunkUrl) {
     const chunkPath = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
     return loadChunkSync.call(this, chunkPath);
