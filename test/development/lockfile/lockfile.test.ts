@@ -1,12 +1,19 @@
 import { nextTestSetup } from 'e2e-utils'
 import execa from 'execa'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
 
 describe('lockfile', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
+  })
+
+  afterAll(() => {
+    // Clean up global lockfile created during test
+    const globalLockDir = path.join(os.homedir(), '.next', 'dev', next.appPort)
+    fs.rmSync(globalLockDir, { recursive: true, force: true })
   })
 
   it('only allows a single instance of `next dev` to run at a time', async () => {
@@ -66,5 +73,37 @@ describe('lockfile', () => {
     // Make sure the other instance of `next dev` didn't mess anything up
     await browser.refresh()
     expect(await browser.elementByCss('p').text()).toBe('Page')
+  })
+
+  it('creates a global lockfile at ~/.next/dev/<port>/lock with flock held', async () => {
+    const globalLockfilePath = path.join(
+      os.homedir(),
+      '.next',
+      'dev',
+      next.appPort,
+      'lock'
+    )
+    expect(fs.existsSync(globalLockfilePath)).toBe(true)
+
+    // Verify lockfile content has correct server info
+    const serverInfo = JSON.parse(fs.readFileSync(globalLockfilePath, 'utf-8'))
+    expect(serverInfo).toMatchObject({
+      pid: expect.any(Number),
+      port: Number(next.appPort),
+      hostname: 'localhost',
+      appUrl: expect.stringContaining(next.appPort),
+      startedAt: expect.any(Number),
+    })
+
+    // Verify the process from the lockfile is actually alive
+    const isAlive = (() => {
+      try {
+        process.kill(serverInfo.pid, 0)
+        return true
+      } catch {
+        return false
+      }
+    })()
+    expect(isAlive).toBe(true)
   })
 })
