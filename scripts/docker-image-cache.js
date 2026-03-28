@@ -113,7 +113,9 @@ async function main() {
         } catch (e) {
           console.log(`WARNING: Failed to restore image: ${e.message}`)
           console.log('Discarding cached image and rebuilding from scratch')
-          try { fs.unlinkSync(zstdFile) } catch {}
+          try {
+            fs.unlinkSync(zstdFile)
+          } catch {}
           // Remove the partially-loaded image if it exists
           try {
             execSync(`docker rmi -f ${IMAGE_NAME}`, { stdio: 'ignore' })
