@@ -8,25 +8,25 @@
 // (for large files that exceed Node's 2GB Buffer limit).
 //
 // Usage:
-//   const cache = require('./turbo-cache')
+//   import * as cache from './turbo-cache.mjs'
 //   await cache.exists(hexKey)          // -> boolean
 //   await cache.get(hexKey)             // -> Buffer | null
 //   await cache.put(hexKey, buffer)     // upload from memory
 //   await cache.put(hexKey, '/path')    // stream upload from file
 
-const fs = require('fs')
-const { Readable } = require('stream')
+import fs from 'fs'
+import { createHash } from 'crypto'
+import { Readable } from 'stream'
 
 const TURBO_API = process.env.TURBO_API || 'https://vercel.com'
 const TURBO_TOKEN = process.env.TURBO_TOKEN
 const TURBO_TEAM = process.env.TURBO_TEAM
 
-const IS_VERCEL =
-  TURBO_API === 'https://vercel.com' || TURBO_API === 'https://vercel.com/'
+const IS_VERCEL = new URL(TURBO_API).hostname === 'vercel.com'
 
 // Vercel's cache API lives at /api/v8/artifacts/ and uses ?teamId=.
 // Self-hosted turbo cache servers use /v8/artifacts/ and ?slug=.
-function artifactUrl(key) {
+export function artifactUrl(key) {
   if (IS_VERCEL) {
     const qs = TURBO_TEAM ? `?teamId=${TURBO_TEAM}` : ''
     return `https://vercel.com/api/v8/artifacts/${key}${qs}`
@@ -44,7 +44,7 @@ function baseHeaders() {
 }
 
 /** Check if an artifact exists. */
-async function exists(key) {
+export async function exists(key) {
   const res = await fetch(artifactUrl(key), {
     method: 'HEAD',
     headers: baseHeaders(),
@@ -53,7 +53,7 @@ async function exists(key) {
 }
 
 /** Download an artifact. Returns Buffer on hit, null on miss. */
-async function get(key) {
+export async function get(key) {
   const res = await fetch(artifactUrl(key), {
     method: 'GET',
     headers: baseHeaders(),
@@ -63,18 +63,19 @@ async function get(key) {
 }
 
 /**
- * Download an artifact to a file. Returns true on hit, false on miss.
+ * Download an artifact to a file. Throws on failure.
  * Uses streaming to handle files larger than 2GB.
  */
-async function getToFile(key, destPath) {
+export async function getToFile(key, destPath) {
   const res = await fetch(artifactUrl(key), {
     method: 'GET',
     headers: baseHeaders(),
   })
-  if (!res.ok) return false
+  if (!res.ok) {
+    throw new Error(`GET ${key} failed: ${res.status} ${res.statusText}`)
+  }
 
   const fileStream = fs.createWriteStream(destPath)
-  // @ts-ignore — Readable.fromWeb exists in Node 18+
   const nodeStream = Readable.fromWeb(res.body)
   await new Promise((resolve, reject) => {
     nodeStream.pipe(fileStream)
@@ -82,7 +83,6 @@ async function getToFile(key, destPath) {
     fileStream.on('error', reject)
     fileStream.on('finish', resolve)
   })
-  return true
 }
 
 /**
@@ -91,7 +91,7 @@ async function getToFile(key, destPath) {
  * @param {Buffer|Uint8Array|string} data - Buffer/Uint8Array for in-memory,
  *   or a string file path to stream from disk (for large files).
  */
-async function put(key, data) {
+export async function put(key, data) {
   const isFile = typeof data === 'string'
   const size = isFile ? fs.statSync(data).size : data.length
 
@@ -105,7 +105,6 @@ async function put(key, data) {
   let body
   if (isFile) {
     // Stream from file — avoids loading into memory
-    // @ts-ignore — Readable.toWeb exists in Node 18+
     body = Readable.toWeb(fs.createReadStream(data))
   } else {
     body = data
@@ -116,7 +115,6 @@ async function put(key, data) {
     headers,
     body,
     // Required for streaming request bodies in Node fetch
-    // @ts-ignore — duplex is a valid option
     duplex: isFile ? 'half' : undefined,
   })
 
@@ -131,10 +129,8 @@ async function put(key, data) {
 /**
  * Verify read+write access. Returns true if both work.
  */
-async function healthCheck() {
-  const crypto = require('crypto')
-  const testKey = crypto
-    .createHash('sha256')
+export async function healthCheck() {
+  const testKey = createHash('sha256')
     .update(`turbo-cache-health-${Date.now()}`)
     .digest('hex')
 
@@ -152,16 +148,16 @@ async function healthCheck() {
 
   try {
     // READ
-    const e = await exports.exists(testKey)
+    const e = await exists(testKey)
     console.error(`  READ:   exists -> ${e}`)
 
     // WRITE
     const testData = Buffer.from('turbo-cache-write-test')
-    await exports.put(testKey, testData)
+    await put(testKey, testData)
     console.error(`  WRITE:  put -> OK`)
 
     // VERIFY
-    const readBack = await exports.get(testKey)
+    const readBack = await get(testKey)
     if (readBack && readBack.equals(testData)) {
       console.error(`  VERIFY: get -> OK (${readBack.length}B)`)
     } else {
@@ -176,10 +172,3 @@ async function healthCheck() {
     return false
   }
 }
-
-exports.exists = exists
-exports.get = get
-exports.getToFile = getToFile
-exports.put = put
-exports.healthCheck = healthCheck
-exports.artifactUrl = artifactUrl

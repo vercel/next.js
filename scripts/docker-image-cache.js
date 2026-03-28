@@ -3,7 +3,7 @@
 // Build or restore the next-swc-builder Docker image using turbo remote cache.
 //
 // Computes a cache key from the Dockerfile + rust-toolchain.toml contents,
-// then checks the turbo cache API via scripts/turbo-cache.js.
+// then checks the turbo cache API via scripts/turbo-cache.mjs.
 // Images are compressed with zstd before upload (~2.8GB → ~500MB).
 //
 // Usage:
@@ -15,7 +15,6 @@ const { createHash } = require('crypto')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
-const cache = require('./turbo-cache')
 
 const { parseArgs } = require('node:util')
 const { values: flags } = parseArgs({
@@ -74,6 +73,7 @@ function sh(cmd) {
 }
 
 async function main() {
+  const cache = await import('./turbo-cache.mjs')
   const key = computeCacheKey()
   console.log(`Docker image cache key: ${key}`)
 
@@ -90,28 +90,26 @@ async function main() {
 
     if (hit) {
       const zstdFile = tmpFile('docker-image-cache.tar.zst')
-      const ok = await cache.getToFile(key, zstdFile)
-      if (ok) {
+      try {
+        await cache.getToFile(key, zstdFile)
         const size = fs.statSync(zstdFile).size
         console.log(
           `Downloaded ${(size / 1024 / 1024).toFixed(0)} MB compressed`
         )
+        sh(`zstd -d -c ${zstdFile} | docker load`)
+        console.log('Docker image restored from turbo cache')
+        return
+      } catch (e) {
+        console.log(`WARNING: Failed to restore image: ${e.message}`)
+        console.log('Discarding cached image and rebuilding from scratch')
+        // Remove the partially-loaded image if it exists
         try {
-          sh(`zstd -d -c ${zstdFile} | docker load`)
+          execSync(`docker rmi -f ${IMAGE_NAME}`, { stdio: 'ignore' })
+        } catch {}
+      } finally {
+        try {
           fs.unlinkSync(zstdFile)
-          console.log('Docker image restored from turbo cache')
-          return
-        } catch (e) {
-          console.log(`WARNING: Failed to restore image: ${e.message}`)
-          console.log('Discarding cached image and rebuilding from scratch')
-          try {
-            fs.unlinkSync(zstdFile)
-          } catch {}
-          // Remove the partially-loaded image if it exists
-          try {
-            execSync(`docker rmi -f ${IMAGE_NAME}`, { stdio: 'ignore' })
-          } catch {}
-        }
+        } catch {}
       }
     }
   }
@@ -122,22 +120,26 @@ async function main() {
   // Compress and upload
   console.log('Compressing docker image with zstd...')
   const zstdFile = tmpFile('docker-image-cache.tar.zst')
-  sh(`docker save ${IMAGE_NAME} | zstd -3 -T0 -o ${zstdFile}`)
-
-  const size = fs.statSync(zstdFile).size
-  console.log(
-    `Compressed: ${(size / 1024 / 1024).toFixed(0)} MB — uploading...`
-  )
-
   try {
-    // Stream upload from file (avoids 2GB Buffer limit)
-    await cache.put(key, zstdFile)
-    console.log('Docker image uploaded to turbo cache')
-  } catch (e) {
-    console.log(`WARNING: Failed to upload: ${e.message}`)
-  }
+    sh(`docker save ${IMAGE_NAME} | zstd -3 -T0 -o ${zstdFile}`)
 
-  fs.unlinkSync(zstdFile)
+    const size = fs.statSync(zstdFile).size
+    console.log(
+      `Compressed: ${(size / 1024 / 1024).toFixed(0)} MB — uploading...`
+    )
+
+    try {
+      // Stream upload from file (avoids 2GB Buffer limit)
+      await cache.put(key, zstdFile)
+      console.log('Docker image uploaded to turbo cache')
+    } catch (e) {
+      console.log(`WARNING: Failed to upload: ${e.message}`)
+    }
+  } finally {
+    try {
+      fs.unlinkSync(zstdFile)
+    } catch {}
+  }
 }
 
 main().catch((e) => {
