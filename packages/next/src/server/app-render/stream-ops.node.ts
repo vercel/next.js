@@ -17,7 +17,6 @@ import { prerender } from 'react-dom/static'
 import { PassThrough, Readable, Transform } from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
-import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import {
   continueStaticPrerender as webContinueStaticPrerender,
   continueDynamicPrerender as webContinueDynamicPrerender,
@@ -425,8 +424,8 @@ export async function resumeAndAbort(
 // Bridge Node Readable → web, apply existing web transforms, Readable.fromWeb()
 // ---------------------------------------------------------------------------
 
-export async function continueNodeFizzStream(
-  renderStream: ReactDOMServerReadableStream,
+export async function continueFizzStream(
+  renderStream: AnyStream,
   {
     // suffix,
     inlinedDataStream,
@@ -442,7 +441,8 @@ export async function continueNodeFizzStream(
 
   if (isStaticGeneration) {
     // If we're generating static HTML we need to wait for it to resolve before continuing.
-    await renderStream.allReady
+    // TODO: Add allReady
+    // await renderStream.allReady
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work
     // before we start pulling the stream and cause a flush.
@@ -495,27 +495,6 @@ export async function continueNodeFizzStream(
   //   // Close tags should always be deferred to the end
   //   // createMoveSuffixStream(),
   // ])
-}
-
-export async function continueFizzStream(
-  renderStream: AnyStream,
-  opts: import('./stream-ops.web').ContinueFizzStreamOptions
-): Promise<AnyStream> {
-  const webOpts = {
-    ...opts,
-    inlinedDataStream: opts.inlinedDataStream
-      ? nodeReadableToWebReadableStream(opts.inlinedDataStream)
-      : undefined,
-  }
-  // The web continueFizzStream reads renderStream.allReady from the stream
-  // object itself (ReactDOMServerReadableStream). A plain ReadableStream from
-  // readableToWeb() won't have that property, so we attach it from opts.
-  const webStream = nodeReadableToWebReadableStream(renderStream)
-  const fizzLike = Object.assign(webStream, {
-    allReady: opts.allReady ?? Promise.resolve(),
-  }) as ReactDOMServerReadableStream
-  const result = await continueNodeFizzStream(fizzLike, webOpts)
-  return result
 }
 
 export async function continueStaticPrerender(
