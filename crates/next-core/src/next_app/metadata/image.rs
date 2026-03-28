@@ -32,7 +32,7 @@ async fn dynamic_image_metadata_with_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
 
     let hash = path
         .read()
@@ -110,7 +110,7 @@ async fn dynamic_image_metadata_without_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
 
     let hash = path
         .read()

@@ -215,7 +215,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
 
     let content_type = get_content_type(path.clone()).await?;
 
@@ -270,7 +270,7 @@ async fn dynamic_sitemap_route_with_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -360,7 +360,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -423,7 +423,7 @@ async fn dynamic_image_route_with_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
 
     let code = formatdoc! {
         r#"
@@ -495,7 +495,7 @@ async fn dynamic_image_route_without_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
+    let ext = path.extension().unwrap_or_default();
 
     let code = formatdoc! {
         r#"

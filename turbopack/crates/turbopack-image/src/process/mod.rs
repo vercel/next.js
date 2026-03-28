@@ -348,7 +348,7 @@ pub async fn get_meta_data(
     };
     let bytes = content.content().to_bytes();
     let path = image.ident().path().await?;
-    let extension = path.extension();
+    let extension = path.extension().unwrap_or_default();
 
     if extension == "svg" {
         let content = result_to_issue(
@@ -431,7 +431,7 @@ pub async fn optimize(
     };
     let bytes = content.content().to_bytes();
     let path = source.ident().path().await?;
-    let extension = path.extension();
+    let extension = path.extension().unwrap_or_default();
 
     let Some((image, format)) = load_image(source, &bytes, extension) else {
         return Ok(FileContent::NotFound.cell());

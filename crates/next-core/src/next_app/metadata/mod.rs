@@ -89,7 +89,7 @@ fn match_metadata_file<'a>(
 
 pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     let stem = path.file_stem();
-    let mut ext = path.extension();
+    let mut ext = path.extension().unwrap_or_default();
 
     let name = stem.unwrap_or_default();
     if ext == "jpg" {
