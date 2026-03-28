@@ -16,6 +16,7 @@ let combinedEnv: Env | undefined = undefined
 let parsedEnv: Env | undefined = undefined
 let cachedLoadedEnvFiles: LoadedEnvFiles = []
 let previousLoadedEnvFiles: LoadedEnvFiles = []
+let cachedDir: string | undefined = undefined
 
 export function updateInitialEnv(newEnv: Env) {
   Object.assign(initialEnv || {}, newEnv)
@@ -126,12 +127,13 @@ export function loadEnvConfig(
     initialEnv = Object.assign({}, process.env)
   }
   // only reload env when forceReload is specified
-  if (combinedEnv && !forceReload) {
+  if (combinedEnv && !forceReload && cachedDir === dir) {
     return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
   replaceProcessEnv(initialEnv)
   previousLoadedEnvFiles = cachedLoadedEnvFiles
   cachedLoadedEnvFiles = []
+  cachedDir = dir
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
