@@ -59,7 +59,11 @@ impl EcmascriptBrowserWorkerEntrypoint {
             .await?;
 
         let forwarded_globals = this.forwarded_globals.await?;
-        let mut code = generate_worker_bootstrap_code(&forwarded_globals, this.is_esm)?;
+        let mut code = if this.is_esm {
+            generate_module_worker_bootstrap_code(&forwarded_globals)
+        } else {
+            generate_classic_worker_bootstrap_code(&forwarded_globals)
+        }?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
@@ -148,47 +152,33 @@ impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
     }
 }
 
-/// Generates the worker bootstrap code as inline JavaScript.
+/// Builds the `Object.assign(self, { ... })` properties that expose worker params as globals.
 ///
-/// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...forwarded_global_values]`
-fn generate_worker_bootstrap_code(forwarded_globals: &[RcStr], is_esm: bool) -> Result<Code> {
-    if is_esm {
-        generate_module_worker_bootstrap_code(forwarded_globals)
-    } else {
-        generate_classic_worker_bootstrap_code(forwarded_globals)
-    }
-}
-
-/// Generates bootstrap code for a classic (non-module) web worker.
-/// Uses `importScripts` to load chunks synchronously.
-fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
-    let mut code: CodeBuilder = CodeBuilder::default();
-
-    // Generate the Object.assign properties for forwarded globals
-    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX, params[2+] = forwarded globals
-    let mut global_assignments = vec![
+/// URL params layout: `params[0]` = chunk URLs array, `params[1]` = ASSET_SUFFIX string,
+/// `params[2+]` = forwarded globals (one per entry in `forwarded_globals`).
+fn build_globals_js(forwarded_globals: &[RcStr]) -> String {
+    let mut assignments = vec![
         "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
         "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
     ];
     for (i, name) in forwarded_globals.iter().enumerate() {
-        // Forwarded globals start at params[2]
-        global_assignments.push(format!("{name}: param({n})", n = i + 2));
+        assignments.push(format!("{name}: param({})", i + 2));
     }
-    let globals_js = global_assignments.join(",\n    ");
+    assignments.join(",\n    ")
+}
 
-    // This code is slightly paranoid to avoid being useful as an XSS gadget.
-    //
-    // First, it verifies that it is running in a worker environment, which
-    // guarantees that the requestor shares the same origin as the script
-    // itself.
-    //
-    // Additionally, the code only allows loading scripts from the same origin,
-    // mitigating the risk that the worker could be exploited to fetch or run
-    // scripts from cross-origin sources.
-    //
-    // The snippet also validates types for all parameters to prevent unexpected
-    // usage.
+/// Generates bootstrap code for a classic (non-module) web worker.
+///
+/// Uses `importScripts` to load chunks synchronously. The bootstrap code is wrapped in
+/// an IIFE because classic worker scripts don't have module-level `await`.
+///
+/// The generated code is slightly paranoid to avoid being useful as an XSS gadget:
+/// - Verifies it's running inside a `WorkerGlobalScope` (guarantees same-origin).
+/// - Only loads chunk scripts from the same origin.
+/// - Validates the type of every parameter before use.
+fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
+    let mut code: CodeBuilder = CodeBuilder::default();
+    let globals_js = build_globals_js(forwarded_globals);
 
     writedoc!(
         code,
@@ -226,7 +216,6 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
             var scriptsToLoad = [];
             for (var i = 0; i < chunkUrls.length; i++) {{
                 var chunk = chunkUrls[i];
-                // Chunks are relative to the origin.
                 var chunkUrl = new URL(chunk, location.origin);
                 if (chunkUrl.origin !== location.origin) {{
                     abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
@@ -234,7 +223,7 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
                 scriptsToLoad.push(chunkUrl.toString());
             }}
 
-            // As scripts are loaded, allow them to pop from the array
+            // Restore original order in TURBOPACK_NEXT_CHUNK_URLS (URL params store them reversed).
             chunkUrls.reverse();
             importScripts.apply(self, scriptsToLoad);
         }}
@@ -247,24 +236,13 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
 }
 
 /// Generates bootstrap code for an ES module web worker.
-/// Uses dynamic `import()` to load chunks, enabling strict mode and ESM semantics.
 ///
-/// Note: This file is served with `type: "module"`, so top-level `await` is available.
-/// All loaded chunks will run in strict mode.
+/// Uses dynamic `import()` to load chunks in parallel. Because the entrypoint file itself is
+/// served with `type: "module"`, top-level `await` is available and all loaded chunks run in
+/// strict mode.
 fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     let mut code: CodeBuilder = CodeBuilder::default();
-
-    // Generate the Object.assign properties for forwarded globals
-    // params[0] = chunk URLs, params[1] = ASSET_SUFFIX, params[2+] = forwarded globals
-    let mut global_assignments = vec![
-        "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
-        "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
-    ];
-    for (i, name) in forwarded_globals.iter().enumerate() {
-        // Forwarded globals start at params[2]
-        global_assignments.push(format!("{name}: param({n})", n = i + 2));
-    }
-    let globals_js = global_assignments.join(",\n    ");
+    let globals_js = build_globals_js(forwarded_globals);
 
     writedoc!(
         code,
