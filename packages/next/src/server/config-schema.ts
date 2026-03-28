@@ -185,7 +185,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
       })
     )
     .optional(),
-  outputHashSalt: z.string().optional(),
 })
 
 export const experimentalSchema = {

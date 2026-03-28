@@ -40,9 +40,8 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
-  // Pre-computed effective hash salt combining turbopack.outputHashSalt and
-  // experimental.outputHashSalt (from config) with NEXT_HASH_SALT (from env).
-  // Used by both Webpack and Turbopack.
+  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
+  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
   hashSalt: string
 }
 
@@ -243,19 +242,6 @@ export interface TurbopackOptions {
     title?: string | RegExp
     description?: string | RegExp
   }>
-
-  /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
-   *
-   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/outputHashSalt
-   */
-  outputHashSalt?: string
 }
 
 export interface WebpackConfigContext {

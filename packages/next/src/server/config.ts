@@ -1457,7 +1457,6 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).distDirRoot = result.distDir
   // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
   ;(result as NextConfigComplete).hashSalt =
-    (result.turbopack?.outputHashSalt ?? '') +
     (result.experimental?.outputHashSalt ?? '') +
     (process.env.NEXT_HASH_SALT ?? '')
   if (phase === PHASE_DEVELOPMENT_SERVER) {
