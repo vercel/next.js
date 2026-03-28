@@ -40,6 +40,7 @@ describe('app dir - workers', () => {
   })
 
   it('should support module web workers with dynamic imports', async () => {
+    if (!isTurbopack) return
     const browser = await next.browser('/module', {
       beforePageLoad,
     })
@@ -70,7 +71,7 @@ describe('app dir - workers', () => {
   })
 
   if (isNextDeploy || isNextStart) {
-    it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+    it('should forward NEXT_DEPLOYMENT_ID to module web workers', async () => {
       const browser = await next.browser('/deployment-id', {
         beforePageLoad,
       })

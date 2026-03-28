@@ -156,7 +156,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       return resolver.promise
     }
 
-    if (typeof importScripts === 'function' && !TURBOPACK_IS_MODULE_WORKER) {
+    if (typeof importScripts === 'function') {
       // We're in a classic web worker
       if (isCss(chunkUrl)) {
         // ignore

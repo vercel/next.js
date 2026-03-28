@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="5de2b56f-3205-f835-eb0c-eba48c11dd6e")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="03ad00eb-8f29-b55c-d7b2-3ff37946a157")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2057,7 +2057,7 @@ let BACKEND;
             // `resolver.resolve()` in this branch.
             return resolver.promise;
         }
-        if (typeof importScripts === 'function' && !TURBOPACK_IS_MODULE_WORKER) {
+        if (typeof importScripts === 'function') {
             // We're in a classic web worker
             if (isCss(chunkUrl)) {
             // ignore
@@ -2251,5 +2251,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=5de2b56f-3205-f835-eb0c-eba48c11dd6e
+//# debugId=03ad00eb-8f29-b55c-d7b2-3ff37946a157
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

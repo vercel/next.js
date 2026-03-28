@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use indoc::writedoc;
+use indoc::{indoc, writedoc};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -167,6 +167,38 @@ fn build_globals_js(forwarded_globals: &[RcStr]) -> String {
     assignments.join(",\n    ")
 }
 
+/// Generates the shared worker preamble: `abort()` helper, WorkerGlobalScope guard,
+/// and URL-params parsing into `chunkUrls`/`param` locals.
+///
+/// Callers must follow with an `Object.assign(self, { ... })` to expose chunk config
+/// as worker globals, then either `importScripts` (classic) or `import()` (module) chunks.
+fn build_preamble_js() -> &'static str {
+    indoc! {"
+        function abort(message) {
+            console.error(message);
+            throw new Error(message);
+        }
+        if (
+            typeof self[\"WorkerGlobalScope\"] === \"undefined\" ||
+            !(self instanceof self[\"WorkerGlobalScope\"])
+        ) {
+            abort(\"Worker entrypoint must be loaded in a worker context\");
+        }
+
+        // Try querystring first (SharedWorker), then hash (regular Worker)
+        var url = new URL(location.href);
+        var paramsString = url.searchParams.get(\"params\");
+        if (!paramsString && url.hash.startsWith(\"#params=\")) {
+            paramsString = decodeURIComponent(url.hash.slice(\"#params=\".length));
+        }
+
+        if (!paramsString) abort(\"Missing worker bootstrap config\");
+
+        var params = JSON.parse(paramsString);
+        var param = (n) => typeof params[n] === 'string' ? params[n] : '';
+        var chunkUrls = Array.isArray(params[0]) ? params[0] : [];"}
+}
+
 /// Generates bootstrap code for a classic (non-module) web worker.
 ///
 /// Uses `importScripts` to load chunks synchronously. The bootstrap code is wrapped in
@@ -178,38 +210,17 @@ fn build_globals_js(forwarded_globals: &[RcStr]) -> String {
 /// - Validates the type of every parameter before use.
 fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     let mut code: CodeBuilder = CodeBuilder::default();
-    let globals_js = build_globals_js(forwarded_globals);
+    let preamble = build_preamble_js();
+    let globals = build_globals_js(forwarded_globals);
 
     writedoc!(
         code,
         r##"
         (function() {{
-        function abort(message) {{
-            console.error(message);
-            throw new Error(message);
-        }}
-        if (
-            typeof self["WorkerGlobalScope"] === "undefined" ||
-            !(self instanceof self["WorkerGlobalScope"])
-        ) {{
-            abort("Worker entrypoint must be loaded in a worker context");
-        }}
-
-        // Try querystring first (SharedWorker), then hash (regular Worker)
-        var url = new URL(location.href);
-        var paramsString = url.searchParams.get("params");
-        if (!paramsString && url.hash.startsWith("#params=")) {{
-            paramsString = decodeURIComponent(url.hash.slice("#params=".length));
-        }}
-
-        if (!paramsString) abort("Missing worker bootstrap config");
-
-        var params = JSON.parse(paramsString);
-        var param = (n) => typeof params[n] === 'string' ? params[n] : '';
-        var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
+        {preamble}
 
         Object.assign(self, {{
-            {0}
+            {globals}
         }});
 
         if (chunkUrls.length > 0) {{
@@ -229,7 +240,8 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
         }}
         }})();
         "##,
-        globals_js
+        preamble = preamble,
+        globals = globals
     )?;
 
     Ok(code.build())
@@ -242,36 +254,17 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
 /// strict mode.
 fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     let mut code: CodeBuilder = CodeBuilder::default();
-    let globals_js = build_globals_js(forwarded_globals);
+    let preamble = build_preamble_js();
+    let globals = build_globals_js(forwarded_globals);
 
     writedoc!(
         code,
         r##"
-        if (
-            typeof self["WorkerGlobalScope"] === "undefined" ||
-            !(self instanceof self["WorkerGlobalScope"])
-        ) {{
-            throw new Error("Worker entrypoint must be loaded in a worker context");
-        }}
-
-        // Try querystring first (SharedWorker), then hash (regular Worker)
-        var url = new URL(location.href);
-        var paramsString = url.searchParams.get("params");
-        if (!paramsString && url.hash.startsWith("#params=")) {{
-            paramsString = decodeURIComponent(url.hash.slice("#params=".length));
-        }}
-
-        if (!paramsString) throw new Error("Missing worker bootstrap config");
-
-        var params = JSON.parse(paramsString);
-        var param = (n) => typeof params[n] === 'string' ? params[n] : '';
-        var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
+        {preamble}
 
         Object.assign(self, {{
-            {0}
+            {globals}
         }});
-        // Signal to the runtime that we're in a module worker (importScripts is not allowed).
-        self.TURBOPACK_IS_MODULE_WORKER = true;
 
         // Restore original chunk order (params are stored reversed) so that
         // TURBOPACK_NEXT_CHUNK_URLS matches the original order.
@@ -280,12 +273,13 @@ fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<
         await Promise.all(chunkUrls.map(function(chunk) {{
             var chunkUrl = new URL(chunk, location.origin);
             if (chunkUrl.origin !== location.origin) {{
-                throw new Error("Refusing to load script from foreign origin: " + chunkUrl.origin);
+                abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
             }}
             return import(chunkUrl.toString());
         }}));
         "##,
-        globals_js
+        preamble = preamble,
+        globals = globals
     )?;
 
     Ok(code.build())

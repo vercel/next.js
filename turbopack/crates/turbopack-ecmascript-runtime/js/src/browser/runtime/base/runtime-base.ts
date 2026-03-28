@@ -17,9 +17,6 @@ declare var TURBOPACK_ASSET_SUFFIX: string
 // can't be detected via `document.currentScript`. Note it's stored in reversed
 // order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
-// Used in module WebWorkers (type: "module") to signal that importScripts is unavailable.
-// Set by the module worker bootstrap before loading any chunks.
-declare var TURBOPACK_IS_MODULE_WORKER: boolean | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
