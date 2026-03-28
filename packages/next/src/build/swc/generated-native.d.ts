@@ -323,7 +323,8 @@ export interface NapiTurboEngineOptions {
 export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions,
-  napiCallbacks: NapiNextTurbopackCallbacksJsObject
+  napiCallbacks: NapiNextTurbopackCallbacksJsObject,
+  daemon?: { __napiType: 'DaemonHandle' } | null
 ): Promise<{ __napiType: 'Project' }>
 export declare function projectUpdate(
   project: { __napiType: 'Project' },

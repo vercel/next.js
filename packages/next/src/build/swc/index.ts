@@ -1389,7 +1389,8 @@ async function loadWasm(importPath = '') {
       createProject(
         _options: ProjectOptions,
         _turboEngineOptions?: TurboEngineOptions | undefined,
-        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
+        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined,
+        _daemon?: { __napiType: 'DaemonHandle' }
       ): Promise<Project> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
@@ -1415,6 +1416,18 @@ async function loadWasm(importPath = '') {
       databaseCompact(_path: string): Promise<void> {
         throw new Error(
           'Turbopack database compaction is not supported on this platform'
+        )
+      },
+      startTurbopackDaemon(_socketPath: string): Promise<void> {
+        throw new Error(
+          'Turbopack daemon is not supported on this platform because native bindings are not available.'
+        )
+      },
+      connectTurbopackDaemon(
+        _socketPath: string
+      ): Promise<{ __napiType: 'DaemonHandle' }> {
+        throw new Error(
+          'Turbopack daemon is not supported on this platform because native bindings are not available.'
         )
       },
     },
