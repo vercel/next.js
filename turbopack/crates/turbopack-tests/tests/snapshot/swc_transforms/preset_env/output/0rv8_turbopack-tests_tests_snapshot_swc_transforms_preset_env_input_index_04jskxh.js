@@ -1774,8 +1774,8 @@ var BACKEND;
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
-                import(chunkUrl).catch(function() {
-                    return resolver.reject();
+                import(chunkUrl).catch(function(err) {
+                    return resolver.reject(err);
                 });
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
