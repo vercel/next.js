@@ -620,7 +620,17 @@ export async function streamToString(stream: AnyStream): Promise<string> {
   return webStreamToString(nodeReadableToWebReadableStream(stream))
 }
 
-export function createInlinedDataStream(
+export function createWebInlinedDataStream(
+  source: AnyStream,
+  nonce: string | undefined,
+  formState: unknown | null
+): AnyStream {
+  const webSource = nodeReadableToWebReadableStream(source)
+  const webResult = createInlinedDataReadableStream(webSource, nonce, formState)
+  return webToReadable(webResult)
+}
+
+export function createNodeInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
   formState: unknown | null

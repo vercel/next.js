@@ -46,7 +46,7 @@ import {
   continueStaticFallbackPrerender,
   streamToBuffer,
   streamToString,
-  createInlinedDataStream,
+  createWebInlinedDataStream,
   createPendingStream,
   createOnHeadersCallback,
   resumeAndAbort,
@@ -3428,7 +3428,7 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createInlinedDataStream(
+            const inlinedDataStream = createWebInlinedDataStream(
               reactServerResult.tee(),
               nonce,
               formState
@@ -3482,7 +3482,7 @@ async function renderToStream(
             return await continueDynamicHTMLResume(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createInlinedDataStream(
+              inlinedDataStream: createWebInlinedDataStream(
                 reactServerResult.consume(),
                 nonce,
                 formState
@@ -3546,7 +3546,7 @@ async function renderToStream(
         })
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
             formState
@@ -3566,7 +3566,7 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createInlinedDataStream(
+            const inlinedDataStream = createWebInlinedDataStream(
               reactServerResult.tee(),
               nonce,
               formState
@@ -3620,7 +3620,7 @@ async function renderToStream(
             return await continueDynamicHTMLResume(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createInlinedDataStream(
+              inlinedDataStream: createWebInlinedDataStream(
                 reactServerResult.consume(),
                 nonce,
                 formState
@@ -3683,7 +3683,7 @@ async function renderToStream(
         })
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consume(),
             nonce,
             formState
@@ -3829,7 +3829,7 @@ async function renderToStream(
         })
 
         return await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             // This is intentionally using the readable datastream from the
             // main render rather than the flight data from the error page
             // render
