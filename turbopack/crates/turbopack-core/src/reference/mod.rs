@@ -83,12 +83,6 @@ impl SingleModuleReference {
             description,
         })
     }
-
-    /// The [`Vc<Box<dyn Module>>`][Module] that this reference resolves to.
-    #[turbo_tasks::function]
-    pub fn module(&self) -> Vc<Box<dyn Module>> {
-        *self.module
-    }
 }
 
 #[turbo_tasks::value]
