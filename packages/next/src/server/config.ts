@@ -1455,8 +1455,8 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  // Pre-compute the effective Turbopack hash salt: config option + env var concatenated.
-  ;(result as NextConfigComplete).turbopackHashSalt =
+  // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
+  ;(result as NextConfigComplete).hashSalt =
     (result.turbopack?.outputHashSalt ?? '') +
     (result.experimental?.outputHashSalt ?? '') +
     (process.env.NEXT_HASH_SALT ?? '')

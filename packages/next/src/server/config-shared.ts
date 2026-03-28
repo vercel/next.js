@@ -43,7 +43,7 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // Pre-computed effective hash salt combining turbopack.outputHashSalt and
   // experimental.outputHashSalt (from config) with NEXT_HASH_SALT (from env).
   // Used by both Webpack and Turbopack.
-  turbopackHashSalt: string
+  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]

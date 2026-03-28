@@ -1,10 +1,9 @@
 ---
 title: outputHashSalt
 description: Learn how to incorporate a custom salt string into content-addressed output filenames.
-version: experimental
 ---
 
-`outputHashSalt` is an experimental option that incorporates a configurable salt string into every content-addressed output filename (chunks, assets). Changing this value forces all output hashes to change, which is useful for invalidating cached assets across deployments without modifying source files.
+`outputHashSalt` is an option that incorporates a configurable salt string into every content-addressed output filename (chunks, assets). Changing this value forces all output hashes to change, which is useful for invalidating cached assets across deployments without modifying source files.
 
 To configure the output hash salt, set the `outputHashSalt` field inside `turbopack` in `next.config.js`:
 
@@ -27,7 +26,7 @@ The `NEXT_HASH_SALT` environment variable can also be used for the same purpose.
 NEXT_HASH_SALT=my-deployment-salt next build
 ```
 
-> **Note**: `experimental.outputHashSalt` is also supported for backward compatibility.
+> **Good to know**: `experimental.outputHashSalt` is supported as an alias for backward compatibility but is deprecated in favour of `turbopack.outputHashSalt`.
 
 ## Version History
 

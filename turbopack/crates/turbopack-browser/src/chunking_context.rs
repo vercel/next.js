@@ -637,19 +637,17 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
+        self: Vc<Self>,
         content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let ContentHashing::Direct { length } = self.asset_content_hashing;
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
         let hash = content
-            .content_hash(
-                Vc::cell(self.hash_salt.clone()),
-                HashAlgorithm::Xxh3Hash128Base38,
-            )
+            .content_hash(self.hash_salt_vc(), HashAlgorithm::Xxh3Hash128Base38)
             .await?;
         let hash = hash
             .as_ref()
@@ -665,8 +663,8 @@ impl ChunkingContext for BrowserChunkingContext {
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }
