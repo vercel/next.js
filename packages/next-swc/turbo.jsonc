@@ -121,6 +121,9 @@
       "env": ["CI"],
       "outputs": ["native/*"],
     },
+    "build-docker-image": {
+      "cache": false,
+    },
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",
