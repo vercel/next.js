@@ -1,5 +1,4 @@
-import { describe, it, expect } from '@jest/globals'
-import { parseProjectGroups } from 'next/src/lib/multi-project'
+import { parseProjectGroups } from '../../../packages/next/src/lib/multi-project'
 
 describe('parseProjectGroups', () => {
   it('returns empty array for no --project flags', () => {

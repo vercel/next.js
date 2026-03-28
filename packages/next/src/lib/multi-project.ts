@@ -144,7 +144,7 @@ export async function runMultiProject(
   daemon.kill('SIGTERM')
   if (process.platform !== 'win32') {
     try {
-      (require('fs') as typeof import('fs')).unlinkSync(socketPath)
+      ;(require('fs') as typeof import('fs')).unlinkSync(socketPath)
     } catch (_) {}
   }
 }

@@ -3,10 +3,7 @@
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 
-use crate::project::{
-    DebugBuildPaths, DefineEnv, DraftModeOptions, PartialProjectOptions, ProjectOptions,
-    WatchOptions,
-};
+use crate::project::{PartialProjectOptions, ProjectOptions};
 
 /// A unique ID for a call, used to match responses to requests.
 pub type CallId = u64;

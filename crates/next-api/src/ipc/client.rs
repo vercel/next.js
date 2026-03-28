@@ -89,40 +89,34 @@ impl DaemonClient {
         let client_inner = client.inner.clone();
         let mut reader = reader;
         tokio::spawn(async move {
-            loop {
-                match read_framed(&mut reader).await {
-                    Ok(payload) => {
-                        let response: DaemonResponse =
-                            match bincode::decode_from_slice(&payload, bincode::config::standard())
-                            {
-                                Ok((resp, _)) => resp,
-                                Err(_) => continue,
-                            };
-                        match response {
-                            DaemonResponse::Ok { call_id, result } => {
-                                let mut pending = client_inner.pending.lock().await;
-                                if let Some(tx) = pending.remove(&call_id) {
-                                    let _ = tx.send(Ok(result));
-                                }
-                            }
-                            DaemonResponse::Err { call_id, message } => {
-                                let mut pending = client_inner.pending.lock().await;
-                                if let Some(tx) = pending.remove(&call_id) {
-                                    let _ = tx.send(Err(message));
-                                }
-                            }
-                            DaemonResponse::CallbackInvoke {
-                                callback_id,
-                                payload,
-                            } => {
-                                let subs = client_inner.subscriptions.lock().await;
-                                if let Some(tx) = subs.get(&callback_id) {
-                                    let _ = tx.send(payload);
-                                }
-                            }
+            while let Ok(payload) = read_framed(&mut reader).await {
+                let response: DaemonResponse =
+                    match bincode::decode_from_slice(&payload, bincode::config::standard()) {
+                        Ok((resp, _)) => resp,
+                        Err(_) => continue,
+                    };
+                match response {
+                    DaemonResponse::Ok { call_id, result } => {
+                        let mut pending = client_inner.pending.lock().await;
+                        if let Some(tx) = pending.remove(&call_id) {
+                            let _ = tx.send(Ok(result));
                         }
                     }
-                    Err(_) => break, // connection closed
+                    DaemonResponse::Err { call_id, message } => {
+                        let mut pending = client_inner.pending.lock().await;
+                        if let Some(tx) = pending.remove(&call_id) {
+                            let _ = tx.send(Err(message));
+                        }
+                    }
+                    DaemonResponse::CallbackInvoke {
+                        callback_id,
+                        payload,
+                    } => {
+                        let subs = client_inner.subscriptions.lock().await;
+                        if let Some(tx) = subs.get(&callback_id) {
+                            let _ = tx.send(payload);
+                        }
+                    }
                 }
             }
         });

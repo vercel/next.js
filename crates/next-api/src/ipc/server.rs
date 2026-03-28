@@ -2,7 +2,6 @@
 //! Turbopack engine.
 
 use std::{
-    collections::HashMap,
     io::Write,
     sync::{
         Arc,
