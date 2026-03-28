@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
-  turbopack: {
+  experimental: {
     // Allow tests to inject outputHashSalt via env var without touching source.
     outputHashSalt: process.env.OUTPUT_HASH_SALT_CONFIG || undefined,
   },

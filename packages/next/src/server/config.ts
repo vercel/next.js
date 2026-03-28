@@ -1457,7 +1457,7 @@ function assignDefaultsAndValidate(
   ;(result as NextConfigComplete).distDirRoot = result.distDir
   // Pre-compute the effective Turbopack hash salt: config option + env var concatenated.
   ;(result as NextConfigComplete).turbopackHashSalt =
-    (result.turbopack?.outputHashSalt ?? '') +
+    (result.experimental?.outputHashSalt ?? '') +
     (process.env.NEXT_HASH_SALT ?? '')
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')

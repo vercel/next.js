@@ -1347,8 +1347,8 @@ export default async function getBaseWebpackConfig(
       hashDigestLength: 16,
       // Webpack requires hashSalt to be a non-empty string; omit it entirely
       // when no salt is configured.
-      ...(process.env.NEXT_HASH_SALT
-        ? { hashSalt: process.env.NEXT_HASH_SALT }
+      ...(config.turbopackHashSalt
+        ? { hashSalt: config.turbopackHashSalt }
         : {}),
     },
     performance: false,
@@ -1801,7 +1801,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
-                  hashSalt: process.env.NEXT_HASH_SALT || '',
+                  hashSalt: config.turbopackHashSalt,
                 },
               },
             ]

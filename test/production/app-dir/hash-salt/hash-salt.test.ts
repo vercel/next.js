@@ -66,11 +66,10 @@ describe('NEXT_HASH_SALT', () => {
   })
 })
 
-describe('turbopack.outputHashSalt', () => {
-  // turbopack.outputHashSalt is a Turbopack-only option; skip on webpack.
+describe('experimental.outputHashSalt', () => {
   // Uses the fixture's next.config.js which reads OUTPUT_HASH_SALT_CONFIG from env,
   // allowing multiple builds with different config salts from a single next instance.
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -96,8 +95,6 @@ describe('turbopack.outputHashSalt', () => {
   let bothChunks: string[]
 
   beforeAll(async () => {
-    // Skip the expensive builds when running under webpack.
-    if (!isTurbopack) return
     noSaltChunks = await buildWithSalts({})
     configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
     envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
@@ -108,17 +105,14 @@ describe('turbopack.outputHashSalt', () => {
   })
 
   it('config salt changes filenames compared to no salt', () => {
-    if (!isTurbopack) return
     expect(configOnlyChunks.sort()).not.toEqual(noSaltChunks.sort())
   })
 
   it('combined salt differs from env-var-only salt', () => {
-    if (!isTurbopack) return
     expect(bothChunks.sort()).not.toEqual(envOnlyChunks.sort())
   })
 
   it('combined salt differs from config-only salt', () => {
-    if (!isTurbopack) return
     expect(bothChunks.sort()).not.toEqual(configOnlyChunks.sort())
   })
 })
