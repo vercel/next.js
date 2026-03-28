@@ -189,20 +189,24 @@ function formatRouteToRouteType(route: string) {
 }
 
 // Helper function to serialize route types (matches the plugin logic exactly)
-function serializeRouteTypes(routeTypes: string[]) {
+// Each entry is a [routeType, source] tuple.
+function serializeRouteTypes(routeTypes: [routeType: string, cause: string][]) {
   // route collection is not deterministic, this makes the output of the file deterministic
-  return routeTypes
-    .sort()
-    .map((route) => `\n    | \`${route}\``)
-    .join('')
+  routeTypes.sort(([a], [b]) => a.localeCompare(b))
+  let union = ''
+  for (let i = 0; i < routeTypes.length; i++) {
+    const [route, cause] = routeTypes[i]
+    union += `\n    | \`${route}\` // ${cause}`
+  }
+  return union
 }
 
 export function generateLinkTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
   const visited = new Set<string>()
-  const staticRouteTypes: string[] = []
-  const dynamicRouteTypes: string[] = []
+  const staticRouteTypes: [routeType: string, cause: string][] = []
+  const dynamicRouteTypes: [routeType: string, cause: string][] = []
 
   for (const routeMap of [
     routesManifest.appRoutes,
@@ -218,10 +222,11 @@ export function generateLinkTypesFile(
       visited.add(route)
 
       const { isDynamic, routeType } = formatRouteToRouteType(route)
+      const cause = routeMap[route].path
       if (isDynamic) {
-        dynamicRouteTypes.push(routeType)
+        dynamicRouteTypes.push([routeType, cause])
       } else {
-        staticRouteTypes.push(routeType)
+        staticRouteTypes.push([routeType, cause])
       }
     }
   }
@@ -235,9 +240,9 @@ export function generateLinkTypesFile(
 
     const { isDynamic, routeType } = formatRouteToRouteType(filePath)
     if (isDynamic) {
-      dynamicRouteTypes.push(routeType)
+      dynamicRouteTypes.push([routeType, filePath])
     } else {
-      staticRouteTypes.push(routeType)
+      staticRouteTypes.push([routeType, filePath])
     }
   }
 
