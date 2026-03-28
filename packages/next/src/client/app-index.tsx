@@ -362,6 +362,12 @@ export async function hydrate(
   }
   const initialRSCPayload = await initialServerResponse
 
+  // Initialize the offline module to register browser event listeners
+  // (offline/online) before any components hydrate.
+  if (process.env.__NEXT_USE_OFFLINE) {
+    require('./components/offline') as typeof import('./components/offline')
+  }
+
   // setNavigationBuildId should be called only once, during JS initialization
   // and before any components have hydrated.
   if (initialRSCPayload.b) {

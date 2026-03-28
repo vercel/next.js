@@ -103,8 +103,9 @@ type FetchServerActionResult = {
 async function fetchServerAction(
   state: ReadonlyReducerState,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  { actionId, actionArgs }: ServerActionAction
+  action: ServerActionAction
 ): Promise<FetchServerActionResult> {
+  const { actionId, actionArgs } = action
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
   const usedArgs = omitUnusedArgs(actionArgs, info)
@@ -140,7 +141,33 @@ async function fetchServerAction(
       .toString(16)
   }
 
-  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+  let res: Response
+  try {
+    res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../../offline') as typeof import('../../offline')
+      notifyOnline()
+    }
+  } catch (err) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../../offline') as typeof import('../../offline')
+      if (checkOfflineError(err)) {
+        // It's safe to replay the action because the fetch rejection
+        // means the request never reached the server — there are no
+        // side effects to duplicate.
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerAction(state, nextUrl, action)
+      }
+    }
+    throw err
+  }
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)

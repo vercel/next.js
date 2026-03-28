@@ -190,6 +190,14 @@ export async function fetchServerResponse(
       shouldImmediatelyDecode
     )
 
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../offline') as typeof import('../offline')
+      notifyOnline()
+    }
+
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
     const canonicalUrl = res.redirected ? responseUrl : originalUrl
 
@@ -293,6 +301,28 @@ export async function fetchServerResponse(
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
+    // If the fetch rejected due to a network error, wait for connectivity
+    // to be restored and then retry. checkOfflineError returns true for
+    // network errors (and starts the polling loop); returns false for
+    // intentional aborts/timeouts, which fall through to the MPA fallback.
+    //
+    // Note: when the user navigates multiple times while offline, each
+    // navigation queues a separate retry here. Once connectivity returns,
+    // all pending retries resume simultaneously. This is mitigated in PR 3
+    // by reusing back-forward cache entries during offline navigation, which
+    // avoids issuing new fetches in the first place.
+    if (process.env.__NEXT_USE_OFFLINE && !isPageUnloading) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(err)) {
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerResponse(url, options)
+      }
+    }
+
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
