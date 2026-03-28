@@ -168,20 +168,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           `can't infer type of chunk from URL ${chunkUrl} in worker`
         )
       }
-    } else if (
-      typeof WorkerGlobalScope !== 'undefined' &&
-      self instanceof WorkerGlobalScope
-    ) {
-      // We're in a module web worker (importScripts is not allowed)
-      if (isCss(chunkUrl)) {
-        // ignore
-      } else if (isJs(chunkUrl)) {
-        import(chunkUrl).catch((err) => resolver.reject(err))
-      } else {
-        throw new Error(
-          `can't infer type of chunk from URL ${chunkUrl} in worker`
-        )
-      }
     } else {
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
       const decodedChunkUrl = decodeURI(chunkUrl)

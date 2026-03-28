@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="10bd27fe-5101-ba7e-1b94-0109f9a47d3b")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bb6c9fa3-8a87-3c67-a10d-ba485e146a9a")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -8,12 +8,11 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
-var CHUNK_BASE_PATH = "";
-var RELATIVE_ROOT_PATH = "../../../../../../..";
-var RUNTIME_PUBLIC_PATH = "";
-var ASSET_SUFFIX = "";
-var CROSS_ORIGIN = null;
-var WORKER_FORWARDED_GLOBALS = [];
+const CHUNK_BASE_PATH = "";
+const RELATIVE_ROOT_PATH = "../../../../../../..";
+const RUNTIME_PUBLIC_PATH = "";
+const ASSET_SUFFIX = "";
+const WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -814,27 +813,17 @@ function getPathFromScript(chunkScript) {
         };
     }
 }
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
- * Checks if a given path/URL ends with the given extension,
- * optionally followed by ?query or #fragment.
- */ function endsWithExtension(chunkUrlOrPath, ext) {
-    // Find where the path ends (before query or fragment)
-    const q = chunkUrlOrPath.indexOf('?');
-    let end;
-    if (q !== -1) {
-        end = q;
-    } else {
-        const h = chunkUrlOrPath.indexOf('#');
-        end = h !== -1 ? h : chunkUrlOrPath.length;
-    }
-    // Check if the path portion ends with the extension
-    return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length);
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
 }
-function isJs(chunkUrlOrPath) {
-    return endsWithExtension(chunkUrlOrPath, '.js');
-}
-function isCss(chunkUrl) {
-    return endsWithExtension(chunkUrl, '.css');
+const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
+ */ function isCss(chunkUrl) {
+    return regexCssUrl.test(chunkUrl);
 }
 function loadWebAssembly(chunkPath, edgeModule, importsObj) {
     return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
@@ -1963,10 +1952,7 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
-    if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    const src = document?.currentScript?.getAttribute?.('src') ?? '';
-    const qi = src.indexOf('?');
-    return qi >= 0 ? src.slice(qi) : '';
+    return (self.TURBOPACK_ASSET_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
 }
 let BACKEND;
 /**
@@ -2067,15 +2053,6 @@ let BACKEND;
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
-        } else if (typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope) {
-            // We're in a module web worker (importScripts is not allowed)
-            if (isCss(chunkUrl)) {
-            // ignore
-            } else if (isJs(chunkUrl)) {
-                import(chunkUrl).catch((err)=>resolver.reject(err));
-            } else {
-                throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
-            }
         } else {
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedChunkUrl = decodeURI(chunkUrl);
@@ -2088,7 +2065,6 @@ let BACKEND;
                 } else {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
-                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = ()=>{
                         resolver.reject();
@@ -2113,7 +2089,6 @@ let BACKEND;
                     }
                 } else {
                     const script = document.createElement('script');
-                    script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -2149,13 +2124,10 @@ let DEV_BACKEND;
     DEV_BACKEND = {
         unloadChunk (chunkUrl) {
             deleteResolver(chunkUrl);
-            // Strip query string so we match links regardless of cache-busting
-            // params (e.g. ?ts=) that may differ between HMR updates.
-            const baseChunkUrl = chunkUrl.split('?')[0];
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
+            const decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                const links = document.querySelectorAll(`link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`);
+                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
@@ -2164,7 +2136,7 @@ let DEV_BACKEND;
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`);
+                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
                 for (const script of Array.from(scripts)){
                     script.remove();
                 }
@@ -2178,34 +2150,23 @@ let DEV_BACKEND;
                     reject(new Error('The DOM backend can only reload CSS chunks'));
                     return;
                 }
-                // Strip query string so we match links regardless of cache-busting
-                // params (e.g. ?ts=) that may differ between HMR updates.
-                const baseChunkUrl = chunkUrl.split('?')[0];
-                const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
+                const decodedChunkUrl = decodeURI(chunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
                 if (previousLinks.length === 0) {
                     reject(new Error(`No link element found for chunk ${chunkUrl}`));
                     return;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
-                link.crossOrigin = CROSS_ORIGIN;
-                if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
-                    // Firefox won't reload CSS files that were previously loaded on the
-                    // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+                if (navigator.userAgent.includes('Firefox')) {
+                    // Firefox won't reload CSS files that were previously loaded on the current page,
+                    // we need to add a query param to make sure CSS is actually reloaded from the server.
                     //
-                    // Safari serves cached CSS when a <link rel=preload> exists for the
-                    // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
+                    // I believe this is this issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
                     //
-                    // Replace or add a fresh `ts` cache-busting param without
-                    // discarding other query parameters that may already be present.
-                    const url = new URL(chunkUrl, location.origin);
-                    // Reduced timer precision in some browers could lead to an update getting dropped
-                    // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
-                    // So trust that the server is only updating us when it is important and use a
-                    // random number to bust the cache.
-                    url.searchParams.set('ts', `${Date.now()}.${Math.random()}`);
-                    link.href = url.pathname + url.search;
+                    // Safari has a similar issue, but only if you have a `<link rel=preload ... />` tag
+                    // pointing to the same URL as the stylesheet: https://bugs.webkit.org/show_bug.cgi?id=187726
+                    link.href = `${chunkUrl}?ts=${Date.now()}`;
                 } else {
                     link.href = chunkUrl;
                 }
@@ -2242,14 +2203,14 @@ function _eval({ code, url, map }) {
     // eslint-disable-next-line no-eval
     return eval(code);
 }
-var chunksToRegister = globalThis["TURBOPACK"];
+const chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
-var chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
+const chunkListsToRegister = globalThis["TURBOPACK_CHUNK_LISTS"] || [];
 globalThis["TURBOPACK_CHUNK_LISTS"] = { push: registerChunkList };
 chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=10bd27fe-5101-ba7e-1b94-0109f9a47d3b
+//# debugId=bb6c9fa3-8a87-3c67-a10d-ba485e146a9a
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

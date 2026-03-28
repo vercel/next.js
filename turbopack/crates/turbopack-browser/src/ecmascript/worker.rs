@@ -62,7 +62,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let mut code = if this.is_esm {
             generate_module_worker_bootstrap_code(&forwarded_globals)
         } else {
-            generate_classic_worker_bootstrap_code(&forwarded_globals)
+            generate_script_worker_bootstrap_code(&forwarded_globals)
         }?;
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
@@ -208,7 +208,7 @@ fn build_preamble_js() -> &'static str {
 /// - Verifies it's running inside a `WorkerGlobalScope` (guarantees same-origin).
 /// - Only loads chunk scripts from the same origin.
 /// - Validates the type of every parameter before use.
-fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
+fn generate_script_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     let mut code: CodeBuilder = CodeBuilder::default();
     let preamble = build_preamble_js();
     let globals = build_globals_js(forwarded_globals);
@@ -227,6 +227,7 @@ fn generate_classic_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result
             var scriptsToLoad = [];
             for (var i = 0; i < chunkUrls.length; i++) {{
                 var chunk = chunkUrls[i];
+                // Chunks are relative to the origin.
                 var chunkUrl = new URL(chunk, location.origin);
                 if (chunkUrl.origin !== location.origin) {{
                     abort("Refusing to load script from foreign origin: " + chunkUrl.origin);

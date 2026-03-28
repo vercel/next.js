@@ -11,7 +11,6 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
-var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
@@ -1462,14 +1461,6 @@ function _async_to_generator(fn) {
         });
     };
 }
-function _instanceof(left, right) {
-    "@swc/helpers - instanceof";
-    if (right != null && typeof Symbol !== "undefined" && right[Symbol.hasInstance]) {
-        return !!right[Symbol.hasInstance](left);
-    } else {
-        return left instanceof right;
-    }
-}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -1769,17 +1760,6 @@ var BACKEND;
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
-        } else if (typeof WorkerGlobalScope !== 'undefined' && _instanceof(self, WorkerGlobalScope)) {
-            // We're in a module web worker (importScripts is not allowed)
-            if (isCss(chunkUrl)) {
-            // ignore
-            } else if (isJs(chunkUrl)) {
-                import(chunkUrl).catch(function(err) {
-                    return resolver.reject(err);
-                });
-            } else {
-                throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
-            }
         } else {
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             var decodedChunkUrl = decodeURI(chunkUrl);
@@ -1792,7 +1772,6 @@ var BACKEND;
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
-                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = function() {
                         resolver.reject();
@@ -1834,7 +1813,6 @@ var BACKEND;
                     }
                 } else {
                     var script1 = document.createElement('script');
-                    script1.crossOrigin = CROSS_ORIGIN;
                     script1.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in

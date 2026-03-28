@@ -32,6 +32,7 @@ if (chunkUrls.length > 0) {
     var scriptsToLoad = [];
     for (var i = 0; i < chunkUrls.length; i++) {
         var chunk = chunkUrls[i];
+        // Chunks are relative to the origin.
         var chunkUrl = new URL(chunk, location.origin);
         if (chunkUrl.origin !== location.origin) {
             abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
