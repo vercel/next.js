@@ -99,6 +99,8 @@ struct SnapshotOptions {
     source_map_source_type: SourceMapSourceType,
     #[serde(default = "default_chunk_loading_global")]
     chunk_loading_global: String,
+    #[serde(default)]
+    esm_chunks: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -132,6 +134,7 @@ impl Default for SnapshotOptions {
             enable_debug_ids: false,
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
+            esm_chunks: false,
         }
     }
 }
@@ -507,7 +510,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
-            .chunk_loading_global(options.chunk_loading_global.into());
+            .chunk_loading_global(options.chunk_loading_global.into())
+            .esm_chunks(options.esm_chunks);
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

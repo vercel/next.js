@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/esm_chunks/basic/input/index.js"],"sourcesContent":["import('./dep.js').then(({ value }) => {\n  console.log(value)\n})\n"],"names":["then","value","console","log"],"mappings":"AAAA,qJAAmBA,IAAI,CAAC,CAAC,EAAEC,KAAK,EAAE;IAChCC,QAAQC,GAAG,CAACF;AACd"}}]
+}
