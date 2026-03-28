@@ -224,12 +224,8 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let count = graph.count() as u64;
                 let total_cpu = *graph.total_time();
                 let total_corrected = *graph.corrected_total_time();
-                let avg_cpu = if count > 0 { total_cpu / count } else { 0 };
-                let avg_corrected = if count > 0 {
-                    total_corrected / count
-                } else {
-                    0
-                };
+                let avg_cpu = total_cpu.checked_div(count).unwrap_or(0);
+                let avg_corrected = total_corrected.checked_div(count).unwrap_or(0);
 
                 // ID: the SpanGraphRef id is `(first_span_index << 1) | 1`.
                 // For MCP purposes we expose the example span index as a decimal
@@ -352,10 +348,9 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
 
 /// Resolve a span by its MCP ID string.
 ///
-/// - Even decimal string (e.g. `"42"`) → raw span at index `42 >> 1`.
-/// - Odd decimal string (e.g. `"43"`) → aggregated/graph span; look up the first span at index `43
-///   >> 1`, then return its children's graph children matching the next ID in the chain when used
-///   as a parent.
+/// The ID encodes the span index and kind as a single integer:
+/// even values are raw spans (index = id / 2) and odd values are
+/// aggregated/graph spans (first-span index = id / 2).
 ///
 /// For the `parent` parameter we only need to navigate to the span whose
 /// *children* we want to enumerate. For aggregated parents we look up the
