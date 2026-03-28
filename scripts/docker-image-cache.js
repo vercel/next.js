@@ -102,10 +102,20 @@ async function main() {
         console.log(
           `Downloaded ${(size / 1024 / 1024).toFixed(0)} MB compressed`
         )
-        sh(`zstd -d -c ${zstdFile} | docker load`)
-        fs.unlinkSync(zstdFile)
-        console.log('Docker image restored from turbo cache')
-        return
+        try {
+          sh(`zstd -d -c ${zstdFile} | docker load`)
+          fs.unlinkSync(zstdFile)
+          console.log('Docker image restored from turbo cache')
+          return
+        } catch (e) {
+          console.log(`WARNING: Failed to restore image: ${e.message}`)
+          console.log('Discarding cached image and rebuilding from scratch')
+          try { fs.unlinkSync(zstdFile) } catch {}
+          // Remove the partially-loaded image if it exists
+          try {
+            execSync(`docker rmi -f ${IMAGE_NAME}`, { stdio: 'ignore' })
+          } catch {}
+        }
       }
     }
   }
