@@ -710,7 +710,11 @@ export async function handleAction({
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
-  if (actionId) {
+  // Only attempt forwarding if the action hasn't already been forwarded.
+  // Without this guard, middleware rewrites can cause the forwarded request
+  // to arrive at a worker that also wants to forward, creating an infinite
+  // request loop (#84504).
+  if (actionId && !actionWasForwarded) {
     const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
     // If forwardedWorker is truthy, it means there isn't a worker for the action
