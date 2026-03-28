@@ -15,7 +15,6 @@
     "build-native-no-plugin-release": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --release --features image-webp,tracing/release_max_level_trace --js false native",
     "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-napi-bindings --cwd ../../ --output-dir packages/next-swc/native --no-default-features",
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
-    "build-docker-image": "node ../../scripts/docker-image-cache.js",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
     "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
     "rust-check-doc": "RUSTDOCFLAGS='-Zunstable-options --output-format=json' cargo doc --no-deps --workspace",
