@@ -307,6 +307,10 @@ async function createComponentTreeInternal(
     workStore.fetchCache = layoutOrPageMod?.fetchCache
   }
 
+  // Capture this segment's own dynamic config after applying it, before
+  // children recursion mutates workStore further.
+  const segmentForceDynamic = workStore.forceDynamic
+
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
     validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
@@ -519,6 +523,14 @@ async function createComponentTreeInternal(
     tree,
   })
 
+  // Save workStore dynamic fields before recursing into children. Each child
+  // call mutates these fields for its own segment; we restore them afterward so
+  // that the parent segment's state is not contaminated by its children.
+  const savedForceDynamic = workStore.forceDynamic
+  const savedForceStatic = workStore.forceStatic
+  const savedDynamicShouldError = workStore.dynamicShouldError
+  const savedFetchCache = workStore.fetchCache
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -710,6 +722,14 @@ async function createComponentTreeInternal(
     )
   )
 
+  // Restore workStore to this segment's values after children have finished.
+  // Children set their own dynamic config during their traversal; without this
+  // restore, the parent's PPR check (below) would see the last child's state.
+  workStore.forceDynamic = savedForceDynamic
+  workStore.forceStatic = savedForceStatic
+  workStore.dynamicShouldError = savedDynamicShouldError
+  workStore.fetchCache = savedFetchCache
+
   // Convert the parallel route map into an object after all promises have been resolved.
   let parallelRouteProps: { [key: string]: React.ReactNode } = {}
   let parallelRouteCacheNodeSeedData: {
@@ -773,16 +793,13 @@ async function createComponentTreeInternal(
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
   // render phase.
-  // @TODO this does not actually do what it seems like it would or should do. The idea is that
-  // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
-  // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
-  // because this comes after the children traversal and the static generation store is mutated every segment
-  // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
-  // render force-dynamic. We should refactor this function so that we can correctly track which segments
-  // need to be dynamic
+  // Only postpone if THIS segment explicitly set force-dynamic. We use
+  // segmentForceDynamic (captured before children ran) rather than
+  // workStore.forceDynamic so that a child's force-dynamic does not cause
+  // ancestor segments to postpone unnecessarily.
   if (
     workStore.isStaticGeneration &&
-    workStore.forceDynamic &&
+    segmentForceDynamic &&
     experimental.isRoutePPREnabled
   ) {
     return createSeedData(
