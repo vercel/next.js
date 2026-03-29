@@ -3,7 +3,7 @@ import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, getBindingsSync } from '../swc'
+import { connectDaemonFromEnv, createDefineEnv, getBindingsSync } from '../swc'
 import { installBindings } from '../swc/install-bindings'
 import {
   handleRouteType,
@@ -127,7 +127,6 @@ export async function turbopackBuild(): Promise<{
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
   // Connect to daemon if socket path is provided via environment
-  const { connectDaemonFromEnv } = await import('../swc')
   const daemon = await connectDaemonFromEnv(bindings)
 
   const project = await bindings.turbo.createProject(

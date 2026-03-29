@@ -3,7 +3,7 @@ import type { __ApiPreviewProps } from '../../server/api-utils'
 
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { createDefineEnv, loadBindings } from '../swc'
+import { connectDaemonFromEnv, createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../get-supported-browsers'
@@ -53,7 +53,6 @@ export async function turbopackAnalyze(
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
 
   // Connect to daemon if socket path is provided via environment
-  const { connectDaemonFromEnv } = await import('../swc')
   const daemon = await connectDaemonFromEnv(bindings)
 
   const project = await bindings.turbo.createProject(
