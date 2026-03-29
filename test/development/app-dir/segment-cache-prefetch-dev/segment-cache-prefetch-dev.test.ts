@@ -4,9 +4,14 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache prefetching in dev mode', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+
+  if (!isTurbopack) {
+    it('should skip for webpack (turbopackPrefetchInDev is Turbopack-only)', () => {})
+    return
+  }
 
   it('prefetches and navigates correctly in dev mode', async () => {
     let act: ReturnType<typeof createRouterAct>
