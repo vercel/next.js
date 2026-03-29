@@ -575,7 +575,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }
@@ -597,7 +597,7 @@ export async function GET(request) {
     return NextResponse.json({ success: false }, { status: 400 })
   }
 
-  revalidateTag(tag)
+  revalidateTag(tag, 'max')
 
   return NextResponse.json({ success: true })
 }

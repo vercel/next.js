@@ -226,7 +226,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id: string) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max')
 }
 ```
 
@@ -235,7 +235,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateUser(id) {
   // Mutate data
-  revalidateTag('user')
+  revalidateTag('user', 'max')
 }
 ```
 

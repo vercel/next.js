@@ -68,7 +68,7 @@ import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  revalidateTag('my-data', 'max')
 }
 ```
 
@@ -79,7 +79,7 @@ import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  revalidateTag('my-data', 'max')
 }
 ```
 
@@ -183,7 +183,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```
 
@@ -194,6 +194,6 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```
