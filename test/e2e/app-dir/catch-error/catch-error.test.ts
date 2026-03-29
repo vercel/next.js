@@ -89,6 +89,30 @@ describe('app-dir - unstable_catchError', () => {
     )
   })
 
+  it('should catch SSR error from Client Component and recover after reset', async () => {
+    const browser = await next.browser('/client-component-ssr')
+
+    // The client component throws during SSR (typeof window === 'undefined'),
+    // so the error boundary is visible immediately on page load.
+    await browser.waitForElementByCss('#error-boundary-message')
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      isNextDev
+        ? 'this is an SSR-only error'
+        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+    )
+
+    // After reset, the component rerenders on the client where
+    // typeof window !== 'undefined', so it no longer throws.
+    await browser
+      .elementByCss('#reset')
+      .click()
+      .waitForElementByCss('#ssr-page-content')
+
+    expect(await browser.elementByCss('#ssr-page-content').text()).toBe(
+      'Rendered on client'
+    )
+  })
+
   it('should throw when unstable_retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
