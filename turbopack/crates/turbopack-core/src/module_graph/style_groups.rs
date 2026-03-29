@@ -1,3 +1,59 @@
+//! # CSS Style Groups — Shared Chunk Batching
+//!
+//! CSS modules must not be duplicated across chunks: each module is emitted exactly once, and every
+//! route that needs it references the same shared chunk. The simplest strategy — one chunk per
+//! module — is correct but causes many HTTP requests. This module groups multiple CSS modules into
+//! shared chunks to reduce request count while preserving the CSS cascade order that each route
+//! expects.
+//!
+//! ## Algorithm overview
+//!
+//! 1. **Collect per-route orderings.** For each chunk group (≈ route), DFS-postorder traverse the
+//!    module graph to get the CSS modules in cascade order.
+//!
+//! 2. **Compute dependencies.** Module X is a dependency of Y when X appears before Y in *every*
+//!    chunk group where both are present.
+//!
+//! 3. **Greedy batching.** Process modules in `(index_sum, ident)` order. For each unprocessed
+//!    "seed," start a new batch and greedily absorb neighbouring candidates, subject to:
+//!    - a per-chunk **size budget** (`max_chunk_size`),
+//!    - dependency ordering (no dependent already in the batch),
+//!    - **global-CSS leak prevention** (global styles must not appear in routes that don't import
+//!      them), and
+//!    - the **contiguity check**: for every route containing both the candidate and an existing
+//!      batch member, no unprocessed non-batch module may sit in the gap between them. This is the
+//!      key invariant that prevents shared chunks from breaking per-route cascade order.
+//!
+//! 4. **Emit.** Each batch of ≥ 2 modules becomes a single shared CSS chunk. Modules not assigned
+//!    to any batch get their own individual chunk.
+//!
+//! ## Overserving is expected
+//!
+//! The greedy algorithm can absorb a module into a batch even when that module does not appear in
+//! every route that the batch covers. For example, if route A has `[shared1, unique_a, shared2]`
+//! and route B has `[shared1, unique_b, shared2]`, the algorithm may produce a single batch
+//! `{shared1, unique_a, unique_b, shared2}`. Route A then receives `unique_b`'s CSS even though
+//! it doesn't import it, and vice versa.
+//!
+//! This is intentional. For **isolated / scoped CSS** (CSS Modules), the unused classes are never
+//! referenced in the DOM, so the extra bytes have no visual effect — they only cost bandwidth.
+//! The trade-off is worthwhile because merging reduces the number of HTTP requests, which has a
+//! larger impact on page-load performance than a modest increase in CSS payload size.
+//!
+//! **Global CSS** is handled differently: the global-CSS leak checks (see step 3) prevent a global
+//! stylesheet from being served to routes that don't import it, because global styles *would*
+//! affect rendering.
+//!
+//! ## Comparison with module merging
+//!
+//! The JS module-merging algorithm ([`super::merged_modules`]) solves a similar problem but uses a
+//! stricter bitmap-based approach: only modules with *identical* entry-point reachability are
+//! merged. This avoids overserving entirely but produces more, smaller groups. The CSS algorithm
+//! uses a greedier strategy because (a) scoped CSS overserving is benign, (b) fewer chunks
+//! meaningfully reduces request count, and (c) a longest-common-prefix reconciliation approach
+//! (like module merging uses) would fail to merge modules separated by route-unique modules —
+//! exactly the scenario this algorithm is designed to handle.
+
 use std::cmp::Reverse;
 
 use anyhow::Result;
