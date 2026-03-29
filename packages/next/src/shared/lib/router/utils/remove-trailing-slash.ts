@@ -7,7 +7,7 @@
  * compiling and executing a RegExp on every call (~3-5x faster).
  */
 export function removeTrailingSlash(route: string) {
-  return route.charCodeAt(route.length - 1) === 47
-    ? route.slice(0, -1) || '/'
+  return route.charCodeAt(route.length - 1) === 47 && route.length > 1
+    ? route.slice(0, -1)
     : route
 }
