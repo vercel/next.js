@@ -161,7 +161,7 @@ function loadChunkSyncByUrl<TModule extends Module>(
   const chunkPath = url.fileURLToPath(
     new URL(chunkUrl, RUNTIME_ROOT)
   ) as ChunkPath
-  return loadChunkSync.call(this, chunkPath)
+  loadChunkSync.call(this, chunkPath)
 }
 contextPrototype.L = loadChunkSyncByUrl
 

@@ -1783,7 +1783,8 @@ export async function copy_vendor_react(task_) {
           // already loaded synchronously, so we just need to call
           // __next_chunk_load__ for side effects and handle async modules.
           if (
-            file.base.startsWith('react-server-dom-turbopack-server') &&
+            (file.base.startsWith('react-server-dom-turbopack-server') ||
+              file.base.startsWith('react-server-dom-turbopack-client')) &&
             (file.base.includes('.node.') || file.base.includes('.edge.'))
           ) {
             code = replaceFunctionBody(
