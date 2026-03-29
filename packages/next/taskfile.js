@@ -1782,19 +1782,13 @@ export async function copy_vendor_react(task_) {
           // to eliminate all promise tracking overhead — the chunks are
           // already loaded synchronously, so we just need to call
           // __next_chunk_load__ for side effects and handle async modules.
-          if (
-            (file.base.startsWith('react-server-dom-turbopack-server') ||
-              file.base.startsWith('react-server-dom-turbopack-client')) &&
-            (file.base.includes('.node.') || file.base.includes('.edge.'))
-          ) {
-            code = replaceFunctionBody(
-              code,
-              'preloadModule',
-              `for (var chunks = metadata[1], i = 0; i < chunks.length; i++)
+          code = replaceFunctionBody(
+            code,
+            'preloadModule',
+            `for (var chunks = metadata[1], i = 0; i < chunks.length; i++)
     globalThis.__next_chunk_load__(chunks[i]);
   return 4 === metadata.length ? requireAsyncModule(metadata[0]) : null;`
-            )
-          }
+          )
 
           file.data = code
         } else if (file.base === 'package.json') {
