@@ -69,6 +69,20 @@ describe('app-dir - unstable_catchError', () => {
     expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
   })
 
+  it('should recover SSR error after unstable_retry', async () => {
+    const browser = await next.browser('/ssr')
+
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      isNextDev
+        ? 'this is a ssr test'
+        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+    )
+
+    await browser.elementByCss('#retry').click().waitForElementByCss('#recover')
+
+    expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+  })
+
   it('should recover after reset on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
