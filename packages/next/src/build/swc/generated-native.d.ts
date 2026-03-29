@@ -619,11 +619,12 @@ export declare function startTurbopackTraceServer(
   path: string,
   port?: number | undefined | null
 ): void
-/** An opaque handle to a running trace server instance. */
-export declare class TraceServerHandle {}
-/** Options for `queryTraceSpans`. */
+/** Options for `query_trace_spans`. */
 export interface TraceQueryOptions {
-  /** Optional parent span ID (as returned by a previous query). Omit for root-level spans. */
+  /**
+   * Optional parent span ID (as returned by a previous query).
+   * Omit or set to `null`/`undefined` for root-level spans.
+   */
   parent?: string
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
@@ -649,10 +650,10 @@ export interface TraceSpanInfo {
   /** End time relative to parent start, in internal ticks. */
   endRelativeToParent: number
   /** Key-value attributes attached to the span. */
-  args: string[][]
+  args: Array<Array<string>>
   /** True if this entry represents an aggregated group of spans. */
   isAggregated: boolean
-  /** Number of spans in this aggregated group (only set when `isAggregated`). */
+  /** Number of spans in this aggregated group (only set when `is_aggregated`). */
   count?: number
   /** Sum of CPU duration across all spans in the group. */
   totalCpuDuration?: number
@@ -663,9 +664,9 @@ export interface TraceSpanInfo {
   /** Average corrected duration across spans in the group. */
   avgCorrectedDuration?: number
 }
-/** The result of a `queryTraceSpans` call. */
+/** The result of a `query_trace_spans` call. */
 export interface TraceQueryResult {
-  spans: TraceSpanInfo[]
+  spans: Array<TraceSpanInfo>
   /** Current page (1-based). */
   page: number
   /** Total number of pages available. */
@@ -735,3 +736,9 @@ export declare function initCustomTraceSubscriber(
 export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell>
 ): void
+/**
+ * An opaque handle to a running trace server instance.
+ * Holds a reference to the shared store so that `query_trace_spans` can
+ * query it without blocking Node.js with the WebSocket server loop.
+ */
+export declare class TraceServerHandle {}
