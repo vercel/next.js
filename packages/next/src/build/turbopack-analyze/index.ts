@@ -51,6 +51,13 @@ export async function turbopackAnalyze(
   const persistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Connect to daemon if socket path is provided via environment
+  const daemonSocketPath = process.env.NEXT_TURBOPACK_DAEMON_SOCKET
+  const daemon = daemonSocketPath
+    ? await bindings.turbo.connectTurbopackDaemon(daemonSocketPath)
+    : undefined
+
   const project = await bindings.turbo.createProject(
     {
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
@@ -97,7 +104,9 @@ export async function turbopackAnalyze(
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,
-    }
+    },
+    undefined,
+    daemon
   )
 
   try {

@@ -4791,7 +4791,7 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-wasm",
  "urlencoding",
- "vergen",
+ "vergen-gitcl",
 ]
 
 [[package]]

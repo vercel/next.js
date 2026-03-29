@@ -27,4 +27,5 @@ pub mod route;
 pub mod routes_hashes_manifest;
 mod server_actions;
 mod sri_manifest;
+pub mod turbo_tasks_factory;
 mod versioned_content_map;

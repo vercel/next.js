@@ -76,8 +76,40 @@ impl<T> Deref for DetachedVc<T> {
 //
 // TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
 pub struct RootTask {
-    turbopack_ctx: NextTurbopackContext,
+    turbopack_ctx: Option<NextTurbopackContext>,
     task_id: Option<TaskId>,
+    /// When set, this root task was created via the daemon IPC path.
+    /// Disposing it sends a CancelSubscription to the daemon.
+    #[allow(dead_code)]
+    remote_client: Option<next_api::ipc::client::DaemonClient>,
+    #[allow(dead_code)]
+    remote_callback_id: Option<next_api::ipc::protocol::CallbackId>,
+}
+
+impl RootTask {
+    /// Create a local (in-process) root task.
+    pub fn local(turbopack_ctx: NextTurbopackContext, task_id: TaskId) -> Self {
+        RootTask {
+            turbopack_ctx: Some(turbopack_ctx),
+            task_id: Some(task_id),
+            remote_client: None,
+            remote_callback_id: None,
+        }
+    }
+
+    /// Create a remote (daemon-backed) root task.
+    #[allow(dead_code)]
+    pub fn remote(
+        client: next_api::ipc::client::DaemonClient,
+        callback_id: next_api::ipc::protocol::CallbackId,
+    ) -> Self {
+        RootTask {
+            turbopack_ctx: None,
+            task_id: None,
+            remote_client: Some(client),
+            remote_callback_id: Some(callback_id),
+        }
+    }
 }
 
 impl Drop for RootTask {
@@ -90,11 +122,18 @@ impl Drop for RootTask {
 pub fn root_task_dispose(
     #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    if let Some(task) = root_task.task_id.take() {
-        root_task
-            .turbopack_ctx
-            .turbo_tasks()
-            .dispose_root_task(task);
+    if let (Some(task), Some(ctx)) = (root_task.task_id.take(), root_task.turbopack_ctx.as_ref()) {
+        ctx.turbo_tasks().dispose_root_task(task);
+    }
+    // For remote root tasks, cancellation is handled via CancelSubscription
+    // when the daemon client drops the subscription channel.
+    if let (Some(client), Some(callback_id)) = (
+        root_task.remote_client.take(),
+        root_task.remote_callback_id.take(),
+    ) {
+        tokio::spawn(async move {
+            let _ = client.cancel_subscription(callback_id).await;
+        });
     }
     Ok(())
 }
@@ -466,10 +505,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             }
         }
     });
-    Ok(External::new(RootTask {
-        turbopack_ctx: ctx,
-        task_id: Some(task_id),
-    }))
+    Ok(External::new(RootTask::local(ctx, task_id)))
 }
 
 // Await the source and return fatal issues if there are any, otherwise

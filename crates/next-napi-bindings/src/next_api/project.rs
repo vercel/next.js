@@ -461,6 +461,7 @@ pub fn project_new(
     // IPC path: forward to daemon if a daemon handle is provided
     if let Some(daemon) = daemon {
         return env.spawn_future(async move {
+            let dist_dir = options.dist_dir.to_string();
             let opts: next_api::project::ProjectOptions = options.into();
             let turbo_opts = next_api::ipc::protocol::TurboEngineOptions {
                 memory_limit: turbo_engine_options.memory_limit.map(|m| m as u64),
@@ -474,6 +475,7 @@ pub fn project_new(
                 call_id,
                 options: opts,
                 turbo_engine_options: turbo_opts,
+                dist_dir,
             };
             let result = daemon
                 .client
@@ -784,6 +786,20 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectUpdate {
+            call_id,
+            project: remote.handle,
+            options: options.into(),
+        };
+        remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return Ok(());
+    }
     let ctx = &project.ctx();
     let options = options.into();
     let container = project.container();
@@ -800,6 +816,19 @@ pub async fn project_update(
 pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectInvalidateFileSystemCache {
+            call_id,
+            project: remote.handle,
+        };
+        remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return Ok(());
+    }
     tokio::task::spawn_blocking(move || {
         // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we know
         // how to generate a message for on the Rust side of the FFI.
@@ -823,6 +852,15 @@ pub async fn project_invalidate_file_system_cache(
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectOnExit {
+            call_id,
+            project: remote.handle,
+        };
+        let _ = remote.client.call(req).await;
+        return;
+    }
     project_on_exit_internal(&project).await
 }
 
@@ -844,6 +882,15 @@ async fn project_on_exit_internal(project: &ProjectInstance) {
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectShutdown {
+            call_id,
+            project: remote.handle,
+        };
+        let _ = remote.client.call(req).await;
+        return;
+    }
     project.ctx().turbo_tasks().stop_and_wait().await;
     project_on_exit_internal(&project).await;
 }

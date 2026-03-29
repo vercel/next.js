@@ -36,6 +36,7 @@ tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -56,8 +57,7 @@ urlencoding = { workspace = true }
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
-vergen = { workspace = true }
+vergen-gitcl = { workspace = true }

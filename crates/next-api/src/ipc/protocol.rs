@@ -52,6 +52,10 @@ pub enum DaemonRequest {
         call_id: CallId,
         options: ProjectOptions,
         turbo_engine_options: TurboEngineOptions,
+        /// The dist directory path, used for turbo-tasks storage.
+        /// This comes from NapiProjectOptions.dist_dir in the NAPI layer
+        /// and is not part of the core ProjectOptions.
+        dist_dir: String,
     },
     ProjectUpdate {
         call_id: CallId,
