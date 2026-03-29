@@ -9,9 +9,17 @@ export default function Page() {
   )
 }
 
+let hasThrown = false
+
 async function PageImpl() {
   // connection() opts out of pre-rendering, ensuring the error occurs at
   // server runtime (per-request RSC render), not during static pre-render.
   await connection()
-  throw new Error('server error inside boundary')
+
+  if (!hasThrown) {
+    hasThrown = true
+    throw new Error('server error inside boundary')
+  }
+
+  return <p id="recover">Recovered</p>
 }

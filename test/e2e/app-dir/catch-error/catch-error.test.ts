@@ -104,6 +104,28 @@ describe('app-dir - unstable_catchError', () => {
     expect(footer).toBe('Footer content')
   })
 
+  it('should recover from SSR error via unstable_retry while footer remains visible', async () => {
+    const browser = await next.browser('/footer-outside-boundary')
+
+    // Error boundary catches the server-side throw and shows the fallback
+    await browser.waitForElementByCss('#error-boundary-message')
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      isNextDev
+        ? 'server error inside boundary'
+        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+    )
+
+    // Footer outside the boundary is rendered even while showing the error fallback
+    expect(await browser.elementByCss('#footer').text()).toBe('Footer content')
+
+    // Retrying should recover the server component
+    await browser.elementByCss('#retry').click().waitForElementByCss('#recover')
+    expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+
+    // Footer remains visible after recovery
+    expect(await browser.elementByCss('#footer').text()).toBe('Footer content')
+  })
+
   it('should throw when unstable_retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
