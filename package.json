@@ -177,7 +177,7 @@
     "@types/string-hash": "1.1.1",
     "@types/trusted-types": "2.0.3",
     "@types/yargs": "16.0.11",
-    "@vercel/agent-eval": "0.8.0",
+    "@vercel/agent-eval": "0.9.5",
     "@vercel/devlow-bench": "workspace:*",
     "@vercel/kv": "3.0.0",
     "@vercel/og": "0.11.1",
