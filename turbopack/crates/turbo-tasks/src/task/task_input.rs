@@ -259,7 +259,7 @@ where
     }
 
     async fn resolve_input(&self) -> Result<Self> {
-        Vc::resolve(*self).await
+        Ok(*(*self).to_resolved().await?)
     }
 }
 

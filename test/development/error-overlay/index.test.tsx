@@ -184,6 +184,128 @@ describe('DevErrorOverlay', () => {
     `)
   })
 
+  it('shows AggregateError.errors in the error overlay', async () => {
+    const browser = await next.browser('/error-aggregate')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 2: Error",
+           "message": "Error one",
+           "source": "app/error-aggregate/page.tsx (6:18) @ Page
+     > 6 |   const error1 = new Error('Error one')
+         |                  ^",
+           "stack": [
+             "Page app/error-aggregate/page.tsx (6:18)",
+           ],
+         },
+         {
+           "label": "2 of 2: TypeError",
+           "message": "Error two",
+           "source": "app/error-aggregate/page.tsx (7:18) @ Page
+     >  7 |   const error2 = new TypeError('Error two')
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate/page.tsx (7:18)",
+           ],
+         },
+       ],
+       "description": "Multiple errors occurred",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate/page.tsx (8:15) @ Page
+     >  8 |   const agg = new AggregateError([error1, error2], 'Multiple errors occurred')
+          |               ^",
+       "stack": [
+         "Page app/error-aggregate/page.tsx (8:15)",
+       ],
+     }
+    `)
+  })
+
+  it('shows AggregateError.errors with cause chains in the error overlay', async () => {
+    const browser = await next.browser('/error-aggregate-with-cause')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 2: Error",
+           "message": "Database query failed",
+           "source": "app/error-aggregate-with-cause/page.tsx (7:18) @ Page
+     >  7 |   const error1 = new Error('Database query failed', { cause: root })
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (7:18)",
+           ],
+         },
+         {
+           "label": "2 of 2: Error",
+           "message": "Cache miss",
+           "source": "app/error-aggregate-with-cause/page.tsx (8:18) @ Page
+     >  8 |   const error2 = new Error('Cache miss')
+          |                  ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (8:18)",
+           ],
+         },
+       ],
+       "cause": [
+         {
+           "label": "Caused by: TypeError",
+           "message": "Connection refused",
+           "source": "app/error-aggregate-with-cause/page.tsx (6:16) @ Page
+     > 6 |   const root = new TypeError('Connection refused')
+         |                ^",
+           "stack": [
+             "Page app/error-aggregate-with-cause/page.tsx (6:16)",
+           ],
+         },
+       ],
+       "description": "Multiple failures occurred",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate-with-cause/page.tsx (9:15) @ Page
+     >  9 |   const agg = new AggregateError([error1, error2], 'Multiple failures occurred')
+          |               ^",
+       "stack": [
+         "Page app/error-aggregate-with-cause/page.tsx (9:15)",
+       ],
+     }
+    `)
+  })
+
+  it('filters non-Error items from AggregateError.errors', async () => {
+    const browser = await next.browser('/error-aggregate-non-errors')
+
+    await expect({ browser, next }).toDisplayCollapsedRedbox(`
+     {
+       "aggregateErrors": [
+         {
+           "label": "1 of 1: Error",
+           "message": "Real error",
+           "source": "app/error-aggregate-non-errors/page.tsx (7:26) @ Page
+     >  7 |     ['string error', 42, new Error('Real error')],
+          |                          ^",
+           "stack": [
+             "Page app/error-aggregate-non-errors/page.tsx (7:26)",
+           ],
+         },
+       ],
+       "description": "Mixed errors",
+       "environmentLabel": null,
+       "label": "Console AggregateError",
+       "source": "app/error-aggregate-non-errors/page.tsx (6:15) @ Page
+     > 6 |   const agg = new AggregateError(
+         |               ^",
+       "stack": [
+         "Page app/error-aggregate-non-errors/page.tsx (6:15)",
+       ],
+     }
+    `)
+  })
+
   it('should load dev overlay styles successfully', async () => {
     const browser = await next.browser('/hydration-error')
 

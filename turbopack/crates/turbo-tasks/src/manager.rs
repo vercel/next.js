@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tracing::{Instrument, Span, instrument};
+use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -174,6 +175,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        content_hash: Option<[u8; 16]>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -1570,6 +1572,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        content_hash: Option<[u8; 16]>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -1578,6 +1581,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             is_serializable_cell_content,
             content,
             updated_key_hashes,
+            content_hash,
             verification_mode,
             self,
         );
@@ -2029,16 +2033,17 @@ impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
         &self,
-        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>)>,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<[u8; 16]>)>,
     ) where
         T: VcValueType,
     {
         self.conditional_update_with_shared_reference(|old_shared_reference| {
             let old_ref = old_shared_reference.and_then(|sr| sr.0.downcast_ref::<T>());
-            let (new_value, updated_key_hashes) = functor(old_ref)?;
+            let (new_value, updated_key_hashes, content_hash) = functor(old_ref)?;
             Some((
                 SharedReference::new(triomphe::Arc::new(new_value)),
                 updated_key_hashes,
+                content_hash,
             ))
         })
     }
@@ -2048,7 +2053,11 @@ impl CurrentCellRef {
         &self,
         functor: impl FnOnce(
             Option<&SharedReference>,
-        ) -> Option<(SharedReference, Option<SmallVec<[u64; 2]>>)>,
+        ) -> Option<(
+            SharedReference,
+            Option<SmallVec<[u64; 2]>>,
+            Option<[u8; 16]>,
+        )>,
     ) {
         let tt = turbo_tasks();
         let cell_content = tt
@@ -2064,13 +2073,14 @@ impl CurrentCellRef {
             )
             .ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
-        if let Some((update, updated_key_hashes)) = update {
+        if let Some((update, updated_key_hashes, content_hash)) = update {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
                 self.is_serializable_cell_content,
                 CellContent(Some(update)),
                 updated_key_hashes,
+                content_hash,
                 VerificationMode::EqualityCheck,
             )
         }
@@ -2119,7 +2129,7 @@ impl CurrentCellRef {
             {
                 return None;
             }
-            Some((new_value, None))
+            Some((new_value, None, None))
         });
     }
 
@@ -2142,7 +2152,54 @@ impl CurrentCellRef {
                     return None;
                 }
             }
-            Some((new_shared_reference, None))
+            Some((new_shared_reference, None, None))
+        });
+    }
+
+    /// Replace the current cell's content if the new value is different.
+    ///
+    /// Like [`Self::compare_and_update`], but also computes and stores a hash of the value.
+    /// When the cell's transient data is evicted, the stored hash enables the backend to detect
+    /// whether the value actually changed without re-comparing values—avoiding unnecessary
+    /// downstream invalidation.
+    ///
+    /// Requires `T: DeterministicHash` in addition to `T: PartialEq`.
+    pub fn hashed_compare_and_update<T>(&self, new_value: T)
+    where
+        T: PartialEq + DeterministicHash + VcValueType,
+    {
+        self.conditional_update(|old_value| {
+            if let Some(old_value) = old_value
+                && old_value == &new_value
+            {
+                return None;
+            }
+            let content_hash = hash_xxh3_hash128(&new_value);
+            Some((new_value, None, Some(content_hash)))
+        });
+    }
+
+    /// Replace the current cell's content if the new value (from a pre-existing
+    /// [`SharedReference`]) is different.
+    ///
+    /// Like [`Self::compare_and_update_with_shared_reference`], but also passes a hash
+    /// for hash-based change detection when transient data has been evicted.
+    pub fn hashed_compare_and_update_with_shared_reference<T>(
+        &self,
+        new_shared_reference: SharedReference,
+    ) where
+        T: VcValueType + PartialEq + DeterministicHash,
+    {
+        self.conditional_update_with_shared_reference(move |old_sr| {
+            if let Some(old_sr) = old_sr {
+                let old_value = extract_sr_value::<T>(old_sr);
+                let new_value = extract_sr_value::<T>(&new_shared_reference);
+                if old_value == new_value {
+                    return None;
+                }
+            }
+            let content_hash = hash_xxh3_hash128(extract_sr_value::<T>(&new_shared_reference));
+            Some((new_shared_reference, None, Some(content_hash)))
         });
     }
 
@@ -2155,7 +2212,7 @@ impl CurrentCellRef {
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
-                return Some((new_value, None));
+                return Some((new_value, None, None));
             };
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value_ref = <T as VcValueType>::Read::value_to_target_ref(&new_value);
@@ -2168,7 +2225,7 @@ impl CurrentCellRef {
                 .into_iter()
                 .map(|key| FxBuildHasher.hash_one(key))
                 .collect();
-            Some((new_value, Some(updated_key_hashes)))
+            Some((new_value, Some(updated_key_hashes), None))
         });
     }
 
@@ -2184,7 +2241,7 @@ impl CurrentCellRef {
     {
         self.conditional_update_with_shared_reference(|old_sr| {
             let Some(old_sr) = old_sr else {
-                return Some((new_shared_reference, None));
+                return Some((new_shared_reference, None, None));
             };
             let old_value = extract_sr_value::<T>(old_sr);
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
@@ -2199,7 +2256,7 @@ impl CurrentCellRef {
                 .into_iter()
                 .map(|key| FxBuildHasher.hash_one(key))
                 .collect();
-            Some((new_shared_reference, Some(updated_key_hashes)))
+            Some((new_shared_reference, Some(updated_key_hashes), None))
         });
     }
 
@@ -2214,6 +2271,7 @@ impl CurrentCellRef {
             self.index,
             self.is_serializable_cell_content,
             CellContent(Some(SharedReference::new(triomphe::Arc::new(new_value)))),
+            None,
             None,
             verification_mode,
         )
@@ -2260,6 +2318,7 @@ impl CurrentCellRef {
                 self.index,
                 self.is_serializable_cell_content,
                 CellContent(Some(shared_ref)),
+                None,
                 None,
                 verification_mode,
             )
