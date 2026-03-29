@@ -1424,6 +1424,11 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_write_all_entrypoints_to_disk is not yet supported for daemon-backed projects",
+        ));
+    }
     let ctx = &project.ctx();
     let container = project.container();
     let tt = ctx.turbo_tasks();
@@ -1833,6 +1838,11 @@ async fn output_assets_operation(
 pub async fn project_entrypoints(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_entrypoints is not yet supported for daemon-backed projects",
+        ));
+    }
     let container = project.container();
 
     let (entrypoints, issues, diags) = project
@@ -1877,6 +1887,11 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_entrypoints_subscribe is not yet supported for daemon-backed projects",
+        ));
+    }
     let turbopack_ctx = project.ctx().clone();
     let container = project.container();
     subscribe(
@@ -1969,6 +1984,11 @@ pub fn project_hmr_events(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_hmr_events is not yet supported for daemon-backed projects",
+        ));
+    }
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
@@ -2109,6 +2129,11 @@ pub fn project_hmr_chunk_names_subscribe(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_hmr_chunk_names_subscribe is not yet supported for daemon-backed projects",
+        ));
+    }
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
@@ -2210,6 +2235,11 @@ pub fn project_update_info_subscribe(
     aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_update_info_subscribe is not yet supported for daemon-backed projects",
+        ));
+    }
     let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
         let message = ctx.value;
         Ok(vec![NapiUpdateMessage::from(message)])
@@ -2258,6 +2288,11 @@ pub fn project_compilation_events_subscribe(
     func: JsFunction,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_compilation_events_subscribe is not yet supported for daemon-backed projects",
+        ));
+    }
     let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
         func.create_threadsafe_function(0, |ctx| {
             let event: Arc<dyn CompilationEvent> = ctx.value;
@@ -2500,6 +2535,40 @@ pub async fn project_trace_source(
     frame: StackFrame,
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectTraceSource {
+            call_id,
+            project: remote.handle,
+            frame: next_api::ipc::protocol::StackFrame {
+                is_server: frame.is_server,
+                is_ignored: frame.is_ignored,
+                file: frame.file.clone(),
+                original_file: frame.original_file.clone(),
+                line: frame.line,
+                column: frame.column,
+                method_name: frame.method_name.clone(),
+            },
+            current_directory_file_url,
+        };
+        let result = remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return match result {
+            next_api::ipc::protocol::DaemonResult::StackFrame(opt) => Ok(opt.map(|f| StackFrame {
+                is_server: f.is_server,
+                is_ignored: f.is_ignored,
+                file: f.file,
+                original_file: f.original_file,
+                line: f.line,
+                column: f.column,
+                method_name: f.method_name,
+            })),
+            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
+        };
+    }
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
@@ -2526,6 +2595,23 @@ pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectGetSourceForAsset {
+            call_id,
+            project: remote.handle,
+            file_path: file_path.to_string(),
+        };
+        let result = remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return match result {
+            next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
+            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
+        };
+    }
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
@@ -2562,6 +2648,23 @@ pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectGetSourceMap {
+            call_id,
+            project: remote.handle,
+            file_path: file_path.to_string(),
+        };
+        let result = remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return match result {
+            next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
+            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
+        };
+    }
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
@@ -2596,6 +2699,24 @@ pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
+    if let Some(remote) = project.remote.as_ref() {
+        let call_id = remote.client.next_call_id();
+        let req = next_api::ipc::protocol::DaemonRequest::ProjectWriteAnalyzeData {
+            call_id,
+            project: remote.handle,
+            app_dir_only,
+        };
+        remote
+            .client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+        return Ok(TurbopackResult {
+            result: (),
+            issues: vec![],
+            diagnostics: vec![],
+        });
+    }
     let container = project.container();
     let (issues, diagnostics) = project
         .ctx()
