@@ -42,14 +42,14 @@ export function registerGetCompilationIssuesTool(
           }
         }
 
-        const { issues, diagnostics } = await project.getAllCompilationIssues()
-        const result = formatCompilationIssues(issues, diagnostics)
+        const { issues } = await project.getAllCompilationIssues()
+        const formattedIssues = formatCompilationIssues(issues)
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(result),
+              text: JSON.stringify({ issues: formattedIssues }),
             },
           ],
         }

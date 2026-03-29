@@ -1,8 +1,4 @@
-import type {
-  Diagnostics,
-  Issue,
-  StyledString,
-} from '../../../../build/swc/types'
+import type { Issue, StyledString } from '../../../../build/swc/types'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 /** Flatten a StyledString tree to plain text, discarding all styling. */
@@ -41,24 +37,13 @@ export interface FormattedIssue {
 }
 
 /**
- * Turbopack telemetry diagnostics (EVENT_BUILD_FEATURE_USAGE) track feature
- * adoption internally and are not actionable for the user.
- */
-const TELEMETRY_DIAGNOSTIC_NAME = 'EVENT_BUILD_FEATURE_USAGE'
-
-/**
- * Transform raw Turbopack issues and diagnostics into a clean format for MCP
- * consumers:
+ * Transform raw Turbopack issues into a clean format for MCP consumers:
  * - Flattens StyledString trees (title/description/detail) to plain strings
  * - Strips ANSI codes from code frames
  * - Converts 0-indexed source positions to 1-indexed
  * - Deduplicates issues (same error can surface from multiple endpoints)
- * - Excludes telemetry diagnostics (EVENT_BUILD_FEATURE_USAGE)
  */
-export function formatCompilationIssues(
-  issues: Issue[],
-  diagnostics: Diagnostics[]
-): { issues: FormattedIssue[]; diagnostics: Diagnostics[] } {
+export function formatCompilationIssues(issues: Issue[]): FormattedIssue[] {
   const seen = new Set<string>()
   const formattedIssues: FormattedIssue[] = []
 
@@ -102,9 +87,5 @@ export function formatCompilationIssues(
     })
   }
 
-  const filteredDiagnostics = diagnostics.filter(
-    (d) => d.name !== TELEMETRY_DIAGNOSTIC_NAME
-  )
-
-  return { issues: formattedIssues, diagnostics: filteredDiagnostics }
+  return formattedIssues
 }

@@ -35,7 +35,7 @@ describe('mcp-server get_compilation_issues tool', () => {
 
   type Issue = { severity: string; filePath: string; title: string }
 
-  let compilationResult: { issues: Issue[]; diagnostics: unknown[] }
+  let compilationResult: { issues: Issue[] }
 
   beforeAll(async () => {
     compilationResult = await callMcpTool()
@@ -49,7 +49,6 @@ describe('mcp-server get_compilation_issues tool', () => {
 
   it('should return compilation issues without requiring a browser session', () => {
     expect(compilationResult).toHaveProperty('issues')
-    expect(compilationResult).toHaveProperty('diagnostics')
     expect(Array.isArray(compilationResult.issues)).toBe(true)
   })
 
