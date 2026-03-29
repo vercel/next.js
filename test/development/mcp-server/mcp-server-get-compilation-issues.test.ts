@@ -33,7 +33,7 @@ describe('mcp-server get_compilation_issues tool', () => {
     return JSON.parse(result.result?.content?.[0]?.text)
   }
 
-  type Issue = { severity: string; filePath: string; title: unknown }
+  type Issue = { severity: string; filePath: string; title: string }
 
   let compilationResult: { issues: Issue[]; diagnostics: unknown[] }
 
@@ -60,7 +60,7 @@ describe('mcp-server get_compilation_issues tool', () => {
     const moduleNotFoundIssue = errors.find(
       (issue) =>
         issue.filePath.includes('missing-module') ||
-        JSON.stringify(issue.title).includes('non-existent-module')
+        issue.title.includes('non-existent-module')
     )
     expect(moduleNotFoundIssue).toBeDefined()
   })
@@ -83,5 +83,7 @@ describe('mcp-server get_compilation_issues tool', () => {
     expect(issue).toHaveProperty('title')
     expect(typeof issue.severity).toBe('string')
     expect(typeof issue.filePath).toBe('string')
+    // title must be a plain string, not a StyledString object
+    expect(typeof issue.title).toBe('string')
   })
 })

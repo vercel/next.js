@@ -10,6 +10,7 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { Project } from '../../../build/swc/types'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
+import { formatCompilationIssues } from './utils/format-compilation-issues'
 
 export function registerGetCompilationIssuesTool(
   server: McpServer,
@@ -42,12 +43,13 @@ export function registerGetCompilationIssuesTool(
         }
 
         const { issues, diagnostics } = await project.getAllCompilationIssues()
+        const result = formatCompilationIssues(issues, diagnostics)
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ issues, diagnostics }),
+              text: JSON.stringify(result),
             },
           ],
         }
