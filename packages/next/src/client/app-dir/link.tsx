@@ -695,6 +695,9 @@ export default function LinkComponent(
       if (!prefetchEnabled) {
         return
       }
+      if (process.env.NODE_ENV === 'development' && !process.env.TURBOPACK) {
+        return
+      }
 
       const upgradeToDynamicPrefetch = unstable_dynamicOnHover === true
       onNavigationIntent(
