@@ -198,6 +198,7 @@ pub struct EdgeChunkingContextOptions {
     pub turbo_source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub esm_chunks: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub client_static_folder_name: RcStr,
@@ -225,6 +226,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        esm_chunks,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -268,6 +270,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    .esm_chunks(*esm_chunks.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
@@ -310,6 +313,7 @@ pub async fn get_edge_chunking_context(
         turbo_source_maps,
         no_mangling,
         scope_hoisting,
+        esm_chunks,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -370,6 +374,7 @@ pub async fn get_edge_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    .esm_chunks(*esm_chunks.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {

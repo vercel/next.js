@@ -475,6 +475,7 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub esm_chunks: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -502,6 +503,7 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        esm_chunks,
         nested_async_chunking,
         debug_ids,
         should_use_absolute_url_references,
@@ -546,6 +548,7 @@ pub async fn get_client_chunking_context(
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
+    .esm_chunks(*esm_chunks.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
     .hash_salt(hash_salt)
     .default_url_behavior(UrlBehavior {
