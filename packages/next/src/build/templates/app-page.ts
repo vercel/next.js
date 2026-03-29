@@ -98,9 +98,7 @@ declare const tree: LoaderTree
 
 // These are injected by the loader afterwards.
 declare const __next_app_require__: (id: string | number) => unknown
-declare const __next_app_load_chunk__: (
-  id: string | number
-) => Promise<unknown> | void
+declare const __next_app_load_chunk__: (id: string | number) => void
 
 // We inject the tree and pages here so that we can use them in the route
 // module.

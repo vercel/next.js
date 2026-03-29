@@ -227,7 +227,6 @@ import { createServerInsertedMetadata } from './metadata-insertion/create-server
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
 import {
-  trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
 } from './module-loading/track-module-loading.external'
@@ -2195,15 +2194,7 @@ function installGlobalModuleLoadingHandlers(
   }
 
   // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    id: Parameters<typeof instrumented.loadChunk>[0]
-  ) => {
-    const result = instrumented.loadChunk(id)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(result)
-    }
-    return result
-  }
+  globalThis.__next_chunk_load__ = instrumented.loadChunk
 }
 
 async function renderToHTMLOrFlightImpl(

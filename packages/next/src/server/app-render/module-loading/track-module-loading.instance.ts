@@ -13,14 +13,6 @@ function getModuleLoadingSignal() {
   return _moduleLoadingSignal
 }
 
-export function trackPendingChunkLoad(promiseOrVoid: Promise<unknown> | void) {
-  // On Node.js with Turbopack, chunk loading is synchronous and returns void.
-  // Only track when we have an actual promise.
-  if (!promiseOrVoid) return
-  const moduleLoadingSignal = getModuleLoadingSignal()
-  moduleLoadingSignal.trackRead(promiseOrVoid)
-}
-
 export function trackPendingImport(exportsOrPromise: unknown) {
   const moduleLoadingSignal = getModuleLoadingSignal()
 

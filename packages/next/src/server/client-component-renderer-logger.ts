@@ -29,18 +29,8 @@ export function wrapClientComponentLoader(
     },
     loadChunk: (id) => {
       const startTime = performance.now()
-      const result = ComponentMod.__next_app__.loadChunk(id)
-      if (result) {
-        // Avoid wrapping `loadChunk`'s result in an extra promise in case something like React depends on its identity.
-        // We only need to know when it's settled.
-        result.finally(() => {
-          clientComponentLoadTimes += performance.now() - startTime
-        })
-      } else {
-        // Synchronous chunk load (e.g. Node.js Turbopack runtime)
-        clientComponentLoadTimes += performance.now() - startTime
-      }
-      return result
+      ComponentMod.__next_app__.loadChunk(id)
+      clientComponentLoadTimes += performance.now() - startTime
     },
   }
 }
