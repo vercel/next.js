@@ -40,7 +40,6 @@ describe('app dir - workers', () => {
   })
 
   it('should support module web workers with dynamic imports', async () => {
-    if (!isTurbopack) return
     const browser = await next.browser('/module', {
       beforePageLoad,
     })
