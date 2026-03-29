@@ -677,7 +677,7 @@ export interface ExperimentalConfig {
    * of classic scripts (using `globalThis["TURBOPACK"].push` and `<script>` tags).
    * All chunks will run in strict mode. Defaults to false.
    */
-  turbopackEsmChunks?: boolean
+  turbopackBrowserEsmChunks?: boolean
 
   /**
    * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.

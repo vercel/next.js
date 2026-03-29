@@ -1157,7 +1157,7 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
-    turbopack_esm_chunks: Option<bool>,
+    turbopack_browser_esm_chunks: Option<bool>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
@@ -2168,7 +2168,11 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn turbo_esm_chunks(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.turbopack_esm_chunks.unwrap_or(false))
+        Vc::cell(
+            self.experimental
+                .turbopack_browser_esm_chunks
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
