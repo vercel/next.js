@@ -157,8 +157,13 @@ export async function startTurboTraceServerCli(
     }
   )
 
-  // Start the HTTP server for MCP.
+  // Start the HTTP server for MCP (served at /mcp).
   const server = http.createServer(async (req, res) => {
+    if (req.url !== '/mcp') {
+      res.writeHead(404, { 'Content-Type': 'text/plain' })
+      res.end('Not found. MCP endpoint is at /mcp\n')
+      return
+    }
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     })
@@ -197,10 +202,10 @@ export async function startTurboTraceServerCli(
 
   server.listen(httpPort, '127.0.0.1', () => {
     console.log(
-      `Trace server MCP endpoint started at http://127.0.0.1:${httpPort}/`
+      `Query this trace from the command line: next internal query-trace --help`
     )
     console.log(
-      `To query this trace server from the command line, run: next internal query-trace --help`
+      `Alternatively, connect an MCP client to http://127.0.0.1:${httpPort}/mcp`
     )
   })
 }

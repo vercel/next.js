@@ -32,7 +32,7 @@ export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
 
   let res: Response
   try {
-    res = await fetch(`http://127.0.0.1:${port}/`, {
+    res = await fetch(`http://127.0.0.1:${port}/mcp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

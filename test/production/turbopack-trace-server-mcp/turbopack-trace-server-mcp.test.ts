@@ -67,7 +67,7 @@ async function callMcpTool(
   toolName: string,
   args: Record<string, unknown>
 ): Promise<string> {
-  const res = await fetch(`http://127.0.0.1:${port}/`, {
+  const res = await fetch(`http://127.0.0.1:${port}/mcp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ describe('turbopack-trace-server-mcp', () => {
     // 4. Wait for the MCP HTTP server to be ready.
     await retry(
       async () => {
-        const res = await fetch(`http://127.0.0.1:${mcpPort}/`, {
+        const res = await fetch(`http://127.0.0.1:${mcpPort}/mcp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
