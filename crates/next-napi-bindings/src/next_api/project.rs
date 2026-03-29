@@ -468,7 +468,7 @@ pub fn project_new(
     if let Some(mut trace) = trace {
         let internal_dir = PathBuf::from(&options.root_path)
             .join(&options.project_path)
-            .join(&options.dist_dir);
+            .join(".next-profiles");
         let trace_file = internal_dir.join("trace-turbopack");
 
         println!("Turbopack tracing enabled with targets: {trace}");
@@ -509,7 +509,7 @@ pub fn project_new(
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
+            .context("Unable to create .next-profiles directory")
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
