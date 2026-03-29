@@ -90,7 +90,13 @@ pub async fn run_daemon_server(socket_path: &str) -> Result<()> {
         std::io::stdout().flush()?;
 
         loop {
-            let (conn, _) = listener.accept().await?;
+            let (conn, _) = match listener.accept().await {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Daemon accept error (retrying): {e}");
+                    continue;
+                }
+            };
             let state = state.clone();
             tokio::spawn(async move {
                 if let Err(e) = handle_connection(conn, state).await {
@@ -338,6 +344,7 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
             // the map (it may be re-used). Shutdown also removes the handle.
             if let Some(proj) = state.get_project(project).await {
                 proj.turbo_tasks.stop_and_wait().await;
+                state.projects.write().await.remove(&project);
             }
             DaemonResponse::Ok {
                 call_id,

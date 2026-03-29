@@ -95,7 +95,10 @@ impl DaemonClient {
                 let response: DaemonResponse =
                     match bincode::decode_from_slice(&payload, bincode::config::standard()) {
                         Ok((resp, _)) => resp,
-                        Err(_) => continue,
+                        Err(e) => {
+                            eprintln!("Failed to decode daemon response, closing connection: {e}");
+                            break;
+                        }
                     };
                 match response {
                     response @ (DaemonResponse::Ok { .. } | DaemonResponse::Err { .. }) => {
@@ -201,12 +204,16 @@ pub async fn write_framed<W: AsyncWriteExt + Unpin>(
     w: &mut W,
     payload: &[u8],
 ) -> std::io::Result<()> {
-    let len = u32::try_from(payload.len()).map_err(|_| {
-        std::io::Error::new(
+    if payload.len() > MAX_FRAME_SIZE {
+        return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "frame payload exceeds 4 GiB",
-        )
-    })?;
+            format!(
+                "frame payload size {} exceeds maximum of {MAX_FRAME_SIZE}",
+                payload.len()
+            ),
+        ));
+    }
+    let len = payload.len() as u32;
     w.write_all(&len.to_le_bytes()).await?;
     w.write_all(payload).await?;
     w.flush().await

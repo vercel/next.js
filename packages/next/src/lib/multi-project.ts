@@ -22,9 +22,10 @@ export function parseProjectGroups(argv: string[]): ProjectGroup[] {
   let current: ProjectGroup | null = null
 
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--experimental-project') {
+    const [mainFlag, mainEqVal] = argv[i].split('=', 2)
+    if (mainFlag === '--experimental-project') {
       if (current) groups.push(current)
-      const dir = argv[++i]
+      const dir = mainEqVal ?? argv[++i]
       if (!dir || dir.startsWith('-')) {
         throw new Error('--experimental-project requires a directory argument')
       }
@@ -32,8 +33,10 @@ export function parseProjectGroups(argv: string[]): ProjectGroup[] {
     } else if (current) {
       // Unknown flags between --experimental-project groups are intentionally ignored.
       // Each worker receives the full argv and handles its own flags.
-      if (argv[i] === '--port' || argv[i] === '-p') {
-        const portStr = argv[++i]
+      // Handle both --port 3000 and --port=3000 forms
+      const [flag, eqVal] = argv[i].split('=', 2)
+      if (flag === '--port' || flag === '-p') {
+        const portStr = eqVal ?? argv[++i]
         const port = parseInt(portStr, 10)
         if (!Number.isInteger(port) || port < 0 || port > 65535) {
           throw new Error(
@@ -80,19 +83,51 @@ async function spawnDaemon(
     }
   )
 
+  // Wait for daemon to emit "READY" on stdout, with a 30-second timeout.
   await new Promise<void>((resolve, reject) => {
-    daemon.stdout!.setEncoding('utf8')
     let buffer = ''
-    daemon.stdout!.on('data', (chunk: string) => {
+    const timeoutMs = 30_000
+
+    const cleanup = () => {
+      daemon.stdout!.off('data', onData)
+      daemon.off('exit', onExit)
+      daemon.off('error', onError)
+      clearTimeout(timer)
+    }
+
+    const onData = (chunk: string) => {
       buffer += chunk
       if (buffer.includes('READY')) {
+        cleanup()
         resolve()
       }
-    })
-    daemon.on('exit', (code) => {
+    }
+
+    const onExit = (code: number | null) => {
+      cleanup()
       reject(new Error(`Daemon exited early with code ${code}`))
-    })
-    daemon.on('error', reject)
+    }
+
+    const onError = (err: Error) => {
+      cleanup()
+      reject(err)
+    }
+
+    const timer = setTimeout(() => {
+      cleanup()
+      daemon.kill('SIGKILL')
+      reject(
+        new Error(
+          `Turbopack daemon did not become ready within ${timeoutMs / 1000}s`
+        )
+      )
+    }, timeoutMs)
+    timer.unref()
+
+    daemon.stdout!.setEncoding('utf8')
+    daemon.stdout!.on('data', onData)
+    daemon.on('exit', onExit)
+    daemon.on('error', onError)
   })
 
   return daemon
@@ -139,10 +174,8 @@ export async function runMultiProject(
   // 1. Spawn daemon
   const daemon = await spawnDaemon(nextBin, socketPath)
 
-  // 2. Spawn one worker per project
-  const workers = projects.map((group) =>
-    spawnWorker(nextBin, command, group, socketPath)
-  )
+  // Track workers so the daemon crash handler can kill them
+  const workers: ChildProcess[] = []
 
   // If the daemon crashes unexpectedly, kill all workers
   daemon.on('exit', (code, signal) => {
@@ -150,9 +183,16 @@ export async function runMultiProject(
       console.error(
         `Turbopack daemon exited unexpectedly (code ${code}, signal ${signal}), killing workers`
       )
-      workers.forEach((w) => w.kill('SIGTERM'))
+      workers.forEach((w) => {
+        if (!w.killed) w.kill('SIGTERM')
+      })
     }
   })
+
+  // 2. Spawn one worker per project
+  workers.push(
+    ...projects.map((group) => spawnWorker(nextBin, command, group, socketPath))
+  )
 
   const cleanupSocket = () => {
     if (process.platform !== 'win32') {
@@ -166,21 +206,38 @@ export async function runMultiProject(
   }
 
   // Best-effort cleanup on unexpected exit
-  process.on('exit', cleanupSocket)
+  process.on('exit', () => {
+    // Best-effort cleanup — exit handlers must not throw
+    try {
+      cleanupSocket()
+    } catch {
+      // Ignore all errors at exit time
+    }
+  })
 
   // 3. Forward signals to daemon + all workers
   const forwardSignal = (signal: NodeJS.Signals) => {
-    daemon.kill(signal)
-    workers.forEach((w) => w.kill(signal))
+    if (!daemon.killed) daemon.kill(signal)
+    workers.forEach((w) => {
+      if (!w.killed) w.kill(signal)
+    })
     // Force exit after 5 seconds if children don't terminate
     setTimeout(() => {
-      daemon.kill('SIGKILL')
-      workers.forEach((w) => w.kill('SIGKILL'))
-      process.exit(signal === 'SIGINT' ? 130 : 143)
+      if (!daemon.killed) daemon.kill('SIGKILL')
+      workers.forEach((w) => {
+        if (!w.killed) w.kill('SIGKILL')
+      })
+      const exitCodes: Record<string, number> = {
+        SIGINT: 130,
+        SIGTERM: 143,
+        SIGHUP: 129,
+      }
+      process.exit(exitCodes[signal] ?? 143)
     }, 5000).unref()
   }
   process.on('SIGINT', () => forwardSignal('SIGINT'))
   process.on('SIGTERM', () => forwardSignal('SIGTERM'))
+  process.on('SIGHUP', () => forwardSignal('SIGHUP'))
 
   // 4. Wait for all workers to exit, then kill daemon
   await Promise.allSettled(workers.map((w) => once(w, 'exit')))
@@ -189,4 +246,5 @@ export async function runMultiProject(
   // On Windows, named pipes are automatically cleaned up by the OS.
   daemon.kill('SIGTERM')
   cleanupSocket()
+  process.exit(0)
 }

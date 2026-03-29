@@ -1,7 +1,7 @@
 [package]
 name = "next-api"
 version = "0.1.0"
-description = "TBD"
+description = "Next.js Turbopack API — project management, IPC daemon, and build orchestration"
 license = "MIT"
 edition = "2024"
 autobenches = false

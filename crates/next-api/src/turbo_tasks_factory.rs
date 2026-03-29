@@ -116,6 +116,6 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
     }
 
     fn to_json(&self) -> String {
-        serde_json::to_string(self).unwrap()
+        serde_json::to_string(self).unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}"))
     }
 }

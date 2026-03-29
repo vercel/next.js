@@ -137,7 +137,8 @@ function parseValidInspectAddress(value: string): DebugAddress {
 
 /**
  * Lazily parses raw process.argv for --experimental-project groups using the
- * multi-project helper.
+ * multi-project helper. Even a single --experimental-project activates the
+ * shared Turbopack daemon.
  */
 function getProjectGroups() {
   const { parseProjectGroups } =
@@ -258,7 +259,7 @@ program
 
     // Multi-project detection: parse raw argv for --experimental-project groups
     const projects = getProjectGroups()
-    if (projects.length >= 2) {
+    if (projects.length >= 1) {
       return import('../lib/multi-project.js').then((mod) =>
         mod.runMultiProject('build', projects)
       )
@@ -425,7 +426,7 @@ program
 
       // Multi-project detection: parse raw argv for --experimental-project groups
       const projects = getProjectGroups()
-      if (projects.length >= 2) {
+      if (projects.length >= 1) {
         return import('../lib/multi-project.js').then((mod) =>
           mod.runMultiProject('dev', projects)
         )

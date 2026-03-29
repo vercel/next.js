@@ -2734,6 +2734,11 @@ pub fn project_get_source_map_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_get_source_map_sync is not supported for daemon-backed projects",
+        ));
+    }
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
@@ -2744,24 +2749,10 @@ pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
-    if let Some(remote) = project.remote.as_ref() {
-        let handle = remote.handle;
-        remote
-            .call_unit(
-                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectWriteAnalyzeData {
-                    call_id,
-                    project: handle,
-                    app_dir_only,
-                },
-            )
-            .await?;
-        // TODO(multi-project): decode issues/diagnostics from daemon response
-        // once the daemon implements write_analyze_data dispatch.
-        return Ok(TurbopackResult {
-            result: (),
-            issues: vec![],
-            diagnostics: vec![],
-        });
+    if project.remote.is_some() {
+        return Err(napi::Error::from_reason(
+            "project_write_analyze_data is not yet supported for daemon-backed projects",
+        ));
     }
     let container = project.container();
     let (issues, diagnostics) = project

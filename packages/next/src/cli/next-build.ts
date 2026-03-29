@@ -42,6 +42,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   // Set directly on process.env so all in-process Turbopack call sites
   // (e.g. turbopack-build/impl.ts) can read it.
+  // Set unconditionally — only read by connectDaemonFromEnv() in turbopack
+  // code paths; harmless for webpack builds since those paths are not reached.
   if (options.turbopackDaemon) {
     process.env.NEXT_TURBOPACK_DAEMON_SOCKET = options.turbopackDaemon
   }

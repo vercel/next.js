@@ -1173,5 +1173,7 @@
   "1172": "Daemon exited early with code %s",
   "1173": "Turbopack daemon is not supported on this platform because native bindings are not available.",
   "1174": "--port requires a valid port number (0-65535), got: %s",
-  "1175": "--experimental-project requires a directory argument"
+  "1175": "--experimental-project requires a directory argument",
+  "1176": "--port requires a valid port number (0-65535), got: %s%s",
+  "1177": "Turbopack daemon did not become ready within %s%ss"
 }
