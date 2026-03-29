@@ -1,5 +1,5 @@
-import { result } from './tla-module'
+import './tla-module'
 
 export default function Page() {
-  return <p>{result}</p>
+  return <p>done</p>
 }
