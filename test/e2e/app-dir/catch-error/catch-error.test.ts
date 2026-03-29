@@ -67,6 +67,19 @@ describe('app-dir - unstable_catchError', () => {
     expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
   })
 
+  it('should recover SSR Client Component error in dynamic route after unstable_retry', async () => {
+    const browser = await next.browser('/ssr/test-slug')
+
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      'this is a test'
+    )
+
+    await browser.elementByCss('#retry').click().waitForElementByCss('#recover')
+
+    expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+    expect(await browser.elementByCss('#slug').text()).toBe('test-slug')
+  })
+
   it('should recover Server Component error after unstable_retry', async () => {
     const browser = await next.browser('/server-component')
 
