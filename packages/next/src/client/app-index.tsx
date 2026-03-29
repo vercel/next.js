@@ -346,6 +346,14 @@ export type ClientInstrumentationHooks = {
   ) => void
 }
 
+// When the dev error shell is served, this holds the error parsed from
+// the <template> tag. The caller (app-next-dev.ts) reads it after
+// hydrate() returns to dispatch to the dev overlay.
+let _pendingShellError: Error | null = null
+export function getPendingShellError(): Error | null {
+  return _pendingShellError
+}
+
 export async function hydrate(
   instrumentationHooks: ClientInstrumentationHooks | null,
   assetPrefix: string
@@ -372,14 +380,15 @@ export async function hydrate(
       // Note: this is distinct from __next_error__ which is used by
       // app-render.tsx for SSR errors that have valid RSC payloads.
       //
-      // Replay any error embedded in the <template> tag so the overlay
-      // shows the initial SSR/compilation error immediately.
+      // Store the error from the <template> tag so the caller
+      // (app-next-dev.ts) can dispatch it to the dev overlay after
+      // mounting. We can't dispatch here because the HotReloader never
+      // mounts in this shell and handleClientError wouldn't reach the
+      // overlay, and the dev overlay hasn't been rendered yet.
       const ssrErrorTemplate = document.querySelector(
         'template[data-next-error-message]'
       )
       if (ssrErrorTemplate) {
-        const { handleClientError } =
-          require('../next-devtools/userspace/app/errors/use-error-handler') as typeof import('../next-devtools/userspace/app/errors/use-error-handler')
         const message = ssrErrorTemplate.getAttribute(
           'data-next-error-message'
         )!
@@ -390,7 +399,7 @@ export async function hydrate(
           ;(error as any).digest = digest
         }
         error.stack = stack || ''
-        handleClientError(error)
+        _pendingShellError = error
       }
       return
     }
