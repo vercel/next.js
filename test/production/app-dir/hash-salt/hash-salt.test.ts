@@ -55,11 +55,14 @@ describe('NEXT_HASH_SALT', () => {
   let saltASecond: Awaited<ReturnType<typeof buildWithSalt>>
   let saltB: Awaited<ReturnType<typeof buildWithSalt>>
 
-  beforeAll(async () => {
-    saltAFirst = await buildWithSalt('salt-a')
-    saltASecond = await buildWithSalt('salt-a')
-    saltB = await buildWithSalt('salt-b')
-  })
+  beforeAll(
+    async () => {
+      saltAFirst = await buildWithSalt('salt-a')
+      saltASecond = await buildWithSalt('salt-a')
+      saltB = await buildWithSalt('salt-b')
+    },
+    5 * 60 * 1000
+  )
 
   it('should produce chunk files', () => {
     expect(saltAFirst.chunks.length).toBeGreaterThan(0)
@@ -126,15 +129,18 @@ describe('experimental.outputHashSalt', () => {
   let envOnlyChunks: string[]
   let bothChunks: string[]
 
-  beforeAll(async () => {
-    noSaltChunks = await buildWithSalts({})
-    configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
-    envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
-    bothChunks = await buildWithSalts({
-      configSalt: 'config-salt',
-      envSalt: 'env-salt',
-    })
-  })
+  beforeAll(
+    async () => {
+      noSaltChunks = await buildWithSalts({})
+      configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
+      envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
+      bothChunks = await buildWithSalts({
+        configSalt: 'config-salt',
+        envSalt: 'env-salt',
+      })
+    },
+    5 * 60 * 1000
+  )
 
   it('config salt changes filenames compared to no salt', () => {
     expect(configOnlyChunks.sort()).not.toEqual(noSaltChunks.sort())
