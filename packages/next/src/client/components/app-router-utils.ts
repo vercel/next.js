@@ -29,11 +29,6 @@ export function createPrefetchURL(href: string): URL | null {
     )
   }
 
-  // Don't prefetch during development (improves compilation performance)
-  if (process.env.NODE_ENV === 'development') {
-    return null
-  }
-
   // External urls can't be prefetched in the same way.
   if (isExternalURL(url)) {
     return null
