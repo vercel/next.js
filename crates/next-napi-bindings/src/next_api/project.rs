@@ -2508,6 +2508,66 @@ pub async fn project_write_analyze_data(
     })
 }
 
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the module graph for all endpoints without chunking, code gen, or disk emission.
+    // whole_app_module_graphs() triggers module resolution + transformation for all entrypoints.
+    // Issues (resolve errors, transform errors, missing modules) are emitted as collectables.
+    let whole_app_module_graphs = project.whole_app_module_graphs();
+    whole_app_module_graphs.as_side_effect().await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*op.read_strongly_consistent().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
 /// Opens the Turbopack persistent cache database at the given path and performs a full compaction.
 ///
 /// The `path` should point to the `<distDir>/cache/turbopack` directory.
