@@ -135,6 +135,16 @@ function parseValidInspectAddress(value: string): DebugAddress {
   return address
 }
 
+/**
+ * Lazily parses raw process.argv for --project groups using the multi-project
+ * helper. Avoids duplicating the inline require pattern at each call site.
+ */
+function getProjectGroups() {
+  const { parseProjectGroups } =
+    require('../lib/multi-project') as typeof import('../lib/multi-project')
+  return parseProjectGroups(process.argv)
+}
+
 const program = new NextRootCommand()
 
 program
@@ -247,9 +257,7 @@ program
     }
 
     // Multi-project detection: parse raw argv for --project groups
-    const { parseProjectGroups } =
-      require('../lib/multi-project') as typeof import('../lib/multi-project')
-    const projects = parseProjectGroups(process.argv)
+    const projects = getProjectGroups()
     if (projects.length >= 2) {
       return import('../lib/multi-project.js').then((mod) =>
         mod.runMultiProject('build', projects)
@@ -416,9 +424,7 @@ program
       }
 
       // Multi-project detection: parse raw argv for --project groups
-      const { parseProjectGroups } =
-        require('../lib/multi-project') as typeof import('../lib/multi-project')
-      const projects = parseProjectGroups(process.argv)
+      const projects = getProjectGroups()
       if (projects.length >= 2) {
         return import('../lib/multi-project.js').then((mod) =>
           mod.runMultiProject('dev', projects)

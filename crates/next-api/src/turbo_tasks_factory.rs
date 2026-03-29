@@ -30,6 +30,14 @@ pub fn git_version_info() -> GitVersionInfo<'static> {
     }
 }
 
+/// Creates a new [`TurboTasks`] instance configured for Next.js.
+///
+/// * `output_path` — the dist directory (e.g. `.next/`), used for the persistent cache.
+/// * `persistent_caching` — whether to use on-disk backing storage.
+/// * `_memory_limit` — reserved for future use; currently unused.
+/// * `dependency_tracking` — when false, any change triggers an error instead of re-computation.
+/// * `is_ci` / `is_short_session` — control the storage flush strategy.
+/// * `skip_compaction` — skip database compaction during shutdown.
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,

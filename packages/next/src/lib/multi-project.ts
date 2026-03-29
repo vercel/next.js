@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process'
+import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
@@ -25,6 +26,8 @@ export function parseProjectGroups(argv: string[]): ProjectGroup[] {
       if (current) groups.push(current)
       current = { dir: argv[++i] }
     } else if (current) {
+      // Unknown flags between --project groups are intentionally ignored.
+      // Each worker receives the full argv and handles its own flags.
       if (argv[i] === '--port' || argv[i] === '-p') {
         current.port = parseInt(argv[++i], 10)
       } else if (argv[i] === '--turbopack' || argv[i] === '--turbo') {
@@ -103,6 +106,7 @@ function spawnWorker(
   } else if (group.webpack) {
     args.push('--webpack')
   }
+  // Always pass the daemon socket; webpack-mode workers simply ignore it
   args.push('--turbopack-daemon', socketPath)
 
   return spawn(process.execPath, args, {
@@ -144,7 +148,10 @@ export async function runMultiProject(
   daemon.kill('SIGTERM')
   if (process.platform !== 'win32') {
     try {
-      ;(require('fs') as typeof import('fs')).unlinkSync(socketPath)
-    } catch (_) {}
+      fs.unlinkSync(socketPath)
+    } catch (err: unknown) {
+      // Ignore ENOENT — daemon may have already removed the socket
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    }
   }
 }

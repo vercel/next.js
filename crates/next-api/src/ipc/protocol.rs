@@ -196,6 +196,35 @@ pub enum DaemonResult {
     StringOption(Option<String>),
 }
 
+impl DaemonRequest {
+    /// Returns the `call_id` for this request, if it has one.
+    /// `CancelSubscription` is fire-and-forget and has no `call_id`.
+    pub fn call_id(&self) -> Option<CallId> {
+        match self {
+            DaemonRequest::CancelSubscription { .. } => None,
+            DaemonRequest::ProjectNew { call_id, .. }
+            | DaemonRequest::ProjectUpdate { call_id, .. }
+            | DaemonRequest::ProjectInvalidateFileSystemCache { call_id, .. }
+            | DaemonRequest::ProjectShutdown { call_id, .. }
+            | DaemonRequest::ProjectOnExit { call_id, .. }
+            | DaemonRequest::ProjectWriteAllEntrypointsToDisk { call_id, .. }
+            | DaemonRequest::ProjectWriteAnalyzeData { call_id, .. }
+            | DaemonRequest::ProjectEntrypointsSubscribe { call_id, .. }
+            | DaemonRequest::ProjectHmrEvents { call_id, .. }
+            | DaemonRequest::ProjectHmrChunkNamesSubscribe { call_id, .. }
+            | DaemonRequest::ProjectUpdateInfoSubscribe { call_id, .. }
+            | DaemonRequest::ProjectCompilationEventsSubscribe { call_id, .. }
+            | DaemonRequest::ProjectTraceSource { call_id, .. }
+            | DaemonRequest::ProjectGetSourceForAsset { call_id, .. }
+            | DaemonRequest::ProjectGetSourceMap { call_id, .. }
+            | DaemonRequest::EndpointWriteToDisk { call_id, .. }
+            | DaemonRequest::EndpointServerChangedSubscribe { call_id, .. }
+            | DaemonRequest::EndpointClientChangedSubscribe { call_id, .. }
+            | DaemonRequest::RootTaskDispose { call_id, .. } => Some(*call_id),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

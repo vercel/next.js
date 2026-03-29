@@ -378,10 +378,8 @@ export async function createHotReloaderTurbopack(
     opts.nextConfig.outputFileTracingRoot ||
     projectPath
   // Connect to daemon if socket path is provided via environment
-  const daemonSocketPath = process.env.NEXT_TURBOPACK_DAEMON_SOCKET
-  const daemon = daemonSocketPath
-    ? await bindings.turbo.connectTurbopackDaemon(daemonSocketPath)
-    : undefined
+  const { connectDaemonFromEnv } = await import('../../build/swc')
+  const daemon = await connectDaemonFromEnv(bindings)
 
   const project = await bindings.turbo.createProject(
     {

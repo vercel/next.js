@@ -40,6 +40,8 @@ export type NextBuildOptions = {
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
 
+  // Set directly on process.env so all in-process Turbopack call sites
+  // (e.g. turbopack-build/impl.ts) can read it.
   if (options.turbopackDaemon) {
     process.env.NEXT_TURBOPACK_DAEMON_SOCKET = options.turbopackDaemon
   }

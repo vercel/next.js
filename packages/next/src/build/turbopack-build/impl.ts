@@ -127,10 +127,8 @@ export async function turbopackBuild(): Promise<{
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
   // Connect to daemon if socket path is provided via environment
-  const daemonSocketPath = process.env.NEXT_TURBOPACK_DAEMON_SOCKET
-  const daemon = daemonSocketPath
-    ? await bindings.turbo.connectTurbopackDaemon(daemonSocketPath)
-    : undefined
+  const { connectDaemonFromEnv } = await import('../swc')
+  const daemon = await connectDaemonFromEnv(bindings)
 
   const project = await bindings.turbo.createProject(
     {

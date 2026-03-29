@@ -1875,3 +1875,15 @@ export async function warnForEdgeRuntime(
 ): Promise<NapiSourceDiagnostic[]> {
   return getBindingsSync().rspack.warnForEdgeRuntime(source, isProduction)
 }
+
+/**
+ * Connects to the shared Turbopack daemon if `NEXT_TURBOPACK_DAEMON_SOCKET`
+ * is set in the environment. Returns `undefined` when running without a daemon.
+ */
+export async function connectDaemonFromEnv(
+  bindings: Binding
+): Promise<{ __napiType: 'DaemonHandle' } | undefined> {
+  const socketPath = process.env.NEXT_TURBOPACK_DAEMON_SOCKET
+  if (!socketPath) return undefined
+  return bindings.turbo.connectTurbopackDaemon(socketPath)
+}

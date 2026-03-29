@@ -417,7 +417,6 @@ pub struct ProjectInstance {
     container: Option<ResolvedVc<ProjectContainer>>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
     /// When set, this project was created via the daemon IPC path.
-    #[allow(dead_code)]
     remote: Option<RemoteProject>,
 }
 
@@ -425,6 +424,34 @@ pub struct ProjectInstance {
 pub struct RemoteProject {
     pub client: next_api::ipc::client::DaemonClient,
     pub handle: next_api::ipc::protocol::OpaqueHandle,
+}
+
+impl RemoteProject {
+    /// Send a request to the daemon and return the result.
+    async fn call(
+        &self,
+        build_req: impl FnOnce(
+            next_api::ipc::protocol::CallId,
+        ) -> next_api::ipc::protocol::DaemonRequest,
+    ) -> napi::Result<next_api::ipc::protocol::DaemonResult> {
+        let call_id = self.client.next_call_id();
+        let req = build_req(call_id);
+        self.client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    /// Send a request expecting a `DaemonResult::Unit` response.
+    async fn call_unit(
+        &self,
+        build_req: impl FnOnce(
+            next_api::ipc::protocol::CallId,
+        ) -> next_api::ipc::protocol::DaemonRequest,
+    ) -> napi::Result<()> {
+        self.call(build_req).await?;
+        Ok(())
+    }
 }
 
 impl ProjectInstance {
@@ -439,12 +466,6 @@ impl ProjectInstance {
     fn container(&self) -> ResolvedVc<ProjectContainer> {
         self.container
             .expect("container not available on remote project")
-    }
-
-    /// Returns true if this is a remote (daemon-backed) project.
-    #[allow(dead_code)]
-    fn is_remote(&self) -> bool {
-        self.remote.is_some()
     }
 }
 
@@ -494,7 +515,7 @@ pub fn project_new(
                         }),
                     }))
                 }
-                _ => Err(napi::Error::from_reason("unexpected daemon response")),
+                _ => Err(napi::Error::from_reason("Unexpected daemon response")),
             }
         });
     }
@@ -787,17 +808,17 @@ pub async fn project_update(
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectUpdate {
-            call_id,
-            project: remote.handle,
-            options: options.into(),
-        };
+        let handle = remote.handle;
+        let options = options.into();
         remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectUpdate {
+                    call_id,
+                    project: handle,
+                    options,
+                },
+            )
+            .await?;
         return Ok(());
     }
     let ctx = &project.ctx();
@@ -817,16 +838,15 @@ pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectInvalidateFileSystemCache {
-            call_id,
-            project: remote.handle,
-        };
+        let handle = remote.handle;
         remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call_unit(|call_id| {
+                next_api::ipc::protocol::DaemonRequest::ProjectInvalidateFileSystemCache {
+                    call_id,
+                    project: handle,
+                }
+            })
+            .await?;
         return Ok(());
     }
     tokio::task::spawn_blocking(move || {
@@ -853,12 +873,15 @@ pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectOnExit {
-            call_id,
-            project: remote.handle,
-        };
-        let _ = remote.client.call(req).await;
+        let handle = remote.handle;
+        let _ = remote
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectOnExit {
+                    call_id,
+                    project: handle,
+                },
+            )
+            .await;
         return;
     }
     project_on_exit_internal(&project).await
@@ -883,12 +906,15 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectShutdown {
-            call_id,
-            project: remote.handle,
-        };
-        let _ = remote.client.call(req).await;
+        let handle = remote.handle;
+        let _ = remote
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectShutdown {
+                    call_id,
+                    project: handle,
+                },
+            )
+            .await;
         return;
     }
     project.ctx().turbo_tasks().stop_and_wait().await;
@@ -2536,26 +2562,26 @@ pub async fn project_trace_source(
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectTraceSource {
-            call_id,
-            project: remote.handle,
-            frame: next_api::ipc::protocol::StackFrame {
-                is_server: frame.is_server,
-                is_ignored: frame.is_ignored,
-                file: frame.file.clone(),
-                original_file: frame.original_file.clone(),
-                line: frame.line,
-                column: frame.column,
-                method_name: frame.method_name.clone(),
-            },
-            current_directory_file_url,
+        let handle = remote.handle;
+        let proto_frame = next_api::ipc::protocol::StackFrame {
+            is_server: frame.is_server,
+            is_ignored: frame.is_ignored,
+            file: frame.file.clone(),
+            original_file: frame.original_file.clone(),
+            line: frame.line,
+            column: frame.column,
+            method_name: frame.method_name.clone(),
         };
         let result = remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectTraceSource {
+                    call_id,
+                    project: handle,
+                    frame: proto_frame,
+                    current_directory_file_url,
+                },
+            )
+            .await?;
         return match result {
             next_api::ipc::protocol::DaemonResult::StackFrame(opt) => Ok(opt.map(|f| StackFrame {
                 is_server: f.is_server,
@@ -2596,17 +2622,17 @@ pub async fn project_get_source_for_asset(
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectGetSourceForAsset {
-            call_id,
-            project: remote.handle,
-            file_path: file_path.to_string(),
-        };
+        let handle = remote.handle;
+        let file_path_str = file_path.to_string();
         let result = remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectGetSourceForAsset {
+                    call_id,
+                    project: handle,
+                    file_path: file_path_str,
+                },
+            )
+            .await?;
         return match result {
             next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
             _ => Err(napi::Error::from_reason("Unexpected daemon response")),
@@ -2649,17 +2675,17 @@ pub async fn project_get_source_map(
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectGetSourceMap {
-            call_id,
-            project: remote.handle,
-            file_path: file_path.to_string(),
-        };
+        let handle = remote.handle;
+        let file_path_str = file_path.to_string();
         let result = remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectGetSourceMap {
+                    call_id,
+                    project: handle,
+                    file_path: file_path_str,
+                },
+            )
+            .await?;
         return match result {
             next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
             _ => Err(napi::Error::from_reason("Unexpected daemon response")),
@@ -2700,17 +2726,18 @@ pub async fn project_write_analyze_data(
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
     if let Some(remote) = project.remote.as_ref() {
-        let call_id = remote.client.next_call_id();
-        let req = next_api::ipc::protocol::DaemonRequest::ProjectWriteAnalyzeData {
-            call_id,
-            project: remote.handle,
-            app_dir_only,
-        };
+        let handle = remote.handle;
         remote
-            .client
-            .call(req)
-            .await
-            .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectWriteAnalyzeData {
+                    call_id,
+                    project: handle,
+                    app_dir_only,
+                },
+            )
+            .await?;
+        // TODO(multi-project): decode issues/diagnostics from daemon response
+        // once the daemon implements write_analyze_data dispatch.
         return Ok(TurbopackResult {
             result: (),
             issues: vec![],

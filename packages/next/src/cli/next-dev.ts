@@ -380,6 +380,7 @@ const nextDev = async (
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          // Forwarded to the forked dev-server child process (not set on parent).
           ...(options.turbopackDaemon
             ? { NEXT_TURBOPACK_DAEMON_SOCKET: options.turbopackDaemon }
             : undefined),

@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{Mutex, mpsc, oneshot},
@@ -73,13 +73,12 @@ impl DaemonClient {
 
         // Writer task: sends encoded requests from the channel to the socket
         let client_inner = client.inner.clone();
-        let writer = Arc::new(Mutex::new(writer));
-        let writer_clone = writer.clone();
         tokio::spawn(async move {
-            let _ = client_inner; // keep alive
+            // Keep the Arc<DaemonClientInner> alive until the writer task exits.
+            let _keep_alive = client_inner;
+            let mut writer = writer;
             while let Some(payload) = rx.recv().await {
-                let mut w = writer_clone.lock().await;
-                if write_framed(&mut *w, &payload).await.is_err() {
+                if write_framed(&mut writer, &payload).await.is_err() {
                     break;
                 }
             }
@@ -96,16 +95,15 @@ impl DaemonClient {
                         Err(_) => continue,
                     };
                 match response {
-                    DaemonResponse::Ok { call_id, result } => {
+                    response @ (DaemonResponse::Ok { .. } | DaemonResponse::Err { .. }) => {
+                        let (call_id, payload) = match response {
+                            DaemonResponse::Ok { call_id, result } => (call_id, Ok(result)),
+                            DaemonResponse::Err { call_id, message } => (call_id, Err(message)),
+                            _ => unreachable!(),
+                        };
                         let mut pending = client_inner.pending.lock().await;
                         if let Some(tx) = pending.remove(&call_id) {
-                            let _ = tx.send(Ok(result));
-                        }
-                    }
-                    DaemonResponse::Err { call_id, message } => {
-                        let mut pending = client_inner.pending.lock().await;
-                        if let Some(tx) = pending.remove(&call_id) {
-                            let _ = tx.send(Err(message));
+                            let _ = tx.send(payload);
                         }
                     }
                     DaemonResponse::CallbackInvoke {
@@ -136,30 +134,9 @@ impl DaemonClient {
 
     /// Send a request and await a response (one-shot RPC).
     pub async fn call(&self, req: DaemonRequest) -> Result<DaemonResult> {
-        let call_id = match &req {
-            DaemonRequest::ProjectNew { call_id, .. }
-            | DaemonRequest::ProjectUpdate { call_id, .. }
-            | DaemonRequest::ProjectInvalidateFileSystemCache { call_id, .. }
-            | DaemonRequest::ProjectShutdown { call_id, .. }
-            | DaemonRequest::ProjectOnExit { call_id, .. }
-            | DaemonRequest::ProjectWriteAllEntrypointsToDisk { call_id, .. }
-            | DaemonRequest::ProjectWriteAnalyzeData { call_id, .. }
-            | DaemonRequest::ProjectEntrypointsSubscribe { call_id, .. }
-            | DaemonRequest::ProjectHmrEvents { call_id, .. }
-            | DaemonRequest::ProjectHmrChunkNamesSubscribe { call_id, .. }
-            | DaemonRequest::ProjectUpdateInfoSubscribe { call_id, .. }
-            | DaemonRequest::ProjectCompilationEventsSubscribe { call_id, .. }
-            | DaemonRequest::ProjectTraceSource { call_id, .. }
-            | DaemonRequest::ProjectGetSourceForAsset { call_id, .. }
-            | DaemonRequest::ProjectGetSourceMap { call_id, .. }
-            | DaemonRequest::EndpointWriteToDisk { call_id, .. }
-            | DaemonRequest::EndpointServerChangedSubscribe { call_id, .. }
-            | DaemonRequest::EndpointClientChangedSubscribe { call_id, .. }
-            | DaemonRequest::RootTaskDispose { call_id, .. } => *call_id,
-            DaemonRequest::CancelSubscription { .. } => {
-                bail!("CancelSubscription has no call_id; use cancel_subscription() instead")
-            }
-        };
+        let call_id = req.call_id().ok_or_else(|| {
+            anyhow::anyhow!("CancelSubscription has no call_id; use cancel_subscription() instead")
+        })?;
 
         let (tx, rx) = oneshot::channel();
         self.inner.pending.lock().await.insert(call_id, tx);

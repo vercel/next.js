@@ -43,7 +43,6 @@ pub struct DaemonState {
     /// Live project instances, keyed by OpaqueHandle.
     projects: RwLock<HashMap<OpaqueHandle, Arc<DaemonProject>>>,
     /// Active subscription abort handles, keyed by CallbackId.
-    #[allow(dead_code)]
     subscriptions: RwLock<HashMap<CallbackId, AbortHandle>>,
 }
 
@@ -290,7 +289,7 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
                 },
                 Err(e) => DaemonResponse::Err {
                     call_id,
-                    message: format!("Cache invalidation panicked: {e}"),
+                    message: format!("Cache invalidation panicked: {e:#}"),
                 },
             }
         }
@@ -307,7 +306,8 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
         }
 
         DaemonRequest::ProjectOnExit { call_id, project } => {
-            // The daemon manages the TurboTasks lifecycle directly.
+            // OnExit stops the project's turbo-tasks but keeps the handle in
+            // the map (it may be re-used). Shutdown also removes the handle.
             if let Some(proj) = state.get_project(project).await {
                 proj.turbo_tasks.stop_and_wait().await;
             }
