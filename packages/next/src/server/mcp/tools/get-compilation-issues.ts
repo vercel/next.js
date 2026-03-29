@@ -1,3 +1,12 @@
+/**
+ * MCP tool for getting compilation issues from all routes via Turbopack.
+ *
+ * Unlike get_errors (which requires a browser session and reflects the runtime
+ * error overlay), this tool builds the module graph for every endpoint and
+ * collects Turbopack issues directly — no browser needed. Covers
+ * module-not-found, syntax errors, and other transform failures across all
+ * routes.
+ */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { Project } from '../../../build/swc/types'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
@@ -10,9 +19,7 @@ export function registerGetCompilationIssuesTool(
     'get_compilation_issues',
     {
       description:
-        'Build the module graph for all routes and return all compilation issues ' +
-        '(resolve errors, missing modules, transform errors, etc.). ' +
-        'Does not require a browser session. Covers all routes proactively.',
+        'Build the module graph for all routes and return all compilation issues (resolve errors, missing modules, transform errors, etc.). Does not require a browser session. Covers all routes proactively.',
       inputSchema: {},
     },
     async () => {
@@ -24,7 +31,7 @@ export function registerGetCompilationIssuesTool(
           return {
             content: [
               {
-                type: 'text' as const,
+                type: 'text',
                 text: JSON.stringify({
                   error:
                     'Turbopack project is not available. This tool requires the Turbopack bundler.',
@@ -34,16 +41,13 @@ export function registerGetCompilationIssuesTool(
           }
         }
 
-        const result = await project.getAllCompilationIssues()
+        const { issues, diagnostics } = await project.getAllCompilationIssues()
 
         return {
           content: [
             {
-              type: 'text' as const,
-              text: JSON.stringify({
-                issues: result.issues,
-                diagnostics: result.diagnostics,
-              }),
+              type: 'text',
+              text: JSON.stringify({ issues, diagnostics }),
             },
           ],
         }
@@ -51,7 +55,7 @@ export function registerGetCompilationIssuesTool(
         return {
           content: [
             {
-              type: 'text' as const,
+              type: 'text',
               text: JSON.stringify({
                 error: error instanceof Error ? error.message : String(error),
               }),

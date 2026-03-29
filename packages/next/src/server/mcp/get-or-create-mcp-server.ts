@@ -8,6 +8,7 @@ import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
+import type { Project } from '../../build/swc/types'
 
 export interface McpServerOptions {
   projectPath: string
@@ -18,9 +19,7 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
-  getTurbopackProject?: () =>
-    | import('../../build/swc/types').Project
-    | undefined
+  getTurbopackProject?: () => Project | undefined
 }
 
 let mcpServer: McpServer | undefined

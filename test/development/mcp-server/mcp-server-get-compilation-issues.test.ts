@@ -11,7 +11,7 @@ describe('mcp-server get_compilation_issues tool', () => {
     return
   }
 
-  async function callMcpTool(id: string) {
+  async function callMcpTool() {
     const response = await fetch(`${next.url}/_next/mcp`, {
       method: 'POST',
       headers: {
@@ -20,7 +20,7 @@ describe('mcp-server get_compilation_issues tool', () => {
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
-        id,
+        id: 'get-compilation-issues',
         method: 'tools/call',
         params: { name: 'get_compilation_issues', arguments: {} },
       }),
@@ -33,51 +33,51 @@ describe('mcp-server get_compilation_issues tool', () => {
     return JSON.parse(result.result?.content?.[0]?.text)
   }
 
-  it('should return compilation issues without requiring a browser session', async () => {
-    const response = await callMcpTool('test-no-session')
-    expect(response).toHaveProperty('issues')
-    expect(response).toHaveProperty('diagnostics')
-    expect(Array.isArray(response.issues)).toBe(true)
+  type Issue = { severity: string; filePath: string; title: unknown }
+
+  let compilationResult: { issues: Issue[]; diagnostics: unknown[] }
+
+  beforeAll(async () => {
+    compilationResult = await callMcpTool()
   })
 
-  it('should detect module-not-found errors', async () => {
-    const response = await callMcpTool('test-module-not-found')
-
-    const errorIssues = response.issues.filter(
-      (issue: any) => issue.severity === 'error' || issue.severity === 'fatal'
+  function errorIssues() {
+    return compilationResult.issues.filter(
+      (issue) => issue.severity === 'error' || issue.severity === 'fatal'
     )
-    expect(errorIssues.length).toBeGreaterThan(0)
+  }
 
-    const moduleNotFoundIssue = errorIssues.find(
-      (issue: any) =>
+  it('should return compilation issues without requiring a browser session', () => {
+    expect(compilationResult).toHaveProperty('issues')
+    expect(compilationResult).toHaveProperty('diagnostics')
+    expect(Array.isArray(compilationResult.issues)).toBe(true)
+  })
+
+  it('should detect module-not-found errors', () => {
+    const errors = errorIssues()
+    expect(errors.length).toBeGreaterThan(0)
+
+    const moduleNotFoundIssue = errors.find(
+      (issue) =>
         issue.filePath.includes('missing-module') ||
         JSON.stringify(issue.title).includes('non-existent-module')
     )
     expect(moduleNotFoundIssue).toBeDefined()
   })
 
-  it('should detect syntax errors', async () => {
-    const response = await callMcpTool('test-syntax-error')
-
-    const errorIssues = response.issues.filter(
-      (issue: any) => issue.severity === 'error' || issue.severity === 'fatal'
-    )
-
-    const syntaxErrorIssue = errorIssues.find((issue: any) =>
+  it('should detect syntax errors', () => {
+    const errors = errorIssues()
+    const syntaxErrorIssue = errors.find((issue) =>
       issue.filePath.includes('syntax-error')
     )
     expect(syntaxErrorIssue).toBeDefined()
   })
 
-  it('should include issue metadata fields', async () => {
-    const response = await callMcpTool('test-issue-shape')
+  it('should include issue metadata fields', () => {
+    const errors = errorIssues()
+    expect(errors.length).toBeGreaterThan(0)
 
-    const errorIssues = response.issues.filter(
-      (issue: any) => issue.severity === 'error' || issue.severity === 'fatal'
-    )
-    expect(errorIssues.length).toBeGreaterThan(0)
-
-    const issue = errorIssues[0]
+    const issue = errors[0]
     expect(issue).toHaveProperty('severity')
     expect(issue).toHaveProperty('filePath')
     expect(issue).toHaveProperty('title')
