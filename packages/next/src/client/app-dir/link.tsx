@@ -695,7 +695,7 @@ export default function LinkComponent(
       if (!prefetchEnabled) {
         return
       }
-      if (process.env.NODE_ENV === 'development' && !process.env.TURBOPACK) {
+      if (!process.env.__NEXT_PREFETCH) {
         return
       }
 

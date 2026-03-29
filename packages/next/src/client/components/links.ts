@@ -244,10 +244,8 @@ function handleIntersect(entries: Array<IntersectionObserverEntry>) {
 }
 
 export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
-  if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
-    // Viewport prefetching is disabled in development with webpack for
-    // performance reasons. With Turbopack, incremental compilation makes
-    // this acceptable.
+  if (!process.env.__NEXT_PREFETCH) {
+    // Prefetching is disabled in dev unless turbopackPrefetchInDev is enabled.
     return
   }
 

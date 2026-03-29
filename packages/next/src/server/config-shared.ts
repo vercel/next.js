@@ -428,6 +428,7 @@ export interface ExperimentalConfig {
    */
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
+  turbopackPrefetchInDev?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
@@ -1890,6 +1891,7 @@ export const defaultConfig = Object.freeze({
     cachedNavigations: false,
     partialFallbacks: true,
     dynamicOnHover: false,
+    turbopackPrefetchInDev: false,
     useOffline: false,
     varyParams: false,
     prefetchInlining: true,
