@@ -89,6 +89,21 @@ describe('app-dir - unstable_catchError', () => {
     )
   })
 
+  it('should render footer outside error boundary when server component throws at runtime', async () => {
+    const browser = await next.browser('/footer-outside-boundary')
+
+    // The error boundary should catch the server-side throw and show the fallback
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      isNextDev
+        ? 'server error inside boundary'
+        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+    )
+
+    // The footer is outside the error boundary; check whether it is rendered
+    const footer = await browser.elementByCss('#footer').text()
+    expect(footer).toBe('Footer content')
+  })
+
   it('should throw when unstable_retry is called on Pages Router', async () => {
     const browser = await next.browser('/pages-router')
 
