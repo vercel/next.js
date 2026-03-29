@@ -1,4 +1,8 @@
 //! Bincode-serializable message types for the Turbopack daemon IPC protocol.
+//!
+//! **Note:** There is currently no version handshake in the protocol.
+//! A future improvement should add a magic-bytes + version header to the
+//! connection to detect client/server version mismatches early.
 
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
@@ -190,8 +194,6 @@ pub enum DaemonResult {
     ProjectHandle(OpaqueHandle),
     EndpointHandle(OpaqueHandle),
     RootTaskHandle(OpaqueHandle),
-    /// bincode-encoded TurbopackResult (issues + diagnostics + result)
-    TurbopackResult(Vec<u8>),
     StackFrame(Option<StackFrame>),
     StringOption(Option<String>),
 }

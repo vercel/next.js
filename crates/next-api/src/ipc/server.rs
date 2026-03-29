@@ -78,6 +78,13 @@ pub async fn run_daemon_server(socket_path: &str) -> Result<()> {
         let _ = std::fs::remove_file(socket_path);
         let listener = UnixListener::bind(socket_path)?;
 
+        // Restrict socket access to the current user only
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o600);
+            std::fs::set_permissions(socket_path, perms)?;
+        }
+
         // Signal readiness to the parent process
         print!("READY");
         std::io::stdout().flush()?;
@@ -128,6 +135,10 @@ where
     let (mut reader, writer) = tokio::io::split(stream);
     let writer = Arc::new(Mutex::new(writer));
 
+    // Track subscription callback IDs registered by this connection,
+    // so we can abort them if the connection drops unexpectedly.
+    let connection_callbacks: Arc<Mutex<Vec<CallbackId>>> = Arc::new(Mutex::new(Vec::new()));
+
     loop {
         let payload = match read_framed(&mut reader).await {
             Ok(p) => p,
@@ -138,8 +149,8 @@ where
             match bincode::decode_from_slice(&payload, bincode::config::standard()) {
                 Ok((req, _)) => req,
                 Err(e) => {
-                    eprintln!("Failed to decode daemon request: {e}");
-                    continue;
+                    eprintln!("Failed to decode daemon request, closing connection: {e}");
+                    break;
                 }
             };
 
@@ -154,12 +165,29 @@ where
 
         let writer = writer.clone();
         let state = state.clone();
+        // TODO(multi-project): pass connection_callbacks.clone() to the spawn
+        // and register callback IDs when subscription dispatch is implemented.
         tokio::spawn(async move {
             let response = dispatch_request(request, &state).await;
-            let encoded = bincode::encode_to_vec(&response, bincode::config::standard()).unwrap();
+            let encoded = match bincode::encode_to_vec(&response, bincode::config::standard()) {
+                Ok(e) => e,
+                Err(e) => {
+                    eprintln!("Failed to encode daemon response: {e}");
+                    return;
+                }
+            };
             let mut w = writer.lock().await;
             let _ = write_framed(&mut *w, &encoded).await;
         });
+    }
+
+    // Clean up any subscriptions registered by this connection.
+    let callback_ids = connection_callbacks.lock().await;
+    let mut subs = state.subscriptions.write().await;
+    for cb_id in callback_ids.iter() {
+        if let Some(abort_handle) = subs.remove(cb_id) {
+            abort_handle.abort();
+        }
     }
 
     Ok(())
@@ -295,9 +323,9 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
         }
 
         DaemonRequest::ProjectShutdown { call_id, project } => {
-            if let Some(proj) = state.get_project(project).await {
+            let proj = state.projects.write().await.remove(&project);
+            if let Some(proj) = proj {
                 proj.turbo_tasks.stop_and_wait().await;
-                state.projects.write().await.remove(&project);
             }
             DaemonResponse::Ok {
                 call_id,

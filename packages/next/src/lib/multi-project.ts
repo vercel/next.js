@@ -13,23 +13,34 @@ export type ProjectGroup = {
 }
 
 /**
- * Parses raw process.argv to find --project groups.
- * Each --project <dir> starts a new group; --port, --turbopack, --webpack
- * following it belong to that group until the next --project.
+ * Parses raw process.argv to find --experimental-project groups.
+ * Each --experimental-project <dir> starts a new group; --port, --turbopack, --webpack
+ * following it belong to that group until the next --experimental-project.
  */
 export function parseProjectGroups(argv: string[]): ProjectGroup[] {
   const groups: ProjectGroup[] = []
   let current: ProjectGroup | null = null
 
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--project') {
+    if (argv[i] === '--experimental-project') {
       if (current) groups.push(current)
-      current = { dir: argv[++i] }
+      const dir = argv[++i]
+      if (!dir || dir.startsWith('-')) {
+        throw new Error('--experimental-project requires a directory argument')
+      }
+      current = { dir }
     } else if (current) {
-      // Unknown flags between --project groups are intentionally ignored.
+      // Unknown flags between --experimental-project groups are intentionally ignored.
       // Each worker receives the full argv and handles its own flags.
       if (argv[i] === '--port' || argv[i] === '-p') {
-        current.port = parseInt(argv[++i], 10)
+        const portStr = argv[++i]
+        const port = parseInt(portStr, 10)
+        if (!Number.isInteger(port) || port < 0 || port > 65535) {
+          throw new Error(
+            `--port requires a valid port number (0-65535), got: ${portStr}`
+          )
+        }
+        current.port = port
       } else if (argv[i] === '--turbopack' || argv[i] === '--turbo') {
         current.turbopack = true
       } else if (argv[i] === '--webpack') {
@@ -133,10 +144,40 @@ export async function runMultiProject(
     spawnWorker(nextBin, command, group, socketPath)
   )
 
+  // If the daemon crashes unexpectedly, kill all workers
+  daemon.on('exit', (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.error(
+        `Turbopack daemon exited unexpectedly (code ${code}, signal ${signal}), killing workers`
+      )
+      workers.forEach((w) => w.kill('SIGTERM'))
+    }
+  })
+
+  const cleanupSocket = () => {
+    if (process.platform !== 'win32') {
+      try {
+        fs.unlinkSync(socketPath)
+      } catch (err: unknown) {
+        // Ignore ENOENT — daemon may have already removed the socket
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+      }
+    }
+  }
+
+  // Best-effort cleanup on unexpected exit
+  process.on('exit', cleanupSocket)
+
   // 3. Forward signals to daemon + all workers
   const forwardSignal = (signal: NodeJS.Signals) => {
     daemon.kill(signal)
     workers.forEach((w) => w.kill(signal))
+    // Force exit after 5 seconds if children don't terminate
+    setTimeout(() => {
+      daemon.kill('SIGKILL')
+      workers.forEach((w) => w.kill('SIGKILL'))
+      process.exit(signal === 'SIGINT' ? 130 : 143)
+    }, 5000).unref()
   }
   process.on('SIGINT', () => forwardSignal('SIGINT'))
   process.on('SIGTERM', () => forwardSignal('SIGTERM'))
@@ -144,14 +185,8 @@ export async function runMultiProject(
   // 4. Wait for all workers to exit, then kill daemon
   await Promise.allSettled(workers.map((w) => once(w, 'exit')))
 
-  // Cleanup: kill daemon and socket file
+  // Cleanup: kill daemon and socket file.
+  // On Windows, named pipes are automatically cleaned up by the OS.
   daemon.kill('SIGTERM')
-  if (process.platform !== 'win32') {
-    try {
-      fs.unlinkSync(socketPath)
-    } catch (err: unknown) {
-      // Ignore ENOENT — daemon may have already removed the socket
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-    }
-  }
+  cleanupSocket()
 }

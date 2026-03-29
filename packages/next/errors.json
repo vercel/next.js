@@ -1171,5 +1171,7 @@
   "1170": "Route \"%s\": Next.js encountered uncached data such as \\`fetch(...)\\` or \\`connection()\\` inside \\`generateMetadata\\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
   "1171": "Response body exceeded maximum size of %s bytes",
   "1172": "Daemon exited early with code %s",
-  "1173": "Turbopack daemon is not supported on this platform because native bindings are not available."
+  "1173": "Turbopack daemon is not supported on this platform because native bindings are not available.",
+  "1174": "--port requires a valid port number (0-65535), got: %s",
+  "1175": "--experimental-project requires a directory argument"
 }

@@ -449,8 +449,12 @@ impl RemoteProject {
             next_api::ipc::protocol::CallId,
         ) -> next_api::ipc::protocol::DaemonRequest,
     ) -> napi::Result<()> {
-        self.call(build_req).await?;
-        Ok(())
+        match self.call(build_req).await? {
+            next_api::ipc::protocol::DaemonResult::Unit => Ok(()),
+            other => Err(napi::Error::from_reason(format!(
+                "Unexpected daemon response: expected Unit, got {other:?}"
+            ))),
+        }
     }
 }
 
@@ -481,6 +485,9 @@ pub fn project_new(
 ) -> napi::Result<JsObject> {
     // IPC path: forward to daemon if a daemon handle is provided
     if let Some(daemon) = daemon {
+        // In the daemon path, napi_callbacks is intentionally unused — error
+        // telemetry callbacks are not forwarded to the daemon. Internal errors
+        // in daemon-backed projects are surfaced as plain napi::Error values.
         return env.spawn_future(async move {
             let dist_dir = options.dist_dir.to_string();
             let opts: next_api::project::ProjectOptions = options.into();
@@ -2387,6 +2394,34 @@ pub struct StackFrame {
     pub method_name: Option<RcStr>,
 }
 
+impl From<StackFrame> for next_api::ipc::protocol::StackFrame {
+    fn from(f: StackFrame) -> Self {
+        next_api::ipc::protocol::StackFrame {
+            is_server: f.is_server,
+            is_ignored: f.is_ignored,
+            file: f.file,
+            original_file: f.original_file,
+            line: f.line,
+            column: f.column,
+            method_name: f.method_name,
+        }
+    }
+}
+
+impl From<next_api::ipc::protocol::StackFrame> for StackFrame {
+    fn from(f: next_api::ipc::protocol::StackFrame) -> Self {
+        StackFrame {
+            is_server: f.is_server,
+            is_ignored: f.is_ignored,
+            file: f.file,
+            original_file: f.original_file,
+            line: f.line,
+            column: f.column,
+            method_name: f.method_name,
+        }
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 #[derive(Clone)]
 pub struct OptionStackFrame(Option<StackFrame>);
@@ -2563,15 +2598,7 @@ pub async fn project_trace_source(
 ) -> napi::Result<Option<StackFrame>> {
     if let Some(remote) = project.remote.as_ref() {
         let handle = remote.handle;
-        let proto_frame = next_api::ipc::protocol::StackFrame {
-            is_server: frame.is_server,
-            is_ignored: frame.is_ignored,
-            file: frame.file.clone(),
-            original_file: frame.original_file.clone(),
-            line: frame.line,
-            column: frame.column,
-            method_name: frame.method_name.clone(),
-        };
+        let proto_frame: next_api::ipc::protocol::StackFrame = frame.into();
         let result = remote
             .call(
                 |call_id| next_api::ipc::protocol::DaemonRequest::ProjectTraceSource {
@@ -2583,15 +2610,7 @@ pub async fn project_trace_source(
             )
             .await?;
         return match result {
-            next_api::ipc::protocol::DaemonResult::StackFrame(opt) => Ok(opt.map(|f| StackFrame {
-                is_server: f.is_server,
-                is_ignored: f.is_ignored,
-                file: f.file,
-                original_file: f.original_file,
-                line: f.line,
-                column: f.column,
-                method_name: f.method_name,
-            })),
+            next_api::ipc::protocol::DaemonResult::StackFrame(opt) => Ok(opt.map(Into::into)),
             _ => Err(napi::Error::from_reason("Unexpected daemon response")),
         };
     }

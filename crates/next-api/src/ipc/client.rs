@@ -16,6 +16,9 @@ use tokio::{
 
 use super::protocol::*;
 
+/// Maximum size of a single IPC frame (256 MiB). Prevents OOM from malformed length prefixes.
+const MAX_FRAME_SIZE: usize = 256 * 1024 * 1024;
+
 /// A handle representing a connection to the daemon.
 /// Cheaply clonable (Arc-backed).
 #[derive(Clone)]
@@ -117,6 +120,16 @@ impl DaemonClient {
                     }
                 }
             }
+            // Connection closed — wake up all pending callers and close all
+            // subscription channels so receivers don't hang forever.
+            {
+                let mut pending = client_inner.pending.lock().await;
+                pending.clear();
+            }
+            {
+                let mut subs = client_inner.subscriptions.lock().await;
+                subs.clear();
+            }
         });
 
         Ok(client)
@@ -143,10 +156,11 @@ impl DaemonClient {
 
         let encoded = bincode::encode_to_vec(&req, bincode::config::standard())
             .context("Failed to encode daemon request")?;
-        self.inner
-            .tx
-            .send(encoded)
-            .map_err(|_| anyhow::anyhow!("Daemon connection closed"))?;
+        if self.inner.tx.send(encoded).is_err() {
+            // Remove the pending entry we just inserted to avoid a leak
+            self.inner.pending.lock().await.remove(&call_id);
+            anyhow::bail!("Daemon connection closed");
+        }
 
         let result = rx
             .await
@@ -187,7 +201,12 @@ pub async fn write_framed<W: AsyncWriteExt + Unpin>(
     w: &mut W,
     payload: &[u8],
 ) -> std::io::Result<()> {
-    let len = payload.len() as u32;
+    let len = u32::try_from(payload.len()).map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "frame payload exceeds 4 GiB",
+        )
+    })?;
     w.write_all(&len.to_le_bytes()).await?;
     w.write_all(payload).await?;
     w.flush().await
@@ -198,6 +217,12 @@ pub async fn read_framed<R: AsyncReadExt + Unpin>(r: &mut R) -> std::io::Result<
     let mut len_buf = [0u8; 4];
     r.read_exact(&mut len_buf).await?;
     let len = u32::from_le_bytes(len_buf) as usize;
+    if len > MAX_FRAME_SIZE {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("frame size {len} exceeds maximum of {MAX_FRAME_SIZE}"),
+        ));
+    }
     let mut buf = vec![0u8; len];
     r.read_exact(&mut buf).await?;
     Ok(buf)
