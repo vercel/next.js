@@ -128,6 +128,20 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
     })
 }
 
+/// Creates a virtual `{name}--route-entry.js` source under `parent`.
+fn make_route_entry_source(
+    parent: FileSystemPath,
+    name: &str,
+    code: String,
+) -> Result<Vc<Box<dyn Source>>> {
+    let file = File::from(code);
+    let source = VirtualSource::new(
+        parent.join(&format!("{name}--route-entry.js"))?,
+        AssetContent::file(FileContent::Content(file).cell()),
+    );
+    Ok(Vc::upcast(source))
+}
+
 #[turbo_tasks::function]
 async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
@@ -201,14 +215,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     // Use full filename (stem + extension) to avoid conflicts when multiple icon
     // formats exist (e.g., icon.png and icon.svg)
     let filename = path.file_name();
-
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{filename}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), filename, code)
 }
 
 #[turbo_tasks::function]
@@ -237,10 +244,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
             }}
 
             export async function GET() {{
-              // In Turbopack dev mode, re-require the user's module on every
-              // request so that server HMR updates are reflected immediately.
-              // The static `handler` import above is kept for the type check
-              // and re-exports; at runtime in dev we bypass it here.
+              // In dev, re-require on every request to pick up server HMR updates.
               const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
                 ? require({resource_path}).default
                 : handler
@@ -263,13 +267,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), stem, code)
 }
 
 async fn dynamic_sitemap_route_with_generate_source(
@@ -300,13 +298,12 @@ async fn dynamic_sitemap_route_with_generate_source(
 
                 const id = await idPromise
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
-                // In Turbopack dev mode, re-require the user's module on every
-                // request so that server HMR updates are reflected immediately.
-                const _mod = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                // In dev, re-require on every request to pick up server HMR updates.
+                const _m = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
                   ? require({resource_path})
                   : null
-                const _handler = _mod ? _mod.default : handler
-                const _generateSitemaps = _mod ? _mod.generateSitemaps : generateSitemaps
+                const _handler = _m?.default ?? handler
+                const _generateSitemaps = _m?.generateSitemaps ?? generateSitemaps
                 const sitemaps = await _generateSitemaps()
                 let foundId
                 for (const item of sitemaps) {{
@@ -360,13 +357,7 @@ async fn dynamic_sitemap_route_with_generate_source(
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), stem, code)
 }
 
 async fn dynamic_sitemap_route_without_generate_source(
@@ -392,8 +383,7 @@ async fn dynamic_sitemap_route_without_generate_source(
             }}
 
             export async function GET() {{
-                // In Turbopack dev mode, re-require the user's module on every
-                // request so that server HMR updates are reflected immediately.
+                // In dev, re-require on every request to pick up server HMR updates.
                 const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
                   ? require({resource_path}).default
                   : handler
@@ -416,13 +406,7 @@ async fn dynamic_sitemap_route_without_generate_source(
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), stem, code)
 }
 
 #[turbo_tasks::function]
@@ -462,13 +446,12 @@ async fn dynamic_image_route_with_metadata_source(
                     return rest
                 }})
 
-                // In Turbopack dev mode, re-require the user's module on every
-                // request so that server HMR updates are reflected immediately.
-                const _mod = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                // In dev, re-require on every request to pick up server HMR updates.
+                const _m = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
                   ? require({resource_path})
                   : null
-                const _handler = _mod ? _mod.default : handler
-                const _generateImageMetadata = _mod ? _mod.generateImageMetadata : generateImageMetadata
+                const _handler = _m?.default ?? handler
+                const _generateImageMetadata = _m?.generateImageMetadata ?? generateImageMetadata
                 const restParams = await restParamsPromise
                 const __metadata_id__ = await idPromise
                 const imageMetadata = await _generateImageMetadata({{ params: restParams }})
@@ -507,13 +490,7 @@ async fn dynamic_image_route_with_metadata_source(
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };
 
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), stem, code)
 }
 
 async fn dynamic_image_route_without_metadata_source(
@@ -533,8 +510,7 @@ async fn dynamic_image_route_without_metadata_source(
             }}
 
             export async function GET(_, ctx) {{
-                // In Turbopack dev mode, re-require the user's module on every
-                // request so that server HMR updates are reflected immediately.
+                // In dev, re-require on every request to pick up server HMR updates.
                 const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
                   ? require({resource_path}).default
                   : handler
@@ -546,13 +522,7 @@ async fn dynamic_image_route_without_metadata_source(
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
     };
 
-    let file = File::from(code);
-    let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(FileContent::Content(file).cell()),
-    );
-
-    Ok(Vc::upcast(source))
+    make_route_entry_source(path.parent(), stem, code)
 }
 
 #[turbo_tasks::function]
