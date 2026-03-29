@@ -199,5 +199,8 @@ export async function startTurboTraceServerCli(
     console.log(
       `Trace server MCP endpoint started at http://127.0.0.1:${httpPort}/`
     )
+    console.log(
+      `To query this trace server from the command line, run: next internal query-trace --help`
+    )
   })
 }

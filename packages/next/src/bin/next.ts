@@ -582,6 +582,49 @@ internal
   )
 
 internal
+  .command('query-trace')
+  .description(
+    'Query a running turbopack trace server (started with `next internal trace --mcp-port <port>`).'
+  )
+  .addOption(
+    new Option(
+      '--port <port>',
+      'MCP port of the running trace server. Defaults to 5748.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--parent <parent>',
+      'Span ID to enumerate children of. Omit for root level.'
+    )
+  )
+  .addOption(
+    new Option(
+      '--aggregated',
+      'Aggregate spans by name (default: true). Pass --no-aggregated to disable.'
+    )
+  )
+  .addOption(
+    new Option(
+      '--sort',
+      'Sort results by corrected duration descending (default: false).'
+    )
+  )
+  .addOption(
+    new Option('--search <search>', 'Substring filter on span name/category.')
+  )
+  .addOption(
+    new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
+      parseValidPositiveInteger
+    )
+  )
+  .action((options) =>
+    import('../cli/internal/query-trace.js').then((mod) =>
+      mod.queryTraceCli(options)
+    )
+  )
+
+internal
   .command('post-build')
   .description(
     'Runs post-build optimization steps (e.g. Turbopack database compaction).'
