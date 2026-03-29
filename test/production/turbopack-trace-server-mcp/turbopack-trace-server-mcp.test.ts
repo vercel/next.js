@@ -23,6 +23,36 @@ const nextBin = path.join(
 )
 
 /**
+ * Run `next internal query-trace` with the given extra arguments and return
+ * the captured stdout, stderr, and exit code.
+ */
+function runQueryTraceCli(
+  extraArgs: string[]
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return new Promise((resolve) => {
+    const proc = spawn(
+      'node',
+      ['--no-deprecation', nextBin, 'internal', 'query-trace', ...extraArgs],
+      {
+        env: { ...process.env, __NEXT_TEST_MODE: 'e2e' },
+        stdio: 'pipe',
+      }
+    )
+    let stdout = ''
+    let stderr = ''
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    proc.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+    proc.on('close', (code) => {
+      resolve({ stdout, stderr, exitCode: code ?? 1 })
+    })
+  })
+}
+
+/**
  * Call a tool on the MCP server and return the text content of the response.
  *
  * The MCP Streamable-HTTP transport responds with Server-Sent Events (SSE).
@@ -265,5 +295,117 @@ describe('turbopack-trace-server-mcp', () => {
     // Should still return valid markdown.
     expect(md).toContain('## Spans at root level')
     expect(md).toMatch(/###/)
+  })
+
+  // ─── CLI tests ─────────────────────────────────────────────────────────────
+
+  it('CLI: should return root-level spans via `next internal query-trace`', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/ID: `\d+`/)
+    expect(stdout).toMatch(/CPU Duration|Corrected Duration/)
+  })
+
+  it('CLI: should support --sort flag', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--sort',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/###/)
+  })
+
+  it('CLI: should support --search flag', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--search',
+      'zzz_unlikely_span_name_zzz',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('0 total')
+  })
+
+  it('CLI: should support --no-aggregated flag', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--no-aggregated',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/ID: `\d+`/)
+  })
+
+  it('CLI: should support --parent to drill into children', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+
+    // Get a span ID from the root level using the HTTP API.
+    const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
+    const idMatch = rootMd.match(/ID: `(\d+)` *\)/)
+    expect(idMatch).not.toBeNull()
+    const spanId = idMatch![1]
+
+    // Query children via the CLI.
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--parent',
+      spanId,
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain(`children of ID \`${spanId}\``)
+    expect(stdout).toMatch(/Page \d+ of \d+/)
+  })
+
+  it('CLI: should show an error and instructions when the trace server is not running', async () => {
+    // Use a port with no server listening on it.
+    const unusedPort = await findPort()
+
+    const { stderr, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(unusedPort),
+    ])
+
+    expect(exitCode).toBe(1)
+    expect(stderr).toContain(
+      `Could not connect to trace server on port ${unusedPort}`
+    )
+    expect(stderr).toContain('next internal trace <file>')
+    expect(stderr).toContain('next internal query-trace --help')
   })
 })
