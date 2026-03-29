@@ -237,7 +237,14 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
             }}
 
             export async function GET() {{
-              const data = await handler()
+              // In Turbopack dev mode, re-require the user's module on every
+              // request so that server HMR updates are reflected immediately.
+              // The static `handler` import above is kept for the type check
+              // and re-exports; at runtime in dev we bypass it here.
+              const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                ? require({resource_path}).default
+                : handler
+              const data = await _handler()
               const content = resolveRouteData(data, fileType)
 
               return new NextResponse(content, {{
@@ -293,7 +300,14 @@ async fn dynamic_sitemap_route_with_generate_source(
 
                 const id = await idPromise
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
-                const sitemaps = await generateSitemaps()
+                // In Turbopack dev mode, re-require the user's module on every
+                // request so that server HMR updates are reflected immediately.
+                const _mod = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                  ? require({resource_path})
+                  : null
+                const _handler = _mod ? _mod.default : handler
+                const _generateSitemaps = _mod ? _mod.generateSitemaps : generateSitemaps
+                const sitemaps = await _generateSitemaps()
                 let foundId
                 for (const item of sitemaps) {{
                     if (item?.id == null) {{
@@ -314,7 +328,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                     const hasXmlExtension = id ? id.endsWith('.xml') : false
                     return id && hasXmlExtension ? id.slice(0, -4) : undefined
                 }})
-                const data = await handler({{ id: targetIdPromise }})
+                const data = await _handler({{ id: targetIdPromise }})
                 const content = resolveRouteData(data, fileType)
 
                 return new NextResponse(content, {{
@@ -378,7 +392,12 @@ async fn dynamic_sitemap_route_without_generate_source(
             }}
 
             export async function GET() {{
-                const data = await handler()
+                // In Turbopack dev mode, re-require the user's module on every
+                // request so that server HMR updates are reflected immediately.
+                const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                  ? require({resource_path}).default
+                  : handler
+                const data = await _handler()
                 const content = resolveRouteData(data, fileType)
 
                 return new NextResponse(content, {{
@@ -443,9 +462,16 @@ async fn dynamic_image_route_with_metadata_source(
                     return rest
                 }})
 
+                // In Turbopack dev mode, re-require the user's module on every
+                // request so that server HMR updates are reflected immediately.
+                const _mod = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                  ? require({resource_path})
+                  : null
+                const _handler = _mod ? _mod.default : handler
+                const _generateImageMetadata = _mod ? _mod.generateImageMetadata : generateImageMetadata
                 const restParams = await restParamsPromise
                 const __metadata_id__ = await idPromise
-                const imageMetadata = await generateImageMetadata({{ params: restParams }})
+                const imageMetadata = await _generateImageMetadata({{ params: restParams }})
                 const id = imageMetadata.find((item) => {{
                     if (item?.id == null) {{
                         throw new Error('id property is required for every item returned from generateImageMetadata')
@@ -460,7 +486,7 @@ async fn dynamic_image_route_with_metadata_source(
                     }})
                 }}
 
-                return handler({{ params: restParamsPromise, id: idPromise }})
+                return _handler({{ params: restParamsPromise, id: idPromise }})
             }}
 
             export * from {resource_path}
@@ -507,7 +533,12 @@ async fn dynamic_image_route_without_metadata_source(
             }}
 
             export async function GET(_, ctx) {{
-                return handler({{ params: ctx.params }})
+                // In Turbopack dev mode, re-require the user's module on every
+                // request so that server HMR updates are reflected immediately.
+                const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                  ? require({resource_path}).default
+                  : handler
+                return _handler({{ params: ctx.params }})
             }}
 
             export * from {resource_path}

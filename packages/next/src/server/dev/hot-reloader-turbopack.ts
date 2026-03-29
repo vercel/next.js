@@ -83,7 +83,6 @@ import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
 import {
-  isMetadataRoute,
   isMetadataRouteFile,
 } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
@@ -608,17 +607,15 @@ export async function createHotReloaderTurbopack(
     const { type: entryType, page: entryPage } = splitEntryKey(key)
 
     // Server HMR applies to App Router entries built with the Turbopack Node.js
-    // runtime: app pages and regular route handlers. Edge routes, Pages Router
-    // pages, middleware/instrumentation, and metadata routes (manifest.ts,
-    // robots.ts, sitemap.ts, icon.tsx, etc.) are excluded. Metadata routes are
-    // excluded because they serve HTTP responses directly and must re-execute
-    // on every request to pick up file changes; the in-place module update
-    // model of Server HMR does not apply to them.
+    // runtime: app pages, regular route handlers, and metadata routes
+    // (manifest.ts, robots.ts, sitemap.ts, icon.tsx, etc.). Edge routes and
+    // Pages Router pages are excluded. Metadata route wrappers re-require the
+    // user's module on every request, so in-place module updates flow through
+    // without needing full cache invalidation.
     const usesServerHmr =
       serverFastRefresh &&
       entryType === 'app' &&
-      writtenEndpoint.type !== 'edge' &&
-      !isMetadataRoute(entryPage)
+      writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {

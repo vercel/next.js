@@ -157,7 +157,7 @@ describe('server-hmr', () => {
   })
 
   describe('metadata route hmr', () => {
-    it('reflects manifest.ts changes on fetch/refresh', async () => {
+    itTurbopackDev('reflects manifest.ts changes on fetch/refresh', async () => {
       const initial = await next
         .fetch('/manifest.webmanifest')
         .then((res) => res.json())
@@ -227,6 +227,7 @@ describe('server-hmr', () => {
       }
     )
   })
+
 })
 
 describe('server-hmr config opt-out', () => {
