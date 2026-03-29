@@ -214,7 +214,9 @@ describe('turbopack-trace-server-mcp', () => {
     // The response should be a markdown document listing spans.
     expect(md).toContain('## Spans at root level')
     // Spans should include timing and ID information.
-    expect(md).toMatch(/ID: `\d+`/)
+    // IDs may be plain numbers (raw spans) or "a"-prefixed (aggregated spans),
+    // and can include path segments separated by "-", e.g. "a1", "a5-a34-20".
+    expect(md).toMatch(/ID: `[a-z0-9-]+`/)
     // CPU and corrected duration should be present.
     expect(md).toMatch(/CPU Duration|Corrected Duration/)
   })
@@ -255,8 +257,8 @@ describe('turbopack-trace-server-mcp', () => {
       sort: true,
     })
 
-    // Extract the first span ID from the markdown.
-    const idMatch = rootMd.match(/ID: `(\d+)` *\)/)
+    // Extract the first span ID from the markdown (format: plain number or "a"-prefixed, possibly path like "a5-a12-34").
+    const idMatch = rootMd.match(/ID: `([a-z0-9-]+)` *\)/)
     expect(idMatch).not.toBeNull()
     const spanId = idMatch![1]
 
@@ -312,7 +314,7 @@ describe('turbopack-trace-server-mcp', () => {
 
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
-    expect(stdout).toMatch(/ID: `\d+`/)
+    expect(stdout).toMatch(/ID: `[a-z0-9-]+`/)
     expect(stdout).toMatch(/CPU Duration|Corrected Duration/)
   })
 
@@ -364,7 +366,7 @@ describe('turbopack-trace-server-mcp', () => {
 
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
-    expect(stdout).toMatch(/ID: `\d+`/)
+    expect(stdout).toMatch(/ID: `[a-z0-9-]+`/)
   })
 
   it('CLI: should support --parent to drill into children', async () => {
@@ -375,7 +377,7 @@ describe('turbopack-trace-server-mcp', () => {
 
     // Get a span ID from the root level using the HTTP API.
     const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
-    const idMatch = rootMd.match(/ID: `(\d+)` *\)/)
+    const idMatch = rootMd.match(/ID: `([a-z0-9-]+)` *\)/)
     expect(idMatch).not.toBeNull()
     const spanId = idMatch![1]
 

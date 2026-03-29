@@ -86,9 +86,16 @@ pub struct QueryOptions {
 
 /// Information about a single span (or aggregated group of spans).
 pub struct SpanInfo {
-    /// Span ID string. For raw spans this is a decimal number; for aggregated
-    /// spans it is a dash-separated list of decimal span IDs forming the path
-    /// from root to this node (needed to uniquely identify aggregated spans).
+    /// Span ID string.
+    ///
+    /// The format encodes both the type and the navigation path:
+    /// - A **raw span** leaf is its decimal index: `"123"`.
+    /// - An **aggregated span** leaf is `"a"` + the first-span index: `"a123"`.
+    /// - When the span is a child of another span, the parent's ID is prepended with a dash
+    ///   separator, e.g. `"a5-a34"` or `"1-a5-a34-20"`.
+    ///
+    /// Pass the full ID as the `parent` option of the next `query_spans` call
+    /// to enumerate the children of that span.
     pub id: String,
     /// Display name: `"category title"` or just `"title"`.
     pub name: String,
@@ -227,11 +234,16 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let avg_cpu = total_cpu.checked_div(count).unwrap_or(0);
                 let avg_corrected = total_corrected.checked_div(count).unwrap_or(0);
 
-                // ID: the SpanGraphRef id is `(first_span_index << 1) | 1`.
-                // For MCP purposes we expose the example span index as a decimal
-                // plus a marker so the caller can pass it back as `parent`.
+                // Build the full path ID for this aggregated span.
+                // The leaf segment is "a{first_span_index}"; prepend the parent
+                // path (if any) with a dash so callers can pass the full string
+                // back as `parent` to drill into children.
                 let first_index = first.index;
-                let graph_id = ((first_index << 1) | 1).to_string();
+                let leaf = format!("a{first_index}");
+                let graph_id = match options.parent.as_deref() {
+                    Some(p) => format!("{p}-{leaf}"),
+                    None => leaf,
+                };
 
                 // start/end of the first/example span relative to parent.
                 let span_start = *first.start();
@@ -317,7 +329,10 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let rel_end = (span_end as i64) - (parent_start as i64);
 
                 SpanInfo {
-                    id: (span.index << 1).to_string(),
+                    id: match options.parent.as_deref() {
+                        Some(p) => format!("{p}-{}", span.index),
+                        None => span.index.to_string(),
+                    },
                     name,
                     cpu_duration: *span.total_time(),
                     corrected_duration: *span.corrected_total_time(),
@@ -348,27 +363,22 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
 
 /// Resolve a span by its MCP ID string.
 ///
-/// The ID encodes the span index and kind as a single integer:
-/// even values are raw spans (index = id / 2) and odd values are
-/// aggregated/graph spans (first-span index = id / 2).
-///
-/// For the `parent` parameter we only need to navigate to the span whose
-/// *children* we want to enumerate. For aggregated parents we look up the
-/// underlying first span and return it so callers can call `.graph()` on it.
+/// IDs use the format `[a]<index>[-[a]<index>...]`:
+/// - A plain decimal segment (e.g. `"123"`) refers to a raw span at that store index.
+/// - A segment prefixed with `"a"` (e.g. `"a123"`) refers to the first span of an aggregated group
+///   at that store index.
+/// - Segments are separated by `-` to form a navigation path, e.g. `"a5-a34-20"`. Only the **last**
+///   segment is needed to look up the span whose children we want to enumerate; the earlier
+///   segments provide navigation context for the caller.
 fn resolve_span_by_id<'a>(store: &'a store::Store, id: &str) -> Option<SpanRef<'a>> {
-    let numeric: usize = id.parse().ok()?;
-    let is_graph = numeric & 1 == 1;
-    let index = numeric >> 1;
-    let span = store.spans.get(index).map(|s| SpanRef {
+    // Take only the last path segment (everything after the final `-`).
+    let last = id.split('-').next_back().unwrap_or(id);
+    // Strip the optional "a" prefix that marks aggregated spans.
+    let index_str = last.strip_prefix('a').unwrap_or(last);
+    let index: usize = index_str.parse().ok()?;
+    store.spans.get(index).map(|s| SpanRef {
         span: s,
         store,
         index,
-    })?;
-    if is_graph {
-        // For graph nodes, use the first span as the representative so we can
-        // call .graph() on it to get its children.
-        Some(span)
-    } else {
-        Some(span)
-    }
+    })
 }
