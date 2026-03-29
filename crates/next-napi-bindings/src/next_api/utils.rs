@@ -75,40 +75,47 @@ impl<T> Deref for DetachedVc<T> {
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
 //
 // TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
+enum RootTaskKind {
+    /// In-process root task backed by a local TurboTasks instance.
+    Local {
+        ctx: NextTurbopackContext,
+        task_id: TaskId,
+    },
+    /// Remote root task backed by a daemon subscription.
+    /// Currently unused — will be wired up when subscription forwarding
+    /// is implemented in the daemon server.
+    #[allow(dead_code)]
+    Remote {
+        client: next_api::ipc::client::DaemonClient,
+        callback_id: next_api::ipc::protocol::CallbackId,
+    },
+}
+
 pub struct RootTask {
-    turbopack_ctx: Option<NextTurbopackContext>,
-    task_id: Option<TaskId>,
-    /// When set, this root task was created via the daemon IPC path.
-    /// Disposing it sends a CancelSubscription to the daemon.
-    remote_client: Option<next_api::ipc::client::DaemonClient>,
-    remote_callback_id: Option<next_api::ipc::protocol::CallbackId>,
+    kind: RootTaskKind,
 }
 
 impl RootTask {
-    /// Create a local (in-process) root task.
     pub fn local(turbopack_ctx: NextTurbopackContext, task_id: TaskId) -> Self {
         RootTask {
-            turbopack_ctx: Some(turbopack_ctx),
-            task_id: Some(task_id),
-            remote_client: None,
-            remote_callback_id: None,
+            kind: RootTaskKind::Local {
+                ctx: turbopack_ctx,
+                task_id,
+            },
         }
     }
 
-    /// Create a remote (daemon-backed) root task.
-    ///
-    /// Currently unused — will be called once subscription forwarding
-    /// is implemented in the NAPI layer.
+    /// TODO(multi-project): Used once subscription forwarding is implemented.
     #[allow(dead_code)]
     pub fn remote(
         client: next_api::ipc::client::DaemonClient,
         callback_id: next_api::ipc::protocol::CallbackId,
     ) -> Self {
         RootTask {
-            turbopack_ctx: None,
-            task_id: None,
-            remote_client: Some(client),
-            remote_callback_id: Some(callback_id),
+            kind: RootTaskKind::Remote {
+                client,
+                callback_id,
+            },
         }
     }
 }
@@ -116,27 +123,31 @@ impl RootTask {
 impl Drop for RootTask {
     fn drop(&mut self) {
         // Intentionally a no-op. JavaScript must call `root_task_dispose`
-        // explicitly (in a try/finally block). We cannot await async
-        // operations inside Drop.
+        // explicitly (in a try/finally block). For local tasks, the task_id
+        // is silently leaked. For remote tasks, the daemon cleans up
+        // subscriptions when the connection drops.
     }
 }
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    if let (Some(task), Some(ctx)) = (root_task.task_id.take(), root_task.turbopack_ctx.as_ref()) {
-        ctx.turbo_tasks().dispose_root_task(task);
-    }
-    // For remote root tasks, cancellation is handled via CancelSubscription
-    // when the daemon client drops the subscription channel.
-    if let (Some(client), Some(callback_id)) = (
-        root_task.remote_client.take(),
-        root_task.remote_callback_id.take(),
-    ) {
-        tokio::spawn(async move {
-            let _ = client.cancel_subscription(callback_id).await;
-        });
+    match &root_task.kind {
+        RootTaskKind::Local { ctx, task_id } => {
+            ctx.turbo_tasks().dispose_root_task(*task_id);
+        }
+        RootTaskKind::Remote {
+            client,
+            callback_id,
+        } => {
+            // Send CancelSubscription to the daemon to stop the remote subscription.
+            let client = client.clone();
+            let callback_id = *callback_id;
+            tokio::spawn(async move {
+                let _ = client.cancel_subscription(callback_id).await;
+            });
+        }
     }
     Ok(())
 }

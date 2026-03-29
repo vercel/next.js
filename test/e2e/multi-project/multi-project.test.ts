@@ -1,28 +1,21 @@
 import { parseProjectGroups } from '../../../packages/next/src/lib/multi-project'
 
 describe('parseProjectGroups', () => {
+  /** Shorthand that prepends the standard ['node', 'next', 'dev'] prefix. */
+  const parse = (...args: string[]) =>
+    parseProjectGroups(['node', 'next', 'dev', ...args])
+
   it('returns empty array for no --experimental-project flags', () => {
-    expect(parseProjectGroups(['node', 'next', 'dev'])).toEqual([])
+    expect(parse()).toEqual([])
   })
 
   it('returns single project', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './app',
-      ])
-    ).toEqual([{ dir: './app' }])
+    expect(parse('--experimental-project', './app')).toEqual([{ dir: './app' }])
   })
 
   it('parses two projects with ports', () => {
     expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
+      parse(
         '--experimental-project',
         './p1',
         '--port',
@@ -30,8 +23,8 @@ describe('parseProjectGroups', () => {
         '--experimental-project',
         './p2',
         '--port',
-        '3001',
-      ])
+        '3001'
+      )
     ).toEqual([
       { dir: './p1', port: 3000 },
       { dir: './p2', port: 3001 },
@@ -40,17 +33,14 @@ describe('parseProjectGroups', () => {
 
   it('parses per-project bundler flags', () => {
     expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
+      parse(
         '--experimental-project',
         './p1',
         '--turbopack',
         '--experimental-project',
         './p2',
-        '--webpack',
-      ])
+        '--webpack'
+      )
     ).toEqual([
       { dir: './p1', turbopack: true },
       { dir: './p2', webpack: true },
@@ -58,118 +48,63 @@ describe('parseProjectGroups', () => {
   })
 
   it('handles -p shorthand for port', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '-p',
-        '4000',
-      ])
-    ).toEqual([{ dir: './p1', port: 4000 }])
+    expect(parse('--experimental-project', './p1', '-p', '4000')).toEqual([
+      { dir: './p1', port: 4000 },
+    ])
   })
 
   it('handles --turbo alias for --turbopack', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--turbo',
-      ])
-    ).toEqual([{ dir: './p1', turbopack: true }])
+    expect(parse('--experimental-project', './p1', '--turbo')).toEqual([
+      { dir: './p1', turbopack: true },
+    ])
   })
 
   it('throws when --experimental-project has no value', () => {
-    expect(() =>
-      parseProjectGroups(['node', 'next', 'dev', '--experimental-project'])
-    ).toThrow('--experimental-project requires a directory argument')
+    expect(() => parse('--experimental-project')).toThrow(
+      '--experimental-project requires a directory argument'
+    )
   })
 
   it('throws when --experimental-project value looks like a flag', () => {
-    expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        '--port',
-        '3000',
-      ])
-    ).toThrow('--experimental-project requires a directory argument')
+    expect(() => parse('--experimental-project', '--port', '3000')).toThrow(
+      '--experimental-project requires a directory argument'
+    )
   })
 
   it('throws when --port has no value', () => {
-    expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--port',
-      ])
-    ).toThrow('--port requires a valid port number')
+    expect(() => parse('--experimental-project', './p1', '--port')).toThrow(
+      '--port requires a valid port number'
+    )
   })
 
   it('throws when --port is not a number', () => {
     expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--port',
-        'abc',
-      ])
+      parse('--experimental-project', './p1', '--port', 'abc')
     ).toThrow('--port requires a valid port number')
   })
 
   it('throws when --port is out of range', () => {
     expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--port',
-        '99999',
-      ])
+      parse('--experimental-project', './p1', '--port', '99999')
     ).toThrow('--port requires a valid port number')
   })
 
   it('ignores flags before the first --experimental-project', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--turbopack',
-        '--experimental-project',
-        './p1',
-      ])
-    ).toEqual([{ dir: './p1' }])
+    expect(parse('--turbopack', '--experimental-project', './p1')).toEqual([
+      { dir: './p1' },
+    ])
   })
 
   it('parses --port=3000 equals form', () => {
     expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
+      parse(
         '--experimental-project',
         './p1',
         '--port=3000',
         '--experimental-project',
         './p2',
-        '--port=4000',
-      ])
+        '--port=4000'
+      )
     ).toEqual([
       { dir: './p1', port: 3000 },
       { dir: './p2', port: 4000 },
@@ -178,58 +113,31 @@ describe('parseProjectGroups', () => {
 
   it('throws when --port value is another flag', () => {
     expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
+      parse(
         '--experimental-project',
         './p1',
         '--port',
         '--experimental-project',
-        './p2',
-      ])
+        './p2'
+      )
     ).toThrow('--port requires a valid port number')
   })
 
-  it('returns a single project group for one --experimental-project', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './app',
-        '--port',
-        '3000',
-      ])
-    ).toEqual([{ dir: './app', port: 3000 }])
+  it('returns a single project group with port', () => {
+    expect(parse('--experimental-project', './app', '--port', '3000')).toEqual([
+      { dir: './app', port: 3000 },
+    ])
   })
 
   it('accepts port 0 (ephemeral)', () => {
-    expect(
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--port',
-        '0',
-      ])
-    ).toEqual([{ dir: './p1', port: 0 }])
+    expect(parse('--experimental-project', './p1', '--port', '0')).toEqual([
+      { dir: './p1', port: 0 },
+    ])
   })
 
   it('throws when --port is negative', () => {
     expect(() =>
-      parseProjectGroups([
-        'node',
-        'next',
-        'dev',
-        '--experimental-project',
-        './p1',
-        '--port',
-        '-1',
-      ])
+      parse('--experimental-project', './p1', '--port', '-1')
     ).toThrow('--port requires a valid port number')
   })
 })

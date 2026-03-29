@@ -141,9 +141,8 @@ where
     let (mut reader, writer) = tokio::io::split(stream);
     let writer = Arc::new(Mutex::new(writer));
 
-    // Track subscription callback IDs registered by this connection,
-    // so we can abort them if the connection drops unexpectedly.
-    let connection_callbacks: Arc<Mutex<Vec<CallbackId>>> = Arc::new(Mutex::new(Vec::new()));
+    // TODO(multi-project): When subscription dispatch is implemented, track
+    // callback IDs per connection and abort them here on disconnect.
 
     loop {
         let payload = match read_framed(&mut reader).await {
@@ -171,8 +170,6 @@ where
 
         let writer = writer.clone();
         let state = state.clone();
-        // TODO(multi-project): pass connection_callbacks.clone() to the spawn
-        // and register callback IDs when subscription dispatch is implemented.
         tokio::spawn(async move {
             let response = dispatch_request(request, &state).await;
             let encoded = match bincode::encode_to_vec(&response, bincode::config::standard()) {
@@ -185,15 +182,6 @@ where
             let mut w = writer.lock().await;
             let _ = write_framed(&mut *w, &encoded).await;
         });
-    }
-
-    // Clean up any subscriptions registered by this connection.
-    let callback_ids = connection_callbacks.lock().await;
-    let mut subs = state.subscriptions.write().await;
-    for cb_id in callback_ids.iter() {
-        if let Some(abort_handle) = subs.remove(cb_id) {
-            abort_handle.abort();
-        }
     }
 
     Ok(())
@@ -340,8 +328,9 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
         }
 
         DaemonRequest::ProjectOnExit { call_id, project } => {
-            // OnExit stops the project's turbo-tasks but keeps the handle in
-            // the map (it may be re-used). Shutdown also removes the handle.
+            // OnExit stops turbo-tasks and removes the handle from the map,
+            // just like Shutdown. The difference is that OnExit is a fire-and-forget
+            // call from the JS side (errors are swallowed by the caller).
             if let Some(proj) = state.get_project(project).await {
                 proj.turbo_tasks.stop_and_wait().await;
                 state.projects.write().await.remove(&project);

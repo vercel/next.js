@@ -5,6 +5,12 @@ import path from 'path'
 import crypto from 'crypto'
 import { once } from 'events'
 
+/** Time to wait before sending SIGKILL when children don't respond to signals. */
+const FORCE_KILL_TIMEOUT_MS = 5_000
+
+/** Time to wait for the daemon to print "READY" on startup. */
+const DAEMON_STARTUP_TIMEOUT_MS = 30_000
+
 export type ProjectGroup = {
   dir: string
   port?: number
@@ -86,10 +92,10 @@ async function spawnDaemon(
   // Wait for daemon to emit "READY" on stdout, with a 30-second timeout.
   await new Promise<void>((resolve, reject) => {
     let buffer = ''
-    const timeoutMs = 30_000
+    const stdout = daemon.stdout!
 
     const cleanup = () => {
-      daemon.stdout!.off('data', onData)
+      stdout.off('data', onData)
       daemon.off('exit', onExit)
       daemon.off('error', onError)
       clearTimeout(timer)
@@ -118,14 +124,14 @@ async function spawnDaemon(
       daemon.kill('SIGKILL')
       reject(
         new Error(
-          `Turbopack daemon did not become ready within ${timeoutMs / 1000}s`
+          `Turbopack daemon did not become ready within ${DAEMON_STARTUP_TIMEOUT_MS / 1000}s`
         )
       )
-    }, timeoutMs)
+    }, DAEMON_STARTUP_TIMEOUT_MS)
     timer.unref()
 
-    daemon.stdout!.setEncoding('utf8')
-    daemon.stdout!.on('data', onData)
+    stdout.setEncoding('utf8')
+    stdout.on('data', onData)
     daemon.on('exit', onExit)
     daemon.on('error', onError)
   })
@@ -195,25 +201,19 @@ export async function runMultiProject(
   )
 
   const cleanupSocket = () => {
+    // Best-effort cleanup; errors are ignored since this runs at exit time.
+    // On Windows, named pipes are cleaned up by the OS when the daemon exits.
     if (process.platform !== 'win32') {
       try {
         fs.unlinkSync(socketPath)
-      } catch (err: unknown) {
-        // Ignore ENOENT — daemon may have already removed the socket
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+      } catch {
+        // Ignore all errors (ENOENT if already cleaned up, EPERM on read-only fs, etc.)
       }
     }
   }
 
   // Best-effort cleanup on unexpected exit
-  process.on('exit', () => {
-    // Best-effort cleanup — exit handlers must not throw
-    try {
-      cleanupSocket()
-    } catch {
-      // Ignore all errors at exit time
-    }
-  })
+  process.on('exit', cleanupSocket)
 
   // 3. Forward signals to daemon + all workers
   const forwardSignal = (signal: NodeJS.Signals) => {
@@ -221,7 +221,7 @@ export async function runMultiProject(
     workers.forEach((w) => {
       if (!w.killed) w.kill(signal)
     })
-    // Force exit after 5 seconds if children don't terminate
+    // Force exit after timeout if children don't terminate
     setTimeout(() => {
       if (!daemon.killed) daemon.kill('SIGKILL')
       workers.forEach((w) => {
@@ -233,11 +233,13 @@ export async function runMultiProject(
         SIGHUP: 129,
       }
       process.exit(exitCodes[signal] ?? 143)
-    }, 5000).unref()
+    }, FORCE_KILL_TIMEOUT_MS).unref()
   }
   process.on('SIGINT', () => forwardSignal('SIGINT'))
   process.on('SIGTERM', () => forwardSignal('SIGTERM'))
-  process.on('SIGHUP', () => forwardSignal('SIGHUP'))
+  if (process.platform !== 'win32') {
+    process.on('SIGHUP', () => forwardSignal('SIGHUP'))
+  }
 
   // 4. Wait for all workers to exit, then kill daemon
   await Promise.allSettled(workers.map((w) => once(w, 'exit')))

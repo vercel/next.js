@@ -471,6 +471,17 @@ impl ProjectInstance {
         self.container
             .expect("container not available on remote project")
     }
+
+    /// Returns an error if this is a daemon-backed (remote) project.
+    /// Used to guard functions not yet forwarded over IPC.
+    fn require_local(&self, fn_name: &str) -> napi::Result<()> {
+        if self.remote.is_some() {
+            return Err(napi::Error::from_reason(format!(
+                "{fn_name} is not yet supported for daemon-backed projects"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -1457,11 +1468,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_write_all_entrypoints_to_disk is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_write_all_entrypoints_to_disk")?;
     let ctx = &project.ctx();
     let container = project.container();
     let tt = ctx.turbo_tasks();
@@ -1871,11 +1878,7 @@ async fn output_assets_operation(
 pub async fn project_entrypoints(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_entrypoints is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_entrypoints")?;
     let container = project.container();
 
     let (entrypoints, issues, diags) = project
@@ -1920,11 +1923,7 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_entrypoints_subscribe is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_entrypoints_subscribe")?;
     let turbopack_ctx = project.ctx().clone();
     let container = project.container();
     subscribe(
@@ -2017,11 +2016,7 @@ pub fn project_hmr_events(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_hmr_events is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_hmr_events")?;
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
@@ -2162,11 +2157,7 @@ pub fn project_hmr_chunk_names_subscribe(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_hmr_chunk_names_subscribe is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_hmr_chunk_names_subscribe")?;
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
@@ -2268,11 +2259,7 @@ pub fn project_update_info_subscribe(
     aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_update_info_subscribe is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_update_info_subscribe")?;
     let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
         let message = ctx.value;
         Ok(vec![NapiUpdateMessage::from(message)])
@@ -2321,11 +2308,7 @@ pub fn project_compilation_events_subscribe(
     func: JsFunction,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_compilation_events_subscribe is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_compilation_events_subscribe")?;
     let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
         func.create_threadsafe_function(0, |ctx| {
             let event: Arc<dyn CompilationEvent> = ctx.value;
@@ -2589,6 +2572,13 @@ pub async fn project_trace_source_operation(
     })))
 }
 
+/// Maps source-map operation errors to napi::Error. These operations are
+/// race-condition prone (source files may change or be deleted between the
+/// request and the lookup), so we don't use TurbopackInternalError.
+fn map_source_map_error(e: impl Into<anyhow::Error>) -> napi::Error {
+    napi::Error::from_reason(PrettyPrintError(&e.into()).to_string())
+}
+
 #[tracing::instrument(level = "info", name = "apply SourceMap to stack frame", skip_all)]
 #[napi]
 pub async fn project_trace_source(
@@ -2627,11 +2617,8 @@ pub async fn project_trace_source(
             .await?;
             Ok(ReadRef::into_owned(traced_frame))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[tracing::instrument(level = "info", name = "get source content for asset", skip_all)]
@@ -2680,11 +2667,8 @@ pub async fn project_get_source_for_asset(
 
             Ok(Some(source_content.content().to_str()?.into_owned()))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[tracing::instrument(level = "info", name = "get SourceMap for asset", skip_all)]
@@ -2722,11 +2706,8 @@ pub async fn project_get_source_map(
             };
             Ok(Some(map.content().to_str()?.to_string()))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[napi]
@@ -2734,11 +2715,7 @@ pub fn project_get_source_map_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_get_source_map_sync is not supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_get_source_map_sync")?;
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
@@ -2749,11 +2726,7 @@ pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
-    if project.remote.is_some() {
-        return Err(napi::Error::from_reason(
-            "project_write_analyze_data is not yet supported for daemon-backed projects",
-        ));
-    }
+    project.require_local("project_write_analyze_data")?;
     let container = project.container();
     let (issues, diagnostics) = project
         .ctx()

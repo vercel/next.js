@@ -101,15 +101,16 @@ impl DaemonClient {
                         }
                     };
                 match response {
-                    response @ (DaemonResponse::Ok { .. } | DaemonResponse::Err { .. }) => {
-                        let (call_id, payload) = match response {
-                            DaemonResponse::Ok { call_id, result } => (call_id, Ok(result)),
-                            DaemonResponse::Err { call_id, message } => (call_id, Err(message)),
-                            _ => unreachable!(),
-                        };
+                    DaemonResponse::Ok { call_id, result } => {
                         let mut pending = client_inner.pending.lock().await;
                         if let Some(tx) = pending.remove(&call_id) {
-                            let _ = tx.send(payload);
+                            let _ = tx.send(Ok(result));
+                        }
+                    }
+                    DaemonResponse::Err { call_id, message } => {
+                        let mut pending = client_inner.pending.lock().await;
+                        if let Some(tx) = pending.remove(&call_id) {
+                            let _ = tx.send(Err(message));
                         }
                     }
                     DaemonResponse::CallbackInvoke {
@@ -123,8 +124,10 @@ impl DaemonClient {
                     }
                 }
             }
-            // Connection closed — wake up all pending callers and close all
-            // subscription channels so receivers don't hang forever.
+            // Connection closed — dropping the oneshot senders causes all pending
+            // call() futures to resolve with Err(RecvError), which surfaces as
+            // "Daemon connection dropped". Clearing subscriptions closes channels
+            // so receivers see None on next recv().
             {
                 let mut pending = client_inner.pending.lock().await;
                 pending.clear();
@@ -155,6 +158,7 @@ impl DaemonClient {
         })?;
 
         let (tx, rx) = oneshot::channel();
+        // Insert before sending so a fast response can't arrive before we're listening.
         self.inner.pending.lock().await.insert(call_id, tx);
 
         let encoded = bincode::encode_to_vec(&req, bincode::config::standard())
