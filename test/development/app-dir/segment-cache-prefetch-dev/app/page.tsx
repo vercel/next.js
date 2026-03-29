@@ -1,10 +1,10 @@
-import Link from 'next/link'
+import PageClient from './page-client'
 
 export default function PageA() {
   return (
-    <div>
-      <h1>Page A</h1>
-      <Link href="/page-b">Go to Page B</Link>
-    </div>
+    <main>
+      <h1>Home Page</h1>
+      <PageClient />
+    </main>
   )
 }
