@@ -57,7 +57,7 @@ export async function turbopackAnalyze(
 
   const project = await bindings.turbo.createProject(
     {
-      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
+      rootPath: rootPath,
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,

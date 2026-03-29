@@ -3,7 +3,6 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
-import { once } from 'events'
 
 /** Time to wait before sending SIGKILL when children don't respond to signals. */
 const FORCE_KILL_TIMEOUT_MS = 5_000
@@ -158,8 +157,9 @@ function spawnWorker(
   } else if (group.webpack) {
     args.push('--webpack')
   }
-  // Always pass the daemon socket; webpack-mode workers simply ignore it
-  args.push('--turbopack-daemon', socketPath)
+  if (!group.webpack) {
+    args.push('--turbopack-daemon', socketPath)
+  }
 
   return spawn(process.execPath, args, {
     stdio: 'inherit',
@@ -182,10 +182,11 @@ export async function runMultiProject(
 
   // Track workers so the daemon crash handler can kill them
   const workers: ChildProcess[] = []
+  let daemonKilledByUs = false
 
   // If the daemon crashes unexpectedly, kill all workers
   daemon.on('exit', (code, signal) => {
-    if (code !== 0 && code !== null) {
+    if (!daemonKilledByUs && code !== 0 && code !== null) {
       console.error(
         `Turbopack daemon exited unexpectedly (code ${code}, signal ${signal}), killing workers`
       )
@@ -213,10 +214,11 @@ export async function runMultiProject(
   }
 
   // Best-effort cleanup on unexpected exit
-  process.on('exit', cleanupSocket)
+  process.once('exit', cleanupSocket)
 
   // 3. Forward signals to daemon + all workers
   const forwardSignal = (signal: NodeJS.Signals) => {
+    daemonKilledByUs = true
     if (!daemon.killed) daemon.kill(signal)
     workers.forEach((w) => {
       if (!w.killed) w.kill(signal)
@@ -235,18 +237,38 @@ export async function runMultiProject(
       process.exit(exitCodes[signal] ?? 143)
     }, FORCE_KILL_TIMEOUT_MS).unref()
   }
-  process.on('SIGINT', () => forwardSignal('SIGINT'))
-  process.on('SIGTERM', () => forwardSignal('SIGTERM'))
+  process.once('SIGINT', () => forwardSignal('SIGINT'))
+  process.once('SIGTERM', () => forwardSignal('SIGTERM'))
   if (process.platform !== 'win32') {
-    process.on('SIGHUP', () => forwardSignal('SIGHUP'))
+    process.once('SIGHUP', () => forwardSignal('SIGHUP'))
   }
 
   // 4. Wait for all workers to exit, then kill daemon
-  await Promise.allSettled(workers.map((w) => once(w, 'exit')))
+  const workerPromises = workers.map(
+    (w) =>
+      new Promise<number>((resolve, reject) => {
+        w.once('exit', (code) => {
+          code !== 0 && code !== null
+            ? reject(new Error(`Worker exited with code ${code}`))
+            : resolve(0)
+        })
+        w.once('error', reject)
+      })
+  )
+  const results = await Promise.allSettled(workerPromises)
+
+  // Propagate the worst worker exit code so CI detects failures.
+  let exitCode = 0
+  for (const r of results) {
+    if (r.status === 'rejected') {
+      exitCode = 1
+    }
+  }
 
   // Cleanup: kill daemon and socket file.
   // On Windows, named pipes are automatically cleaned up by the OS.
-  daemon.kill('SIGTERM')
+  daemonKilledByUs = true
+  if (!daemon.killed) daemon.kill('SIGTERM')
   cleanupSocket()
-  process.exit(0)
+  process.exit(exitCode)
 }

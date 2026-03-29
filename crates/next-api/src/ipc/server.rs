@@ -65,8 +65,11 @@ impl DaemonState {
     }
 }
 
-/// Run the daemon server, listening on the given socket path.
-/// This function blocks indefinitely until the process is killed.
+/// Starts the daemon server and listens for connections on `socket_path`.
+///
+/// This function blocks indefinitely on Unix (infinite accept loop) and only
+/// returns if there is a fatal error during socket setup. On Windows, the
+/// behavior is analogous but uses named pipes.
 pub async fn run_daemon_server(socket_path: &str) -> Result<()> {
     let state = DaemonState::new();
 
@@ -328,12 +331,10 @@ async fn dispatch_request(req: DaemonRequest, state: &DaemonState) -> DaemonResp
         }
 
         DaemonRequest::ProjectOnExit { call_id, project } => {
-            // OnExit stops turbo-tasks and removes the handle from the map,
-            // just like Shutdown. The difference is that OnExit is a fire-and-forget
-            // call from the JS side (errors are swallowed by the caller).
-            if let Some(proj) = state.get_project(project).await {
+            // OnExit stops turbo-tasks and removes the handle from the map.
+            // Uses atomic remove to avoid TOCTOU races with concurrent Shutdown.
+            if let Some(proj) = state.projects.write().await.remove(&project) {
                 proj.turbo_tasks.stop_and_wait().await;
-                state.projects.write().await.remove(&project);
             }
             DaemonResponse::Ok {
                 call_id,

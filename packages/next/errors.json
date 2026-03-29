@@ -1175,5 +1175,6 @@
   "1174": "--port requires a valid port number (0-65535), got: %s",
   "1175": "--experimental-project requires a directory argument",
   "1176": "--port requires a valid port number (0-65535), got: %s%s",
-  "1177": "Turbopack daemon did not become ready within %s%ss"
+  "1177": "Turbopack daemon did not become ready within %s%ss",
+  "1178": "Worker exited with code %s"
 }

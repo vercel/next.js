@@ -192,6 +192,9 @@ impl DaemonClient {
 
     /// Cancel a subscription.
     pub async fn cancel_subscription(&self, callback_id: CallbackId) -> Result<()> {
+        // Remove locally first: even if the send below fails (connection
+        // closed), we stop processing callbacks for this subscription.
+        // The daemon cleans up its side when the connection drops.
         self.inner.subscriptions.lock().await.remove(&callback_id);
         let req = DaemonRequest::CancelSubscription { callback_id };
         let encoded = bincode::encode_to_vec(&req, bincode::config::standard())?;

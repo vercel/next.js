@@ -141,6 +141,7 @@ function parseValidInspectAddress(value: string): DebugAddress {
  * shared Turbopack daemon.
  */
 function getProjectGroups() {
+  if (!process.argv.includes('--experimental-project')) return []
   const { parseProjectGroups } =
     require('../lib/multi-project') as typeof import('../lib/multi-project')
   return parseProjectGroups(process.argv)

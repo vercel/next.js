@@ -907,10 +907,11 @@ pub async fn project_on_exit(
 
 async fn project_on_exit_internal(project: &ProjectInstance) {
     let exit_receiver = project.exit_receiver.lock().await.take();
-    exit_receiver
-        .expect("`project.onExitSync` must only be called once")
-        .run_exit_handler()
-        .await;
+    if let Some(receiver) = exit_receiver {
+        receiver.run_exit_handler().await;
+    }
+    // Silently ignore double calls — can happen if both project_on_exit
+    // and project_shutdown are called by the JS side.
 }
 
 /// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
@@ -2586,24 +2587,7 @@ pub async fn project_trace_source(
     frame: StackFrame,
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
-    if let Some(remote) = project.remote.as_ref() {
-        let handle = remote.handle;
-        let proto_frame: next_api::ipc::protocol::StackFrame = frame.into();
-        let result = remote
-            .call(
-                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectTraceSource {
-                    call_id,
-                    project: handle,
-                    frame: proto_frame,
-                    current_directory_file_url,
-                },
-            )
-            .await?;
-        return match result {
-            next_api::ipc::protocol::DaemonResult::StackFrame(opt) => Ok(opt.map(Into::into)),
-            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
-        };
-    }
+    project.require_local("project_trace_source")?;
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
@@ -2627,23 +2611,7 @@ pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    if let Some(remote) = project.remote.as_ref() {
-        let handle = remote.handle;
-        let file_path_str = file_path.to_string();
-        let result = remote
-            .call(
-                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectGetSourceForAsset {
-                    call_id,
-                    project: handle,
-                    file_path: file_path_str,
-                },
-            )
-            .await?;
-        return match result {
-            next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
-            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
-        };
-    }
+    project.require_local("project_get_source_for_asset")?;
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
@@ -2677,23 +2645,7 @@ pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    if let Some(remote) = project.remote.as_ref() {
-        let handle = remote.handle;
-        let file_path_str = file_path.to_string();
-        let result = remote
-            .call(
-                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectGetSourceMap {
-                    call_id,
-                    project: handle,
-                    file_path: file_path_str,
-                },
-            )
-            .await?;
-        return match result {
-            next_api::ipc::protocol::DaemonResult::StringOption(opt) => Ok(opt),
-            _ => Err(napi::Error::from_reason("Unexpected daemon response")),
-        };
-    }
+    project.require_local("project_get_source_map")?;
     let container = project.container();
     let ctx = &project.ctx();
     ctx.turbo_tasks()
