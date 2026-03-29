@@ -455,7 +455,9 @@ function hasNetworkBandwidth(task: PrefetchTask): boolean {
   }
 
   // The default limit is lower than the limit for a hovered link.
-  return inProgressRequests < 4
+  // In development, use a more conservative limit to avoid triggering many
+  // parallel compilations when links enter the viewport.
+  return inProgressRequests < (process.env.NODE_ENV === 'development' ? 1 : 4)
 }
 
 function spawnPrefetchSubtask<T>(
