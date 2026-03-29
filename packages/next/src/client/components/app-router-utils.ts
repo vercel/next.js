@@ -29,10 +29,8 @@ export function createPrefetchURL(href: string): URL | null {
     )
   }
 
-  // Don't prefetch during development with webpack (improves compilation
-  // performance). With Turbopack, prefetching is allowed because the
-  // incremental compiler handles on-demand compilation efficiently.
-  if (process.env.NODE_ENV === 'development' && !process.env.TURBOPACK) {
+  // Don't prefetch in dev unless experimental.turbopackPrefetchInDev is enabled.
+  if (!process.env.__NEXT_PREFETCH) {
     return null
   }
 
