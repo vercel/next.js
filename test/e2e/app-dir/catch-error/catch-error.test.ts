@@ -55,6 +55,18 @@ describe('app-dir - unstable_catchError', () => {
     }
   })
 
+  it('should recover SSR Client Component error after unstable_retry', async () => {
+    const browser = await next.browser('/ssr')
+
+    expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
+      'this is a test'
+    )
+
+    await browser.elementByCss('#retry').click().waitForElementByCss('#recover')
+
+    expect(await browser.elementByCss('#recover').text()).toBe('Recovered')
+  })
+
   it('should recover Server Component error after unstable_retry', async () => {
     const browser = await next.browser('/server-component')
 
