@@ -8,7 +8,7 @@
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
-const { execSync, execFileSync } = require('child_process')
+const { execFileSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -85,30 +85,13 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
-// --- Build Docker image via turbo task ---
-// Step 1: turbo either builds (cache miss) or restores image.tar (cache hit).
-// Step 2: --load ensures the image is in docker (turbo skips the script on hit).
+// --- Build/restore Docker image ---
 function ensureDockerImage() {
-  try {
-    execSync(`docker image inspect ${DOCKER_IMAGE}`, { stdio: 'ignore' })
-    if (!rebuild) return // already loaded
-  } catch {
-    // not loaded — continue to build/restore
-  }
-
-  const forceFlag = rebuild ? ' -- --force' : ''
-  execSync(`pnpm -F @next/swc build-docker-image${forceFlag}`, {
-    stdio: 'inherit',
-    cwd: REPO_ROOT,
-  })
-  // Load the image if turbo restored it from cache (turbo skips the script on hit)
-  const loadFlag = rebuild ? '--force' : '--load'
+  const args = rebuild ? ['--force'] : []
   execFileSync(
     'node',
-    [path.join(__dirname, 'docker-image-cache.js'), loadFlag],
-    {
-      stdio: 'inherit',
-    }
+    [path.join(__dirname, 'docker-image-cache.js'), ...args],
+    { stdio: 'inherit' }
   )
 }
 

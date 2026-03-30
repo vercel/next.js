@@ -121,14 +121,6 @@
       "env": ["CI"],
       "outputs": ["native/*"],
     },
-    "build-docker-image": {
-      "inputs": [
-        "../../scripts/native-builder.Dockerfile",
-        "../../scripts/docker-native-build.sh",
-        "../../rust-toolchain.toml",
-      ],
-      "outputs": ["../../target/docker-image.tar"],
-    },
     "cache-build-native": {
       "inputs": [
         "../../.cargo/**",
