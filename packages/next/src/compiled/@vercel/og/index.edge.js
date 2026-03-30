@@ -18034,22 +18034,6 @@ async function* Ji(e, t) {
   }
   var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
   var _isRTL = _rtlRegex.test(ue);
-  if (_isRTL) {
-    var _lineGroups = {};
-    for (var _v = 0; _v < De.length; _v++) {
-      var _ln = De[_v].line;
-      if (!_lineGroups[_ln]) _lineGroups[_ln] = [];
-      _lineGroups[_ln].push(_v);
-    }
-    for (var _ln2 in _lineGroups) {
-      var _indices = _lineGroups[_ln2];
-      var _lineWidth = J[_ln2];
-      for (var _idx = 0; _idx < _indices.length; _idx++) {
-        var _i2 = _indices[_idx];
-        De[_i2].x = _lineWidth - De[_i2].x - De[_i2].width;
-      }
-    }
-  }
   let ht = "", mt = "", Zt = "", qt = -1, Ge = {}, it = {}, Ze = null, gt = 0;
   for (let Y = 0; Y < Le.length; Y++) {
     let j = De[Y], fe = De[Y + 1];
@@ -18059,7 +18043,7 @@ async function* Ji(e, t) {
     if (Q === qt)
       continue;
     let ze = false;
-    if (Q === 0 && dr !== 0 && (te += dr), J.length > 1) {
+    if (Q === 0 && dr !== 0 && (te += dr), J.length > 1 || _isRTL) {
       let we = Qt - J[Q];
       if (b === "right" || b === "end" || _isRTL)
         te += we;
@@ -18102,7 +18086,7 @@ async function* Ji(e, t) {
     if (xe)
       ee += 0;
     else if (l2) {
-      if (!_isRTL && !K2.includes(Qi) && !da.includes(K2) && Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae) {
+      if (Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae && (_isRTL || (!K2.includes(Qi) && !da.includes(K2)))) {
         Ze === null && (gt = te), Ze = Ze === null ? K2 : Ze + K2;
         continue;
       }
