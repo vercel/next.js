@@ -19,7 +19,7 @@ let last: {
 export function getParams(page: string, pathname: string) {
   // Because this is often called on the output of `getStaticPaths` or similar
   // where the `page` here doesn't change, this will "remember" the last page
-  // it created the RegExp for. If it matches, it'll just re-use it.
+  // it created the RegExp for. If it matches, it'll just reuse it.
   let matcher: RouteMatchFn
   if (last?.page === page) {
     matcher = last.matcher

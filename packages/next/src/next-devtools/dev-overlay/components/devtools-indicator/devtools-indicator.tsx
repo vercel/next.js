@@ -75,7 +75,7 @@ export function DevToolsIndicator() {
 /**
  * makes sure we eventually sync the panel to the logo, otherwise
  * it will be jarring if the panels start appearing on the other
- * side of the logo. This wont teleport the panel because the indicator
+ * side of the logo. This won't teleport the panel because the indicator
  * cannot be dragged when any panel is open
  */
 export const useUpdateAllPanelPositions = () => {

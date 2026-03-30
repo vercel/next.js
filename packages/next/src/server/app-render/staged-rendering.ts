@@ -184,7 +184,7 @@ export class StagedRenderingController {
     // We can abandon the initial render if
     //   1. We notice a cache miss, and need to wait for caches to fill
     //   2. A sync IO error occurs, and the render should be interrupted
-    //      (this might be a lazy intitialization of a module,
+    //      (this might be a lazy initialization of a module,
     //       so we still want to restart in this case and see if it still occurs)
     // In either case, we'll be doing another render after this one,
     // so we only want to unblock the next stage, not Dynamic, because

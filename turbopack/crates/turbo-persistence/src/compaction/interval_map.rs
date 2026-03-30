@@ -313,7 +313,7 @@ mod tests {
         ];
         assert_eq!(result, expected);
 
-        // re-use expecting from above
+        // reuse expecting from above
         let result: Vec<_> = map.iter_intersecting(..).collect();
         assert_eq!(result, expected);
 

@@ -46,7 +46,7 @@ function isTerminalEditor(editor: string) {
 }
 
 // Map from full process name to binary that starts the process
-// We can't just re-use full process name, because it will spawn a new instance
+// We can't just reuse full process name, because it will spawn a new instance
 // of the app every time
 const COMMON_EDITORS_MACOS = {
   '/Applications/Atom.app/Contents/MacOS/Atom': 'atom',
@@ -272,7 +272,7 @@ function guessEditor(): string[] {
     // Ignore...
   }
 
-  // Last resort, use old skool env vars
+  // Last resort, use old school env vars
   if (process.env.VISUAL) {
     return [process.env.VISUAL]
   } else if (process.env.EDITOR) {

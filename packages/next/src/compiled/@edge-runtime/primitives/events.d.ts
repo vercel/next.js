@@ -261,7 +261,7 @@ declare class Event$1<TEventType extends string = string> {
 	get cancelable(): boolean;
 	/**
 	 * `true` if the default behavior will act.
-	 * @deprecated Use the `defaultPrevented` proeprty instead.
+	 * @deprecated Use the `defaultPrevented` property instead.
 	 * @see https://dom.spec.whatwg.org/#dom-event-returnvalue
 	 */
 	get returnValue(): boolean;

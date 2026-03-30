@@ -117,7 +117,7 @@ async fn rule_condition_from_webpack_condition(
             WebpackLoaderBuiltinConditionSetMatch::Matched => RuleCondition::True,
             WebpackLoaderBuiltinConditionSetMatch::Unmatched => RuleCondition::False,
             WebpackLoaderBuiltinConditionSetMatch::Invalid => {
-                // We don't expect the user to hit this because whatever deserailizes the user
+                // We don't expect the user to hit this because whatever deserializes the user
                 // configuration should validate conditions itself
                 anyhow::bail!("{name:?} is not a valid built-in condition")
             }

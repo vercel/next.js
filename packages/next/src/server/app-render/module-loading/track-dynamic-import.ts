@@ -45,7 +45,7 @@ export function trackDynamicImport<TExports extends Record<string, any>>(
   // we have to wait for the import *in all of them*.
   // If we only tracked it using `workUnitStore.cacheSignal.trackRead()`,
   // then only the first prerender to call `doDynamicImportOnce` would wait --
-  // Subsequent prerenders would re-use the existing `promise`,
+  // Subsequent prerenders would reuse the existing `promise`,
   // and `trackDynamicImport` wouldn't be called again in their scope,
   // so their respective CacheSignals wouldn't wait for the promise.
   trackPendingImport(modulePromise)

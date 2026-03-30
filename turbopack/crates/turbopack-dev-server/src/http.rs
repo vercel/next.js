@@ -181,7 +181,7 @@ pub async fn process_request_with_content_source(
                     // each `Bytes` and implementing `BufRead` for `Iterator<bytes::Bytes>`, but
                     // it's not really worth it, just compressing the whole thing up-front is fine.
                     //
-                    // Use fast compression, since we're likely just tranferring data over
+                    // Use fast compression, since we're likely just transferring data over
                     // localhost.
                     let mut gz_bytes = Vec::new();
                     GzEncoder::new(content.read(), Compression::fast())

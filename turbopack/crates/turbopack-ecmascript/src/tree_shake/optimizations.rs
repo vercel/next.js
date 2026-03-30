@@ -59,13 +59,13 @@ impl GraphOptimizer<'_> {
 
             // If the node has only one incoming edge, we enqueue it
             if g.edges_directed(node, Direction::Incoming).count() == 1 {
-                let dependant = g
+                let dependent = g
                     .edges_directed(node, Direction::Incoming)
                     .next()
                     .unwrap()
                     .source();
 
-                if self.should_not_merge_iter(&g[dependant]) {
+                if self.should_not_merge_iter(&g[dependent]) {
                     continue;
                 }
 
@@ -74,16 +74,16 @@ impl GraphOptimizer<'_> {
                     .map(|e| (e.target(), *e.weight()))
                     .collect::<Vec<_>>();
 
-                queue.push((node, dependant, dependencies));
+                queue.push((node, dependent, dependencies));
                 removed_nodes.push(node);
             }
         }
 
-        for (original, dependant, dependencies) in queue {
-            // Move all edges from node to dependant
+        for (original, dependent, dependencies) in queue {
+            // Move all edges from node to dependent
             for (dependency, weight) in dependencies {
                 let edge = g
-                    .find_edge(dependant, dependency)
+                    .find_edge(dependent, dependency)
                     .and_then(|e| g.edge_weight_mut(e));
                 match edge {
                     Some(v) => {
@@ -92,14 +92,14 @@ impl GraphOptimizer<'_> {
                         }
                     }
                     None => {
-                        g.add_edge(dependant, dependency, weight);
+                        g.add_edge(dependent, dependency, weight);
                     }
                 }
             }
 
-            // Move items from original to dependant
+            // Move items from original to dependent
             let items = g.node_weight(original).expect("Node should exist").clone();
-            g.node_weight_mut(dependant).unwrap().extend(items);
+            g.node_weight_mut(dependent).unwrap().extend(items);
         }
 
         let mut did_work = false;

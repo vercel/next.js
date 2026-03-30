@@ -698,7 +698,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&
-      // We can skip this during hydration. Running it wont cause any harm, but
+      // We can skip this during hydration. Running it won't cause any harm, but
       // we may as well save the CPU cycles:
       styleSheets &&
       // Ensure this render was not canceled
@@ -814,7 +814,7 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
     await doRender(renderingProps)
   } catch (err) {
     const renderErr = getProperError(err)
-    // bubble up cancelation errors
+    // bubble up cancellation errors
     if ((renderErr as Error & { cancelled?: boolean }).cancelled) {
       throw renderErr
     }

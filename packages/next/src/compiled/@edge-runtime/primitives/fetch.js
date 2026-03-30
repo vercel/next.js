@@ -460,7 +460,7 @@ var require_constants = __commonJS({
       "Date",
       "Device-Memory",
       "Downlink",
-      "ECT",
+      "ETC",
       "ETag",
       "Expect",
       "Expect-CT",
@@ -11662,7 +11662,7 @@ var require_headers = __commonJS({
         __privateSet(this, _headersList, new HeadersList());
         __privateSet(this, _guard, "none");
         if (init !== void 0) {
-          init = webidl.converters.HeadersInit(init, "Headers contructor", "init");
+          init = webidl.converters.HeadersInit(init, "Headers constructor", "init");
           fill(this, init);
         }
       }

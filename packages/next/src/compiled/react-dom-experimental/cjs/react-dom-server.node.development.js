@@ -2638,7 +2638,7 @@
               "string" === typeof props.precedence &&
               (("string" === typeof href && href) ||
                 console.error(
-                  'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and expected the `href` prop to be a non-empty string but ecountered %s instead. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop ensure there is a non-empty string `href` prop as well, otherwise remove the `precedence` prop.',
+                  'React encountered a `<link rel="stylesheet" .../>` with a `precedence` prop and expected the `href` prop to be a non-empty string but encountered %s instead. If your intent was to have React hoist and deduplciate this stylesheet using the `precedence` prop ensure there is a non-empty string `href` prop as well, otherwise remove the `precedence` prop.',
                   null === href
                     ? "`null`"
                     : void 0 === href
@@ -2858,7 +2858,7 @@
           } else {
             href$jscomp$0.includes(" ") &&
               console.error(
-                'React expected the `href` prop for a <style> tag opting into hoisting semantics using the `precedence` prop to not have any spaces but ecountered spaces instead. using spaces in this prop will cause hydration of this style to fail on the client. The href for the <style> where this ocurred is "%s".',
+                'React expected the `href` prop for a <style> tag opting into hoisting semantics using the `precedence` prop to not have any spaces but encountered spaces instead. using spaces in this prop will cause hydration of this style to fail on the client. The href for the <style> where this occurred is "%s".',
                 href$jscomp$0
               );
             var styleQueue$jscomp$0 =

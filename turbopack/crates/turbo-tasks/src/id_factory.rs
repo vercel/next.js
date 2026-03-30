@@ -9,7 +9,7 @@ use concurrent_queue::ConcurrentQueue;
 
 /// A helper for constructing id types like [`ValueTypeId`][crate::ValueTypeId].
 ///
-/// For ids that may be re-used, see [`IdFactoryWithReuse`].
+/// For ids that may be reused, see [`IdFactoryWithReuse`].
 pub struct IdFactory<T> {
     /// A value starting at 0 and incremented each time a new id is allocated. Regardless of the
     /// underlying type, a u64 is used to cheaply detect overflows.
@@ -97,10 +97,10 @@ where
         }
     }
 
-    /// Returns an id, potentially allowing an overflow. This may cause ids to be silently re-used.
+    /// Returns an id, potentially allowing an overflow. This may cause ids to be silently reused.
     /// Used for [`crate::id::ExecutionId`].
     ///
-    /// If id re-use is desired only for "freed" ids, use [`IdFactoryWithReuse`] instead.
+    /// If id reuse is desired only for "freed" ids, use [`IdFactoryWithReuse`] instead.
     pub fn wrapping_get(&self) -> T {
         let count = self.counter.fetch_add(1, Ordering::Relaxed);
 
@@ -123,7 +123,7 @@ where
 
 /// An [`IdFactory`], but extended with a free list to allow for id reuse.
 ///
-/// If silent untracked re-use of ids is okay, consider using the cheaper
+/// If silent untracked reuse of ids is okay, consider using the cheaper
 /// [`IdFactory::wrapping_get`] method.
 pub struct IdFactoryWithReuse<T> {
     factory: IdFactory<T>,
@@ -164,7 +164,7 @@ where
         self.free_ids.pop().unwrap_or_else(|_| self.factory.get())
     }
 
-    /// Add an id to the free list, allowing it to be re-used on a subsequent call to
+    /// Add an id to the free list, allowing it to be reused on a subsequent call to
     /// [`IdFactoryWithReuse::get`].
     ///
     /// # Safety

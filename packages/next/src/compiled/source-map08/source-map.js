@@ -267,7 +267,7 @@ exports.LEAST_UPPER_BOUND = 2;
 /**
  * Recursive implementation of binary search.
  *
- * @param aLow Indices here and lower do not contain the needle.
+ * @param allow Indices here and lower do not contain the needle.
  * @param aHigh Indices here and higher do not contain the needle.
  * @param aNeedle The element being searched for.
  * @param aHaystack The non-empty array being searched.
@@ -277,7 +277,7 @@ exports.LEAST_UPPER_BOUND = 2;
  *     closest element that is smaller than or greater than the one we are
  *     searching for, respectively, if the exact element cannot be found.
  */
-function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
+function recursiveSearch(allow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
   // This function terminates when one of the following is true:
   //
   //   1. We find the exact element we are looking for.
@@ -287,7 +287,7 @@ function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
   //
   //   3. We did not find the exact element, and there is no next-closest
   //      element than the one we are searching for, so we return -1.
-  const mid = Math.floor((aHigh - aLow) / 2) + aLow;
+  const mid = Math.floor((aHigh - allow) / 2) + allow;
   const cmp = aCompare(aNeedle, aHaystack[mid], true);
   if (cmp === 0) {
     // Found the element we are looking for.
@@ -308,16 +308,16 @@ function recursiveSearch(aLow, aHigh, aNeedle, aHaystack, aCompare, aBias) {
   }
 
   // Our needle is less than aHaystack[mid].
-  if (mid - aLow > 1) {
+  if (mid - allow > 1) {
     // The element is in the lower half.
-    return recursiveSearch(aLow, mid, aNeedle, aHaystack, aCompare, aBias);
+    return recursiveSearch(allow, mid, aNeedle, aHaystack, aCompare, aBias);
   }
 
   // we are in termination case (3) or (2) and return the appropriate thing.
   if (aBias == exports.LEAST_UPPER_BOUND) {
     return mid;
   }
-  return aLow < 0 ? -1 : aLow;
+  return allow < 0 ? -1 : allow;
 }
 
 /**
@@ -1675,7 +1675,7 @@ class SourceMapGenerator {
    * Applies the mappings of a sub-source-map for a specific source file to the
    * source map being generated. Each mapping to the supplied source file is
    * rewritten using the supplied source map. Note: The resolution for the
-   * resulting mappings is the minimium of this map and the supplied map.
+   * resulting mappings is the minimum of this map and the supplied map.
    *
    * @param aSourceMapConsumer The source map to be applied.
    * @param aSourceFile Optional. The filename of the source file.
@@ -2787,7 +2787,7 @@ function computeSourceURL(sourceRoot, sourceURL, sourceMapURL) {
   // must behave as "some-dir/some-path.js".
   //
   // With this library's the transition to a more URL-focused implementation, that behavior is
-  // preserved here. To acheive that, we trim the "/" from absolute-path when a sourceRoot value
+  // preserved here. To achieve that, we trim the "/" from absolute-path when a sourceRoot value
   // is present in order to make the sources entries behave as if they are relative to the
   // "sourceRoot", as they would have if the two strings were simply concated.
   if (sourceRoot && getURLType(sourceURL) === "path-absolute") {

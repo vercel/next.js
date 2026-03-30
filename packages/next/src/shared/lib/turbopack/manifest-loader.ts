@@ -790,7 +790,7 @@ export class TurbopackManifestLoader {
     )
 
     // Client middleware manifest This is only used in dev though, packages/next/src/build/index.ts
-    // writes the mainfest again for builds.
+    // writes the manifest again for builds.
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
     const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(

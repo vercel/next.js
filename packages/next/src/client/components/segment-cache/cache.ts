@@ -792,7 +792,7 @@ export function readOrCreateRevalidatingSegmentEntry(
   // is a special "revalidation" slot that is used solely for this purpose.
   //
   // You can think of it as if all the revalidation entries were stored in a
-  // separate cache map from the canonical entries, and then transfered to the
+  // separate cache map from the canonical entries, and then transferred to the
   // canonical cache map once the request is complete — this isn't how it's
   // actually implemented, since it's more efficient to store them in the same
   // data structure as the normal entries, but that's how it's modeled

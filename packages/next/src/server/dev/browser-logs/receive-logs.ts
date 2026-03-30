@@ -361,7 +361,7 @@ async function handleTrace(
     return
   }
 
-  // TODO(rob): refactor so we can re-use result and not re-run the entire source map to avoid trivial post processing
+  // TODO(rob): refactor so we can reuse result and not re-run the entire source map to avoid trivial post processing
   const [mapped, mappedIgnored] = await Promise.all([
     getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir, false),
     getSourceMappedStackFrames(entry.consoleMethodStack, ctx, distDir),

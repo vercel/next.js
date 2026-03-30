@@ -990,7 +990,7 @@ function createCacheNodeForSegment(
         // avoids a flash back to the prefetch state in a case where it's highly
         // likely to have already streamed in.
         //
-        // Tehnically, what we're actually checking is whether the dynamic
+        // Technically, what we're actually checking is whether the dynamic
         // network response was received. But since it's a streaming response,
         // this does not mean that all the dynamic data has fully streamed in.
         // It just means that _some_ of the dynamic data was received. But as a
@@ -1894,7 +1894,7 @@ function abortRemainingPendingTasks(
       // implies the inactive parallel route is no longer reachable at the URL
       // that originally rendered it. Fall back to an MPA refresh.
       // TODO: An alternative could be to trigger a soft refresh but to _not_
-      // re-use the inactive parallel routes this time. Similar to what would
+      // reuse the inactive parallel routes this time. Similar to what would
       // happen if were to do a hard refrehs, but without the HTML page.
       exitStatus = NavigationTaskExitStatus.HardRetry
     }

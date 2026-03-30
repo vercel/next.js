@@ -156,7 +156,7 @@ fn generate_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<Code> {
     // This code is slightly paranoid to avoid being useful as an XSS gadget.
     //
     // First, it verifies that it is running in a worker environment, which
-    // guarantees that the requestor shares the same origin as the script
+    // guarantees that the requester shares the same origin as the script
     // itself.
     //
     // Additionally, the code only allows loading scripts from the same origin,

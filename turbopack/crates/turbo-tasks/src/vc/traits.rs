@@ -12,7 +12,7 @@ use crate::{
 ///
 /// ## Safety
 ///
-/// The implementor of this trait must ensure that the read and cell mode implementations are
+/// The implementer of this trait must ensure that the read and cell mode implementations are
 /// correct for the value type. Otherwise, it is possible to generate invalid reads, for instance by
 /// using [`VcTransparentRead`][crate::VcTransparentRead] for a value type that is not
 /// `#[repr(transparent)]`.
@@ -140,7 +140,7 @@ pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
 ///
 /// # Safety
 ///
-/// The implementor of this trait must ensure that `Self` implements the
+/// The implementer of this trait must ensure that `Self` implements the
 /// trait `T`.
 pub unsafe trait Upcast<T>
 where
@@ -154,7 +154,7 @@ where
 ///
 /// # Safety
 ///
-/// The implementor of this trait must ensure that `Self` implements the
+/// The implementer of this trait must ensure that `Self` implements the
 /// trait `T` and that `Self` is not equal to `T`.
 pub unsafe trait UpcastStrict<T>: Upcast<T>
 where
@@ -167,7 +167,7 @@ where
 ///
 /// # Safety
 ///
-/// The implementor of this trait must ensure that `Self` implements the
+/// The implementer of this trait must ensure that `Self` implements the
 /// trait `T`.
 pub unsafe trait Dynamic<T>
 where

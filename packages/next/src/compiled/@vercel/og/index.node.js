@@ -489,7 +489,7 @@ var require_parse = __commonJS({
     var colon = ":".charCodeAt(0);
     var star = "*".charCodeAt(0);
     var uLower = "u".charCodeAt(0);
-    var uUpper = "U".charCodeAt(0);
+    var upper = "U".charCodeAt(0);
     var plus = "+".charCodeAt(0);
     var isUnicodeRange = /^[a-f0-9?-]+$/i;
     module.exports = function(input) {
@@ -699,7 +699,7 @@ var require_parse = __commonJS({
           token = value.slice(pos, next);
           if (openParentheses === code) {
             name = token;
-          } else if ((uLower === token.charCodeAt(0) || uUpper === token.charCodeAt(0)) && plus === token.charCodeAt(1) && isUnicodeRange.test(token.slice(2))) {
+          } else if ((uLower === token.charCodeAt(0) || upper === token.charCodeAt(0)) && plus === token.charCodeAt(1) && isUnicodeRange.test(token.slice(2))) {
             tokens.push({
               type: "unicode-range",
               sourceIndex: pos,
@@ -4038,7 +4038,7 @@ var bits16 = function(d2, p) {
   var o = p / 8 | 0;
   return (d2[o] | d2[o + 1] << 8 | d2[o + 2] << 16) >> (p & 7);
 };
-var shft = function(p) {
+var shift = function(p) {
   return (p + 7) / 8 | 0;
 };
 var slc = function(v2, s, e) {
@@ -4109,7 +4109,7 @@ var inflt = function(dat, buf, st) {
       var type = bits(dat, pos + 1, 3);
       pos += 3;
       if (!type) {
-        var s = shft(pos) + 4, l2 = dat[s - 4] | dat[s - 3] << 8, t = s + l2;
+        var s = shift(pos) + 4, l2 = dat[s - 4] | dat[s - 3] << 8, t = s + l2;
         if (t > sl2) {
           if (noSt) {
             err(0);
@@ -13435,7 +13435,7 @@ function FI(A) {
     this.name = f, this.N = s, this.ea = g2, this.ca = c2, this.da = false, this.W = this.xa = this.fa = this.ka = this.Ba = this.wa = void 0, s.R !== void 0 ? this.toWireType = Ee : (this.toWireType = c2 ? gA : eA, this.V = null);
   }
   function RA(f, s) {
-    e.hasOwnProperty(f) || zA("Replacing nonexistant public symbol"), e[f] = s, e[f].Z = void 0;
+    e.hasOwnProperty(f) || zA("Replacing nonexistent public symbol"), e[f] = s, e[f].Z = void 0;
   }
   function ut(f, s) {
     var g2 = [];
@@ -14431,7 +14431,7 @@ var Us = Xe(() => {
         this.name = s, this.N = g2, this.ea = c2, this.ca = B, this.da = false, this.W = this.xa = this.fa = this.ka = this.Ba = this.wa = void 0, g2.R !== void 0 ? this.toWireType = eA : (this.toWireType = B ? Ee : JA, this.V = null);
       }
       function ut(s, g2) {
-        t.hasOwnProperty(s) || ne("Replacing nonexistant public symbol"), t[s] = g2, t[s].Z = void 0;
+        t.hasOwnProperty(s) || ne("Replacing nonexistent public symbol"), t[s] = g2, t[s].Z = void 0;
       }
       function GA(s, g2) {
         var c2 = [];
@@ -19251,7 +19251,7 @@ function Wl(A, e, t, r, n) {
   }
   return [e, t];
 }
-function fi(A, { x: e, y: t, defaultX: r, defaultY: n }) {
+function fi(A, { x: e, y: t, defaultX: r, default: n }) {
   return (A ? A.split(" ").map((i) => {
     try {
       let o = new He(i);
@@ -19263,7 +19263,7 @@ function fi(A, { x: e, y: t, defaultX: r, defaultY: n }) {
 }
 async function $t({ id: A, width: e, height: t, left: r, top: n }, { image: i, size: o, position: a, repeat: u2 }, l2, I) {
   u2 = u2 || "repeat", I = I || "background";
-  let E = u2 === "repeat-x" || u2 === "repeat", C = u2 === "repeat-y" || u2 === "repeat", d2 = o && (o === "cover" || o === "contain" || o === "auto" || o.includes("auto")), p = i.startsWith("linear-gradient(") || i.startsWith("repeating-linear-gradient(") || i.startsWith("radial-gradient(") || i.startsWith("repeating-radial-gradient("), y = d2 && p ? [e, t] : d2 ? [0, 0] : fi(o, { x: e, y: t, defaultX: e, defaultY: t }), k = fi(a, { x: e, y: t, defaultX: 0, defaultY: 0 });
+  let E = u2 === "repeat-x" || u2 === "repeat", C = u2 === "repeat-y" || u2 === "repeat", d2 = o && (o === "cover" || o === "contain" || o === "auto" || o.includes("auto")), p = i.startsWith("linear-gradient(") || i.startsWith("repeating-linear-gradient(") || i.startsWith("radial-gradient(") || i.startsWith("repeating-radial-gradient("), y = d2 && p ? [e, t] : d2 ? [0, 0] : fi(o, { x: e, y: t, defaultX: e, default: t }), k = fi(a, { x: e, y: t, defaultX: 0, default: 0 });
   if (i.startsWith("linear-gradient(") || i.startsWith("repeating-linear-gradient("))
     return ua({ id: A, width: e, height: t, repeatX: E, repeatY: C }, i, y, k, l2, I);
   if (i.startsWith("radial-gradient(") || i.startsWith("repeating-radial-gradient("))
@@ -19274,7 +19274,7 @@ async function $t({ id: A, width: e, height: t, left: r, top: n }, { image: i, s
       let [L, O] = Wl(o, e, t, F, b);
       v2 = L, M = O;
     } else {
-      let L = fi(o, { x: e, y: t, defaultX: 0, defaultY: 0 });
+      let L = fi(o, { x: e, y: t, defaultX: 0, default: 0 });
       v2 = I === "mask" ? F || L[0] : L[0] || F, M = I === "mask" ? b || L[1] : L[1] || b;
     }
     return [`satori_bi${A}`, H("pattern", { id: `satori_bi${A}`, patternContentUnits: "userSpaceOnUse", patternUnits: "userSpaceOnUse", x: k[0] + r, y: k[1] + n, width: E ? v2 : "100%", height: C ? M : "100%" }, H("image", { x: 0, y: 0, width: v2, height: M, preserveAspectRatio: "none", href: x2 }))];

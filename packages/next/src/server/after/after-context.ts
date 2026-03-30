@@ -125,7 +125,7 @@ export class AfterContext {
   }
 
   private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
-    // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+    // TODO(after): this is fine for now, but will need better integration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
       taskKind === 'promise'

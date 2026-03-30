@@ -12,7 +12,7 @@ use crate::{
             },
         },
     },
-    data::{Dirtyness, InProgressState, InProgressStateInner},
+    data::{Dirtiness, InProgressState, InProgressStateInner},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -241,7 +241,7 @@ pub fn make_task_dirty_internal(
     }
     let current = task.get_dirty();
     let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
-        Some(Dirtyness::Dirty(current_priority)) => {
+        Some(Dirtiness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
@@ -254,13 +254,13 @@ pub fn make_task_dirty_internal(
             let parent_priority = ctx.get_current_task_priority();
             if *current_priority >= parent_priority {
                 // Update the priority to be the lower one
-                task.set_dirty(Dirtyness::Dirty(parent_priority));
+                task.set_dirty(Dirtiness::Dirty(parent_priority));
             }
             return;
         }
-        Some(Dirtyness::SessionDependent) => {
+        Some(Dirtiness::SessionDependent) => {
             let parent_priority = ctx.get_current_task_priority();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            task.set_dirty(Dirtiness::Dirty(parent_priority));
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = task.current_session_clean();
             if was_current_session_clean {
@@ -282,7 +282,7 @@ pub fn make_task_dirty_internal(
         }
         None => {
             let parent_priority = ctx.get_current_task_priority();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            task.set_dirty(Dirtiness::Dirty(parent_priority));
             // It was clean before, so we need to increase the dirty count
             (false, false, parent_priority)
         }

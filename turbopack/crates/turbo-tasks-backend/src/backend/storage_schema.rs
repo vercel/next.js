@@ -31,7 +31,7 @@ use turbo_tasks::{
 use crate::{
     backend::counter_map::CounterMap,
     data::{
-        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtiness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
     },
 };
@@ -111,9 +111,9 @@ struct TaskStorageSchema {
     // Note: Lazy direct fields use bare types - Vec presence provides optionality
     // =========================================================================
     /// Whether the task is dirty (needs re-execution).
-    /// Absent = clean, present = dirty with the specified Dirtyness state.
+    /// Absent = clean, present = dirty with the specified Dirtiness state.
     #[field(storage = "direct", category = "meta")]
-    dirty: Dirtyness,
+    dirty: Dirtiness,
 
     /// Count of dirty containers in the aggregated subgraph.
     /// Absent = 0, present = actual count.
@@ -629,7 +629,7 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::data::{AggregationNumber, CellRef, Dirtiness, OutputValue};
 
     #[test]
     fn test_accessors() {
@@ -669,8 +669,8 @@ mod tests {
 
         // Lazy direct fields
         assert!(storage.get_dirty().is_none());
-        storage.set_dirty(Dirtyness::SessionDependent);
-        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        storage.set_dirty(Dirtiness::SessionDependent);
+        assert_eq!(storage.get_dirty(), Some(&Dirtiness::SessionDependent));
 
         // Lazy collection fields (None until accessed via _mut)
         assert!(storage.output_dependencies().is_none());
@@ -812,7 +812,7 @@ mod tests {
         original.set_output(OutputValue::Output(TaskId::new(42).unwrap()));
         original.upper_mut().insert(TaskId::new(100).unwrap(), 7);
         original.upper_mut().insert(TaskId::new(200).unwrap(), 3);
-        original.set_dirty(Dirtyness::SessionDependent);
+        original.set_dirty(Dirtiness::SessionDependent);
         original.set_aggregated_dirty_container_count(5);
         original
             .aggregated_dirty_containers_mut()

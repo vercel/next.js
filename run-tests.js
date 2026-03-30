@@ -474,7 +474,7 @@ ${ENDGROUP}`)
       tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
     // For isolated next tests (e2e, dev, prod) and integration tests we create
-    // a starter Next.js install to re-use to speed up tests to avoid having to
+    // a starter Next.js install to reuse to speed up tests to avoid having to
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
@@ -797,7 +797,7 @@ ${ENDGROUP}`)
       if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
-      // TODO: Use explicit resource managment instead of this acquire/release pattern
+      // TODO: Use explicit resource management instead of this acquire/release pattern
       // once CI runs with Node.js 24+.
       if (dirSema) await dirSema.acquire()
       await sema.acquire()

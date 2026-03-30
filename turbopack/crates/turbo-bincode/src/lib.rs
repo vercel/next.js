@@ -39,7 +39,7 @@ pub fn new_turbo_bincode_decoder(buffer: &[u8]) -> TurboBincodeDecoder<'_> {
 
 /// Encode the value into a new [`SmallVec`] using a [`TurboBincodeEncoder`].
 ///
-/// Note: If you can re-use a buffer, you should. That will always be cheaper than creating a new
+/// Note: If you can reuse a buffer, you should. That will always be cheaper than creating a new
 /// [`SmallVec`].
 pub fn turbo_bincode_encode<T: Encode>(value: &T) -> Result<TurboBincodeBuffer, EncodeError> {
     let mut buffer = TurboBincodeBuffer::new();

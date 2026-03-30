@@ -358,7 +358,7 @@ const nextDev = async (
           } else if (msg.nextServerReady && !resolved) {
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
-              // it can be re-used on automatic dev server restarts.
+              // it can be reused on automatic dev server restarts.
               port = parseInt(msg.port, 10)
             }
             if (msg.distDir) {

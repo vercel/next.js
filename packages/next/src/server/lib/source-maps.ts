@@ -127,7 +127,7 @@ export function filterStackFrameDEV(
     // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
     const sourceMap = findSourceMap(sourceURL)
     if (sourceMap === undefined) {
-      // No source map assoicated.
+      // No source map associated.
       // TODO: Node.js types should reflect that `findSourceMap` can return `undefined`.
       return true
     }

@@ -489,7 +489,7 @@ var require_parse = __commonJS({
     var colon = ":".charCodeAt(0);
     var star = "*".charCodeAt(0);
     var uLower = "u".charCodeAt(0);
-    var uUpper = "U".charCodeAt(0);
+    var upper = "U".charCodeAt(0);
     var plus = "+".charCodeAt(0);
     var isUnicodeRange = /^[a-f0-9?-]+$/i;
     module.exports = function(input) {
@@ -699,7 +699,7 @@ var require_parse = __commonJS({
           token = value.slice(pos, next);
           if (openParentheses === code) {
             name = token;
-          } else if ((uLower === token.charCodeAt(0) || uUpper === token.charCodeAt(0)) && plus === token.charCodeAt(1) && isUnicodeRange.test(token.slice(2))) {
+          } else if ((uLower === token.charCodeAt(0) || upper === token.charCodeAt(0)) && plus === token.charCodeAt(1) && isUnicodeRange.test(token.slice(2))) {
             tokens.push({
               type: "unicode-range",
               sourceIndex: pos,
@@ -4038,7 +4038,7 @@ var bits16 = function(d2, p) {
   var o = p / 8 | 0;
   return (d2[o] | d2[o + 1] << 8 | d2[o + 2] << 16) >> (p & 7);
 };
-var shft = function(p) {
+var shift = function(p) {
   return (p + 7) / 8 | 0;
 };
 var slc = function(v2, s, e) {
@@ -4109,7 +4109,7 @@ var inflt = function(dat, buf, st) {
       var type = bits(dat, pos + 1, 3);
       pos += 3;
       if (!type) {
-        var s = shft(pos) + 4, l2 = dat[s - 4] | dat[s - 3] << 8, t = s + l2;
+        var s = shift(pos) + 4, l2 = dat[s - 4] | dat[s - 3] << 8, t = s + l2;
         if (t > sl) {
           if (noSt) {
             err(0);
@@ -13435,7 +13435,7 @@ function Ic(e) {
     this.name = c2, this.N = d2, this.ea = g2, this.ca = v2, this.da = false, this.W = this.xa = this.fa = this.ka = this.Ba = this.wa = void 0, d2.R !== void 0 ? this.toWireType = ot : (this.toWireType = v2 ? te : Q, this.V = null);
   }
   function ze(c2, d2) {
-    t.hasOwnProperty(c2) || Xe("Replacing nonexistant public symbol"), t[c2] = d2, t[c2].Z = void 0;
+    t.hasOwnProperty(c2) || Xe("Replacing nonexistent public symbol"), t[c2] = d2, t[c2].Z = void 0;
   }
   function Ar(c2, d2) {
     var g2 = [];
@@ -18249,7 +18249,7 @@ function Wd(e, t, n, r, i) {
   }
   return [t, n];
 }
-function Zi(e, { x: t, y: n, defaultX: r, defaultY: i }) {
+function Zi(e, { x: t, y: n, defaultX: r, default: i }) {
   return (e ? e.split(" ").map((o) => {
     try {
       let s = new xt(o);
@@ -18261,7 +18261,7 @@ function Zi(e, { x: t, y: n, defaultX: r, defaultY: i }) {
 }
 async function qr({ id: e, width: t, height: n, left: r, top: i }, { image: o, size: s, position: a, repeat: u2 }, f, l2) {
   u2 = u2 || "repeat", l2 = l2 || "background";
-  let p = u2 === "repeat-x" || u2 === "repeat", h2 = u2 === "repeat-y" || u2 === "repeat", m2 = s && (s === "cover" || s === "contain" || s === "auto" || s.includes("auto")), b = o.startsWith("linear-gradient(") || o.startsWith("repeating-linear-gradient(") || o.startsWith("radial-gradient(") || o.startsWith("repeating-radial-gradient("), y = m2 && b ? [t, n] : m2 ? [0, 0] : Zi(s, { x: t, y: n, defaultX: t, defaultY: n }), T = Zi(a, { x: t, y: n, defaultX: 0, defaultY: 0 });
+  let p = u2 === "repeat-x" || u2 === "repeat", h2 = u2 === "repeat-y" || u2 === "repeat", m2 = s && (s === "cover" || s === "contain" || s === "auto" || s.includes("auto")), b = o.startsWith("linear-gradient(") || o.startsWith("repeating-linear-gradient(") || o.startsWith("radial-gradient(") || o.startsWith("repeating-radial-gradient("), y = m2 && b ? [t, n] : m2 ? [0, 0] : Zi(s, { x: t, y: n, defaultX: t, default: n }), T = Zi(a, { x: t, y: n, defaultX: 0, default: 0 });
   if (o.startsWith("linear-gradient(") || o.startsWith("repeating-linear-gradient("))
     return eu({ id: e, width: t, height: n, repeatX: p, repeatY: h2 }, o, y, T, f, l2);
   if (o.startsWith("radial-gradient(") || o.startsWith("repeating-radial-gradient("))
@@ -18272,7 +18272,7 @@ async function qr({ id: e, width: t, height: n, left: r, top: i }, { image: o, s
       let [I, F] = Wd(s, t, n, P2, w2);
       S2 = I, O = F;
     } else {
-      let I = Zi(s, { x: t, y: n, defaultX: 0, defaultY: 0 });
+      let I = Zi(s, { x: t, y: n, defaultX: 0, default: 0 });
       S2 = l2 === "mask" ? P2 || I[0] : I[0] || P2, O = l2 === "mask" ? w2 || I[1] : I[1] || w2;
     }
     return [`satori_bi${e}`, M("pattern", { id: `satori_bi${e}`, patternContentUnits: "userSpaceOnUse", patternUnits: "userSpaceOnUse", x: T[0] + r, y: T[1] + i, width: p ? S2 : "100%", height: h2 ? O : "100%" }, M("image", { x: 0, y: 0, width: S2, height: O, preserveAspectRatio: "none", href: k }))];

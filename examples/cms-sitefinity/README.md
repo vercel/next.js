@@ -95,7 +95,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`
 
-- `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
+- `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://localhost/api/default/
 - `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
 
 ### Step 6. Run Next.js in development mode

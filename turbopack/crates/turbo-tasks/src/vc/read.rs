@@ -103,7 +103,7 @@ where
     type Target = Target;
 
     fn value_to_target_ref(value: &T) -> &Self::Target {
-        // Safety: the `VcValueType` implementor must guarantee that both `T` and
+        // Safety: the `VcValueType` implementer must guarantee that both `T` and
         // `Target` are #[repr(transparent)]. This is guaranteed by the
         // `#[turbo_tasks::value(transparent)]` macro.
         // We can't use `std::mem::transmute` here as it doesn't support generic types.

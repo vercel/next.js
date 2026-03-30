@@ -1,4 +1,4 @@
-import Anser from 'next/dist/compiled/anser'
+import Answer from 'next/dist/compiled/anser'
 import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
@@ -67,7 +67,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   )
 
   const decoded = React.useMemo(() => {
-    return Anser.ansiToJson(source, {
+    return Answer.ansiToJson(source, {
       json: true,
       use_classes: true,
       remove_empty: true,

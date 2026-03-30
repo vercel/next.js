@@ -1,4 +1,4 @@
-/// Utilties for configuring the bundler to use.
+/// Utilities for configuring the bundler to use.
 export enum Bundler {
   Turbopack,
   Webpack,

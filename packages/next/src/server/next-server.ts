@@ -241,7 +241,7 @@ export default class NextNodeServer extends BaseServer<
     if (!options.dev) {
       const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
       this.dynamicRoutes = dynamicRoutes.map((r) => {
-        // TODO: can we just re-use the regex from the manifest?
+        // TODO: can we just reuse the regex from the manifest?
         const regex = getRouteRegex(r.page)
         const match = getRouteMatcher(regex)
 

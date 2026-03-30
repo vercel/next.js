@@ -1695,7 +1695,7 @@ async fn compile_time_info_for_module_options(
             InputRelativeConstant::FileName,
         ));
 
-    // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
+    // Compile time rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
     // `globalThis` that cannot be shadowed by a local variable.
     free_var_references
         .entry(vec![DefinableNameSegment::Name(rcstr!("global"))])

@@ -47,7 +47,7 @@ export async function getServerField(
 ) {
   const initialization = await initializations[dir]
   if (!initialization) {
-    throw new Error('Invariant cant propagate server field, no app initialized')
+    throw new Error('Invariant can't propagate server field, no app initialized')
   }
   const { server } = initialization
   let wrappedServer = server['server']! // NextServer.server is private
@@ -61,7 +61,7 @@ export async function propagateServerField(
 ) {
   const initialization = await initializations[dir]
   if (!initialization) {
-    throw new Error('Invariant cant propagate server field, no app initialized')
+    throw new Error('Invariant can't propagate server field, no app initialized')
   }
   const { server } = initialization
   let wrappedServer = server['server']

@@ -813,7 +813,7 @@ async function generateCacheEntryImpl(
   const startTime = performance.timeOrigin + performance.now()
 
   // Invoke the inner function to load a new result. We delay the invocation
-  // though, until React awaits the promise so that React's request store (ALS)
+  // though, until React awaits the promise so that React's request store (ALSO)
   // is available when the function is invoked. This allows us, for example, to
   // capture logs so that we can later replay them.
   const resultPromise = createLazyResult(fn.bind(null, ...args))
@@ -1034,8 +1034,8 @@ async function encodeFormData(formData: FormData): Promise<string> {
   for (let [key, value] of formData) {
     // We don't need this key to be serializable but from a security perspective it should not be
     // possible to generate a string that looks the same from a different structure. To ensure this
-    // we need a delimeter between fields but just using a delimeter is not enough since a string
-    // might contain that delimeter. We use the length of each field as the delimeter to avoid
+    // we need a delimiter between fields but just using a delimiter is not enough since a string
+    // might contain that delimiter. We use the length of each field as the delimiter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
     let stringValue

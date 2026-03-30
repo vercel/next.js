@@ -143,7 +143,7 @@ export const formatDebugAddress = ({ host, port }: DebugAddress): string => {
 }
 
 /**
- * Get's the debug address from the `NODE_OPTIONS` environment variable. If the
+ * Gets the debug address from the `NODE_OPTIONS` environment variable. If the
  * address is not found, it returns the default host (`undefined`) and port
  * (`9229`).
  *

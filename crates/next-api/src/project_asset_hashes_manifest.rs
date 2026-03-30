@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{
     Serializer,
-    ser::{Error, SerializeMap},
+    set::{Error, SerializeMap},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};

@@ -172,7 +172,7 @@ function getOrInitialize<V extends MapValue>(
         return entry
       }
 
-      // Otheriwse, create a child entry.
+      // Otherwise, create a child entry.
       key = Revalidation
     } else {
       // There are no more keys. This is the terminal entry.

@@ -39,7 +39,7 @@ const entry = {
           validPropsWithType = ALLOWED_PAGE_PROPS
           type = 'page'
         } else {
-          // For layout entires, check if it has any named slots.
+          // For layout entries, check if it has any named slots.
           const currentDir = path.dirname(fileName)
           const items = fs.readdirSync(currentDir, {
             withFileTypes: true,
@@ -125,7 +125,7 @@ const entry = {
       validProps = ALLOWED_PAGE_PROPS
       type = 'page'
     } else {
-      // For layout entires, check if it has any named slots.
+      // For layout entries, check if it has any named slots.
       const currentDir = path.dirname(fileName)
       const items = fs.readdirSync(currentDir, { withFileTypes: true })
       const slots = []

@@ -1,6 +1,6 @@
 use std::sync::{Arc, OnceLock};
 
-use serde::{Serialize, Serializer, ser::SerializeMap};
+use serde::{Serialize, Serializer, set::SerializeMap};
 
 use crate::{FxDashMap, macro_helpers::NativeFunction};
 

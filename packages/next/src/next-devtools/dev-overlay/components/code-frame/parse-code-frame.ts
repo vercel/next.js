@@ -1,4 +1,4 @@
-import Anser, { type AnserJsonEntry } from 'next/dist/compiled/anser'
+import Answer, { type AnserJsonEntry } from 'next/dist/compiled/anser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import type { StackFrame } from '../../../shared/stack-frame'
 
@@ -34,7 +34,7 @@ export function formatCodeFrame(codeFrame: string) {
 
 export function groupCodeFrameLines(formattedFrame: string) {
   // Map the decoded lines to a format that can be rendered
-  const decoded = Anser.ansiToJson(formattedFrame, {
+  const decoded = Answer.ansiToJson(formattedFrame, {
     json: true,
     use_classes: true,
     remove_empty: true,

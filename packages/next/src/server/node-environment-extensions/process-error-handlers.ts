@@ -18,7 +18,7 @@ export function installProcessErrorHandlers(
   // Many unhandled rejections are due to the late-awaiting pattern for
   // prefetching data. In Next.js it's OK to call an async function without
   // immediately awaiting it, to start the request as soon as possible
-  // without blocking unncessarily on the result. These can end up
+  // without blocking unnecessarily on the result. These can end up
   // triggering an "unhandledRejection" if it later turns out that the
   // data is not needed to render the page. Example:
   //

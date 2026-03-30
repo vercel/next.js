@@ -790,7 +790,7 @@ export default abstract class Server<
   > = () => false
 
   protected getRouteMatchers(): RouteMatcherManager {
-    // Create a new manifest loader that get's the manifests from the server.
+    // Create a new manifest loader that gets the manifests from the server.
     const manifestLoader = new ServerManifestLoader((name) => {
       switch (name) {
         case PAGES_MANIFEST:
@@ -2595,7 +2595,7 @@ export default abstract class Server<
         invokeOutput !== existingMatch?.definition.pathname) ||
       // Parallel routes are matched in `existingMatch` but since currently
       // there can be multiple matches it's not guaranteed to be the right match
-      // therefor we need to opt-out of the fast path for parallel routes.
+      // therefore we need to opt-out of the fast path for parallel routes.
       existingMatch?.definition.page.includes('/@')
     ) {
       fastPath = false

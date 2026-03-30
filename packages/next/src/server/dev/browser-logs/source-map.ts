@@ -77,7 +77,7 @@ export async function mapFramesUsingBundler(
 }
 
 // converts _next/static/chunks/... to file:///.next/static/chunks/... for parseStack
-// todo: where does next dev overlay handle this case and re-use that logic
+// todo: where does next dev overlay handle this case and reuse that logic
 function preprocessStackTrace(stackTrace: string, distDir?: string): string {
   return stackTrace
     .split('\n')

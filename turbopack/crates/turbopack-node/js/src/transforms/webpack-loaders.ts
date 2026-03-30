@@ -314,7 +314,7 @@ const transform = (
             ) => {
               if (path.isAbsolute(request)) {
                 // Relativize absolute requests. Turbopack disallow them in JS code, but here it's
-                // generated programatically and there is a smaller problem of
+                // generated programmatically and there is a smaller problem of
                 // non-cacheable/non-portable builds.
                 request = path.relative(lookupPath, request)
 

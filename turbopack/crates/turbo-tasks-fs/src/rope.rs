@@ -452,7 +452,7 @@ impl<Context> Decode<Context> for Rope {
 impl_borrow_decode!(Rope);
 
 pub mod ser_as_string {
-    use serde::{Serializer, ser::Error};
+    use serde::{Serializer, set::Error};
 
     use super::Rope;
 
@@ -464,7 +464,7 @@ pub mod ser_as_string {
 }
 
 pub mod ser_option_as_string {
-    use serde::{Serializer, ser::Error};
+    use serde::{Serializer, set::Error};
 
     use super::Rope;
 

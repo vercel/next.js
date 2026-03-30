@@ -188,7 +188,7 @@ const enum PrefetchTaskExitStatus {
 
 /**
  * Prefetch tasks are processed in two phases: first the route tree is fetched,
- * then the segments. We use this to priortize tasks that have not yet fetched
+ * then the segments. We use this to prioritize tasks that have not yet fetched
  * the route tree.
  */
 const enum PrefetchPhase {
@@ -836,7 +836,7 @@ function pingRootRouteTree(
           // TODO: We can consolidate this branch with previous one by modeling
           // it as if the first segment in the new tree has runtime prefetching
           // enabled. Will do this as a follow-up refactor. Might want to remove
-          // the special metatdata case below first. In the meantime, it's not
+          // the special metadata case below first. In the meantime, it's not
           // really that much duplication, just would be nice to remove one of
           // these codepaths.
           const spawnedEntries = new Map<
@@ -1155,7 +1155,7 @@ function diffRouteTreeAgainstCurrent(
             // Only routes that include a loading boundary can be prefetched in
             // this way.
             //
-            // This is simlar to a "full" prefetch, but we're much more
+            // This is similar to a "full" prefetch, but we're much more
             // conservative about which segments to include in the request.
             //
             // The server will only render up to the first loading boundary
@@ -1255,7 +1255,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   // intentionally aggressive and tries to pretfetch all the data that will be
   // needed for a navigation, a LoadingBoundary prefetch is much more
   // conservative. For example, it will omit from the request tree any segment
-  // that is already cached, regardles of whether it's partial or full. By
+  // that is already cached, regardless of whether it's partial or full. By
   // contrast, a Full prefetch will refetch partial segments.
 
   // "inside-shared-layout" tells the server where to start looking for a
