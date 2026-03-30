@@ -18033,7 +18033,8 @@ async function* Ji(e, t) {
     Xe = Ya({ width: $e.width, height: $e.height, id: a }, { shadowColor: Y, shadowOffset: j, shadowRadius: fe }, Ki(r.color) || F && Ja(r.color)), Xe = M("defs", {}, Xe);
   }
   var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
-  if (_rtlRegex.test(ue)) {
+  var _isRTL = _rtlRegex.test(ue);
+  if (_isRTL) {
     var _lineGroups = {};
     for (var _v = 0; _v < De.length; _v++) {
       var _ln = De[_v].line;
@@ -18060,7 +18061,7 @@ async function* Ji(e, t) {
     let ze = false;
     if (Q === 0 && dr !== 0 && (te += dr), J.length > 1) {
       let we = Qt - J[Q];
-      if (b === "right" || b === "end")
+      if (b === "right" || b === "end" || _isRTL)
         te += we;
       else if (b === "center")
         te += we / 2;
@@ -18101,7 +18102,7 @@ async function* Ji(e, t) {
     if (xe)
       ee += 0;
     else if (l2) {
-      if (!K2.includes(Qi) && !da.includes(K2) && Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae) {
+      if (!_isRTL && !K2.includes(Qi) && !da.includes(K2) && Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae) {
         Ze === null && (gt = te), Ze = Ze === null ? K2 : Ze + K2;
         continue;
       }

@@ -19035,7 +19035,8 @@ async function* ci(A, e) {
     zA = na({ width: WA.width, height: WA.height, id: a }, { shadowColor: V, shadowOffset: Z, shadowRadius: nA }, li(r.color) || O && aa(r.color)), zA = H("defs", {}, zA);
   }
   var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
-  if (_rtlRegex.test(sA)) {
+  var _isRTL = _rtlRegex.test(sA);
+  if (_isRTL) {
     var _lineGroups = {};
     for (var _v = 0; _v < OA.length; _v++) {
       var _ln = OA[_v].line;
@@ -19062,7 +19063,7 @@ async function* ci(A, e) {
     let RA = false;
     if (eA === 0 && Ge !== 0 && (gA += Ge), oA.length > 1) {
       let pA = Pe - oA[eA];
-      if (p === "right" || p === "end")
+      if (p === "right" || p === "end" || _isRTL)
         gA += pA;
       else if (p === "center")
         gA += pA / 2;
@@ -19103,7 +19104,7 @@ async function* ci(A, e) {
     if (DA)
       cA += 0;
     else if (I) {
-      if (!$.includes(Ii) && !ms.includes($) && Y[V + 1] && nA && !nA.isImage && cA === nA.y && !lA) {
+      if (!_isRTL && !$.includes(Ii) && !ms.includes($) && Y[V + 1] && nA && !nA.isImage && cA === nA.y && !lA) {
         _A === null && (oe = gA), _A = _A === null ? $ : _A + $;
         continue;
       }
