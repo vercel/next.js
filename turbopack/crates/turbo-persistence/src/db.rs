@@ -151,18 +151,16 @@ fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let path = entry.path();
-        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-            if let Some(seq) = path
+        if let Some(ext) = path.extension().and_then(|s| s.to_str())
+            && let Some(seq) = path
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .and_then(|s| s.parse::<u32>().ok())
-            {
-                if seq > seq_before {
-                    match ext {
-                        "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
-                        _ => {}
-                    }
-                }
+            && seq > seq_before
+        {
+            match ext {
+                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                _ => {}
             }
         }
     }
