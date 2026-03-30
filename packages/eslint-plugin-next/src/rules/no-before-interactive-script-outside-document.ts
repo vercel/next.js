@@ -11,7 +11,7 @@ export default defineRule({
   meta: {
     docs: {
       description:
-        "Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `pages/_document.js`.",
+        "Prevent usage of `next/script`'s `beforeInteractive` strategy outside of `app/layout.jsx` or `pages/_document.js`.",
       recommended: true,
       url,
     },
@@ -64,7 +64,7 @@ export default defineRule({
 
         context.report({
           node,
-          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`pages/_document.js\`. See: ${url}`,
+          message: `\`next/script\`'s \`beforeInteractive\` strategy should not be used outside of \`app/layout.jsx\` or \`pages/_document.js\`. See: ${url}`,
         })
       },
     }
