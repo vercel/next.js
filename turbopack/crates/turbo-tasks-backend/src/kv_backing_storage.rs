@@ -382,8 +382,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         self.inner.database.shutdown()
     }
 
-    fn is_write_operation_active(&self) -> bool {
-        self.inner.database.is_write_operation_active()
+    fn has_unrecoverable_write_error(&self) -> bool {
+        self.inner.database.has_unrecoverable_write_error()
     }
 }
 

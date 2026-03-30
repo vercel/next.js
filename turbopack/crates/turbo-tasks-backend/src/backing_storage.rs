@@ -111,7 +111,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
 
     /// Returns true if a write operation or compaction is currently active. This can happen if a
     /// previous write or compaction failed and recovery also failed, permanently disabling writes.
-    fn is_write_operation_active(&self) -> bool {
+    fn has_unrecoverable_write_error(&self) -> bool {
         false
     }
 }
@@ -178,7 +178,7 @@ where
         either::for_both!(self, this => this.shutdown())
     }
 
-    fn is_write_operation_active(&self) -> bool {
-        either::for_both!(self, this => this.is_write_operation_active())
+    fn has_unrecoverable_write_error(&self) -> bool {
+        either::for_both!(self, this => this.has_unrecoverable_write_error())
     }
 }

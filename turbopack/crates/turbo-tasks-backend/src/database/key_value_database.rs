@@ -122,7 +122,7 @@ pub trait KeyValueDatabase {
 
     /// Returns true if a write operation or compaction is currently active. This can happen if a
     /// previous write or compaction failed and recovery also failed, permanently disabling writes.
-    fn is_write_operation_active(&self) -> bool {
+    fn has_unrecoverable_write_error(&self) -> bool {
         false
     }
 }

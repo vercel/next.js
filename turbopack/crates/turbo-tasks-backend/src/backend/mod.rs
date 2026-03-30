@@ -2766,6 +2766,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         removed_cell_data
     }
 
+    /// Prints the standard message emitted when the background persisting process stops due to an
+    /// unrecoverable write error. The caller is responsible for returning from the background job.
+    fn log_unrecoverable_persist_error() {
+        eprintln!(
+            "Persisting is permanently disabled due to an unrecoverable error. Stopping the \
+             background persisting process."
+        );
+    }
+
     fn run_backend_job<'a>(
         self: &'a Arc<Self>,
         job: TurboTasksBackendJob,
@@ -2873,12 +2882,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     Ok(false) => break,
                                     Err(err) => {
                                         eprintln!("Compaction failed: {err:?}");
-                                        if self.backing_storage.is_write_operation_active() {
-                                            eprintln!(
-                                                "Persisting is permanently disabled due to an \
-                                                 unrecoverable error. Stopping the background \
-                                                 persisting process."
-                                            );
+                                        if self.backing_storage.has_unrecoverable_write_error() {
+                                            Self::log_unrecoverable_persist_error();
                                             return;
                                         }
                                         break;
@@ -2900,11 +2905,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
                             return;
-                        } else if self.backing_storage.is_write_operation_active() {
-                            eprintln!(
-                                "Persisting is permanently disabled due to an unrecoverable \
-                                 error. Stopping the background persisting process."
-                            );
+                        } else if self.backing_storage.has_unrecoverable_write_error() {
+                            Self::log_unrecoverable_persist_error();
                             return;
                         }
                     }

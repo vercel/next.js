@@ -143,6 +143,32 @@ impl WriteOperationGuard<'_> {
     }
 }
 
+/// Deletes all files in `path` whose numeric stem is greater than `seq_before`.
+///
+/// Called on rollback to clean up any SST, meta, blob, or del files written during a
+/// failed write operation or compaction.
+fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+            if let Some(seq) = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|s| s.parse::<u32>().ok())
+            {
+                if seq > seq_before {
+                    match ext {
+                        "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 impl Drop for WriteOperationGuard<'_> {
     fn drop(&mut self) {
         if self.succeeded {
@@ -153,29 +179,7 @@ impl Drop for WriteOperationGuard<'_> {
 
         // Unhappy path: the operation failed (or was dropped without commit).
         // Delete every file that was created during this operation (seq > seq_before).
-        let result = (|| -> Result<()> {
-            for entry in fs::read_dir(self.path)? {
-                let entry = entry?;
-                let path = entry.path();
-                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                    if let Some(seq) = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .and_then(|s| s.parse::<u32>().ok())
-                    {
-                        if seq > self.seq_before {
-                            match ext {
-                                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(())
-        })();
-
-        match result {
+        match delete_orphan_files(self.path, self.seq_before) {
             Ok(()) => *self.active.lock() = None,
             Err(_) => *self.active.lock() = Some(ActiveWriteState::Error),
         }
@@ -527,9 +531,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.is_empty.load(Ordering::Relaxed)
     }
 
-    /// Returns true if a previous write or compaction failed with an unrecoverable error,
-    /// permanently disabling further write operations.
-    pub fn is_write_operation_active(&self) -> bool {
+    /// Returns `true` if a previous write or compaction left the database in an unrecoverable error
+    /// state, permanently disabling further writes.
+    pub fn has_unrecoverable_write_error(&self) -> bool {
         matches!(
             *self.active_write_operation.lock(),
             Some(ActiveWriteState::Error)
@@ -544,7 +548,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let mut slot = self.active_write_operation.lock();
         match &*slot {
-            None => {}
             Some(ActiveWriteState::Active) => {
                 bail!(
                     "Another write batch or compaction is already active (only a single write \
@@ -557,10 +560,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                      writes are possible"
                 );
             }
+            None => {}
         }
         *slot = Some(ActiveWriteState::Active);
+        drop(slot); // release before acquiring inner read lock
         let seq_before = self.inner.read().current_sequence_number;
-        drop(slot);
         Ok(WriteOperationGuard {
             active: &self.active_write_operation,
             path: &self.path,
@@ -575,7 +579,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// This data will only become visible after the WriteBatch is committed.
     pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
         let guard = self.acquire_write_operation()?;
-        let current = self.inner.read().current_sequence_number;
+        // seq_before is already the current sequence number, no second read needed.
+        let current = guard.seq_before;
         Ok(WriteBatch::new(
             guard,
             self.path.clone(),

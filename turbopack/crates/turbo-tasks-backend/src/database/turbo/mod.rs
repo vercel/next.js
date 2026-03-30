@@ -137,8 +137,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         )
     }
 
-    fn is_write_operation_active(&self) -> bool {
-        self.db.is_write_operation_active()
+    fn has_unrecoverable_write_error(&self) -> bool {
+        self.db.has_unrecoverable_write_error()
     }
 
     fn shutdown(&self) -> Result<()> {
