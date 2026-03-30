@@ -42,7 +42,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
 /// Metadata for a server action: (layer, exported_name, filename)
@@ -198,7 +198,7 @@ async fn build_manifest(
     }
 
     // Now create the manifest entries
-    for (hash_id, (layer, name, filename)) in &action_metadata {
+    for (hash_id, (_layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
@@ -211,7 +211,6 @@ async fn build_manifest(
                 filename: filename.as_str(),
             },
         );
-        entry.layer.insert(&key, *layer);
 
         // Hoist the filename and exported_name to the entry level
         entry.exported_name = name.as_str();
@@ -348,7 +347,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     }
 
-    let original_parsed = ecmascript_asset.parse_original().resolve().await?;
+    let original_parsed = *ecmascript_asset.parse_original().to_resolved().await?;
 
     let ParseResult::Ok {
         program: original,
@@ -365,7 +364,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     };
 
-    let fragment = ecmascript_asset.failsafe_parse().resolve().await?;
+    let fragment = *ecmascript_asset.failsafe_parse().to_resolved().await?;
 
     if fragment != original_parsed {
         let ParseResult::Ok {

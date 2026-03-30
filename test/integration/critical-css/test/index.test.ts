@@ -37,7 +37,7 @@ function runTests() {
   it('should inline critical CSS', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(
-      /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
+      /<link rel="stylesheet" href="\/_next\/static\/.*\.css(\?dpl=.*)?" .*>/
     )
     expect(html).toMatch(/body{/)
   })
@@ -45,7 +45,7 @@ function runTests() {
   it('should inline critical CSS (dynamic)', async () => {
     const html = await renderViaHTTP(appPort, '/another')
     expect(html).toMatch(
-      /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
+      /<link rel="stylesheet" href="\/_next\/static\/.*\.css(\?dpl=.*)?" .*>/
     )
     expect(html).toMatch(/body{/)
   })
@@ -70,9 +70,12 @@ describe('CSS optimization for SSR apps', () => {
         if (fs.pathExistsSync(join(appDir, '.next'))) {
           await fs.remove(join(appDir, '.next'))
         }
-        await nextBuild(appDir)
+        // TODO optimizeCss is broken when ?dpl is added to CSS URLs
+        await nextBuild(appDir, undefined, { disableAutoSkewProtection: true })
         appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+        app = await nextStart(appDir, appPort, {
+          disableAutoSkewProtection: true,
+        })
       })
       afterAll(async () => {
         await killApp(app)

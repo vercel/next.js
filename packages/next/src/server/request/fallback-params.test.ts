@@ -190,6 +190,24 @@ describe('getFallbackRouteParams', () => {
       expect(result!.has('projectSlug')).toBe(true)
       expect(result!.has('teamSlug')).toBe(false)
     })
+
+    it('should treat encoded placeholders as dynamic segments', () => {
+      // Tree: /[teamSlug]/[projectSlug] but page is /vercel/%5BprojectSlug%5D
+      const loaderTree = createLoaderTree(
+        '',
+        {},
+        createLoaderTree('[teamSlug]', {}, createLoaderTree('[projectSlug]'))
+      )
+      const routeModule = createMockRouteModule(loaderTree)
+      const result = getFallbackRouteParams(
+        '/vercel/%5BprojectSlug%5D',
+        routeModule
+      )
+
+      expect(result).not.toBeNull()
+      expect(result!.has('projectSlug')).toBe(true)
+      expect(result!.has('teamSlug')).toBe(false)
+    })
   })
 
   describe('Route Groups', () => {

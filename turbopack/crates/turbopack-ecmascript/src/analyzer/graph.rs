@@ -26,8 +26,7 @@ use turbo_tasks::ResolvedVc;
 use turbopack_core::{resolve::ExportUsage, source::Source};
 
 use super::{
-    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
-    is_unresolved_id,
+    ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
@@ -357,8 +356,11 @@ impl DeclUsage {
 #[derive(Debug)]
 pub struct VarGraph {
     pub values: FxHashMap<Id, VarMeta>,
-    /// Map FreeVar names to their Id to facilitate lookups into [values]
-    /// Doesn't necessarily contain every FreeVar, just those who have non trivial values.
+
+    /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
+    ///
+    /// Doesn't necessarily contain every [`FreeVar`][JsValue::FreeVar], just those who have
+    /// non-trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
@@ -382,8 +384,6 @@ impl VarGraph {
     }
 }
 
-/// You should use same [Mark] for this function and
-/// [swc_ecma_transforms_base::resolver::resolver_with_mark]
 pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
@@ -418,16 +418,22 @@ pub fn create_graph(
 /// A context used for assembling the evaluation graph.
 #[derive(Debug)]
 pub struct EvalContext {
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) unresolved_mark: Mark,
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
     pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
-    /// Produce a new [EvalContext] from a [Program]. If you wish to support
-    /// webpackIgnore or turbopackIgnore comments, you must pass those in,
-    /// since the AST does not include comments by default.
+    /// Produce a new [`EvalContext`] from a [`Program`].
+    ///
+    /// If you wish to support `webpackIgnore` or `turbopackIgnore` comments, you must pass those
+    /// in, since the AST does not include comments by default.
+    ///
+    /// You should use the same `unresolved_mark` and `top_level_mark` [Mark] values for this
+    /// context that you passed to [`swc_core::ecma::transforms::base::resolver`].
     pub fn new(
         module: Option<&Program>,
         unresolved_mark: Mark,
@@ -519,8 +525,8 @@ impl EvalContext {
             // model their values mostly useful for truthy/falsy checks.
             match i.sym.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
-                "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
-                "Infinity" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::INFINITY))),
+                "NaN" => JsValue::Constant(ConstantValue::Num(f64::NAN.into())),
+                "Infinity" => JsValue::Constant(ConstantValue::Num(f64::INFINITY.into())),
                 _ => JsValue::FreeVar(i.sym.clone()),
             }
         } else {
@@ -868,7 +874,7 @@ impl EvalContext {
         }
     }
 
-    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
+    pub fn eval_single_expr_lit(expr_lit: &RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
 
         let js_value = try_with_handler(cm, Default::default(), |_| {
@@ -3181,9 +3187,7 @@ impl Analyzer<'_> {
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
                         Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
-                            idx as f64,
-                        )))),
+                        Box::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path

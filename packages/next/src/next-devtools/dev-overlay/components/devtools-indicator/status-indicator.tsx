@@ -7,18 +7,16 @@ export enum Status {
   Compiling = 'compiling',
   Prerendering = 'prerendering',
   CacheBypassing = 'cache-bypassing',
-  Instant = 'instant',
 }
 
 export function getCurrentStatus(
   buildingIndicator: boolean,
   renderingIndicator: boolean,
-  cacheIndicator: CacheIndicatorState,
-  instantMode?: boolean
+  cacheIndicator: CacheIndicatorState
 ): Status {
   const isCacheFilling = cacheIndicator === 'filling'
 
-  // Priority order: compiling > prerendering > rendering > instant
+  // Priority order: compiling > prerendering > rendering
   // Note: cache bypassing is now handled as a badge, not a status indicator
   if (buildingIndicator) {
     return Status.Compiling
@@ -29,30 +27,21 @@ export function getCurrentStatus(
   if (renderingIndicator) {
     return Status.Rendering
   }
-  if (instantMode) {
-    return Status.Instant
-  }
   return Status.None
 }
 
 interface StatusIndicatorProps {
   status: Status
   onClick?: () => void
-  title?: string
 }
 
-export function StatusIndicator({
-  status,
-  onClick,
-  title,
-}: StatusIndicatorProps) {
+export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
   const statusText: Record<Status, string> = {
     [Status.None]: '',
     [Status.CacheBypassing]: 'Cache disabled',
     [Status.Prerendering]: 'Prerendering',
     [Status.Compiling]: 'Compiling',
     [Status.Rendering]: 'Rendering',
-    [Status.Instant]: 'Instant UI only',
   }
 
   // Status dot colors
@@ -62,7 +51,6 @@ export function StatusIndicator({
     [Status.Prerendering]: '#f5a623',
     [Status.Compiling]: '#f5a623',
     [Status.Rendering]: '#50e3c2',
-    [Status.Instant]: '#fff', // White dot on blue badge background
   }
 
   if (status === Status.None) {
@@ -172,8 +160,7 @@ export function StatusIndicator({
         data-indicator-status
         data-nextjs-dev-tools-button
         onClick={onClick}
-        title={title}
-        aria-label={title || 'Open Next.js Dev Tools'}
+        aria-label={'Open Next.js Dev Tools'}
       >
         {statusDotColor[status] && (
           <div

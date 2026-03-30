@@ -1,0 +1,23 @@
+id: no-context-format
+snapshots:
+  foo.bar().context(format!("{} failed", name)):
+    fixed: foo.bar().with_context(|| format!("{} failed", name))
+    labels:
+    - source: foo.bar().context(format!("{} failed", name))
+      style: primary
+      start: 0
+      end: 45
+  'foo.context(format!("error: {}", msg))':
+    fixed: 'foo.with_context(|| format!("error: {}", msg))'
+    labels:
+    - source: 'foo.context(format!("error: {}", msg))'
+      style: primary
+      start: 0
+      end: 38
+  foo.context(format!("simple message")):
+    fixed: foo.with_context(|| format!("simple message"))
+    labels:
+    - source: foo.context(format!("simple message"))
+      style: primary
+      start: 0
+      end: 38

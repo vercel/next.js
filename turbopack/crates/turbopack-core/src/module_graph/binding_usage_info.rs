@@ -17,6 +17,12 @@ use crate::{
     resolve::{ExportUsage, ImportUsage},
 };
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -24,8 +30,8 @@ pub struct BindingUsageInfo {
     #[turbo_tasks(trace_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
-    used_exports: FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>,
-    export_circuit_breakers: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    used_exports: ResolvedVc<UsedExportsMap>,
+    export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -58,8 +64,8 @@ impl BindingUsageInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        let is_circuit_breaker = self.export_circuit_breakers.contains(&module);
-        let Some(exports) = self.used_exports.get(&module) else {
+        let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
+        let Some(exports) = self.used_exports.get(&module).await? else {
             // There are some module that are codegened, but not referenced in the module graph,
             let ident = module.ident_string().await?;
             if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
@@ -73,7 +79,7 @@ impl BindingUsageInfo {
             bail!("export usage not found for module: {ident:?}");
         };
         Ok(ModuleExportUsage {
-            export_usage: exports.clone().resolved_cell(),
+            export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
         }
         .cell())
@@ -291,8 +297,8 @@ pub async fn compute_binding_usage_info(
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
             unused_references_edges,
-            used_exports,
-            export_circuit_breakers,
+            used_exports: ResolvedVc::cell(used_exports),
+            export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
         }
         .cell())
     }

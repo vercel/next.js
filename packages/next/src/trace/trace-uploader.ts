@@ -99,8 +99,10 @@ interface TraceEvent {
 interface TraceMetadata {
   anonymousId: string
   arch: string
+  branch: string
   commit: string
   cpus: number
+  isVercelEnvironment: boolean
   isTurboSession: boolean
   mode: string
   nextVersion: string
@@ -126,14 +128,23 @@ interface TraceMetadata {
   )
   const pkgName = projectPkgJson.name
 
-  const commit = child_process
-    .spawnSync(
-      os.platform() === 'win32' ? 'git.exe' : 'git',
-      ['rev-parse', 'HEAD'],
-      { shell: true }
-    )
-    .stdout.toString()
-    .trimEnd()
+  const git = os.platform() === 'win32' ? 'git.exe' : 'git'
+
+  const isVercelEnvironment = !!process.env.VERCEL
+
+  const commit =
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    child_process
+      .spawnSync(git, ['rev-parse', 'HEAD'])
+      .stdout.toString()
+      .trimEnd()
+
+  const branch =
+    process.env.VERCEL_GIT_COMMIT_REF ||
+    child_process
+      .spawnSync(git, ['rev-parse', '--abbrev-ref', 'HEAD'])
+      .stdout.toString()
+      .trimEnd()
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
@@ -207,8 +218,10 @@ interface TraceMetadata {
     metadata: {
       anonymousId,
       arch: os.arch(),
+      branch,
       commit,
       cpus: os.cpus().length,
+      isVercelEnvironment,
       isTurboSession,
       mode,
       nextVersion,

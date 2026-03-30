@@ -1,6 +1,14 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
+import {
+  NEXT_HMR_REFRESH_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -241,6 +249,38 @@ describe('skip-trailing-slash-redirect', () => {
     )
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
+  })
+
+  it('should receive _rsc query and all RSC headers in middleware request', async () => {
+    const rscQuery = 'cache-buster'
+    const rscHeaders = {
+      [RSC_HEADER]: '1',
+      [NEXT_ROUTER_STATE_TREE_HEADER]: 'test-tree',
+      [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+      [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_tree',
+      [NEXT_HMR_REFRESH_HEADER]: '1',
+      'x-nextjs-data': '1',
+    }
+    const res = await fetchViaHTTP(
+      next.url,
+      `/rsc-valid?${NEXT_RSC_UNION_QUERY}=${rscQuery}`,
+      undefined,
+      { headers: rscHeaders }
+    )
+    expect(res.status).toBe(200)
+
+    expect(await res.json()).toEqual({
+      pathname: `/rsc-valid`,
+      rscQuery,
+      rscHeaders: {
+        rsc: rscHeaders[RSC_HEADER],
+        nextRouterStateTree: rscHeaders[NEXT_ROUTER_STATE_TREE_HEADER],
+        nextRouterPrefetch: rscHeaders[NEXT_ROUTER_PREFETCH_HEADER],
+        nextRouterSegmentPrefetch:
+          rscHeaders[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
+        nextHmrRefresh: rscHeaders[NEXT_HMR_REFRESH_HEADER],
+      },
+    })
   })
 
   it('should allow response body from middleware with flag', async () => {

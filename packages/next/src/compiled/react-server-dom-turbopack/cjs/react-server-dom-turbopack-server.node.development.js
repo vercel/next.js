@@ -3065,14 +3065,19 @@
       }
       name = { name: name, message: message, stack: stack, env: env };
       "cause" in error &&
-        ((error = outlineModel(request, error.cause)),
-        (name.cause = serializeByValueID(error)));
+        ((message = outlineModel(request, error.cause)),
+        (name.cause = serializeByValueID(message)));
+      "undefined" !== typeof AggregateError &&
+        error instanceof AggregateError &&
+        ((error = outlineModel(request, error.errors)),
+        (name.errors = serializeByValueID(error)));
       return "$Z" + outlineModel(request, name).toString(16);
     }
     function emitErrorChunk(request, id, digest, error, debug, owner) {
       var name = "Error",
         env = (0, request.environmentName)(),
-        causeReference = null;
+        causeReference = null,
+        errorsReference = null;
       try {
         if (error instanceof Error) {
           name = error.name;
@@ -3086,6 +3091,16 @@
                 ? outlineDebugModel(request, { objectLimit: 5 }, cause)
                 : outlineModel(request, cause);
             causeReference = serializeByValueID(causeId);
+          }
+          if (
+            "undefined" !== typeof AggregateError &&
+            error instanceof AggregateError
+          ) {
+            var errors = error.errors,
+              errorsId = debug
+                ? outlineDebugModel(request, { objectLimit: 5 }, errors)
+                : outlineModel(request, errors);
+            errorsReference = serializeByValueID(errorsId);
           }
         } else
           (message =
@@ -3108,6 +3123,7 @@
         owner: error
       };
       null !== causeReference && (digest.cause = causeReference);
+      null !== errorsReference && (digest.errors = errorsReference);
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       debug
         ? request.completedDebugChunks.push(id)
@@ -3536,8 +3552,13 @@
           key = { name: name, message: key, stack: ref, env: parent };
           "cause" in value &&
             (counter.objectLimit--,
-            (value = outlineDebugModel(request, counter, value.cause)),
-            (key.cause = serializeByValueID(value)));
+            (entry = outlineDebugModel(request, counter, value.cause)),
+            (key.cause = serializeByValueID(entry)));
+          "undefined" !== typeof AggregateError &&
+            value instanceof AggregateError &&
+            (counter.objectLimit--,
+            (value = outlineDebugModel(request, counter, value.errors)),
+            (key.errors = serializeByValueID(value)));
           request =
             "$Z" +
             outlineDebugModel(
@@ -4593,7 +4614,9 @@
           (cachedPromise = requireModule(serverReference)),
           (id = blockedPromise),
           (id.status = "fulfilled"),
-          (id.value = cachedPromise)
+          (id.value = cachedPromise),
+          (id.reason = null),
+          cachedPromise
         );
       if (initializingHandler) {
         var handler = initializingHandler;
@@ -5481,10 +5504,11 @@
               arrayRoot
             );
           case "B":
-            return (
-              (obj = parseInt(value.slice(2), 16)),
-              response._formData.get(response._prefix + obj)
-            );
+            obj = parseInt(value.slice(2), 16);
+            response = response._formData.get(response._prefix + obj);
+            if (!(response instanceof Blob))
+              throw Error("Referenced Blob is not a Blob.");
+            return response;
           case "R":
             return parseReadableStream(response, value, void 0);
           case "r":
@@ -6529,13 +6553,13 @@
           );
         else {
           pendingFiles++;
-          var JSCompiler_object_inline_chunks_284 = [];
+          var JSCompiler_object_inline_chunks_286 = [];
           value.on("data", function (chunk) {
-            JSCompiler_object_inline_chunks_284.push(chunk);
+            JSCompiler_object_inline_chunks_286.push(chunk);
           });
           value.on("end", function () {
             try {
-              var blob = new Blob(JSCompiler_object_inline_chunks_284, {
+              var blob = new Blob(JSCompiler_object_inline_chunks_286, {
                 type: mimeType
               });
               response._formData.append(name, blob, filename);

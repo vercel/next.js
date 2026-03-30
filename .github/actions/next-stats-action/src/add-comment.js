@@ -974,16 +974,13 @@ function generateDiffsSection(result) {
 }
 
 function generatePrTarballSection(actionInfo) {
-  if (actionInfo.isRelease || !actionInfo.issueId) return ''
-
-  const prNumber = String(actionInfo.issueId).trim()
-  if (!/^\d+$/.test(prNumber)) return ''
+  if (actionInfo.isRelease || !actionInfo.githubHeadSha) return ''
 
   return `<details>
 <summary><strong>📎 Tarball URL</strong></summary>
 
 \`\`\`
-next@https://vercel-packages.vercel.app/next/prs/${prNumber}/next
+https://vercel-packages.vercel.app/next/commits/${actionInfo.githubHeadSha}/next
 \`\`\`
 
 </details>

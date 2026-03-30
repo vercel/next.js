@@ -37,6 +37,14 @@ const createFromFetch =
 
 const appElement: HTMLElement | Document = document
 
+// Instant Navigation Testing API: captured once at module init. When truthy,
+// this is the fetch promise for the static RSC payload (set by an injected
+// <script> tag in the static shell HTML).
+const instantTestStaticFetch: Promise<Response> | undefined =
+  self.__next_instant_test
+    ? (self.__next_instant_test as unknown as Promise<Response>)
+    : undefined
+
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
@@ -120,12 +128,20 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
+      // Instant Navigation Testing API: don't close or error the inline
+      // Flight stream. The static shell has no inline Flight data, so the
+      // stream is empty. Closing it would cause React to log an error about
+      // missing data. Leaving it open lets React treat any holes as
+      // "still suspended." Hydration uses the separately fetched RSC payload
+      // (self.__next_instant_test), not this stream.
       if (isStreamErrorOrUnfinished(ctr)) {
-        ctr.error(
-          new Error(
-            'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+        if (!instantTestStaticFetch) {
+          ctr.error(
+            new Error(
+              'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
+            )
           )
-        )
+        }
       } else {
         ctr.close()
       }
@@ -165,7 +181,7 @@ nextServerDataLoadingGlobal.length = 0
 // Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-const readable = new ReadableStream({
+let readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {
     nextServerDataRegisterWriter(controller)
   },
@@ -173,6 +189,20 @@ const readable = new ReadableStream({
 if (process.env.NODE_ENV !== 'production') {
   // @ts-expect-error
   readable.name = 'hydration'
+}
+
+// When Cache Components is enabled, tee the inlined Flight stream so we can
+// truncate a clone at the static stage byte boundary and cache it. We don't
+// know if `l` is present until React decodes the payload, so always tee and
+// cancel the clone if not needed.
+let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
+if (
+  process.env.__NEXT_CACHE_COMPONENTS &&
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+) {
+  const [forReact, forCache] = readable.tee()
+  readable = forReact
+  initialFlightStreamForCache = forCache
 }
 
 let debugChannel:
@@ -190,12 +220,35 @@ if (
   debugChannel = createDebugChannel(undefined)
 }
 
-const clientResumeFetch: Promise<Response> | undefined =
+let initialServerResponse: Promise<InitialRSCPayload>
+if (instantTestStaticFetch) {
+  // Instant Navigation Testing API: hydrate from the static RSC payload
+  // fetch kicked off by an injected <script> tag, instead of the inline
+  // Flight data (which is not present in the static shell).
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(instantTestStaticFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      // The static fetch response is a partial stream (static-only Flight
+      // data with no dynamic content). Allow it to close without error so
+      // React treats dynamic holes as still-suspended rather than
+      // triggering error recovery.
+      unstable_allowPartialStream: true,
+    })
+  ).then(async (initialRSCPayload) => {
+    return createInitialRSCPayloadFromFallbackPrerender(
+      await instantTestStaticFetch,
+      initialRSCPayload
+    )
+  })
+} else if (
   // @ts-expect-error
   window.__NEXT_CLIENT_RESUME
-
-let initialServerResponse: Promise<InitialRSCPayload>
-if (clientResumeFetch) {
+) {
+  const clientResumeFetch: Promise<Response> =
+    // @ts-expect-error
+    window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(clientResumeFetch, {
       callServer,
@@ -309,6 +362,12 @@ export async function hydrate(
   }
   const initialRSCPayload = await initialServerResponse
 
+  // Initialize the offline module to register browser event listeners
+  // (offline/online) before any components hydrate.
+  if (process.env.__NEXT_USE_OFFLINE) {
+    require('./components/offline') as typeof import('./components/offline')
+  }
+
   // setNavigationBuildId should be called only once, during JS initialization
   // and before any components have hydrated.
   if (initialRSCPayload.b) {
@@ -321,11 +380,8 @@ export async function hydrate(
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
       navigatedAt: initialTimestamp,
-      initialFlightData: initialRSCPayload.f,
-      initialCanonicalUrlParts: initialRSCPayload.c,
-      initialRenderedSearch: initialRSCPayload.q,
-      initialCouldBeIntercepted: initialRSCPayload.i,
-      initialPrerendered: initialRSCPayload.S,
+      initialRSCPayload,
+      initialFlightStreamForCache,
       location: window.location,
     }),
     instrumentationHooks

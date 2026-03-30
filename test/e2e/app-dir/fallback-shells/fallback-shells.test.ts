@@ -87,10 +87,10 @@ describe('fallback-shells', () => {
                 isNextDev ? 'runtime' : 'buildtime'
               )
 
-              // `/bar` was not prerendered, and thus resumes the fallback shell.
               await browser.loadPage(
                 new URL(
-                  '/with-cached-io/with-static-params/with-suspense/params-in-page/bar',
+                  // Use a unique slug so earlier tests don't upgrade this route.
+                  `/with-cached-io/with-static-params/with-suspense/params-in-page/baz`,
                   next.url
                 ).href
               )

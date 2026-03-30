@@ -1889,6 +1889,7 @@
         }
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
         filterDebugInfo(response, chunk);
         moveDebugInfoFromChunkToInnerValue(chunk, value);
       } catch (error) {
@@ -1902,6 +1903,7 @@
         var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
+        chunk.reason = null;
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       }
@@ -3237,18 +3239,31 @@
                   "cause"
                 )
               }
-            : void 0;
+            : void 0,
+        isAggregateError =
+          "undefined" !== typeof AggregateError && "errors" in errorInfo,
+        revivedErrors = isAggregateError
+          ? reviveModel(response, errorInfo.errors, errorInfo, "errors")
+          : null;
       message = buildFakeCallStack(
         response,
         stack,
         env,
         !1,
-        Error.bind(
-          null,
-          message ||
-            "An error occurred in the Server Components render but no message was provided",
-          errorOptions
-        )
+        isAggregateError
+          ? AggregateError.bind(
+              null,
+              revivedErrors,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
+          : Error.bind(
+              null,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
       );
       stack = null;
       null != errorInfo.owner &&
@@ -5160,10 +5175,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-canary-ab18f33d-20260220",
+      version: "19.3.0-canary-74568e86-20260328",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-canary-ab18f33d-20260220",
+      reconcilerVersion: "19.3.0-canary-74568e86-20260328",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

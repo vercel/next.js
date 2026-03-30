@@ -137,13 +137,13 @@ impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
                     write!(
                         f,
                         "{} cell changed",
-                        turbo_tasks::registry::get_value_type(*value_type).name
+                        turbo_tasks::registry::get_value_type(*value_type).ty.name
                     )
                 } else {
                     write!(
                         f,
                         "{} cell changed (keys: {})",
-                        turbo_tasks::registry::get_value_type(*value_type).name,
+                        turbo_tasks::registry::get_value_type(*value_type).ty.name,
                         keys.iter()
                             .map(|key| match key {
                                 Some(k) => k.to_string(),
@@ -158,7 +158,7 @@ impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
                 write!(
                     f,
                     "{} cell removed",
-                    turbo_tasks::registry::get_value_type(*value_type).name
+                    turbo_tasks::registry::get_value_type(*value_type).ty.name
                 )
             }
             TaskDirtyCause::OutputChange { .. } => {
@@ -168,7 +168,7 @@ impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
                 write!(
                     f,
                     "{} collectible changed",
-                    turbo_tasks::registry::get_trait(*collectible_type).name
+                    turbo_tasks::registry::get_trait(*collectible_type).ty.name
                 )
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),

@@ -105,6 +105,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
+       "code": "E1078",
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -149,6 +150,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
+       "code": "E1078",
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -193,6 +195,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
+       "code": "E1078",
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -240,6 +243,7 @@ describe('instant validation causes', () => {
            ],
          },
        ],
+       "code": "E1078",
        "description": "Runtime data was accessed outside of <Suspense>
 
      This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
@@ -265,5 +269,13 @@ describe('instant validation causes', () => {
        ],
      }
     `)
+  })
+
+  it('does not add an instant stack for random unstable_instant exports', async () => {
+    const browser = await next.browser('/not-actual-instant')
+    const config = await browser.waitForElementByCss('[data-testid="config"]')
+    expect(await config.innerText()).toBe(
+      JSON.stringify({ unstable_instant: false })
+    )
   })
 })

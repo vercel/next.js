@@ -173,6 +173,33 @@ describe('router autoscrolling on navigation', () => {
     )
   })
 
+  describe('server action refresh', () => {
+    it('should not scroll when refresh() is called from a server action', async () => {
+      const browser = await next.browser('/server-action-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      // Scroll down past the first spacer div
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      // Click the refresh button which calls refresh() via a server action
+      await browser.elementByCss('#refresh-button').click()
+
+      // Wait for the action to complete by checking the server timestamp
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      // Scroll position should be preserved
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
+  })
+
   describe('bugs', () => {
     it('Should scroll to the top of the layout when the first child is display none', async () => {
       const browser = await next.browser('/')

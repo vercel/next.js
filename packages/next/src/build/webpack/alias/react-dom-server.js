@@ -27,3 +27,9 @@ exports.renderToStaticMarkup = error
 if (b.resume) {
   exports.resume = b.resume
 }
+if (b.renderToPipeableStream) {
+  exports.renderToPipeableStream = b.renderToPipeableStream
+}
+if (b.resumeToPipeableStream) {
+  exports.resumeToPipeableStream = b.resumeToPipeableStream
+}

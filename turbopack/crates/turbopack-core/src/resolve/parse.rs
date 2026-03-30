@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Ok, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbofmt};
 
 use super::pattern::Pattern;
 
@@ -293,7 +293,12 @@ impl Request {
                 Request::Unknown { path } => {
                     path.push(item);
                 }
-                Request::DataUri { .. } | Request::Uri { .. } | Request::Dynamic => {
+                Request::DataUri { .. } | Request::Uri { .. } => {
+                    return Request::Dynamic;
+                }
+                Request::Dynamic => {
+                    // A dynamic prefix is essentially impossible to resolve so we don't try.  We
+                    // would have to scan the entire repo for suffix matches.
                     return Request::Dynamic;
                 }
                 Request::Alternatives { .. } => unreachable!(),
@@ -652,7 +657,7 @@ impl Request {
                 encoding,
                 data,
             } => {
-                let data = ResolvedVc::cell(format!("{}{}", data.await?, suffix).into());
+                let data = ResolvedVc::cell(turbofmt!("{}{suffix}", *data).await?);
                 Self::DataUri {
                     media_type: media_type.clone(),
                     encoding: encoding.clone(),

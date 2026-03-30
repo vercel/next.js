@@ -41,7 +41,6 @@ import {
   getComponentTypeModule,
   getLayoutOrPageModule,
 } from '../../server/lib/app-dir-module'
-import { interopDefault } from '../interop-default'
 import {
   resolveAlternates,
   resolveAppleWebApp,
@@ -572,11 +571,11 @@ async function collectStaticImagesFiles(
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
     async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
-      await interopDefault(imageModule)(props)
+      await imageModule(props)
   )
 
   return iconPromises?.length > 0
-    ? (await Promise.all(iconPromises))?.flat()
+    ? (await Promise.all(iconPromises)).flat()
     : undefined
 }
 
@@ -721,6 +720,7 @@ const resolveMetadataItems = cache(async function (
     tree,
     treePrefix,
     parentParams,
+    null,
     searchParams,
     errorConvention,
     errorMetadataItem,
@@ -735,6 +735,7 @@ async function resolveMetadataItemsImpl(
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix: undefined | string[],
   parentParams: Params,
+  parentOptionalCatchAllParamName: string | null,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
@@ -759,8 +760,18 @@ async function resolveMetadataItemsImpl(
     }
   }
 
+  // Track optional catch-all params with no value (see comment in
+  // create-component-tree.tsx for full explanation).
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.paramType === 'optional-catchall' &&
+    (interpolatedParams[segmentParam.paramName] === null ||
+      interpolatedParams[segmentParam.paramName] === undefined)
+      ? segmentParam.paramName
+      : parentOptionalCatchAllParamName
+
   const params = createServerParamsForMetadata(
     currentParams,
+    optionalCatchAllParamName,
     isRuntimePrefetchable
   )
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
@@ -784,6 +795,7 @@ async function resolveMetadataItemsImpl(
       childTree,
       currentTreePrefix,
       currentParams,
+      optionalCatchAllParamName,
       searchParams,
       errorConvention,
       errorMetadataItem,
@@ -820,6 +832,7 @@ const resolveViewportItems = cache(async function (
     tree,
     treePrefix,
     parentParams,
+    null,
     searchParams,
     errorConvention,
     errorViewportItemRef,
@@ -834,6 +847,7 @@ async function resolveViewportItemsImpl(
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
   treePrefix: undefined | string[],
   parentParams: Params,
+  parentOptionalCatchAllParamName: string | null,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   errorViewportItemRef: ErrorViewportItemRef,
@@ -858,8 +872,18 @@ async function resolveViewportItemsImpl(
     }
   }
 
+  // Track optional catch-all params with no value (see comment in
+  // create-component-tree.tsx for full explanation).
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.paramType === 'optional-catchall' &&
+    (interpolatedParams[segmentParam.paramName] === null ||
+      interpolatedParams[segmentParam.paramName] === undefined)
+      ? segmentParam.paramName
+      : parentOptionalCatchAllParamName
+
   const params = createServerParamsForMetadata(
     currentParams,
+    optionalCatchAllParamName,
     isRuntimePrefetchable
   )
 
@@ -894,6 +918,7 @@ async function resolveViewportItemsImpl(
       childTree,
       currentTreePrefix,
       currentParams,
+      optionalCatchAllParamName,
       searchParams,
       errorConvention,
       errorViewportItemRef,

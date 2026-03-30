@@ -1,6 +1,6 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -31,7 +31,7 @@ use swc_core::{
 };
 use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, util::WrapFuture};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, util::WrapFuture};
 use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -284,10 +284,8 @@ pub async fn parse(
         .await
     {
         Ok(result) => Ok(result),
-        Err(error) => Err(error.context(format!(
-            "failed to parse {}",
-            source.ident().to_string().await?
-        ))),
+        // ast-grep-ignore: no-context-turbofmt
+        Err(error) => Err(error.context(turbofmt!("failed to parse {}", source.ident()).await?)),
     }
 }
 
@@ -347,10 +345,14 @@ async fn parse_internal(
                         {
                             Ok(result) => result,
                             Err(e) => {
-                                return Err(e).context(anyhow!(
-                                    "Transforming and/or parsing of {} failed",
-                                    source.ident().to_string().await?
-                                ));
+                                // ast-grep-ignore: no-context-turbofmt
+                                return Err(e).context(
+                                    turbofmt!(
+                                        "Transforming and/or parsing of {} failed",
+                                        source.ident()
+                                    )
+                                    .await?,
+                                );
                             }
                         }
                     }

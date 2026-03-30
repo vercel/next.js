@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
-describe('hello-world', () => {
+describe('cache-components OTEL spans', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
@@ -15,6 +15,7 @@ describe('hello-world', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -30,20 +31,21 @@ describe('hello-world', () => {
         `)
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-                {
-                  "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-                  "environmentLabel": "Cache",
-                  "label": "Console Error",
-                  "source": "app/traced-work.tsx (26:19) @ eval
-                > 26 |     return tracer.startActiveSpan('span-active-span', fn)
-                     |                   ^",
-                  "stack": [
-                    "eval app/traced-work.tsx (26:19)",
-                    "Inner app/traced-work.tsx (97:26)",
-                    "Page <anonymous>",
-                  ],
-                }
-              `)
+         {
+           "code": "E394",
+           "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
+           "environmentLabel": "Cache",
+           "label": "Console Error",
+           "source": "app/traced-work.tsx (26:19) @ eval
+         > 26 |     return tracer.startActiveSpan('span-active-span', fn)
+              |                   ^",
+           "stack": [
+             "eval app/traced-work.tsx (26:19)",
+             "Inner app/traced-work.tsx (97:26)",
+             "Page <anonymous>",
+           ],
+         }
+        `)
       }
 
       // Ideally we would assert the cached/loading status of each test case in dev but there are bugs with warmup renders that make this racey
@@ -63,6 +65,7 @@ describe('hello-world', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -78,20 +81,21 @@ describe('hello-world', () => {
         `)
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-                {
-                  "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-                  "environmentLabel": "Cache",
-                  "label": "Console Error",
-                  "source": "app/traced-work.tsx (26:19) @ eval
-                > 26 |     return tracer.startActiveSpan('span-active-span', fn)
-                     |                   ^",
-                  "stack": [
-                    "eval app/traced-work.tsx (26:19)",
-                    "Inner app/traced-work.tsx (97:26)",
-                    "Page <anonymous>",
-                  ],
-                }
-              `)
+         {
+           "code": "E394",
+           "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
+           "environmentLabel": "Cache",
+           "label": "Console Error",
+           "source": "app/traced-work.tsx (26:19) @ eval
+         > 26 |     return tracer.startActiveSpan('span-active-span', fn)
+              |                   ^",
+           "stack": [
+             "eval app/traced-work.tsx (26:19)",
+             "Inner app/traced-work.tsx (97:26)",
+             "Page <anonymous>",
+           ],
+         }
+        `)
       }
 
       // Ideally we would assert the cached/loading status of each test case in dev but there are bugs with warmup renders that make this racey
@@ -110,6 +114,7 @@ describe('hello-world', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Prerender",
            "label": "Console Error",
@@ -126,21 +131,22 @@ describe('hello-world', () => {
         `)
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-                {
-                  "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-                  "environmentLabel": "Prerender",
-                  "label": "Console Error",
-                  "source": "app/traced-work.tsx (26:19) @ eval
-                > 26 |     return tracer.startActiveSpan('span-active-span', fn)
-                     |                   ^",
-                  "stack": [
-                    "eval app/traced-work.tsx (26:19)",
-                    "Inner app/traced-work.tsx (97:26)",
-                    "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-                    "Page app/[slug]/server/page.tsx (29:7)",
-                  ],
-                }
-              `)
+         {
+           "code": "E394",
+           "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/traced-work.tsx (26:19) @ eval
+         > 26 |     return tracer.startActiveSpan('span-active-span', fn)
+              |                   ^",
+           "stack": [
+             "eval app/traced-work.tsx (26:19)",
+             "Inner app/traced-work.tsx (97:26)",
+             "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
+             "Page app/[slug]/server/page.tsx (29:7)",
+           ],
+         }
+        `)
       }
 
       // Ideally we would assert the cached/loading status of each test case in dev but there are bugs with warmup renders that make this racey
@@ -160,6 +166,7 @@ describe('hello-world', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
+           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Prerender",
            "label": "Console Error",
@@ -176,21 +183,22 @@ describe('hello-world', () => {
         `)
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
-                {
-                  "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-                  "environmentLabel": "Prerender",
-                  "label": "Console Error",
-                  "source": "app/traced-work.tsx (26:19) @ eval
-                > 26 |     return tracer.startActiveSpan('span-active-span', fn)
-                     |                   ^",
-                  "stack": [
-                    "eval app/traced-work.tsx (26:19)",
-                    "Inner app/traced-work.tsx (97:26)",
-                    "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
-                    "Page app/[slug]/server/page.tsx (29:7)",
-                  ],
-                }
-              `)
+         {
+           "code": "E394",
+           "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/traced-work.tsx (26:19) @ eval
+         > 26 |     return tracer.startActiveSpan('span-active-span', fn)
+              |                   ^",
+           "stack": [
+             "eval app/traced-work.tsx (26:19)",
+             "Inner app/traced-work.tsx (97:26)",
+             "CachedInnerTraceActiveSpan app/traced-work.tsx (104:9)",
+             "Page app/[slug]/server/page.tsx (29:7)",
+           ],
+         }
+        `)
       }
 
       // Ideally we would assert the cached/loading status of each test case in dev but there are bugs with warmup renders that make this racey

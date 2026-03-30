@@ -129,8 +129,8 @@ async fn side_effects_from_package_json(
                 .map(|glob| async move {
                     Ok(match glob {
                         Either::Left(glob) => {
-                            match glob.resolve().await {
-                                Ok(glob) => Either::Left(glob),
+                            match glob.to_resolved().await {
+                                Ok(glob) => Either::Left(*glob),
                                 Err(err) => {
                                     Either::Right(SideEffectsInPackageJsonIssue {
                                         // TODO(PACK-4879): This should point at the buggy glob
@@ -293,6 +293,10 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// Returns whether this module should be split into separate locals and facade modules.
+    ///
+    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
+    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {

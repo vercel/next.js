@@ -147,13 +147,9 @@ export function renderToFlightStream(
   ComponentMod: FlightComponentMod,
   payload: FlightPayload,
   clientModules: FlightClientModules,
-  opts: FlightRenderOptions,
-  runInContext?: <T>(fn: () => T) => T
+  opts: FlightRenderOptions
 ): AnyStream {
-  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
-  return run(() =>
-    ComponentMod.renderToReadableStream(payload, clientModules, opts)
-  )
+  return ComponentMod.renderToReadableStream(payload, clientModules, opts)
 }
 
 export async function streamToString(stream: AnyStream): Promise<string> {
@@ -162,28 +158,22 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 
 export async function renderToFizzStream(
   element: React.ReactElement,
-  streamOptions: any,
-  runInContext?: <T>(fn: () => T) => T
+  streamOptions: any
 ): Promise<FizzStreamResult> {
-  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
-  const stream = await run(() =>
-    renderToInitialFizzStream({
-      ReactDOMServer: { renderToReadableStream },
-      element,
-      streamOptions,
-    })
-  )
+  const stream = await renderToInitialFizzStream({
+    ReactDOMServer: { renderToReadableStream },
+    element,
+    streamOptions,
+  })
   return { stream, allReady: stream.allReady, abort: undefined }
 }
 
 export async function resumeToFizzStream(
   element: React.ReactElement,
   postponedState: PostponedState,
-  streamOptions: any,
-  runInContext?: <T>(fn: () => T) => T
+  streamOptions: any
 ): Promise<FizzStreamResult> {
-  const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
-  const stream = await run(() => resume(element, postponedState, streamOptions))
+  const stream = await resume(element, postponedState, streamOptions)
   return { stream, allReady: stream.allReady, abort: undefined }
 }
 

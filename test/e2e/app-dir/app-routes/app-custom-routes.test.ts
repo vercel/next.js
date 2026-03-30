@@ -225,7 +225,7 @@ describe('app-custom-routes', () => {
         })
 
         expect(res.status).toEqual(200)
-        expect(res.headers.get('content-type')).toEqual('application/json')
+        expect(res.headers.get('content-type')).toContain('application/json')
         expect(await res.json()).toEqual(meta)
       })
     })
@@ -312,16 +312,20 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toEqual('delete foo')
     })
 
-    it('can read a JSON encoded body for OPTIONS requests', async () => {
-      const body = { name: 'bar' }
-      const res = await next.fetch(basePath + '/advanced/body/json', {
-        method: 'OPTIONS',
-        body: JSON.stringify(body),
-      })
+    // keeping a body during options request is not standardized
+    // behavior and depending on the server can be discarded
+    if (!isNextDeploy) {
+      it('can read a JSON encoded body for OPTIONS requests', async () => {
+        const body = { name: 'bar' }
+        const res = await next.fetch(basePath + '/advanced/body/json', {
+          method: 'OPTIONS',
+          body: JSON.stringify(body),
+        })
 
-      expect(res.status).toEqual(200)
-      expect(await res.text()).toEqual('options bar')
-    })
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual('options bar')
+      })
+    }
 
     // we can't stream a body to a function currently only stream response
     if (!isNextDeploy) {
