@@ -18981,6 +18981,23 @@ async function* ci(A, e) {
     let { textShadowColor: V, textShadowOffset: Z, textShadowRadius: nA } = r;
     zA = na({ width: WA.width, height: WA.height, id: a }, { shadowColor: V, shadowOffset: Z, shadowRadius: nA }, li(r.color) || O && aa(r.color)), zA = H("defs", {}, zA);
   }
+  var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
+  if (_rtlRegex.test(sA)) {
+    var _lineGroups = {};
+    for (var _v = 0; _v < OA.length; _v++) {
+      var _ln = OA[_v].line;
+      if (!_lineGroups[_ln]) _lineGroups[_ln] = [];
+      _lineGroups[_ln].push(_v);
+    }
+    for (var _ln2 in _lineGroups) {
+      var _indices = _lineGroups[_ln2];
+      var _lineWidth = oA[_ln2];
+      for (var _idx = 0; _idx < _indices.length; _idx++) {
+        var _i2 = _indices[_idx];
+        OA[_i2].x = _lineWidth - OA[_i2].x - OA[_i2].width;
+      }
+    }
+  }
   let ne = "", ie = "", Be = "", De = -1, KA = {}, XA = {}, _A = null, oe = 0;
   for (let V = 0; V < Y.length; V++) {
     let Z = OA[V], nA = OA[V + 1];

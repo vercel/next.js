@@ -246,14 +246,10 @@ jobs:
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # Build or restore the Docker image via turbo remote cache.
-      # Step 1: turbo either runs the build (cache miss) or restores image.tar (cache hit).
-      # Step 2: --load ensures the tar is loaded into docker (turbo skips the script on hit).
+      # Build or restore the Docker image via turbo-cache.js.
       - name: Build/restore Docker image
         if: ${{ matrix.docker }}
-        run: |
-          pnpm dlx turbo@${TURBO_VERSION} run build-docker-image --remote-cache-timeout 90 --log-order stream
-          node scripts/docker-image-cache.js --load
+        run: node scripts/docker-image-cache.js
 
       # Try to restore previously-built native binary from turbo cache
       - name: pull build cache

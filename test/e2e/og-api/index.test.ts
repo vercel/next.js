@@ -51,6 +51,22 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
+  it('should work with RTL Arabic text in app route', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-rtl')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
+  it('should work with RTL Arabic text in app route in node runtime', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-rtl-node')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    const body = await res.blob()
+    expect(body.size).toBeGreaterThan(0)
+  })
+
   if ((global as any).isNextStart) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')

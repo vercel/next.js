@@ -1862,7 +1862,21 @@ export async function fetchRouteOnCacheMiss(
     return { value: null, closed: closed.promise }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
-    // decoding the response.
+    // decoding the response. If we're offline, reject with staleAt=-1 so the
+    // entry immediately expires and gets retried once the scheduler is
+    // re-pinged after connectivity is restored.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRouteCacheEntry(entry, -1)
+        return null
+      }
+    }
     rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
     return null
   }
@@ -2065,6 +2079,18 @@ export async function fetchSegmentsOnCacheMiss(
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRemainingSegmentsInBundle(segments, -1)
+        return null
+      }
+    }
     rejectRemainingSegmentsInBundle(segments, Date.now() + 10 * 1000)
     return null
   }
@@ -2263,6 +2289,18 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // the scheduler can track the number of concurrent network connections.
     return { value: null, closed: closed.promise }
   } catch (error) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectSegmentEntriesIfStillPending(spawnedEntries, -1)
+        return null
+      }
+    }
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
     return null
   }
