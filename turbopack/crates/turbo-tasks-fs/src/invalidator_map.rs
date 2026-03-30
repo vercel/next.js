@@ -8,11 +8,11 @@ use concurrent_queue::ConcurrentQueue;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{Invalidator, ReadRef};
 
-use crate::{LinkContent, PersistedFileContent};
+use crate::{FileContent, LinkContent};
 
 #[derive(PartialEq, Eq)]
 pub enum WriteContent {
-    File(ReadRef<PersistedFileContent>),
+    File(ReadRef<FileContent>),
     Link(ReadRef<LinkContent>),
 }
 
