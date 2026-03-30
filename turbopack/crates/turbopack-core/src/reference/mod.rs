@@ -61,7 +61,7 @@ impl ModuleReferences {
 #[derive(ValueToString)]
 #[value_to_string(self.description)]
 pub struct SingleModuleReference {
-    asset: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn Module>>,
     description: RcStr,
 }
 
@@ -69,22 +69,19 @@ pub struct SingleModuleReference {
 impl ModuleReference for SingleModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.asset)
+        *ModuleResolveResult::module(self.module)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl SingleModuleReference {
-    /// Create a new instance that resolves to the given asset.
+    /// Create a new instance that resolves to the given module.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
-        Self::cell(SingleModuleReference { asset, description })
-    }
-
-    /// The [`Vc<Box<dyn Module>>`][Module] that this reference resolves to.
-    #[turbo_tasks::function]
-    pub fn asset(&self) -> Vc<Box<dyn Module>> {
-        *self.asset
+    pub fn new(module: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
+        Self::cell(SingleModuleReference {
+            module,
+            description,
+        })
     }
 }
 

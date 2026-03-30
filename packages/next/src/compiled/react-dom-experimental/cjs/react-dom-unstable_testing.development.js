@@ -5797,7 +5797,8 @@
                 renderLanes,
                 workInProgress
               ),
-              (nextFiber = forcePropagateEntireTree ? fiber.child : null))
+              (nextFiber = fiber.child),
+              (nextFiber = null !== nextFiber ? nextFiber.sibling : null))
             : (nextFiber = fiber.child);
         if (null !== nextFiber) nextFiber.return = fiber;
         else
@@ -21886,8 +21887,9 @@
           (workInProgressRootRenderLanes & 62914560) ===
             workInProgressRootRenderLanes &&
           now$1() - globalMostRecentFallbackTime < FALLBACK_THROTTLE_MS)
-          ? (executionContext & RenderContext) === NoContext &&
-            prepareFreshStack(root, 0)
+          ? (executionContext & RenderContext) === NoContext
+            ? prepareFreshStack(root, 0)
+            : (workInProgressRootPingedLanes |= pingedLanes)
           : (workInProgressRootPingedLanes |= pingedLanes),
         workInProgressSuspendedRetryLanes === workInProgressRootRenderLanes &&
           (workInProgressSuspendedRetryLanes = 0));
@@ -33184,11 +33186,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-8b2e903a-20260320" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-9627b5a1-20260327" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-8b2e903a-20260320\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-9627b5a1-20260327\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33225,10 +33227,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-8b2e903a-20260320",
+          version: "19.3.0-experimental-9627b5a1-20260327",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-8b2e903a-20260320"
+          reconcilerVersion: "19.3.0-experimental-9627b5a1-20260327"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33542,5 +33544,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-8b2e903a-20260320";
+    exports.version = "19.3.0-experimental-9627b5a1-20260327";
   })();
