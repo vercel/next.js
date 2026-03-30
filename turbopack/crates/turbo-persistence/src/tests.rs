@@ -2187,3 +2187,32 @@ fn compaction_preserves_active_blob() -> Result<()> {
     db.shutdown()?;
     Ok(())
 }
+
+#[test]
+fn write_batch_drop_without_commit_recovers() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    // Create a write batch and drop it without committing
+    {
+        let _batch = db.write_batch::<Vec<u8>>()?;
+        // batch is dropped here without commit
+    }
+
+    // Should be able to create a new write batch — the lock must have been released
+    let batch = db.write_batch::<Vec<u8>>()?;
+    batch.put(0, vec![1u8], vec![42u8].into())?;
+    db.commit_write_batch(batch)?;
+
+    // Verify the write succeeded
+    let value = db.get(0, &[1u8])?;
+    assert_eq!(value.as_deref(), Some(&[42u8][..]));
+
+    db.shutdown()?;
+    Ok(())
+}

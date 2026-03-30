@@ -6,7 +6,7 @@ use std::{
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use anyhow::{Context, Result, bail};
@@ -106,6 +106,26 @@ struct TrackedStats {
     miss_global: std::sync::atomic::AtomicU64,
 }
 
+/// Describes the currently-active write operation, if any.
+#[derive(Debug, Clone)]
+pub(crate) enum ActiveOperation {
+    WriteBatch,
+    Compact,
+}
+
+/// RAII guard that resets the active write operation to `None` on drop.
+/// This ensures the flag is always cleared, even on error paths or when a `WriteBatch` is dropped
+/// without being committed.
+pub(crate) struct WriteOperationGuard<'a> {
+    state: &'a Mutex<Option<ActiveOperation>>,
+}
+
+impl Drop for WriteOperationGuard<'_> {
+    fn drop(&mut self) {
+        *self.state.lock() = None;
+    }
+}
+
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
@@ -117,9 +137,9 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     read_only: bool,
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner<FAMILIES>>,
-    /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
-    /// write operations.
-    active_write_operation: AtomicBool,
+    /// Tracks the currently-active write operation, if any. Prevents multiple concurrent write
+    /// operations. Protected by a Mutex so the guard can reset it on drop.
+    active_write_operation: Mutex<Option<ActiveOperation>>,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -191,7 +211,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 accessed_key_hashes: [(); FAMILIES]
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
             }),
-            active_write_operation: AtomicBool::new(false),
+            active_write_operation: Mutex::new(None),
             key_block_cache: BlockCache::with(
                 KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
                 KEY_BLOCK_CACHE_SIZE,
@@ -445,26 +465,34 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.inner.read().meta_files.is_empty()
     }
 
+    /// Acquires the write operation lock, returning an RAII guard that releases it on drop.
+    /// Only one write operation (write batch or compaction) is allowed at a time.
+    fn acquire_write_operation(&self, op: ActiveOperation) -> Result<WriteOperationGuard<'_>> {
+        if self.read_only {
+            bail!("Cannot perform write operations on a read-only database");
+        }
+        let mut guard = self.active_write_operation.lock();
+        if let Some(existing) = &*guard {
+            bail!(
+                "Cannot start {op:?}: {existing:?} is already active (only a single write \
+                 operation is allowed at a time)"
+            );
+        }
+        *guard = Some(op);
+        Ok(WriteOperationGuard {
+            state: &self.active_write_operation,
+        })
+    }
+
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
-    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<K, S, FAMILIES>> {
-        if self.read_only {
-            bail!("Cannot write to a read-only database");
-        }
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
+        let guard = self.acquire_write_operation(ActiveOperation::WriteBatch)?;
         let current = self.inner.read().current_sequence_number;
         Ok(WriteBatch::new(
+            guard,
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
@@ -511,11 +539,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
-        mut write_batch: WriteBatch<K, S, FAMILIES>,
+        mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
     ) -> Result<()> {
-        if self.read_only {
-            unreachable!("It's not possible to create a write batch for a read-only database");
-        }
         let FinishResult {
             sequence_number,
             new_meta_files,
@@ -552,7 +577,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             sequence_number,
             keys_written,
         })?;
-        self.active_write_operation.store(false, Ordering::Release);
         Ok(())
     }
 
@@ -811,19 +835,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
     pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
-        if self.read_only {
-            bail!("Compaction is not allowed on a read only database");
-        }
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
+        let _guard = self.acquire_write_operation(ActiveOperation::Compact)?;
 
         // Free block caches and SST mmaps before compaction. The block caches
         // are not used during compaction (we iterate uncached), and any cached
@@ -867,8 +879,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .context("Failed to commit the database compaction")?;
         }
-
-        self.active_write_operation.store(false, Ordering::Release);
 
         Ok(has_changes)
     }
