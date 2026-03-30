@@ -61,7 +61,7 @@ contextPrototype.x = externalRequire
 // Chunk loading is synchronous in these runtimes, so loaders may return plain
 // values or throw. The async keyword ensures dynamic import() always returns
 // a Promise per spec without an extra microtask in the browser path.
-async function asyncLoaderSync(
+async function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
 ): Promise<Exports> {
@@ -70,4 +70,4 @@ async function asyncLoaderSync(
   ) => Exports | Promise<Exports>
   return loader(esmImport.bind(this))
 }
-contextPrototype.A = asyncLoaderSync
+contextPrototype.A = asyncLoader

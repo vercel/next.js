@@ -96,11 +96,14 @@ function loadChunkPath(
     const error = new Error(
       sourceIsModule
         ? `Failed to load chunk ${chunkPath} from module ${sourceId}`
-        : `Failed to load chunk ${chunkPath} from runtime for chunk ${sourceId}`,
+        : `Failed to load chunk ${chunkPath} ${sourceId ? `from runtime for chunk ${sourceId}` : ''}`,
       { cause }
     )
     error.name = 'ChunkLoadError'
-    loadedChunks.set(chunkPath, error)
+    // Don't cache runtime chunk loading errors
+    if (!sourceIsModule) {
+      loadedChunks.set(chunkPath, error)
+    }
     throw error
   }
 }

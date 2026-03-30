@@ -174,12 +174,12 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
                 code,
                 r#"
                     {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                        var serverChunks = {chunks_server_data:#};
-                        for (var i = 0; i < serverChunks.length; i++) {{
-                            {TURBOPACK_LOAD}(serverChunks[i]);
-                        }}
-                        var chunks = {TURBOPACK_REQUIRE}({item_id});
+                        var chunks = {chunks_server_data:#};
                         for (var i = 0; i < chunks.length; i++) {{
+                            {TURBOPACK_LOAD}(chunks[i]);
+                        }}
+                        chunks = {TURBOPACK_REQUIRE}({item_id});
+                        for (i = 0; i < chunks.length; i++) {{
                             {TURBOPACK_LOAD}(chunks[i]);
                         }}
                         return parentImport({dynamic_id});

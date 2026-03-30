@@ -1571,6 +1571,8 @@ export async function copy_vendor_react(task_) {
      * Replaces the body of a named function declaration/expression.
      * Finds `function <name>(` and uses brace counting to locate the
      * full body, then replaces it with the provided code.
+     *
+     * This is brittle but does work for our current usecase
      */
     function replaceFunctionBody(
       /** @type {string} */ code,
@@ -1782,6 +1784,7 @@ export async function copy_vendor_react(task_) {
           // to eliminate all promise tracking overhead — the chunks are
           // already loaded synchronously, so we just need to call
           // __next_chunk_load__ for side effects and handle async modules.
+          // TODO: this should be upstreamed into react
           code = replaceFunctionBody(
             code,
             'preloadModule',
