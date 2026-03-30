@@ -10054,7 +10054,12 @@ FeatureQuery.prototype.lookupFeature = function(query) {
     for (var s = 0; s < subtables.length; s++) {
       var subtable = subtables[s];
       var substType = this.getSubstitutionType(lookupTable, subtable);
-      var lookup = this.getLookupMethod(lookupTable, subtable);
+      var lookup;
+      try {
+        lookup = this.getLookupMethod(lookupTable, subtable);
+      } catch (e) {
+        continue;
+      }
       var substitution = void 0;
       switch (substType) {
         case "11":
