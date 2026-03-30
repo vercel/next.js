@@ -2187,3 +2187,391 @@ fn compaction_preserves_active_blob() -> Result<()> {
     db.shutdown()?;
     Ok(())
 }
+
+/// Demonstrates that dropping a WriteBatch without committing permanently locks the database.
+/// This is a known bug — the active_write_operation flag is never reset on drop.
+/// TODO: Fix by using an RAII guard that resets the flag on drop.
+#[test]
+fn write_batch_drop_without_commit_locks_db() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    // Create a write batch and drop it without committing
+    {
+        let _batch = db.write_batch::<Vec<u8>>()?;
+        // batch is dropped here without commit
+    }
+
+    // BUG: This fails because the active_write_operation flag was never cleared.
+    // After the fix, this should succeed.
+    let result = db.write_batch::<Vec<u8>>();
+    assert!(
+        result.is_err(),
+        "Expected error due to leaked write operation flag (known bug)"
+    );
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Helper: create a DB with some committed data and return it along with the tempdir.
+fn setup_db_with_data() -> Result<(
+    tempfile::TempDir,
+    TurboPersistence<RayonParallelScheduler, 1>,
+)> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    let batch = db.write_batch()?;
+    for i in 0..100u8 {
+        batch.put(0, vec![i], vec![i].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    Ok((tempdir, db))
+}
+
+/// After deleting the DB directory, lookups still succeed because mmap'd pages remain valid in
+/// the OS page cache. The files are unlinked but the mappings keep the data accessible.
+#[test]
+fn delete_dir_then_lookup() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+
+    // Verify a lookup works before deletion
+    assert_eq!(db.get(0, &[42u8])?.as_deref(), Some(&[42u8][..]));
+
+    // Delete the entire DB directory
+    fs::remove_dir_all(tempdir.path())?;
+
+    // All lookups still work — the mmap'd SST pages are still valid
+    assert_eq!(db.get(0, &[42u8])?.as_deref(), Some(&[42u8][..]));
+    assert_eq!(db.get(0, &[99u8])?.as_deref(), Some(&[99u8][..]));
+    assert_eq!(db.get(0, &[255u8])?, None);
+
+    Ok(())
+}
+
+/// After deleting the DB directory, committing a write batch returns an error (not a panic)
+/// because it cannot create new SST files.
+#[test]
+fn delete_dir_then_commit_write_batch() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+
+    // Start a write batch before deletion
+    let batch = db.write_batch::<Vec<u8>>()?;
+    batch.put(0, vec![200u8], vec![200u8].into())?;
+
+    // Delete the entire DB directory
+    fs::remove_dir_all(tempdir.path())?;
+
+    // Committing fails because it can't write SST files to the deleted directory
+    let result = db.commit_write_batch(batch);
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+/// After deleting the DB directory, compaction returns an error (not a panic).
+#[test]
+fn delete_dir_then_compact() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+
+    // Write a second batch to create multiple SST files (compaction needs something to merge)
+    let batch = db.write_batch::<Vec<u8>>()?;
+    for i in 0..50u8 {
+        batch.put(0, vec![i], vec![i + 100].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Delete the entire DB directory
+    fs::remove_dir_all(tempdir.path())?;
+
+    // Compaction fails because it can't write new SST/meta files
+    let result = db.compact(&CompactConfig {
+        optimal_merge_count: 2,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: u64::MAX,
+        ..Default::default()
+    });
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+/// Deleting the DB directory mid-write-batch causes commit to fail with an error (not a panic).
+#[test]
+fn delete_dir_during_write_batch() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+
+    let batch = db.write_batch::<Vec<u8>>()?;
+
+    // Write some data
+    for i in 0..50u8 {
+        batch.put(0, vec![i], vec![i].into())?;
+    }
+
+    // Delete the directory while the batch is open
+    fs::remove_dir_all(tempdir.path())?;
+
+    // Continue writing — puts to thread-local buffers still work, but flushing to disk will fail
+    for i in 50..200u8 {
+        let _ = batch.put(0, vec![i], vec![i].into());
+    }
+
+    // Commit fails because it can't write SST files
+    let result = db.commit_write_batch(batch);
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+/// After deleting the DB directory, opening a new DB at the same path succeeds
+/// because open() recreates the directory.
+#[test]
+fn delete_dir_then_reopen() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+    let path = tempdir.path().to_path_buf();
+
+    // Verify data exists
+    assert_eq!(db.get(0, &[42u8])?.as_deref(), Some(&[42u8][..]));
+
+    db.shutdown()?;
+    drop(db);
+
+    // Delete the entire directory
+    fs::remove_dir_all(&path)?;
+
+    // Reopen — should create a fresh DB
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(path, RayonParallelScheduler)?;
+
+    // Data is gone, but the DB works
+    assert_eq!(db.get(0, &[42u8])?, None);
+
+    // Can write new data
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], vec![99u8].into())?;
+    db.commit_write_batch(batch)?;
+
+    assert_eq!(db.get(0, &[1u8])?.as_deref(), Some(&[99u8][..]));
+
+    db.shutdown()?;
+    Ok(())
+}
+
+/// Helper: truncate all files matching an extension in a directory to zero bytes.
+fn truncate_files_by_extension(dir: &Path, extension: &str) -> usize {
+    let mut count = 0;
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if entry.path().extension().is_some_and(|ext| ext == extension) {
+                if fs::write(entry.path(), b"").is_ok() {
+                    count += 1;
+                }
+            }
+        }
+    }
+    count
+}
+
+/// Runs a named child test function in a subprocess. Returns the exit status.
+/// This is necessary for tests that may SIGBUS or panic — both kill the process.
+///
+/// The child test is identified by its full test name (e.g. "tests::my_child_test").
+/// The DB path is passed via the TURBO_PERSISTENCE_TEST_DB_PATH env var.
+fn run_in_subprocess(child_test_name: &str, db_path: &Path) -> std::process::ExitStatus {
+    let test_exe = std::env::current_exe().expect("failed to get test executable path");
+    std::process::Command::new(&test_exe)
+        .arg("--exact")
+        .arg(child_test_name)
+        .arg("--nocapture")
+        .env("TURBO_PERSISTENCE_TEST_DB_PATH", db_path)
+        .status()
+        .expect("failed to spawn child process")
+}
+
+/// Helper: skip if not running as a subprocess (no env var set). Returns the DB path.
+fn subprocess_db_path() -> Option<std::path::PathBuf> {
+    std::env::var("TURBO_PERSISTENCE_TEST_DB_PATH")
+        .ok()
+        .map(std::path::PathBuf::from)
+}
+
+/// Truncating SST files to zero bytes causes lookups to SIGBUS because the mmap'd pages
+/// reference beyond the (now zero) file length.
+#[test]
+fn truncate_sst_files_then_lookup() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+    let path = tempdir.path().to_path_buf();
+
+    // Verify data works before truncation
+    assert_eq!(db.get(0, &[42u8])?.as_deref(), Some(&[42u8][..]));
+
+    // Clear caches so next lookup must go through mmap
+    db.clear_cache();
+
+    // Truncate all SST files to zero
+    let truncated = truncate_files_by_extension(&path, "sst");
+    assert!(truncated > 0, "Expected at least one SST file to truncate");
+
+    // Run lookup in subprocess — will SIGBUS
+    let status = run_in_subprocess("tests::truncate_sst_files_then_lookup_child", &path);
+    assert!(
+        !status.success(),
+        "Expected child to fail (SIGBUS), but it exited with: {status}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn truncate_sst_files_then_lookup_child() -> Result<()> {
+    let Some(path) = subprocess_db_path() else {
+        return Ok(());
+    };
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(path, RayonParallelScheduler)?;
+    let _value = db.get(0, &[42u8])?;
+    Ok(())
+}
+
+/// Truncating SST files causes compaction to panic with an arithmetic overflow
+/// (attempt to subtract with overflow in static_sorted_file.rs) because the fresh mmap
+/// of the empty file has length 0 but the code tries to parse a header from it.
+#[test]
+fn truncate_sst_files_then_compact() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+    let path = tempdir.path().to_path_buf();
+
+    // Write a second batch to have something to compact
+    let batch = db.write_batch::<Vec<u8>>()?;
+    for i in 0..50u8 {
+        batch.put(0, vec![i], vec![i + 100].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Truncate all SST files
+    let truncated = truncate_files_by_extension(&path, "sst");
+    assert!(truncated > 0);
+
+    // Run compaction in subprocess — will panic
+    let status = run_in_subprocess("tests::truncate_sst_files_then_compact_child", &path);
+    assert!(
+        !status.success(),
+        "Expected child to fail (panic), but it exited with: {status}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn truncate_sst_files_then_compact_child() -> Result<()> {
+    let Some(path) = subprocess_db_path() else {
+        return Ok(());
+    };
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(path, RayonParallelScheduler)?;
+    db.compact(&CompactConfig {
+        optimal_merge_count: 2,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: u64::MAX,
+        ..Default::default()
+    })?;
+    Ok(())
+}
+
+/// Truncating meta files causes compaction to SIGBUS because the meta files are mmap'd
+/// and accessed directly during compaction.
+#[test]
+fn truncate_meta_files_then_compact() -> Result<()> {
+    let (tempdir, db) = setup_db_with_data()?;
+    let path = tempdir.path().to_path_buf();
+
+    // Write a second batch
+    let batch = db.write_batch::<Vec<u8>>()?;
+    for i in 0..50u8 {
+        batch.put(0, vec![i], vec![i + 100].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Truncate all meta files
+    let truncated = truncate_files_by_extension(&path, "meta");
+    assert!(truncated > 0);
+
+    // Run compaction in subprocess — will SIGBUS
+    let status = run_in_subprocess("tests::truncate_meta_files_then_compact_child", &path);
+    assert!(
+        !status.success(),
+        "Expected child to fail (SIGBUS), but it exited with: {status}"
+    );
+
+    Ok(())
+}
+
+#[test]
+fn truncate_meta_files_then_compact_child() -> Result<()> {
+    let Some(path) = subprocess_db_path() else {
+        return Ok(());
+    };
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(path, RayonParallelScheduler)?;
+    db.compact(&CompactConfig {
+        optimal_merge_count: 2,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: u64::MAX,
+        ..Default::default()
+    })?;
+    Ok(())
+}
+
+/// Writing garbage into SST files (preserving size) and then reading should hit checksum
+/// validation. We reopen the DB to get a fresh mmap of the corrupted data.
+#[test]
+fn corrupt_sst_files_then_lookup() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    // Write data and shut down so files are finalized
+    {
+        let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+            path.to_path_buf(),
+            RayonParallelScheduler,
+        )?;
+        let batch = db.write_batch()?;
+        for i in 0..100u8 {
+            batch.put(0, vec![i], vec![i].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        db.shutdown()?;
+    }
+
+    // Overwrite SST files with garbage (same size, so no SIGBUS)
+    for entry in fs::read_dir(path)?.flatten() {
+        if entry.path().extension().is_some_and(|ext| ext == "sst") {
+            let len = entry.metadata().map(|m| m.len()).unwrap_or(0) as usize;
+            let garbage = vec![0xDEu8; len];
+            fs::write(entry.path(), &garbage)?;
+        }
+    }
+
+    // Reopen to get fresh mmaps of the corrupted data
+    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    // Lookups should fail due to corrupt data (bad checksums, bad magic, etc.)
+    let result = db.get(0, &[42u8]);
+    assert!(
+        result.is_err() || result.as_ref().is_ok_and(|v| v.is_none()),
+        "Expected error or missing value from corrupt SST, got: {result:?}"
+    );
+
+    Ok(())
+}
