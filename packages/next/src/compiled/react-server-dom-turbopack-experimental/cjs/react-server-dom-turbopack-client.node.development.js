@@ -3432,18 +3432,31 @@
                   "cause"
                 )
               }
-            : void 0;
+            : void 0,
+        isAggregateError =
+          "undefined" !== typeof AggregateError && "errors" in errorInfo,
+        revivedErrors = isAggregateError
+          ? reviveModel(response, errorInfo.errors, errorInfo, "errors")
+          : null;
       message = buildFakeCallStack(
         response,
         stack,
         env,
         !1,
-        Error.bind(
-          null,
-          message ||
-            "An error occurred in the Server Components render but no message was provided",
-          errorOptions
-        )
+        isAggregateError
+          ? AggregateError.bind(
+              null,
+              revivedErrors,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
+          : Error.bind(
+              null,
+              message ||
+                "An error occurred in the Server Components render but no message was provided",
+              errorOptions
+            )
       );
       stack = null;
       null != errorInfo.owner &&
