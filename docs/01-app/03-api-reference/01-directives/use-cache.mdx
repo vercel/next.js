@@ -69,7 +69,7 @@ export async function getData() {
 }
 ```
 
-> **Good to know**: When used at file level, all function exports must be async functions.
+> **Good to know**: Functions and components that use `use cache` must be `async`. When used at file level, all exported functions in the file must be `async`.
 
 ## How `use cache` works
 
