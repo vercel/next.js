@@ -137,6 +137,10 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         )
     }
 
+    fn is_write_operation_active(&self) -> bool {
+        self.db.is_write_operation_active()
+    }
+
     fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)

@@ -119,4 +119,10 @@ pub trait KeyValueDatabase {
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+
+    /// Returns true if a write operation or compaction is currently active. This can happen if a
+    /// previous write or compaction failed and recovery also failed, permanently disabling writes.
+    fn is_write_operation_active(&self) -> bool {
+        false
+    }
 }

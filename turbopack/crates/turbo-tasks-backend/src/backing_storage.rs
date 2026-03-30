@@ -108,6 +108,12 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+
+    /// Returns true if a write operation or compaction is currently active. This can happen if a
+    /// previous write or compaction failed and recovery also failed, permanently disabling writes.
+    fn is_write_operation_active(&self) -> bool {
+        false
+    }
 }
 
 impl<L, R> BackingStorage for Either<L, R>
@@ -170,5 +176,9 @@ where
 
     fn shutdown(&self) -> Result<()> {
         either::for_both!(self, this => this.shutdown())
+    }
+
+    fn is_write_operation_active(&self) -> bool {
+        either::for_both!(self, this => this.is_write_operation_active())
     }
 }

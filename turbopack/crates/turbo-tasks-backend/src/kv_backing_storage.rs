@@ -381,6 +381,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     fn shutdown(&self) -> Result<()> {
         self.inner.database.shutdown()
     }
+
+    fn is_write_operation_active(&self) -> bool {
+        self.inner.database.is_write_operation_active()
+    }
 }
 
 fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u32, anyhow::Error> {

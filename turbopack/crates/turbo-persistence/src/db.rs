@@ -451,6 +451,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.is_empty.load(Ordering::Relaxed)
     }
 
+    /// Returns true if a write operation or compaction is currently active. If this returns true
+    /// after a failed persist or compaction, it means recovery failed and no further write
+    /// operations are possible.
+    pub fn is_write_operation_active(&self) -> bool {
+        self.active_write_operation.load(Ordering::Acquire)
+    }
+
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
@@ -513,6 +520,108 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(BufWriter::new(log_file))
     }
 
+    /// Attempts to recover the database to a consistent state after a failed write or compaction.
+    ///
+    /// Reads the last committed sequence number from the CURRENT file on disk, deletes any orphan
+    /// files (seq > current), processes any pending .del files, and reloads the in-memory meta
+    /// file list from disk.
+    ///
+    /// If recovery succeeds, `active_write_operation` is reset to `false`. If recovery fails,
+    /// `active_write_operation` remains `true` and further writes are permanently disabled.
+    fn try_recover_after_failed_write(&self) -> Result<()> {
+        // Read the last successfully committed sequence number from disk.
+        let current_seq = {
+            let mut file = File::open(self.path.join("CURRENT"))?;
+            file.read_u32::<BE>()?
+        };
+
+        // Walk the directory, categorizing files by their sequence number.
+        let mut orphan_paths = Vec::new(); // seq > current_seq: partial commit artifacts to delete
+        let mut del_file_paths = Vec::new(); // seq <= current_seq, .del: pending deletions to finish
+        let mut meta_seqs = Vec::new(); // seq <= current_seq, .meta: to reload into memory
+
+        for entry in fs::read_dir(&self.path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                if let Some(seq) = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.parse::<u32>().ok())
+                {
+                    if seq > current_seq {
+                        match ext {
+                            "sst" | "meta" | "blob" | "del" => orphan_paths.push(path),
+                            _ => {}
+                        }
+                    } else {
+                        match ext {
+                            "del" => del_file_paths.push(path),
+                            "meta" => meta_seqs.push(seq),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        // Delete orphan files left by the failed partial commit.
+        for path in orphan_paths {
+            fs::remove_file(path)?;
+        }
+
+        // Process .del files: collect which files should be deleted, then delete them.
+        // .del files are written before CURRENT is updated; if CURRENT was already updated they are
+        // committed state and must be fully applied.
+        let mut deleted_seqs = HashSet::new();
+        for del_path in &del_file_paths {
+            let content = fs::read(del_path)?;
+            let mut cursor = content.as_slice();
+            while !cursor.is_empty() {
+                deleted_seqs.insert(cursor.read_u32::<BE>()?);
+            }
+        }
+        for &del_seq in &deleted_seqs {
+            for ext in ["sst", "meta", "blob"] {
+                let p = self.path.join(format!("{del_seq:08}.{ext}"));
+                match fs::remove_file(&p) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e.into()),
+                }
+            }
+        }
+        for del_path in del_file_paths {
+            fs::remove_file(del_path)?;
+        }
+
+        // Load MetaFile objects for the surviving .meta files.
+        meta_seqs.retain(|seq| !deleted_seqs.contains(seq));
+        meta_seqs.sort_unstable();
+        let mut meta_files = self
+            .parallel_scheduler
+            .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_seqs, |&seq| {
+                MetaFile::open(&self.path, seq)
+            })?;
+
+        // Apply SST filter to mark obsolete entries within each meta file.
+        let mut sst_filter = SstFilter::new();
+        for meta_file in meta_files.iter_mut().rev() {
+            sst_filter.apply_filter(meta_file);
+        }
+
+        // Update in-memory state under write lock.
+        {
+            let mut inner = self.inner.write();
+            inner.meta_files = meta_files;
+            inner.current_sequence_number = current_seq;
+        }
+
+        // Recovery succeeded — release the exclusive write lock.
+        self.active_write_operation.store(false, Ordering::Release);
+        Ok(())
+    }
+
     /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync>(
@@ -522,13 +631,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
         }
-        let FinishResult {
-            sequence_number,
-            new_meta_files,
-            new_sst_files,
-            new_blob_files,
-            keys_written,
-        } = write_batch.finish(|family| {
+        let finish_result = write_batch.finish(|family| {
             let inner = self.inner.read();
             let set = &inner.accessed_key_hashes[family as usize];
             // len is only a snapshot at that time and it can change while we create the filter.
@@ -553,8 +656,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 false
             });
             amqf
-        })?;
-        self.commit(CommitOptions {
+        });
+        let FinishResult {
+            sequence_number,
+            new_meta_files,
+            new_sst_files,
+            new_blob_files,
+            keys_written,
+        } = match finish_result {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = self.try_recover_after_failed_write();
+                return Err(e);
+            }
+        };
+        if let Err(e) = self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
@@ -562,7 +678,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
-        })?;
+        }) {
+            let _ = self.try_recover_after_failed_write();
+            return Err(e);
+        }
         self.active_write_operation.store(false, Ordering::Release);
         Ok(())
     }
@@ -893,31 +1012,41 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         {
             let inner = self.inner.read();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
-            self.compact_internal(
-                &inner.meta_files,
-                &sequence_number,
-                &mut new_meta_files,
-                &mut new_sst_files,
-                &mut sst_seq_numbers_to_delete,
-                &mut blob_seq_numbers_to_delete,
-                &mut keys_written,
-                compact_config,
-            )
-            .context("Failed to compact database")?;
+            if let Err(e) = self
+                .compact_internal(
+                    &inner.meta_files,
+                    &sequence_number,
+                    &mut new_meta_files,
+                    &mut new_sst_files,
+                    &mut sst_seq_numbers_to_delete,
+                    &mut blob_seq_numbers_to_delete,
+                    &mut keys_written,
+                    compact_config,
+                )
+                .context("Failed to compact database")
+            {
+                let _ = self.try_recover_after_failed_write();
+                return Err(e);
+            }
         }
 
         let has_changes = !new_meta_files.is_empty();
         if has_changes {
-            self.commit(CommitOptions {
-                new_meta_files,
-                new_sst_files,
-                new_blob_files: Vec::new(),
-                sst_seq_numbers_to_delete,
-                blob_seq_numbers_to_delete,
-                sequence_number: *sequence_number.get_mut(),
-                keys_written,
-            })
-            .context("Failed to commit the database compaction")?;
+            if let Err(e) = self
+                .commit(CommitOptions {
+                    new_meta_files,
+                    new_sst_files,
+                    new_blob_files: Vec::new(),
+                    sst_seq_numbers_to_delete,
+                    blob_seq_numbers_to_delete,
+                    sequence_number: *sequence_number.get_mut(),
+                    keys_written,
+                })
+                .context("Failed to commit the database compaction")
+            {
+                let _ = self.try_recover_after_failed_write();
+                return Err(e);
+            }
         }
 
         self.active_write_operation.store(false, Ordering::Release);
