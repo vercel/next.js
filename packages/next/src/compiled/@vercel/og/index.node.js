@@ -19036,22 +19036,6 @@ async function* ci(A, e) {
   }
   var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
   var _isRTL = _rtlRegex.test(sA);
-  if (_isRTL) {
-    var _lineGroups = {};
-    for (var _v = 0; _v < OA.length; _v++) {
-      var _ln = OA[_v].line;
-      if (!_lineGroups[_ln]) _lineGroups[_ln] = [];
-      _lineGroups[_ln].push(_v);
-    }
-    for (var _ln2 in _lineGroups) {
-      var _indices = _lineGroups[_ln2];
-      var _lineWidth = oA[_ln2];
-      for (var _idx = 0; _idx < _indices.length; _idx++) {
-        var _i2 = _indices[_idx];
-        OA[_i2].x = _lineWidth - OA[_i2].x - OA[_i2].width;
-      }
-    }
-  }
   let ne = "", ie = "", Be = "", De = -1, KA = {}, XA = {}, _A = null, oe = 0;
   for (let V = 0; V < Y.length; V++) {
     let Z = OA[V], nA = OA[V + 1];
@@ -19061,7 +19045,7 @@ async function* ci(A, e) {
     if (eA === De)
       continue;
     let RA = false;
-    if (eA === 0 && Ge !== 0 && (gA += Ge), oA.length > 1) {
+    if (eA === 0 && Ge !== 0 && (gA += Ge), oA.length > 1 || _isRTL) {
       let pA = Pe - oA[eA];
       if (p === "right" || p === "end" || _isRTL)
         gA += pA;
@@ -19104,7 +19088,7 @@ async function* ci(A, e) {
     if (DA)
       cA += 0;
     else if (I) {
-      if (!_isRTL && !$.includes(Ii) && !ms.includes($) && Y[V + 1] && nA && !nA.isImage && cA === nA.y && !lA) {
+      if (Y[V + 1] && nA && !nA.isImage && cA === nA.y && !lA && (_isRTL || (!$.includes(Ii) && !ms.includes($)))) {
         _A === null && (oe = gA), _A = _A === null ? $ : _A + $;
         continue;
       }
