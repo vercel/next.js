@@ -114,6 +114,37 @@ describe('normalizeNextData - pathname checking', () => {
     )
   })
 
+  it('should normalize index data URL to root pathname', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/_next/data/BUILD_ID/index.json'),
+      basePath: '',
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/(?<nxtPid>[^/]+)$',
+            destination: '/[id]?nxtPid=$nxtPid',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+        shouldNormalizeNextData: true,
+      },
+      pathnames: ['/', '/[id]', '/_next/data/BUILD_ID/index.json'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/index.json')
+    expect(result.routeMatches).toBeUndefined()
+    expect(result.invocationTarget).toEqual({
+      pathname: '/_next/data/BUILD_ID/index.json',
+      query: {},
+    })
+  })
+
   it('should work with rewrites then pathname check', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/_next/data/BUILD_ID/blog.json'),

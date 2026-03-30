@@ -44,6 +44,7 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -508,7 +509,15 @@ export async function handler(
   // need to transfer it to the request meta because it's only read
   // within this function; the static segment data should have already been
   // generated, so we will always either return a static response or a 404.
-  const segmentPrefetchHeader = getRequestMeta(req, 'segmentPrefetchRSCRequest')
+  const rawSegmentPrefetchHeader =
+    req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+  const segmentPrefetchHeader =
+    getRequestMeta(req, 'segmentPrefetchRSCRequest') ??
+    (typeof rawSegmentPrefetchHeader === 'string'
+      ? rawSegmentPrefetchHeader
+      : Array.isArray(rawSegmentPrefetchHeader)
+        ? rawSegmentPrefetchHeader[0]
+        : undefined)
 
   // TODO: investigate existing bug with shouldServeStreamingMetadata always
   // being true for a revalidate due to modifying the base-server this.renderOpts

@@ -872,6 +872,35 @@ describe('resolveRoutes - dynamic routes', () => {
     })
   })
 
+  it('should prefer exact static resolvedPathname when both concrete and dynamic pathnames exist', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/post-1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/blog/(?<nxtPslug>[^/]+?)$',
+            destination: '/blog/[slug]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/blog/[slug]', '/blog/post-1'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/blog/post-1')
+    expect(result.routeMatches).toBeUndefined()
+    expect(result.invocationTarget).toEqual({
+      pathname: '/blog/post-1',
+      query: {},
+    })
+  })
+
   it('should replace missing optional dynamic placeholders with empty values', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/catch-all-optional'),

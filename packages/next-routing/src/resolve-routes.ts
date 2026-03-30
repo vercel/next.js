@@ -173,6 +173,10 @@ function matchesPathname(
   return undefined
 }
 
+function isDynamicTemplatePathname(pathname: string): boolean {
+  return /\[[^/]+?\]/.test(pathname)
+}
+
 function toResolvedQuery(url: URL): ResolveRoutesQuery {
   const query: ResolveRoutesQuery = {}
   for (const [key, value] of url.searchParams.entries()) {
@@ -662,52 +666,69 @@ export async function resolveRoutes(
   // Check if pathname matches any provided pathnames (pathnames are in denormalized form)
   let matchedPath = matchesPathname(currentUrl.pathname, pathnames)
   if (matchedPath) {
-    // Check if any dynamic route also matches to extract parameters
     for (const route of routes.dynamicRoutes) {
       const match = matchDynamicRoute(currentUrl.pathname, route)
 
-      if (match.matched) {
-        // Check has/missing conditions
-        const hasResult = checkHasConditions(
-          route.has,
-          currentUrl,
-          currentRequestHeaders
-        )
-        const missingMatched = checkMissingConditions(
-          route.missing,
-          currentUrl,
-          currentRequestHeaders
-        )
-
-        if (hasResult.matched && missingMatched) {
-          const replacedDestination = route.destination
-            ? replaceDestination(
-                route.destination,
-                match.regexMatches || null,
-                hasResult.captures
-              )
-            : undefined
-          const resolvedUrl = replacedDestination
-            ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
-            : currentUrl
-          const finalHeaders = applyOnMatchHeaders(
-            routes.onMatch,
-            resolvedUrl,
-            currentRequestHeaders,
-            currentResponseHeaders
-          )
-          return withResolvedInvocationTarget({
-            result: {
-              routeMatches: match.params,
-              resolvedHeaders: finalHeaders,
-              status: currentStatus,
-            },
-            url: resolvedUrl,
-            resolvedPathname: matchedPath,
-            invocationPathname: currentUrl.pathname,
-          })
-        }
+      if (!match.matched) {
+        continue
       }
+
+      const hasResult = checkHasConditions(
+        route.has,
+        currentUrl,
+        currentRequestHeaders
+      )
+      const missingMatched = checkMissingConditions(
+        route.missing,
+        currentUrl,
+        currentRequestHeaders
+      )
+
+      if (!hasResult.matched || !missingMatched) {
+        continue
+      }
+
+      const replacedDestination = route.destination
+        ? replaceDestination(
+            route.destination,
+            match.regexMatches || null,
+            hasResult.captures
+          )
+        : undefined
+      const pathnameToCheck = replacedDestination
+        ? replacedDestination.split('?')[0]
+        : currentUrl.pathname
+      const dynamicMatchedPath = matchesPathname(pathnameToCheck, pathnames)
+      if (!dynamicMatchedPath) {
+        continue
+      }
+
+      const shouldUseDynamicMatch =
+        dynamicMatchedPath === matchedPath ||
+        isDynamicTemplatePathname(matchedPath)
+      if (!shouldUseDynamicMatch) {
+        continue
+      }
+
+      const resolvedUrl = replacedDestination
+        ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+        : currentUrl
+      const finalHeaders = applyOnMatchHeaders(
+        routes.onMatch,
+        resolvedUrl,
+        currentRequestHeaders,
+        currentResponseHeaders
+      )
+      return withResolvedInvocationTarget({
+        result: {
+          routeMatches: match.params,
+          resolvedHeaders: finalHeaders,
+          status: currentStatus,
+        },
+        url: resolvedUrl,
+        resolvedPathname: dynamicMatchedPath,
+        invocationPathname: currentUrl.pathname,
+      })
     }
 
     // No dynamic route matched, return without route matches
