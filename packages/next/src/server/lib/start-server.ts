@@ -550,6 +550,24 @@ export async function startServer(
       )
       process.exit(RESTART_EXIT_CODE)
     })
+
+    // Watch for deletion of the distDir (e.g. `rm -rf .next`). When the
+    // build output directory is removed the dev server cannot serve
+    // correctly, so we trigger a full restart to rebuild it.
+    const absDistDir = path.join(dir, distDir)
+    let distDirExists = fs.existsSync(absDistDir)
+    const distDirPollInterval = setInterval(() => {
+      const exists = fs.existsSync(absDistDir)
+      if (distDirExists && !exists) {
+        clearInterval(distDirPollInterval)
+        Log.warn(
+          `The ${path.basename(absDistDir)} directory was deleted. Restarting the server...`
+        )
+        process.exit(RESTART_EXIT_CODE)
+      }
+      distDirExists = exists
+    }, 500)
+    distDirPollInterval.unref()
   }
 
   return { distDir }
