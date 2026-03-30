@@ -19092,7 +19092,17 @@ async function* ci(A, e) {
         _A === null && (oe = gA), _A = _A === null ? $ : _A + $;
         continue;
       }
-      let pA = _A === null ? $ : _A + $, mA = _A === null ? gA : oe, ZA = Z.width + gA - mA, jA = Qe(cA), Se = aA.getSVG((_isRTL ? pA.trim() : pA).replace(/(\t)+/g, ""), { fontSize: F, left: we + mA, top: fe + cA + GA + qA, letterSpacing: M }, jA);
+      let pA = _A === null ? $ : _A + $, mA = _A === null ? gA : oe;
+      if (_isRTL) {
+        pA = pA.trim();
+        var _rtlWidth = te(pA.replace(/(\t)+/g, ""));
+        var _rtlOffset = Pe - _rtlWidth;
+        if (p === "center") _rtlOffset = _rtlOffset / 2;
+        else if (p === "left" || p === "justify") _rtlOffset = 0;
+        if (eA === 0 && Ge !== 0) _rtlOffset += Ge;
+        mA = _rtlOffset;
+      }
+      let ZA = Z.width + gA - mA, jA = Qe(cA), Se = aA.getSVG(pA.replace(/(\t)+/g, ""), { fontSize: F, left: we + mA, top: fe + cA + GA + qA, letterSpacing: M }, jA);
       IA = Se.path, JA && Se.boxes && Se.boxes.length && (XA[eA] || (XA[eA] = [])).push(...Se.boxes), _A = null, l2 && (Be += H("rect", { x: we + mA, y: fe + cA + qA, width: ZA, height: YA, fill: "transparent", stroke: "#575eff", "stroke-width": 1, transform: se || void 0, "clip-path": LA ? `url(#${LA})` : void 0 }) + H("line", { x1: we + gA, x2: we + gA + Z.width, y1: fe + cA + qA + GA, y2: fe + cA + qA + GA, stroke: "#14c000", "stroke-width": 1, transform: se || void 0, "clip-path": LA ? `url(#${LA})` : void 0 }));
     } else if (cA += GA + qA, JA && !DA) {
       let pA = Qe(cA), mA = aA.getSVG($.replace(/(\t)+/g, ""), { fontSize: F, left: we + gA, top: fe + cA, letterSpacing: M }, pA);

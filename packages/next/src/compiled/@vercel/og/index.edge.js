@@ -18090,7 +18090,17 @@ async function* Ji(e, t) {
         Ze === null && (gt = te), Ze = Ze === null ? K2 : Ze + K2;
         continue;
       }
-      let we = Ze === null ? K2 : Ze + K2, Te = Ze === null ? te : gt, et2 = j.width + te - Te, tt = Rt(ee), bt = ve.getSVG((_isRTL ? we.trim() : we).replace(/(\t)+/g, ""), { fontSize: P2, left: Et + Te, top: pt + ee + Pe + qe, letterSpacing: O }, tt);
+      let we = Ze === null ? K2 : Ze + K2, Te = Ze === null ? te : gt;
+      if (_isRTL) {
+        we = we.trim();
+        var _rtlWidth = Ye(we.replace(/(\t)+/g, ""));
+        var _rtlOffset = Qt - _rtlWidth;
+        if (b === "center") _rtlOffset = _rtlOffset / 2;
+        else if (b === "left" || b === "justify") _rtlOffset = 0;
+        if (Q === 0 && dr !== 0) _rtlOffset += dr;
+        Te = _rtlOffset;
+      }
+      let et2 = j.width + te - Te, tt = Rt(ee), bt = ve.getSVG(we.replace(/(\t)+/g, ""), { fontSize: P2, left: Et + Te, top: pt + ee + Pe + qe, letterSpacing: O }, tt);
       ye = bt.path, We && bt.boxes && bt.boxes.length && (it[Q] || (it[Q] = [])).push(...bt.boxes), Ze = null, f && (Zt += M("rect", { x: Et + Te, y: pt + ee + qe, width: et2, height: er, fill: "transparent", stroke: "#575eff", "stroke-width": 1, transform: nt || void 0, "clip-path": Ne ? `url(#${Ne})` : void 0 }) + M("line", { x1: Et + te, x2: Et + te + j.width, y1: pt + ee + qe + Pe, y2: pt + ee + qe + Pe, stroke: "#14c000", "stroke-width": 1, transform: nt || void 0, "clip-path": Ne ? `url(#${Ne})` : void 0 }));
     } else if (ee += Pe + qe, We && !xe) {
       let we = Rt(ee), Te = ve.getSVG(K2.replace(/(\t)+/g, ""), { fontSize: P2, left: Et + te, top: pt + ee, letterSpacing: O }, we);
