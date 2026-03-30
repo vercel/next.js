@@ -108,7 +108,7 @@ struct TrackedStats {
 
 /// Describes the currently-active write operation, if any.
 #[derive(Debug, Clone)]
-pub(crate) enum ActiveOperation {
+enum ActiveOperation {
     WriteBatch,
     Compact,
 }
@@ -138,7 +138,7 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner<FAMILIES>>,
     /// Tracks the currently-active write operation, if any. Prevents multiple concurrent write
-    /// operations. Protected by a Mutex so the guard can reset it on drop.
+    /// operations.
     active_write_operation: Mutex<Option<ActiveOperation>>,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
