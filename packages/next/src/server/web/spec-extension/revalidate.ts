@@ -26,7 +26,8 @@ type CacheLifeConfig = {
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  *
- * @deprecated Calling `revalidateTag` with a single argument is deprecated. Pass a cache profile name (e.g. `"max"`) as the second argument, or use `updateTag` instead. See: https://nextjs.org/docs/messages/revalidate-tag-single-arg
+ * @deprecated Pass a cache profile name (e.g. `"max"`) as the second argument, or use `updateTag` instead.
+ * @see https://nextjs.org/docs/messages/revalidate-tag-single-arg
  */
 export function revalidateTag(tag: string): void
 /**
