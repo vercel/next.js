@@ -1623,10 +1623,13 @@ function _ts_generator(thisArg, body) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
-    var _self_TURBOPACK_ASSET_SUFFIX;
-    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
+    var _ref;
+    var _document_currentScript_getAttribute, _document_currentScript, _document;
     // TURBOPACK_ASSET_SUFFIX is set in web workers
-    return ((_self_TURBOPACK_ASSET_SUFFIX = self.TURBOPACK_ASSET_SUFFIX) !== null && _self_TURBOPACK_ASSET_SUFFIX !== void 0 ? _self_TURBOPACK_ASSET_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+    if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
+    var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
+    var qi = src.indexOf('?');
+    return qi >= 0 ? src.slice(qi) : '';
 }
 var BACKEND;
 /**
