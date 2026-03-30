@@ -2781,7 +2781,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
                     let mut fresh_idle = true;
-                    let mut compaction_disabled = false;
                     loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
@@ -2848,42 +2847,41 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             // `EnteredSpan` is `!Send` and would prevent the
                             // future from being sent across threads when it
                             // suspends at the `select!` await below.
-                            if !compaction_disabled {
-                                const MAX_IDLE_COMPACTION_PASSES: usize = 10;
-                                for _ in 0..MAX_IDLE_COMPACTION_PASSES {
-                                    let idle_ended = tokio::select! {
-                                        biased;
-                                        _ = &mut idle_end_listener => {
-                                            idle_end_listener = self.idle_end_event.listen();
-                                            true
-                                        },
-                                        _ = std::future::ready(()) => false,
-                                    };
-                                    if idle_ended {
-                                        break;
-                                    }
-                                    // Enter the span only around the synchronous
-                                    // compact() call so we never hold an
-                                    // `EnteredSpan` across an await point.
-                                    let _compact_span = tracing::info_span!(
-                                        parent: background_span.id(),
-                                        "compact database"
-                                    )
-                                    .entered();
-                                    match self.backing_storage.compact() {
-                                        Ok(true) => {}
-                                        Ok(false) => break,
-                                        Err(err) => {
-                                            eprintln!("Compaction failed: {err:?}");
-                                            if self.backing_storage.is_write_operation_active() {
-                                                eprintln!(
-                                                    "Compaction is permanently disabled due to an \
-                                                     unrecoverable error."
-                                                );
-                                                compaction_disabled = true;
-                                            }
-                                            break;
+                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
+                                let idle_ended = tokio::select! {
+                                    biased;
+                                    _ = &mut idle_end_listener => {
+                                        idle_end_listener = self.idle_end_event.listen();
+                                        true
+                                    },
+                                    _ = std::future::ready(()) => false,
+                                };
+                                if idle_ended {
+                                    break;
+                                }
+                                // Enter the span only around the synchronous
+                                // compact() call so we never hold an
+                                // `EnteredSpan` across an await point.
+                                let _compact_span = tracing::info_span!(
+                                    parent: background_span.id(),
+                                    "compact database"
+                                )
+                                .entered();
+                                match self.backing_storage.compact() {
+                                    Ok(true) => {}
+                                    Ok(false) => break,
+                                    Err(err) => {
+                                        eprintln!("Compaction failed: {err:?}");
+                                        if self.backing_storage.is_write_operation_active() {
+                                            eprintln!(
+                                                "Persisting is permanently disabled due to an \
+                                                 unrecoverable error. Stopping the background \
+                                                 persisting process."
+                                            );
+                                            return;
                                         }
+                                        break;
                                     }
                                 }
                             }

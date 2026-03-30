@@ -520,6 +520,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(BufWriter::new(log_file))
     }
 
+    /// Calls `try_recover_after_failed_write` when `result` is an error, then returns `result`
+    /// unchanged. Callers can simply write `self.recover_on_error(fallible_op())?`.
+    ///
+    /// Must be called without holding `self.inner`'s read lock, because recovery acquires the
+    /// write lock.
+    fn recover_on_error<T>(&self, result: Result<T>) -> Result<T> {
+        if result.is_err() {
+            let _ = self.try_recover_after_failed_write();
+        }
+        result
+    }
+
     /// Attempts to recover the database to a consistent state after a failed write or compaction.
     ///
     /// Reads the last committed sequence number from the CURRENT file on disk, deletes any orphan
@@ -663,14 +675,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             new_sst_files,
             new_blob_files,
             keys_written,
-        } = match finish_result {
-            Ok(r) => r,
-            Err(e) => {
-                let _ = self.try_recover_after_failed_write();
-                return Err(e);
-            }
-        };
-        if let Err(e) = self.commit(CommitOptions {
+        } = self.recover_on_error(finish_result)?;
+        self.recover_on_error(self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
@@ -678,10 +684,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
-        }) {
-            let _ = self.try_recover_after_failed_write();
-            return Err(e);
-        }
+        }))?;
         self.active_write_operation.store(false, Ordering::Release);
         Ok(())
     }
@@ -1009,31 +1012,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut blob_seq_numbers_to_delete = Vec::new();
         let mut keys_written = 0;
 
-        {
+        // Scope the read lock so it is released before `recover_on_error` below,
+        // which acquires the write lock during recovery.
+        let compact_result = {
             let inner = self.inner.read();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
-            if let Err(e) = self
-                .compact_internal(
-                    &inner.meta_files,
-                    &sequence_number,
-                    &mut new_meta_files,
-                    &mut new_sst_files,
-                    &mut sst_seq_numbers_to_delete,
-                    &mut blob_seq_numbers_to_delete,
-                    &mut keys_written,
-                    compact_config,
-                )
-                .context("Failed to compact database")
-            {
-                let _ = self.try_recover_after_failed_write();
-                return Err(e);
-            }
-        }
+            self.compact_internal(
+                &inner.meta_files,
+                &sequence_number,
+                &mut new_meta_files,
+                &mut new_sst_files,
+                &mut sst_seq_numbers_to_delete,
+                &mut blob_seq_numbers_to_delete,
+                &mut keys_written,
+                compact_config,
+            )
+            .context("Failed to compact database")
+        };
+        self.recover_on_error(compact_result)?;
 
         let has_changes = !new_meta_files.is_empty();
         if has_changes {
-            if let Err(e) = self
-                .commit(CommitOptions {
+            self.recover_on_error(
+                self.commit(CommitOptions {
                     new_meta_files,
                     new_sst_files,
                     new_blob_files: Vec::new(),
@@ -1042,11 +1043,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     sequence_number: *sequence_number.get_mut(),
                     keys_written,
                 })
-                .context("Failed to commit the database compaction")
-            {
-                let _ = self.try_recover_after_failed_write();
-                return Err(e);
-            }
+                .context("Failed to commit the database compaction"),
+            )?;
         }
 
         self.active_write_operation.store(false, Ordering::Release);
