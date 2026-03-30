@@ -267,6 +267,7 @@ var unitlessNumbers = new Set(
     ["markerEnd", "marker-end"],
     ["markerMid", "marker-mid"],
     ["markerStart", "marker-start"],
+    ["maskType", "mask-type"],
     ["overlinePosition", "overline-position"],
     ["overlineThickness", "overline-thickness"],
     ["paintOrder", "paint-order"],
@@ -7370,12 +7371,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-2ba30655-20260219" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-9627b5a1-20260327" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-2ba30655-20260219"
+        "19.3.0-canary-9627b5a1-20260327"
       )
     );
 }
@@ -7626,4 +7627,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-2ba30655-20260219";
+exports.version = "19.3.0-canary-9627b5a1-20260327";

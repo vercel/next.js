@@ -5,6 +5,9 @@ type AnySearchParams = { [key: string]: string | string[] | undefined }
 
 export const unstable_instant = {
   prefetch: 'runtime',
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
   samples: [{ cookies: [] }],
 }
 

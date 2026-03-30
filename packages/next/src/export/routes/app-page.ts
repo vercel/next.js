@@ -100,6 +100,7 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentData,
+      prefetchHints,
       renderResumeDataCache,
     } = metadata
 
@@ -218,6 +219,7 @@ export async function exportAppPage(
       headers,
       postponed,
       segmentPaths,
+      prefetchHints,
     }
 
     fileWriter.append(
@@ -231,6 +233,7 @@ export async function exportAppPage(
         ? meta
         : {
             segmentPaths: meta.segmentPaths,
+            prefetchHints: meta.prefetchHints,
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),

@@ -14,6 +14,7 @@ import { INFINITE_CACHE } from '../../lib/constants'
 export class StaleTimeIterable {
   private _resolve: ((result: IteratorResult<number>) => void) | null = null
   private _done = false
+  private _buffer: number[] = []
 
   /** The last value passed to `update()`. */
   public currentValue: number = 0
@@ -24,6 +25,8 @@ export class StaleTimeIterable {
     if (this._resolve) {
       this._resolve({ value, done: false })
       this._resolve = null
+    } else {
+      this._buffer.push(value)
     }
   }
 
@@ -39,6 +42,9 @@ export class StaleTimeIterable {
   [Symbol.asyncIterator](): AsyncIterator<number> {
     return {
       next: () => {
+        if (this._buffer.length > 0) {
+          return Promise.resolve({ value: this._buffer.shift()!, done: false })
+        }
         if (this._done) {
           return Promise.resolve({ value: undefined, done: true })
         }

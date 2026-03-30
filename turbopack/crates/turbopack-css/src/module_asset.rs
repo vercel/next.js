@@ -1,11 +1,10 @@
 use std::{fmt::Write, sync::Arc};
 
 use anyhow::{Context, Result};
-use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
@@ -37,22 +36,25 @@ use crate::{
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
+/// A [CSS Module, as in `.module.css`][spec]. For a global CSS module, see [`CssModule`].
+///
+/// [spec]: https://github.com/css-modules/css-modules
+/// [`CssModule`]: crate::CssModule
 #[turbo_tasks::value]
 #[derive(Clone)]
-/// A CSS Module asset, as in `.module.css`. For a global CSS module, see [`CssModuleAsset`].
-pub struct ModuleCssAsset {
+pub struct EcmascriptCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleCssAsset {
+impl EcmascriptCssModule {
     #[turbo_tasks::function]
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
-        Self::cell(ModuleCssAsset {
+        Self::cell(EcmascriptCssModule {
             source,
             asset_context,
         })
@@ -60,7 +62,7 @@ impl ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Module for ModuleCssAsset {
+impl Module for EcmascriptCssModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self
@@ -165,7 +167,7 @@ struct ModuleCssClasses(
 );
 
 #[turbo_tasks::value_impl]
-impl ModuleCssAsset {
+impl EcmascriptCssModule {
     #[turbo_tasks::function]
     pub fn inner(&self, ty: ReferenceType) -> Vc<ProcessResult> {
         self.asset_context.process(*self.source, ty)
@@ -245,7 +247,7 @@ impl ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModule for ModuleCssAsset {
+impl ChunkableModule for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
@@ -257,7 +259,7 @@ impl ChunkableModule for ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceable for ModuleCssAsset {
+impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
@@ -288,32 +290,38 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
                         let Some(resolved_module) = &*resolved_module else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location information
+                                // TODO(PACK-4879): this should include detailed location
+                                // information
                                 source: IssueSource::from_source_only(self.await?.source),
-                                message: formatdoc! {
-                                    r#"
-                                        Module {from} referenced in `composes: ... from {from};` can't be resolved.
-                                    "#,
-                                    from = &*from.await?.request.to_string().await?
-                                }.into(),
-                            }.resolved_cell().emit();
+                                message: turbofmt!(
+                                    "Module {} referenced in `composes: ... from ...;` can't be \
+                                     resolved.\n",
+                                    from.await?.request
+                                )
+                                .await?,
+                            }
+                            .resolved_cell()
+                            .emit();
                             continue;
                         };
 
                         let Some(css_module) =
-                            ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
                         else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location information
+                                // TODO(PACK-4879): this should include detailed location
+                                // information
                                 source: IssueSource::from_source_only(self.await?.source),
-                                message: formatdoc! {
-                                    r#"
-                                        Module {from} referenced in `composes: ... from {from};` is not a CSS module.
-                                    "#,
-                                    from = &*from.await?.request.to_string().await?
-                                }.into(),
-                            }.resolved_cell().emit();
+                                message: turbofmt!(
+                                    "Module {} referenced in `composes: ... from ...;` is not a \
+                                     CSS module.\n",
+                                    from.await?.request
+                                )
+                                .await?,
+                            }
+                            .resolved_cell()
+                            .emit();
                             continue;
                         };
 
@@ -353,7 +361,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
             // displayed in dev tools.
             source_map: if source_map {
                 Some(generate_minimal_source_map(
-                    self.ident().to_string().await?.to_string(),
+                    turbofmt!("{}", self.ident()).await?.to_string(),
                     code,
                 )?)
             } else {
@@ -366,7 +374,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl ResolveOrigin for ModuleCssAsset {
+impl ResolveOrigin for EcmascriptCssModule {
     #[turbo_tasks::function]
     fn origin_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()

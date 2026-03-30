@@ -3111,25 +3111,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Generate flags handling for clone - per category
-    let clone_meta_flags = if has_meta_flags {
-        quote! {
-            // Clone persisted meta flags
-            snapshot.flags.set_persisted_meta_bits(self.flags.persisted_meta_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    let clone_data_flags = if has_data_flags {
-        quote! {
-            // Clone persisted data flags
-            snapshot.flags.set_persisted_data_bits(self.flags.persisted_data_bits());
-        }
-    } else {
-        quote! {}
-    };
-
     let clone_all_flags = if has_any_flags {
         quote! {
             // Clone all persisted flags
@@ -3170,11 +3151,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields (both meta and data).
-            ///
-            /// This clones all persistent fields into a new TaskStorage, skipping
-            /// transient fields that may not be cloneable. Use this for the `Both`
-            /// snapshot case where both meta and data are dirty.
+            /// Create a snapshot containing all persistent fields
             pub fn clone_snapshot(&self) -> TaskStorage {
                 let mut snapshot = TaskStorage::new();
 
@@ -3186,60 +3163,15 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 #clone_all_flags
 
+                // Pre-allocate lazy vec (upper bound - some may be transient and skipped)
+                snapshot.lazy.reserve(self.lazy.len());
+
                 // Clone all persistent lazy fields (both meta and data)
                 for field in &self.lazy {
                     match field {
                         #(#clone_data_lazy_arms)*
                         #(#clone_meta_lazy_arms)*
                         // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only meta category fields for serialization.
-            ///
-            /// This clones only the persistent meta fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_meta_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                #clone_meta_flags
-
-                // Clone lazy meta fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient and data fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only data category fields for serialization.
-            ///
-            /// This clones only the persistent data fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_data_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_data_flags
-
-                // Clone lazy data fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        // Skip transient and meta fields
                         _ => {}
                     }
                 }

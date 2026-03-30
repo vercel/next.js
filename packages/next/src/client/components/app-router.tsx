@@ -25,6 +25,7 @@ import {
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -49,7 +50,7 @@ import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
-import { getDeploymentIdQueryOrEmptyString } from '../../shared/lib/deployment-id'
+import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -95,6 +96,8 @@ function HistoryUpdater({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
+
+    setLastCommittedTree(tree)
   }, [appRouterState])
 
   useEffect(() => {
@@ -375,11 +378,7 @@ function Router({
      */
     const onPopState = (event: PopStateEvent) => {
       if (!event.state) {
-        // This case happens when pushState/replaceState was called outside
-        // of Next.js with a null state, or the initial history entry has no
-        // state. The router tree would be completely out of sync so we need
-        // to do a hard navigation to get back to a consistent state.
-        window.location.reload()
+        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
         return
       }
 
@@ -537,6 +536,12 @@ function Router({
     )
   }
 
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { OfflineProvider } =
+      require('./use-offline') as typeof import('./use-offline')
+    content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
   return (
     <>
       <HistoryUpdater appRouterState={state} />
@@ -634,12 +639,12 @@ function RuntimeStylesForWebpack() {
     }
   }, [renderedStylesSize, forceUpdate])
 
-  const dplId = getDeploymentIdQueryOrEmptyString()
+  const query = getAssetTokenQuery()
   return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
-      href={`${href}${dplId}`}
+      href={`${href}${query}`}
       // @ts-ignore
       precedence="next"
       // TODO figure out crossOrigin and nonce

@@ -11,7 +11,7 @@ use std::{
 
 use anyhow::Result;
 use either::Either;
-use napi::{JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
+use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -23,13 +23,13 @@ use turbo_tasks::{
     message_queue::{CompilationEvent, Severity},
 };
 use turbo_tasks_backend::{
-    BackendOptions, DefaultBackingStorage, GitVersionInfo, NoopBackingStorage, StartupCacheState,
-    TurboTasksBackend, db_invalidation::invalidation_reasons, default_backing_storage,
-    noop_backing_storage,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, TurboBackingStorage,
+    TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
+    turbo_backing_storage,
 };
 
 pub type NextTurboTasks =
-    Arc<TurboTasks<TurboTasksBackend<Either<DefaultBackingStorage, NoopBackingStorage>>>>;
+    Arc<TurboTasks<TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>>>;
 
 /// A value often wrapped in [`napi::bindgen_prelude::External`] that retains the [TurboTasks]
 /// instance used by Next.js, and [various napi helpers that are passed to us from
@@ -179,23 +179,44 @@ pub struct TurbopackInternalErrorOpts {
 }
 
 impl NapiNextTurbopackCallbacks {
-    pub fn from_js(obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        Ok(NapiNextTurbopackCallbacks {
-            throw_turbopack_internal_error: obj
-                .throw_turbopack_internal_error
+    pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
+        let mut throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts> =
+            obj.throw_turbopack_internal_error
                 .create_threadsafe_function(0, |ctx| {
                     // Avoid unpacking the struct into positional arguments, we really want to make
                     // sure we don't incorrectly order arguments and accidentally log a potentially
                     // PII-containing message in anonymized telemetry.
                     Ok(vec![ctx.value])
-                })?,
-            on_before_deferred_entries: obj
-                .on_before_deferred_entries
-                .map(|callback| {
-                    callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))
-                })
-                .transpose()?,
+                })?;
+        // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
+        // after shutdown.
+        let _ = throw_turbopack_internal_error.unref(env);
+
+        let on_before_deferred_entries = obj
+            .on_before_deferred_entries
+            .map(|callback| {
+                let mut f = callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))?;
+                let _ = f.unref(env);
+                Ok::<_, napi::Error>(f)
+            })
+            .transpose()?;
+
+        Ok(NapiNextTurbopackCallbacks {
+            throw_turbopack_internal_error,
+            on_before_deferred_entries,
         })
+    }
+}
+
+/// Returns version info derived from compile-time git metadata.
+///
+/// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
+/// working tree was dirty at build time.
+pub fn git_version_info() -> GitVersionInfo<'static> {
+    GitVersionInfo {
+        describe: env!("VERGEN_GIT_DESCRIBE"),
+        dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+            && env!("VERGEN_GIT_DIRTY") == "true",
     }
 }
 
@@ -206,24 +227,22 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
     is_ci: bool,
     is_short_session: bool,
+    skip_compaction: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let version_info = GitVersionInfo {
-            describe: env!("VERGEN_GIT_DESCRIBE"),
-            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
-                && env!("VERGEN_GIT_DIRTY") == "true",
-        };
-        let (backing_storage, cache_state) = default_backing_storage(
+        let version_info = git_version_info();
+        let (backing_storage, cache_state) = turbo_backing_storage(
             &output_path.join("cache/turbopack"),
             &version_info,
             is_ci,
             is_short_session,
+            skip_compaction,
         )?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
                     turbo_tasks_backend::StorageMode::ReadOnly
-                } else if is_ci {
+                } else if is_ci || is_short_session {
                     turbo_tasks_backend::StorageMode::ReadWriteOnShutdown
                 } else {
                     turbo_tasks_backend::StorageMode::ReadWrite

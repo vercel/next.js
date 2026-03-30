@@ -51,6 +51,7 @@ use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
+    child_process_backend,
     debug::should_debug,
     evaluate::{evaluate, get_evaluate_entries},
 };
@@ -299,11 +300,13 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
     let project_root = project_fs.root().owned().await?;
 
-    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
-        "stripping repo root {:?} from resource path {:?}",
-        &*REPO_ROOT,
-        resource_path.display()
-    ))?;
+    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
+        format!(
+            "stripping repo root {:?} from resource path {:?}",
+            &*REPO_ROOT,
+            resource_path.display()
+        )
+    })?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let path = root_fs.root().await?.join(&relative_path)?;
     let project_path = project_root.join(&relative_path)?;
@@ -482,7 +485,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
+    let node_backend = child_process_backend();
+
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
 
     let single_graph = SingleModuleGraph::new_with_entries(
         entries.graph_entries().to_resolved().await?,
@@ -569,6 +574,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
+        node_backend,
         Vc::upcast(test_source),
         Vc::upcast(chunking_context),
         module_graph,

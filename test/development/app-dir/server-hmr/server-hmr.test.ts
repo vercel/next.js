@@ -1,10 +1,10 @@
+import type { Response } from 'node-fetch'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
-    startArgs: ['--experimental-server-fast-refresh'],
   })
 
   // Server HMR is a Turbopack-only feature, only available in dev mode
@@ -123,6 +123,85 @@ describe('server-hmr', () => {
         await retry(async () => {
           const text = await browser.elementByCss('#message').text()
           expect(text).toBe('Second update')
+        })
+      }
+    )
+  })
+
+  describe('source maps', () => {
+    itTurbopackDev(
+      "stack frames from eval'd HMR modules point to original source locations",
+      async () => {
+        await next.fetch('/sourcemaps').catch(() => {})
+
+        await next.patchFile('app/sourcemaps/page.tsx', (content) =>
+          content.replace('hmr-trigger: 0', 'hmr-trigger: 1')
+        )
+
+        const outputLengthBeforeFetch = next.cliOutput.length
+        await next.fetch('/sourcemaps').catch(() => {})
+
+        await retry(async () => {
+          expect(next.cliOutput.slice(outputLengthBeforeFetch)).toContain(
+            'hmr-sourcemap-test-error'
+          )
+        })
+
+        const outputAfterHmr = next.cliOutput.slice(outputLengthBeforeFetch)
+
+        // Without proper sourcemaps, the stack frame doesn't include the accurate file number
+        expect(outputAfterHmr).toMatch(/page\.tsx:4:9/)
+      }
+    )
+  })
+
+  describe('route handler hmr', () => {
+    function getText(res: Response) {
+      return res.ok
+        ? res.text()
+        : Promise.reject(
+            new Error('Failed to fetch route handler: ' + res.status)
+          )
+    }
+
+    it('reflects route handler changes on fetch/refresh', async () => {
+      const initial = await next.fetch('/api/hello').then(getText)
+      expect(initial).toBe('version: 0')
+
+      await next.patchFile('app/api/hello/route.ts', (content) =>
+        content.replace('version: 0', 'version: 1')
+      )
+
+      await retry(async () => {
+        const updated = await next.fetch('/api/hello').then(getText)
+        expect(updated).toBe('version: 1')
+      })
+    })
+
+    itTurbopackDev(
+      'does not re-evaluate an unmodified dependency when route changes',
+      async () => {
+        const initial = await next
+          .fetch('/api/with-dep')
+          .then((res) => res.json())
+        expect(initial.routeVersion).toBe('v1')
+        const initialDepEvaluatedAt = initial.depEvaluatedAt
+
+        // Change only the route module, not the dependency
+        await next.patchFile('app/api/with-dep/route.ts', (content) =>
+          content.replace("'v1'", "'v2'")
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/api/with-dep')
+            .then((res) => res.json())
+
+          // The route change should be reflected in the response
+          expect(updated.routeVersion).toBe('v2')
+
+          // The unmodified dependency should NOT have been re-evaluated
+          expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
         })
       }
     )

@@ -254,9 +254,17 @@ export async function createOriginalStackFrame({
     ignored,
   }
 
+  /** undefined = not yet computed */
+  let originalCodeFrame: string | null | undefined
+
   return {
     originalStackFrame: traced,
-    originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
+    get originalCodeFrame() {
+      if (originalCodeFrame === undefined) {
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+      }
+      return originalCodeFrame
+    },
   }
 }
 
@@ -530,7 +538,15 @@ async function getOriginalStackFrame({
     }
   }
 
-  return originalStackFrameResponse
+  const originalStackFrame = originalStackFrameResponse.originalStackFrame
+  return {
+    originalStackFrame,
+    originalCodeFrame:
+      (originalStackFrame?.ignored ?? true)
+        ? null
+        : // TODO: Don't get all codeframes of non-ignored frames eagerly.
+          originalStackFrameResponse.originalCodeFrame,
+  }
 }
 
 export function getOverlayMiddleware(options: {

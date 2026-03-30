@@ -27,20 +27,8 @@ import {
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
-// nodejs: '/static/<build id>/low-priority.js'
-// or with skew protection: '/static/low-priority.js'
-function buildNodejsLowPriorityPath(
-  filename: string,
-  buildId: string,
-  dev: boolean,
-  deploymentId: string
-) {
-  if (!dev && deploymentId) {
-    // Leverage skew protection
-    return `${CLIENT_STATIC_FILES_PATH}/${filename}`
-  } else {
-    return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
-  }
+function buildNodejsLowPriorityPath(filename: string, buildId: string) {
+  return `${CLIENT_STATIC_FILES_PATH}/${buildId}/${filename}`
 }
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
@@ -113,8 +101,6 @@ export function getEntrypointFiles(entrypoint: any): string[] {
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private dev: boolean
-  private deploymentId: string
   private rewrites: CustomRoutes['rewrites']
   private isDevFallback: boolean
   private appDirEnabled: boolean
@@ -122,16 +108,12 @@ export default class BuildManifestPlugin {
 
   constructor(options: {
     buildId: string
-    dev: boolean
-    deploymentId: string
     rewrites: CustomRoutes['rewrites']
     isDevFallback?: boolean
     appDirEnabled: boolean
     clientRouterFilters?: Parameters<typeof generateClientManifest>[2]
   }) {
     this.buildId = options.buildId
-    this.dev = options.dev
-    this.deploymentId = options.deploymentId
     this.isDevFallback = !!options.isDevFallback
     this.rewrites = {
       beforeFiles: [],
@@ -223,15 +205,11 @@ export default class BuildManifestPlugin {
         // downloaded by the client.
         const buildManifestPath = buildNodejsLowPriorityPath(
           '_buildManifest.js',
-          this.buildId,
-          this.dev,
-          this.deploymentId
+          this.buildId
         )
         const ssgManifestPath = buildNodejsLowPriorityPath(
           '_ssgManifest.js',
-          this.buildId,
-          this.dev,
-          this.deploymentId
+          this.buildId
         )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
         compilation.emitAsset(
@@ -267,9 +245,7 @@ export default class BuildManifestPlugin {
       if (!this.isDevFallback) {
         const buildManifestPath = buildNodejsLowPriorityPath(
           '_buildManifest.js',
-          this.buildId,
-          this.dev,
-          this.deploymentId
+          this.buildId
         )
         compilation.emitAsset(
           buildManifestPath,

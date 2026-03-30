@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["const instant = { prefetch: 'static' }\nexport { instant as unstable_instant }\n\nexport default function Page() {\n  return <div>Hello</div>\n}\n"],"names":[],"mappings":"AAAA,MAAM,UAAU;IAAE,UAAU;AAAS;AACrC,SAAS,WAAW,gBAAgB,GAAE;AAEtC,eAAe,SAAS;IACtB,QAAQ,IAAI,KAAK,EAAE;AACrB;uFALgB;kBAAA"}

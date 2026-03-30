@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorAggregateErrors } from './error-aggregate-errors'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 type ErrorCauseProps = {
@@ -11,6 +12,7 @@ type ErrorCauseProps = {
 
 export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
   const frames = React.use(cause.frames())
+  const trimmedMessage = cause.error.message.trim()
 
   const firstFrame = useMemo(() => {
     const index = frames.findIndex(
@@ -29,7 +31,9 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
           Caused by: {cause.error.name || 'Error'}
         </span>
       </div>
-      <p className="error-cause-message">{cause.error.message}</p>
+      {trimmedMessage ? (
+        <p className="error-cause-message">{trimmedMessage}</p>
+      ) : null}
 
       {firstFrame && (
         <CodeFrame
@@ -47,6 +51,13 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
 
       {cause.cause && (
         <ErrorCause cause={cause.cause} dialogResizerRef={dialogResizerRef} />
+      )}
+
+      {'aggregateErrors' in cause && cause.aggregateErrors !== null && (
+        <ErrorAggregateErrors
+          errors={cause.aggregateErrors}
+          dialogResizerRef={dialogResizerRef}
+        />
       )}
     </div>
   )

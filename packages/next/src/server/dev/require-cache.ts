@@ -2,34 +2,67 @@ import isError from '../../lib/is-error'
 import { realpathSync } from '../../lib/realpath'
 import { clearManifestCache } from '../load-manifest.external'
 
-function deleteFromRequireCache(filePath: string) {
-  try {
-    filePath = realpathSync(filePath)
-  } catch (e) {
-    if (isError(e) && e.code !== 'ENOENT') throw e
+/**
+ * Batch delete modules from require.cache with a single scan.
+ *
+ * When deleting N modules, this performs ONE scan of require.cache
+ * instead of N scans, reducing complexity from O(N * C) to O(C + N)
+ * where C = size of require.cache.
+ */
+function deleteFromRequireCache(filePaths: string[]): void {
+  // Phase 1: Resolve all paths and collect modules to delete
+  const resolvedPaths: string[] = []
+  const modsToDelete = new Set<NodeModule>()
+
+  for (let filePath of filePaths) {
+    try {
+      filePath = realpathSync(filePath)
+    } catch (e) {
+      if (isError(e) && e.code !== 'ENOENT') throw e
+    }
+    const mod = require.cache[filePath]
+    if (mod) {
+      resolvedPaths.push(filePath)
+      modsToDelete.add(mod)
+    }
   }
-  const mod = require.cache[filePath]
-  if (mod) {
-    // remove the child reference from all parent modules
-    for (const parent of Object.values(require.cache)) {
-      if (parent?.children) {
-        const idx = parent.children.indexOf(mod)
-        if (idx >= 0) parent.children.splice(idx, 1)
+
+  if (modsToDelete.size === 0) return
+
+  // Phase 2: Single scan of require.cache to remove child references
+  const modules = Object.values(require.cache)
+  for (let m = 0; m < modules.length; m++) {
+    const children = modules[m]?.children
+    if (children && children.length) {
+      let len = children.length
+      for (let i = 0; i < len; i++) {
+        if (modsToDelete.has(children[i])) {
+          children[i] = children[--len]
+          i-- // re-check swapped element
+        }
+      }
+      children.length = len
+    }
+  }
+
+  // Phase 3: Clear parent references from children and delete cache entries
+  for (const mod of modsToDelete) {
+    const children = mod.children
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].parent === mod) {
+        children[i].parent = null
       }
     }
-    // remove parent references from external modules
-    for (const child of mod.children) {
-      child.parent = null
-    }
-    delete require.cache[filePath]
-    return true
   }
-  return false
+
+  for (const filePath of resolvedPaths) {
+    delete require.cache[filePath]
+  }
 }
 
-export function deleteCache(filePath: string) {
-  // try to clear it from the fs cache
-  clearManifestCache(filePath)
-
-  deleteFromRequireCache(filePath)
+export function deleteCache(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    clearManifestCache(filePath)
+  }
+  deleteFromRequireCache(filePaths)
 }

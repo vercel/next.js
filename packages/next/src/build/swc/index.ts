@@ -3,10 +3,6 @@ import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
-import { getParserOptions } from './options'
-import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
-import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
   TurbopackLoaderBuiltinCondition,
@@ -15,12 +11,13 @@ import type {
   TurbopackRuleConfigCollection,
   TurbopackRuleConfigItem,
 } from '../../server/config-shared'
-import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
   NapiSourceDiagnostic,
+  NapiCodeFrameLocation,
+  NapiCodeFrameOptions,
 } from './generated-native'
 import type {
   Binding,
@@ -42,7 +39,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
-import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
+import { runLoaderWorkerPool } from './loaderWorkerPool'
 
 export enum HmrTarget {
   Client = 'client',
@@ -232,14 +229,6 @@ export async function loadBindings(
   }
 
   pendingBindings = new Promise(async (resolve, reject) => {
-    if (!lockfilePatchPromise.cur) {
-      // always run lockfile check once so that it gets patched
-      // even if it doesn't fail to load locally
-      lockfilePatchPromise.cur = patchIncorrectLockfile(process.cwd()).catch(
-        console.error
-      )
-    }
-
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
     const unsupportedPlatform = triples.some(
@@ -321,7 +310,9 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   )
 
   if (!downloadNativeBindingsPromise) {
-    downloadNativeBindingsPromise = downloadNativeNextSwc(
+    downloadNativeBindingsPromise = (
+      require('../../lib/download-swc') as typeof import('../../lib/download-swc')
+    ).downloadNativeNextSwc(
       nextVersion,
       nativeBindingsDirectory,
       triples.map((triple: any) => triple.platformArchABI)
@@ -344,8 +335,9 @@ async function tryLoadWasmWithFallback(
 ): Promise<Binding | undefined> {
   try {
     let bindings = await loadWasm('')
-    // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({
+    ;(
+      require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+    ).eventSwcLoadFailure({
       wasm: 'enabled',
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
     })
@@ -364,12 +356,15 @@ async function tryLoadWasmWithFallback(
       'wasm'
     )
     if (!downloadWasmPromise) {
-      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+      downloadWasmPromise = (
+        require('../../lib/download-swc') as typeof import('../../lib/download-swc')
+      ).downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
     let bindings = await loadWasm(wasmDirectory)
-    // @ts-expect-error TODO: this event has a wrong type.
-    eventSwcLoadFailure({
+    ;(
+      require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+    ).eventSwcLoadFailure({
       wasm: 'fallback',
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
     })
@@ -385,7 +380,7 @@ async function tryLoadWasmWithFallback(
   }
 }
 
-function loadBindingsSync() {
+function loadBindingsSync(): Binding {
   let attempts: any[] = []
   try {
     return loadNative()
@@ -417,12 +412,20 @@ async function logLoadFailure(attempts: any, triedWasm = false) {
     Log.warn(attempt)
   }
 
-  // @ts-expect-error TODO: this event has a wrong type.
-  await eventSwcLoadFailure({
+  await (
+    require('../../telemetry/events/swc-load-failure') as typeof import('../../telemetry/events/swc-load-failure')
+  ).eventSwcLoadFailure({
     wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
-  await (lockfilePatchPromise.cur || Promise.resolve())
+  if (!lockfilePatchPromise.cur) {
+    lockfilePatchPromise.cur = (
+      require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
+    )
+      .patchIncorrectLockfile(process.cwd())
+      .catch(console.error)
+  }
+  await lockfilePatchPromise.cur
 
   Log.error(
     `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
@@ -500,6 +503,7 @@ const normalizePathOnWindows = (p: string) =>
 // TODO(sokra) Support wasm option.
 function bindingToApi(
   binding: RawBindings,
+  bindingPath: string,
   _wasm: boolean
 ): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
@@ -680,6 +684,10 @@ function bindingToApi(
 
     constructor(nativeProject: { __napiType: 'Project' }) {
       this._nativeProject = nativeProject
+
+      if (typeof binding.registerWorkerScheduler === 'function') {
+        runLoaderWorkerPool(binding, bindingPath)
+      }
     }
 
     async update(options: PartialProjectOptions) {
@@ -1124,7 +1132,10 @@ function bindingToApi(
     function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
       if (
         typeof loaderItem !== 'string' &&
-        !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+        !(require('util') as typeof import('util')).isDeepStrictEqual(
+          loaderItem,
+          JSON.parse(JSON.stringify(loaderItem))
+        )
       ) {
         throw new Error(
           `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
@@ -1228,7 +1239,9 @@ function bindingToApi(
         await rustifyProjectOptions(options),
         turboEngineOptions || {},
         {
-          throwTurbopackInternalError,
+          throwTurbopackInternalError: (
+            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+          ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
@@ -1330,6 +1343,11 @@ async function loadWasm(importPath = '') {
             '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
           )
         },
+        featureNamesToMask: function (_names: string[]) {
+          throw new Error(
+            '`css.lightning.featureNamesToMask` is not supported by the wasm bindings.'
+          )
+        },
       },
     },
     isWasm: true,
@@ -1370,6 +1388,11 @@ async function loadWasm(importPath = '') {
         throw new Error(
           `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      databaseCompact(_path: string): Promise<void> {
+        throw new Error(
+          'Turbopack database compaction is not supported on this platform'
         )
       },
     },
@@ -1424,6 +1447,17 @@ async function loadWasm(importPath = '') {
         imports
       )
     },
+    codeFrameColumns(
+      source: string,
+      location: NapiCodeFrameLocation,
+      options?: NapiCodeFrameOptions
+    ): string | undefined {
+      return rawBindings.codeFrameColumns(
+        Buffer.from(source),
+        location,
+        options
+      )
+    },
     lockfileTryAcquire(_filePath: string, _content?: string | null) {
       throw new Error(
         '`lockfileTryAcquire` is not supported by the wasm bindings.'
@@ -1450,7 +1484,7 @@ async function loadWasm(importPath = '') {
  * Loads the native (non-wasm) bindings. Prefer `loadBindings` over this API, as that includes a
  * wasm fallback.
  */
-function loadNative(importPath?: string) {
+function loadNative(importPath?: string): Binding {
   if (loadedBindings) {
     return loadedBindings
   }
@@ -1459,30 +1493,38 @@ function loadNative(importPath?: string) {
     throw new Error('cannot run loadNative when `NEXT_TEST_WASM` is set')
   }
 
-  const customBindings: RawBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
-    ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
+  const customBindingsPath = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+    ? require.resolve(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
+  const customBindings: RawBindings =
+    customBindingsPath != null ? require(customBindingsPath!) : null
   let bindings: RawBindings = customBindings
+  let bindingsPath = customBindingsPath
+  // callers expect that if loadNative throws, it's an array of strings.
   let attempts: any[] = []
 
   const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
     if (NEXT_TEST_NATIVE_DIR) {
       try {
+        const bindingForTest = `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
         // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
-        bindings = require(
-          `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
-        )
+        bindingsPath = require.resolve(bindingForTest)
+        bindings = require(bindingsPath)
         infoLog(
           'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
         )
         break
-      } catch (e) {}
-    } else {
-      try {
-        bindings = require(
-          `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+      } catch (e: any) {
+        attempts.push(
+          `Failed to load triple ${triple.platformArchABI}: ${e.message ?? e}`
         )
+      }
+    } else if (process.env.NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL !== 'true') {
+      try {
+        const normalBinding = `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+        bindings = require(normalBinding)
+        bindingsPath = require.resolve(normalBinding)
         infoLog('next-swc build: local built @next/swc')
         break
       } catch (e) {}
@@ -1490,6 +1532,10 @@ function loadNative(importPath?: string) {
   }
 
   if (!bindings) {
+    if (NEXT_TEST_NATIVE_DIR) {
+      throw attempts
+    }
+
     for (const triple of triples) {
       let pkg = importPath
         ? path.join(
@@ -1500,6 +1546,7 @@ function loadNative(importPath?: string) {
         : `@next/swc-${triple.platformArchABI}`
       try {
         bindings = require(pkg)
+        bindingsPath = require.resolve(pkg)
         if (!importPath) {
           checkVersionMismatch(require(`${pkg}/package.json`))
         }
@@ -1578,7 +1625,11 @@ function loadNative(importPath?: string) {
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
-        createProject: bindingToApi(customBindings ?? bindings, false),
+        createProject: bindingToApi(
+          customBindings ?? bindings,
+          customBindingsPath ?? bindingsPath!,
+          false
+        ),
         startTurbopackTraceServer(traceFilePath, port) {
           Log.warn(
             `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
@@ -1587,6 +1638,9 @@ function loadNative(importPath?: string) {
             traceFilePath,
             port
           )
+        },
+        databaseCompact(dbPath: string) {
+          return (customBindings ?? bindings).turbopackDatabaseCompact(dbPath)
         },
       },
       mdx: {
@@ -1606,6 +1660,9 @@ function loadNative(importPath?: string) {
             return bindings.lightningCssTransformStyleAttribute(
               transformAttrOptions
             )
+          },
+          featureNamesToMask(names: string[]) {
+            return bindings.lightningcssFeatureNamesToMaskNapi(names)
           },
         },
       },
@@ -1656,8 +1713,13 @@ function loadNative(importPath?: string) {
       lockfileUnlockSync(lockfile: Lockfile) {
         return bindings.lockfileUnlockSync(lockfile)
       },
+      codeFrameColumns(source, location, options) {
+        // napi-rs translates Option::None as null but wasm-bindgen translates it to `null`
+        // convert here for consistency
+        return bindings.codeFrameColumns(source, location, options) ?? undefined
+      },
     }
-    return loadedBindings
+    return loadedBindings!
   }
 
   throw attempts
@@ -1704,7 +1766,9 @@ export function isReactCompilerRequired(filename: string): Promise<boolean> {
 
 export async function parse(src: string, options: any): Promise<any> {
   const bindings = getBindingsSync()
-  const parserOptions = getParserOptions(options)
+  const parserOptions = (
+    require('./options') as typeof import('./options')
+  ).getParserOptions(options)
   const parsed = await bindings.parse(src, parserOptions)
   return JSON.parse(parsed)
 }

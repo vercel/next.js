@@ -6,7 +6,7 @@ use std::{
 const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 
 use clap::Args;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};

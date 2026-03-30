@@ -24,6 +24,7 @@ export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
 export interface ExportPagesInput {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
   exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
@@ -43,6 +44,7 @@ export interface ExportPagesInput {
 export interface ExportPageInput {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
   exportPath: ExportPathEntry
   distDir: string
   outDir: string
@@ -58,6 +60,7 @@ export interface ExportPageInput {
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  enableNodeStreams?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
 }

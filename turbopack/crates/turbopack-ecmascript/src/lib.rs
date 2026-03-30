@@ -23,6 +23,7 @@ pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod rename;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub mod single_file_ecmascript_output;
@@ -77,8 +78,8 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
+    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -596,7 +597,7 @@ async fn determine_module_type_for_directory(
     context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
-        find_context_file(context_path, package_json().resolve().await?, false).await?;
+        find_context_file(context_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
@@ -821,8 +822,9 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
             let async_module_options = self.get_async_module().module_options(async_module_info);
             let content = self.module_content(chunking_context, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
-                .resolve()
+                .to_resolved()
                 .await
+                .map(|r| *r)
         }
         .instrument(span)
         .await
@@ -1518,23 +1520,24 @@ async fn merge_modules(
     let (merged_ast, inserted) = match result {
         Ok(v) => v,
         Err((content_idx, err)) => {
-            return Err(err.context(format!(
-                "Processing {}",
-                contents[content_idx].0.ident().to_string().await?
-            )));
+            return Err(
+                // ast-grep-ignore: no-context-turbofmt
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?),
+            );
         }
     };
 
-    debug_assert!(
-        inserted.len() == contents.len(),
-        "Not all merged modules were inserted: {:?}",
-        contents
-            .iter()
-            .enumerate()
-            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
-            .try_join()
-            .await?,
-    );
+    if cfg!(debug_assertions) && inserted.len() != contents.len() {
+        bail!(
+            "Not all merged modules were inserted: {:?}",
+            contents
+                .iter()
+                .enumerate()
+                .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+                .try_join()
+                .await?,
+        );
+    }
 
     let comments = contents
         .iter_mut()
@@ -1762,7 +1765,7 @@ async fn process_parse_result(
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
-                            text: format!(" MERGED MODULE: {}", ident.to_string().await?).into(),
+                            text: (&*turbofmt!(" MERGED MODULE: {}", ident).await?).into(),
                         })
                     } else {
                         None
@@ -1877,12 +1880,15 @@ async fn process_parse_result(
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
                 ParseResult::Unparsable { messages } => {
-                    let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
                         .and_then(|m| m.first().map(|f| format!("\n{f}")))
                         .unwrap_or("".into());
-                    let msg = format!("Could not parse module '{path}'\n{error_messages}");
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}'\n{error_messages}",
+                        ident.path()
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,
@@ -1908,8 +1914,9 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}', file not found");
+                    let msg =
+                        &*turbofmt!("Could not parse module '{}', file not found", ident.path())
+                            .await?;
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,
@@ -2726,7 +2733,7 @@ impl CodeGenResultComments {
                 .map_err(|_| anyhow!("Failed to grab lock on the index map for byte positions"))?;
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)
@@ -2743,7 +2750,7 @@ impl CodeGenResultComments {
         let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)

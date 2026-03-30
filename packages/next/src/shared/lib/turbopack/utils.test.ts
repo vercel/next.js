@@ -112,6 +112,18 @@ https://nextjs.org/docs/messages/module-not-found
 `)
   })
 
+  it('includes pre-rendered code frame from Rust', () => {
+    const issue: Issue = {
+      ...baseIssue,
+      importTraces: [],
+      codeFrame:
+        '  1 | const x = 1;\n> 2 | const y = unknown;\n    |             ^^^^^^^\n  3 | const z = 3;',
+    }
+    const output = formatIssue(issue)
+    expect(output).toContain('const y = unknown')
+    expect(output).toContain('^^^^^^^')
+  })
+
   it('handles missing layers in traces', () => {
     const trace: PlainTraceItem[] = [
       traceItem('src/app/page.ts'),

@@ -86,11 +86,7 @@ export function processTopLevelIssues(
   }
 }
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-
-export function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * MILLISECONDS_IN_NANOSECOND
-}
+export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
@@ -173,8 +169,6 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
-  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
-
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -239,10 +233,6 @@ export async function handleRouteType({
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-
-        if (shouldCreateWebpackStats) {
-          await manifestLoader.loadWebpackStats(page, 'pages')
-        }
 
         manifestLoader.writeManifests({
           devRewrites,
@@ -392,10 +382,6 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
       manifestLoader.loadActionManifest(page)
       manifestLoader.loadFontManifest(page, 'app')
-
-      if (shouldCreateWebpackStats) {
-        manifestLoader.loadWebpackStats(page, 'app')
-      }
 
       manifestLoader.writeManifests({
         devRewrites,

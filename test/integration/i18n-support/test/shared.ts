@@ -13,6 +13,7 @@ import {
   waitFor,
   normalizeRegEx,
   check,
+  getDeploymentId,
 } from 'next-test-utils'
 
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
@@ -61,16 +62,22 @@ export function runTests(ctx) {
       cwd: join(ctx.appDir, '.next/static'),
     })
 
+    const deploymentDpl = getDeploymentId(ctx.appDir, ctx.isDev)
+
     // Only use a subset of the locales to speed up the test
     for (const locale of [
       ...nonDomainLocales.slice(0, 2),
       ...domainLocales.slice(0, 2),
     ]) {
       for (const asset of assets) {
+        const dpl = asset.includes(ctx.buildId)
+          ? deploymentDpl.getDeploymentIdQuery()
+          : deploymentDpl.getAssetQuery()
+
         // _next/static asset
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath || ''}/${locale}/_next/static/${encodeURI(asset)}`,
+          `${ctx.basePath || ''}/${locale}/_next/static/${encodeURI(asset)}${dpl}`,
           undefined,
           { redirect: 'manual' }
         )

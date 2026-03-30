@@ -6,13 +6,14 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
-    paths::ServerPath,
+    paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
@@ -30,16 +31,16 @@ pub struct NapiEndpointConfig {}
 
 #[napi(object)]
 #[derive(Default)]
-pub struct NapiServerPath {
-    pub path: String,
-    pub content_hash: String,
+pub struct NapiAssetPath {
+    pub path: RcStr,
+    pub content_hash: RcStr,
 }
 
-impl From<ServerPath> for NapiServerPath {
-    fn from(server_path: ServerPath) -> Self {
+impl From<AssetPath> for NapiAssetPath {
+    fn from(asset_path: AssetPath) -> Self {
         Self {
-            path: server_path.path.into_owned(),
-            content_hash: format!("{:x}", server_path.content_hash),
+            path: asset_path.path,
+            content_hash: asset_path.content_hash,
         }
     }
 }
@@ -50,7 +51,7 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub client_paths: Vec<String>,
-    pub server_paths: Vec<NapiServerPath>,
+    pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
 }
 

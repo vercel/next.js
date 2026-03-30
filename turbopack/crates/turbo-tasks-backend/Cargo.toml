@@ -14,8 +14,10 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size = ["dep:lzzzz"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size = []
 no_fast_stale = []
+aggregation_update_no_batch = []
 verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
@@ -29,21 +31,17 @@ trace_task_modification = []
 trace_task_dirty = ["trace_aggregation_update_queue"]
 trace_task_output_dependencies = []
 trace_task_details = []
-lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-arc-swap = { version = "1.7.1" }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
-byteorder = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
-lmdb-rkv = { version = "0.14.0", optional = true }
-lzzzz = { version = "1.1.0", optional = true }
+lzzzz = { workspace = true, optional = true }
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
@@ -55,11 +53,12 @@ serde_path_to_error = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-thread_local = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+thread_local = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

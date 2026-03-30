@@ -76,37 +76,6 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
       }
     }
 
-    // Instant Navigation Testing API: If the server returned a partial static
-    // shell (indicated by the __next_instant_test global injected into the
-    // HTML), skip hydration. The response doesn't include the full Flight data
-    // stream. When the test framework deletes the cookie, the CookieStore
-    // change event triggers a page reload.
-    if (process.env.__NEXT_EXPOSE_TESTING_API) {
-      if (self.__next_instant_test) {
-        const NEXT_INSTANT_TEST_COOKIE = 'next-instant-navigation-testing'
-        if (
-          typeof cookieStore !== 'undefined' &&
-          document.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')
-        ) {
-          // Cookie is still set. Wait for the test framework to delete it,
-          // then reload to get the full response.
-          cookieStore.addEventListener('change', (event: CookieChangeEvent) => {
-            for (const cookie of event.deleted) {
-              if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
-                window.location.reload()
-                return
-              }
-            }
-          })
-        } else {
-          // Cookie is already gone (or not accessible). Refresh immediately
-          // to get the full response.
-          window.location.reload()
-        }
-        return
-      }
-    }
-
     hydrate(assetPrefix)
   })
 }
