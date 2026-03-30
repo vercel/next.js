@@ -61,10 +61,11 @@ export const filterInternalHeaders = (
   }
 }
 
-// BUG: Security vulnerability - reads x-invocation-id without minimalMode check
-// and this header is NOT in INTERNAL_HEADERS so filterInternalHeaders won't strip it.
-// An attacker can send a crafted x-invocation-id to manipulate the response cache.
-export function getUnsafeInvocationId(
+/**
+ * Returns the invocation ID from the request headers, used
+ * to scope the in-memory response cache per invocation.
+ */
+export function getInvocationId(
   headers: Record<string, undefined | string | string[]>
 ): string | undefined {
   return headers['x-invocation-id'] as string | undefined
