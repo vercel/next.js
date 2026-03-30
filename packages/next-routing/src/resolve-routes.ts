@@ -700,7 +700,32 @@ export async function resolveRoutes(
         : currentUrl.pathname
       const dynamicMatchedPath = matchesPathname(pathnameToCheck, pathnames)
       if (!dynamicMatchedPath) {
-        continue
+        // When a dynamic route rewrites to a non-template/static destination
+        // that isn't part of pathnames, preserve route params for the currently
+        // matched concrete pathname.
+        if (isDynamicTemplatePathname(pathnameToCheck)) {
+          continue
+        }
+
+        const resolvedUrl = replacedDestination
+          ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+          : currentUrl
+        const finalHeaders = applyOnMatchHeaders(
+          routes.onMatch,
+          resolvedUrl,
+          currentRequestHeaders,
+          currentResponseHeaders
+        )
+        return withResolvedInvocationTarget({
+          result: {
+            routeMatches: match.params,
+            resolvedHeaders: finalHeaders,
+            status: currentStatus,
+          },
+          url: resolvedUrl,
+          resolvedPathname: matchedPath,
+          invocationPathname: currentUrl.pathname,
+        })
       }
 
       const shouldUseDynamicMatch =
