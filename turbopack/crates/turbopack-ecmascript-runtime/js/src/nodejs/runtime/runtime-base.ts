@@ -56,103 +56,70 @@ function loadRuntimeChunk(sourcePath: ChunkPath, chunkData: ChunkData): void {
   }
 }
 
-const loadedChunks = new Set<ChunkPath>()
-const chunkErrors = new Map<ChunkPath, Error>()
+// null = loaded successfully, Error = load failed (cached for future requests)
+const loadedChunks = new Map<ChunkPath, Error | null>()
 
 function clearChunkCache() {
   loadedChunks.clear()
-  chunkErrors.clear()
+}
+
+/**
+ * Synchronously loads a chunk using require(). Caches results so a chunk is
+ * only loaded once; cached errors are re-thrown on subsequent calls.
+ *
+ * @param sourceId - identifier for error messages (chunk path or module id)
+ * @param sourceIsModule - true: "from module {sourceId}", false: "from runtime for chunk {sourceId}"
+ */
+function loadChunkPath(
+  chunkPath: ChunkPath,
+  sourceId: ModuleId,
+  sourceIsModule: boolean
+): void {
+  if (!isJs(chunkPath)) {
+    // We only support loading JS chunks in Node.js.
+    // This branch can be hit when trying to load a CSS chunk.
+    return
+  }
+
+  const cached = loadedChunks.get(chunkPath)
+  if (cached !== undefined) {
+    if (cached !== null) throw cached
+    return
+  }
+
+  try {
+    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+    const chunkModules: CompressedModuleFactories = require(resolved)
+    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
+    loadedChunks.set(chunkPath, null)
+  } catch (cause) {
+    const error = new Error(
+      sourceIsModule
+        ? `Failed to load chunk ${chunkPath} from module ${sourceId}`
+        : `Failed to load chunk ${chunkPath} from runtime for chunk ${sourceId}`,
+      { cause }
+    )
+    error.name = 'ChunkLoadError'
+    loadedChunks.set(chunkPath, error)
+    throw error
+  }
 }
 
 function loadRuntimeChunkPath(
   sourcePath: ChunkPath,
   chunkPath: ChunkPath
 ): void {
-  if (!isJs(chunkPath)) {
-    // We only support loading JS chunks in Node.js.
-    // This branch can be hit when trying to load a CSS chunk.
-    return
-  }
-
-  if (loadedChunks.has(chunkPath)) {
-    return
-  }
-
-  try {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-    const chunkModules: CompressedModuleFactories = require(resolved)
-    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
-    loadedChunks.add(chunkPath)
-  } catch (cause) {
-    let errorMessage = `Failed to load chunk ${chunkPath}`
-
-    if (sourcePath) {
-      errorMessage += ` from runtime for chunk ${sourcePath}`
-    }
-
-    const error = new Error(errorMessage, { cause })
-    error.name = 'ChunkLoadError'
-    throw error
-  }
+  loadChunkPath(chunkPath, sourcePath, false)
 }
 
-/**
- * Synchronously loads a chunk using require(). On Node.js, chunk loading is
- * always synchronous (file I/O via require), so there's no need for promises.
- * Throws on failure.
- */
 function loadChunkSync<TModule extends Module>(
   this: TurbopackBaseContext<TModule>,
   chunkData: ChunkData
 ): void {
   const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
-  if (!isJs(chunkPath)) {
-    // We only support loading JS chunks in Node.js.
-    // This branch can be hit when trying to load a CSS chunk.
-    return
-  }
-
-  if (loadedChunks.has(chunkPath)) {
-    return
-  }
-
-  const cachedError = chunkErrors.get(chunkPath)
-  if (cachedError !== undefined) {
-    throw cachedError
-  }
-
-  try {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-    const chunkModules: CompressedModuleFactories = require(resolved)
-    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
-    loadedChunks.add(chunkPath)
-  } catch (cause) {
-    const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
-    const error = new Error(errorMessage, { cause })
-    error.name = 'ChunkLoadError'
-
-    // Cache the failure, future requests will also get this same error
-    chunkErrors.set(chunkPath, error)
-    throw error
-  }
+  loadChunkPath(chunkPath, this.m.id, true)
 }
 contextPrototype.l = loadChunkSync
-
-// Override the shared asyncLoader with an async version for Node.js.
-// In the Node.js runtime, chunk loading and module evaluation are synchronous,
-// so the loader may return a plain value or throw. Since dynamic import() must
-// always return a Promise per the spec, wrapping in async ensures both success
-// values and errors are properly wrapped in a Promise.
-async function asyncLoaderNodeJs(
-  this: TurbopackBaseContext<Module>,
-  moduleId: ModuleId
-): Promise<Exports> {
-  const loader = this.r(moduleId) as (
-    importFunction: EsmImport
-  ) => Exports | Promise<Exports>
-  return loader(esmImport.bind(this))
-}
-contextPrototype.A = asyncLoaderNodeJs
 
 function loadChunkSyncByUrl<TModule extends Module>(
   this: TurbopackBaseContext<TModule>,

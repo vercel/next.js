@@ -160,12 +160,12 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let is_sync = matches!(
+        let is_sync_chunk_loading = matches!(
             *chunking_context.environment().chunk_loading().await?,
             ChunkLoading::NodeJs | ChunkLoading::Edge
         );
 
-        if is_sync {
+        if is_sync_chunk_loading {
             // Node.js/Edge: all chunk loading is synchronous (require() on Node.js,
             // pre-bundled on Edge), so we can avoid all promise overhead. Load
             // chunks, require manifest, load dynamic chunks, import target — all
@@ -174,7 +174,10 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
                 code,
                 r#"
                     {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                        {chunks_server_data:#}.forEach((chunk) => {TURBOPACK_LOAD}(chunk));
+                        var serverChunks = {chunks_server_data:#};
+                        for (var i = 0; i < serverChunks.length; i++) {{
+                            {TURBOPACK_LOAD}(serverChunks[i]);
+                        }}
                         var chunks = {TURBOPACK_REQUIRE}({item_id});
                         for (var i = 0; i < chunks.length; i++) {{
                             {TURBOPACK_LOAD}(chunks[i]);

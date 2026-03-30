@@ -195,12 +195,12 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let is_sync = matches!(
+        let is_sync_chunk_loading = matches!(
             *chunking_context.environment().chunk_loading().await?,
             ChunkLoading::NodeJs | ChunkLoading::Edge
         );
 
-        let code = if is_sync {
+        let code = if is_sync_chunk_loading {
             // Node.js/Edge: chunk loading is synchronous (require() on Node.js,
             // pre-bundled on Edge), so we can avoid all promise overhead.
             match (id, chunks_data.is_empty()) {
@@ -218,7 +218,10 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                     formatdoc! {
                         r#"
                             {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                                {chunks:#}.forEach((chunk) => {TURBOPACK_LOAD}(chunk));
+                                var chunks = {chunks:#};
+                                for (var i = 0; i < chunks.length; i++) {{
+                                    {TURBOPACK_LOAD}(chunks[i]);
+                                }}
                                 return parentImport({id});
                             }});
                         "#,
@@ -237,7 +240,10 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                     formatdoc! {
                         r#"
                             {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                                {chunks:#}.forEach((chunk) => {TURBOPACK_LOAD}(chunk));
+                                var chunks = {chunks:#};
+                                for (var i = 0; i < chunks.length; i++) {{
+                                    {TURBOPACK_LOAD}(chunks[i]);
+                                }}
                             }});
                         "#,
                         chunks = StringifyJs(&chunks_data),
@@ -251,10 +257,8 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                 (Some(id), 0) => {
                     formatdoc! {
                         r#"
-                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                                return Promise.resolve().then(() => {{
-                                    return parentImport({id});
-                                }});
+                            {TURBOPACK_EXPORT_VALUE}(async (parentImport) => {{
+                                return parentImport({id});
                             }});
                         "#,
                         id = StringifyModuleId(id),
@@ -287,9 +291,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
                 (None, 0) => {
                     formatdoc! {
                         r#"
-                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                                return Promise.resolve();
-                            }});
+                            {TURBOPACK_EXPORT_VALUE}(async (parentImport) => {{}});
                         "#,
                     }
                 }

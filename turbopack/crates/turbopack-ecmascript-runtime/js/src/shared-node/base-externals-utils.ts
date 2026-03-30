@@ -56,3 +56,18 @@ externalRequire.resolve = (
   return require.resolve(id, options)
 }
 contextPrototype.x = externalRequire
+
+// Override the shared asyncLoader with an async version for Node.js/Edge.
+// Chunk loading is synchronous in these runtimes, so loaders may return plain
+// values or throw. The async keyword ensures dynamic import() always returns
+// a Promise per spec without an extra microtask in the browser path.
+async function asyncLoaderSync(
+  this: TurbopackBaseContext<Module>,
+  moduleId: ModuleId
+): Promise<Exports> {
+  const loader = this.r(moduleId) as (
+    importFunction: EsmImport
+  ) => Exports | Promise<Exports>
+  return loader(esmImport.bind(this))
+}
+contextPrototype.A = asyncLoaderSync
