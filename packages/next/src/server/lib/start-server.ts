@@ -554,20 +554,33 @@ export async function startServer(
     // Watch for deletion of the distDir (e.g. `rm -rf .next`). When the
     // build output directory is removed the dev server cannot serve
     // correctly, so we trigger a full restart to rebuild it.
+    //
+    // Watchpack creates a DirectoryWatcher on the *parent* of each watched
+    // path. If we only watched `.next/dev`, the DirectoryWatcher would be on
+    // `.next` — but when `.next` itself is deleted, the inotify fd is
+    // destroyed and no event fires for `.next/dev`. By also watching all
+    // ancestor directories up to (but not including) the project root, we
+    // ensure there is always a DirectoryWatcher on a surviving parent that
+    // can detect the deletion.
     const absDistDir = path.join(dir, distDir)
-    let distDirExists = fs.existsSync(absDistDir)
-    const distDirPollInterval = setInterval(() => {
-      const exists = fs.existsSync(absDistDir)
-      if (distDirExists && !exists) {
-        clearInterval(distDirPollInterval)
+    const distDirWatchPaths: string[] = []
+    for (
+      let current = absDistDir;
+      current !== dir;
+      current = path.dirname(current)
+    ) {
+      distDirWatchPaths.push(current)
+    }
+    const distDirWp = new Watchpack()
+    distDirWp.watch({ missing: distDirWatchPaths })
+    distDirWp.on('remove', (removedPath: string) => {
+      if (distDirWatchPaths.includes(removedPath)) {
         Log.warn(
           `The ${path.basename(absDistDir)} directory was deleted. Restarting the server...`
         )
         process.exit(RESTART_EXIT_CODE)
       }
-      distDirExists = exists
-    }, 500)
-    distDirPollInterval.unref()
+    })
   }
 
   return { distDir }
