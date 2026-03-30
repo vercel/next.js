@@ -23,7 +23,7 @@ A single `next start` process handles every Next.js feature correctly: Server Co
 
 When evaluating platform support for Next.js, it helps to distinguish between two levels:
 
-**Functional fidelity** means every Next.js feature works correctly. The [adapter test suite](/docs/app/api-reference/config/next-config-js/adapterPath#testing-adapters) is the contract: if a platform's adapter passes the tests, it supports Next.js. This is binary: it passes or it doesn't.
+**Functional fidelity** means every Next.js feature works correctly. The [adapter test suite](/docs/app/api-reference/adapters/testing-adapters) is the contract: if a platform's adapter passes the tests, it supports Next.js. This is binary: it passes or it doesn't.
 
 **Performance fidelity** means features achieve their optimal performance characteristics. Examples include PPR's static shell served at CDN latency rather than origin latency, or ISR serving stale content instantly with sub-second revalidation propagation. Performance fidelity is a spectrum that every platform will achieve differently based on their architecture.
 
@@ -76,7 +76,7 @@ The adapter API plus Next.js caching interfaces form the complete platform integ
 A **verified adapter** is one that meets two requirements:
 
 1. **Open source.** The adapter source code is publicly available so the community and the Next.js team can inspect, contribute to, and verify it.
-2. **Runs the compatibility test suite.** The platform provides a way to run the full [Next.js compatibility test suite](/docs/app/api-reference/config/next-config-js/adapterPath#testing-adapters) against their adapter. This gives visibility into which features work, which are in progress, and where gaps remain.
+2. **Runs the compatibility test suite.** The platform provides a way to run the full [Next.js compatibility test suite](/docs/app/api-reference/adapters/testing-adapters) against their adapter. This gives visibility into which features work, which are in progress, and where gaps remain.
 
 Verified adapters are hosted under the [Next.js GitHub organization](https://github.com/nextjs), listed as supported deployment targets in the Next.js documentation, and maintained by their respective platform teams. There are no private framework hooks or integration paths: Vercel's adapter uses the same public API as every other adapter.
 

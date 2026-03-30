@@ -44,7 +44,7 @@ Each PPR route requires two artifacts to be stored together:
 
 These must be stored and updated atomically. When a PPR route is revalidated (via [time-based](/docs/app/guides/incremental-static-regeneration) or [on-demand revalidation](/docs/app/api-reference/functions/revalidateTag)), Next.js regenerates both the shell and the postponed state together. Serving a new shell with an old postponed state, or vice versa, will produce incorrect dynamic content.
 
-Use [`requestMeta.onCacheEntryV2`](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter) in your adapter to observe cache updates and propagate them to your storage backend.
+Use [`requestMeta.onCacheEntryV2`](/docs/app/api-reference/adapters/implementing-ppr-in-an-adapter) in your adapter to observe cache updates and propagate them to your storage backend.
 
 ## Origin-Only Implementation
 
@@ -93,11 +93,11 @@ When the platform invokes the handler function directly:
 
 ### Finding PPR routes in build output
 
-In the [adapter output](/docs/app/api-reference/config/next-config-js/adapterPath#output-types), PPR routes are identified by `renderingMode: 'PARTIALLY_STATIC'` in the prerenders array. Iterate `outputs.prerenders` to find these entries and read `fallback.postponedState`.
+In the [adapter output](/docs/app/api-reference/adapters/output-types), PPR routes are identified by `renderingMode: 'PARTIALLY_STATIC'` in the prerenders array. Iterate `outputs.prerenders` to find these entries and read `fallback.postponedState`.
 
 `pprChain.headers` contains the headers needed for the resume protocol: `{ 'next-resume': '1' }`.
 
-For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/config/next-config-js/adapterPath#implementing-ppr-in-an-adapter).
+For detailed implementation with code examples, see [Implementing PPR in an Adapter](/docs/app/api-reference/adapters/implementing-ppr-in-an-adapter).
 
 ## Implementation Checklist
 
