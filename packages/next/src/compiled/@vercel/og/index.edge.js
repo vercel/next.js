@@ -9827,6 +9827,41 @@ function lookupCoverageList(coverageList, contextParams) {
   }
   return lookupList;
 }
+function contextSubstitutionFormat3(contextParams, subtable) {
+  if (contextParams.context.length < subtable.coverages.length) {
+    return [];
+  }
+  var inputLookups = lookupCoverageList(
+    subtable.coverages,
+    contextParams
+  );
+  if (inputLookups === -1) {
+    return [];
+  }
+  var substitutions = [];
+  if (inputLookups.length === subtable.coverages.length) {
+    for (var i = 0; i < subtable.lookupRecords.length; i++) {
+      var lookupRecord = subtable.lookupRecords[i];
+      var lookupListIndex = lookupRecord.lookupListIndex;
+      var lookupTable = this.getLookupByIndex(lookupListIndex);
+      for (var s = 0; s < lookupTable.subtables.length; s++) {
+        var subtable$1 = lookupTable.subtables[s];
+        var lookup = this.getLookupMethod(lookupTable, subtable$1);
+        var substitutionType = this.getSubstitutionType(lookupTable, subtable$1);
+        if (substitutionType === "12") {
+          for (var n = 0; n < inputLookups.length; n++) {
+            var glyphIndex = contextParams.get(n);
+            var substitution = lookup(glyphIndex);
+            if (substitution) {
+              substitutions.push(substitution);
+            }
+          }
+        }
+      }
+    }
+  }
+  return substitutions;
+}
 function chainingSubstitutionFormat3(contextParams, subtable) {
   var lookupsCount = subtable.inputCoverage.length + subtable.lookaheadCoverage.length + subtable.backtrackCoverage.length;
   if (contextParams.context.length < lookupsCount) {
@@ -10007,6 +10042,13 @@ FeatureQuery.prototype.getLookupMethod = function(lookupTable, subtable) {
           [glyphIndex, subtable]
         );
       };
+    case "53":
+      return function(contextParams) {
+        return contextSubstitutionFormat3.apply(
+          this$1,
+          [contextParams, subtable]
+        );
+      };
     case "63":
       return function(contextParams) {
         return chainingSubstitutionFormat3.apply(
@@ -10054,12 +10096,7 @@ FeatureQuery.prototype.lookupFeature = function(query) {
     for (var s = 0; s < subtables.length; s++) {
       var subtable = subtables[s];
       var substType = this.getSubstitutionType(lookupTable, subtable);
-      var lookup;
-      try {
-        lookup = this.getLookupMethod(lookupTable, subtable);
-      } catch (e) {
-        continue;
-      }
+      var lookup = this.getLookupMethod(lookupTable, subtable);
       var substitution = void 0;
       switch (substType) {
         case "11":
@@ -10077,6 +10114,16 @@ FeatureQuery.prototype.lookupFeature = function(query) {
           if (substitution) {
             substitutions.splice(currentIndex, 1, new SubstitutionAction({
               id: 12,
+              tag: query.tag,
+              substitution
+            }));
+          }
+          break;
+        case "53":
+          substitution = lookup(contextParams);
+          if (Array.isArray(substitution) && substitution.length) {
+            substitutions.splice(currentIndex, 1, new SubstitutionAction({
+              id: 53,
               tag: query.tag,
               substitution
             }));
@@ -10245,6 +10292,7 @@ function ligatureSubstitutionFormat1$1(action, tokens, index) {
 var SUBSTITUTIONS = {
   11: singleSubstitutionFormat1$1,
   12: singleSubstitutionFormat2$1,
+  53: chainingSubstitutionFormat3$1,
   63: chainingSubstitutionFormat3$1,
   41: ligatureSubstitutionFormat1$1
 };
