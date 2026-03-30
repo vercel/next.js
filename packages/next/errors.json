@@ -1164,5 +1164,7 @@
   "1163": "No active instance for memory operation",
   "1164": "Unknown request type: %s",
   "1165": "Instance %s not found",
-  "1166": "wasm-worker must be run as a worker thread"
+  "1166": "wasm-worker must be run as a worker thread",
+  "1167": "wasm-manager: nativeBindingsPath not set",
+  "1168": "Instance %s not found for host fn"
 }

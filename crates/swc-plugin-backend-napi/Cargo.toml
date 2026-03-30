@@ -9,8 +9,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-atomic-wait = "1.1.0"
-once_cell = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
 swc_plugin_runner = { version = "25.0.0", default-features = false }

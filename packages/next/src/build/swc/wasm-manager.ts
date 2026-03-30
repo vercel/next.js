@@ -4,23 +4,15 @@
  * Architecture:
  *   - Module compilation: cached on main thread (WebAssembly.Module is ref-counted)
  *   - Instance lifecycle: delegated to worker threads via postMessage
- *   - Transform hot path: Rust thread talks directly to worker via SharedArrayBuffer
- *   - Host function callbacks during transform: Rust ↔ worker via Atomics
+ *   - Transform/getDiag/memory ops: Rust dispatches to worker threads via
+ *     per-instance ThreadsafeFunctions (TSFNs) — no blocking loops or Condvars
+ *   - Host function callbacks: synchronous NAPI calls on the worker thread
  *
- * The main thread's role is minimal: compile modules, route setup requests to
- * workers, and provide the shared memory pointers to Rust for direct access.
+ * The main thread's role: compile modules and route setup requests to workers.
  */
 
-import { Worker, type TransferListItem } from 'worker_threads'
+import { Worker } from 'worker_threads'
 import path from 'path'
-
-// ---------------------------------------------------------------------------
-// Shared memory layout constants (must match wasm-worker.ts and lib.rs)
-// ---------------------------------------------------------------------------
-
-const CTRL_BUFFER_INTS = 32 // Int32 slots in control buffer
-const CTRL_BUFFER_SIZE = CTRL_BUFFER_INTS * 4
-const DATA_BUFFER_SIZE = 8 * 1024 * 1024 // 8MB for memory read/write ops
 
 // ---------------------------------------------------------------------------
 // Worker pool
@@ -28,17 +20,13 @@ const DATA_BUFFER_SIZE = 8 * 1024 * 1024 // 8MB for memory read/write ops
 
 interface WorkerEntry {
   worker: Worker
-  ctrlBuffer: SharedArrayBuffer
-  dataBuffer: SharedArrayBuffer
-  /** Instance IDs owned by this worker */
+  /** Instance IDs owned by this worker (one per worker in current design) */
   instances: Set<number>
   /** Pending postMessage responses */
   pending: Map<
     number,
     { resolve: (v: any) => void; reject: (e: Error) => void }
   >
-  /** True while a transform is in progress (Atomics-based) */
-  busy: boolean
 }
 
 const workers: WorkerEntry[] = []
@@ -47,6 +35,9 @@ let nextInstanceId = 1
 
 // Map from instance ID → worker index for routing
 const instanceWorkerMap = new Map<number, number>()
+
+// Path to the native .node binding, set during init
+let nativeBindingsPath: string | null = null
 
 // ---------------------------------------------------------------------------
 // Module cache: compile once, clone to workers for free
@@ -60,24 +51,21 @@ const compiledModules = new Map<number, WebAssembly.Module>()
 // ---------------------------------------------------------------------------
 
 function createWorker(): WorkerEntry {
-  const ctrlBuffer = new SharedArrayBuffer(CTRL_BUFFER_SIZE)
-  const dataBuffer = new SharedArrayBuffer(DATA_BUFFER_SIZE)
-
-  // Initialize control flag to IDLE (0)
-  new Int32Array(ctrlBuffer)[0] = 0
+  if (!nativeBindingsPath) {
+    throw new Error('wasm-manager: nativeBindingsPath not set')
+  }
 
   const workerPath = path.join(__dirname, 'wasm-worker.js')
   const worker = new Worker(workerPath, {
-    workerData: { ctrlBuffer, dataBuffer },
+    workerData: { nativeBindingsPath },
+    // Suppress the WASI warnings, this isn't a great solution
+    execArgv: ['--no-warnings'],
   })
 
   const entry: WorkerEntry = {
     worker,
-    ctrlBuffer,
-    dataBuffer,
     instances: new Set(),
     pending: new Map(),
-    busy: false,
   }
 
   worker.on('message', (msg: { id: number; result?: any; error?: string }) => {
@@ -93,31 +81,29 @@ function createWorker(): WorkerEntry {
   })
 
   worker.on('error', (err) => {
-    // Reject all pending operations
+    console.error(`[wasm-manager] worker error:`, err)
     for (const [, p] of entry.pending) {
       p.reject(err)
     }
     entry.pending.clear()
   })
 
+  worker.on('exit', (code) => {
+    if (code !== 0) {
+      console.error(`[wasm-manager] worker exited with code ${code}`)
+    }
+  })
+
   workers.push(entry)
   return entry
 }
 
-function sendToWorker(
-  entry: WorkerEntry,
-  msg: any,
-  transfer?: TransferListItem[]
-): Promise<any> {
+function sendToWorker(entry: WorkerEntry, msg: any): Promise<any> {
   return new Promise((resolve, reject) => {
     const id = nextMessageId++
     msg.id = id
     entry.pending.set(id, { resolve, reject })
-    if (transfer) {
-      entry.worker.postMessage(msg, transfer)
-    } else {
-      entry.worker.postMessage(msg)
-    }
+    entry.worker.postMessage(msg)
   })
 }
 
@@ -143,26 +129,24 @@ function pickWorker(): WorkerEntry {
 export const wasmManager = {
   /**
    * Initialize the worker pool. Called once during registration.
-   * Returns an array of { ctrlBuffer, dataBuffer } for each worker,
-   * which Rust stores for direct Atomics access.
+   * Workers load the native addon directly for NAPI-based communication.
    */
-  initWorkerPool(workerCount: number): Array<{
-    ctrlBuffer: SharedArrayBuffer
-    dataBuffer: SharedArrayBuffer
-  }> {
+  initWorkerPool(workerCount: number): void {
     for (let i = 0; i < workerCount; i++) {
       createWorker()
     }
-    return workers.map((w) => ({
-      ctrlBuffer: w.ctrlBuffer,
-      dataBuffer: w.dataBuffer,
-    }))
+  },
+
+  /**
+   * Set the path to the native .node binding file.
+   * Must be called before initWorkerPool.
+   */
+  setBindingsPath(bindingsPath: string): void {
+    nativeBindingsPath = bindingsPath
   },
 
   /**
    * Compile a WASM module and cache it. Returns a module ID.
-   * The WebAssembly.Module is stored on the main thread; workers receive
-   * it via postMessage structured clone (V8 shares the compiled code).
    */
   compileModule(wasmBytes: Buffer): number {
     const id = nextModuleId++
@@ -186,8 +170,9 @@ export const wasmManager = {
    * Instantiate a WASM module on a worker. The module is transferred via
    * structured clone (zero-cost for WebAssembly.Module).
    *
-   * Returns { instanceId, workerIndex } so Rust knows which worker's
-   * SharedArrayBuffer to use for transforms.
+   * Returns { instanceId, promise } — Rust waits on the promise for completion.
+   * After instantiation, the worker registers ops with Rust via NAPI and
+   * its event loop remains free to receive TSFN callbacks.
    */
   instantiateOnWorker(
     moduleId: number,
@@ -197,7 +182,7 @@ export const wasmManager = {
       resultCount: number
       index: number
     }>
-  ): { instanceId: number; workerIndex: number; promise: Promise<number> } {
+  ): { instanceId: number; promise: Promise<number> } {
     const module = compiledModules.get(moduleId)
     if (!module) throw new Error(`Module ${moduleId} not found`)
 
@@ -215,100 +200,7 @@ export const wasmManager = {
       hostFnDescriptors,
     })
 
-    return { instanceId, workerIndex, promise }
-  },
-
-  /**
-   * Get the worker index for a given instance (for routing).
-   */
-  getWorkerIndex(instanceId: number): number {
-    const idx = instanceWorkerMap.get(instanceId)
-    if (idx === undefined) throw new Error(`Instance ${instanceId} not found`)
-    return idx
-  },
-
-  /**
-   * Read memory from a worker's WASM instance via postMessage.
-   * Used for non-hot-path operations (setup, teardown).
-   */
-  readMemoryAsync(
-    instanceId: number,
-    ptr: number,
-    len: number
-  ): Promise<Buffer> {
-    const workerIndex = instanceWorkerMap.get(instanceId)
-    if (workerIndex === undefined)
-      throw new Error(`Instance ${instanceId} not found`)
-    return sendToWorker(workers[workerIndex], {
-      type: 'readMemory',
-      instanceId,
-      ptr,
-      len,
-    }).then((ab: ArrayBuffer) => Buffer.from(ab))
-  },
-
-  /**
-   * Write memory to a worker's WASM instance via postMessage.
-   */
-  writeMemoryAsync(
-    instanceId: number,
-    ptr: number,
-    data: Buffer
-  ): Promise<void> {
-    const workerIndex = instanceWorkerMap.get(instanceId)
-    if (workerIndex === undefined)
-      throw new Error(`Instance ${instanceId} not found`)
-    const ab = data.buffer.slice(
-      data.byteOffset,
-      data.byteOffset + data.byteLength
-    ) as ArrayBuffer
-    return sendToWorker(
-      workers[workerIndex],
-      { type: 'writeMemory', instanceId, ptr, data: ab },
-      [ab]
-    )
-  },
-
-  /**
-   * Allocate memory in a worker's WASM instance via postMessage.
-   */
-  allocAsync(instanceId: number, size: number): Promise<number> {
-    const workerIndex = instanceWorkerMap.get(instanceId)
-    if (workerIndex === undefined)
-      throw new Error(`Instance ${instanceId} not found`)
-    return sendToWorker(workers[workerIndex], {
-      type: 'alloc',
-      instanceId,
-      size,
-    })
-  },
-
-  /**
-   * Free memory in a worker's WASM instance via postMessage.
-   */
-  freeAsync(instanceId: number, ptr: number, size: number): Promise<number> {
-    const workerIndex = instanceWorkerMap.get(instanceId)
-    if (workerIndex === undefined)
-      throw new Error(`Instance ${instanceId} not found`)
-    return sendToWorker(workers[workerIndex], {
-      type: 'free',
-      instanceId,
-      ptr,
-      size,
-    })
-  },
-
-  /**
-   * Get diagnostics from a worker's WASM instance via postMessage.
-   */
-  getDiagAsync(instanceId: number): Promise<number> {
-    const workerIndex = instanceWorkerMap.get(instanceId)
-    if (workerIndex === undefined)
-      throw new Error(`Instance ${instanceId} not found`)
-    return sendToWorker(workers[workerIndex], {
-      type: 'getDiag',
-      instanceId,
-    })
+    return { instanceId, promise }
   },
 
   dropModule(moduleId: number): void {
