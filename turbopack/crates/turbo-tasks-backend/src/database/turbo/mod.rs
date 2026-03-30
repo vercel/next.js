@@ -199,8 +199,12 @@ fn do_compact(
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch:
-        turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, FAMILIES>,
+    batch: turbo_persistence::WriteBatch<
+        'a,
+        WriteBuffer<'static>,
+        TurboTasksParallelScheduler,
+        FAMILIES,
+    >,
     db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
 }
 

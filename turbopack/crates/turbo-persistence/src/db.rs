@@ -6,7 +6,7 @@ use std::{
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+    sync::atomic::{AtomicU32, Ordering},
 };
 
 use anyhow::{Context, Result, bail};
@@ -106,6 +106,82 @@ struct TrackedStats {
     miss_global: std::sync::atomic::AtomicU64,
 }
 
+/// State of the active write slot.
+enum ActiveWriteState {
+    /// A write operation or compaction is in progress.
+    Active,
+    /// A previous write or compaction failed and recovery also failed.
+    /// No further writes are possible.
+    Error,
+}
+
+/// RAII guard for an active write operation.
+///
+/// When dropped without [`WriteOperationGuard::success`] being called first, the guard rolls back
+/// the operation by deleting any files whose sequence number exceeds `seq_before` (the sequence
+/// number at the time the operation started). If rollback itself fails the write slot is set to
+/// [`ActiveWriteState::Error`], permanently disabling further writes.
+pub(crate) struct WriteOperationGuard<'a> {
+    /// Reference to the active-write-operation slot, so we can clear or error it on drop.
+    active: &'a Mutex<Option<ActiveWriteState>>,
+    /// Database directory path, needed for orphan-file deletion during rollback.
+    path: &'a Path,
+    /// Sequence number at the time the operation started (= the last committed seq on disk).
+    /// Files with seq > this were created by the current operation and must be deleted on
+    /// rollback.
+    seq_before: u32,
+    /// Set to `true` by [`WriteOperationGuard::success`] to skip rollback on drop.
+    succeeded: bool,
+}
+
+impl WriteOperationGuard<'_> {
+    /// Mark the operation as successfully completed.
+    ///
+    /// After this call the guard's `Drop` impl will release the write slot without rolling back.
+    pub(crate) fn success(&mut self) {
+        self.succeeded = true;
+    }
+}
+
+impl Drop for WriteOperationGuard<'_> {
+    fn drop(&mut self) {
+        if self.succeeded {
+            // Happy path: just release the slot.
+            *self.active.lock() = None;
+            return;
+        }
+
+        // Unhappy path: the operation failed (or was dropped without commit).
+        // Delete every file that was created during this operation (seq > seq_before).
+        let result = (|| -> Result<()> {
+            for entry in fs::read_dir(self.path)? {
+                let entry = entry?;
+                let path = entry.path();
+                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                    if let Some(seq) = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .and_then(|s| s.parse::<u32>().ok())
+                    {
+                        if seq > self.seq_before {
+                            match ext {
+                                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(())
+        })();
+
+        match result {
+            Ok(()) => *self.active.lock() = None,
+            Err(_) => *self.active.lock() = Some(ActiveWriteState::Error),
+        }
+    }
+}
+
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
@@ -120,9 +196,9 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// A flag to indicate if the database is empty (no meta files). This is an atomic mirror of
     /// `inner.meta_files.is_empty()` to avoid taking a lock on the hot path.
     is_empty: AtomicBool,
-    /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
-    /// write operations.
-    active_write_operation: AtomicBool,
+    /// Tracks whether a write operation is in progress or has permanently failed.
+    /// `None` = idle, `Some(Active)` = in progress, `Some(Error)` = permanently disabled.
+    active_write_operation: Mutex<Option<ActiveWriteState>>,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -195,7 +271,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
             }),
             is_empty: AtomicBool::new(true),
-            active_write_operation: AtomicBool::new(false),
+            active_write_operation: Mutex::new(None),
             key_block_cache: BlockCache::with(
                 KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
                 KEY_BLOCK_CACHE_SIZE,
@@ -451,33 +527,57 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.is_empty.load(Ordering::Relaxed)
     }
 
-    /// Returns true if a write operation or compaction is currently active. If this returns true
-    /// after a failed persist or compaction, it means recovery failed and no further write
-    /// operations are possible.
+    /// Returns true if a previous write or compaction failed with an unrecoverable error,
+    /// permanently disabling further write operations.
     pub fn is_write_operation_active(&self) -> bool {
-        self.active_write_operation.load(Ordering::Acquire)
+        matches!(
+            *self.active_write_operation.lock(),
+            Some(ActiveWriteState::Error)
+        )
+    }
+
+    /// Acquires the write-operation slot, returning an RAII guard that rolls back and releases it
+    /// on drop. Only one write operation (write batch or compaction) is allowed at a time.
+    fn acquire_write_operation(&self) -> Result<WriteOperationGuard<'_>> {
+        if self.read_only {
+            bail!("Cannot perform write operations on a read-only database");
+        }
+        let mut slot = self.active_write_operation.lock();
+        match &*slot {
+            None => {}
+            Some(ActiveWriteState::Active) => {
+                bail!(
+                    "Another write batch or compaction is already active (only a single write \
+                     operation is allowed at a time)"
+                );
+            }
+            Some(ActiveWriteState::Error) => {
+                bail!(
+                    "A previous write operation failed with an unrecoverable error; no further \
+                     writes are possible"
+                );
+            }
+        }
+        *slot = Some(ActiveWriteState::Active);
+        let seq_before = self.inner.read().current_sequence_number;
+        drop(slot);
+        Ok(WriteOperationGuard {
+            active: &self.active_write_operation,
+            path: &self.path,
+            seq_before,
+            succeeded: false,
+        })
     }
 
     /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
     /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
-    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<K, S, FAMILIES>> {
-        if self.read_only {
-            bail!("Cannot write to a read-only database");
-        }
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
+        let guard = self.acquire_write_operation()?;
         let current = self.inner.read().current_sequence_number;
         Ok(WriteBatch::new(
+            guard,
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
@@ -520,130 +620,22 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(BufWriter::new(log_file))
     }
 
-    /// Calls `try_recover_after_failed_write` when `result` is an error, then returns `result`
-    /// unchanged. Callers can simply write `self.recover_on_error(fallible_op())?`.
-    ///
-    /// Must be called without holding `self.inner`'s read lock, because recovery acquires the
-    /// write lock.
-    fn recover_on_error<T>(&self, result: Result<T>) -> Result<T> {
-        if result.is_err() {
-            let _ = self.try_recover_after_failed_write();
-        }
-        result
-    }
-
-    /// Attempts to recover the database to a consistent state after a failed write or compaction.
-    ///
-    /// Reads the last committed sequence number from the CURRENT file on disk, deletes any orphan
-    /// files (seq > current), processes any pending .del files, and reloads the in-memory meta
-    /// file list from disk.
-    ///
-    /// If recovery succeeds, `active_write_operation` is reset to `false`. If recovery fails,
-    /// `active_write_operation` remains `true` and further writes are permanently disabled.
-    fn try_recover_after_failed_write(&self) -> Result<()> {
-        // Read the last successfully committed sequence number from disk.
-        let current_seq = {
-            let mut file = File::open(self.path.join("CURRENT"))?;
-            file.read_u32::<BE>()?
-        };
-
-        // Walk the directory, categorizing files by their sequence number.
-        let mut orphan_paths = Vec::new(); // seq > current_seq: partial commit artifacts to delete
-        let mut del_file_paths = Vec::new(); // seq <= current_seq, .del: pending deletions to finish
-        let mut meta_seqs = Vec::new(); // seq <= current_seq, .meta: to reload into memory
-
-        for entry in fs::read_dir(&self.path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if let Some(seq) = path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .and_then(|s| s.parse::<u32>().ok())
-                {
-                    if seq > current_seq {
-                        match ext {
-                            "sst" | "meta" | "blob" | "del" => orphan_paths.push(path),
-                            _ => {}
-                        }
-                    } else {
-                        match ext {
-                            "del" => del_file_paths.push(path),
-                            "meta" => meta_seqs.push(seq),
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
-
-        // Delete orphan files left by the failed partial commit.
-        for path in orphan_paths {
-            fs::remove_file(path)?;
-        }
-
-        // Process .del files: collect which files should be deleted, then delete them.
-        // .del files are written before CURRENT is updated; if CURRENT was already updated they are
-        // committed state and must be fully applied.
-        let mut deleted_seqs = HashSet::new();
-        for del_path in &del_file_paths {
-            let content = fs::read(del_path)?;
-            let mut cursor = content.as_slice();
-            while !cursor.is_empty() {
-                deleted_seqs.insert(cursor.read_u32::<BE>()?);
-            }
-        }
-        for &del_seq in &deleted_seqs {
-            for ext in ["sst", "meta", "blob"] {
-                let p = self.path.join(format!("{del_seq:08}.{ext}"));
-                match fs::remove_file(&p) {
-                    Ok(()) => {}
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(e) => return Err(e.into()),
-                }
-            }
-        }
-        for del_path in del_file_paths {
-            fs::remove_file(del_path)?;
-        }
-
-        // Load MetaFile objects for the surviving .meta files.
-        meta_seqs.retain(|seq| !deleted_seqs.contains(seq));
-        meta_seqs.sort_unstable();
-        let mut meta_files = self
-            .parallel_scheduler
-            .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_seqs, |&seq| {
-                MetaFile::open(&self.path, seq)
-            })?;
-
-        // Apply SST filter to mark obsolete entries within each meta file.
-        let mut sst_filter = SstFilter::new();
-        for meta_file in meta_files.iter_mut().rev() {
-            sst_filter.apply_filter(meta_file);
-        }
-
-        // Update in-memory state under write lock.
-        {
-            let mut inner = self.inner.write();
-            inner.meta_files = meta_files;
-            inner.current_sequence_number = current_seq;
-        }
-
-        // Recovery succeeded — release the exclusive write lock.
-        self.active_write_operation.store(false, Ordering::Release);
-        Ok(())
-    }
-
     /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync>(
         &self,
-        mut write_batch: WriteBatch<K, S, FAMILIES>,
+        mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
     ) -> Result<()> {
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
         }
-        let finish_result = write_batch.finish(|family| {
+        let FinishResult {
+            sequence_number,
+            new_meta_files,
+            new_sst_files,
+            new_blob_files,
+            keys_written,
+        } = write_batch.finish(|family| {
             let inner = self.inner.read();
             let set = &inner.accessed_key_hashes[family as usize];
             // len is only a snapshot at that time and it can change while we create the filter.
@@ -668,15 +660,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 false
             });
             amqf
-        });
-        let FinishResult {
-            sequence_number,
-            new_meta_files,
-            new_sst_files,
-            new_blob_files,
-            keys_written,
-        } = self.recover_on_error(finish_result)?;
-        self.recover_on_error(self.commit(CommitOptions {
+        })?;
+        self.commit(CommitOptions {
             new_meta_files,
             new_sst_files,
             new_blob_files,
@@ -684,8 +669,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             blob_seq_numbers_to_delete: vec![],
             sequence_number,
             keys_written,
-        }))?;
-        self.active_write_operation.store(false, Ordering::Release);
+        })?;
+        // Mark the guard inside the write batch as succeeded so it skips the rollback on drop.
+        write_batch.mark_succeeded();
         Ok(())
     }
 
@@ -985,19 +971,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
     pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
-        if self.read_only {
-            bail!("Compaction is not allowed on a read only database");
-        }
-        if self
-            .active_write_operation
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            bail!(
-                "Another write batch or compaction is already active (Only a single write \
-                 operations is allowed at a time)"
-            );
-        }
+        let mut guard = self.acquire_write_operation()?;
 
         // Free block caches and SST mmaps before compaction. The block caches
         // are not used during compaction (we iterate uncached), and any cached
@@ -1012,9 +986,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut blob_seq_numbers_to_delete = Vec::new();
         let mut keys_written = 0;
 
-        // Scope the read lock so it is released before `recover_on_error` below,
-        // which acquires the write lock during recovery.
-        let compact_result = {
+        {
             let inner = self.inner.read();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
             self.compact_internal(
@@ -1027,28 +999,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 &mut keys_written,
                 compact_config,
             )
-            .context("Failed to compact database")
-        };
-        self.recover_on_error(compact_result)?;
+            .context("Failed to compact database")?;
+        }
 
         let has_changes = !new_meta_files.is_empty();
         if has_changes {
-            self.recover_on_error(
-                self.commit(CommitOptions {
-                    new_meta_files,
-                    new_sst_files,
-                    new_blob_files: Vec::new(),
-                    sst_seq_numbers_to_delete,
-                    blob_seq_numbers_to_delete,
-                    sequence_number: *sequence_number.get_mut(),
-                    keys_written,
-                })
-                .context("Failed to commit the database compaction"),
-            )?;
+            self.commit(CommitOptions {
+                new_meta_files,
+                new_sst_files,
+                new_blob_files: Vec::new(),
+                sst_seq_numbers_to_delete,
+                blob_seq_numbers_to_delete,
+                sequence_number: *sequence_number.get_mut(),
+                keys_written,
+            })
+            .context("Failed to commit the database compaction")?;
         }
 
-        self.active_write_operation.store(false, Ordering::Release);
-
+        guard.success();
         Ok(has_changes)
     }
 
