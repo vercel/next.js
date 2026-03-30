@@ -412,8 +412,6 @@ contextPrototype.i = esmImport
 
 // Base async loader for dynamic import(). In the browser, chunk loading is
 // naturally async so loaders already return Promises — no extra wrapping needed.
-// Node.js/Edge runtimes override this with an async version (in
-// base-externals-utils.ts) to enforce Promise semantics over sync loaders.
 function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId

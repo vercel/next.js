@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="161bf1fe-ca33-d8de-b14a-ddace1bb63c7")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="9566ed5f-c5ba-299b-b0fa-d05b88b46ce3")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -284,6 +284,8 @@ function esmImport(id) {
     return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
 contextPrototype.i = esmImport;
+// Base async loader for dynamic import(). In the browser, chunk loading is
+// naturally async so loaders already return Promises — no extra wrapping needed.
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
     return loader(esmImport.bind(this));
@@ -2227,5 +2229,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=161bf1fe-ca33-d8de-b14a-ddace1bb63c7
+//# debugId=9566ed5f-c5ba-299b-b0fa-d05b88b46ce3
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

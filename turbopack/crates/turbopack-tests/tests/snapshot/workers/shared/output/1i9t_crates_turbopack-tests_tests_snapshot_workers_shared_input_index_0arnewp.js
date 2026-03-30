@@ -283,6 +283,8 @@ function esmImport(id) {
     return module.namespaceObject = interopEsm(raw, createNS(raw), raw && raw.__esModule);
 }
 contextPrototype.i = esmImport;
+// Base async loader for dynamic import(). In the browser, chunk loading is
+// naturally async so loaders already return Promises — no extra wrapping needed.
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
     return loader(esmImport.bind(this));

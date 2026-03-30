@@ -57,10 +57,10 @@ externalRequire.resolve = (
 }
 contextPrototype.x = externalRequire
 
-// Override the shared asyncLoader with an async version for Node.js/Edge.
+// Use an sync version for Node.js/Edge.
 // Chunk loading is synchronous in these runtimes, so loaders may return plain
 // values or throw. The async keyword ensures dynamic import() always returns
-// a Promise per spec without an extra microtask in the browser path.
+// a Promise per spec without an extra microtask or code gen in the loaders to return promises
 async function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
