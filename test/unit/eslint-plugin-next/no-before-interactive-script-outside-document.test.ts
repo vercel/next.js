@@ -4,7 +4,7 @@ import { rules } from '@next/eslint-plugin-next'
 const NextESLintRule = rules['no-before-interactive-script-outside-document']
 
 const message =
-  "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document"
+  "`next/script`'s `beforeInteractive` strategy should not be used outside of `app/layout.jsx` or `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document"
 
 const tests = {
   valid: [
