@@ -25,8 +25,23 @@ type CacheLifeConfig = {
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
+ *
+ * @deprecated Calling `revalidateTag` with a single argument is deprecated. Pass a cache profile name (e.g. `"max"`) as the second argument, or use `updateTag` instead. See: https://nextjs.org/docs/messages/revalidate-tag-single-arg
  */
-export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
+export function revalidateTag(tag: string): void
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ *
+ * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
+ *
+ * @param tag - The cache tag to revalidate.
+ * @param profile - A cache life profile name (e.g. `"max"`) or a `{ expire }` config object.
+ */
+export function revalidateTag(
+  tag: string,
+  profile: string | CacheLifeConfig
+): void
+export function revalidateTag(tag: string, profile?: string | CacheLifeConfig) {
   if (!profile) {
     console.warn(
       '"revalidateTag" without the second argument is now deprecated, add second argument of "max" or use "updateTag". See more info here: https://nextjs.org/docs/messages/revalidate-tag-single-arg'
