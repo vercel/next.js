@@ -60,13 +60,3 @@ export const filterInternalHeaders = (
     }
   }
 }
-
-/**
- * Returns the invocation ID from the request headers, used
- * to scope the in-memory response cache per invocation.
- */
-export function getInvocationId(
-  headers: Record<string, undefined | string | string[]>
-): string | undefined {
-  return headers['x-invocation-id'] as string | undefined
-}

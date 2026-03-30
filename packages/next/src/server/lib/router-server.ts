@@ -210,6 +210,11 @@ export async function initialize(opts: {
       filterInternalHeaders(req.headers)
     }
 
+    // Enable verbose logging when the platform signals debug mode
+    if (req.headers['x-next-debug'] === '1') {
+      addRequestMeta(req, 'debugEnabled', true)
+    }
+
     if (
       !opts.minimalMode &&
       config.i18n &&
