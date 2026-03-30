@@ -3154,6 +3154,8 @@ async function renderToStream(
 
         requestStore.stale = INFINITE_CACHE
         requestStore.stagedRendering = stageController
+        requestStore.varyParamsAccumulator =
+          createResponseVaryParamsAccumulator()
 
         trackStaleTime(
           requestStore as { stale: number },
@@ -3237,9 +3239,15 @@ async function renderToStream(
           },
           () => {
             // This is a separate task that doesn't advance a stage. It forces
-            // draining the microtask queue so that the stale time iterable is
-            // closed before we advance to the dynamic stage.
+            // draining the microtask queue so that the stale time iterable and
+            // vary params accumulators are closed before we advance to the
+            // dynamic stage.
             void finishStaleTimeTracking(staleTimeIterable)
+            if (requestStore.varyParamsAccumulator) {
+              void finishAccumulatingVaryParams(
+                requestStore.varyParamsAccumulator
+              )
+            }
           },
           () => {
             stageController.advanceStage(RenderStage.Dynamic)
