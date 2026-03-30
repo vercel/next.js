@@ -189,41 +189,60 @@ function formatRouteToRouteType(route: string) {
 }
 
 // Helper function to serialize route types (matches the plugin logic exactly)
-function serializeRouteTypes(routeTypes: string[]) {
+// Each entry is a [routeType, source] tuple.
+function serializeRouteTypes(routeTypes: [routeType: string, cause: string][]) {
   // route collection is not deterministic, this makes the output of the file deterministic
-  return routeTypes
-    .sort()
-    .map((route) => `\n    | \`${route}\``)
-    .join('')
+  routeTypes.sort(([a], [b]) => a.localeCompare(b))
+  let union = ''
+  for (let i = 0; i < routeTypes.length; i++) {
+    const [route, cause] = routeTypes[i]
+    union += `\n    | \`${route}\` // ${cause}`
+  }
+  return union
 }
 
 export function generateLinkTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
-  // Generate serialized static and dynamic routes for the internal namespace
-  // Build a unified set of routes across app/pages/redirect/rewrite as well as
-  // app route handlers and Pages Router API routes.
-  const allRoutesSet = new Set<string>([
-    ...Object.keys(routesManifest.appRoutes),
-    ...Object.keys(routesManifest.pageRoutes),
-    ...Object.keys(routesManifest.redirectRoutes),
-    ...Object.keys(routesManifest.rewriteRoutes),
-    // Allow linking to App Route Handlers (e.g. `/logout/route.ts`)
-    ...Object.keys(routesManifest.appRouteHandlerRoutes),
-    // Allow linking to Pages Router API routes (e.g. `/api/*`)
-    ...Array.from(routesManifest.pageApiRoutes),
-  ])
+  const visited = new Set<string>()
+  const staticRouteTypes: [routeType: string, cause: string][] = []
+  const dynamicRouteTypes: [routeType: string, cause: string][] = []
 
-  const staticRouteTypes: string[] = []
-  const dynamicRouteTypes: string[] = []
+  for (const routeMap of [
+    routesManifest.appRoutes,
+    routesManifest.pageRoutes,
+    routesManifest.redirectRoutes,
+    routesManifest.rewriteRoutes,
+    routesManifest.appRouteHandlerRoutes,
+  ]) {
+    for (const route in routeMap) {
+      if (visited.has(route)) {
+        continue
+      }
+      visited.add(route)
 
-  // Process each route using the same logic as the plugin
-  for (const route of allRoutesSet) {
-    const { isDynamic, routeType } = formatRouteToRouteType(route)
+      const { isDynamic, routeType } = formatRouteToRouteType(route)
+      const cause = routeMap[route].path
+      if (isDynamic) {
+        dynamicRouteTypes.push([routeType, cause])
+      } else {
+        staticRouteTypes.push([routeType, cause])
+      }
+    }
+  }
+
+  // Pages Router API routes are stored as file paths
+  for (const filePath of routesManifest.pageApiRoutes) {
+    if (visited.has(filePath)) {
+      continue
+    }
+    visited.add(filePath)
+
+    const { isDynamic, routeType } = formatRouteToRouteType(filePath)
     if (isDynamic) {
-      dynamicRouteTypes.push(routeType)
+      dynamicRouteTypes.push([routeType, filePath])
     } else {
-      staticRouteTypes.push(routeType)
+      staticRouteTypes.push([routeType, filePath])
     }
   }
 
