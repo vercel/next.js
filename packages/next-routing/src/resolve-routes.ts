@@ -15,6 +15,44 @@ import {
 import { normalizeNextDataUrl, denormalizeNextDataUrl } from './next-data'
 import { detectLocale, detectDomainLocale, normalizeLocalePath } from './i18n'
 
+function getHeaderValueCaseInsensitive(
+  headers: Record<string, string>,
+  targetHeader: string
+): string | undefined {
+  const targetHeaderLower = targetHeader.toLowerCase()
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === targetHeaderLower) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function resolveRedirectLocationWithRequestQuery(
+  locationHeader: string,
+  requestUrl: URL
+): string {
+  if (!requestUrl.search) {
+    return locationHeader
+  }
+
+  try {
+    const resolvedLocation = new URL(locationHeader, requestUrl)
+    if (resolvedLocation.search) {
+      return locationHeader
+    }
+
+    resolvedLocation.search = requestUrl.search
+    if (resolvedLocation.origin !== requestUrl.origin) {
+      return resolvedLocation.toString()
+    }
+
+    return `${resolvedLocation.pathname}${resolvedLocation.search}${resolvedLocation.hash}`
+  } catch {
+    return locationHeader
+  }
+}
+
 /**
  * Attempts to match a route against the current URL and conditions
  */
@@ -128,6 +166,17 @@ function processRoutes(
             stopped: true,
             status: currentStatus,
           }
+        }
+
+        const locationHeader = getHeaderValueCaseInsensitive(
+          match.headers,
+          'location'
+        )
+        if (locationHeader) {
+          responseHeaders.set(
+            'location',
+            resolveRedirectLocationWithRequestQuery(locationHeader, currentUrl)
+          )
         }
 
         return {

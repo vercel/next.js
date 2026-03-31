@@ -673,4 +673,60 @@ describe('Redirect priority and precedence', () => {
     expect(result.resolvedHeaders?.get('location')).toBe('/en')
     expect(result.resolvedHeaders?.get('x-nested-header')).toBe('valid')
   })
+
+  it('should preserve request query in location header redirects without destination', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/?hello=world'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/$',
+            status: 308,
+            headers: {
+              location: '/en',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect).toBeUndefined()
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/en?hello=world')
+  })
+
+  it('should not overwrite existing location query in redirects without destination', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/?hello=world'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/$',
+            status: 308,
+            headers: {
+              location: '/en?from=route',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect).toBeUndefined()
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/en?from=route')
+  })
 })
