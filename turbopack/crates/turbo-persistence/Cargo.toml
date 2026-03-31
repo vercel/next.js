@@ -26,7 +26,8 @@ memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
 pot = "3.0.0"
-qfilter = { version = "0.3.0-alpha.2", features = ["serde"] }
+# See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
+qfilter = { version = "0.3.0-alpha.2", features = ["serde", "legacy_x86_64_support"] }
 quick_cache = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
