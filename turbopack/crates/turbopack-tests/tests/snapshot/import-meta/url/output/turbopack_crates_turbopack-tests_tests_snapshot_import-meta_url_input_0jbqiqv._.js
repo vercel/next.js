@@ -6,7 +6,7 @@ __turbopack_context__.q("/static/asset.1z1abqqd69ldl.txt");}),
 "use strict";
 
 __turbopack_context__.s([]);
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
     }

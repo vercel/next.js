@@ -254,9 +254,9 @@ jobs:
         always() &&
         github.event.inputs.deployScriptPath == '' &&
         github.repository_owner == 'vercel' &&
-        (
-          (github.event_name == 'workflow_dispatch' && github.ref_name == 'canary') ||
-          (github.event_name == 'release' && github.event.release.target_commitish == 'canary')
+        !startsWith(
+          github.event.inputs.nextVersion || github.event.release.tag_name || 'canary',
+          'http'
         )
       }}
     runs-on: ubuntu-latest

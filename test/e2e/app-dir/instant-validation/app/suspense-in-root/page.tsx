@@ -165,6 +165,24 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/parallel/slot-config-children-suspended" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-both/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/blocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked" />
+        </li>
       </ul>
 
       <h2>Head</h2>
