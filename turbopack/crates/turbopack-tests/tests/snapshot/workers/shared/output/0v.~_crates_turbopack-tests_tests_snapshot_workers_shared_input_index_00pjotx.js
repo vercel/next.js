@@ -1956,7 +1956,10 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
-    return (self.TURBOPACK_ASSET_SUFFIX ?? document?.currentScript?.getAttribute?.('src')?.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+    if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
+    const src = document?.currentScript?.getAttribute?.('src') ?? '';
+    const qi = src.indexOf('?');
+    return qi >= 0 ? src.slice(qi) : '';
 }
 let BACKEND;
 /**
@@ -2128,10 +2131,13 @@ let DEV_BACKEND;
     DEV_BACKEND = {
         unloadChunk (chunkUrl) {
             deleteResolver(chunkUrl);
+            // Strip query string so we match links regardless of cache-busting
+            // params (e.g. ?ts=) that may differ between HMR updates.
+            const baseChunkUrl = chunkUrl.split('?')[0];
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedChunkUrl = decodeURI(chunkUrl);
+            const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
             if (isCss(chunkUrl)) {
-                const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`);
+                const links = document.querySelectorAll(`link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
@@ -2140,7 +2146,7 @@ let DEV_BACKEND;
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const scripts = document.querySelectorAll(`script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`);
                 for (const script of Array.from(scripts)){
                     script.remove();
                 }
@@ -2154,23 +2160,34 @@ let DEV_BACKEND;
                     reject(new Error('The DOM backend can only reload CSS chunks'));
                     return;
                 }
-                const decodedChunkUrl = decodeURI(chunkUrl);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                // Strip query string so we match links regardless of cache-busting
+                // params (e.g. ?ts=) that may differ between HMR updates.
+                const baseChunkUrl = chunkUrl.split('?')[0];
+                const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
                 if (previousLinks.length === 0) {
                     reject(new Error(`No link element found for chunk ${chunkUrl}`));
                     return;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
-                if (navigator.userAgent.includes('Firefox')) {
-                    // Firefox won't reload CSS files that were previously loaded on the current page,
-                    // we need to add a query param to make sure CSS is actually reloaded from the server.
+                if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
+                    // Firefox won't reload CSS files that were previously loaded on the
+                    // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
                     //
-                    // I believe this is this issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+                    // Safari serves cached CSS when a <link rel=preload> exists for the
+                    // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
                     //
-                    // Safari has a similar issue, but only if you have a `<link rel=preload ... />` tag
-                    // pointing to the same URL as the stylesheet: https://bugs.webkit.org/show_bug.cgi?id=187726
-                    link.href = `${chunkUrl}?ts=${Date.now()}`;
+                    // Replace or add a fresh `ts` cache-busting param without
+                    // discarding other query parameters that may already be present.
+                    const url = new URL(chunkUrl, location.origin);
+                    url.searchParams.set('ts', String(Date.now()));
+                    // Reduced timer precision in some browers could lead to an update getting dropped
+                    // in firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
+                    // So trust that the server is only updating us when it is important and use a
+                    // random number to bust the cache.
+                    url.searchParams.set('_next_rand', String(Math.random()));
+                    link.href = url.pathname + url.search;
                 } else {
                     link.href = chunkUrl;
                 }
