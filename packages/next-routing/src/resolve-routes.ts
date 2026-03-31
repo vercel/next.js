@@ -526,6 +526,17 @@ export async function resolveRoutes(
   let currentRequestHeaders = new Headers(initialHeaders)
   let currentResponseHeaders = new Headers()
   let currentStatus: number | undefined
+  let pendingLocaleRedirect:
+    | {
+        url: URL
+        status: number
+      }
+    | undefined
+  let pendingBeforeMiddlewareStop:
+    | {
+        status: number | undefined
+      }
+    | undefined
   const initialOrigin = initialUrl.origin
 
   // Check if the original URL is a data URL and normalize if so
@@ -600,12 +611,9 @@ export async function resolveRoutes(
               `${scheme}://${targetDomain.domain}${basePath}${localePrefix}${pathname}${currentUrl.search}`
             )
 
-            return {
-              redirect: {
-                url: redirectUrl,
-                status: 307,
-              },
-              resolvedHeaders: currentResponseHeaders,
+            pendingLocaleRedirect = {
+              url: redirectUrl,
+              status: 307,
             }
           }
 
@@ -618,19 +626,16 @@ export async function resolveRoutes(
             const redirectUrl = new URL(currentUrl.toString())
             redirectUrl.pathname = `${basePath}/${targetLocale}${pathname}`
 
-            return {
-              redirect: {
-                url: redirectUrl,
-                status: 307,
-              },
-              resolvedHeaders: currentResponseHeaders,
+            pendingLocaleRedirect = {
+              url: redirectUrl,
+              status: 307,
             }
           }
         }
       }
 
       // Prefix the locale internally for route resolution (without redirecting)
-      if (!localeInPath) {
+      if (!localeInPath && !pendingLocaleRedirect) {
         const localeToPrefix =
           targetLocale || domainLocale?.defaultLocale || i18n.defaultLocale
         currentUrl.pathname = `${basePath}/${localeToPrefix}${pathname}`
@@ -669,8 +674,7 @@ export async function resolveRoutes(
   }
 
   if (beforeMiddlewareResult.stopped) {
-    return {
-      resolvedHeaders: currentResponseHeaders,
+    pendingBeforeMiddlewareStop = {
       status: currentStatus,
     }
   }
@@ -744,6 +748,26 @@ export async function resolveRoutes(
           status: currentStatus,
         }
       }
+    }
+  }
+
+  if (pendingLocaleRedirect) {
+    if (!currentResponseHeaders.has('location')) {
+      currentResponseHeaders.set(
+        'location',
+        pendingLocaleRedirect.url.toString()
+      )
+    }
+    return {
+      redirect: pendingLocaleRedirect,
+      resolvedHeaders: currentResponseHeaders,
+    }
+  }
+
+  if (pendingBeforeMiddlewareStop) {
+    return {
+      resolvedHeaders: currentResponseHeaders,
+      status: pendingBeforeMiddlewareStop.status,
     }
   }
 

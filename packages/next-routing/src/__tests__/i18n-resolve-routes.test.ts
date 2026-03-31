@@ -63,6 +63,39 @@ describe('resolveRoutes with i18n', () => {
       expect(result.redirect?.url.pathname).toBe('/fr/')
     })
 
+    it('should preserve middleware response headers on locale redirect', async () => {
+      const invokeMiddleware = jest.fn(async () => ({
+        responseHeaders: new Headers({
+          'x-nested-header': 'valid',
+          'x-append-me': 'top',
+        }),
+      }))
+
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/'),
+        headers: new Headers({
+          'accept-language': 'fr,en;q=0.9',
+        }),
+        i18n: i18nConfigNoDomains,
+        invokeMiddleware,
+        routes: {
+          ...baseParams.routes,
+          middlewareMatchers: [
+            {
+              sourceRegex: '^/.*$',
+            },
+          ],
+        },
+      })
+
+      expect(invokeMiddleware).toHaveBeenCalledTimes(1)
+      expect(result.redirect).toBeDefined()
+      expect(result.redirect?.url.pathname).toBe('/fr/')
+      expect(result.resolvedHeaders?.get('x-nested-header')).toBe('valid')
+      expect(result.resolvedHeaders?.get('x-append-me')).toBe('top')
+    })
+
     it('should not redirect when locale matches default', async () => {
       const result = await resolveRoutes({
         ...baseParams,
