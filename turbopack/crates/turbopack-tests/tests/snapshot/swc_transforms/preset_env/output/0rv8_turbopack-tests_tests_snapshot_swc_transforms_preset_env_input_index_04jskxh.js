@@ -7,20 +7,12 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
-<<<<<<< HEAD
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
-var WORKER_FORWARDED_GLOBALS = [];
-=======
-const CHUNK_BASE_PATH = "";
-const RELATIVE_ROOT_PATH = "../../../../../../..";
-const RUNTIME_PUBLIC_PATH = "";
-const ASSET_SUFFIX = "";
 const CROSS_ORIGIN = null;
-const WORKER_FORWARDED_GLOBALS = [];
->>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
+var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.

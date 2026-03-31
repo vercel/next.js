@@ -221,6 +221,7 @@ impl BrowserChunkingContextBuilder {
 
     pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
         self.chunking_context.hash_salt = salt;
+        self
     }
 
     pub fn cross_origin(mut self, cross_origin: CrossOrigin) -> Self {

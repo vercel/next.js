@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="6b1795ec-fb11-0e38-172d-ade7ceac0e54")}catch(e){}}();
-=======
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="1d2e1245-8741-4c9f-0800-fe4e29c41e37")}catch(e){}}();
->>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="9dc47da5-b295-426c-f7ab-3780bd355f7d")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -12,20 +8,12 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
-<<<<<<< HEAD
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
-var WORKER_FORWARDED_GLOBALS = [];
-=======
-const CHUNK_BASE_PATH = "";
-const RELATIVE_ROOT_PATH = "../../../../../../..";
-const RUNTIME_PUBLIC_PATH = "";
-const ASSET_SUFFIX = "";
 const CROSS_ORIGIN = null;
-const WORKER_FORWARDED_GLOBALS = [];
->>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
+var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -2201,18 +2189,12 @@ let DEV_BACKEND;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
-<<<<<<< HEAD
-                if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
-                    // Firefox won't reload CSS files that were previously loaded on the
-                    // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
-=======
                 if (CROSS_ORIGIN) {
                     link.crossOrigin = CROSS_ORIGIN;
                 }
-                if (navigator.userAgent.includes('Firefox')) {
-                    // Firefox won't reload CSS files that were previously loaded on the current page,
-                    // we need to add a query param to make sure CSS is actually reloaded from the server.
->>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
+                if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
+                    // Firefox won't reload CSS files that were previously loaded on the
+                    // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
                     //
                     // Safari serves cached CSS when a <link rel=preload> exists for the
                     // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
@@ -2271,9 +2253,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-<<<<<<< HEAD
-//# debugId=6b1795ec-fb11-0e38-172d-ade7ceac0e54
-=======
-//# debugId=1d2e1245-8741-4c9f-0800-fe4e29c41e37
->>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
+//# debugId=9dc47da5-b295-426c-f7ab-3780bd355f7d
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

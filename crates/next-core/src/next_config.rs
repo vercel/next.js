@@ -2255,7 +2255,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
-        Vc::cell(self.cross_origin.clone())
+        Vc::cell(self.cross_origin)
     }
 
     #[turbo_tasks::function]
