@@ -848,17 +848,33 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             current_file.write_u32::<BE>(seq)?;
             current_file.sync_data()?;
 
+            // ── Point of no return ──────────────────────────────────────────
+            //
+            // CURRENT has been durably updated. The commit is now visible to
+            // future readers (including after a crash/restart via
+            // `load_directory`). Everything below is best-effort cleanup:
+            //
+            // • Deleting superseded .sst/.meta/.blob files frees disk space
+            //   but is not required for correctness — `load_directory` will
+            //   finish the cleanup on the next open using the .del file.
+            //
+            // • Writing the LOG is purely informational.
+            //
+            // Errors here must NOT propagate, because the WriteOperationGuard
+            // would then run its rollback and delete the *newly committed*
+            // files, corrupting the database.
+
             for seq in sst_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.sst")));
             }
             for seq in meta_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.meta")));
             }
             for seq in blob_seq_numbers_to_delete.iter() {
-                fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.blob")));
             }
 
-            {
+            let _: Result<(), _> = (|| {
                 let mut log = self.open_log()?;
                 writeln!(log, "Time {time}")?;
                 let span = time.until(Timestamp::now())?;
@@ -948,7 +964,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         }
                     }
                 }
-            }
+                anyhow::Ok(())
+            })();
+
             anyhow::Ok(())
         })?;
         Ok(())
