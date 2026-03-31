@@ -605,7 +605,7 @@ async fn well_known_object_member(
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
-            path_module_member(kind, prop)
+            path_module_member(kind, prop, compile_time_info).await?
         }
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
@@ -685,8 +685,12 @@ fn global_object(prop: JsValue) -> JsValue {
     }
 }
 
-fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
-    match (kind, prop.as_str()) {
+async fn path_module_member(
+    kind: WellKnownObjectKind,
+    prop: JsValue,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<JsValue> {
+    Ok(match (kind, prop.as_str()) {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
@@ -695,6 +699,13 @@ fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 "",
             ))))
         }
+        (.., Some("sep")) => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .platform
+            .path_separator()
+            .into(),
         (WellKnownObjectKind::PathModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::PathModuleDefault)
         }
@@ -706,7 +717,7 @@ fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
             true,
             "unsupported property on Node.js path module",
         ),
-    }
+    })
 }
 
 fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {

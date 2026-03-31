@@ -10461,6 +10461,7 @@ dependencies = [
  "rstest_reuse",
  "serde",
  "serde_json",
+ "similar",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
