@@ -177,7 +177,9 @@ export interface AppRouteRouteModuleOptions
     RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
     'userland'
   > {
-  readonly userland: AppRouteUserlandModule | (() => AppRouteUserlandModule)
+  readonly userland:
+    | AppRouteUserlandModule
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -216,18 +218,45 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  private _loadUserland: (() => AppRouteUserlandModule) | null
+  private _loadUserland:
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
+    | null
+  private _pendingUserland: Promise<void> | null = null
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
 
   override get userland(): AppRouteUserlandModule {
     if (this._loadUserland) {
-      this._userland = this._loadUserland()
+      const result = this._loadUserland()
       this._loadUserland = null
-      this._initFromUserland()
+      if (result instanceof Promise) {
+        // The userland module uses top-level await (async module). Store the
+        // promise so ensureUserland() can await it before the first request.
+        this._pendingUserland = result.then((mod) => {
+          this._userland = mod
+          this._pendingUserland = null
+          this._initFromUserland()
+        })
+      } else {
+        this._userland = result
+        this._initFromUserland()
+      }
     }
     return this._userland
+  }
+
+  /**
+   * Ensures the userland module is fully loaded before handling a request.
+   * This is needed when the route file uses top-level await (async module),
+   * in which case require() returns a Promise instead of the module directly.
+   */
+  private async ensureUserland(): Promise<void> {
+    // Trigger lazy loading if not yet started.
+    void this.userland
+    if (this._pendingUserland) {
+      await this._pendingUserland
+    }
   }
 
   constructor({
@@ -324,9 +353,6 @@ export class AppRouteRouteModule extends RouteModule<
   private resolve(method: string): AppRouteHandlerFn {
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
-
-    // Trigger lazy initialization of userland if needed.
-    void this.userland
 
     return this._methods[method]
   }
@@ -723,6 +749,10 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
+    // Ensure the userland module is fully loaded (handles async modules with
+    // top-level await, where require() returns a Promise).
+    await this.ensureUserland()
+
     // Get the handler function for the given method.
     const handler = this.resolve(req.method)
 
