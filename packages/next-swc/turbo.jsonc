@@ -65,6 +65,11 @@
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*"],
     },
+    "cache-build-native": {
+      "dependsOn": ["rust-fingerprint"],
+      "inputs": ["../../target/.rust-fingerprint"],
+      "outputs": ["native/*.node", "native/index.d.ts"],
+    },
     "rust-check": {
       "dependsOn": [
         "rust-check-clippy",
