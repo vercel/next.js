@@ -3481,6 +3481,7 @@ pub enum WellKnownFunctionKind {
     PathResolve(Box<JsValue>),
     Import,
     Require,
+    /// `0` is the path to resolve from (relative to the current module).
     RequireFrom(Box<ConstantString>),
     RequireResolve,
     RequireContext,
