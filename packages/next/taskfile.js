@@ -151,6 +151,23 @@ export async function capsize_metrics() {
   const {
     entireMetricsCollection,
   } = require('@capsizecss/metrics/entireMetricsCollection')
+
+  // Handle Google Fonts that have been renamed/rebranded but are not yet
+  // updated in @capsizecss/metrics.
+  // Key: new camelCase name, Value: old camelCase name
+  const FONT_ALIASES = {
+    montserratUnderline: 'montserratSubrayada',
+  }
+
+  for (const [newKey, oldKey] of Object.entries(FONT_ALIASES)) {
+    if (!entireMetricsCollection[newKey] && entireMetricsCollection[oldKey]) {
+      entireMetricsCollection[newKey] = {
+        ...entireMetricsCollection[oldKey],
+        familyName: entireMetricsCollection[oldKey].familyName,
+      }
+    }
+  }
+
   const outputPathDist = join(
     __dirname,
     'dist/server/capsize-font-metrics.json'
