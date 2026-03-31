@@ -155,6 +155,26 @@ describe('server-hmr', () => {
     )
   })
 
+  describe('metadata route hmr', () => {
+    it('reflects manifest.ts changes on fetch/refresh', async () => {
+      const initial = await next
+        .fetch('/manifest.webmanifest')
+        .then((res) => res.json())
+      expect(initial.name).toBe('Version 0')
+
+      await next.patchFile('app/manifest.ts', (content) =>
+        content.replace('Version 0', 'Version 1')
+      )
+
+      await retry(async () => {
+        const updated = await next
+          .fetch('/manifest.webmanifest')
+          .then((res) => res.json())
+        expect(updated.name).toBe('Version 1')
+      })
+    })
+  })
+
   describe('route handler hmr', () => {
     function getText(res: Response) {
       return res.ok
