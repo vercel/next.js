@@ -222,24 +222,24 @@ impl StaticSortedFile {
         match block_type {
             BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                 let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                return self.lookup_key_block::<K, FIND_ALL>(
+                self.lookup_key_block::<K, FIND_ALL>(
                     key_block_arc,
                     key_hash,
                     key,
                     has_hash,
                     value_block_cache,
-                );
+                )
             }
 
-            BLOCK_TYPE_FIXED_KEY_NO_HASH | BLOCK_TYPE_FIXED_KEY_WITH_HASH => {
+            BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
                 let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
-                return self.lookup_fixed_key_block::<K, FIND_ALL>(
+                self.lookup_fixed_key_block::<K, FIND_ALL>(
                     key_block_arc,
                     key_hash,
                     key,
                     has_hash,
                     value_block_cache,
-                );
+                )
             }
             _ => {
                 bail!("Invalid block type");
