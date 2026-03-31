@@ -177,7 +177,9 @@ export interface AppRouteRouteModuleOptions
     RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
     'userland'
   > {
-  readonly userland: AppRouteUserlandModule | (() => AppRouteUserlandModule)
+  readonly userland:
+    | AppRouteUserlandModule
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
   /**
@@ -227,18 +229,47 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
   // Set in the constructor when userland is provided as a factory. Cleared
   // after the first access so userland is only loaded once.
-  private _userlandFactory: (() => AppRouteUserlandModule) | null
+  private _userlandFactory:
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
+    | null
+  // Non-null while an async userland module (top-level await) is loading.
+  // ensureUserland() awaits this before the first request is handled.
+  private _pendingUserland: Promise<void> | null = null
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
 
   override get userland(): AppRouteUserlandModule {
     if (this._userlandFactory) {
-      this._userland = this._userlandFactory()
+      const result = this._userlandFactory()
       this._userlandFactory = null
-      this._initFromUserland()
+      if (result instanceof Promise) {
+        // The route file uses top-level await (async module). Store the
+        // promise so ensureUserland() can await it before the first request.
+        this._pendingUserland = result.then((mod) => {
+          this._userland = mod
+          this._pendingUserland = null
+          this._initFromUserland()
+        })
+      } else {
+        this._userland = result
+        this._initFromUserland()
+      }
     }
     return this._userland as AppRouteUserlandModule
+  }
+
+  /**
+   * Ensures the userland module is fully loaded before a request is handled.
+   * Required for route files that use top-level await, where require() returns
+   * a Promise instead of the module directly.
+   */
+  private async ensureUserland(): Promise<void> {
+    // Trigger lazy loading if not yet started.
+    void this.userland
+    if (this._pendingUserland) {
+      await this._pendingUserland
+    }
   }
 
   constructor({
@@ -331,13 +362,11 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * Returns the handler function for the given HTTP method.
    *
-   * In Turbopack dev mode (`_getUserland` is set), re-fetches the live
-   * userland on every request so that server HMR updates are picked up. The
+   * Must be called after ensureUserland() has resolved so that _methods is
+   * populated. In Turbopack dev mode (_getUserland is set), re-fetches the
+   * live userland on every request so server HMR updates are picked up; the
    * async wrapper also unwraps async-module Promises for ESM-only
    * serverExternalPackages.
-   *
-   * In all other modes, returns the handler from the cached `_methods` map,
-   * triggering lazy userland initialization on the first request if needed.
    */
   private async resolveHandler(method: string): Promise<AppRouteHandlerFn> {
     // Prevent RCE: only allow recognized HTTP methods.
@@ -348,8 +377,6 @@ export class AppRouteRouteModule extends RouteModule<
       return autoImplementMethods(userland)[method]
     }
 
-    // Accessing `this.userland` triggers lazy initialization on first request.
-    void this.userland
     return this._methods[method]
   }
 
@@ -745,6 +772,10 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
+    // Ensure userland is fully loaded (handles async modules with top-level
+    // await, where require() returns a Promise instead of the module).
+    await this.ensureUserland()
+
     const handler = await this.resolveHandler(req.method)
 
     // Get the context for the static generation.
