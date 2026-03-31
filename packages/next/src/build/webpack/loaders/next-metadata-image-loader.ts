@@ -80,7 +80,7 @@ async function nextMetadataImageLoader(
       // smaller.
       resourcePath + '?' + WEBPACK_RESOURCE_QUERIES.metadataImageMeta
     )}
-    import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
+    import { fillDynamicMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
     const imageModule = {
       ${exportedFieldsExcludingDefault
@@ -89,9 +89,9 @@ async function nextMetadataImageLoader(
     }
 
     function getImageMetadata(imageMetadata, idParam, resolvedParams) {
-      const imageUrl = fillMetadataSegment(${JSON.stringify(
+      const imageUrl = fillDynamicMetadataSegment(${JSON.stringify(
         pathnamePrefix
-      )}, resolvedParams, ${JSON.stringify(pageSegment)}, false)
+      )}, ${JSON.stringify(pageSegment)}, resolvedParams)
       const data = {
         alt: imageMetadata.alt,
         type: imageMetadata.contentType || 'image/png',
@@ -169,13 +169,13 @@ async function nextMetadataImageLoader(
   }
 
   return `\
-  import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
+  import { fillStaticMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
   export default async (props) => {
     const imageData = ${JSON.stringify(imageData)}
-    const imageUrl = fillMetadataSegment(${JSON.stringify(
+    const imageUrl = fillStaticMetadataSegment(${JSON.stringify(
       pathnamePrefix
-    )}, await props.params, ${JSON.stringify(pageSegment)}, true)
+    )}, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,
