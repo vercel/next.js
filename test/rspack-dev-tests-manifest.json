@@ -1193,11 +1193,14 @@
   },
   "test/development/app-dir/server-hmr/server-hmr.test.ts": {
     "passed": [
+      "server-hmr CLI/config conflict warning should warn when CLI flag conflicts with config",
+      "server-hmr metadata route hmr reflects manifest.ts changes on fetch/refresh",
       "server-hmr route handler hmr reflects route handler changes on fetch/refresh"
     ],
     "failed": [],
     "pending": [
       "server-hmr child module accept allows child modules to accept hot updates using module.hot.accept",
+      "server-hmr config opt-out re-evaluates unmodified dependencies when serverFastRefresh is disabled via config",
       "server-hmr module preservation does not re-evaluate an unmodified module when page module changes",
       "server-hmr module preservation re-evaluates a module when the module itself changes",
       "server-hmr route handler hmr does not re-evaluate an unmodified dependency when route changes",
@@ -1303,14 +1306,14 @@
     "runtimeError": false
   },
   "test/development/app-dir/typed-env/typed-env.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "typed-env should have env types from next config",
       "typed-env should rewrite env types if .env is modified"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
     "passed": [
@@ -2060,7 +2063,7 @@
   },
   "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
     "passed": [
-      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
+      "Dev Rendering Indicator Shows rendering indicator when navigating between pages"
     ],
     "failed": [],
     "pending": [],
@@ -2091,11 +2094,14 @@
   "test/development/error-overlay/index.test.tsx": {
     "passed": [
       "DevErrorOverlay can get error code from RSC error thrown by framework",
+      "DevErrorOverlay filters non-Error items from AggregateError.errors",
       "DevErrorOverlay ignores non-Error cause in the error overlay",
       "DevErrorOverlay loads fonts successfully",
       "DevErrorOverlay sends feedback when clicking helpful button",
       "DevErrorOverlay sends feedback when clicking not helpful button",
       "DevErrorOverlay should load dev overlay styles successfully",
+      "DevErrorOverlay shows AggregateError.errors in the error overlay",
+      "DevErrorOverlay shows AggregateError.errors with cause chains in the error overlay",
       "DevErrorOverlay shows Error.cause in the error overlay",
       "DevErrorOverlay shows nested Error.cause chain in the error overlay"
     ],
@@ -3222,6 +3228,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": ["adapter-dynamic-metadata should skip next dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -3410,7 +3423,8 @@
     "passed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
-      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
+      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler",
+      "app-dir - custom-cache-handler - esm import.meta.resolve esm default export should have logs from cache-handler"
     ],
     "failed": [],
     "pending": [],
@@ -3514,12 +3528,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-fetch-deduping during next dev dedupes requests with different trace headers",
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3579,7 +3593,6 @@
       "app-dir with proxy Mutate request headers for next/headers Updates headers",
       "app-dir with proxy retains a link response header from the proxy",
       "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should log compilation time",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
@@ -3588,6 +3601,7 @@
       "app-dir with proxy should support unstable_cache in proxy"
     ],
     "failed": [
+      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should filter correctly after proxy rewrite"
     ],
     "pending": [
@@ -3630,16 +3644,16 @@
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware retains a link response header from the middleware",
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies",
-      "app-dir with middleware should support unstable_cache in middleware",
-      "app-dir with middleware should warn when deprecated middleware file is used"
+      "app-dir with middleware should support unstable_cache in middleware"
     ],
     "failed": [
-      "app-dir with middleware should filter correctly after middleware rewrite"
+      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
+      "app-dir with middleware should filter correctly after middleware rewrite",
+      "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "pending": [],
     "flakey": [],
@@ -6062,7 +6076,6 @@
       "instant validation dev - client navigation invalid - loading.js above route group does not cover dynamic in page",
       "instant validation dev - client navigation invalid - loading.js covers page, but not layout at the same level",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot default slot",
-      "instant validation dev - client navigation invalid - missing suspense in parallel slot index",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot subpage",
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic",
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
@@ -6165,6 +6178,7 @@
       "instant validation dev - initial load valid - target segment not visible in all navigations"
     ],
     "failed": [
+      "instant validation dev - client navigation invalid - missing suspense in parallel slot index",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata"
     ],
@@ -6476,6 +6490,16 @@
       "mdx without-mdx-rs pages directory should work in initial html with mdx import",
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
     ],
     "failed": [],
     "pending": [],
@@ -8875,10 +8899,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8944,6 +8968,7 @@
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
+      "turbo-resolve-extensions should respect resolveExtensions priority (.web.tsx before .tsx)",
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
@@ -10301,10 +10326,11 @@
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start",
+      "typed-routes should have passing tsc after start"
+    ],
+    "failed": [
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10581,10 +10607,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
-    "passed": [],
+  "test/e2e/app-dir/use-offline/use-offline.test.ts": {
+    "passed": ["useOffline skipped in dev mode"],
     "failed": [],
-    "pending": ["use-node-streams env precedence only testable in start mode"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10993,14 +11019,15 @@
   },
   "test/e2e/build-indicator/test/index.test.ts": {
     "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Build Activity Indicator build indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (app) Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows the build indicator when a page is built during navigation"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11293,8 +11320,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
@@ -14932,7 +14959,10 @@
       "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
-      "create-next-app should not install dependencies if --skip-install"
+      "create-next-app should not install dependencies if --skip-install",
+      "create-next-app should not print assumed defaults when all flags are provided",
+      "create-next-app should not print assumed defaults with --yes flag",
+      "create-next-app should print assumed defaults when flags are partially provided"
     ],
     "failed": [],
     "pending": [],
@@ -14992,12 +15022,12 @@
   "test/integration/create-next-app/prompts.test.ts": {
     "passed": [
       "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
-      "create-next-app prompts should prompt user for choice if --import-alias is absent",
-      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
-      "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences",
       "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use default for --tailwind when other flags are provided",
+      "create-next-app prompts should use default for --ts when other flags are provided",
+      "create-next-app prompts should use default import alias when other flags are provided",
       "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
