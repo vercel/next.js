@@ -41,7 +41,10 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripIsPartialByte } from '../segment-cache/cache'
+import {
+  stripIsPartialByte,
+  createNonTaskyPrefetchResponseStream,
+} from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
@@ -461,9 +464,9 @@ export async function resolveStaticStageData<
 }
 
 /**
- * Truncates a Flight stream clone at the given byte boundary and decodes the
- * static stage prefix. Used by both the navigation path and the initial HTML
- * hydration path.
+ * Truncates and buffers a Flight stream clone at the given byte boundary and
+ * decodes the static stage prefix. Used by both the navigation path and the
+ * initial HTML hydration path.
  */
 export async function decodeStaticStage<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
@@ -472,12 +475,15 @@ export async function decodeStaticStage<T>(
 ): Promise<T> {
   const staticStageByteLength = await staticStageByteLengthPromise
 
-  const truncatedStream = truncateStream(
+  // Buffer the truncated stream into a single chunk before passing it to
+  // Flight. This ensures all model data is available synchronously, which is
+  // required for readVaryParams to synchronously read the thenable status.
+  const { stream } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
     staticStageByteLength
   )
 
-  return createFromNextReadableStream<T>(truncatedStream, headers, {
+  return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
   })
 }
@@ -662,43 +668,5 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
-}
-
-function truncateStream(
-  stream: ReadableStream<Uint8Array>,
-  byteLength: number
-): ReadableStream<Uint8Array> {
-  const reader = stream.getReader()
-  let remaining = byteLength
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (remaining <= 0) {
-        reader.cancel()
-        controller.close()
-        return
-      }
-
-      const { done, value } = await reader.read()
-
-      if (done) {
-        controller.close()
-        return
-      }
-
-      if (value.byteLength <= remaining) {
-        controller.enqueue(value)
-        remaining -= value.byteLength
-      } else {
-        controller.enqueue(value.subarray(0, remaining))
-        remaining = 0
-        reader.cancel()
-        controller.close()
-      }
-    },
-    cancel() {
-      reader.cancel()
-    },
   })
 }

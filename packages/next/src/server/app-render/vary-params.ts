@@ -117,9 +117,10 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           const accumulator = createSegmentVaryParamsAccumulator()
           responseAccumulator.segments.add(accumulator)
           return accumulator
@@ -128,7 +129,6 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
@@ -148,16 +148,16 @@ export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           return responseAccumulator.head
         }
         return null
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':

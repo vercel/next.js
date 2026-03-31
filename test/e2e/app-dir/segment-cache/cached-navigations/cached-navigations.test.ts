@@ -816,4 +816,123 @@ describe('cached navigations', () => {
       'Dynamic content'
     )
   })
+
+  it('reuses cached page segment across different fallback params after navigation', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // First navigation to /with-fallback-params/foo — seeds the segment cache.
+    // Since slug is a fallback param, the page segment's varyParams is empty,
+    // meaning the cached segment contains only the Suspense fallback and no
+    // param-specific data.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/with-fallback-params/foo"]')
+          .click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: foo'
+    )
+
+    // Click the bar link. The page segment should be reused from cache (empty
+    // varyParams), so the Suspense fallback for params should appear instantly.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/with-fallback-params/bar"]')
+            .click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      // The page segment is reused — params boundary shows Suspense fallback
+      expect(await browser.elementById('params-boundary').text()).toBe(
+        'Loading params...'
+      )
+      expect(await browser.elementById('connection-boundary').text()).toBe(
+        'Loading connection...'
+      )
+    })
+
+    // After unblocking, all content should be visible with the new param
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: bar'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
+
+  it('reuses cached page segment across different fallback params after initial HTML load', async () => {
+    let page: Playwright.Page
+    // Start directly at /with-fallback-params/foo — full HTML load. The RSC
+    // payload inlined in the HTML seeds the segment cache with the page
+    // segment, which has empty varyParams because slug is a fallback param.
+    const browser = await next.browser('/with-fallback-params/foo', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Wait for all content to stream in
+    await retry(async () => {
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    })
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: foo'
+    )
+
+    // Click the bar link. The page segment should be reused from the cache
+    // seeded by the initial HTML load.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/with-fallback-params/bar"]')
+            .click()
+        },
+        {
+          includes: 'Dynamic content',
+          block: true,
+        }
+      )
+
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      // The page segment is reused — params boundary shows Suspense fallback
+      expect(await browser.elementById('params-boundary').text()).toBe(
+        'Loading params...'
+      )
+      expect(await browser.elementById('connection-boundary').text()).toBe(
+        'Loading connection...'
+      )
+    })
+
+    // After unblocking, all content should be visible with the new param
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: bar'
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
 })
