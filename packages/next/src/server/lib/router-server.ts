@@ -164,6 +164,27 @@ export async function initialize(opts: {
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
 
+    // Resolve the effective serverFastRefresh value.
+    // Both default to enabled (true). CLI takes precedence over config.
+    const cliServerFastRefresh = opts.serverFastRefresh
+    const configServerFastRefresh =
+      developmentConfig.experimental?.turbopackServerFastRefresh
+    let effectiveServerFastRefresh: boolean | undefined
+    if (
+      cliServerFastRefresh !== undefined &&
+      configServerFastRefresh !== undefined &&
+      cliServerFastRefresh !== configServerFastRefresh
+    ) {
+      Log.warn(
+        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+      )
+      effectiveServerFastRefresh = cliServerFastRefresh
+    } else {
+      // Default to true when neither CLI nor config specifies a value.
+      effectiveServerFastRefresh =
+        cliServerFastRefresh ?? configServerFastRefresh ?? true
+    }
+
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
@@ -179,7 +200,7 @@ export async function initialize(opts: {
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
-        serverFastRefresh: opts.serverFastRefresh,
+        serverFastRefresh: effectiveServerFastRefresh,
       })
     )
 
