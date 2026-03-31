@@ -525,17 +525,30 @@ export async function startServer(
   })
 
   if (isDev) {
-    function watchConfigFiles(
-      dirToWatch: string,
-      onChange: (filename: string) => void
+    // Watch config files for changes and distDir ancestors for deletion.
+    // Ancestors are watched so that deleting a parent (e.g. `rm -rf .next`)
+    // is detected by a DirectoryWatcher that still exists on the project root.
+    const absDistDir = path.join(dir, distDir)
+    const distDirWatchPaths: string[] = []
+    for (
+      let current = absDistDir;
+      current !== dir;
+      current = path.dirname(current)
     ) {
-      const wp = new Watchpack()
-      wp.watch({
-        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
-      })
-      wp.on('change', onChange)
+      distDirWatchPaths.push(current)
     }
-    watchConfigFiles(dir, async (filename) => {
+
+    const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
+
+    const wp = new Watchpack()
+    wp.watch({
+      files: configFiles,
+      missing: distDirWatchPaths,
+    })
+    wp.on('change', async (filename) => {
+      if (!configFiles.includes(filename)) {
+        return
+      }
       if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
         Log.info(
           `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
@@ -550,30 +563,7 @@ export async function startServer(
       )
       process.exit(RESTART_EXIT_CODE)
     })
-
-    // Watch for deletion of the distDir (e.g. `rm -rf .next`). When the
-    // build output directory is removed the dev server cannot serve
-    // correctly, so we trigger a full restart to rebuild it.
-    //
-    // Watchpack creates a DirectoryWatcher on the *parent* of each watched
-    // path. If we only watched `.next/dev`, the DirectoryWatcher would be on
-    // `.next` — but when `.next` itself is deleted, the inotify fd is
-    // destroyed and no event fires for `.next/dev`. By also watching all
-    // ancestor directories up to (but not including) the project root, we
-    // ensure there is always a DirectoryWatcher on a surviving parent that
-    // can detect the deletion.
-    const absDistDir = path.join(dir, distDir)
-    const distDirWatchPaths: string[] = []
-    for (
-      let current = absDistDir;
-      current !== dir;
-      current = path.dirname(current)
-    ) {
-      distDirWatchPaths.push(current)
-    }
-    const distDirWp = new Watchpack()
-    distDirWp.watch({ missing: distDirWatchPaths })
-    distDirWp.on('remove', (removedPath: string) => {
+    wp.on('remove', (removedPath: string) => {
       if (distDirWatchPaths.includes(removedPath)) {
         Log.warn(
           `The ${path.basename(absDistDir)} directory was deleted. Restarting the server...`
