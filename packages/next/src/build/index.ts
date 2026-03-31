@@ -3764,6 +3764,14 @@ export default async function build(
                 // the HTML/JSON files directly to their final location.
                 // We only need to update the prerender manifest.
                 for (const route of additionalPaths.get(page) ?? []) {
+                  if (
+                    prerenderManifest.notFoundRoutes.includes(route.pathname)
+                  ) {
+                    await deleteNotFoundPageFiles(
+                      normalizePagePath(route.pathname)
+                    )
+                  }
+
                   const cacheControl = getCacheControl(route.pathname)
 
                   prerenderManifest.routes[route.pathname] = {
