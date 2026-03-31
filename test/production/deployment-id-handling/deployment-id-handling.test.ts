@@ -87,7 +87,10 @@ describe.each([
           beforePageLoad(page) {
             page.on('request', async (req) => {
               // TODO this currently exclude _next/image
-              if (req.url().includes('/_next/static')) {
+              if (
+                req.url().includes('/_next/static') ||
+                req.url().includes('/_next/immutable')
+              ) {
                 clientRequests.push(req.url())
               }
             })
@@ -96,7 +99,10 @@ describe.each([
 
         const dynamicImportRequests = []
         browser.on('request', (req) => {
-          if (req.url().includes('/_next/static')) {
+          if (
+            req.url().includes('/_next/static') ||
+            req.url().includes('/_next/immutable')
+          ) {
             dynamicImportRequests.push(req.url())
           }
         })

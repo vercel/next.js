@@ -538,7 +538,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -566,7 +566,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommandDev(
