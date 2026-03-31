@@ -565,12 +565,12 @@ function createSegmentProps(
 async function collectStaticImagesFiles(
   metadata: AppDirModules['metadata'],
   props: SegmentProps,
-  type: keyof NonNullable<AppDirModules['metadata']>
+  type: 'icon' | 'apple' | 'openGraph' | 'twitter'
 ) {
   if (!metadata?.[type]) return undefined
 
-  const iconPromises = metadata[type as 'icon' | 'apple'].map(
-    async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
+  const iconPromises = metadata[type].map(
+    async (imageModule: (p: SegmentProps) => Promise<MetadataImageModule[]>) =>
       await imageModule(props)
   )
 
