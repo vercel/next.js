@@ -214,6 +214,10 @@ jobs:
             #   environment.
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
             build: |
+              rm /usr/share/keyrings/nodesource.gpg
+              curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+                | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+              sed -i 's/jammy/nodistro/g' /etc/apt/sources.list.d/nodesource.list
               apt update
               apt install -y pkg-config xz-utils dav1d libdav1d-dev
               rustup show
@@ -255,6 +259,10 @@ jobs:
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
             build: |
+              rm /usr/share/keyrings/nodesource.gpg
+              curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+                | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
+              sed -i 's/jammy/nodistro/g' /etc/apt/sources.list.d/nodesource.list
               apt update
               apt install -y pkg-config xz-utils dav1d libdav1d-dev
               export JEMALLOC_SYS_WITH_LG_PAGE=16
