@@ -313,7 +313,6 @@ fn create_fetch_tt(name: &str, initial: bool) -> Arc<dyn TurboTasksApi> {
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
         min_cache_control_secs: 0,
-        ..Default::default()
     }
     .cell();
     let response = &*client_vc
