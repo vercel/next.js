@@ -47,7 +47,7 @@ export async function copy_next_docs(task, opts) {
         file.base = file.base.replace(/\.mdx$/, '.md')
       }
     })
-    .target('dist/docs/next')
+    .target('dist/docs')
 }
 
 export async function copy_react_docs(task, opts) {
@@ -62,7 +62,7 @@ export async function copy_react_docs(task, opts) {
         file.base = file.base.replace(/\.mdx$/, '.md')
       }
     })
-    .target('dist/docs/react')
+    .target('dist/react-docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
