@@ -28,8 +28,21 @@ static CLIENT_CACHE: LazyLock<Cache<ReadRef<FetchClientConfig>, reqwest::Client>
 /// This is needed because [`reqwest::ClientBuilder`] does not implement the required traits. This
 /// factory cannot be a closure because closures do not implement `Eq` or `Hash`.
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Default)]
-pub struct FetchClientConfig {}
+#[derive(Hash)]
+pub struct FetchClientConfig {
+    /// Minimum cache TTL in seconds. Responses with a `Cache-Control: max-age` shorter than this
+    /// will be clamped to this value. This prevents pathologically short timeouts from causing an
+    /// invalidation bomb. Defaults to 1 hour.
+    pub min_cache_control_secs: u64,
+}
+
+impl Default for FetchClientConfig {
+    fn default() -> Self {
+        Self {
+            min_cache_control_secs: 60 * 60,
+        }
+    }
+}
 
 impl FetchClientConfig {
     /// Returns a cached instance of `reqwest::Client` it exists, otherwise constructs a new one.
@@ -145,6 +158,7 @@ impl FetchClientConfig {
     ) -> Result<Vc<FetchInnerResult>> {
         let url_ref = &*url;
         let this = self.await?;
+        let min_cache_control_secs = this.min_cache_control_secs;
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -181,13 +195,7 @@ impl FetchClientConfig {
         match response_result {
             Ok((resp, max_age_secs)) => {
                 if let Some(max_age_secs) = max_age_secs {
-                    // Don't allow caches to persist for less than an hour, we don't expect short
-                    // timeouts (google-fonts is typically 1-day), but a pathologically short
-                    // timeout could cause an `invalidation` bomb so we are defensive here.
-                    // TODO: it would be reasonable for this to be caller configurable or even
-                    // application-wide configurable.
-                    const MINIMUM_FETCH_CACHE_CONTROL_SECS: u64 = 60 * 60;
-                    let max_age_secs = max(max_age_secs, MINIMUM_FETCH_CACHE_CONTROL_SECS);
+                    let max_age_secs = max(max_age_secs, min_cache_control_secs);
                     let deadline_secs = {
                         // Transform the relative offset to an absolute deadline so it can be
                         // cached.
