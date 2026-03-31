@@ -116,18 +116,18 @@ impl NextRootParamsMapper {
                                 })?;
                             Self::valid_import_map_result(collected_root_params)
                         }
-                        ServerContextType::PagesApi { .. }
+                        ServerContextType::Pages { .. }
+                        | ServerContextType::PagesApi { .. }
                         | ServerContextType::Instrumentation { .. }
                         | ServerContextType::Middleware { .. } => {
                             // There's no sensible way to use root params outside of the app
-                            // directory. TODO: make sure this error is
-                            // consistent with webpack
+                            // directory.
                             Self::invalid_import_map_result(
                                 "'next/root-params' can only be used inside the App Directory."
                                     .into(),
                             )
                         }
-                        _ => {
+                        ServerContextType::AppSSR { .. } => {
                             // In general, the compiler should prevent importing 'next/root-params'
                             // from client modules, but it doesn't catch
                             // everything. If an import slips through
