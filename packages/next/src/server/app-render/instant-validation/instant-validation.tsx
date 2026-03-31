@@ -1021,7 +1021,6 @@ export async function createCombinedPayloadAtDepth(
       debug?.(
         `    ['${path}' is the boundary (url=${nextUrlDepth}, group=${currentGroupDepth})]`
       )
-      boundaryState.expectedIds.add(path)
       const finalSegmentData: SegmentData = {
         ...segmentData,
         node: (
@@ -1059,6 +1058,13 @@ export async function createCombinedPayloadAtDepth(
             createInstantStack = result.createInstantStack
           }
         }
+      }
+
+      // Only require this boundary to render if the subtree has an
+      // instant config. Unconfigured slot subtrees are allowed to not
+      // render (e.g. conditionally excluded by a layout).
+      if (requiresInstantUI) {
+        boundaryState.requiredIds.add(path)
       }
 
       wrapSlotsWithMarkers(slots, slotResults)

@@ -4766,8 +4766,8 @@ async function validateInstantConfigs(
     if (previousBoundaryState) {
       // We're doing a followup render to better discriminate error types
       useRuntimeStageForPartialSegments = true
-      for (const id of previousBoundaryState.expectedIds) {
-        boundaryState.expectedIds.add(id)
+      for (const id of previousBoundaryState.requiredIds) {
+        boundaryState.requiredIds.add(id)
       }
     }
 
