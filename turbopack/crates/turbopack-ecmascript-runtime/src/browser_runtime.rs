@@ -90,10 +90,19 @@ pub async fn get_browser_runtime_code(
     let chunk_loading_global = chunk_loading_global.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
+    if *environment
+        .runtime_versions()
+        .supports_arrow_functions()
+        .await?
+    {
+        code += "(() => {\n";
+    } else {
+        code += "(function(){\n";
+    }
+
     writedoc!(
         code,
         r#"
-            (function(){{
             if (!Array.isArray(globalThis[{}])) {{
                 return;
             }}

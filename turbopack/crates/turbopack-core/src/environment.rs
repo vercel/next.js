@@ -353,8 +353,48 @@ impl EdgeWorkerEnvironment {
 }
 
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
+#[derive(Debug)]
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
+
+#[turbo_tasks::value_impl]
+impl RuntimeVersions {
+    #[turbo_tasks::function]
+    pub fn supports_arrow_functions(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L363-L376
+        // "chrome": "47",
+        // "opera": "34",
+        // "edge": "13",
+        // "firefox": "43",
+        // "safari": "10",
+        // "node": "6",
+        // "deno": "1",
+        // "ios": "10",
+        // "samsung": "5",
+        // "rhino": "1.7.13",
+        // "opera_mobile": "34",
+        // "electron": "0.36"
+        let data = &self.0;
+        let supported = data.chrome.is_none_or(|v| v.major >= 47)
+            && data.opera.is_none_or(|v| v.major >= 34)
+            && data.edge.is_none_or(|v| v.major >= 13)
+            && data.firefox.is_none_or(|v| v.major >= 43)
+            && data.safari.is_none_or(|v| v.major >= 10)
+            && data.node.is_none_or(|v| v.major >= 6)
+            && data.deno.is_none_or(|v| v.major >= 1)
+            && data.ios.is_none_or(|v| v.major >= 10)
+            && data.samsung.is_none_or(|v| v.major >= 5)
+            && data.rhino.is_none_or(|v| {
+                v.major > 1
+                    || (v.major == 1 && v.minor > 7)
+                    || (v.major == 1 && v.minor == 7 && v.patch >= 13)
+            })
+            && data.opera_mobile.is_none_or(|v| v.major >= 34)
+            && data.electron.is_none_or(|v| v.major > 0 || v.minor >= 36);
+
+        Vc::cell(supported)
+    }
+}
 
 #[turbo_tasks::function]
 pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<RcStr>> {
