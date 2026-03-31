@@ -549,13 +549,6 @@ export async function startServer(
       if (!configFiles.includes(filename)) {
         return
       }
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
-        return
-      }
-
       Log.warn(
         `Found a change in ${path.basename(
           filename
