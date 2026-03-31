@@ -783,35 +783,57 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .collect::<Vec<_>>();
 
+        // ── Phase A: compute what will change without structurally modifying
+        //    inner (no append, no retain, no seq bump). ──
+        //
+        // We need `meta_seq_numbers_to_delete` and `has_delete_file` to write
+        // the .del file BEFORE writing CURRENT. But we must not modify
+        // `inner.meta_files` or `inner.current_sequence_number` yet — if a disk
+        // error occurs before CURRENT is durable, the WriteOperationGuard
+        // rollback can only clean up orphan files, not undo in-memory mutations.
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
 
         {
             let mut inner = self.inner.write();
+
+            // (A1) Run the SST filter on existing meta files. This calls
+            // `retain_entries()` which moves superseded entries into
+            // `obsolete_entries` — a benign read optimization that doesn't
+            // change which meta files exist or the sequence number. Safe to
+            // apply pre-CURRENT: on crash/rollback the MetaFile is re-opened
+            // from disk with its original layout.
             for meta_file in inner.meta_files.iter_mut().rev() {
                 sst_filter.apply_filter(meta_file);
             }
-            inner.meta_files.append(&mut new_meta_files);
-            // apply_and_get_remove need to run in reverse order
-            inner.meta_files.reverse();
-            inner.meta_files.retain(|meta| {
-                if sst_filter.apply_and_get_remove(meta) {
-                    meta_seq_numbers_to_delete.push(meta.sequence_number());
-                    false
-                } else {
-                    true
+
+            // (A2) Determine which meta files are fully obsolete by running
+            // `apply_and_get_remove` in newest-first order. Process new metas
+            // first (they are newer than existing ones) to advance the filter
+            // state, then existing ones. New metas are never candidates for
+            // removal (just created), so only their filter-state side-effects
+            // matter.
+            for meta_file in new_meta_files.iter().rev() {
+                sst_filter.apply_and_get_remove(meta_file);
+            }
+            for i in (0..inner.meta_files.len()).rev() {
+                if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
+                    meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
                 }
-            });
-            inner.meta_files.reverse();
-            self.is_empty
-                .store(inner.meta_files.is_empty(), Ordering::Relaxed);
+            }
+
+            // (A3) Compute the final sequence number that will be written to
+            // CURRENT. A .del file is created only when there are files to
+            // delete, which consumes one extra sequence number.
+>>>>>>> 92d68435 (Defer inner mutation in commit() until after CURRENT is durable)
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
             if has_delete_file {
                 seq += 1;
             }
-            inner.current_sequence_number = seq;
+
+            // inner.write() is dropped here — inner is NOT structurally changed.
         }
 
         self.parallel_scheduler.block_in_place(|| {
@@ -899,16 +921,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     }
                 }
 
-                fn write_seq_numbers<W: std::io::Write, T, I>(
+                fn write_seq_numbers<W: std::io::Write, T>(
                     log: &mut W,
-                    items: I,
+                    items: &[T],
                     label: &str,
                     extract_seq: fn(&T) -> u32,
-                ) -> std::io::Result<()>
-                where
-                    I: IntoIterator<Item = T>,
-                {
-                    let items: Vec<T> = items.into_iter().collect();
+                ) -> std::io::Result<()> {
                     for chunk in items.chunks(15) {
                         write!(log, "    |          |")?;
                         for item in chunk {
@@ -920,55 +938,84 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
 
                 new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
-                write_seq_numbers(&mut log, new_blob_files, "NEW BLOB", |&(seq, _)| seq)?;
+                write_seq_numbers(&mut log, &new_blob_files, "NEW BLOB", |&(seq, _)| seq)?;
                 write_seq_numbers(
                     &mut log,
-                    blob_seq_numbers_to_delete,
+                    &blob_seq_numbers_to_delete,
                     "BLOB DELETED",
                     |&seq| seq,
                 )?;
-                write_seq_numbers(&mut log, sst_seq_numbers_to_delete, "SST DELETED", |&seq| {
-                    seq
-                })?;
                 write_seq_numbers(
                     &mut log,
-                    meta_seq_numbers_to_delete,
+                    &sst_seq_numbers_to_delete,
+                    "SST DELETED",
+                    |&seq| seq,
+                )?;
+                write_seq_numbers(
+                    &mut log,
+                    &meta_seq_numbers_to_delete,
                     "META DELETED",
                     |&seq| seq,
                 )?;
-                #[cfg(feature = "verbose_log")]
-                {
-                    writeln!(log, "New database state:")?;
-                    writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
-                    let inner = self.inner.read();
-                    let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
-                        let mut set = HashSet::new();
-                        move |family| set.insert(*family)
-                    });
-                    for family in families {
-                        for meta in inner.meta_files.iter() {
-                            if meta.family() != family {
-                                continue;
-                            }
-                            let meta_seq = meta.sequence_number();
-                            for entry in meta.entries().iter() {
-                                let seq = entry.sequence_number();
-                                let range = entry.range();
-                                writeln!(
-                                    log,
-                                    "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
-                                    entry.flags(),
-                                    range_to_str(range.min_hash, range.max_hash)
-                                )?;
-                            }
-                        }
-                    }
-                }
                 anyhow::Ok(())
             })();
 
             anyhow::Ok(())
         })?;
+
+        // ── Phase C: structurally update inner (CURRENT is already durable). ──
+        //
+        // Between Phase A's write-lock drop and this point no other writer can
+        // run (WriteOperationGuard ensures exclusivity) and readers never mutate
+        // inner, so the snapshot from Phase A is still valid.
+        {
+            let mut inner = self.inner.write();
+            inner.meta_files.append(&mut new_meta_files);
+            if !meta_seq_numbers_to_delete.is_empty() {
+                let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
+                inner
+                    .meta_files
+                    .retain(|meta| !to_delete.contains(&meta.sequence_number()));
+            }
+            inner.current_sequence_number = seq;
+            self.is_empty
+                .store(inner.meta_files.is_empty(), Ordering::Relaxed);
+        }
+
+        // Best-effort verbose log of the new database state after Phase C.
+        #[cfg(feature = "verbose_log")]
+        {
+            let _: Result<(), _> = (|| -> anyhow::Result<()> {
+                let mut log = self.open_log()?;
+                writeln!(log, "New database state:")?;
+                writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
+                let inner = self.inner.read();
+                let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
+                    let mut set = HashSet::new();
+                    move |family| set.insert(*family)
+                });
+                for family in families {
+                    for meta in inner.meta_files.iter() {
+                        if meta.family() != family {
+                            continue;
+                        }
+                        let meta_seq = meta.sequence_number();
+                        for entry in meta.entries().iter() {
+                            let seq = entry.sequence_number();
+                            let range = entry.range();
+                            writeln!(
+                                log,
+                                "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
+                                entry.flags(),
+                                range_to_str(range.min_hash, range.max_hash)
+                            )?;
+                        }
+                    }
+                }
+                Ok(())
+            })();
+        }
+
         Ok(())
     }
 
