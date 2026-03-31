@@ -134,7 +134,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::node_modules_filter("node-modules-filter")]
 // #[case::non_analyzable_requires("non-analyzable-requires")]
 #[case::null_destructure("null-destructure")]
-// #[case::path_sep("path-sep")]
+#[case::path_sep("path-sep")]
 // #[case::phantomjs_prebuilt("phantomjs-prebuilt")]
 // #[case::pino_transport("pino-transport")]
 // #[case::pino_transport_targets("pino-transport-targets")]
