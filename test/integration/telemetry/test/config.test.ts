@@ -81,7 +81,11 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"nextConfigOutput": null/)
           expect(event1).toMatch(/"trailingSlashEnabled": false/)
           expect(event1).toMatch(/"reactStrictMode": false/)
-          expect(event1).toMatch(/"turboFlag": false/)
+          if (process.env.IS_TURBOPACK_TEST) {
+            expect(event1).toMatch(/"turboFlag": true/)
+          } else {
+            expect(event1).toMatch(/"turboFlag": false/)
+          }
           expect(event1).toMatch(/"pagesDir": true/)
           expect(event1).toMatch(/"appDir": true/)
         } catch (err) {
