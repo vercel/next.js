@@ -182,12 +182,6 @@ export interface AppRouteRouteModuleOptions
     | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
-  /**
-   * Optional getter that returns the live userland module. When provided (in
-   * Turbopack dev mode), it is called on every request so that server HMR
-   * updates are picked up without re-executing the entry chunk.
-   */
-  readonly getUserland?: () => Promise<AppRouteUserlandModule>
 }
 
 /**
@@ -224,9 +218,6 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  // In Turbopack dev mode, called on every request to re-fetch the live
-  // userland from devModuleCache so server HMR updates are picked up.
-  private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
   // Set in the constructor when userland is provided as a factory. Cleared
   // after the first access so userland is only loaded once.
   private _userlandFactory:
@@ -274,7 +265,6 @@ export class AppRouteRouteModule extends RouteModule<
 
   constructor({
     userland,
-    getUserland,
     definition,
     distDir,
     relativeProjectDir,
@@ -291,7 +281,6 @@ export class AppRouteRouteModule extends RouteModule<
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
-    this._getUserland = getUserland
     this._userlandFactory = isLazy ? userland : null
 
     if (!isLazy) {
@@ -361,21 +350,12 @@ export class AppRouteRouteModule extends RouteModule<
 
   /**
    * Returns the handler function for the given HTTP method.
-   *
    * Must be called after ensureUserland() has resolved so that _methods is
-   * populated. In Turbopack dev mode (_getUserland is set), re-fetches the
-   * live userland on every request so server HMR updates are picked up; the
-   * async wrapper also unwraps async-module Promises for ESM-only
-   * serverExternalPackages.
+   * populated.
    */
-  private async resolveHandler(method: string): Promise<AppRouteHandlerFn> {
+  private resolveHandler(method: string): AppRouteHandlerFn {
     // Prevent RCE: only allow recognized HTTP methods.
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
-
-    if (this._getUserland) {
-      const userland = await this._getUserland()
-      return autoImplementMethods(userland)[method]
-    }
 
     return this._methods[method]
   }
@@ -776,7 +756,7 @@ export class AppRouteRouteModule extends RouteModule<
     // await, where require() returns a Promise instead of the module).
     await this.ensureUserland()
 
-    const handler = await this.resolveHandler(req.method)
+    const handler = this.resolveHandler(req.method)
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {

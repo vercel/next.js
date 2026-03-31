@@ -62,15 +62,6 @@ const routeModule = new AppRouteRouteModule({
   // measurement: framework time ends when userland starts executing, not at
   // module load time.
   userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
-  // In Turbopack dev mode, also provide a getter that calls import() on every
-  // request. This re-reads from devModuleCache so HMR updates are picked up,
-  // and the async wrapper unwraps async-module Promises (ESM-only
-  // serverExternalPackages) automatically.
-  ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
-    ? {
-        getUserland: () => import('VAR_USERLAND'),
-      }
-    : {}),
 })
 
 // Pull out the exports that we need to expose from the module. This should
