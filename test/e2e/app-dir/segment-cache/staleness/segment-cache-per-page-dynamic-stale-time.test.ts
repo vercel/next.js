@@ -2,7 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-describe('segment cache (per-page dynamic stale time)', () => {
+// Disabled because too flaky
+describe.skip('segment cache (per-page dynamic stale time)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })

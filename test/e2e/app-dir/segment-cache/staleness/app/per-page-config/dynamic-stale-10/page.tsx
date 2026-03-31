@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { LinkAccordion } from '../../../components/link-accordion'
 
+// TODO: Make sure tests are unskipped before marking this as stable
 export const unstable_dynamicStaleTime = 10
 
 async function Content() {
