@@ -359,6 +359,7 @@ pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::value_impl]
 impl RuntimeVersions {
+    /// Whether the environment supports arrow functions.
     #[turbo_tasks::function]
     pub fn supports_arrow_functions(&self) -> Vc<bool> {
         // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L363-L376
@@ -391,6 +392,39 @@ impl RuntimeVersions {
             })
             && data.opera_mobile.is_none_or(|v| v.major >= 34)
             && data.electron.is_none_or(|v| v.major > 0 || v.minor >= 36);
+
+        Vc::cell(supported)
+    }
+
+    /// Whether the environment supports block scoping (let/const).
+    #[turbo_tasks::function]
+    pub fn supports_block_scoping(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L538
+        // "chrome": "50",
+        // "opera": "37",
+        // "edge": "14",
+        // "firefox": "53",
+        // "safari": "11",
+        // "node": "6",
+        // "deno": "1",
+        // "ios": "11",
+        // "samsung": "5",
+        // "opera_mobile": "37",
+        // "electron": "1.1"
+        let data = &self.0;
+        let supported = data.chrome.is_none_or(|v| v.major >= 50)
+            && data.opera.is_none_or(|v| v.major >= 37)
+            && data.edge.is_none_or(|v| v.major >= 14)
+            && data.firefox.is_none_or(|v| v.major >= 53)
+            && data.safari.is_none_or(|v| v.major >= 11)
+            && data.node.is_none_or(|v| v.major >= 6)
+            && data.deno.is_none_or(|v| v.major >= 1)
+            && data.ios.is_none_or(|v| v.major >= 11)
+            && data.samsung.is_none_or(|v| v.major >= 5)
+            && data.opera_mobile.is_none_or(|v| v.major >= 37)
+            && data
+                .electron
+                .is_none_or(|v| v.major > 1 || (v.major == 1 && v.minor >= 1));
 
         Vc::cell(supported)
     }
