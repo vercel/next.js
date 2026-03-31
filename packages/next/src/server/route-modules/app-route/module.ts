@@ -173,7 +173,11 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
+  extends Omit<
+    RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
+    'userland'
+  > {
+  readonly userland: AppRouteUserlandModule | (() => AppRouteUserlandModule)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
   /**
@@ -219,9 +223,19 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
   private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
-  private methods: Record<HTTP_METHOD, AppRouteHandlerFn>
-  private hasNonStaticMethods: boolean
-  private dynamic: AppRouteUserlandModule['dynamic']
+  private _loadUserland: (() => AppRouteUserlandModule) | null
+  private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
+  private _hasNonStaticMethods!: boolean
+  private _dynamic!: AppRouteUserlandModule['dynamic']
+
+  override get userland(): AppRouteUserlandModule {
+    if (this._loadUserland) {
+      this._userland = this._loadUserland()
+      this._loadUserland = null
+      this._initFromUserland()
+    }
+    return this._userland as AppRouteUserlandModule
+  }
 
   constructor({
     userland,
@@ -232,8 +246,9 @@ export class AppRouteRouteModule extends RouteModule<
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
+    const isLazy = typeof userland === 'function'
     super({
-      userland: userland!,
+      userland: (isLazy ? undefined! : userland) as AppRouteUserlandModule,
       definition,
       distDir,
       relativeProjectDir,
@@ -242,27 +257,36 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
+    this._loadUserland = isLazy ? userland : null
+
+    if (!isLazy) {
+      this._initFromUserland()
+    }
+  }
+
+  private _initFromUserland(): void {
+    const userland = this._userland as AppRouteUserlandModule
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
-    this.methods = autoImplementMethods(userland!)
+    this._methods = autoImplementMethods(userland)
 
     // Get the non-static methods for this route.
-    this.hasNonStaticMethods = hasNonStaticMethods(userland!)
+    this._hasNonStaticMethods = hasNonStaticMethods(userland)
 
     // Get the dynamic property from the userland module.
-    this.dynamic = userland!.dynamic
+    this._dynamic = userland.dynamic
     if (this.nextConfigOutput === 'export') {
-      if (this.dynamic === 'force-dynamic') {
+      if (this._dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
-      } else if (!isStaticGenEnabled(this.userland) && this.userland['GET']) {
+      } else if (!isStaticGenEnabled(userland) && userland['GET']) {
         throw new Error(
-          `export const dynamic = "force-static"/export const revalidate not configured on route "${definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
       } else {
-        this.dynamic = 'error'
+        this._dynamic = 'error'
       }
     }
 
@@ -273,7 +297,7 @@ export class AppRouteRouteModule extends RouteModule<
       // uppercase handlers are supported.
       const lowercased = HTTP_METHODS.map((method) => method.toLowerCase())
       for (const method of lowercased) {
-        if (method in this.userland) {
+        if (method in userland) {
           Log.error(
             `Detected lowercase method '${method}' in '${
               this.resolvedPagePath
@@ -284,7 +308,7 @@ export class AppRouteRouteModule extends RouteModule<
 
       // Print error if the module exports a default handler, they must use named
       // exports for each HTTP method.
-      if ('default' in this.userland) {
+      if ('default' in userland) {
         Log.error(
           `Detected default export in '${this.resolvedPagePath}'. Export a named export for each HTTP method instead.`
         )
@@ -292,7 +316,7 @@ export class AppRouteRouteModule extends RouteModule<
 
       // If there is no methods exported by this module, then return a not found
       // response.
-      if (!HTTP_METHODS.some((method) => method in this.userland)) {
+      if (!HTTP_METHODS.some((method) => method in userland)) {
         Log.error(
           `No HTTP methods exported in '${this.resolvedPagePath}'. Export a named export for each HTTP method.`
         )
@@ -310,7 +334,10 @@ export class AppRouteRouteModule extends RouteModule<
     // Ensure that the requested method is a valid method (to prevent RCE's).
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
 
-    return autoImplementMethods(this.userland as AppRouteUserlandModule)[method]
+    // Trigger lazy initialization of userland if needed.
+    void this.userland
+
+    return this._methods[method]
   }
 
   /**
@@ -770,7 +797,7 @@ export class AppRouteRouteModule extends RouteModule<
           this.workAsyncStorage.run(workStore, async () => {
             // Check to see if we should bail out of static generation based on
             // having non-static methods.
-            if (hasNonStaticMethods(this.userland)) {
+            if (this._hasNonStaticMethods) {
               if (workStore.isStaticGeneration) {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
@@ -786,8 +813,7 @@ export class AppRouteRouteModule extends RouteModule<
             let request = req
 
             // Update the static generation store based on the dynamic property.
-            const { dynamic } = this.userland
-            switch (dynamic) {
+            switch (this._dynamic) {
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
@@ -823,7 +849,7 @@ export class AppRouteRouteModule extends RouteModule<
                 request = proxyNextRequest(req, workStore)
                 break
               default:
-                dynamic satisfies never
+                this._dynamic satisfies never
             }
 
             const tracer = getTracer()

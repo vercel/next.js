@@ -2,7 +2,6 @@ import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,
   type AppRouteRouteModuleOptions,
-  type AppRouteUserlandModule,
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
@@ -36,7 +35,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -59,9 +57,12 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // The static import is used for initialization (methods, dynamic, etc.).
-  userland: userland as AppRouteUserlandModule,
-  // In Turbopack dev mode, also provide a getter that calls require() on every
+  // Using a lazy require ensures userland is only loaded when the first request
+  // is handled. This is important for accurate devRequestTimingInternalsEnd
+  // measurement: framework time ends when userland starts executing, not at
+  // module load time.
+  userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
+  // In Turbopack dev mode, also provide a getter that calls import() on every
   // request. This re-reads from devModuleCache so HMR updates are picked up,
   // and the async wrapper unwraps async-module Promises (ESM-only
   // serverExternalPackages) automatically.
