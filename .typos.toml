@@ -1,0 +1,56 @@
+# https://github.com/crate-ci/typos
+# cargo install typos-cli
+# typos
+
+[default]
+check-filename = false
+extend-ignore-identifiers-re = ["SEPARATORs*", "IIFEs*"]
+
+[default.extend-words]
+rto = "rto"
+wdth = "wdth"
+
+[type.rust]
+check-file = true
+
+[type.toml]
+check-file = false
+
+[type.ts]
+check-file = false
+
+[type.js]
+check-file = false
+
+[type.css]
+check-file = false
+
+[type.sass]
+check-file = false
+
+[type.svg]
+check-file = false
+
+[type.json]
+check-file = false
+
+[type.md]
+check-file = false
+
+[type.minified]
+check-file = false
+
+[type.txt]
+check-file = false
+
+[type.sourcemap]
+extend-glob = ["*.js.map"]
+check-file = false
+
+[type.snapshot]
+extend-glob = ["*.snapshot"]
+check-file = false
+
+[type.gitignore]
+extend-glob = ["*gitignore"]
+check-file = false

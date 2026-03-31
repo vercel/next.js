@@ -1,0 +1,14 @@
+[package]
+name = "send-trace-to-jaeger"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+reqwest = { workspace = true, features = ["blocking"] }

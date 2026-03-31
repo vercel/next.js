@@ -1,0 +1,24 @@
+{
+  "name": "basic-css",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "lost": "8.2.0",
+    "next": "latest",
+    "postcss-nested": "2.1.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "styled-jsx-plugin-postcss": "0.1.0"
+  },
+  "license": "ISC",
+  "postcss": {
+    "plugins": {
+      "lost": {},
+      "postcss-nested": {}
+    }
+  }
+}

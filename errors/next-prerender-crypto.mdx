@@ -1,0 +1,107 @@
+---
+title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously before other uncached data or Request data in a Server Component
+---
+
+## Why This Error Occurred
+
+An API that produces a random value synchronously from the Web Crypto API or from Node's `crypto` package was used in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or Request data through Next.js APIs like `cookies()`, `headers()`, `connection()` and `searchParams`. Accessing random values synchronously in this way interferes with the prerendering and prefetching capabilities of Next.js.
+
+## Possible Ways to Fix It
+
+If the random crypto value is appropriate to be prerendered and prefetched consider moving it into a Cache Component or Cache Function with the `"use cache"` directive.
+
+If the random crypto value is intended to be generated on every user request consider whether an async API exists that achieves the same result. If not consider whether you can move the random crypto value generation later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the random crypto value generation with Request data access by using `await connection()`.
+
+### Cache the token value
+
+If you are generating a token to talk to a database that itself should be cached move the token generation inside the `"use cache"`.
+
+Before:
+
+```jsx filename="app/page.js"
+async function getCachedData(token: string) {
+  "use cache"
+  return db.query(token, ...)
+}
+
+export default async function Page() {
+  const token = crypto.getRandomUUID()
+  const data = await getCachedData(token);
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+async function getCachedData() {
+  "use cache"
+  const token = crypto.getRandomUUID()
+  return db.query(token, ...)
+}
+
+export default async function Page() {
+  const data = await getCachedData();
+  return ...
+}
+```
+
+### Use an async API at request-time
+
+If you require this random value to be unique per Request and an async version of the API exists switch to it instead. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
+
+Before:
+
+```jsx filename="app/page.js"
+import { generateKeySync } from 'node:crypto'
+
+export default async function Page() {
+  const key = generateKeySync('hmac', { ... })
+  const digestedData = await digestDataWithKey(data, key);
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { generateKey } from 'node:crypto'
+
+export default async function Page() {
+  const key = await new Promise(resolve => generateKey('hmac', { ... }, key => resolve(key)))
+  const digestedData = await digestDataWithKey(data, key);
+  return ...
+}
+```
+
+### Use `await connection()` at request-time
+
+If you require this random value to be unique per Request and an async version of the API does not exist, call `await connection()`. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const uuid = crypto.randomUUID()
+  return <RequestId id={uuid} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { connection } from 'next/server'
+
+export default async function Page() {
+  await connection()
+  const uuid = crypto.randomUUID()
+  return <RequestId id={uuid} />
+}
+```
+
+## Useful Links
+
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [Node Crypto API](https://nodejs.org/docs/latest/api/crypto.html)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)

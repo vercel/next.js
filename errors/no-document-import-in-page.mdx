@@ -1,0 +1,27 @@
+---
+title: No Document Import in Page
+---
+
+> Prevent importing `next/document` outside of `pages/_document.js`.
+
+## Why This Error Occurred
+
+`next/document` was imported in a page outside of `pages/_document.js` (or `pages/_document.tsx` if you are using TypeScript). This can cause unexpected issues in your application.
+
+## Possible Ways to Fix It
+
+Only import and use `next/document` within `pages/_document.js` (or `pages/_document.tsx`) to override the default `Document` component:
+
+```jsx filename="pages/_document.js"
+import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+class MyDocument extends Document {
+  //...
+}
+
+export default MyDocument
+```
+
+## Useful Links
+
+- [Custom Document](/docs/pages/building-your-application/routing/custom-document)

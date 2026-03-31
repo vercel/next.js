@@ -1,0 +1,7 @@
+arrPatternBool (const after eval) = (true | false)
+
+nestedPatternBool (const after eval) = ({"inner": [true]}["inner"][0] | {"inner": [false]}["inner"][0])
+
+objPatternBool (const after eval) = ({"objPatternBool": true}["objPatternBool"] | {"objPatternBool": false}["objPatternBool"])
+
+singleAssignBool (const after eval) = {"singleAssignBool": true}["singleAssignBool"]

@@ -1,0 +1,51 @@
+# This file duplicates bunch of things from build_test_deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      is_dispatched:
+        description: 'Leave this option enabled'
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: '0 */4 * * *'
+
+name: Test examples
+
+jobs:
+  testExamples:
+    # Don't execute using cron on forks
+    if: (github.repository == 'vercel/next.js') || (inputs.is_dispatched == true)
+    name: Test Examples
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      # https://github.com/actions/virtual-environments/issues/1187
+      - name: tune linux network
+        run: sudo ethtool -K eth0 tx off rx off
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          check-latest: true
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - run: pnpm install
+      - run: pnpm build
+
+      - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && corepack enable > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"
+        name: Run test/examples

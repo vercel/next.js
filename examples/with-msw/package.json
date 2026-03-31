@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "msw": "^2.11.1",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.6.3",
+    "@types/react": "18.2.8",
+    "@types/react-dom": "18.0.6",
+    "typescript": "^4.7.4"
+  },
+  "msw": {
+    "workerDirectory": "public"
+  }
+}

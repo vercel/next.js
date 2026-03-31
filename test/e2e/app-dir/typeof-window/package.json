@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "my-differentiated-files": "file:./my-differentiated-files.tar"
+  }
+}

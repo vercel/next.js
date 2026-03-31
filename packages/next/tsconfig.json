@@ -1,0 +1,49 @@
+{
+  "extends": "../../tsconfig-tsec.json",
+  "compilerOptions": {
+    "strict": true,
+    "stripInternal": true,
+    "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "target": "ES2018",
+    "moduleResolution": "node",
+    "paths": {
+      // Required absolute paths.
+      // We rewrite these here so that they aren't also input files which would fail tsc with
+      // "Cannot write file ... because it would overwrite input file."
+      // Also has the benefit of enabling auto-completion before build.
+      "next/dist/client/app-find-source-map-url": [
+        "./src/client/app-find-source-map-url.ts"
+      ],
+      "next/dist/client/app-call-server": ["./src/client/app-call-server.ts"],
+      "next/dist/compiled/@edge-runtime/ponyfill": [
+        "./src/compiled/@edge-runtime/ponyfill"
+      ],
+      "next/dist/compiled/@vercel/og/satori": [
+        "./src/compiled/@vercel/og/satori"
+      ],
+      // TODO: Enable types by telling Turbopack to ignore this alias.
+      // tsconfig#paths are for type locations not source locations.
+      // "next/dist/compiled/next-devtools": [
+      //   "./src/next-devtools/entrypoint.ts"
+      // ],
+      "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
+    }
+  },
+  // When changing `exclude`, also update
+  // `tsconfig.build.json`.
+  "exclude": [
+    "./dist/**/*",
+    "./*.d.ts",
+    "future/*.d.ts",
+    "image-types/global.d.ts",
+    "compat/*.d.ts",
+    "legacy/*.d.ts",
+    "types/compiled.d.ts",
+    "navigation-types/*.d.ts",
+    "navigation-types/compat/*.d.ts",
+    "experimental/**/*.d.ts"
+  ]
+}

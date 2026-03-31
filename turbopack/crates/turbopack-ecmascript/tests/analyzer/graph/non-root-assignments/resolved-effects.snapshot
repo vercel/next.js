@@ -1,0 +1,10 @@
+0 -> 1 free var = FreeVar(d1)
+
+0 -> 2 free var = FreeVar(e4)
+
+0 -> 3 free var = FreeVar(setTimeout)
+
+0 -> 4 call = ???*0*((...) => undefined, 1)
+- *0* FreeVar(setTimeout)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

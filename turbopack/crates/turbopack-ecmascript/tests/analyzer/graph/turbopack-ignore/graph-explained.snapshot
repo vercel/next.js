@@ -1,0 +1,14 @@
+exported_t_r (const after eval) = FreeVar(require)("exported_t_r")
+
+t_i (const after eval) = await(FreeVar(import)("t_i"))
+
+t_r (const after eval) = (
+  | FreeVar(require)("w_i_f")
+  | FreeVar(require)("t_i_f")
+  | FreeVar(require)("t_r_t")
+  | FreeVar(require)("t_r_f")
+)
+
+w_i (const after eval) = await(FreeVar(import)("w_i"))
+
+w_r (const after eval) = (FreeVar(require)("w_r_t") | FreeVar(require)("w_r_f"))

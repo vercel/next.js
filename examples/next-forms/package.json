@@ -1,0 +1,19 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@types/node": "20.10.6",
+    "@types/react": "18.2.46",
+    "@types/react-dom": "18.2.18",
+    "next": "canary",
+    "postgres": "^3.4.3",
+    "react": "rc",
+    "react-dom": "rc",
+    "typescript": "5.3.3",
+    "zod": "^3.22.4"
+  }
+}

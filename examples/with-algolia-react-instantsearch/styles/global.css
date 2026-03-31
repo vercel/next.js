@@ -1,0 +1,46 @@
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    Fira Sans,
+    Droid Sans,
+    Helvetica Neue,
+    sans-serif;
+}
+
+body {
+  padding: 0.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+main {
+  display: grid;
+  align-items: flex-start;
+  grid-template-columns: minmax(min-content, 200px) 1fr;
+  gap: 0.5rem;
+}
+
+.ais-Hits,
+.ais-Pagination {
+  margin-top: 1rem;
+}
+
+.ais-Hits-item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.Hit-price {
+  color: #888888;
+}

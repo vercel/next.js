@@ -1,0 +1,44 @@
+{
+  "problemMatcher": [
+    {
+      "owner": "cargo-common",
+      "pattern": [
+        {
+          "regexp": "^(warning|warn|error)(?:\\[(\\S*)\\])?: (.*)$",
+          "severity": 1,
+          "code": 2,
+          "message": 3
+        },
+        {
+          "regexp": "^(?:[\\s->=]*(.*):(\\d*):(\\d*)|.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3
+        }
+      ]
+    },
+    {
+      "owner": "cargo-test",
+      "pattern": [
+        {
+          "regexp": "^.*panicked\\s+at\\s+'(.*)',\\s+(.*):(\\d+):(\\d+)$",
+          "message": 1,
+          "file": 2,
+          "line": 3,
+          "column": 4
+        }
+      ]
+    },
+    {
+      "owner": "rustfmt",
+      "pattern": [
+        {
+          "regexp": "^(Diff in (\\S+)) at line (\\d+):",
+          "message": 1,
+          "file": 2,
+          "line": 3
+        }
+      ]
+    }
+  ]
+}

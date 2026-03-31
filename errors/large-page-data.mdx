@@ -1,0 +1,51 @@
+---
+title: Large Page Data
+---
+
+## Why This Error Occurred
+
+One of your pages includes a large amount of page data (> 128 kB). This warning only affects the Pages Router, where Next.js serializes page data as `__NEXT_DATA__` JSON, which the client must parse before hydrating the page. The App Router streams data via Server Components and is not affected.
+
+Large page data impacts performance in several ways:
+
+- **Increased page weight:** The serialized data is inlined in every HTML response, increasing the document size and slowing down the initial page load on slow networks.
+- **Slower hydration:** React cannot hydrate (make the page interactive) until the `__NEXT_DATA__` JSON has been parsed. Large payloads delay the [Time to Interactive (TTI)](https://web.dev/articles/tti).
+- **Higher memory usage:** The entire data payload is held in memory on the client, even if only part of it is used for rendering.
+
+## Possible Ways to Fix It
+
+Return only the data your page needs to render from `getStaticProps`, `getServerSideProps`, or `getInitialProps`:
+
+- **Filter and trim data:** Only return the fields your components use. Avoid passing entire database records or API responses when only a subset of fields is needed.
+- **Paginate large lists:** Instead of returning hundreds of items at once, return a smaller initial set and fetch additional items on the client using API routes.
+- **Move data fetching to the client:** For non-critical content or content not visible on initial load, fetch it on the client side after hydration using `useEffect` or a data fetching library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query).
+
+### Inspect your page data
+
+To inspect the data your page receives, open your browser DevTools console and run:
+
+```bash filename="Browser Console"
+JSON.parse(document.getElementById("__NEXT_DATA__").textContent)
+```
+
+Use this to inspect the full payload and identify which fields are adding to the size.
+
+### Configure the threshold
+
+The default threshold of 128 kB is controlled by the `largePageDataBytes` option in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    largePageDataBytes: 200 * 1000, // Set threshold to 200 kB
+  },
+}
+```
+
+Before increasing this threshold, evaluate the performance implications to confirm the trade-off is acceptable for your use case.
+
+## Useful Links
+
+- [Pages Router Data Fetching](/docs/pages/building-your-application/data-fetching)
+- [SWR - React Hooks for Data Fetching](https://swr.vercel.app/)
+- [Time to Interactive (TTI)](https://web.dev/articles/tti)

@@ -1,0 +1,63 @@
+a (const after eval) = object["a"]
+
+a1 (const after eval) = object["a"]
+
+a2 (const after eval) = object["a"]
+
+a3 (const after eval) = object_spread["a"]
+
+a4 (const after eval) = object["a"]
+
+a5 (const after eval) = unknown_spread["a"]
+
+a6 (const after eval) = object2["a"]
+
+b (const after eval) = object["b"]
+
+b1 (const after eval) = object["b"]
+
+b2 (const after eval) = object["b"]
+
+b3 (const after eval) = object_spread["b"]
+
+b4 (const after eval) = object["b"]
+
+b5 (const after eval) = unknown_spread["b"]
+
+b6 (const after eval) = object2["b"]
+
+c (const after eval) = object["c"]
+
+c1 (const after eval) = object["c"]
+
+c2 (const after eval) = object["c"]
+
+c3 (const after eval) = object_spread["c"]
+
+c4 (const after eval) = object["c"]
+
+c5 (const after eval) = unknown_spread["c"]
+
+c6 (const after eval) = object2["c"]
+
+d (const after eval) = object["d"]
+
+d1 (const after eval) = object["d"]
+
+d2 (const after eval) = object["d"]
+
+d3 (const after eval) = object_spread["d"]
+
+d4 (const after eval) = object["d"]
+
+d6 (const after eval) = object2["d"]
+
+e6 (const after eval) = object2["e"]
+
+object (const after eval) = {"a": 1, "b": 2, "c": 3}
+
+object2 (const after eval) = {"a": 1, FreeVar(global): 2, "c": 3, FreeVar(global): 4, "e": 5}
+
+object_spread (const after eval) = {"a": 11, ...object, "b": 22}
+
+unknown_spread (const after eval) = {"a": 1, ...FreeVar(global), "b": 2}

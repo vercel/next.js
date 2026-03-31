@@ -1,0 +1,346 @@
+[
+    (
+        "binPath",
+        Alternatives {
+            total_nodes: 9,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "binPath",
+                                #4,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                MemberCall(
+                    7,
+                    FreeVar(
+                        "require",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "resolve",
+                            ),
+                        ),
+                    ),
+                    [
+                        Concat(
+                            4,
+                            [
+                                Variable(
+                                    (
+                                        "pkg",
+                                        #4,
+                                    ),
+                                ),
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "/",
+                                        ),
+                                    ),
+                                ),
+                                Variable(
+                                    (
+                                        "subpath",
+                                        #4,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "e",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "e",
+                        #6,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "generateBinPath",
+        Function(
+            2,
+            387,
+            Variable(
+                (
+                    "binPath",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "knownWindowsPackages",
+        Object {
+            total_nodes: 7,
+            parts: [
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "win32 arm64 LE",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "esbuild-windows-arm64",
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "win32 ia32 LE",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "esbuild-windows-32",
+                            ),
+                        ),
+                    ),
+                ),
+                KeyValue(
+                    Constant(
+                        Str(
+                            Atom(
+                                "win32 x64 LE",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "esbuild-windows-64",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "path",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "path",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "path2",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "path",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "pkg#3",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "pkg",
+                                #3,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Member(
+                    3,
+                    Variable(
+                        (
+                            "knownWindowsPackages",
+                            #2,
+                        ),
+                    ),
+                    FreeVar(
+                        "platformKey",
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "pkg#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        "pkgAndSubpathForCurrentPlatform",
+                        #2,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "pkg",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "pkgAndSubpathForCurrentPlatform",
+        Function(
+            6,
+            217,
+            Object {
+                total_nodes: 5,
+                parts: [
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "pkg",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "pkg",
+                                #3,
+                            ),
+                        ),
+                    ),
+                    KeyValue(
+                        Constant(
+                            Str(
+                                Atom(
+                                    "subpath",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "subpath",
+                                #3,
+                            ),
+                        ),
+                    ),
+                ],
+                mutable: true,
+            },
+        ),
+    ),
+    (
+        "subpath#3",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "subpath",
+                                #3,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "esbuild.exe",
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "subpath#4",
+        Member(
+            4,
+            Call(
+                2,
+                Variable(
+                    (
+                        "pkgAndSubpathForCurrentPlatform",
+                        #2,
+                    ),
+                ),
+                [],
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "subpath",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "x",
+        Call(
+            2,
+            Variable(
+                (
+                    "generateBinPath",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+    ),
+]

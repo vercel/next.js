@@ -1,0 +1,49 @@
+*anonymous function 116* (const after eval) = (...) => 3
+
+*anonymous function 339* = (...) => 3
+
+*arrow function 11* (const after eval) = (...) => 1
+
+*arrow function 214* = (...) => 1
+
+*arrow function 236* = (...) => 2
+
+*arrow function 259* = (...) => 1
+
+*arrow function 299* = (...) => 2
+
+*arrow function 30* (const after eval) = (...) => 2
+
+*arrow function 50* (const after eval) = (...) => 1
+
+*arrow function 83* (const after eval) = (...) => 2
+
+a (const after eval) = *arrow function 11*
+
+b (const after eval) = *arrow function 30*
+
+c (const after eval) = *arrow function 50*
+
+d (const after eval) = *arrow function 83*
+
+e#2 (const after eval) = *anonymous function 116*
+
+e#6 (const after eval) = (...) => 4
+
+f (const after eval) = e
+
+x (const after eval) = (...) => undefined
+
+xa = *arrow function 214*
+
+xb = *arrow function 236*
+
+xc = *arrow function 259*
+
+xd = *arrow function 299*
+
+xe#12 = (...) => 4
+
+xe#8 = *anonymous function 339*
+
+xf = xe

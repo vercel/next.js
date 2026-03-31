@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .article h2 {
+    @apply mb-5 text-4xl font-bold leading-tight;
+  }
+
+  .article p,
+  .article ul,
+  .article ol {
+    @apply mb-5;
+  }
+
+  .article ol {
+    @apply ml-5 list-decimal list-outside;
+  }
+
+  .article ul {
+    @apply ml-5 list-disc list-outside;
+  }
+
+  .article a {
+    @apply underline;
+  }
+
+  .article ol li {
+    @apply mb-4;
+  }
+}

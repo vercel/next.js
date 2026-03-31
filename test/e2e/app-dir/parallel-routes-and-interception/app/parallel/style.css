@@ -1,0 +1,15 @@
+div {
+  font-size: 16px;
+}
+
+.parallel {
+  border: 1px solid;
+  margin: 10px;
+}
+
+.parallel::before {
+  content: attr(title);
+  background: black;
+  color: white;
+  padding: 1px;
+}

@@ -1,0 +1,43 @@
+---
+title: React client hook in Server Component
+---
+
+## Why This Error Occurred
+
+You are using a React client hook in a Server Component.
+
+## Possible Ways to Fix It
+
+Mark the component using the hook as a Client Component by adding `'use client'` at the top of the file.
+
+### Before
+
+```jsx filename="app/example.js"
+import { useEffect } from 'react'
+
+export default function Example() {
+  useEffect(() => {
+    console.log('in useEffect')
+  })
+  return <p>Hello world</p>
+}
+```
+
+### After
+
+```jsx filename="app/example.js"
+'use client'
+
+import { useEffect } from 'react'
+
+export default function Example() {
+  useEffect(() => {
+    console.log('in useEffect')
+  })
+  return <p>Hello world</p>
+}
+```
+
+## Useful Links
+
+- [Server Components](/docs/app/getting-started/server-and-client-components)

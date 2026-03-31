@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "main": "src/index.js",
+  "dependencies": {
+    "@vercel/kv": "^1.0.1",
+    "async-sema": "^3.1.0",
+    "execa": "2.0.3",
+    "get-port": "^5.0.0",
+    "glob": "^7.1.4",
+    "gzip-size": "^5.1.1",
+    "minimatch": "^3.0.4",
+    "node-fetch": "^2.6.0",
+    "prettier": "^2.8.4",
+    "pretty-bytes": "^5.3.0",
+    "pretty-ms": "^5.0.0",
+    "semver": "7.3.4"
+  },
+  "devDependencies": {
+    "typescript": "5.1.6"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "packageManager": "pnpm@9.6.0"
+}

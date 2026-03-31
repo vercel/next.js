@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "name": "execution-test",
+  "dependencies": {
+    "expect": "29.5.0",
+    "jest-circus": "29.5.0",
+    "react": "18.2.0",
+    "react-test-renderer": "18.2.0",
+    "styled-jsx": "^5.1.2"
+  }
+}

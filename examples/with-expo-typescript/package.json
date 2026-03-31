@@ -1,0 +1,33 @@
+{
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "next",
+    "eject-next": "next-expo customize",
+    "eject": "expo eject",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "expo": "~37.0.3",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-native": "https://github.com/expo/react-native/archive/sdk-37.0.1.tar.gz",
+    "react-native-web": "~0.11.7"
+  },
+  "devDependencies": {
+    "@babel/core": "7.22.5",
+    "@expo/next-adapter": "2.1.9",
+    "@types/node": "14.0.4",
+    "@types/react": "16.9.35",
+    "@types/react-dom": "16.9.8",
+    "@types/react-native": "0.62.10",
+    "babel-preset-expo": "~8.1.0",
+    "typescript": "4.4.4"
+  }
+}

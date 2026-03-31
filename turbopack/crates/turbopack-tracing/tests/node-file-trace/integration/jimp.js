@@ -1,0 +1,1 @@
+const jimp = require('jimp')

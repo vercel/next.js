@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "description": "A variety of functions to help with triaging issues, PRs, and feature requests in the Next.js repo.",
+  "scripts": {
+    "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt",
+    "build-prs": "ncc build src/popular-prs.ts -m -o dist/prs --license licenses.txt",
+    "build-feature-requests": "ncc build src/popular-feature-requests.mjs -m -o dist/feature-requests --license licenses.txt",
+    "build-wrong-issue-template": "ncc build src/wrong-issue-template.ts -m -o dist/wrong-issue-template --license licenses.txt"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "6.0.0",
+    "@ai-sdk/openai": "^0.0.67",
+    "@slack/web-api": "^7.6.0",
+    "ai": "^3.4.14",
+    "slack-block-builder": "^2.8.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3"
+  }
+}

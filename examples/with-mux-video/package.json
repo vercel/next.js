@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@mux/mux-node": "^8",
+    "@mux/mux-player-react": "^2",
+    "@mux/mux-uploader-react": "^1.0.0-beta.15",
+    "next": "latest",
+    "react": "^18",
+    "react-dom": "^18",
+    "swr": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.10",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "autoprefixer": "^10",
+    "postcss": "^8",
+    "tailwindcss": "^3.4"
+  }
+}

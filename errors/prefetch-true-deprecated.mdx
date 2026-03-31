@@ -1,0 +1,21 @@
+---
+title: '`prefetch={true}` is deprecated'
+---
+
+## Why This Error Occurred
+
+In [Nextjs 9](/blog/next-9#prefetching-in-viewport-links), the behavior of the `<Link prefetch>` attribute was changed from opt in to opt out. This means that the `<Link prefetch={true}>` is **no longer required**.
+
+`<Link>` will automatically prefetch pages in the background as they appear in the view. If certain pages are rarely visited you can manually set prefetch to false, here's how:
+
+This feature improves the responsiveness of your application by making navigations to new pages quicker.
+
+Next.js uses an Intersection Observer to prefetch the assets necessary in the background.
+
+These requests have low-priority and yield to `fetch()` or XHR requests. Next.js will avoid automatically prefetching if the user has data-saver enabled.
+
+## Possible Ways to Fix It
+
+`<Link prefetch={true}>` is now the default behavior and setting it is no longer required. You can safely remove the `prefetch` attribute.
+
+You can opt out of prefetching using `<Link prefetch={false}>`.

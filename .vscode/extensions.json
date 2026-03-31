@@ -1,0 +1,29 @@
+{
+  "recommendations": [
+    // Linting / Formatting
+    "rust-lang.rust-analyzer",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "usernamehw.errorlens",
+    "ast-grep.ast-grep-vscode",
+    "tekumara.typos-vscode",
+
+    // Testing
+    "orta.vscode-jest",
+
+    // PR management / Reviewing
+    "github.vscode-pull-request-github",
+
+    // Showing todo comments
+    "gruntfuggly.todo-tree",
+
+    // Collaborating
+    "ms-vsliveshare.vsliveshare",
+
+    // Debugging
+    "ms-vscode.vscode-js-profile-flame",
+
+    // MDX Authoring
+    "unifiedjs.vscode-mdx"
+  ]
+}

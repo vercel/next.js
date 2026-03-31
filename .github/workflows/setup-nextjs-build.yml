@@ -1,0 +1,125 @@
+# Reusable workflow to setup next.js integration test environment.
+name: Setup Next.js
+
+on:
+  workflow_call:
+    inputs:
+      # Allow to specify Next.js version to run integration test against.
+      # If not specified, will use latest release version including canary.
+      version:
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+
+jobs:
+  build_nextjs:
+    name: Build Next.js for the turbopack integration test
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+    outputs:
+      output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v2
+        id: cpu-cores
+
+      - name: 'Setup Rust toolchain'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Display runner information
+        run: echo runner cpu count ${{ steps.cpu-cores.outputs.count }}
+
+      - name: Find Next.js latest release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Grab the latest release version from next.js repo, including prelease. `/releases/latest` will only return latest stable release.
+          echo NEXJS_LATEST_VERSION=$(gh release --repo vercel/next.js --limit 1 list | sed -n 1p | awk '{print $1}') >> $GITHUB_ENV
+
+      - name: Set Next.js release version
+        run: |
+          echo "NEXTJS_VERSION=${{ inputs.version != '' && inputs.version || env.NEXJS_LATEST_VERSION }}" >> $GITHUB_ENV
+
+      - name: Print Next.js release version to checkout
+        run: echo "Checking out Next.js ${{ env.NEXTJS_VERSION }}"
+
+      - name: Checkout Next.js
+        uses: actions/checkout@v4
+        with:
+          repository: vercel/next.js
+          ref: ${{ env.NEXTJS_VERSION }}
+
+      - name: Checkout failed test lists
+        uses: actions/checkout@v4
+        with:
+          repository: vercel/turbo
+          ref: nextjs-integration-test-data
+          path: integration-test-data
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: actions/cache/restore@v3
+        id: restore-build
+        with:
+          path: |
+            ./*
+          key: ${{ inputs.version }}-${{ github.sha }}
+
+      - name: Install dependencies
+        run: |
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.16.1/hyperfine_1.16.1_amd64.deb
+          sudo dpkg -i hyperfine_1.16.1_amd64.deb
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm install --loglevel error
+
+      - name: Build next-swc
+        run: |
+          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin --release'
+          echo "Successfully built next-swc with published turbopack"
+
+      - name: Build next.js
+        run: |
+          pnpm run build
+          strip packages/next-swc/native/next-swc.*.node
+          ls -al packages/next-swc/native
+          # Reduce the size of the cache bit
+          cd packages/next-swc && cargo clean && cd ../../
+          echo NEXT_SWC_FILESIZE: $(stat -c %s packages/next-swc/native/next-swc.linux-x64-gnu.node)
+          node -e "console.log('Host', require('os').arch(), require('os').platform())"
+
+      # If input version is published release, detect version by running next.js build.
+      - name: Detects Next.js build version
+        run: |
+          # This is being used in github action to collect test results. Do not change it, or should update ./.github/actions/next-integration-test to match.
+          docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c 'curl https://install-node.vercel.app/v16 | FORCE=1 bash && cd /work && echo RUNNING NEXTJS VERSION: $(packages/next/dist/bin/next --version) && ls -al packages/next-swc/native && node -e "console.log(\"Container\", require(\"os\").arch(), require(\"os\").platform())"'
+
+      - name: Temporary test skip
+        run: |
+          rm -rf test/integration/jsconfig-paths/test/index.test.js
+
+      # Once build completes, creates a cache of the build output
+      # so subsequent job to actually execute tests can reuse it.
+      # Note that we do not use upload / download artifacts for this -
+      # it is too heavyweight for the purpose since we do not need to persist
+      # the cache across multiple runs.
+      - name: Store next.js build cache with next-swc
+        uses: actions/cache/save@v3
+        id: cache-build
+        with:
+          path: |
+            ./*
+          key: ${{ inputs.version }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}

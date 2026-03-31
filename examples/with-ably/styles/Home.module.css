@@ -1,0 +1,34 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.main {
+  flex-grow: 1;
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+  flex-grow: 0;
+  column-gap: 1em;
+  align-items: flex-start;
+  padding: 2em 0 0;
+  border-top: 1px solid #eaeaea;
+  line-height: 32px;
+}
+
+.footer a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 0;
+}
+
+.logo {
+  width: 100px;
+  height: auto;
+  margin-right: 1rem;
+}

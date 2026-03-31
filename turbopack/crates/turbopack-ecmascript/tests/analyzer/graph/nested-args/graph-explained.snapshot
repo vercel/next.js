@@ -1,0 +1,25 @@
+a#3 = arguments[0]
+
+a#6 = arguments[0]
+
+a#9 = arguments[0]
+
+b#10 = arguments[0]
+
+b#5 = arguments[0]
+
+inner = (...) => (a + b)
+
+outer (const after eval) = (...) => inner("b")
+
+r (const after eval) = (...) => (a | (r((a + 1)) + 1))
+
+v1 (const after eval) = x(1)(2)
+
+v2 (const after eval) = r(2)
+
+v3 (const after eval) = outer("a")
+
+x (const after eval) = (...) => y
+
+y = (...) => (a + b)

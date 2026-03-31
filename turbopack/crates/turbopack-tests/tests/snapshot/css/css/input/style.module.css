@@ -1,0 +1,17 @@
+.module-style {
+  color: magenta;
+  > h1,
+  + .inner {
+    background: purple;
+  }
+}
+
+.composed-module-style {
+  composes: foo-module-style from 'foo/style.module.css';
+  color: green;
+}
+
+.another-composed-module-style {
+  composes: foo-module-style from 'foo/style.module.css';
+  color: yellow;
+}

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "target": "es2015",
+    "lib": ["dom"],
+    "downlevelIteration": true,
+    "preserveWatchOutput": true,
+    "outDir": "dist",
+    "paths": {
+      "webpack": ["../../node_modules/webpack5"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

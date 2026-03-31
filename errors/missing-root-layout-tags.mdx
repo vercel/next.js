@@ -1,0 +1,29 @@
+---
+title: Missing Root Layout tags
+---
+
+## Why This Error Occurred
+
+You forgot to define the `<html>` and/or `<body>` tags in your Root Layout.
+
+## Possible Ways to Fix It
+
+To fix this error, make sure that both `<html>` and `<body>` are present in your Root Layout.
+
+```diff filename="app/layout.tsx"
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+-  return children
++  return (
++    <html>
++      <body>
++        {children}
++      </body>
++    </html>
++  )
+}
+```
+
+## Useful Links
+
+- [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout)

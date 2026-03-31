@@ -1,0 +1,48 @@
+  x You're importing a module that depends on `flushSync` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use
+  | client"` directive.
+  | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
+   :          ^^^^^^^^^
+   `----
+  x You're importing a module that depends on `unstable_batchedUpdates` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent)
+  | with the `"use client"` directive.
+  | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:1:1]
+ 1 | import { flushSync, unstable_batchedUpdates } from 'react-dom'
+   :                     ^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+  x You're importing a module that depends on `useActionState` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the
+  | `"use client"` directive.
+  | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | import { useActionState } from 'react'
+   :          ^^^^^^^^^^^^^^
+   `----
+  x You're importing a module that depends on `useFormStatus` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the
+  | `"use client"` directive.
+  | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useFormStatus, useFormState } from 'react-dom'
+   :          ^^^^^^^^^^^^^
+   `----
+  x You're importing a module that depends on `useFormState` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the
+  | `"use client"` directive.
+  | Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | import { useFormStatus, useFormState } from 'react-dom'
+   :                         ^^^^^^^^^^^^
+   `----

@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'bench/*'
+  - 'crates/*/js'
+  - 'turbopack/crates/*/js'
+  - 'turbopack/crates/turbopack-tests/tests/execution'
+  - 'turbopack/packages/*'
+updateNotifier: false

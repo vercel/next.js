@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "internal-pkg": "link:./internal-pkg",
+    "external-pkg": "file:./external-pkg"
+  }
+}

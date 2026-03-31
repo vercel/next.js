@@ -1,0 +1,73 @@
+name: 'Stale issue handler'
+on:
+  workflow_dispatch:
+  schedule:
+    # This runs every day 20 minutes before midnight: https://crontab.guru/#40_23_*_*_*
+    - cron: '40 23 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - uses: actions/stale@v9
+        id: issue-stale
+        name: 'Mark stale issues, close stale issues'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          ascending: true
+          days-before-issue-close: 7
+          days-before-issue-stale: 545 # issues with no activity in over ~1.5 years
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          remove-issue-stale-when-updated: true
+          stale-issue-label: 'stale'
+          labels-to-add-when-unstale: 'not stale'
+          stale-issue-message: 'This issue has been automatically marked as stale due to inactivity. It will be closed in 7 days unless there’s further input. If you believe this issue is still relevant, please leave a comment or provide updated details. Thank you.'
+          close-issue-message: 'This issue has been automatically closed due to inactivity. If you’re still experiencing a similar problem or have additional details to share, please open a new issue following our current issue template. Your updated report helps us investigate and address concerns more efficiently. Thank you for your understanding!'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v9
+        id: stale-no-repro
+        name: 'Close stale issues with no reproduction'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          any-of-issue-labels: 'please add a complete reproduction'
+          close-issue-message: 'This issue has been automatically closed due to 2 days of inactivity and the absence of a complete reproduction. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a complete reproduction. Thank you.'
+          days-before-issue-close: 2
+          days-before-issue-stale: 1
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          remove-issue-stale-when-updated: true
+          stale-issue-label: 'stale'
+          labels-to-add-when-unstale: 'not stale'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v9
+        id: stale-simple-repro
+        name: 'Close issues with no simple repro'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          any-of-issue-labels: 'please simplify reproduction'
+          close-issue-message: 'This issue has been automatically closed due to 14 days of inactivity and the absence of a simple reproduction for investigation. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a simple reproduction. Thank you.'
+          days-before-issue-close: 14
+          days-before-issue-stale: 1
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          remove-issue-stale-when-updated: true
+          stale-issue-label: 'stale'
+          labels-to-add-when-unstale: 'not stale'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v9
+        id: stale-no-canary
+        name: 'Close issues not verified on canary'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          any-of-issue-labels: 'please verify canary'
+          close-issue-message: 'This issue has been automatically closed due to 14 days of inactivity and the absence of testing against next@canary. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a reproduction. Thank you.'
+          days-before-issue-close: 14
+          days-before-issue-stale: 1
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          remove-issue-stale-when-updated: true
+          stale-issue-label: 'stale'
+          labels-to-add-when-unstale: 'not stale'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close

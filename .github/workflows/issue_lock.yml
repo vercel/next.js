@@ -1,0 +1,29 @@
+name: 'Lock Threads'
+
+on:
+  schedule:
+    # This runs twice a day: https://crontab.guru/#0_0,12_*_*_*
+    - cron: '0 0,12 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: lock
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - uses: dessant/lock-threads@v5
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          add-issue-labels: 'locked'
+          add-pr-labels: 'locked'
+          issue-inactive-days: 14
+          issue-comment: 'This closed issue has been automatically locked because it had no new activity for 2 weeks. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
+          pr-inactive-days: 14
+          log-output: true

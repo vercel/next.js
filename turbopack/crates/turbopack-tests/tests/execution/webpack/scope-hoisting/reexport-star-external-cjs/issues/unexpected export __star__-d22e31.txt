@@ -1,0 +1,10 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js  unexpected export *
+  
+  export * used with module [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js [test] (ecmascript) which is a CommonJS module with exports only available at runtime
+  List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/a.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/c.js
+      ./turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/reexport-star-external-cjs/input/index.js

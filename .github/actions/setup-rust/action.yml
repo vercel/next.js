@@ -1,0 +1,28 @@
+name: 'Rust Setup'
+description: 'Sets up the Rust toolchain for CI'
+inputs:
+  targets:
+    description: 'Comma-separated list of target triples to install for this toolchain'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Setup Rust toolchain'
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        target: ${{ inputs.targets }}
+        # needed to not make it override the defaults
+        rustflags: ''
+        cache: false
+
+    - name: 'Install LLD (LLVM Linker) for Linux'
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get -y -o DPkg::Lock::Timeout=60 update
+        sudo apt-get -o DPkg::Lock::Timeout=60 -y install lld
+
+    - name: 'Add cargo problem matchers'
+      shell: bash
+      run: echo "::add-matcher::${{ github.action_path }}/matchers.json"

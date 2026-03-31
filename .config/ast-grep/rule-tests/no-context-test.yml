@@ -1,0 +1,11 @@
+id: no-context
+valid:
+  - 'let chunking_context = ChunkingContext::new();'
+  - 'struct Foo { chunking_context: Context };'
+  - 'foo(|chunking_context| context)'
+  - 'fn foo(chunking_context: ChunkingContext) -> u32 { 5 };'
+invalid:
+  - 'let context = ChunkingContext::new();'
+  - 'struct Foo { context: Context };'
+  - 'foo(|context| context)'
+  - 'fn foo(context: ChunkingContext) -> u32 { 5 };'
