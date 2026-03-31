@@ -50,6 +50,7 @@ examples/**/out/*
 
 # env
 .env*.local
+evals/.env
 
 pr-stats.md
 test-timings.json

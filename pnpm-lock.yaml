@@ -226,8 +226,8 @@ importers:
         specifier: 16.0.11
         version: 16.0.11
       '@vercel/agent-eval':
-        specifier: 0.8.0
-        version: 0.8.0
+        specifier: 0.9.5
+        version: 0.9.5
       '@vercel/devlow-bench':
         specifier: workspace:*
         version: link:turbopack/packages/devlow-bench
@@ -4138,14 +4138,6 @@ packages:
       '@types/node':
         optional: true
 
-  '@isaacs/balanced-match@4.0.1':
-    resolution: {integrity: sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ==}
-    engines: {node: 20 || >=22}
-
-  '@isaacs/brace-expansion@5.0.0':
-    resolution: {integrity: sha512-ZT55BDLV0yv0RBm2czMiZ+SqCGO7AvmOM3G/w2xhVPH+te0aKgFjmBvGlL1dH+ql2tgGO3MVrbb3jCKyvpgnxA==}
-    engines: {node: 20 || >=22}
-
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
@@ -7165,8 +7157,8 @@ packages:
   '@upstash/redis@1.35.3':
     resolution: {integrity: sha512-hSjv66NOuahW3MisRGlSgoszU2uONAY2l5Qo3Sae8OT3/Tng9K+2/cBRuyPBX8egwEGcNNCF9+r0V6grNnhL+w==}
 
-  '@vercel/agent-eval@0.8.0':
-    resolution: {integrity: sha512-Efv6EPUUBc0I0fkw5964O4rGxGDS/j6vYJ2IspZ5sFVdrLdDlqI1llJdkTvuc+cg4EuqXsOhEQhJlaNG9eZ8zQ==}
+  '@vercel/agent-eval@0.9.5':
+    resolution: {integrity: sha512-wSs0K39zZFQDNniG0UNeZMy3GgVDSuTyhVKZVqxm33nu3sq2KJjOSJCpvoFaXKUWkk2Ea3DTaxJsVgp8b1Xq5w==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -13869,10 +13861,6 @@ packages:
 
   minimalistic-crypto-utils@1.0.1:
     resolution: {integrity: sha512-JIYlbt6g8i5jKfJ3xz7rF0LXmv2TkDxBLUkiBeZ7bAx4GnnNMr8xFpGnOxn6GhTEHx3SjRrZEoU+j04prX1ktg==}
-
-  minimatch@10.1.1:
-    resolution: {integrity: sha512-enIvLvRAFZYXJzkCYG5RKmPfrFArdLv+R+lbQ53BmIMLIry74bjKzX6iHAm8WYamJkhSSEabrWN5D97XnKObjQ==}
-    engines: {node: 20 || >=22}
 
   minimatch@10.2.4:
     resolution: {integrity: sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==}
@@ -21284,12 +21272,6 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
 
-  '@isaacs/balanced-match@4.0.1': {}
-
-  '@isaacs/brace-expansion@5.0.0':
-    dependencies:
-      '@isaacs/balanced-match': 4.0.1
-
   '@isaacs/cliui@8.0.2':
     dependencies:
       string-width: 5.1.2
@@ -22108,7 +22090,7 @@ snapshots:
       hosted-git-info: 9.0.2
       json-stringify-nice: 1.1.4
       lru-cache: 11.2.1
-      minimatch: 10.1.1
+      minimatch: 10.2.4
       nopt: 8.1.0
       npm-install-checks: 7.1.2
       npm-package-arg: 13.0.1
@@ -22206,7 +22188,7 @@ snapshots:
       '@npmcli/name-from-folder': 4.0.0
       '@npmcli/package-json': 7.0.2
       glob: 13.0.0
-      minimatch: 10.1.1
+      minimatch: 10.2.4
 
   '@npmcli/metavuln-calculator@9.0.3':
     dependencies:
@@ -24889,7 +24871,7 @@ snapshots:
     dependencies:
       uncrypto: 0.1.3
 
-  '@vercel/agent-eval@0.8.0':
+  '@vercel/agent-eval@0.9.5':
     dependencies:
       '@ai-sdk/anthropic': 1.2.12(zod@3.25.76)
       '@vercel/sandbox': 1.8.0
@@ -29922,7 +29904,7 @@ snapshots:
 
   glob@13.0.0:
     dependencies:
-      minimatch: 10.1.1
+      minimatch: 10.2.4
       minipass: 7.1.2
       path-scurry: 2.0.0
 
@@ -30637,7 +30619,7 @@ snapshots:
 
   ignore-walk@8.0.0:
     dependencies:
-      minimatch: 10.1.1
+      minimatch: 10.2.4
 
   ignore@4.0.6: {}
 
@@ -33803,10 +33785,6 @@ snapshots:
   minimalistic-assert@1.0.1: {}
 
   minimalistic-crypto-utils@1.0.1: {}
-
-  minimatch@10.1.1:
-    dependencies:
-      '@isaacs/brace-expansion': 5.0.0
 
   minimatch@10.2.4:
     dependencies:
