@@ -1,4 +1,5 @@
 use std::{
+    cell::UnsafeCell,
     collections::HashMap,
     path::Path,
     sync::{Arc, LazyLock, Mutex, OnceLock, mpsc},
@@ -28,7 +29,7 @@ static HOST_FNS: LazyLock<Mutex<HashMap<u64, Arc<Vec<runtime::Func>>>>> =
 
 /// Global per-instance TSFN registry: maps instance_id → TSFN targeting the worker thread.
 /// Used to dispatch transform/getDiag/memory ops to the correct worker.
-static INSTANCE_TSFNS: LazyLock<Mutex<HashMap<u64, ThreadsafeFunction<InstanceWork>>>> =
+static INSTANCE_TSFNS: LazyLock<Mutex<HashMap<u64, Arc<ThreadsafeFunction<InstanceWork>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 // ---------------------------------------------------------------------------
@@ -65,24 +66,62 @@ enum InstanceWork {
         size: u32,
         reply: mpsc::SyncSender<anyhow::Result<u32>>,
     },
+    /// Unref all NAPI Refs before the TSFN is dropped.
+    Cleanup {
+        reply: mpsc::SyncSender<anyhow::Result<()>>,
+    },
 }
 
 // SAFETY: All fields are Send (mpsc::SyncSender is Send).
 unsafe impl Send for InstanceWork {}
 
+/// Wrapper around `Option<napi::Ref<()>>` that is `Send`.
+///
+/// SAFETY: All access happens on the worker thread's TSFN callback, which is
+/// single-threaded and serialized by the event loop. The `Send` impl is needed
+/// because the TSFN closure must be `Send`, but we never actually access the
+/// inner value from multiple threads.
+struct OptRef(UnsafeCell<Option<napi::Ref<()>>>);
+unsafe impl Send for OptRef {}
+
+impl OptRef {
+    fn new(r: napi::Ref<()>) -> Self {
+        Self(UnsafeCell::new(Some(r)))
+    }
+
+    /// Take the ref out and unref it. Returns `None` if already taken.
+    ///
+    /// SAFETY: Caller must ensure this is called on the same JS thread that
+    /// created the ref, and that no other access is concurrent.
+    unsafe fn take_and_unref(&self, env: Env) -> napi::Result<()> {
+        if let Some(mut r) = unsafe { (*self.0.get()).take() } {
+            r.unref(env)?;
+        }
+        Ok(())
+    }
+
+    /// Get a reference to the inner Ref.
+    ///
+    /// SAFETY: Caller must ensure no concurrent mutable access.
+    unsafe fn as_ref(&self) -> Option<&napi::Ref<()>> {
+        unsafe { (*self.0.get()).as_ref() }
+    }
+}
+
 /// Dispatch work to an instance's worker thread via its TSFN and block for the result.
 fn instance_call_blocking<T: Send + 'static>(
     instance_id: u64,
-    work_fn: impl FnOnce(mpsc::SyncSender<anyhow::Result<T>>) -> InstanceWork,
+    work: InstanceWork,
+    rx: mpsc::Receiver<anyhow::Result<T>>,
 ) -> anyhow::Result<T> {
-    let tsfns = INSTANCE_TSFNS.lock().unwrap();
-    let tsfn = tsfns
-        .get(&instance_id)
-        .ok_or_else(|| anyhow::anyhow!("No TSFN for instance {}", instance_id))?;
-    let (tx, rx) = mpsc::sync_channel(1);
-    let work = work_fn(tx);
+    let tsfn = {
+        let tsfns = INSTANCE_TSFNS.lock().unwrap();
+        tsfns
+            .get(&instance_id)
+            .ok_or_else(|| anyhow::anyhow!("No TSFN for instance {}", instance_id))?
+            .clone()
+    };
     let status = tsfn.call(Ok(work), ThreadsafeFunctionCallMode::Blocking);
-    drop(tsfns); // Release lock before blocking
     if !matches!(status, Status::Ok) {
         anyhow::bail!("Instance TSFN call failed with status: {:?}", status);
     }
@@ -123,12 +162,12 @@ pub fn wasm_worker_register_callback(
     let alloc_fn: JsFunction = ops.get_named_property("alloc")?;
     let free_fn: JsFunction = ops.get_named_property("free")?;
 
-    let transform_ref = env.create_reference(&transform_fn)?;
-    let diag_ref = env.create_reference(&diag_fn)?;
-    let read_ref = env.create_reference(&read_fn)?;
-    let write_ref = env.create_reference(&write_fn)?;
-    let alloc_ref = env.create_reference(&alloc_fn)?;
-    let free_ref = env.create_reference(&free_fn)?;
+    let transform_ref = OptRef::new(env.create_reference(&transform_fn)?);
+    let diag_ref = OptRef::new(env.create_reference(&diag_fn)?);
+    let read_ref = OptRef::new(env.create_reference(&read_fn)?);
+    let write_ref = OptRef::new(env.create_reference(&write_fn)?);
+    let alloc_ref = OptRef::new(env.create_reference(&alloc_fn)?);
+    let free_ref = OptRef::new(env.create_reference(&free_fn)?);
 
     // We need a JsFunction to create the TSFN from. Create a no-op.
     let dummy_fn = env.create_function_from_closure("__instance_tsfn_noop", |ctx| {
@@ -140,6 +179,8 @@ pub fn wasm_worker_register_callback(
         move |ctx: ThreadSafeCallContext<InstanceWork>| {
             let env = &ctx.env;
 
+            // SAFETY: All access to OptRef happens on this worker thread's
+            // TSFN callback, which is serialized by the event loop.
             match ctx.value {
                 InstanceWork::Transform {
                     program_ptr,
@@ -148,7 +189,8 @@ pub fn wasm_worker_register_callback(
                     comments_proxy,
                     reply,
                 } => {
-                    let f: JsFunction = env.get_reference_value(&transform_ref)?;
+                    let r = unsafe { transform_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let result = f.call(
                         None,
                         &[
@@ -169,7 +211,8 @@ pub fn wasm_worker_register_callback(
                     }
                 }
                 InstanceWork::GetDiag { reply } => {
-                    let f: JsFunction = env.get_reference_value(&diag_ref)?;
+                    let r = unsafe { diag_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let result = f.call::<JsUnknown>(None, &[]);
                     match result {
                         Ok(val) => {
@@ -182,7 +225,8 @@ pub fn wasm_worker_register_callback(
                     }
                 }
                 InstanceWork::ReadMemory { ptr, len, reply } => {
-                    let f: JsFunction = env.get_reference_value(&read_ref)?;
+                    let r = unsafe { read_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let result = f.call(
                         None,
                         &[
@@ -202,7 +246,8 @@ pub fn wasm_worker_register_callback(
                     }
                 }
                 InstanceWork::WriteMemory { ptr, data, reply } => {
-                    let f: JsFunction = env.get_reference_value(&write_ref)?;
+                    let r = unsafe { write_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let js_buf = env.create_buffer_with_data(data)?.into_raw();
                     let result = f.call(
                         None,
@@ -221,7 +266,8 @@ pub fn wasm_worker_register_callback(
                     }
                 }
                 InstanceWork::Alloc { size, reply } => {
-                    let f: JsFunction = env.get_reference_value(&alloc_ref)?;
+                    let r = unsafe { alloc_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let result = f.call(None, &[env.create_uint32(size)?.into_unknown()]);
                     match result {
                         Ok(val) => {
@@ -234,7 +280,8 @@ pub fn wasm_worker_register_callback(
                     }
                 }
                 InstanceWork::Free { ptr, size, reply } => {
-                    let f: JsFunction = env.get_reference_value(&free_ref)?;
+                    let r = unsafe { free_ref.as_ref() }.unwrap();
+                    let f: JsFunction = env.get_reference_value(r)?;
                     let result = f.call(
                         None,
                         &[
@@ -252,12 +299,26 @@ pub fn wasm_worker_register_callback(
                         }
                     }
                 }
+                InstanceWork::Cleanup { reply } => {
+                    // Unref all NAPI Refs on the worker thread before the
+                    // TSFN is dropped. This prevents the debug_assert panic
+                    // in Ref::drop when count != 0.
+                    unsafe {
+                        transform_ref.take_and_unref(*env)?;
+                        diag_ref.take_and_unref(*env)?;
+                        read_ref.take_and_unref(*env)?;
+                        write_ref.take_and_unref(*env)?;
+                        alloc_ref.take_and_unref(*env)?;
+                        free_ref.take_and_unref(*env)?;
+                    }
+                    let _ = reply.send(Ok(()));
+                }
             }
             Ok(Vec::<JsUnknown>::new())
         },
     )?;
 
-    INSTANCE_TSFNS.lock().unwrap().insert(id, tsfn);
+    INSTANCE_TSFNS.lock().unwrap().insert(id, Arc::new(tsfn));
     Ok(())
 }
 
@@ -496,11 +557,24 @@ fn handle_wasm_request(env: &Env, manager: &JsObject, request: WasmRequest) -> n
         }
 
         WasmRequest::DropInstance { instance_id } => {
-            // Remove the per-instance TSFN (signals worker to stop receiving work)
-            {
-                let mut tsfns = INSTANCE_TSFNS.lock().unwrap();
-                tsfns.remove(&instance_id);
+            // Send Cleanup to the worker's TSFN to unref NAPI Refs before
+            // we drop the TSFN (which would drop the closure and trigger
+            // debug_assert panics in Ref::drop).
+            let tsfn = INSTANCE_TSFNS.lock().unwrap().get(&instance_id).cloned();
+
+            if let Some(tsfn) = &tsfn {
+                let (tx, rx) = mpsc::sync_channel(1);
+                tsfn.call(
+                    Ok(InstanceWork::Cleanup { reply: tx }),
+                    ThreadsafeFunctionCallMode::Blocking,
+                );
+                // Best-effort: ignore errors (worker may already be gone)
+                let _ = rx.recv();
             }
+
+            // Now safe to remove the TSFN — all Refs have been unref'd
+            drop(tsfn);
+            INSTANCE_TSFNS.lock().unwrap().remove(&instance_id);
 
             // Clean up host functions
             HOST_FNS.lock().unwrap().remove(&instance_id);
@@ -719,13 +793,18 @@ impl runtime::Instance for NapiInstance {
         unresolved_mark: u32,
         should_enable_comments_proxy: u32,
     ) -> anyhow::Result<u32> {
-        let result = instance_call_blocking(self.instance_id, |reply| InstanceWork::Transform {
-            program_ptr,
-            program_len,
-            unresolved_mark,
-            comments_proxy: should_enable_comments_proxy,
-            reply,
-        })?;
+        let (tx, rx) = mpsc::sync_channel(1);
+        let result = instance_call_blocking(
+            self.instance_id,
+            InstanceWork::Transform {
+                program_ptr,
+                program_len,
+                unresolved_mark,
+                comments_proxy: should_enable_comments_proxy,
+                reply: tx,
+            },
+            rx,
+        )?;
 
         if result == -1 {
             anyhow::bail!("Transform failed in worker");
@@ -746,8 +825,9 @@ impl runtime::Instance for NapiInstance {
 
 impl NapiInstance {
     fn get_diag(&mut self) -> anyhow::Result<u32> {
+        let (tx, rx) = mpsc::sync_channel(1);
         let result =
-            instance_call_blocking(self.instance_id, |reply| InstanceWork::GetDiag { reply })?;
+            instance_call_blocking(self.instance_id, InstanceWork::GetDiag { reply: tx }, rx)?;
 
         if result == -1 {
             anyhow::bail!("getDiag failed in worker");
@@ -758,6 +838,11 @@ impl NapiInstance {
 
 impl Drop for NapiInstance {
     fn drop(&mut self) {
+        // Clean up host functions synchronously so that Arc references held by
+        // Func closures (e.g. TransformResultHostEnvironment) are released
+        // before the caller tries Arc::try_unwrap on transform_result.
+        HOST_FNS.lock().unwrap().remove(&self.instance_id);
+
         if let Some(tsfn) = WASM_TSFN.get() {
             tsfn.call(
                 Ok(WasmRequest::DropInstance {
@@ -786,35 +871,52 @@ struct TsfnCaller {
 impl<'a> runtime::Caller<'a> for TsfnCaller {
     fn read_buf(&self, ptr: u32, buf: &mut [u8]) -> anyhow::Result<()> {
         let len = buf.len() as u32;
-        let data = instance_call_blocking(self.instance_id, |reply| InstanceWork::ReadMemory {
-            ptr,
-            len,
-            reply,
-        })?;
+        let (tx, rx) = mpsc::sync_channel(1);
+        let data = instance_call_blocking(
+            self.instance_id,
+            InstanceWork::ReadMemory {
+                ptr,
+                len,
+                reply: tx,
+            },
+            rx,
+        )?;
         buf.copy_from_slice(&data);
         Ok(())
     }
 
     fn write_buf(&mut self, ptr: u32, buf: &[u8]) -> anyhow::Result<()> {
-        instance_call_blocking(self.instance_id, |reply| InstanceWork::WriteMemory {
-            ptr,
-            data: buf.to_vec(),
-            reply,
-        })
+        let (tx, rx) = mpsc::sync_channel(1);
+        instance_call_blocking(
+            self.instance_id,
+            InstanceWork::WriteMemory {
+                ptr,
+                data: buf.to_vec(),
+                reply: tx,
+            },
+            rx,
+        )
     }
 
     fn alloc(&mut self, size: u32) -> anyhow::Result<u32> {
-        instance_call_blocking(self.instance_id, |reply| InstanceWork::Alloc {
-            size,
-            reply,
-        })
+        let (tx, rx) = mpsc::sync_channel(1);
+        instance_call_blocking(
+            self.instance_id,
+            InstanceWork::Alloc { size, reply: tx },
+            rx,
+        )
     }
 
     fn free(&mut self, ptr: u32, size: u32) -> anyhow::Result<u32> {
-        instance_call_blocking(self.instance_id, |reply| InstanceWork::Free {
-            ptr,
-            size,
-            reply,
-        })
+        let (tx, rx) = mpsc::sync_channel(1);
+        instance_call_blocking(
+            self.instance_id,
+            InstanceWork::Free {
+                ptr,
+                size,
+                reply: tx,
+            },
+            rx,
+        )
     }
 }

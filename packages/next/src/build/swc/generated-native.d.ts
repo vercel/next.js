@@ -38,6 +38,30 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
+export declare function registerWorkerScheduler(
+  creator: (arg: NapiWorkerCreation) => any,
+  terminator: (arg: NapiWorkerTermination) => any
+): void
+export declare function workerCreated(workerId: number): void
+export interface NapiWorkerCreation {
+  options: NapiWorkerOptions
+}
+export interface NapiWorkerOptions {
+  filename: RcStr
+  cwd: RcStr
+}
+export interface NapiWorkerTermination {
+  options: NapiWorkerOptions
+  workerId: number
+}
+export interface NapiTaskMessage {
+  taskId: number
+  data: Buffer
+}
+export declare function recvTaskMessageInWorker(
+  workerId: number
+): Promise<NapiTaskMessage>
+export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
 /**
  * Called by worker after WASM instantiation to register a dispatch callback.
  *
@@ -73,30 +97,6 @@ export declare function wasmWorkerDispatchHostFn(
   args: Array<number>,
   memoryAccessor: object
 ): unknown
-export declare function registerWorkerScheduler(
-  creator: (arg: NapiWorkerCreation) => any,
-  terminator: (arg: NapiWorkerTermination) => any
-): void
-export declare function workerCreated(workerId: number): void
-export interface NapiWorkerCreation {
-  options: NapiWorkerOptions
-}
-export interface NapiWorkerOptions {
-  filename: RcStr
-  cwd: RcStr
-}
-export interface NapiWorkerTermination {
-  options: NapiWorkerOptions
-  workerId: number
-}
-export interface NapiTaskMessage {
-  taskId: number
-  data: Buffer
-}
-export declare function recvTaskMessageInWorker(
-  workerId: number
-): Promise<NapiTaskMessage>
-export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
 export interface NapiLocation {
   line: number
   column?: number
