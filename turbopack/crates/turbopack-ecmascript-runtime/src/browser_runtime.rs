@@ -5,7 +5,7 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::AssetSuffix,
+    chunk::{AssetSuffix, CrossOrigin},
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::{ChunkLoading, Environment},
@@ -25,6 +25,7 @@ pub async fn get_browser_runtime_code(
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
+    cross_origin: Vc<CrossOrigin>,
 ) -> Result<Vc<Code>> {
     let asset_context = *get_runtime_asset_context(*environment)
         .to_resolved()
@@ -88,6 +89,7 @@ pub async fn get_browser_runtime_code(
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
+    let cross_origin = *cross_origin.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
     if *environment
@@ -156,6 +158,18 @@ pub async fn get_browser_runtime_code(
             )?;
         }
     }
+
+    let cross_origin_literal = cross_origin
+        .as_str()
+        .map(|value| StringifyJs(value).to_string())
+        .unwrap_or_else(|| "null".to_string());
+    writedoc!(
+        code,
+        r#"
+            const CROSS_ORIGIN = {};
+        "#,
+        cross_origin_literal
+    )?;
 
     // Output the list of global variable names to forward to workers
     let worker_forwarded_globals = worker_forwarded_globals.await?;

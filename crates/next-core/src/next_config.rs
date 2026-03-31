@@ -21,7 +21,7 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
+    chunk::{CrossOrigin as CrossOriginConfig, SourceMapsType},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
         OptionStyledString, StyledString,
@@ -178,25 +178,6 @@ impl NextConfig {
         new.experimental.turbopack_input_source_maps = Some(false);
         new.cell()
     }
-}
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum CrossOriginConfig {
-    Anonymous,
-    UseCredentials,
 }
 
 #[turbo_tasks::value(transparent)]

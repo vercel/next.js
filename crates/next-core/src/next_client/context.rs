@@ -44,7 +44,7 @@ use crate::{
         runtime_entry::{RuntimeEntries, RuntimeEntry},
         transforms::get_next_client_transforms_rules,
     },
-    next_config::NextConfig,
+    next_config::{NextConfig, OptionCrossOriginConfig},
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
@@ -471,6 +471,7 @@ pub struct ClientChunkingContextOptions {
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub cross_origin: Vc<OptionCrossOriginConfig>,
 }
 
 #[turbo_tasks::function]
@@ -496,10 +497,12 @@ pub async fn get_client_chunking_context(
         should_use_absolute_url_references,
         css_url_suffix,
         hash_salt,
+        cross_origin,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
+    let cross_origin_loading = cross_origin.owned().await?.unwrap_or_default();
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -522,6 +525,7 @@ pub async fn get_client_chunking_context(
     .source_maps(*source_maps.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
+    .cross_origin(cross_origin_loading)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)

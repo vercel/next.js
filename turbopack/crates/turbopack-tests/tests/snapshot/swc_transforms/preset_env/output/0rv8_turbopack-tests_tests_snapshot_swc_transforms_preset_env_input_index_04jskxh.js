@@ -7,11 +7,20 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
+<<<<<<< HEAD
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
 var WORKER_FORWARDED_GLOBALS = [];
+=======
+const CHUNK_BASE_PATH = "";
+const RELATIVE_ROOT_PATH = "../../../../../../..";
+const RUNTIME_PUBLIC_PATH = "";
+const ASSET_SUFFIX = "";
+const CROSS_ORIGIN = null;
+const WORKER_FORWARDED_GLOBALS = [];
+>>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1828,6 +1837,9 @@ var BACKEND;
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
+                    if (CROSS_ORIGIN) {
+                        link.crossOrigin = CROSS_ORIGIN;
+                    }
                     link.href = chunkUrl;
                     link.onerror = function() {
                         resolver.reject();
@@ -1869,6 +1881,9 @@ var BACKEND;
                     }
                 } else {
                     var script1 = document.createElement('script');
+                    if (CROSS_ORIGIN) {
+                        script1.crossOrigin = CROSS_ORIGIN;
+                    }
                     script1.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in

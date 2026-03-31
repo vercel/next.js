@@ -23,7 +23,7 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
-    next_config::NextConfig,
+    next_config::{NextConfig, OptionCrossOriginConfig},
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
@@ -203,6 +203,7 @@ pub struct EdgeChunkingContextOptions {
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub cross_origin: Vc<OptionCrossOriginConfig>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -228,7 +229,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        cross_origin,
     } = options;
+    let cross_origin_loading = cross_origin.owned().await?.unwrap_or_default();
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -255,6 +258,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -307,7 +311,9 @@ pub async fn get_edge_chunking_context(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        cross_origin,
     } = options;
+    let cross_origin = cross_origin.owned().await?.unwrap_or_default();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -348,6 +354,7 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)

@@ -7,11 +7,20 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
+<<<<<<< HEAD
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
 var WORKER_FORWARDED_GLOBALS = [];
+=======
+const CHUNK_BASE_PATH = "";
+const RELATIVE_ROOT_PATH = "../../../../../../..";
+const RUNTIME_PUBLIC_PATH = "";
+const ASSET_SUFFIX = "";
+const CROSS_ORIGIN = null;
+const WORKER_FORWARDED_GLOBALS = [];
+>>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -2082,6 +2091,9 @@ let BACKEND;
                 } else {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
+                    if (CROSS_ORIGIN) {
+                        link.crossOrigin = CROSS_ORIGIN;
+                    }
                     link.href = chunkUrl;
                     link.onerror = ()=>{
                         resolver.reject();
@@ -2106,6 +2118,9 @@ let BACKEND;
                     }
                 } else {
                     const script = document.createElement('script');
+                    if (CROSS_ORIGIN) {
+                        script.crossOrigin = CROSS_ORIGIN;
+                    }
                     script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -2181,9 +2196,18 @@ let DEV_BACKEND;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
+<<<<<<< HEAD
                 if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
                     // Firefox won't reload CSS files that were previously loaded on the
                     // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+=======
+                if (CROSS_ORIGIN) {
+                    link.crossOrigin = CROSS_ORIGIN;
+                }
+                if (navigator.userAgent.includes('Firefox')) {
+                    // Firefox won't reload CSS files that were previously loaded on the current page,
+                    // we need to add a query param to make sure CSS is actually reloaded from the server.
+>>>>>>> 2dbde8f03d (TURBOPACK: support crsossOrigin)
                     //
                     // Safari serves cached CSS when a <link rel=preload> exists for the
                     // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726

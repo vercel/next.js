@@ -13,7 +13,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    chunk::{ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -23,7 +23,7 @@ use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
-    next_config::{CrossOriginConfig, NextConfig},
+    next_config::NextConfig,
     next_manifests::{ModuleId, encode_uri_component::encode_uri_component},
     util::NextRuntime,
 };
@@ -67,7 +67,7 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
-    pub cross_origin: Option<CrossOriginConfig>,
+    pub cross_origin: Option<CrossOrigin>,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]

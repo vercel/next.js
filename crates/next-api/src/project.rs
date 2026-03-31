@@ -1595,6 +1595,7 @@ impl Project {
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
         }))
     }
 
@@ -1659,6 +1660,7 @@ impl Project {
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
