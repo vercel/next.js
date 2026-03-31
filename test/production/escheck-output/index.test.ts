@@ -75,7 +75,8 @@ describe('escheck-output', () => {
     })
   })
 
-  describe('ancient', () => {
+  // Webpack doesn't properly downlevel
+  ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)('ancient', () => {
     let browserslist = ['ios >= 9']
 
     const { next } = nextTestSetup({
