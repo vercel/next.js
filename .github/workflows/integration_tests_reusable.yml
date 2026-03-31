@@ -60,12 +60,10 @@ jobs:
     steps:
       - id: out
         run: |
-          printf 'e2e=[%s]
-' \
+          printf 'e2e=[%s]\n' \
             "$(seq -s, 1 ${{ inputs.e2e_groups }})" | \
             tee -a "$GITHUB_OUTPUT"
-          printf 'integration=[%s]
-' \
+          printf 'integration=[%s]\n' \
             "$(seq -s, 1 ${{ inputs.integration_groups }})" | \
             tee -a "$GITHUB_OUTPUT"
     outputs:
