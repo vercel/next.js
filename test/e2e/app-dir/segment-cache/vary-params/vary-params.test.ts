@@ -83,6 +83,67 @@ describe('segment cache - vary params', () => {
     expect(await page.text()).toContain('Item: headphones')
   })
 
+  it('reuses prefetched page segment with in-page loading boundary across different params', async () => {
+    // Setup: Page uses an in-page Suspense boundary instead of loading.tsx. The
+    // page's default export wraps a child component in <Suspense>. The child
+    // awaits params, but during prerendering the params are fallback params
+    // (hanging promise), so the child suspends and the segment prefetch
+    // contains only the Suspense fallback with empty varyParams — making it
+    // reusable across all slug values.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/in-page-loading-boundary', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the first link - page segment is fetched
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/in-page-loading-boundary/phone"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Loading item' }
+    )
+
+    // Prefetch remaining links - all cache hits (page prefetch is shared)
+    await act(async () => {
+      const tablet = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/tablet"]'
+      )
+      await tablet.click()
+      const laptop = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/laptop"]'
+      )
+      await laptop.click()
+      const headphones = await browser.elementByCss(
+        'input[data-link-accordion="/in-page-loading-boundary/headphones"]'
+      )
+      await headphones.click()
+    }, 'no-requests')
+
+    // Navigate to headphones. The loading state renders instantly from the
+    // cached page shell (Suspense fallback), before the dynamic request
+    // resolves.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/in-page-loading-boundary/headphones"]'
+      )
+      await link.click()
+
+      const loading = await browser.elementByCss('[data-loading="true"]')
+      expect(await loading.text()).toContain('Loading item')
+    })
+
+    // Dynamic content eventually loads
+    const content = await browser.elementById(
+      'in-page-loading-boundary-content'
+    )
+    expect(await content.text()).toContain('Item: headphones')
+  })
+
   it('renders cached loading state instantly with runtime prefetching', async () => {
     // Setup: Page accesses `category` in static portion (tracked in varyParams),
     // but accesses `itemId` only after connection() (not tracked).

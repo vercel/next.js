@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { NextAdapter } from 'next'
 import { retry } from 'next-test-utils'
 import { join } from 'node:path'
 
@@ -182,6 +183,29 @@ describe.each([
         (headers) => headers['x-deployment-id'] === deploymentId
       )
     })
+
+    if (envKey === 'IMMUTABLE_ASSET_TOKEN') {
+      it('should emit hashes to adapter', async () => {
+        const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+          await next.readJSON('build-complete.json')
+
+        const immutableAssets = outputs.staticFiles.filter(
+          (a) =>
+            a.pathname.startsWith('/_next/static/') &&
+            !(
+              a.pathname.endsWith('/_buildManifest.js') ||
+              a.pathname.endsWith('/_clientMiddlewareManifest.js') ||
+              a.pathname.endsWith('/_ssgManifest.js')
+            )
+        )
+        expect(immutableAssets).not.toBeEmpty()
+        expect(immutableAssets).toSatisfyAll(
+          (f) =>
+            // Should be same hash as in the filename, for better build performance
+            f.immutableHash && f.pathname.includes(f.immutableHash.slice(0, 13))
+        )
+      })
+    }
   }
 )
 

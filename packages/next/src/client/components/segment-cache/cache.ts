@@ -2727,8 +2727,9 @@ async function fetchPrefetchResponse<T>(
   return response
 }
 
-async function createNonTaskyPrefetchResponseStream(
-  body: ReadableStream<Uint8Array>
+export async function createNonTaskyPrefetchResponseStream(
+  body: ReadableStream<Uint8Array>,
+  byteLimit?: number
 ): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
   // Buffer the entire response before passing it to the Flight client. This
   // ensures that when Flight processes the stream, all model data is available
@@ -2741,13 +2742,24 @@ async function createNonTaskyPrefetchResponseStream(
   // These could all be consolidated into a single transformation. Refactor
   // once the cached navigations experiment lands.
   //
-  // Read the entire response from the network.
+  // Read the response from the network, optionally truncating at byteLimit.
   const reader = body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
+    if (byteLimit !== undefined && size + value.byteLength >= byteLimit) {
+      const remaining = byteLimit - size
+      if (remaining > 0) {
+        chunks.push(
+          value.byteLength > remaining ? value.subarray(0, remaining) : value
+        )
+        size += remaining
+      }
+      reader.cancel()
+      break
+    }
     chunks.push(value)
     size += value.byteLength
   }

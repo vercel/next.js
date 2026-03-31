@@ -9725,7 +9725,6 @@ dependencies = [
  "bincode 2.0.1",
  "data-encoding",
  "sha2",
- "smallvec",
  "turbo-tasks-macros",
  "xxhash-rust",
 ]
@@ -10462,6 +10461,7 @@ dependencies = [
  "rstest_reuse",
  "serde",
  "serde_json",
+ "similar",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
