@@ -222,16 +222,20 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
+  // In Turbopack dev mode, called on every request to re-fetch the live
+  // userland from devModuleCache so server HMR updates are picked up.
   private readonly _getUserland?: () => Promise<AppRouteUserlandModule>
-  private _loadUserland: (() => AppRouteUserlandModule) | null
+  // Set in the constructor when userland is provided as a factory. Cleared
+  // after the first access so userland is only loaded once.
+  private _userlandFactory: (() => AppRouteUserlandModule) | null
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
 
   override get userland(): AppRouteUserlandModule {
-    if (this._loadUserland) {
-      this._userland = this._loadUserland()
-      this._loadUserland = null
+    if (this._userlandFactory) {
+      this._userland = this._userlandFactory()
+      this._userlandFactory = null
       this._initFromUserland()
     }
     return this._userland as AppRouteUserlandModule
@@ -257,7 +261,7 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
-    this._loadUserland = isLazy ? userland : null
+    this._userlandFactory = isLazy ? userland : null
 
     if (!isLazy) {
       this._initFromUserland()
@@ -325,34 +329,28 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   /**
-   * Resolves the handler function for the given method.
+   * Returns the handler function for the given HTTP method.
    *
-   * @param method the requested method
-   * @returns the handler function for the given method
+   * In Turbopack dev mode (`_getUserland` is set), re-fetches the live
+   * userland on every request so that server HMR updates are picked up. The
+   * async wrapper also unwraps async-module Promises for ESM-only
+   * serverExternalPackages.
+   *
+   * In all other modes, returns the handler from the cached `_methods` map,
+   * triggering lazy userland initialization on the first request if needed.
    */
-  private resolve(method: string): AppRouteHandlerFn {
-    // Ensure that the requested method is a valid method (to prevent RCE's).
+  private async resolveHandler(method: string): Promise<AppRouteHandlerFn> {
+    // Prevent RCE: only allow recognized HTTP methods.
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
 
-    // Trigger lazy initialization of userland if needed.
+    if (this._getUserland) {
+      const userland = await this._getUserland()
+      return autoImplementMethods(userland)[method]
+    }
+
+    // Accessing `this.userland` triggers lazy initialization on first request.
     void this.userland
-
     return this._methods[method]
-  }
-
-  /**
-   * Like resolve(), but re-fetches the userland module on every call via the
-   * async getter. Only used in Turbopack dev mode, where server HMR disposes
-   * modules between requests. The async wrapper also unwraps async-module
-   * Promises produced by ESM-only serverExternalPackages.
-   */
-  private async resolveWithGetter(
-    method: string,
-    getUserland: () => Promise<AppRouteUserlandModule>
-  ): Promise<AppRouteHandlerFn> {
-    if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
-    const userland = await getUserland()
-    return autoImplementMethods(userland)[method]
   }
 
   private async do(
@@ -747,12 +745,7 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
-    // Get the handler function for the given method. In Turbopack dev mode,
-    // use resolveWithGetter() to re-fetch the live userland on every request
-    // In all other modes, resolve() is synchronous.
-    const handler = this._getUserland
-      ? await this.resolveWithGetter(req.method, this._getUserland)
-      : this.resolve(req.method)
+    const handler = await this.resolveHandler(req.method)
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
