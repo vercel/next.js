@@ -73,24 +73,9 @@ var instrumentedChunks = new WeakSet(),
   loadedChunks = new WeakSet();
 function ignoreReject() {}
 function preloadModule(metadata) {
-  for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var thenable = globalThis.__next_chunk_load__(chunks[i]);
-    loadedChunks.has(thenable) || promises.push(thenable);
-    if (!instrumentedChunks.has(thenable)) {
-      var resolve = loadedChunks.add.bind(loadedChunks, thenable);
-      thenable.then(resolve, ignoreReject);
-      instrumentedChunks.add(thenable);
-    }
-  }
-  return 4 === metadata.length
-    ? 0 === promises.length
-      ? requireAsyncModule(metadata[0])
-      : Promise.all(promises).then(function () {
-          return requireAsyncModule(metadata[0]);
-        })
-    : 0 < promises.length
-      ? Promise.all(promises)
-      : null;
+  for (var chunks = metadata[1], i = 0; i < chunks.length; i++)
+    globalThis.__next_chunk_load__(chunks[i]);
+  return 4 === metadata.length ? requireAsyncModule(metadata[0]) : null;
 }
 function requireModule(metadata) {
   var moduleExports = globalThis.__next_require__(metadata[0]);

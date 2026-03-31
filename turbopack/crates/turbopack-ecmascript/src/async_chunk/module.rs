@@ -8,6 +8,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
         ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
     },
+    environment::ChunkLoading,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{
@@ -194,49 +195,125 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
 
-        let code = match (id, chunks_data.is_empty()) {
-            (Some(id), true) => {
-                formatdoc! {
-                    r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.resolve().then(() => {{
+        let is_sync_chunk_loading = matches!(
+            *chunking_context.environment().chunk_loading().await?,
+            ChunkLoading::NodeJs | ChunkLoading::Edge
+        );
+
+        let code = if is_sync_chunk_loading {
+            // Node.js/Edge: chunk loading is synchronous (require() on Node.js,
+            // pre-bundled on Edge), so we can avoid all promise overhead.
+            match (id, chunks_data.is_empty()) {
+                (Some(id), true) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                                 return parentImport({id});
                             }});
-                        }});
-                    "#,
-                    id = StringifyModuleId(id),
+                        "#,
+                        id = StringifyModuleId(id),
+                    }
                 }
-            }
-            (Some(id), false) => {
-                formatdoc! {
-                    r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                (Some(id), false) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                var chunks = {chunks:#};
+                                for (var i = 0; i < chunks.length; i++) {{
+                                    {TURBOPACK_LOAD}(chunks[i]);
+                                }}
                                 return parentImport({id});
                             }});
-                        }});
-                    "#,
-                    chunks = StringifyJs(&chunks_data),
-                    id = StringifyModuleId(id),
+                        "#,
+                        chunks = StringifyJs(&chunks_data),
+                        id = StringifyModuleId(id),
+                    }
+                }
+                (None, true) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{}});
+                        "#,
+                    }
+                }
+                (None, false) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                var chunks = {chunks:#};
+                                for (var i = 0; i < chunks.length; i++) {{
+                                    {TURBOPACK_LOAD}(chunks[i]);
+                                }}
+                            }});
+                        "#,
+                        chunks = StringifyJs(&chunks_data),
+                    }
                 }
             }
-            (None, true) => {
-                formatdoc! {
-                    r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.resolve();
-                        }});
-                    "#,
+        } else {
+            // Browser (DOM): chunk loading is async, use promises.
+            // Single-chunk case avoids Promise.all + map overhead.
+            match (id, chunks_data.len()) {
+                (Some(id), 0) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}(async (parentImport) => {{
+                                return parentImport({id});
+                            }});
+                        "#,
+                        id = StringifyModuleId(id),
+                    }
                 }
-            }
-            (None, false) => {
-                formatdoc! {
-                    r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
-                        }});
-                    "#,
-                    chunks = StringifyJs(&chunks_data),
+                (Some(id), 1) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                return {TURBOPACK_LOAD}({chunk}).then(() => parentImport({id}));
+                            }});
+                        "#,
+                        chunk = StringifyJs(&chunks_data[0]),
+                        id = StringifyModuleId(id),
+                    }
+                }
+                (Some(id), _) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                                    return parentImport({id});
+                                }});
+                            }});
+                        "#,
+                        chunks = StringifyJs(&chunks_data),
+                        id = StringifyModuleId(id),
+                    }
+                }
+                (None, 0) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}(async (parentImport) => {{}});
+                        "#,
+                    }
+                }
+                (None, 1) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                return {TURBOPACK_LOAD}({chunk});
+                            }});
+                        "#,
+                        chunk = StringifyJs(&chunks_data[0]),
+                    }
+                }
+                (None, _) => {
+                    formatdoc! {
+                        r#"
+                            {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                                return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
+                            }});
+                        "#,
+                        chunks = StringifyJs(&chunks_data),
+                    }
                 }
             }
         };

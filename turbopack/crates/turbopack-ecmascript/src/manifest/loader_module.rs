@@ -1,7 +1,7 @@
 use std::io::Write as _;
 
 use anyhow::{Result, anyhow};
-use indoc::writedoc;
+use indoc::{formatdoc, writedoc};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
@@ -9,6 +9,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunksData,
         ModuleChunkItemIdExt,
     },
+    environment::ChunkLoading,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -118,7 +119,7 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
     #[turbo_tasks::function]
     async fn chunk_item_content(
         self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
@@ -154,28 +155,83 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
         // trying to dynamically import.
         // This is similar to what happens when the first evaluated chunk is executed
         // on first page load, but it's happening on-demand instead of eagerly.
-        writedoc!(
-            code,
-            r#"
-                {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                    return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
-                        return {TURBOPACK_REQUIRE}({item_id});
-                    }}).then((chunks) => {{
-                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
-                    }}).then(() => {{
+        let chunks_server_data: Vec<_> = chunks_server_data
+            .iter()
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
+            .collect();
+
+        let is_sync_chunk_loading = matches!(
+            *chunking_context.environment().chunk_loading().await?,
+            ChunkLoading::NodeJs | ChunkLoading::Edge
+        );
+
+        if is_sync_chunk_loading {
+            // Node.js/Edge: all chunk loading is synchronous (require() on Node.js,
+            // pre-bundled on Edge), so we can avoid all promise overhead. Load
+            // chunks, require manifest, load dynamic chunks, import target — all
+            // synchronous.
+            writedoc!(
+                code,
+                r#"
+                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                        var chunks = {chunks_server_data:#};
+                        for (var i = 0; i < chunks.length; i++) {{
+                            {TURBOPACK_LOAD}(chunks[i]);
+                        }}
+                        chunks = {TURBOPACK_REQUIRE}({item_id});
+                        for (i = 0; i < chunks.length; i++) {{
+                            {TURBOPACK_LOAD}(chunks[i]);
+                        }}
                         return parentImport({dynamic_id});
                     }});
-                }});
-            "#,
-            chunks_server_data = StringifyJs(
-                &chunks_server_data
-                    .iter()
-                    .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
-                    .collect::<Vec<_>>()
-            ),
-            item_id = StringifyModuleId(&item_id),
-            dynamic_id = StringifyModuleId(&dynamic_id),
-        )?;
+                "#,
+                chunks_server_data = StringifyJs(&chunks_server_data),
+                item_id = StringifyModuleId(&item_id),
+                dynamic_id = StringifyModuleId(&dynamic_id),
+            )?;
+        } else {
+            // Browser (DOM): chunk loading is async, use promises.
+            // The second stage chunks come from TURBOPACK_REQUIRE at runtime so we
+            // cannot know their count at codegen time.
+            let load_dynamic = formatdoc! {
+                r#"
+                    function loadDynamic() {{
+                        var chunks = {TURBOPACK_REQUIRE}({item_id});
+                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                            return parentImport({dynamic_id});
+                        }});
+                    }}
+                "#,
+                item_id = StringifyModuleId(&item_id),
+                dynamic_id = StringifyModuleId(&dynamic_id),
+            };
+
+            if chunks_server_data.len() == 1 {
+                // Single chunk: avoid Promise.all + map overhead for the manifest
+                // chunk.
+                writedoc!(
+                    code,
+                    r#"
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                            {load_dynamic}
+                            return {TURBOPACK_LOAD}({chunk}).then(loadDynamic);
+                        }});
+                    "#,
+                    chunk = StringifyJs(&chunks_server_data[0]),
+                )?;
+            } else {
+                writedoc!(
+                    code,
+                    r#"
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                            {load_dynamic}
+                            return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(loadDynamic);
+                        }});
+                    "#,
+                    chunks_server_data = StringifyJs(&chunks_server_data),
+                )?;
+            }
+        }
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),

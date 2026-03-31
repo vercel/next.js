@@ -13,11 +13,6 @@ function getModuleLoadingSignal() {
   return _moduleLoadingSignal
 }
 
-export function trackPendingChunkLoad(promise: Promise<unknown>) {
-  const moduleLoadingSignal = getModuleLoadingSignal()
-  moduleLoadingSignal.trackRead(promise)
-}
-
 export function trackPendingImport(exportsOrPromise: unknown) {
   const moduleLoadingSignal = getModuleLoadingSignal()
 

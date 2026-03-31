@@ -410,13 +410,15 @@ function esmImport(
 }
 contextPrototype.i = esmImport
 
+// Base async loader for dynamic import(). In the browser, chunk loading is
+// naturally async so loaders already return Promises — no extra wrapping needed.
 function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
-): Promise<Exports> {
+): Exports | Promise<Exports> {
   const loader = this.r(moduleId) as (
     importFunction: EsmImport
-  ) => Promise<Exports>
+  ) => Exports | Promise<Exports>
   return loader(esmImport.bind(this))
 }
 contextPrototype.A = asyncLoader
