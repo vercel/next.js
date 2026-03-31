@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { execSync } from 'child_process'
 
 const dependencies = {
-  'es-check': '9.6.1',
+  'es-check': '9.6.4',
   browserslist: '4.28.1',
 }
 
