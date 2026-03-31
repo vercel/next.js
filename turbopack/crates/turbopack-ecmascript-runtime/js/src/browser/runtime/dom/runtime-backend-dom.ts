@@ -11,13 +11,10 @@
 
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
-  return (
-    (self.TURBOPACK_ASSET_SUFFIX ??
-      document?.currentScript
-        ?.getAttribute?.('src')
-        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
-    ''
-  )
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const qi = src.indexOf('?')
+  return qi >= 0 ? src.slice(qi) : ''
 }
 
 type ChunkResolver = {
