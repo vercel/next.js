@@ -25,9 +25,9 @@ node_modules/next/dist/
 │   ├── 03-architecture/
 │   └── index.md
 └── react-docs/                # React API reference
-    ├── useActionState.md
-    ├── useState.md
-    ├── useEffect.md
+    ├── hooks.md
+    ├── components.md
+    ├── apis.md
     └── ...
 ```
 
@@ -106,9 +106,9 @@ The `<!-- BEGIN:nextjs-agent-rules -->` and `<!-- END:nextjs-agent-rules -->` co
 
 The bundled docs include:
 
-- **React reference** (`dist/react-docs/`) — API reference for React hooks like `useActionState`, `useState`, `useEffect`, and others. Helps agents use modern React patterns instead of outdated ones.
+- **React API reference** (`dist/react-docs/`) — Covers hooks, components, and APIs from the React library. Agents can look up correct signatures and usage patterns instead of relying on training data.
 - **Next.js guides and API reference** (`dist/docs/`) — Guides, API references, and file conventions for the App Router and Pages Router.
 
-When an agent encounters a task involving routing, data fetching, or any other React or Next.js feature, it can look up the correct API in the bundled docs rather than relying on potentially outdated training data.
+When an agent encounters a task involving any React or Next.js feature, it can consult the bundled docs for up-to-date API details rather than relying on potentially outdated training data.
 
 > **Good to know:** To see how bundled docs and `AGENTS.md` improve agent performance on real-world Next.js tasks, visit the [benchmark results](https://nextjs.org/evals).
