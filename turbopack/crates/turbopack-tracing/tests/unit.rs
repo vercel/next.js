@@ -6,9 +6,9 @@ mod helpers;
 use std::{path::PathBuf, sync::LazyLock};
 
 use anyhow::Result;
-use difference::Changeset;
 use regex::Regex;
 use rstest::*;
+use similar::TextDiff;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
@@ -35,8 +35,6 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-
-use crate::helpers::print_changeset;
 
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
@@ -298,7 +296,18 @@ fn node_file_trace(input_path: &str) -> Result<()> {
 
     let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let package_root = package_root.join("tests/node-file-trace");
-    let input: RcStr = format!("test/unit/{input_path}/input.js").into();
+    let entry_name = match input_path {
+        "jsx-input" => "input.jsx",
+        "tsx-input" => "input.tsx",
+        "ts-input-esm" => "input.ts",
+        "module-create-require-no-mixed"
+        | "module-create-require-named-require"
+        | "module-create-require-named-import"
+        | "module-create-require-ignore-other"
+        | "module-create-require-destructure" => "input.mjs",
+        _ => "input.js",
+    };
+    let input: RcStr = format!("test/unit/{input_path}/{entry_name}").into();
     let reference = package_root.join(format!("test/unit/{input_path}/output.js"));
 
     r.block_on(async move {
@@ -330,9 +339,12 @@ fn node_file_trace(input_path: &str) -> Result<()> {
             } else {
                 let reference = reference.into_iter().collect::<Vec<_>>().join("\n");
                 let list = list.into_iter().collect::<Vec<_>>().join("\n");
+                let diff = TextDiff::from_lines(&reference, &list);
                 println!(
                     "{}",
-                    print_changeset(&Changeset::new(reference.trim(), list.trim(), "\n"))
+                    diff.unified_diff()
+                        .context_radius(3)
+                        .header("expected", "actual")
                 );
                 anyhow::bail!("file trace does not match reference");
             }
