@@ -68,8 +68,8 @@ export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
  * The `ops` object must have these methods:
  *   - transform(programPtr, programLen, unresolvedMark, commentsProxy) → number
  *   - getDiag() → number
- *   - readMemory(ptr, len) → Buffer
- *   - writeMemory(ptr, data: Buffer) → void
+ *   - readBuf(ptr, len) → Buffer
+ *   - writeBuf(ptr, data: Buffer) → void
  *   - alloc(size) → number
  *   - free(ptr, size) → number
  *

@@ -25,25 +25,16 @@ if (!parentPort) {
 const bindings = require(workerData.nativeBindingsPath)
 
 // ---------------------------------------------------------------------------
-// Instance storage
+// Instance storage — the ops object closes over the WASM instance/memory,
+// so it serves as both the instance handle and the ops interface.
 // ---------------------------------------------------------------------------
 
-interface InstanceEntry {
-  instance: WebAssembly.Instance
+const instances = new Map<number, ReturnType<typeof createInstanceOps>>()
+
+function createInstanceOps(
+  instance: WebAssembly.Instance,
   memory: WebAssembly.Memory
-}
-
-const instances = new Map<number, InstanceEntry>()
-const instanceOps = new Map<number, ReturnType<typeof createInstanceOps>>()
-
-// ---------------------------------------------------------------------------
-// Create ops object for a WASM instance.
-// These methods are called by Rust via the per-instance TSFN (transform,
-// getDiag, memory ops) and also passed as the memory accessor during host
-// function dispatch (readBuf, writeBuf, alloc, free).
-// ---------------------------------------------------------------------------
-
-function createInstanceOps(entry: InstanceEntry) {
+) {
   return {
     transform(
       programPtr: number,
@@ -51,7 +42,7 @@ function createInstanceOps(entry: InstanceEntry) {
       unresolvedMark: number,
       commentsProxy: number
     ): number {
-      const transformFn = entry.instance.exports
+      const transformFn = instance.exports
         .__transform_plugin_process_impl as Function
       return transformFn(
         programPtr,
@@ -62,25 +53,25 @@ function createInstanceOps(entry: InstanceEntry) {
     },
 
     getDiag(): number {
-      const diagFn = entry.instance.exports
+      const diagFn = instance.exports
         .__get_transform_plugin_core_pkg_diag as Function
       return diagFn() as number
     },
 
     readBuf(ptr: number, len: number): Buffer {
-      return Buffer.from(new Uint8Array(entry.memory.buffer, ptr, len).slice())
+      return Buffer.from(new Uint8Array(memory.buffer, ptr, len).slice())
     },
 
     writeBuf(ptr: number, data: Buffer): void {
-      new Uint8Array(entry.memory.buffer, ptr, data.byteLength).set(data)
+      new Uint8Array(memory.buffer, ptr, data.byteLength).set(data)
     },
 
     alloc(size: number): number {
-      return (entry.instance.exports.__alloc as Function)(size) as number
+      return (instance.exports.__alloc as Function)(size) as number
     },
 
     free(ptr: number, size: number): number {
-      return (entry.instance.exports.__free as Function)(ptr, size) as number
+      return (instance.exports.__free as Function)(ptr, size) as number
     },
   }
 }
@@ -89,12 +80,8 @@ function createInstanceOps(entry: InstanceEntry) {
 // postMessage handlers
 // ---------------------------------------------------------------------------
 
-interface HostFnDescriptor {
-  name: string
-  paramCount: number
-  resultCount: number
-  index: number
-}
+// Each descriptor is a [name, paramCount, resultCount, index] tuple.
+type HostFnDescriptor = [string, number, number, number]
 
 parentPort.on('message', (req: any) => {
   try {
@@ -106,10 +93,14 @@ parentPort.on('message', (req: any) => {
 
         // Build env imports that call Rust host functions directly via NAPI
         const envImports: Record<string, Function> = {}
-        for (const desc of req.hostFnDescriptors as HostFnDescriptor[]) {
-          const { index, paramCount } = desc
-          envImports[desc.name] = (...args: number[]) => {
-            const ops = instanceOps.get(instanceId)
+        for (const [
+          name,
+          paramCount,
+          ,
+          index,
+        ] of req.hostFnDescriptors as HostFnDescriptor[]) {
+          envImports[name] = (...args: number[]) => {
+            const ops = instances.get(instanceId)
             if (!ops) {
               throw new Error(`Instance ${instanceId} not found for host fn`)
             }
@@ -132,13 +123,11 @@ parentPort.on('message', (req: any) => {
         })
         wasi.initialize(instance)
         const memory = instance.exports.memory as WebAssembly.Memory
-        const entry: InstanceEntry = { instance, memory }
-        instances.set(instanceId, entry)
 
-        // Register ops with Rust — this creates a TSFN targeting this worker's
-        // event loop. Rust will call these ops directly via the TSFN.
-        const ops = createInstanceOps(entry)
-        instanceOps.set(instanceId, ops)
+        // The ops object closes over instance/memory and serves as both
+        // the instance handle and the ops interface for Rust.
+        const ops = createInstanceOps(instance, memory)
+        instances.set(instanceId, ops)
         bindings.wasmWorkerRegisterCallback(instanceId, ops)
 
         response = { result: instanceId }
@@ -147,7 +136,6 @@ parentPort.on('message', (req: any) => {
 
       case 'dropInstance': {
         instances.delete(req.instanceId)
-        instanceOps.delete(req.instanceId)
         response = { result: null }
         break
       }

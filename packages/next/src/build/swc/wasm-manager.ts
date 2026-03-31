@@ -170,19 +170,16 @@ export const wasmManager = {
    * Instantiate a WASM module on a worker. The module is transferred via
    * structured clone (zero-cost for WebAssembly.Module).
    *
-   * Returns { instanceId, promise } — Rust waits on the promise for completion.
+   * Rust passes a single callback; JS calls it with the instanceId (number)
+   * on success or an error message (string) on failure.
    * After instantiation, the worker registers ops with Rust via NAPI and
    * its event loop remains free to receive TSFN callbacks.
    */
   instantiateOnWorker(
     moduleId: number,
-    hostFnDescriptors: Array<{
-      name: string
-      paramCount: number
-      resultCount: number
-      index: number
-    }>
-  ): { instanceId: number; promise: Promise<number> } {
+    hostFnDescriptors: Array<[string, number, number, number]>,
+    callback: (result: number | string) => void
+  ): void {
     const module = compiledModules.get(moduleId)
     if (!module) throw new Error(`Module ${moduleId} not found`)
 
@@ -193,14 +190,15 @@ export const wasmManager = {
     instanceWorkerMap.set(instanceId, workerIndex)
     workerEntry.instances.add(instanceId)
 
-    const promise = sendToWorker(workerEntry, {
+    sendToWorker(workerEntry, {
       type: 'instantiate',
       instanceId,
       module,
       hostFnDescriptors,
-    })
-
-    return { instanceId, promise }
+    }).then(
+      () => callback(instanceId),
+      (err) => callback(String(err))
+    )
   },
 
   dropModule(moduleId: number): void {

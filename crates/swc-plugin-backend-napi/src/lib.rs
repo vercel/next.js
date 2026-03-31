@@ -23,7 +23,7 @@ static WASM_TSFN_ENV: OnceLock<usize> = OnceLock::new();
 
 /// Global host function registry: maps instance_id → Vec<Func>.
 /// Workers call back into these during WASM execution via NAPI.
-static HOST_FNS: LazyLock<Mutex<HashMap<u64, Arc<Vec<(String, runtime::Func)>>>>> =
+static HOST_FNS: LazyLock<Mutex<HashMap<u64, Arc<Vec<runtime::Func>>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 /// Global per-instance TSFN registry: maps instance_id → TSFN targeting the worker thread.
@@ -294,7 +294,7 @@ pub fn wasm_worker_dispatch_host_fn(
         )));
     }
 
-    let (ref _name, ref func) = host_functions[fn_index];
+    let func = &host_functions[fn_index];
     let result_count = func.sign.1 as usize;
 
     let mut caller = NapiDirectCaller {
@@ -557,52 +557,44 @@ fn instantiate_js(
     host_fn_descriptors: Vec<HostFnDescriptor>,
     reply: mpsc::SyncSender<anyhow::Result<u64>>,
 ) -> napi::Result<()> {
+    // Each descriptor is a [name, paramCount, resultCount, index] tuple —
+    // arrays are faster to construct and serialize than objects.
     let mut descriptors_arr = env.create_array_with_length(host_fn_descriptors.len())?;
     for (i, desc) in host_fn_descriptors.iter().enumerate() {
-        let mut obj = env.create_object()?;
-        obj.set_named_property("name", env.create_string(&desc.name)?)?;
-        obj.set_named_property("paramCount", env.create_int32(desc.param_count as i32)?)?;
-        obj.set_named_property("resultCount", env.create_int32(desc.result_count as i32)?)?;
-        obj.set_named_property("index", env.create_int32(desc.index as i32)?)?;
-        descriptors_arr.set_element(i as u32, obj)?;
+        let mut tuple = env.create_array_with_length(4)?;
+        tuple.set_element(0, env.create_string(&desc.name)?)?;
+        tuple.set_element(1, env.create_int32(desc.param_count as i32)?)?;
+        tuple.set_element(2, env.create_int32(desc.result_count as i32)?)?;
+        tuple.set_element(3, env.create_int32(desc.index as i32)?)?;
+        descriptors_arr.set_element(i as u32, tuple)?;
     }
 
+    // Single callback: JS calls with a number (instanceId) on success,
+    // or a string (error message) on failure.
+    let callback = env.create_function_from_closure("callback", move |ctx| {
+        let result: JsUnknown = ctx.get(0)?;
+        match result.get_type()? {
+            napi::ValueType::Number => {
+                let n: JsNumber = result.try_into()?;
+                let _ = reply.send(Ok(n.get_double()? as u64));
+            }
+            _ => {
+                let s: napi::JsString = result.try_into()?;
+                let msg = s.into_utf8()?.as_str()?.to_owned();
+                let _ = reply.send(Err(anyhow::anyhow!("Instantiate failed: {}", msg)));
+            }
+        }
+        ctx.env.get_undefined()
+    })?;
+
     let instantiate_fn: JsFunction = manager.get_named_property("instantiateOnWorker")?;
-    let result = instantiate_fn.call(
+    instantiate_fn.call(
         None,
         &[
             env.create_double(module_id as f64)?.into_unknown(),
             unsafe { JsUnknown::from_raw_unchecked(env.raw(), descriptors_arr.raw()) },
+            callback.into_unknown(),
         ],
-    )?;
-
-    let result: JsObject = result.try_into()?;
-    let instance_id: JsNumber = result.get_named_property("instanceId")?;
-    let instance_id_val = instance_id.get_double()? as u64;
-
-    // The promise resolves when the worker finishes instantiation.
-    let promise: JsObject = result.get_named_property("promise")?;
-    let then_fn: JsFunction = promise.get_named_property("then")?;
-
-    let reply_ok = reply.clone();
-    let resolve_cb = env.create_function_from_closure("resolve", move |ctx| {
-        let _ = reply_ok.send(Ok(instance_id_val));
-        ctx.env.get_undefined()
-    })?;
-
-    let reject_cb = env.create_function_from_closure("reject", move |ctx| {
-        let err: JsUnknown = ctx.get(0)?;
-        let msg = err
-            .coerce_to_string()
-            .and_then(|s| s.into_utf8()?.as_str().map(|s| s.to_owned()))
-            .unwrap_or_else(|_| "unknown error".to_string());
-        let _ = reply.send(Err(anyhow::anyhow!("Instantiate failed: {}", msg)));
-        ctx.env.get_undefined()
-    })?;
-
-    then_fn.call(
-        Some(&promise),
-        &[resolve_cb.into_unknown(), reject_cb.into_unknown()],
     )?;
 
     Ok(())
@@ -650,18 +642,18 @@ impl runtime::Runtime for NapiRuntime {
             }
         };
 
-        let host_fn_descriptors: Vec<HostFnDescriptor> = imports
-            .iter()
-            .enumerate()
-            .map(|(i, (name, func))| HostFnDescriptor {
-                name: name.clone(),
+        let mut host_fn_descriptors = Vec::with_capacity(imports.len());
+        let mut host_functions = Vec::with_capacity(imports.len());
+        for (i, (name, func)) in imports.into_iter().enumerate() {
+            host_fn_descriptors.push(HostFnDescriptor {
+                name,
                 param_count: func.sign.0,
                 result_count: func.sign.1,
                 index: i,
-            })
-            .collect();
-
-        let host_functions = Arc::new(imports);
+            });
+            host_functions.push(func);
+        }
+        let host_functions = Arc::new(host_functions);
 
         // Instantiate on a worker thread via TSFN → postMessage.
         // The worker will call wasmWorkerRegisterCallback to set up the per-instance TSFN.
