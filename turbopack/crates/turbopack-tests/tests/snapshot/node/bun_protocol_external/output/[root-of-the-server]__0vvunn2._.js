@@ -1,37 +1,37 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__0vvunn2._.js",
 "[externals]/bun:ffi [external] (bun:ffi, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));
+var mod = __turbopack_context__.x("bun:ffi", () => require("bun:ffi"));
 
 module.exports = mod;
 }),
 "[externals]/bun:jsc [external] (bun:jsc, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun:jsc", () => require("bun:jsc"));
+var mod = __turbopack_context__.x("bun:jsc", () => require("bun:jsc"));
 
 module.exports = mod;
 }),
 "[externals]/bun:sqlite [external] (bun:sqlite, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun:sqlite", () => require("bun:sqlite"));
+var mod = __turbopack_context__.x("bun:sqlite", () => require("bun:sqlite"));
 
 module.exports = mod;
 }),
 "[externals]/bun:test [external] (bun:test, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun:test", () => require("bun:test"));
+var mod = __turbopack_context__.x("bun:test", () => require("bun:test"));
 
 module.exports = mod;
 }),
 "[externals]/bun:wrap [external] (bun:wrap, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun:wrap", () => require("bun:wrap"));
+var mod = __turbopack_context__.x("bun:wrap", () => require("bun:wrap"));
 
 module.exports = mod;
 }),
 "[externals]/bun [external] (bun, cjs)", ((__turbopack_context__, module, exports) => {
 
-const mod = __turbopack_context__.x("bun", () => require("bun"));
+var mod = __turbopack_context__.x("bun", () => require("bun"));
 
 module.exports = mod;
 }),

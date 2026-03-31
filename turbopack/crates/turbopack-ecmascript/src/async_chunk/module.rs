@@ -19,8 +19,8 @@ use turbopack_core::{
 
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
     utils::{StringifyJs, StringifyModuleId},
@@ -161,6 +161,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
+
         if estimated {
             let code = formatdoc! {
                 r#"
@@ -171,6 +180,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             };
             return Ok(EcmascriptChunkItemContent {
                 inner_code: code.into(),
+                options,
                 ..Default::default()
             }
             .cell());
@@ -243,6 +253,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())

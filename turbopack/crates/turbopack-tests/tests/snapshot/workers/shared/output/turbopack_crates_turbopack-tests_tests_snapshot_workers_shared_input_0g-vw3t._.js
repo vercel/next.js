@@ -10,7 +10,7 @@ __turbopack_context__.v(function(Ctor, opts) {
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js")}`;
     }

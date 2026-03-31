@@ -868,6 +868,12 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("exports");
     let (webpack_runtime, webpack_entry, webpack_chunks) = async {
+        let supports_block_scoping = *compile_time_info
+            .environment()
+            .runtime_versions()
+            .supports_block_scoping()
+            .await?;
+
         let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
             set_handler_and_globals(&handler, globals, || {
                 // TODO migrate to effects
@@ -877,6 +883,7 @@ async fn analyze_ecmascript_module_internal(
                     &mut analysis,
                     analyze_mode,
                     &var_graph,
+                    supports_block_scoping,
                 );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
                 // for any references in esm_exports
@@ -3929,6 +3936,7 @@ struct ModuleReferencesVisitor<'a> {
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
     var_graph: &'a VarGraph,
+    supports_block_scoping: bool,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -3938,6 +3946,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
         analyze_mode: AnalyzeMode,
         var_graph: &'a VarGraph,
+        supports_block_scoping: bool,
     ) -> Self {
         Self {
             analyze_mode,
@@ -3950,6 +3959,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
             webpack_entry: false,
             webpack_chunks: Vec::new(),
             var_graph,
+            supports_block_scoping,
         }
     }
 }
@@ -4025,8 +4035,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4109,8 +4121,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         }
 
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4153,8 +4167,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         };
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4173,8 +4189,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             ),
         );
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4204,8 +4222,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4254,7 +4274,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(path));
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(path, self.supports_block_scoping));
         }
     }
 

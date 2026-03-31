@@ -1,7 +1,7 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_import-meta_cjs_input_1uw7l3k._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs")}`;
     }
