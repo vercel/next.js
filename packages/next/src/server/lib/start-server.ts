@@ -532,7 +532,7 @@ export async function startServer(
     const distDirWatchPaths: string[] = []
     for (
       let current = absDistDir;
-      current !== dir;
+      current !== dir && current.startsWith(dir + path.sep);
       current = path.dirname(current)
     ) {
       distDirWatchPaths.push(current)
