@@ -535,7 +535,8 @@ export async function handleBuildComplete({
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       const clientHashes: Record<string, string> | undefined =
-        bundler === Bundler.Turbopack && config.experimental.immutableAssetToken
+        bundler === Bundler.Turbopack &&
+        config.experimental.supportsImmutableAssets
           ? JSON.parse(
               await fs.readFile(
                 path.join(distDir, 'immutable-static-hashes.json'),
@@ -2172,6 +2173,16 @@ export async function handleBuildComplete({
               // This ensures we only match known emitted-by-Next.js files and not
               // user-emitted files which may be missing a hash in their filename.
               sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+              // Next.js assets contain a hash or entropy in their filenames, so they
+              // are guaranteed to be unique and cacheable indefinitely.
+              headers: {
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
+              },
+            },
+            {
+              // This ensures we only match known emitted-by-Next.js files and not
+              // user-emitted files which may be missing a hash in their filename.
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/immutable/.+')}`,
               // Next.js assets contain a hash or entropy in their filenames, so they
               // are guaranteed to be unique and cacheable indefinitely.
               headers: {

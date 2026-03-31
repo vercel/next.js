@@ -1044,7 +1044,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root_to_root_path,
         client_root.clone(),
         node_root.join("server/chunks/ssr")?,
-        client_root.join("static/media")?,
+        client_root.join("immutable/media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -1148,7 +1148,7 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
-    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_root_path_override(rcstr!("client"), client_root.join("immutable/media")?)
     .asset_prefix_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),

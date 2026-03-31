@@ -525,7 +525,8 @@ export async function initialize(opts: {
 
         if (
           !res.getHeader('cache-control') &&
-          matchedOutput.type === 'nextStaticFolder'
+          (matchedOutput.type === 'nextStaticFolder' ||
+            matchedOutput.type === 'nextImmutableFolder')
         ) {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
@@ -660,7 +661,10 @@ export async function initialize(opts: {
       }
       // For not found static assets, return plain text 404 instead of
       // full HTML 404 pages to save bandwidth.
-      if (realRequestPathname.startsWith('/_next/static/')) {
+      if (
+        realRequestPathname.startsWith('/_next/static/') ||
+        realRequestPathname.startsWith('/_next/immutable/')
+      ) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
         res.end('Not Found')

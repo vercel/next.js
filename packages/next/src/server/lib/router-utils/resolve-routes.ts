@@ -490,15 +490,15 @@ export function getResolveRoutes(
               if (
                 process.env.__NEXT_TEST_MODE &&
                 process.env.IS_TURBOPACK_TEST &&
-                output.type === 'nextStaticFolder' &&
+                output.type === 'nextImmutableFolder' &&
                 config.deploymentId
               ) {
-                let useImmutableToken =
-                  config.experimental.immutableAssetToken &&
-                  clientHashes![`static${decodeURI(output.itemPath)}`]
+                let isImmutableFile =
+                  config.experimental.supportsImmutableAssets &&
+                  clientHashes![`immutable${decodeURI(output.itemPath)}`]
 
-                const expectedToken = useImmutableToken
-                  ? config.experimental.immutableAssetToken
+                const expectedToken = isImmutableFile
+                  ? undefined
                   : config.deploymentId
                 if (parsedUrl.query.dpl !== expectedToken) {
                   console.error(

@@ -1101,7 +1101,7 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    immutable_asset_token: Option<RcStr>,
+    supports_immutable_assets: Option<bool>,
 
     // ---
     // UNSUPPORTED
@@ -1961,20 +1961,24 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let id = self
+        let needs_dpl_id = self
             .experimental
-            .immutable_asset_token
-            .as_ref()
-            .or(self.deployment_id.as_ref());
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
 
-        Vc::cell(id.as_ref().map(|id| format!("?dpl={id}").into()))
+        Vc::cell(
+            needs_dpl_id
+                .then_some(self.deployment_id.as_ref())
+                .flatten()
+                .map(|id| format!("?dpl={id}").into()),
+        )
     }
 
     /// Whether to enable immutable assets, which uses a different asset suffix, and writes a
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.immutable_asset_token.is_some())
+        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
     }
 
     #[turbo_tasks::function]

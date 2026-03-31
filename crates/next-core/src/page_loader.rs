@@ -146,7 +146,7 @@ impl PageLoaderAsset {
         let rebase_prefix_path = self.rebase_prefix_path.await?;
         let root = rebase_prefix_path.as_ref().unwrap_or(&self.server_root);
         Ok(AssetIdent::from_path(root.join(&format!(
-            "static/chunks/pages{}",
+            "immutable/chunks/pages{}",
             get_asset_path_from_pathname(&self.pathname, ".js")
         ))?)
         .with_modifier(rcstr!("page loader asset")))

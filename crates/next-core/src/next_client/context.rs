@@ -505,7 +505,7 @@ pub async fn get_client_chunking_context(
         client_root.clone(),
         client_root_to_root_path,
         client_root.clone(),
-        client_root.join("static/chunks")?,
+        client_root.join("immutable/chunks")?,
         get_client_assets_path(client_root.clone()).owned().await?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
@@ -567,7 +567,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub fn get_client_assets_path(client_root: FileSystemPath) -> Result<Vc<FileSystemPath>> {
-    Ok(client_root.join("static/media")?.cell())
+    Ok(client_root.join("immutable/media")?.cell())
 }
 
 #[turbo_tasks::function]

@@ -2134,9 +2134,11 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 
   const deploymentId: string | undefined =
     requiredServerFiles?.config?.deploymentId
-  const immutableAssetToken: string | undefined =
-    requiredServerFiles?.config?.experimental?.immutableAssetToken
-  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.experimental?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
 
   return {
     deploymentId,

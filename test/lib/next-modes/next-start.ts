@@ -10,7 +10,7 @@ import { shouldUseTurbopack } from 'next-test-utils'
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _deploymentId: string | undefined
-  private _immutableAssetToken: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _cliOutput: string = ''
 
   private _prerenderFinishedTimeMS: number | null = null
@@ -32,8 +32,8 @@ export class NextStartInstance extends NextInstance {
     return this._deploymentId
   }
 
-  public get immutableAssetToken() {
-    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   public get cliOutput() {
@@ -147,9 +147,9 @@ export class NextStartInstance extends NextInstance {
         )
         this._deploymentId =
           requiredServerFiles.config?.deploymentId || undefined
-        this._immutableAssetToken =
-          requiredServerFiles.config?.experimental.immutableAssetToken ||
-          undefined
+        this._supportsImmutableAssets =
+          requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
+          false
       } catch {}
     }
 
@@ -302,9 +302,9 @@ export class NextStartInstance extends NextInstance {
         )
       )
       this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
-      this._immutableAssetToken =
-        requiredServerFiles.config?.experimental.immutableAssetToken ||
-        undefined
+      this._supportsImmutableAssets =
+        requiredServerFiles.config?.experimental?.supportsImmutableAssets ||
+        false
     } catch {}
 
     return result
