@@ -187,6 +187,11 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     stateful: bool,
 
+    /// Whether this task is new and needs its type persisted to the task cache.
+    /// Set when task is created, cleared after persisting.
+    #[field(storage = "flag", category = "transient")]
+    pub new_task: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -538,8 +543,10 @@ impl TaskStorage {
         task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
-        // Mark as fully restored since transient tasks don't need restoration from disk
+        // Mark as fully restored since transient tasks don't need restoration from disk,
+        // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
+        self.flags.set_new_task(true);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
         self.aggregation_number = AggregationNumber {

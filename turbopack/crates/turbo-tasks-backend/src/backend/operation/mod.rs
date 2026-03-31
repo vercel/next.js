@@ -165,20 +165,15 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn should_check_backing_storage(&self) -> bool {
-        self.backend.should_restore() && self.backend.local_is_partial
-    }
-
     fn restore_task_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
     ) -> TaskStorage {
-        if !self.should_check_backing_storage() {
-            // If we don't need to restore, we can just return an empty storage
-            return TaskStorage::default();
-        }
         let mut storage = TaskStorage::default();
+        if !self.backend.should_restore() {
+            return storage;
+        }
         let result = self
             .backend
             .backing_storage
@@ -204,8 +199,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             task_ids.len() > 1,
             "Use restore_task_data_typed for single task"
         );
-        if !self.should_check_backing_storage() {
-            // If we don't need to restore, we return None
+        if !self.backend.should_restore() {
             return None;
         }
         let result = self
@@ -244,13 +238,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .into_iter()
             .filter(|&(id, category)| {
                 if id.is_transient() {
+                    // Transient tasks don't need DB restoration (restored flags are
+                    // set at allocation time), so just invoke the callback directly.
                     if call_prepared_task_callback_for_transient_tasks {
-                        let mut task = self.backend.storage.access_mut(id);
-                        // TODO add is_restoring and avoid concurrent restores and duplicates tasks
-                        // ids in `task_ids`
-                        if !task.flags.is_restored(category) {
-                            task.flags.set_restored(TaskDataCategory::All);
-                        }
+                        let task = self.backend.storage.access_mut(id);
                         prepared_task_callback(self, id, category, task);
                     }
                     false
@@ -400,40 +391,43 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
 
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.flags.is_restored(category) {
-            if task_id.is_transient() {
-                task.flags.set_restored(TaskDataCategory::All);
-            } else {
-                // Collect which categories need restoring while we have the lock
-                let needs_data =
-                    category.includes_data() && !task.flags.is_restored(TaskDataCategory::Data);
-                let needs_meta =
-                    category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
+            // New tasks (transient and persistent) have restored flags set at allocation
+            // time, so this path is only hit for persistent tasks being restored from DB.
+            debug_assert!(
+                !task.flags.new_task() && !task_id.is_transient(),
+                "new or transient task should already be marked restored"
+            );
 
-                if needs_data || needs_meta {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    // Drop lock once, do all I/O, then re-acquire once
-                    drop(task);
+            // Collect which categories need restoring while we have the lock
+            let needs_data =
+                category.includes_data() && !task.flags.is_restored(TaskDataCategory::Data);
+            let needs_meta =
+                category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
 
-                    let storage_data = needs_data
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-                    let storage_meta = needs_meta
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+            if needs_data || needs_meta {
+                // Avoid holding the lock too long since this can also affect other tasks
+                // Drop lock once, do all I/O, then re-acquire once
+                drop(task);
 
-                    task = self.backend.storage.access_mut(task_id);
+                let storage_data = needs_data
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                let storage_meta = needs_meta
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
 
-                    // Handle race conditions and merge
-                    if let Some(storage) = storage_data
-                        && !task.flags.is_restored(TaskDataCategory::Data)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Data);
-                        task.flags.set_restored(TaskDataCategory::Data);
-                    }
-                    if let Some(storage) = storage_meta
-                        && !task.flags.is_restored(TaskDataCategory::Meta)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Meta);
-                        task.flags.set_restored(TaskDataCategory::Meta);
-                    }
+                task = self.backend.storage.access_mut(task_id);
+
+                // Handle race conditions and merge
+                if let Some(storage) = storage_data
+                    && !task.flags.is_restored(TaskDataCategory::Data)
+                {
+                    task.restore_from(storage, TaskDataCategory::Data);
+                    task.flags.set_restored(TaskDataCategory::Data);
+                }
+                if let Some(storage) = storage_meta
+                    && !task.flags.is_restored(TaskDataCategory::Meta)
+                {
+                    task.restore_from(storage, TaskDataCategory::Meta);
+                    task.flags.set_restored(TaskDataCategory::Meta);
                 }
             }
         }
@@ -600,7 +594,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 
     fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             return None;
         }
 

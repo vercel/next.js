@@ -1896,7 +1896,7 @@ impl AggregationUpdateQueue {
     /// See detailed comments in that function, follow the STEP numbers.
     fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount + Clone, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         new_follower_id: TaskId,
         mut upper_ids: SmallVec<[T; N]>,
     ) {
@@ -2618,7 +2618,7 @@ impl AggregationUpdateQueue {
     /// Only used when activeness is tracked.
     fn increase_active_count(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         task_type: Option<Arc<CachedTaskType>>,
     ) {
@@ -2637,7 +2637,7 @@ impl AggregationUpdateQueue {
         if let Some(task_type) = task_type
             && !task.has_persistent_task_type()
         {
-            let _ = task.set_persistent_task_type(task_type);
+            task.set_persistent_task_type(task_type);
         }
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
