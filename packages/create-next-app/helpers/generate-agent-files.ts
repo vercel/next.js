@@ -7,9 +7,9 @@ import path from 'path'
  */
 export function generateAgentFiles(root: string): void {
   const agentsMdContent = `<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# ALWAYS read docs before coding
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` before writing any code. Heed deprecation notices.
+React and Next.js patterns have changed significantly. Your training data may be outdated. Read the relevant guide in \`node_modules/next/dist/docs/\` before writing any code.
 <!-- END:nextjs-agent-rules -->
 `
 

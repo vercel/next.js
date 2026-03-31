@@ -32,7 +32,11 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package.
+  await task.parallel(['copy_next_docs', 'copy_react_docs'], opts)
+}
+
+export async function copy_next_docs(task, opts) {
+  // Copy Next.js documentation from repo root into the package.
   // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
   await task
@@ -43,7 +47,22 @@ export async function copy_docs(task, opts) {
         file.base = file.base.replace(/\.mdx$/, '.md')
       }
     })
-    .target('dist/docs')
+    .target('dist/docs/next')
+}
+
+export async function copy_react_docs(task, opts) {
+  // Copy React best-practice docs into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
+  const docsSource = join(__dirname, '../../react-docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs/react')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
