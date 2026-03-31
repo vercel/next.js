@@ -8,7 +8,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{ReadRef, TurboTasksApi, Vc};
 use turbo_tasks_fetch::{
     __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
     FetchClientConfig, FetchErrorKind, FetchIssue,
@@ -301,6 +301,235 @@ async fn errors_on_404() {
     })
     .await
     .unwrap()
+}
+
+/// Helper: create a TT instance for fetch tests. When `initial` is true, clears the cache
+/// directory first (cold start). When false, reuses existing cache (warm restore).
+fn create_fetch_tt(name: &str, initial: bool) -> Arc<dyn TurboTasksApi> {
+    REGISTRATION.create_turbo_tasks(name, initial)
+}
+
+#[turbo_tasks::function(operation)]
+async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
+    let client_vc = FetchClientConfig {
+        min_cache_control_secs: 0,
+    }
+    .cell();
+    let response = &*client_vc
+        .fetch(url, /* user_agent */ None)
+        .await?
+        .unwrap()
+        .await?;
+    Ok(response.body.to_string())
+}
+
+/// Test that the TTL timer invalidates `fetch_inner` within a session.
+///
+/// 1. Server returns body "v1" with `max-age=1`
+/// 2. First fetch returns "v1"
+/// 3. Server changes to return "v2"
+/// 4. Wait 2s for TTL to expire (timer fires, invalidates fetch_inner)
+/// 5. Strongly consistent read returns "v2"
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ttl_invalidates_within_session() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let url = RcStr::from(format!("{}/ttl-within", server.url()));
+
+    server
+        .mock("GET", "/ttl-within")
+        .with_body("v1")
+        .with_header("Cache-Control", "max-age=1")
+        .create_async()
+        .await;
+
+    let tt = create_fetch_tt("ttl_invalidates_within_session", true);
+    let body = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            let body = fetch_body(url).read_strongly_consistent().await?;
+            Ok((*body).clone())
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(&*body, "v1");
+
+    // Change the server response
+    server.reset();
+    server
+        .mock("GET", "/ttl-within")
+        .with_body("v2")
+        .with_header("Cache-Control", "max-age=1")
+        .create_async()
+        .await;
+
+    // Wait for the TTL timer to fire (max-age=1, so wait 2s to be safe)
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // The timer should have invalidated fetch_inner, so a new strongly consistent read
+    // should re-fetch and return the updated body.
+    let body = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            let body = fetch_body(url).read_strongly_consistent().await?;
+            Ok((*body).clone())
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(&*body, "v2");
+
+    tt.stop_and_wait().await;
+}
+
+/// Test that after a session restore, an expired TTL causes a re-fetch.
+///
+/// 1. Server returns "v1" with `max-age=1`
+/// 2. Fetch, stop TT
+/// 3. Wait for TTL to expire
+/// 4. Create new TT (warm restore), server now returns "v2"
+/// 5. Fetch should return "v2" (deadline expired, timer fires immediately on restore)
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ttl_invalidates_on_session_restore() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let url = RcStr::from(format!("{}/ttl-restore", server.url()));
+
+    server
+        .mock("GET", "/ttl-restore")
+        .with_body("v1")
+        .with_header("Cache-Control", "max-age=1")
+        .create_async()
+        .await;
+
+    // Session 1: fetch and cache
+    let tt = create_fetch_tt("ttl_invalidates_on_session_restore", true);
+    let body = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            let body = fetch_body(url).read_strongly_consistent().await?;
+            Ok((*body).clone())
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(&*body, "v1");
+    tt.stop_and_wait().await;
+
+    // Wait for TTL to expire
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // Change server response
+    server.reset();
+    server
+        .mock("GET", "/ttl-restore")
+        .with_body("v2")
+        .with_header("Cache-Control", "max-age=1")
+        .create_async()
+        .await;
+
+    // Session 2: warm restore — TTL expired, should re-fetch.
+    // On restore, `fetch` (session_dependent) re-executes and reads the cached `fetch_inner`
+    // result. The deadline is expired, so it spawns a zero-duration timer. That timer
+    // invalidates `fetch_inner` asynchronously, which triggers a second round of execution.
+    // We need to read twice: the first read returns the stale cached value, then wait for the
+    // timer-triggered re-execution to settle.
+    let tt = create_fetch_tt("ttl_invalidates_on_session_restore", false);
+    turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            // First read returns the stale cached value, but triggers the timer
+            let _body = fetch_body(url).read_strongly_consistent().await?;
+            Ok(())
+        }
+    })
+    .await
+    .unwrap();
+
+    // Wait for the timer to fire and re-execution to settle
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    let body = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            let body = fetch_body(url).read_strongly_consistent().await?;
+            Ok((*body).clone())
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(&*body, "v2");
+    tt.stop_and_wait().await;
+}
+
+/// Test that fetch errors are retried on session restore.
+///
+/// 1. Server returns connection refused (error)
+/// 2. Fetch returns error
+/// 3. Stop TT, start new session
+/// 4. Server now returns 200
+/// 5. Fetch should succeed (error was session-dependent, retried on restore)
+///
+/// TODO: Consider retrying errors within a session with backoff.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn errors_retried_on_session_restore() {
+    let _guard = GLOBAL_TEST_LOCK.lock().await;
+    let mut server = mockito::Server::new_async().await;
+    let url = RcStr::from(format!("{}/error-restore", server.url()));
+
+    // Session 1: server returns 500
+    server
+        .mock("GET", "/error-restore")
+        .with_status(500)
+        .create_async()
+        .await;
+
+    let tt = create_fetch_tt("errors_retried_on_session_restore", true);
+    let is_err = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            #[turbo_tasks::function(operation)]
+            async fn fetch_is_err(url: RcStr) -> Result<Vc<bool>> {
+                let client_vc = FetchClientConfig::default().cell();
+                let result = &*client_vc.fetch(url, None).await?;
+                Ok(Vc::cell(result.is_err()))
+            }
+            let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
+            Ok(is_err)
+        }
+    })
+    .await
+    .unwrap();
+    assert!(is_err, "first fetch should be an error");
+    tt.stop_and_wait().await;
+
+    // Session 2: server now returns 200
+    server.reset();
+    server
+        .mock("GET", "/error-restore")
+        .with_body("success")
+        .create_async()
+        .await;
+
+    let tt = create_fetch_tt("errors_retried_on_session_restore", false);
+    let is_err = turbo_tasks::run_once(tt.clone(), {
+        let url = url.clone();
+        async move {
+            #[turbo_tasks::function(operation)]
+            async fn fetch_is_err2(url: RcStr) -> Result<Vc<bool>> {
+                let client_vc = FetchClientConfig::default().cell();
+                let result = &*client_vc.fetch(url, None).await?;
+                Ok(Vc::cell(result.is_err()))
+            }
+            let is_err = *fetch_is_err2(url).read_strongly_consistent().await?;
+            Ok(is_err)
+        }
+    })
+    .await
+    .unwrap();
+    assert!(!is_err, "second fetch should succeed after session restore");
+    tt.stop_and_wait().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

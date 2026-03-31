@@ -887,6 +887,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             panic!("Every task must have a task type {self:?}");
         }
     }
+    fn is_session_dependent(&self) -> bool {
+        matches!(self.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent)
+    }
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();

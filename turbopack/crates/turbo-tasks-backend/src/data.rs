@@ -238,7 +238,6 @@ pub struct InProgressStateInner {
     pub stale: bool,
     #[allow(dead_code)]
     pub once_task: bool,
-    pub session_dependent: bool,
     /// Early marking as completed. This is set before the output is available and will ignore full
     /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
