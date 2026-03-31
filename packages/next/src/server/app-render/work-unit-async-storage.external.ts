@@ -76,6 +76,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
   fallbackParams?: OpaqueFallbackRouteParams | null
+  varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation
   // We mirror the controller/renderSignal from prerender stores to allow aborting the render
