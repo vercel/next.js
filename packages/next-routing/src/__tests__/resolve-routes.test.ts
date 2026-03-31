@@ -89,6 +89,41 @@ describe('resolveRoutes - beforeMiddleware', () => {
     expect(result.redirect?.url.pathname).toBe('/new')
   })
 
+  it('should stop at first matching redirect headers route', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/en/redirect-1'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/en/redirect-1(?:/)?$',
+            status: 307,
+            headers: {
+              Location: '/somewhere/else',
+            },
+          },
+          {
+            sourceRegex: '^(?:/(en|fr|nl))/redirect-1(?:/)?$',
+            status: 307,
+            headers: {
+              Location: '/$1/somewhere/else',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.status).toBe(307)
+    expect(result.redirect).toBeUndefined()
+    expect(result.resolvedHeaders?.get('location')).toBe('/somewhere/else')
+  })
+
   it('should handle external rewrite in beforeMiddleware', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/proxy'),
@@ -139,6 +174,58 @@ describe('resolveRoutes - beforeMiddleware', () => {
     const result = await resolveRoutes(params)
 
     expect(result.resolvedPathname).toBe('/third')
+  })
+})
+
+describe('resolveRoutes - case sensitivity', () => {
+  it('should match routes case-insensitively by default', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/rewrite-no-basePath'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [
+          {
+            sourceRegex: '^/rewrite-no-basepath(?:/)?$',
+            destination: 'https://example.vercel.sh/',
+          },
+        ],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://example.vercel.sh/'
+    )
+  })
+
+  it('should respect caseSensitive route matching when enabled', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/rewrite-no-basePath'),
+      routes: {
+        caseSensitive: true,
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [
+          {
+            sourceRegex: '^/rewrite-no-basepath(?:/)?$',
+            destination: 'https://example.vercel.sh/',
+          },
+        ],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.externalRewrite).toBeUndefined()
+    expect(result.redirect).toBeUndefined()
   })
 })
 
@@ -220,6 +307,60 @@ describe('resolveRoutes - invokeMiddleware', () => {
     await resolveRoutes(params)
 
     expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('should call invokeMiddleware when a middleware matcher matches decoded pathname', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/vercel%20copy.svg'),
+      pathnames: ['/vercel copy.svg'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/vercel copy\\.svg$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('should skip invokeMiddleware when pathname decoding fails and encoded pathname does not match', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/%E0%A4%A'),
+      pathnames: ['/%E0%A4%A'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/decoded-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
   })
 
   it('should evaluate has conditions in middleware matchers', async () => {

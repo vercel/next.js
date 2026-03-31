@@ -58,6 +58,11 @@ export type ResolveRoutesParams = {
     locales: string[]
   }
   routes: {
+    /**
+     * When false (default), route matching is case-insensitive to mirror
+     * Next.js default behavior. When true, matches are case-sensitive.
+     */
+    caseSensitive?: boolean
     beforeMiddleware: Array<Route>
     /**
      * Middleware matcher definitions used to decide whether middleware should
