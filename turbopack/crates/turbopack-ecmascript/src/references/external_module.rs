@@ -183,7 +183,7 @@ impl CachedExternalModule {
                     let url = &self.request[at_index + 1..];
 
                     // Wrap the loading and variable access in a try-catch block
-                    writeln!(code, "let mod;")?;
+                    writeln!(code, "var mod;")?;
                     writeln!(code, "try {{")?;
 
                     // First load the URL
