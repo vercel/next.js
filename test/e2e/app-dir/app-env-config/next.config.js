@@ -7,6 +7,9 @@ const config = {
     nextConfigEnv: process.env.ENV_KEY_IN_NEXT_CONFIG,
     nextConfigPublicEnv: process.env.NEXT_PUBLIC_ENV_KEY_IN_NEXT_CONFIG,
   },
+  experimental: {
+    useCache: true,
+  },
   async redirects() {
     return [
       {

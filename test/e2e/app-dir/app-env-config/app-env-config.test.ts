@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs/promises'
 import { join } from 'path'
+import { outdent } from 'outdent'
 
 describe('app-dir env-config', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -121,6 +122,23 @@ describe('app-dir env-config', () => {
       expect(
         await browser.elementByCssInstant('#nextPublicEmptyEnvVar').text()
       ).toBe('content:')
+    })
+  })
+
+  it('should use a consistent value across static, dynamic, and cached environments', async () => {
+    const browser = await next.browser('/ppr')
+
+    await retry(async () => {
+      const text = await browser
+        .elementByCssInstant('[data-testid="inspect-env"]')
+        .text()
+      expect(text).toEqual(
+        outdent`
+          static ENV_FILE_KEY: env
+          dynamic ENV_FILE_KEY: env
+          cached ENV_FILE_KEY: env
+        `
+      )
     })
   })
 
