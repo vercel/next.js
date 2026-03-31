@@ -46,4 +46,36 @@ describe('options-request', () => {
     const res = await next.fetch('/non-existent-route', { method: 'OPTIONS' })
     expect(res.status).toBe(404)
   })
+
+  describe('static file paths (_next/static)', () => {
+    async function getStaticFileUrl(): Promise<string> {
+      const res = await next.fetch('/')
+      const html = await res.text()
+      const match = html.match(/\/_next\/static\/[^"']+\.js/)
+      if (!match) throw new Error('Could not find static file URL in HTML')
+      return match[0]
+    }
+
+    it('should return 200 for GET request to _next/static', async () => {
+      const url = await getStaticFileUrl()
+      const res = await next.fetch(url)
+      expect(res.status).toBe(200)
+    })
+
+    it('should return 200 for HEAD request to _next/static', async () => {
+      const url = await getStaticFileUrl()
+      const res = await next.fetch(url, { method: 'HEAD' })
+      expect(res.status).toBe(200)
+    })
+
+    it.each(['OPTIONS', 'POST', 'PUT', 'DELETE', 'PATCH'])(
+      'should return 405 for %s request to _next/static',
+      async (method) => {
+        const url = await getStaticFileUrl()
+        const res = await next.fetch(url, { method })
+        expect(res.status).toBe(405)
+        expect(res.headers.get('allow')).toBe('GET, HEAD')
+      }
+    )
+  })
 })

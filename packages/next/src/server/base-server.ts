@@ -1926,6 +1926,17 @@ export default abstract class Server<
       (req.url?.match(/^\/_next\//) ||
         (this.hasStaticDir && req.url!.match(/^\/static\//)))
     ) {
+      // Static files only support GET and HEAD methods.
+      // Return 405 Method Not Allowed for any other method to prevent
+      // the request from falling into the page rendering pipeline,
+      // which would result in a 500 error. (see: #92141)
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        res.statusCode = 405
+        res.setHeader('Allow', ['GET', 'HEAD'])
+        res.body('Method Not Allowed').send()
+        return
+      }
+
       return this.handleRequest(req, res, parsedUrl)
     }
 
