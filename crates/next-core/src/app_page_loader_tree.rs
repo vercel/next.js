@@ -230,7 +230,7 @@ impl AppPageLoaderTreeBuilder {
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import = rcstr!(
-            "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'"
+            "import { fillStaticMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'"
         );
 
         if !self.base.imports.contains(&helper_import) {
@@ -310,7 +310,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
+            "{s}    url: fillStaticMetadataSegment({}, {}) + \
              `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),

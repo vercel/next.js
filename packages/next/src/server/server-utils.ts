@@ -75,7 +75,8 @@ export function normalizeCdnUrl(
 export function interpolateDynamicPath(
   pathname: string,
   params: ParsedUrlQuery,
-  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined,
+  defaultParamValue?: string
 ) {
   if (!defaultRouteRegex) return pathname
 
@@ -95,7 +96,7 @@ export function interpolateDynamicPath(
     } else if (value) {
       paramValue = encodeURIComponent(value)
     } else {
-      paramValue = ''
+      paramValue = defaultParamValue ?? ''
     }
 
     if (paramValue || optional) {

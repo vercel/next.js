@@ -52,13 +52,13 @@ async fn dynamic_image_metadata_with_generator_source(
     let code = formatdoc! {
         r#"
             import {{ {exported_fields_excluding_default} }} from {resource_path}
-            import {{ fillMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
+            import {{ fillDynamicMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
 
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
+                const imageUrl = fillDynamicMetadataSegment({pathname_prefix}, {page_segment}, params)
 
                 const {{ generateImageMetadata }} = imageModule
 
@@ -127,13 +127,13 @@ async fn dynamic_image_metadata_without_generator_source(
     let code = formatdoc! {
         r#"
             import {{ {exported_fields_excluding_default} }} from {resource_path}
-            import {{ fillMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
+            import {{ fillDynamicMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
 
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
+                const imageUrl = fillDynamicMetadataSegment({pathname_prefix}, {page_segment}, params)
 
                 function getImageMetadata(imageMetadata, idParam) {{
                     const data = {{
