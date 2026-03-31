@@ -87,7 +87,7 @@
         i < chunks.length;
         i++
       ) {
-        var thenable = __turbopack_load_by_url__(chunks[i]);
+        var thenable = __turbopack_load__(chunks[i]);
         loadedChunks.has(thenable) || promises.push(thenable);
         if (!instrumentedChunks.has(thenable)) {
           var resolve = loadedChunks.add.bind(loadedChunks, thenable);

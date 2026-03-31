@@ -74,7 +74,7 @@ var instrumentedChunks = new WeakSet(),
 function ignoreReject() {}
 function preloadModule(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; i++) {
-    var thenable = __turbopack_load_by_url__(chunks[i]);
+    var thenable = __turbopack_load__(chunks[i]);
     loadedChunks.has(thenable) || promises.push(thenable);
     if (!instrumentedChunks.has(thenable)) {
       var resolve = loadedChunks.add.bind(loadedChunks, thenable);
