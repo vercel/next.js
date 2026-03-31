@@ -153,8 +153,8 @@ export declare function minify(
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiAssetPath {
-  path: RcStr
-  contentHash: RcStr
+  path: string
+  contentHash: string
 }
 export interface NapiWrittenEndpoint {
   type: string
@@ -363,7 +363,7 @@ export interface AppPageNapiRoute {
 }
 export interface NapiRoute {
   /** The router path */
-  pathname: RcStr
+  pathname: string
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   /** The type of route, eg a Page or App */
@@ -522,13 +522,13 @@ export declare function rootTaskDispose(rootTask: {
 export interface NapiIssue {
   severity: string
   stage: string
-  filePath: RcStr
+  filePath: string
   title: any
   description?: any
   detail?: any
   source?: NapiIssueSource
   additionalSources: Array<NapiAdditionalIssueSource>
-  documentationLink: RcStr
+  documentationLink: string
   importTraces: any
   /**
    * Pre-rendered code frame for the issue's source location, if available.
@@ -537,7 +537,7 @@ export interface NapiIssue {
   codeFrame?: string
 }
 export interface NapiAdditionalIssueSource {
-  description: RcStr
+  description: string
   source: NapiIssueSource
   /** Pre-rendered code frame for this additional source location, if available. */
   codeFrame?: string
@@ -551,16 +551,16 @@ export interface NapiIssueSourceRange {
   end: NapiSourcePos
 }
 export interface NapiSource {
-  ident: RcStr
-  filePath: RcStr
+  ident: string
+  filePath: string
 }
 export interface NapiSourcePos {
   line: number
   column: number
 }
 export interface NapiDiagnostic {
-  category: RcStr
-  name: RcStr
+  category: string
+  name: string
   payload: Record<string, string>
 }
 export declare function expandNextJsTemplate(

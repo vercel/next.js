@@ -128,6 +128,11 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
     })
 }
 
+/// JS guard that is `true` only in Turbopack dev builds.
+/// Route wrappers use this to re-require the user module on every request so
+/// that server HMR changes are reflected immediately.
+const JS_DEV_CONDITION: &str = "process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER";
+
 /// Creates a virtual `{name}--route-entry.js` source under `parent`.
 fn make_route_entry_source(
     parent: FileSystemPath,
@@ -245,7 +250,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 
             export async function GET() {{
               // In dev, re-require on every request to pick up server HMR updates.
-              const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+              const _handler = ({dev_condition})
                 ? require({resource_path}).default
                 : handler
               const data = await _handler()
@@ -265,6 +270,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+        dev_condition = JS_DEV_CONDITION,
     };
 
     make_route_entry_source(path.parent(), stem, code)
@@ -299,7 +305,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 const id = await idPromise
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
                 // In dev, re-require on every request to pick up server HMR updates.
-                const _m = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                const _m = ({dev_condition})
                   ? require({resource_path})
                   : null
                 const _handler = _m?.default ?? handler
@@ -355,6 +361,7 @@ async fn dynamic_sitemap_route_with_generate_source(
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+        dev_condition = JS_DEV_CONDITION,
     };
 
     make_route_entry_source(path.parent(), stem, code)
@@ -384,7 +391,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 
             export async function GET() {{
                 // In dev, re-require on every request to pick up server HMR updates.
-                const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                const _handler = ({dev_condition})
                   ? require({resource_path}).default
                   : handler
                 const data = await _handler()
@@ -404,6 +411,7 @@ async fn dynamic_sitemap_route_without_generate_source(
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+        dev_condition = JS_DEV_CONDITION,
     };
 
     make_route_entry_source(path.parent(), stem, code)
@@ -447,7 +455,7 @@ async fn dynamic_image_route_with_metadata_source(
                 }})
 
                 // In dev, re-require on every request to pick up server HMR updates.
-                const _m = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                const _m = ({dev_condition})
                   ? require({resource_path})
                   : null
                 const _handler = _m?.default ?? handler
@@ -488,6 +496,7 @@ async fn dynamic_image_route_with_metadata_source(
             }}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        dev_condition = JS_DEV_CONDITION,
     };
 
     make_route_entry_source(path.parent(), stem, code)
@@ -511,7 +520,7 @@ async fn dynamic_image_route_without_metadata_source(
 
             export async function GET(_, ctx) {{
                 // In dev, re-require on every request to pick up server HMR updates.
-                const _handler = (process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER)
+                const _handler = ({dev_condition})
                   ? require({resource_path}).default
                   : handler
                 return _handler({{ params: ctx.params }})
@@ -520,6 +529,7 @@ async fn dynamic_image_route_without_metadata_source(
             export * from {resource_path}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        dev_condition = JS_DEV_CONDITION,
     };
 
     make_route_entry_source(path.parent(), stem, code)

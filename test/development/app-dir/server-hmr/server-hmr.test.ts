@@ -157,23 +157,26 @@ describe('server-hmr', () => {
   })
 
   describe('metadata route hmr', () => {
-    itTurbopackDev('reflects manifest.ts changes on fetch/refresh', async () => {
-      const initial = await next
-        .fetch('/manifest.webmanifest')
-        .then((res) => res.json())
-      expect(initial.name).toBe('Version 0')
-
-      await next.patchFile('app/manifest.ts', (content) =>
-        content.replace('Version 0', 'Version 1')
-      )
-
-      await retry(async () => {
-        const updated = await next
+    itTurbopackDev(
+      'reflects manifest.ts changes on fetch/refresh',
+      async () => {
+        const initial = await next
           .fetch('/manifest.webmanifest')
           .then((res) => res.json())
-        expect(updated.name).toBe('Version 1')
-      })
-    })
+        expect(initial.name).toBe('Version 0')
+
+        await next.patchFile('app/manifest.ts', (content) =>
+          content.replace('Version 0', 'Version 1')
+        )
+
+        await retry(async () => {
+          const updated = await next
+            .fetch('/manifest.webmanifest')
+            .then((res) => res.json())
+          expect(updated.name).toBe('Version 1')
+        })
+      }
+    )
   })
 
   describe('route handler hmr', () => {
@@ -227,7 +230,6 @@ describe('server-hmr', () => {
       }
     )
   })
-
 })
 
 describe('server-hmr config opt-out', () => {
