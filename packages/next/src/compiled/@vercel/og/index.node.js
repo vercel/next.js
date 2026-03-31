@@ -9849,12 +9849,10 @@ function contextSubstitutionFormat3(contextParams, subtable) {
         var lookup = this.getLookupMethod(lookupTable, subtable$1);
         var substitutionType = this.getSubstitutionType(lookupTable, subtable$1);
         if (substitutionType === "12") {
-          for (var n = 0; n < inputLookups.length; n++) {
-            var glyphIndex = contextParams.get(n);
-            var substitution = lookup(glyphIndex);
-            if (substitution) {
-              substitutions.push(substitution);
-            }
+          var glyphIndex = contextParams.get(lookupRecord.sequenceIndex);
+          var substitution = lookup(glyphIndex);
+          if (substitution) {
+            substitutions.push(substitution);
           }
         }
       }
