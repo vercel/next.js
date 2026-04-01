@@ -148,6 +148,17 @@ impl WriteOperationGuard<'_> {
 /// Called on rollback to clean up any SST, meta, blob, or del files written during a
 /// failed write operation or compaction.
 fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
+    // Restore CURRENT to seq_before first. The failure may have happened mid-write
+    // to CURRENT, leaving it partially written. Writing seq_before makes the
+    // on-disk state consistent before we start deleting orphan files.
+    let mut current_file = OpenOptions::new()
+        .write(true)
+        .truncate(false)
+        .read(false)
+        .open(path.join("CURRENT"))?;
+    current_file.write_u32::<BE>(seq_before)?;
+    current_file.sync_all()?;
+
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let path = entry.path();
