@@ -40,6 +40,8 @@ module.exports = nextConfig
 ```
 
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
+>
+> **Runtime caching on serverless:** `use cache` stores runtime entries in-memory, so cache entries may not persist across requests in serverless environments where requests can run on different instances. For durable shared runtime caching, use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote).
 
 ## Usage
 
