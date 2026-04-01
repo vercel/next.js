@@ -477,6 +477,49 @@ function createMoveSuffixTransform(): Transform {
 }
 
 // ---------------------------------------------------------------------------
+// data-dpl-id insertion – Node.js Transform that inserts a `data-dpl-id`
+// attribute on the opening <html tag for deployment identification.
+// ---------------------------------------------------------------------------
+
+function createHtmlDataDplIdTransform(dplId: string): Transform {
+  let didTransform = false
+
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      if (didTransform) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const htmlTagIndex = indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML)
+      if (htmlTagIndex === -1) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
+      const encodedAttribute = Buffer.from(` data-dpl-id="${dplId}"`)
+      const modified = Buffer.allocUnsafe(
+        chunk.length + encodedAttribute.length
+      )
+
+      modified.set(chunk.subarray(0, insertionPoint))
+      modified.set(encodedAttribute, insertionPoint)
+      modified.set(
+        chunk.subarray(insertionPoint),
+        insertionPoint + encodedAttribute.length
+      )
+
+      this.push(modified)
+      didTransform = true
+      callback()
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Root layout validator – Node.js Transform that checks whether <html> and
 // <body> tags are present in the streamed output.  Dev-only; appends an
 // error template when tags are missing so the error overlay can display it.
@@ -652,7 +695,7 @@ export async function continueFizzStream(
     suffix,
     inlinedDataStream,
     isStaticGeneration,
-    // deploymentId,
+    deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
@@ -680,8 +723,11 @@ export async function continueFizzStream(
 
   let source: Readable = buffered
 
-  // TODO: Insert data-dpl-id attribute on the html tag
-  // deploymentId ? createHtmlDataDplIdTransform(deploymentId) : null
+  if (deploymentId) {
+    const dplId = createHtmlDataDplIdTransform(deploymentId)
+    source.pipe(dplId)
+    source = dplId
+  }
 
   // Metadata (icon mark replacement)
   const metadata = createMetadataTransform(getServerInsertedMetadata)
