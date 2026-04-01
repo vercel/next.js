@@ -134,7 +134,7 @@ function traverseCacheNodeSegments(
   processSegment(path, seedData)
 
   const [_segment, childRoutes] = route
-  const [_node, parallelRoutesData, _loading, _isPartial] = seedData
+  const [_node, parallelRoutesData, _isPartial] = seedData
 
   for (const parallelRouteKey in childRoutes) {
     const childSeedData = parallelRoutesData[parallelRouteKey]
@@ -712,7 +712,7 @@ type SegmentData = {
 }
 
 function createSegmentData(seedData: CacheNodeSeedData): SegmentData {
-  const [node, _parallelRoutesData, _unused, isPartial, varyParams] = seedData
+  const [node, _parallelRoutesData, isPartial, varyParams] = seedData
   return {
     node,
     isPartial,
@@ -725,13 +725,7 @@ function getCacheNodeSeedDataFromSegment(
   data: SegmentData,
   slots: CacheNodeSeedDataSlots
 ): CacheNodeSeedData {
-  return [
-    data.node,
-    slots,
-    /* unused (previously `loading`) */ null,
-    data.isPartial,
-    data.varyParams,
-  ]
+  return [data.node, slots, data.isPartial, data.varyParams]
 }
 
 function createSegmentCache(): SegmentCache {
@@ -940,15 +934,13 @@ export async function createCombinedPayloadAtDepth(
       const markerIndex = slotStacks.length
       slotStacks.push(result?.createInstantStack ?? null)
       const markerName = `${INSTANT_SLOT_MARKER_PREFIX}${markerIndex - 1}${INSTANT_SLOT_MARKER_SUFFIX}`
-      const [node, parallelRoutesData, unused, isPartial, varyParams] =
-        slotSeedData
+      const [node, parallelRoutesData, isPartial, varyParams] = slotSeedData
       slots[key] = [
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx -- bundled in the server layer
         <SlotMarker name={markerName} key="sm">
           {node}
         </SlotMarker>,
         parallelRoutesData,
-        unused,
         isPartial,
         varyParams,
       ]

@@ -438,7 +438,7 @@ async function collectPrefetchHintsImpl(
   // segments with static prefetching disabled since they contribute nothing.
   let currentGzipSize: number | null = null
   if (!isStaticPrefetchDisabled && seedData !== null) {
-    const varyParamsThenable = seedData[4]
+    const varyParamsThenable = seedData[3]
     const varyParams =
       varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
 
@@ -795,7 +795,7 @@ function collectSegmentDataImpl(
     ~PrefetchHint.InliningHintsStale
 
   // Determine which params this segment varies on.
-  const varyParamsThenable = seedData !== null ? seedData[4] : null
+  const varyParamsThenable = seedData !== null ? seedData[3] : null
   const varyParams =
     varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
 

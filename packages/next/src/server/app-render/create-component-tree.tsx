@@ -1356,7 +1356,6 @@ function createSeedData(
   return [
     rsc,
     parallelRoutes,
-    null,
     isPossiblyPartialResponse,
     varyParamsAccumulator ? getVaryParamsThenable(varyParamsAccumulator) : null,
   ]

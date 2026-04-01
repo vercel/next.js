@@ -251,8 +251,7 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  // TODO: This field is no longer used. Remove it.
-  loading: null,
+  // isPartial represents whether this segment's data possibly contains holes.
   isPartial: boolean,
   /**
    * A thenable that resolves to the set of route params this segment accessed
