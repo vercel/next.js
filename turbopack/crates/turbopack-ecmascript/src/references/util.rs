@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use rand::{SeedableRng, rngs::StdRng, seq::IndexedRandom};
@@ -140,16 +138,23 @@ impl Issue for TooManyMatchesWarning {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        let mut description = String::from(
-            "Overly broad patterns can lead to build performance issues and over bundling.",
-        );
-        if !self.sample_paths.is_empty() {
-            write!(description, "\nExample files matched:").unwrap();
+        let styled = if self.sample_paths.is_empty() {
+            StyledString::Text(rcstr!(
+                "Overly broad patterns can lead to build performance issues and over bundling."
+            ))
+        } else {
+            let mut parts = vec![
+                StyledString::Text(rcstr!(
+                    "Overly broad patterns can lead to build performance issues and over bundling."
+                )),
+                StyledString::Text(rcstr!("Example files matched:")),
+            ];
             for path in &self.sample_paths {
-                write!(description, "\n  {path}").unwrap();
+                parts.push(StyledString::Code(path.clone()));
             }
-        }
-        Vc::cell(Some(StyledString::Text(description.into()).resolved_cell()))
+            StyledString::Stack(parts)
+        };
+        Vc::cell(Some(styled.resolved_cell()))
     }
 
     #[turbo_tasks::function]
