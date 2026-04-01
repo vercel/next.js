@@ -2192,10 +2192,10 @@ let DEV_BACKEND;
                     // discarding other query parameters that may already be present.
                     const url = new URL(chunkUrl, location.origin);
                     // Reduced timer precision in some browers could lead to an update getting dropped
-                    // in firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
+                    // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
                     // So trust that the server is only updating us when it is important and use a
                     // random number to bust the cache.
-                    url.searchParams.set('ts', `$(Date.now()}.${Math.random()}`);
+                    url.searchParams.set('ts', `${Date.now()}.${Math.random()}`);
                     link.href = url.pathname + url.search;
                 } else {
                     link.href = chunkUrl;
