@@ -658,6 +658,7 @@ export async function continueFizzStream(
     validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
+  // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   if (isStaticGeneration) {
@@ -669,9 +670,6 @@ export async function continueFizzStream(
     // before we start pulling the stream and cause a flush.
     await waitAtLeastOneReactRenderTask()
   }
-
-  // Suffix itself might contain close tags at the end, so we need to split it.
-  // const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   // Pipe the render stream through Node.js Transforms:
   // 1. Buffer – coalesces chunks written in the same microtask into one Uint8Array
