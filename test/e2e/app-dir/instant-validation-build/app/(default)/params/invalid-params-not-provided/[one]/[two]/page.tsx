@@ -7,7 +7,7 @@ export const unstable_instant: Instant = {
   samples: [
     {
       params: {
-        one: '123',
+        // one: <missing>,
         // two: <missing>
       },
     },
@@ -37,13 +37,16 @@ async function TestParams({
 }) {
   const p = await params
 
-  assert.equal(p.one, '123', `Unexpected value for param 'one'`)
-
   // We're allowed to access names that don't correspond to a param.
   assert.equal('three' in p, false)
   assert.equal(p.three, undefined)
 
   // We're allowed to look at the keys of the params object even if it's missing some values.
+  assert.equal(
+    'one' in p,
+    true,
+    `Expected \`in\` to work for params without samples'`
+  )
   assert.equal(
     'two' in p,
     true,
@@ -57,7 +60,7 @@ async function TestParams({
   )
 
   // We're not allowed to access the values of params that aren't in the samples.
-  ensureThrows(() => p.two)
+  ensureThrows(() => p.one)
 
   return null
 }

@@ -6436,11 +6436,20 @@ async function validateInstantConfigInBuildWithSample(
   )
 
   const sampleParams = sample.params ?? {}
+
+  /** The actual params to use for this render, possibly with placeholders (fallbacks) */
+  const interpolatedParams: Params = {}
   let fallbackRouteParams: OpaqueFallbackRouteParams | null = null
   if (allPossibleFallbackRouteParams) {
     const fallbackRouteParamsMut = new Map()
     for (const [paramKey, value] of allPossibleFallbackRouteParams) {
-      if (!(paramKey in sampleParams)) {
+      if (paramKey in sampleParams) {
+        interpolatedParams[paramKey] = sampleParams[paramKey]
+      } else {
+        // NOTE: fallback params logic in `param.ts` relies on the param key being present,
+        // so we need to set it to something. In prerenders, this seems to be a placeholder `[paramKey]`,
+        // but the value doesn't really matter, so here we'll just use the fallback value instead.
+        interpolatedParams[paramKey] = value
         fallbackRouteParamsMut.set(paramKey, value)
       }
     }
@@ -6448,7 +6457,7 @@ async function validateInstantConfigInBuildWithSample(
   }
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
-    sampleParams,
+    interpolatedParams,
     fallbackRouteParams,
     false
   )
@@ -6507,7 +6516,7 @@ async function validateInstantConfigInBuildWithSample(
       workStore,
       parsedRequestHeaders: outerCtx.parsedRequestHeaders,
       getDynamicParamFromSegment,
-      interpolatedParams: sampleParams,
+      interpolatedParams,
       query: sampleQuery,
       isPrefetch: false,
       isPossibleServerAction: false,
@@ -6561,6 +6570,7 @@ async function validateInstantConfigInBuildWithSample(
         userspaceMutableCookies: unusedMutableCookies,
         draftMode,
         rootParams: sampleRootParams,
+        fallbackParams: fallbackRouteParams,
         validationSamples,
         validationSampleTracking: createValidationSampleTracking(),
         // These will be set when rendering

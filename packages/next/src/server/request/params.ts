@@ -266,28 +266,31 @@ export function createServerParamsForServerSegment(
             workUnitStore,
             isRuntimePrefetchable
           )
-        } else if (
-          workUnitStore.asyncApiPromises &&
-          workUnitStore.validationSamples
-        ) {
-          return createServerParamsInInstantValidation(
-            underlyingParams,
-            workStore,
-            workUnitStore.validationSamples,
-            workUnitStore.asyncApiPromises,
-            isRuntimePrefetchable
-          )
-        } else if (
-          workUnitStore.asyncApiPromises &&
-          hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)
-        ) {
-          return (
-            isRuntimePrefetchable
+        } else {
+          if (
+            workUnitStore.asyncApiPromises &&
+            hasFallbackRouteParams(
+              underlyingParams,
+              workUnitStore.fallbackParams
+            )
+          ) {
+            const parentPromise = isRuntimePrefetchable
               ? workUnitStore.asyncApiPromises.earlySharedParamsParent
               : workUnitStore.asyncApiPromises.sharedParamsParent
-          ).then(() => underlyingParams)
-        } else {
-          return createRenderParamsInProd(underlyingParams)
+
+            if (workUnitStore.validationSamples) {
+              const proxiedUnderlying = createServerParamsInInstantValidation(
+                underlyingParams,
+                workStore,
+                workUnitStore.validationSamples
+              )
+              return parentPromise.then(() => proxiedUnderlying)
+            } else {
+              return parentPromise.then(() => underlyingParams)
+            }
+          } else {
+            return createRenderParamsInProd(underlyingParams)
+          }
         }
       default:
         workUnitStore satisfies never
@@ -464,23 +467,16 @@ function hasFallbackRouteParams(
 function createServerParamsInInstantValidation(
   underlyingParams: Params,
   workStore: WorkStore,
-  validationSamples: NonNullable<RequestStore['validationSamples']>,
-  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
-  isRuntimePrefetchable: boolean
-): Promise<Params> {
+  validationSamples: NonNullable<RequestStore['validationSamples']>
+): Params {
   const { createExhaustiveParamsProxy } =
     require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
   const declaredParams = new Set(Object.keys(validationSamples.params ?? {}))
-  const proxiedUnderlying = createExhaustiveParamsProxy(
+  return createExhaustiveParamsProxy(
     underlyingParams,
     declaredParams,
     workStore.route
   )
-  return (
-    isRuntimePrefetchable
-      ? asyncApiPromises.earlySharedParamsParent
-      : asyncApiPromises.sharedParamsParent
-  ).then(() => proxiedUnderlying)
 }
 
 function createClientParamsInInstantValidation(

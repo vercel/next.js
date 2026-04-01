@@ -257,6 +257,11 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
   declaredParamNames: Set<string>,
   route: string
 ): TParams {
+  // If all params for this route have a sample, there's no need to instrument the params object.
+  if (areAllParamsDeclared(underlyingParams, declaredParamNames)) {
+    return underlyingParams
+  }
+
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
       if (
@@ -280,6 +285,18 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
     // the shape of the params object is determined by the routing structure
     // and independent of the samples. We only need to instrument accessing the values.
   })
+}
+
+function areAllParamsDeclared(
+  underlyingParams: Params,
+  declaredParamNames: Set<string>
+): boolean {
+  for (const paramName in underlyingParams) {
+    if (!declaredParamNames.has(paramName)) {
+      return false
+    }
+  }
+  return true
 }
 
 /**
