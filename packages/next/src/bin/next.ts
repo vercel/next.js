@@ -2,6 +2,7 @@
 
 import '../server/require-hook'
 
+import os from 'os'
 import {
   Argument,
   Command,
@@ -88,6 +89,16 @@ class NextRootCommand extends Command {
 
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+      if (
+        process.platform === 'darwin' &&
+        process.arch === 'x64' &&
+        os.cpus().some((cpu) => cpu.model.includes('Apple'))
+      ) {
+        warn(
+          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 translation. For better performance, install a native arm64 build of Node.js. https://nextjs.org/docs/getting-started/installation#rosetta'
+        )
+      }
 
       if (
         commandName !== 'dev' &&
