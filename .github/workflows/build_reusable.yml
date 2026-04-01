@@ -236,7 +236,7 @@ jobs:
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@3a0adc33ab45d7b9b9da91822dd2b3c0151704be # nextest
 
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
@@ -244,7 +244,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'

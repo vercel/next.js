@@ -42,6 +42,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: node ./scripts/code-freeze.js --type ${{ github.event.inputs.type }}
+      - run: node ./scripts/code-freeze.js --type "${INPUT_TYPE}"
         env:
           CODE_FREEZE_TOKEN: ${{ secrets.CODE_FREEZE_TOKEN }}
+          INPUT_TYPE: ${{ github.event.inputs.type }}

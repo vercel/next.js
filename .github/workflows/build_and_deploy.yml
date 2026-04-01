@@ -65,7 +65,7 @@ jobs:
           if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
-          elif [ '${{ github.ref }}' == 'refs/heads/canary' ]
+          elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
@@ -77,6 +77,8 @@ jobs:
           else
             echo "value=automated-preview" >> $GITHUB_OUTPUT
           fi
+        env:
+          GIT_REF: ${{ github.ref }}
       - name: Print deploy target
         run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
 
@@ -237,7 +239,7 @@ jobs:
 
       - name: Cache on ${{ github.ref_name }}
         if: ${{ !matrix.docker }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'
@@ -554,7 +556,9 @@ jobs:
         run: pnpx turbo@canary run build --only --filter='./turbopack/packages/*'
 
       - name: Write NPM_TOKEN
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN_ELEVATED }}" > ~/.npmrc
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN_ELEVATED}" > ~/.npmrc
+        env:
+          NPM_TOKEN_ELEVATED: ${{ secrets.NPM_TOKEN_ELEVATED }}
 
       - name: Publish
         run: cargo xtask workspace --publish

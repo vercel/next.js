@@ -36,12 +36,12 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'
@@ -60,7 +60,7 @@ jobs:
         run: cargo codspeed build -p turbopack-cli small_apps
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-cli small_apps
@@ -76,12 +76,12 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'
@@ -100,7 +100,7 @@ jobs:
         run: cargo codspeed build -p turbopack-ecmascript references
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-ecmascript references
@@ -117,7 +117,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
 
@@ -127,7 +127,7 @@ jobs:
         run: cargo codspeed build -p turbopack -p turbopack-bench
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run
