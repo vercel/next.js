@@ -70,7 +70,7 @@ pub struct FinderTask {
 
 impl Task for FinderTask {
     type Output = Vec<Atom>;
-    type JsValue = Array;
+    type JsValue = Vec<String>;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         let resource_path = PathBuf::from(self.resource_path.take().unwrap());
@@ -156,12 +156,8 @@ impl Task for FinderTask {
     }
 
     fn resolve(&mut self, env: Env, result: Self::Output) -> napi::Result<Self::JsValue> {
-        let mut array = env.create_array(result.len() as u32)?;
-        for (i, name) in result.iter().enumerate() {
-            let js_val = env.create_string(name.as_str())?;
-            array.set(i as u32, js_val)?;
-        }
-        Ok(array)
+        let _ = env;
+        Ok(result.into_iter().map(|name| name.to_string()).collect())
     }
 }
 
@@ -172,9 +168,9 @@ pub fn get_module_named_exports(resource_path: String) -> AsyncTask<FinderTask> 
     })
 }
 
-#[napi(object)]
+#[napi(object, object_from_js = false)]
 pub struct NapiSourceDiagnostic {
-    pub severity: &'static str,
+    pub severity: String,
     pub message: String,
     pub loc: NapiIssueSourceRange,
 }
@@ -251,7 +247,7 @@ impl Task for AnalyzeTask {
                     let start = c.cm.lookup_char_pos(span.lo);
                     let end = c.cm.lookup_char_pos(span.hi);
                     diagnostics.borrow_mut().push(NapiSourceDiagnostic {
-                        severity: "Warning",
+                        severity: "Warning".to_string(),
                         message: msg,
                         loc: NapiIssueSourceRange {
                             start: NapiSourcePos {
@@ -269,7 +265,7 @@ impl Task for AnalyzeTask {
                     let start = c.cm.lookup_char_pos(span.lo);
                     let end = c.cm.lookup_char_pos(span.hi);
                     diagnostics.borrow_mut().push(NapiSourceDiagnostic {
-                        severity: "Error",
+                        severity: "Error".to_string(),
                         message: msg,
                         loc: NapiIssueSourceRange {
                             start: NapiSourcePos {

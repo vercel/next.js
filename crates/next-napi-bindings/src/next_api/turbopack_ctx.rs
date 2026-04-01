@@ -11,7 +11,11 @@ use std::{
 
 use anyhow::Result;
 use either::Either;
-use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
+use napi::{
+    Env, JsFunction, Status, Unknown as JsUnknown,
+    bindgen_prelude::{FunctionRef, Promise},
+    threadsafe_function::ThreadsafeFunction,
+};
 use napi_derive::napi;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -96,15 +100,19 @@ impl NextTurbopackContext {
         log_internal_error_and_inform(err);
 
         async move {
-            this.inner
+            match this
+                .inner
                 .napi_callbacks
                 .throw_turbopack_internal_error
-                .call_async::<()>(Ok(TurbopackInternalErrorOpts {
+                .call_async(Ok(TurbopackInternalErrorOpts {
                     message,
                     anonymized_location: panic_location,
                 }))
                 .await
-                .expect_err("throwTurbopackInternalError must throw an error")
+            {
+                Ok(_) => panic!("throwTurbopackInternalError must throw an error"),
+                Err(err) => err,
+            }
         }
     }
 
@@ -127,7 +135,7 @@ impl NextTurbopackContext {
     /// Calls the `onBeforeDeferredEntries` callback in Node.js if one was provided.
     pub async fn on_before_deferred_entries(&self) -> napi::Result<()> {
         if let Some(callback) = &self.inner.napi_callbacks.on_before_deferred_entries {
-            let promise = callback.call_async::<Promise<()>>(Ok(())).await?;
+            let promise = callback.call_async(Ok(())).await?;
             promise.await?;
         }
         Ok(())
@@ -138,7 +146,7 @@ impl NextTurbopackContext {
 ///
 /// This can be converted into a [`NapiNextTurbopackCallbacks`] with
 /// [`NapiNextTurbopackCallbacks::from_js`].
-#[napi(object)]
+#[napi(object, object_to_js = false)]
 pub struct NapiNextTurbopackCallbacksJsObject {
     /// Called when we've encountered a bug in Turbopack and not in the user's code. Constructs and
     /// throws a `TurbopackInternalError` type. Logs to anonymized telemetry.
@@ -147,11 +155,11 @@ pub struct NapiNextTurbopackCallbacksJsObject {
     /// there's a runtime conversion error. This should never happen, but if it does, the function
     /// can throw it instead.
     #[napi(ts_type = "(conversionError: Error | null, opts: TurbopackInternalErrorOpts) => never")]
-    pub throw_turbopack_internal_error: JsFunction,
+    pub throw_turbopack_internal_error: FunctionRef<JsUnknown<'static>, JsUnknown<'static>>,
 
     /// Called before deferred entries are processed in a production build.
     #[napi(ts_type = "() => Promise<void>")]
-    pub on_before_deferred_entries: Option<JsFunction>,
+    pub on_before_deferred_entries: Option<FunctionRef<JsUnknown<'static>, JsUnknown<'static>>>,
 }
 
 /// A collection of helper JavaScript functions passed into
@@ -167,8 +175,14 @@ pub struct NapiNextTurbopackCallbacks {
     // to all of our async entrypoints, and would be complicated by `FunctionRef` being `!Send` (I
     // think it could be `Send`, as long as `napi::Env` is checked at call-time, which it should be
     // anyways).
-    throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts>,
-    on_before_deferred_entries: Option<ThreadsafeFunction<()>>,
+    throw_turbopack_internal_error: ThreadsafeFunction<
+        TurbopackInternalErrorOpts,
+        (),
+        TurbopackInternalErrorOpts,
+        Status,
+        true,
+    >,
+    on_before_deferred_entries: Option<ThreadsafeFunction<(), Promise<()>, (), Status, true>>,
 }
 
 /// Arguments for `NapiNextTurbopackCallbacks::throw_turbopack_internal_error`.
@@ -180,14 +194,23 @@ pub struct TurbopackInternalErrorOpts {
 
 impl NapiNextTurbopackCallbacks {
     pub fn from_js(env: &Env, obj: NapiNextTurbopackCallbacksJsObject) -> napi::Result<Self> {
-        let mut throw_turbopack_internal_error: ThreadsafeFunction<TurbopackInternalErrorOpts> =
-            obj.throw_turbopack_internal_error
-                .create_threadsafe_function(0, |ctx| {
-                    // Avoid unpacking the struct into positional arguments, we really want to make
-                    // sure we don't incorrectly order arguments and accidentally log a potentially
-                    // PII-containing message in anonymized telemetry.
-                    Ok(vec![ctx.value])
-                })?;
+        let throw_turbopack_internal_error: JsFunction = {
+            let func = obj.throw_turbopack_internal_error.borrow_back(env)?;
+            let value = napi::JsValue::value(&func);
+            unsafe { <JsFunction as napi::NapiValue>::from_raw_unchecked(value.env, value.value) }
+        };
+        let mut throw_turbopack_internal_error: ThreadsafeFunction<
+            TurbopackInternalErrorOpts,
+            (),
+            TurbopackInternalErrorOpts,
+            Status,
+            true,
+        > = throw_turbopack_internal_error.create_threadsafe_function(|ctx| {
+            // Avoid unpacking the struct into positional arguments, we really want to make
+            // sure we don't incorrectly order arguments and accidentally log a potentially
+            // PII-containing message in anonymized telemetry.
+            Ok(ctx.value)
+        })?;
         // Unref so this ThreadsafeFunction doesn't keep the Node.js event loop alive
         // after shutdown.
         let _ = throw_turbopack_internal_error.unref(env);
@@ -195,7 +218,15 @@ impl NapiNextTurbopackCallbacks {
         let on_before_deferred_entries = obj
             .on_before_deferred_entries
             .map(|callback| {
-                let mut f = callback.create_threadsafe_function(0, |_| Ok::<Vec<()>, _>(vec![]))?;
+                let callback: JsFunction = {
+                    let func = callback.borrow_back(env)?;
+                    let value = napi::JsValue::value(&func);
+                    unsafe {
+                        <JsFunction as napi::NapiValue>::from_raw_unchecked(value.env, value.value)
+                    }
+                };
+                let mut f: ThreadsafeFunction<(), Promise<()>, (), Status, true> =
+                    callback.create_threadsafe_function(|_| Ok::<(), _>(()))?;
                 let _ = f.unref(env);
                 Ok::<_, napi::Error>(f)
             })

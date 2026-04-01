@@ -1,6 +1,7 @@
 use std::{
     marker::PhantomData,
     ops::{Index, IndexMut},
+    ptr,
 };
 
 use lightningcss::{
@@ -19,7 +20,9 @@ use lightningcss::{
     },
     visitor::{Visit, VisitTypes, Visitor},
 };
-use napi::{Env, JsFunction, JsObject, JsUnknown, Ref, ValueType};
+use napi::{
+    Env, JsFunction, JsObject, JsValue, NapiRaw, Unknown as JsUnknown, UnknownRef, ValueType,
+};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -32,19 +35,19 @@ pub struct JsVisitor {
     rule_map: VisitorsRef,
     property_map: VisitorsRef,
     visit_declaration: VisitorsRef,
-    visit_length: Option<Ref<()>>,
-    visit_angle: Option<Ref<()>>,
-    visit_ratio: Option<Ref<()>>,
-    visit_resolution: Option<Ref<()>>,
-    visit_time: Option<Ref<()>>,
-    visit_color: Option<Ref<()>>,
+    visit_length: Option<UnknownRef>,
+    visit_angle: Option<UnknownRef>,
+    visit_ratio: Option<UnknownRef>,
+    visit_resolution: Option<UnknownRef>,
+    visit_time: Option<UnknownRef>,
+    visit_color: Option<UnknownRef>,
     visit_image: VisitorsRef,
-    visit_url: Option<Ref<()>>,
+    visit_url: Option<UnknownRef>,
     visit_media_query: VisitorsRef,
     visit_supports_condition: VisitorsRef,
-    visit_custom_ident: Option<Ref<()>>,
-    visit_dashed_ident: Option<Ref<()>>,
-    visit_selector: Option<Ref<()>>,
+    visit_custom_ident: Option<UnknownRef>,
+    visit_dashed_ident: Option<UnknownRef>,
+    visit_selector: Option<UnknownRef>,
     visit_token: VisitorsRef,
     token_map: VisitorsRef,
     visit_function: VisitorsRef,
@@ -65,7 +68,7 @@ enum VisitStage {
     Exit,
 }
 
-type VisitorsRef = Visitors<Ref<()>>;
+type VisitorsRef = Visitors<UnknownRef>;
 
 struct Visitors<T> {
     enter: Option<T>,
@@ -85,17 +88,22 @@ impl<T> Visitors<T> {
     }
 }
 
-impl Visitors<Ref<()>> {
-    fn get<U: napi::NapiValue>(&self, env: &Env) -> Visitors<U> {
+impl Visitors<UnknownRef> {
+    fn get<U: for<'a> TryFrom<JsUnknown<'a>, Error = napi::Error>>(
+        &self,
+        env: &Env,
+    ) -> Visitors<U> {
         Visitors {
             enter: self
                 .enter
                 .as_ref()
-                .and_then(|p| env.get_reference_value_unchecked(p).ok()),
+                .and_then(|p| p.get_value(env).ok())
+                .and_then(|p| p.try_into().ok()),
             exit: self
                 .exit
                 .as_ref()
-                .and_then(|p| env.get_reference_value_unchecked(p).ok()),
+                .and_then(|p| p.get_value(env).ok())
+                .and_then(|p| p.try_into().ok()),
         }
     }
 }
@@ -130,19 +138,19 @@ impl Drop for JsVisitor {
     fn drop(&mut self) {
         macro_rules! drop {
             ($id: ident) => {
-                if let Some(v) = &mut self.$id {
-                    drop(v.unref(self.env));
+                if let Some(v) = self.$id.take() {
+                    drop(v.unref(&self.env));
                 }
             };
         }
 
         macro_rules! drop_tuple {
             ($id: ident) => {
-                if let Some(v) = &mut self.$id.enter {
-                    drop(v.unref(self.env));
+                if let Some(v) = self.$id.enter.take() {
+                    drop(v.unref(&self.env));
                 }
-                if let Some(v) = &mut self.$id.exit {
-                    drop(v.unref(self.env));
+                if let Some(v) = self.$id.exit.take() {
+                    drop(v.unref(&self.env));
                 }
             };
         }
@@ -188,7 +196,7 @@ impl JsVisitor {
 
         // We must create a reference so that the garbage collector doesn't destroy
         // the function before we try to call it (in the async bundle case).
-        res.and_then(|res| env.create_reference(res).ok())
+        res.and_then(|res| res.into_unknown().create_ref().ok())
       }};
     }
 
@@ -200,7 +208,7 @@ impl JsVisitor {
           types |= $( VisitTypes::$t )|+;
         }
 
-        obj.and_then(|obj| env.create_reference(obj).ok())
+        obj.and_then(|obj| obj.into_unknown().create_ref().ok())
       }};
     }
 
@@ -347,7 +355,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                             let name = v.name.as_ref();
                             if let Some(visit) = rule_map.custom(stage, "unknown", name) {
                                 let js_value = env.to_js_value(v)?;
-                                let res = visit.call(None, &[js_value])?;
+                                let res = call_js_function(&visit, &js_value)?;
                                 return env.from_js_value(res).map(serde_detach::detach);
                             } else {
                                 "unknown"
@@ -357,7 +365,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                             let name = c.name.as_ref();
                             if let Some(visit) = rule_map.custom(stage, "custom", name) {
                                 let js_value = env.to_js_value(c)?;
-                                let res = visit.call(None, &[js_value])?;
+                                let res = call_js_function(&visit, &js_value)?;
                                 return env.from_js_value(res).map(serde_detach::detach);
                             } else {
                                 "custom"
@@ -372,7 +380,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                         .or(visit_rule.for_stage(stage))
                     {
                         let js_value = env.to_js_value(value)?;
-                        let res = visit.call(None, &[js_value])?;
+                        let res = call_js_function(&visit, &js_value)?;
                         env.from_js_value(res).map(serde_detach::detach)
                     } else {
                         Ok(None)
@@ -482,7 +490,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                 |value, stage| {
                     if let Some(visit) = visit_media_query.for_stage(stage) {
                         let js_value = env.to_js_value(value)?;
-                        let res = visit.call(None, &[js_value])?;
+                        let res = call_js_function(&visit, &js_value)?;
                         env.from_js_value(res).map(serde_detach::detach)
                     } else {
                         Ok(None)
@@ -519,7 +527,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                 let new_value: Option<TokenOrValue> =
                     if let Some(visit) = visit_type.as_ref().or(visit) {
                         let js_value = env.to_js_value(env_var)?;
-                        let res = visit.call(None, &[js_value])?;
+                        let res = call_js_function(&visit, &js_value)?;
                         env.from_js_value(res).map(serde_detach::detach)?
                     } else {
                         None
@@ -588,11 +596,12 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
         if let Some(visit) = self
             .visit_selector
             .as_ref()
-            .and_then(|v| self.env.get_reference_value_unchecked::<JsFunction>(v).ok())
+            .and_then(|v| v.get_value(&self.env).ok())
+            .and_then(|v| v.try_into().ok())
         {
             map::<_, _, _, true>(&mut selectors.0, |value| {
                 let js_value = self.env.to_js_value(value)?;
-                let res = visit.call(None, &[js_value])?;
+                let res = call_js_function(&visit, &js_value)?;
                 self.env.from_js_value(res).map(serde_detach::detach)
             })?;
         }
@@ -658,7 +667,7 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
                             _ => unreachable!(),
                         };
 
-                        let res = visit.call(None, &[js_value])?;
+                        let res = call_js_function(&visit, &js_value)?;
                         let res: Option<TokensOrRaw> =
                             env.from_js_value(res).map(serde_detach::detach)?;
                         Ok(res.map(|r| r.0))
@@ -679,16 +688,42 @@ impl<'i> Visitor<'i, AtRule<'i>> for JsVisitor {
 fn visit<V: Serialize + Deserialize<'static>>(
     env: &Env,
     value: &mut V,
-    visit: &Option<Ref<()>>,
+    visit: &Option<UnknownRef>,
 ) -> napi::Result<()> {
     if let Some(visit) = visit
         .as_ref()
-        .and_then(|v| env.get_reference_value_unchecked::<JsFunction>(v).ok())
+        .and_then(|v| v.get_value(env).ok())
+        .and_then(|v| v.try_into().ok())
     {
         call_visitor(env, value, &visit)?;
     }
 
     Ok(())
+}
+
+fn call_js_function<'env>(
+    visit: &JsFunction,
+    arg: &JsUnknown<'env>,
+) -> napi::Result<JsUnknown<'env>> {
+    let env = arg.value().env;
+    let mut recv = ptr::null_mut();
+    let mut return_value = ptr::null_mut();
+
+    napi::check_pending_exception!(env, unsafe {
+        napi::sys::napi_get_undefined(env, &mut recv)
+    })?;
+    napi::check_pending_exception!(env, unsafe {
+        napi::sys::napi_call_function(
+            env,
+            recv,
+            visit.raw(),
+            1,
+            [arg.raw()].as_ptr(),
+            &mut return_value,
+        )
+    })?;
+
+    Ok(unsafe { JsUnknown::from_raw_unchecked(env, return_value) })
 }
 
 fn call_visitor<V: Serialize + Deserialize<'static>>(
@@ -697,7 +732,7 @@ fn call_visitor<V: Serialize + Deserialize<'static>>(
     visit: &JsFunction,
 ) -> napi::Result<()> {
     let js_value = env.to_js_value(value)?;
-    let res = visit.call(None, &[js_value])?;
+    let res = call_js_function(&visit, &js_value)?;
     let new_value: Option<V> = env.from_js_value(res).map(serde_detach::detach)?;
     match new_value {
         Some(new_value) => *value = new_value,
@@ -722,7 +757,7 @@ fn visit_declaration_list<'i, C: FnMut(&mut Property<'i>) -> napi::Result<()>>(
                 Property::Custom(v) => {
                     if let Some(visit) = property_map.custom(stage, "custom", v.name.as_ref()) {
                         let js_value = env.to_js_value(v)?;
-                        let res = visit.call(None, &[js_value])?;
+                        let res = call_js_function(&visit, &js_value)?;
                         return env.from_js_value(res).map(serde_detach::detach);
                     } else {
                         None
@@ -733,7 +768,7 @@ fn visit_declaration_list<'i, C: FnMut(&mut Property<'i>) -> napi::Result<()>>(
 
             if let Some(visit) = visit.as_ref().or(visit_declaration.for_stage(stage)) {
                 let js_value = env.to_js_value(value)?;
-                let res = visit.call(None, &[js_value])?;
+                let res = call_js_function(&visit, &js_value)?;
                 env.from_js_value(res).map(serde_detach::detach)
             } else {
                 Ok(None)

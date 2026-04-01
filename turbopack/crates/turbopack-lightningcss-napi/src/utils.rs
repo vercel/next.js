@@ -1,7 +1,7 @@
-use napi::{Error, JsObject, JsUnknown, Result};
+use napi::{Error, JsObject, Result, Unknown as JsUnknown};
 
 // Workaround for https://github.com/napi-rs/napi-rs/issues/1641
-pub fn get_named_property<T: TryFrom<JsUnknown, Error = Error>>(
+pub fn get_named_property<T: for<'a> TryFrom<JsUnknown<'a>, Error = Error>>(
     obj: &JsObject,
     property: &str,
 ) -> Result<T> {

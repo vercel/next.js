@@ -1,4 +1,4 @@
-use napi::{CallContext, JsObject, JsUnknown};
+use napi::{CallContext, JsObject, Unknown as JsUnknown};
 use napi_derive::{js_function, module_exports, napi};
 use next_core::next_config::lightningcss_feature_names_to_mask;
 

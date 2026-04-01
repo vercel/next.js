@@ -69,7 +69,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[napi::module_init]
+#[napi_derive::module_init]
 fn init() {
     use std::{
         cell::RefCell,
@@ -129,7 +129,7 @@ pub fn complete_output(
     output: TransformOutput,
     eliminated_packages: FxHashSet<Atom>,
     use_cache_telemetry_tracker: FxHashMap<String, usize>,
-) -> napi::Result<Object> {
+) -> napi::Result<napi::JsObject> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
     if let Some(map) = output.map {

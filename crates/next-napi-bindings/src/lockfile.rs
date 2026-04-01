@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Context;
-use napi::bindgen_prelude::External;
+use napi::bindgen_prelude::{External, ExternalRef};
 use napi_derive::napi;
 
 /// A wrapper around [`File`] that is passed to JS, and is set to `None` when [`lockfile_unlock`] is
@@ -116,7 +116,7 @@ pub async fn lockfile_try_acquire(
 
 #[napi]
 pub fn lockfile_unlock_sync(
-    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: External<JsLockfile>,
+    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] mut lockfile: ExternalRef<JsLockfile>,
 ) {
     // We don't need the file handle anymore, so we don't need to call `File::unlock`. Locks are
     // released during `drop`. Remove it from the `ManuallyDrop` wrapper.
@@ -140,12 +140,9 @@ pub fn lockfile_unlock_sync(
 }
 
 #[napi]
-pub async fn lockfile_unlock(
-    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: External<JsLockfile>,
+pub fn lockfile_unlock(
+    #[napi(ts_arg_type = "{ __napiType: \"Lockfile\" }")] lockfile: ExternalRef<JsLockfile>,
 ) -> napi::Result<()> {
-    Ok(
-        tokio::task::spawn_blocking(move || lockfile_unlock_sync(lockfile))
-            .await
-            .context("panicked while attempting to unlock lockfile")?,
-    )
+    lockfile_unlock_sync(lockfile);
+    Ok(())
 }

@@ -2,7 +2,10 @@ use std::{ops::Deref, sync::Arc};
 
 use anyhow::Result;
 use futures_util::TryFutureExt;
-use napi::{JsFunction, bindgen_prelude::External};
+use napi::{
+    Env, JsFunction, Unknown as JsUnknown,
+    bindgen_prelude::{External, ExternalRef},
+};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
@@ -20,8 +23,8 @@ use turbopack_core::{
 };
 
 use crate::next_api::utils::{
-    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    strongly_consistent_catch_collectables, subscribe,
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, SendableExternalRef, TurbopackResult,
+    func_ref_to_js_function, strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -142,7 +145,9 @@ async fn get_written_endpoint_with_issues_operation(
 #[tracing::instrument(level = "info", name = "write endpoint to disk", skip_all)]
 #[napi]
 pub async fn endpoint_write_to_disk(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: SendableExternalRef<
+        ExternalEndpoint,
+    >,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
@@ -176,12 +181,14 @@ pub async fn endpoint_write_to_disk(
 #[tracing::instrument(level = "info", name = "get server-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_server_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
     issues: bool,
-    func: JsFunction,
+    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, JsUnknown<'static>>,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ***endpoint;
+    let func: JsFunction = func_ref_to_js_function(&env, &func)?;
     subscribe(
         turbopack_ctx,
         func,
@@ -202,14 +209,14 @@ pub fn endpoint_server_changed_subscribe(
                 effects: _,
             } = &*ctx.value;
 
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
                 diagnostics: diagnostics
                     .iter()
                     .map(|d| NapiDiagnostic::from(d))
                     .collect(),
-            }])
+            })
         },
     )
 }
@@ -268,11 +275,13 @@ async fn subscribe_issues_and_diags_operation(
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-    func: JsFunction,
+    env: Env,
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: ExternalRef<ExternalEndpoint>,
+    func: napi::bindgen_prelude::FunctionRef<JsUnknown<'static>, JsUnknown<'static>>,
 ) -> napi::Result<External<RootTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ***endpoint;
+    let func: JsFunction = func_ref_to_js_function(&env, &func)?;
     subscribe(
         turbopack_ctx,
         func,
@@ -291,11 +300,11 @@ pub fn endpoint_client_changed_subscribe(
             .instrument(tracing::info_span!("client changes subscription"))
         },
         |_| {
-            Ok(vec![TurbopackResult {
+            Ok(TurbopackResult {
                 result: (),
                 issues: vec![],
                 diagnostics: vec![],
-            }])
+            })
         },
     )
 }

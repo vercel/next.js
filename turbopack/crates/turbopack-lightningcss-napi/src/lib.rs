@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    ptr,
     sync::{Arc, RwLock},
 };
 
@@ -15,7 +16,10 @@ use lightningcss::{
     targets::{Browsers, Features, Targets},
     visitor::Visit,
 };
-use napi::{CallContext, Env, JsObject, JsUnknown};
+use napi::{
+    CallContext, Env, JsObject, JsValue, NapiRaw, Unknown as JsUnknown,
+    bindgen_prelude::JsObjectValue,
+};
 use parcel_sourcemap::SourceMap;
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +44,7 @@ struct TransformResult<'i> {
 }
 
 impl<'i> TransformResult<'i> {
-    fn into_js(self, env: Env) -> napi::Result<JsUnknown> {
+    fn into_js<'env>(self, env: Env) -> napi::Result<JsUnknown<'env>> {
         let mut obj = env.create_object()?;
         let buf = env.create_buffer_with_data(self.code)?;
         obj.set_named_property("code", buf.into_raw())?;
@@ -50,7 +54,7 @@ impl<'i> TransformResult<'i> {
                 let buf = env.create_buffer_with_data(map)?;
                 buf.into_raw().into_unknown()
             } else {
-                env.get_null()?.into_unknown()
+                null(env)?
             },
         )?;
         obj.set_named_property("exports", env.to_js_value(&self.exports)?)?;
@@ -59,6 +63,14 @@ impl<'i> TransformResult<'i> {
         obj.set_named_property("warnings", env.to_js_value(&self.warnings)?)?;
         Ok(obj.into_unknown())
     }
+}
+
+fn null<'env>(env: Env) -> napi::Result<JsUnknown<'env>> {
+    let mut value = ptr::null_mut();
+    napi::check_pending_exception!(env.raw(), unsafe {
+        napi::sys::napi_get_null(env.raw(), &mut value)
+    })?;
+    Ok(unsafe { JsUnknown::from_raw_unchecked(env.raw(), value) })
 }
 
 fn get_visitor(env: Env, opts: &JsObject) -> Option<JsVisitor> {
@@ -70,8 +82,10 @@ fn get_visitor(env: Env, opts: &JsObject) -> Option<JsVisitor> {
 }
 
 pub fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
-    let opts = ctx.get::<JsObject>(0)?;
-    let mut visitor = get_visitor(*ctx.env, &opts);
+    let opts = ctx.get::<JsUnknown>(0)?;
+    let mut visitor = unsafe { opts.cast::<JsObject>() }
+        .ok()
+        .and_then(|opts| get_visitor(*ctx.env, &opts));
 
     let config: Config = ctx.env.from_js_value(opts)?;
     let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
@@ -84,8 +98,10 @@ pub fn transform(ctx: CallContext) -> napi::Result<JsUnknown> {
 }
 
 pub fn transform_style_attribute(ctx: CallContext) -> napi::Result<JsUnknown> {
-    let opts = ctx.get::<JsObject>(0)?;
-    let mut visitor = get_visitor(*ctx.env, &opts);
+    let opts = ctx.get::<JsUnknown>(0)?;
+    let mut visitor = unsafe { opts.cast::<JsObject>() }
+        .ok()
+        .and_then(|opts| get_visitor(*ctx.env, &opts));
 
     let config: AttrConfig = ctx.env.from_js_value(opts)?;
     let code = unsafe { std::str::from_utf8_unchecked(&config.code) };
@@ -357,7 +373,7 @@ struct AttrResult<'i> {
 }
 
 impl<'i> AttrResult<'i> {
-    fn into_js(self, ctx: CallContext) -> napi::Result<JsUnknown> {
+    fn into_js<'env>(self, ctx: CallContext) -> napi::Result<JsUnknown<'env>> {
         let mut obj = ctx.env.create_object()?;
         let buf = ctx.env.create_buffer_with_data(self.code)?;
         obj.set_named_property("code", buf.into_raw())?;
@@ -460,25 +476,38 @@ impl<'i> CompileError<'i> {
             CompileError::ParseError(Error { kind, .. }) => env.to_js_value(kind)?,
             CompileError::PrinterError(Error { kind, .. }) => env.to_js_value(kind)?,
             CompileError::MinifyError(Error { kind, .. }) => env.to_js_value(kind)?,
-            _ => env.get_null()?.into_unknown(),
+            _ => null(env)?,
         };
 
         let (js_error, loc) = match self {
             CompileError::ParseError(Error { loc, .. })
             | CompileError::PrinterError(Error { loc, .. })
             | CompileError::MinifyError(Error { loc, .. }) => {
-                let syntax_error = env
+                let syntax_error: napi::JsFunction = env
                     .get_global()?
-                    .get_named_property::<napi::JsFunction>("SyntaxError")?;
+                    .get_named_property::<JsUnknown<'_>>("SyntaxError")?
+                    .try_into()?;
                 let reason = env.create_string_from_std(reason)?;
-                let obj = syntax_error.new_instance(&[reason])?;
-                (obj.into_unknown(), loc)
+                let mut obj = ptr::null_mut();
+                napi::check_pending_exception!(env.raw(), unsafe {
+                    napi::sys::napi_new_instance(
+                        env.raw(),
+                        syntax_error.raw(),
+                        1,
+                        [reason.raw()].as_ptr(),
+                        &mut obj,
+                    )
+                })?;
+                (
+                    unsafe { JsUnknown::from_raw_unchecked(env.raw(), obj) },
+                    loc,
+                )
             }
             _ => return Ok(self.into()),
         };
 
         if js_error.get_type()? == napi::ValueType::Object {
-            let mut obj: JsObject = unsafe { js_error.cast() };
+            let mut obj: JsObject = unsafe { js_error.cast()? };
             if let Some(loc) = loc {
                 let line = env.create_int32((loc.line + 1) as i32)?;
                 let col = env.create_int32(loc.column as i32)?;

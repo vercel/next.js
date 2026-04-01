@@ -83,7 +83,7 @@ fn skip_filename() -> bool {
 
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<Atom>, FxHashMap<String, usize>);
-    type JsValue = Object;
+    type JsValue = napi::JsObject;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
@@ -226,7 +226,7 @@ pub fn transform_sync(
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-) -> napi::Result<Object> {
+) -> napi::Result<napi::JsObject> {
     let c = get_compiler();
 
     let input = match src {

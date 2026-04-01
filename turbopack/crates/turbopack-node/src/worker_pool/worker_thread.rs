@@ -2,8 +2,9 @@ use std::{collections::VecDeque, sync::Arc};
 
 use bytes::Bytes;
 use napi::{
-    Env,
-    threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Env, Status,
+    bindgen_prelude::Unknown,
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use once_cell::sync::OnceCell;
@@ -16,12 +17,12 @@ use crate::worker_pool::{
     operation::{TaskMessage, WORKER_POOL_OPERATION},
 };
 
-static WORKER_CREATOR: OnceCell<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
-    OnceCell::new();
+type FatalThreadsafeFunction<T> = ThreadsafeFunction<T, Unknown<'static>, T, Status, false>;
 
-static WORKER_TERMINATOR: OnceCell<
-    ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
-> = OnceCell::new();
+static WORKER_CREATOR: OnceCell<FatalThreadsafeFunction<NapiWorkerCreation>> = OnceCell::new();
+
+static WORKER_TERMINATOR: OnceCell<FatalThreadsafeFunction<NapiWorkerTermination>> =
+    OnceCell::new();
 
 static PENDING_CREATIONS: OnceCell<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceCell::new();
 
@@ -30,8 +31,8 @@ static PENDING_CREATIONS: OnceCell<Mutex<VecDeque<oneshot::Sender<u32>>>> = Once
 #[napi]
 pub fn register_worker_scheduler(
     env: Env,
-    creator: ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>,
-    terminator: ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
+    creator: FatalThreadsafeFunction<NapiWorkerCreation>,
+    terminator: FatalThreadsafeFunction<NapiWorkerTermination>,
 ) -> napi::Result<()> {
     // Unref ThreadsafeFunction so it doesn't keep the Node.js event loop alive.
     // Call unref on the functions before storing them globally.
