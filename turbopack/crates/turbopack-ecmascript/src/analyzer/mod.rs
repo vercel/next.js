@@ -1822,6 +1822,10 @@ impl JsValue {
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
+                    WellKnownFunctionKind::FsReadDir => (
+                        "fs.readdir".to_string(),
+                        "The Node.js fs.readdir method: https://nodejs.org/api/fs.html",
+                    ),
                     WellKnownFunctionKind::PathToFileUrl => (
                         "url.pathToFileURL".to_string(),
                         "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
@@ -3490,6 +3494,7 @@ pub enum WellKnownFunctionKind {
     RequireContextRequireResolve(RequireContextValue),
     Define,
     FsReadMethod(Atom),
+    FsReadDir,
     PathToFileUrl,
     CreateRequire,
     ChildProcessSpawnMethod(Atom),
