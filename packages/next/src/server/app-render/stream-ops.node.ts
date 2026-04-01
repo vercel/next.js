@@ -429,6 +429,53 @@ function createDeferredSuffixTransform(suffix: string): Transform {
 }
 
 // ---------------------------------------------------------------------------
+// Move suffix – Node.js Transform that strips </body></html> from its
+// original position and re-appends it at the very end of the stream, so any
+// content injected after the suffix still appears before the closing tags.
+// ---------------------------------------------------------------------------
+
+function createMoveSuffixTransform(): Transform {
+  let foundSuffix = false
+
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      if (foundSuffix) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+      if (index > -1) {
+        foundSuffix = true
+
+        if (chunk.length === ENCODED_TAGS.CLOSED.BODY_AND_HTML.length) {
+          callback()
+          return
+        }
+
+        const before = chunk.slice(0, index)
+        this.push(before)
+
+        if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
+          const after = chunk.slice(
+            index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
+          )
+          this.push(after)
+        }
+      } else {
+        this.push(chunk)
+      }
+      callback()
+    },
+    flush(callback) {
+      this.push(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+      callback()
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
 
@@ -608,8 +655,10 @@ export async function continueFizzStream(
   // TODO: Validate the root layout for missing html or body tags (dev-only)
   // validateRootLayout ? createRootLayoutValidatorTransform() : null
 
-  // TODO: Close tags should always be deferred to the end
-  // createMoveSuffixTransform()
+  // Close tags should always be deferred to the end
+  const moveSuffix = createMoveSuffixTransform()
+  source.pipe(moveSuffix)
+  source = moveSuffix
 
   // Head insertion – inserts server-generated HTML before </head>
   const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
