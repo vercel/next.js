@@ -121,13 +121,39 @@ pub struct QueryResult {
     pub total_count: usize,
 }
 
+/// Paginate a vec of items. Returns `(page_items, clamped_page, total_pages, total_count)`.
+fn paginate<T>(items: Vec<T>, page: usize) -> (Vec<T>, usize, usize, usize) {
+    let total_count = items.len();
+    let total_pages = total_count.div_ceil(PAGE_SIZE).max(1);
+    let page = page.clamp(1, total_pages);
+    let start = (page - 1) * PAGE_SIZE;
+    let page_items = items.into_iter().skip(start).take(PAGE_SIZE).collect();
+    (page_items, page, total_pages, total_count)
+}
+
+fn format_span_name(cat: &str, title: &str) -> String {
+    if cat.is_empty() {
+        title.to_string()
+    } else {
+        format!("{cat} {title}")
+    }
+}
+
+/// Build a span ID by appending a leaf segment to the optional parent path.
+fn build_span_id(parent: Option<&str>, leaf: &str) -> String {
+    match parent {
+        Some(p) => format!("{p}-{leaf}"),
+        None => leaf.to_string(),
+    }
+}
+
 /// Query spans from the store.
 ///
-/// Waits up to 2 seconds for at least some data to be loaded before
+/// Waits up to 10 seconds for at least some data to be loaded before
 /// returning, so callers don't need to poll separately.
 pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryResult {
     // Wait briefly for initial data if the store is empty.
-    let deadline = Instant::now() + Duration::from_secs(2);
+    let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         {
             let guard = store.read();
@@ -202,22 +228,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             });
         }
 
-        let total_count = filtered.len();
-        let total_pages = total_count.div_ceil(PAGE_SIZE).max(1);
-        let page = options.page.clamp(1, total_pages);
-        let start = (page - 1) * PAGE_SIZE;
-        let page_items: Vec<_> = filtered.into_iter().skip(start).take(PAGE_SIZE).collect();
+        let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);
 
         let spans = page_items
             .into_iter()
             .map(|graph| {
                 let first = graph.first_span();
                 let (cat, title) = graph.nice_name();
-                let name = if cat.is_empty() {
-                    title.to_string()
-                } else {
-                    format!("{cat} {title}")
-                };
+                let name = format_span_name(cat, title);
                 let count = graph.count() as u64;
                 let total_cpu = *graph.total_time();
                 let total_corrected = *graph.corrected_total_time();
@@ -229,11 +247,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 // path (if any) with a dash so callers can pass the full string
                 // back as `parent` to drill into children.
                 let first_index = first.index;
-                let leaf = format!("a{first_index}");
-                let graph_id = match options.parent.as_deref() {
-                    Some(p) => format!("{p}-{leaf}"),
-                    None => leaf,
-                };
+                let graph_id = build_span_id(options.parent.as_deref(), &format!("a{first_index}"));
 
                 // start/end of the first/example span relative to parent.
                 let span_start = *first.start();
@@ -299,31 +313,20 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             });
         }
 
-        let total_count = filtered.len();
-        let total_pages = total_count.div_ceil(PAGE_SIZE).max(1);
-        let page = options.page.clamp(1, total_pages);
-        let start = (page - 1) * PAGE_SIZE;
-        let page_items: Vec<_> = filtered.into_iter().skip(start).take(PAGE_SIZE).collect();
+        let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);
 
         let spans = page_items
             .into_iter()
             .map(|span| {
                 let (cat, title) = span.nice_name();
-                let name = if cat.is_empty() {
-                    title.to_string()
-                } else {
-                    format!("{cat} {title}")
-                };
+                let name = format_span_name(cat, title);
                 let span_start = *span.start();
                 let span_end = *span.end();
                 let rel_start = (span_start as i64) - (parent_start as i64);
                 let rel_end = (span_end as i64) - (parent_start as i64);
 
                 SpanInfo {
-                    id: match options.parent.as_deref() {
-                        Some(p) => format!("{p}-{}", span.index),
-                        None => span.index.to_string(),
-                    },
+                    id: build_span_id(options.parent.as_deref(), &span.index.to_string()),
                     name,
                     cpu_duration: *span.total_time(),
                     corrected_duration: *span.corrected_total_time(),

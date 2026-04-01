@@ -1,4 +1,11 @@
-const DEFAULT_MCP_PORT = 5748
+/**
+ * CLI client for querying a running turbopack trace server via its MCP endpoint.
+ * Sends a JSON-RPC `tools/call` request and prints the markdown response to stdout.
+ *
+ * Usage: next internal query-trace [options]
+ */
+
+const DEFAULT_MCP_PORT = 5748 // Keep in sync with turbo-trace-server.ts
 
 interface QueryTraceOptions {
   port: number | undefined

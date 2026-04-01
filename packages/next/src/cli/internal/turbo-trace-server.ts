@@ -8,7 +8,7 @@ const { StreamableHTTPServerTransport } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp')
 
 const DEFAULT_WS_PORT = 5747
-const DEFAULT_MCP_PORT = 5748
+const DEFAULT_MCP_PORT = 5748 // Keep in sync with query-trace.ts
 
 /** 100 internal ticks = 1 µs */
 const TICKS_PER_US = 100
@@ -32,6 +32,65 @@ function formatRelative(ticks: number): string {
   // ticks may be negative if the child starts before the parent reference point
   const prefix = ticks < 0 ? '-' : ''
   return prefix + formatDuration(Math.abs(ticks))
+}
+
+/**
+ * Render a single span (or aggregated span group) as a markdown section.
+ */
+function renderSpanMarkdown(span: {
+  name: string
+  id: string
+  isAggregated: boolean
+  count?: number
+  totalCpuDuration?: number
+  avgCpuDuration?: number
+  totalCorrectedDuration?: number
+  avgCorrectedDuration?: number
+  cpuDuration: number
+  correctedDuration: number
+  startRelativeToParent: number
+  endRelativeToParent: number
+  firstSpanId?: string
+  args: Array<Array<string>>
+}): string {
+  let md = `### \`${span.name}\` (ID: \`${span.id}\`)\n`
+
+  if (span.isAggregated && span.count !== undefined && span.count > 1) {
+    md += `- **Count:** ${span.count} spans\n`
+    if (span.totalCpuDuration !== undefined) {
+      md += `- **Total CPU Duration:** ${formatDuration(span.totalCpuDuration)}\n`
+    }
+    if (span.avgCpuDuration !== undefined) {
+      md += `- **Avg CPU Duration:** ${formatDuration(span.avgCpuDuration)}\n`
+    }
+    if (span.totalCorrectedDuration !== undefined) {
+      md += `- **Total Corrected Duration:** ${formatDuration(span.totalCorrectedDuration)}\n`
+    }
+    if (span.avgCorrectedDuration !== undefined) {
+      md += `- **Avg Corrected Duration:** ${formatDuration(span.avgCorrectedDuration)}\n`
+    }
+    md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
+    md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
+    const exampleId = span.firstSpanId ?? span.id
+    md += `\n#### First span as example (ID: \`${exampleId}\`)\n`
+    md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
+    md += `- **Corrected Duration:** ${formatDuration(span.correctedDuration)}\n`
+  } else {
+    md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
+    md += `- **Corrected Duration:** ${formatDuration(span.correctedDuration)}\n`
+    md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
+    md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
+  }
+
+  if (span.args && span.args.length > 0) {
+    md += `\n**Attributes:**\n`
+    for (const [k, v] of span.args) {
+      md += `- \`${k}\`: ${v}\n`
+    }
+  }
+
+  md += '\n---\n\n'
+  return md
 }
 
 export async function startTurboTraceServerCli(
@@ -111,43 +170,7 @@ export async function startTurboTraceServerCli(
       }
 
       for (const span of spans) {
-        md += `### \`${span.name}\` (ID: \`${span.id}\`)\n`
-
-        if (span.isAggregated && span.count !== undefined && span.count > 1) {
-          md += `- **Count:** ${span.count} spans\n`
-          if (span.totalCpuDuration !== undefined) {
-            md += `- **Total CPU Duration:** ${formatDuration(span.totalCpuDuration)}\n`
-          }
-          if (span.avgCpuDuration !== undefined) {
-            md += `- **Avg CPU Duration:** ${formatDuration(span.avgCpuDuration)}\n`
-          }
-          if (span.totalCorrectedDuration !== undefined) {
-            md += `- **Total Corrected Duration:** ${formatDuration(span.totalCorrectedDuration)}\n`
-          }
-          if (span.avgCorrectedDuration !== undefined) {
-            md += `- **Avg Corrected Duration:** ${formatDuration(span.avgCorrectedDuration)}\n`
-          }
-          md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
-          md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
-          const exampleId = span.firstSpanId ?? span.id
-          md += `\n#### First span as example (ID: \`${exampleId}\`)\n`
-          md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
-          md += `- **Corrected Duration:** ${formatDuration(span.correctedDuration)}\n`
-        } else {
-          md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
-          md += `- **Corrected Duration:** ${formatDuration(span.correctedDuration)}\n`
-          md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
-          md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
-        }
-
-        if (span.args && span.args.length > 0) {
-          md += `\n**Attributes:**\n`
-          for (const [k, v] of span.args) {
-            md += `- \`${k}\`: ${v}\n`
-          }
-        }
-
-        md += '\n---\n\n'
+        md += renderSpanMarkdown(span)
       }
 
       if (page < totalPages) {
