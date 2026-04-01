@@ -1,10 +1,6 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {
-  experimental: {
-    useNodeStreams: true,
-  },
-}
+const nextConfig = {}
 
 module.exports = nextConfig
