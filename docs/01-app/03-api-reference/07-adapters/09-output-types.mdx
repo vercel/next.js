@@ -166,9 +166,9 @@ Static assets and auto-statically optimized pages:
 ```typescript
 {
   type: 'STATIC_FILE'
-  id: string // Route identifier
-  filePath: string // Path to the built file
-  pathname: string // URL pathname
+  id: string // Unique identifier for this static file output
+  filePath: string // Absolute filesystem path to the built file
+  pathname: string // The routable URL pathname for this static file
   immutableHash: string | undefined // Content hash when the filename contains a hash, indicating the file is immutable
 }
 ```
