@@ -21,6 +21,7 @@ import {
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
   convertRootFlightRouterStateToRouteTree,
+  cloneRouteTreeWithRenderedSearch,
   getStaleAt,
   writeStaticStageResponseIntoCache,
   processRuntimePrefetchStream,
@@ -307,13 +308,29 @@ function navigateUsingPrefetchedRouteTree(
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry
 ): AppRouterState {
-  const routeTree = route.tree
-  const canonicalUrl = route.canonicalUrl + url.hash
-  const renderedSearch = route.renderedSearch
+  const navigationSearch = url.search as NormalizedSearch
+  const canonicalFromRoute = new URL(route.canonicalUrl, location.origin)
+  const samePathname = url.pathname === canonicalFromRoute.pathname
+  const searchMismatch =
+    samePathname && navigationSearch !== route.renderedSearch
+
+  const routeTree = searchMismatch
+    ? cloneRouteTreeWithRenderedSearch(route.tree, navigationSearch)
+    : route.tree
+  const metadataTree = searchMismatch
+    ? cloneRouteTreeWithRenderedSearch(route.metadata, navigationSearch)
+    : route.metadata
+
+  const canonicalUrl = searchMismatch
+    ? createHrefFromUrl(url)
+    : route.canonicalUrl + url.hash
+  const renderedSearch = searchMismatch
+    ? navigationSearch
+    : route.renderedSearch
   const prefetchSeed: NavigationSeed = {
     renderedSearch,
     routeTree,
-    metadataVaryPath: route.metadata.varyPath as any,
+    metadataVaryPath: metadataTree.varyPath as PageVaryPath,
     data: null,
     head: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
