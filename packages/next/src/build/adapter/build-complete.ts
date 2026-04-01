@@ -1,4 +1,5 @@
 import path from 'path'
+import { existsSync } from 'fs'
 import fs from 'fs/promises'
 import { pathToFileURL } from 'url'
 import * as Log from '../output/log'
@@ -532,7 +533,17 @@ export async function handleBuildComplete({
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
-      const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
+      const staticDir = path.join(distDir, 'static')
+      const immutableDir = path.join(distDir, 'immutable')
+
+      const staticFiles = [
+        ...(existsSync(staticDir)
+          ? await recursiveReadDir(staticDir, { relativePathnames: false })
+          : []),
+        ...(existsSync(immutableDir)
+          ? await recursiveReadDir(immutableDir, { relativePathnames: false })
+          : []),
+      ].map((f) => path.relative(distDir, f))
 
       const clientHashes: Record<string, string> | undefined =
         bundler === Bundler.Turbopack &&
@@ -546,9 +557,9 @@ export async function handleBuildComplete({
           : undefined
 
       for (const file of staticFiles) {
-        const pathname = path.posix.join('/_next/static', file)
-        const filePath = path.join(distDir, 'static', file)
-        const id = path.join('static', file)
+        const pathname = path.posix.join('/_next', file)
+        const filePath = path.join(distDir, file)
+        const id = file
         outputs.staticFiles.push({
           type: AdapterOutputType.STATIC_FILE,
           id,
