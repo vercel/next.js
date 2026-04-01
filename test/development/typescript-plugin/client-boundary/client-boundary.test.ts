@@ -123,4 +123,34 @@ describe('typescript-plugin - client-boundary', () => {
      }
     `)
   })
+
+  it('should have diagnostics for non-serializable props on export default variable', () => {
+    const tsFile = resolve(
+      __dirname,
+      'app/non-serializable-export-default-variable-props.tsx'
+    )
+    const totalDiagnostics: Record<string, PartialDiagnostic[]> = {}
+
+    totalDiagnostics[relative(__dirname, tsFile)] = languageService
+      .getSemanticDiagnostics(tsFile)
+      .map((diagnostic) => ({
+        code: diagnostic.code,
+        messageText: diagnostic.messageText,
+        start: diagnostic.start,
+        length: diagnostic.length,
+      }))
+
+    expect(totalDiagnostics).toMatchInlineSnapshot(`
+     {
+       "app/non-serializable-export-default-variable-props.tsx": [
+         {
+           "code": 71007,
+           "length": 10,
+           "messageText": "Props must be serializable for components in the "use client" entry file. "myFunc" is a function that's not a Server Action. Rename "myFunc" either to "action" or have its name end with "Action" e.g. "myFuncAction" to indicate it is a Server Action.",
+           "start": 41,
+         },
+       ],
+     }
+    `)
+  })
 })

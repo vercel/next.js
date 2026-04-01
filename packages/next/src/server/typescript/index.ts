@@ -16,6 +16,7 @@ import {
   isPositionInsideNode,
   getSource,
   isInsideApp,
+  getTypeChecker,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
@@ -336,6 +337,41 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
                 node
               )
             )
+          }
+        } else if (ts.isExportAssignment(node) && !node.isExportEquals) {
+          // export default <expr> — covers arrow functions assigned to a const
+          // and then re-exported. `export default function` is handled above via
+          // isDefaultFunctionExport; this branch catches the remaining cases.
+          if (isClientEntry) {
+            const expr = node.expression
+            let fnNode: tsModule.ArrowFunction | undefined
+
+            if (ts.isArrowFunction(expr)) {
+              fnNode = expr
+            } else if (ts.isIdentifier(expr)) {
+              const typeChecker = getTypeChecker()
+              if (typeChecker) {
+                const symbol = typeChecker.getSymbolAtLocation(expr)
+                const decl = symbol?.getDeclarations()?.[0]
+                if (
+                  decl &&
+                  ts.isVariableDeclaration(decl) &&
+                  decl.initializer &&
+                  ts.isArrowFunction(decl.initializer)
+                ) {
+                  fnNode = decl.initializer
+                }
+              }
+            }
+
+            if (fnNode) {
+              prior.push(
+                ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
+                  source,
+                  fnNode
+                )
+              )
+            }
           }
         }
       })
