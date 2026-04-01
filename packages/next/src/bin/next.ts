@@ -96,7 +96,7 @@ class NextRootCommand extends Command {
         os.cpus().some((cpu) => cpu.model.includes('Apple'))
       ) {
         warn(
-          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 translation. For better performance, install a native arm64 build of Node.js. https://nextjs.org/docs/getting-started/installation#rosetta'
+          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 translation, which may cause degraded performance.'
         )
       }
 
