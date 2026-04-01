@@ -205,8 +205,8 @@ impl Asset for RoutesHashesManifestAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let module_graphs = self.project.whole_app_module_graphs().await?;
-        let base_module_graph = *module_graphs.base;
-        let full_module_graph = *module_graphs.full;
+        let base_module_graph = module_graphs.base.connect();
+        let full_module_graph = module_graphs.full.connect();
 
         let mut entrypoint_hashes = FxIndexMap::default();
 

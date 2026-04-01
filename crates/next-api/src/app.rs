@@ -1008,8 +1008,8 @@ impl AppProject {
                 };
 
                 Ok(BaseAndFullModuleGraph {
-                    base: base.connect().to_resolved().await?,
-                    full: full.connect().to_resolved().await?,
+                    base,
+                    full,
                     binding_usage_info,
                 }
                 .cell())
@@ -1287,7 +1287,7 @@ impl AppEndpoint {
                 AssetIdent::from_path(project.project_path().owned().await?)
                     .with_modifier(rcstr!("client-shared-chunks")),
                 this.app_project.client_runtime_entries(),
-                *module_graphs.full,
+                module_graphs.full.connect(),
                 *client_chunking_context,
             );
 
@@ -1305,14 +1305,14 @@ impl AppEndpoint {
         let per_page_module_graph = *project.per_page_module_graph().await?;
 
         let next_dynamic_imports =
-            NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
+            NextDynamicGraphs::new(module_graphs.base.connect(), per_page_module_graph)
                 .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                 .await?;
 
         let is_production = project.next_mode().await?.is_production();
 
         let client_references =
-            ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
+            ClientReferencesGraphs::new(module_graphs.base.connect(), per_page_module_graph)
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
@@ -1324,7 +1324,7 @@ impl AppEndpoint {
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
-            *module_graphs.full,
+            module_graphs.full.connect(),
             *client_chunking_context,
             availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
@@ -1432,7 +1432,7 @@ impl AppEndpoint {
             }
         }
 
-        let actions = ServerActionsGraphs::new(*module_graphs.base, per_page_module_graph)
+        let actions = ServerActionsGraphs::new(module_graphs.base.connect(), per_page_module_graph)
             .get_server_actions_for_endpoint(
                 *rsc_entry,
                 match runtime {
@@ -1451,7 +1451,7 @@ impl AppEndpoint {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
                 NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
             },
-            *module_graphs.full,
+            module_graphs.full.connect(),
             this.app_project
                 .project()
                 .runtime_chunking_context(process_client_assets, runtime),
@@ -1469,7 +1469,7 @@ impl AppEndpoint {
                 *server_action_manifest_loader,
                 server_path.clone(),
                 process_client_assets,
-                *module_graphs.full,
+                module_graphs.full.connect(),
             )
             .to_resolved()
             .await?;
@@ -1491,7 +1491,12 @@ impl AppEndpoint {
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
-                    async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
+                    async_module_info: module_graphs
+                        .full
+                        .connect()
+                        .async_module_info()
+                        .to_resolved()
+                        .await?,
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
                     mode: *project.next_mode().await?,
@@ -1574,7 +1579,7 @@ impl AppEndpoint {
 
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
+                        module_graphs.full.connect(),
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1698,7 +1703,7 @@ impl AppEndpoint {
                 let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        *module_graphs.full,
+                        module_graphs.full.connect(),
                         *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(

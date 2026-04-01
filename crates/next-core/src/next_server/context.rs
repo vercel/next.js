@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -22,7 +22,7 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::binding_usage_info::BindingUsageInfo,
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -992,9 +992,9 @@ pub struct ServerChunkingContextOptions {
     pub node_root: FileSystemPath,
     pub node_root_to_root_path: RcStr,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<ModuleIdStrategy>,
-    pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<UnusedReferences>,
+    pub module_id_strategy: OperationVc<ModuleIdStrategy>,
+    pub export_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub unused_references: OperationVc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -1067,13 +1067,16 @@ pub async fn get_server_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy)
+    .unused_references(unused_references)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if let Some(export_usage) = export_usage {
+        builder = builder.export_usage(export_usage);
+    }
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1165,13 +1168,16 @@ pub async fn get_server_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy)
+    .unused_references(unused_references)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if let Some(export_usage) = export_usage {
+        builder = builder.export_usage(export_usage);
+    }
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

@@ -46,7 +46,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        binding_usage_info::compute_binding_usage_info,
+        binding_usage_info::{compute_binding_usage_info, get_unused_references},
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -497,24 +497,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(if options.remove_unused_exports {
-                Some(binding_usage.unwrap().connect().to_resolved().await?)
-            } else {
-                None
-            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
+            if options.remove_unused_exports {
+                builder = builder.export_usage(binding_usage.unwrap());
+            }
+
             if options.remove_unused_imports {
-                builder = builder.unused_references(
-                    binding_usage
-                        .unwrap()
-                        .connect()
-                        .unused_references()
-                        .to_resolved()
-                        .await?,
-                );
+                builder = builder.unused_references(get_unused_references(binding_usage.unwrap()));
             }
 
             if options.production_chunking {
@@ -545,23 +537,15 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             )
             .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
-            .export_usage(if options.remove_unused_exports {
-                Some(binding_usage.unwrap().connect().to_resolved().await?)
-            } else {
-                None
-            })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
+            if options.remove_unused_exports {
+                builder = builder.export_usage(binding_usage.unwrap());
+            }
+
             if options.remove_unused_imports {
-                builder = builder.unused_references(
-                    binding_usage
-                        .unwrap()
-                        .connect()
-                        .unused_references()
-                        .to_resolved()
-                        .await?,
-                );
+                builder = builder.unused_references(get_unused_references(binding_usage.unwrap()));
             }
 
             if options.production_chunking {

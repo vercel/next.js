@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
@@ -23,7 +23,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::binding_usage_info::BindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_css::chunk::CssChunkType;
@@ -434,9 +434,9 @@ pub struct ClientChunkingContextOptions {
     pub client_root_to_root_path: RcStr,
     pub asset_prefix: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<ModuleIdStrategy>,
-    pub export_usage: Vc<OptionBindingUsageInfo>,
-    pub unused_references: Vc<UnusedReferences>,
+    pub module_id_strategy: OperationVc<ModuleIdStrategy>,
+    pub export_usage: Option<OperationVc<BindingUsageInfo>>,
+    pub unused_references: OperationVc<UnusedReferences>,
     pub minify: Vc<bool>,
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
@@ -495,9 +495,8 @@ pub async fn get_client_chunking_context(
     .source_maps(*source_maps.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .unused_references(unused_references)
+    .module_id_strategy(module_id_strategy)
     .debug_ids(*debug_ids.await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -506,6 +505,10 @@ pub async fn get_client_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,
     });
+
+    if let Some(export_usage) = export_usage {
+        builder = builder.export_usage(export_usage);
+    }
 
     if next_mode.is_development() {
         builder = builder

@@ -95,6 +95,11 @@ impl BindingUsageInfo {
 }
 
 #[turbo_tasks::function(operation)]
+pub fn get_unused_references(binding_usage: OperationVc<BindingUsageInfo>) -> Vc<UnusedReferences> {
+    binding_usage.connect().unused_references()
+}
+
+#[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
     graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,

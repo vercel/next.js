@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, OperationVc, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
@@ -120,17 +120,17 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn module_id_strategy(mut self, module_id_strategy: ResolvedVc<ModuleIdStrategy>) -> Self {
+    pub fn module_id_strategy(mut self, module_id_strategy: OperationVc<ModuleIdStrategy>) -> Self {
         self.chunking_context.module_id_strategy = Some(module_id_strategy);
         self
     }
 
-    pub fn export_usage(mut self, export_usage: Option<ResolvedVc<BindingUsageInfo>>) -> Self {
-        self.chunking_context.export_usage = export_usage;
+    pub fn export_usage(mut self, export_usage: OperationVc<BindingUsageInfo>) -> Self {
+        self.chunking_context.export_usage = Some(export_usage);
         self
     }
 
-    pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
+    pub fn unused_references(mut self, unused_references: OperationVc<UnusedReferences>) -> Self {
         self.chunking_context.unused_references = Some(unused_references);
         self
     }
@@ -219,11 +219,11 @@ pub struct NodeJsChunkingContext {
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
-    module_id_strategy: Option<ResolvedVc<ModuleIdStrategy>>,
+    module_id_strategy: Option<OperationVc<ModuleIdStrategy>>,
     /// The module export usage info, if available.
-    export_usage: Option<ResolvedVc<BindingUsageInfo>>,
+    export_usage: Option<OperationVc<BindingUsageInfo>>,
     /// Which references are unused and should be skipped (e.g. during codegen).
-    unused_references: Option<ResolvedVc<UnusedReferences>>,
+    unused_references: Option<OperationVc<UnusedReferences>>,
     /// The strategy to use for generating source map source uris
     source_map_source_type: SourceMapSourceType,
     /// The chunking configs
@@ -638,9 +638,9 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn chunk_item_id_strategy(&self) -> Vc<ModuleIdStrategy> {
-        *self
-            .module_id_strategy
-            .unwrap_or_else(|| ModuleIdStrategy::default().resolved_cell())
+        self.module_id_strategy
+            .map(|v| v.connect())
+            .unwrap_or_else(|| ModuleIdStrategy::default().cell())
     }
 
     #[turbo_tasks::function]
@@ -689,7 +689,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
         if let Some(export_usage) = self.export_usage {
-            Ok(export_usage.await?.used_exports(module).await?)
+            Ok(export_usage.connect().await?.used_exports(module).await?)
         } else {
             Ok(ModuleExportUsage::all())
         }
@@ -698,7 +698,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn unused_references(&self) -> Vc<UnusedReferences> {
         if let Some(unused_references) = self.unused_references {
-            *unused_references
+            unused_references.connect()
         } else {
             Vc::cell(Default::default())
         }
