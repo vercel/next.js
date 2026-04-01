@@ -197,7 +197,8 @@ describe.each([
 
         const immutableAssets = outputs.staticFiles.filter(
           (a) =>
-            a.pathname.startsWith('/_next/static/') &&
+            (a.pathname.startsWith('/_next/static/') ||
+              a.pathname.startsWith('/_next/immutable/')) &&
             !(
               a.pathname.endsWith('/_buildManifest.js') ||
               a.pathname.endsWith('/_clientMiddlewareManifest.js') ||

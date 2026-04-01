@@ -17,10 +17,10 @@ import {
   retry,
   waitFor,
   getDeploymentId,
+  listClientChunks,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import fs from 'fs/promises'
 import { pathExists } from 'fs-extra'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
@@ -1624,9 +1624,11 @@ function runTests(mode: 'dev' | 'server') {
     })
 
     it('should create images folder in static/media for edge runtime', async () => {
-      const files = await fs.readdir(join(appDir, '.next/static/media'))
+      const files = await listClientChunks(join(appDir, '.next'))
       expect(files).toEqual(
-        expect.arrayContaining([expect.stringMatching(/small\.\w+\.jpg/)])
+        expect.arrayContaining([
+          expect.stringMatching(/^(static|immutable)\/media\/small\.\w+\.jpg$/),
+        ])
       )
     })
   }

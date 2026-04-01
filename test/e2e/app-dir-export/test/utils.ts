@@ -30,18 +30,28 @@ export const expectedWhenTrailingSlashTrue = [
   // Turbopack and plain next.js have different hash output for the file name
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-z_-]+\.ico/)]
-    : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_-]+\.png/),
-  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
-  ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+          /_next\/(static|immutable)\/media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
-  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/media\/test\.[0-9a-z_-]+\.png/
+  ),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_buildManifest.js/
+  ),
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [
+        expect.stringMatching(
+          /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+        ),
+      ]
+    : []),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_ssgManifest.js/
+  ),
   '_not-found/__next._full.txt',
   '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
@@ -109,18 +119,28 @@ const expectedWhenTrailingSlashFalse = [
   '__next._tree.txt',
   // Turbopack will output favicon in the _next/static/media folder
   ...(process.env.IS_TURBOPACK_TEST
-    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-z_-]+\.ico/)]
-    : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_-]+\.png/),
-  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
-  ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+          /_next\/(static|immutable)\/media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
-  expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/media\/test\.[0-9a-z_-]+\.png/
+  ),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_buildManifest.js/
+  ),
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [
+        expect.stringMatching(
+          /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_clientMiddlewareManifest.js/
+        ),
+      ]
+    : []),
+  expect.stringMatching(
+    /_next\/(static|immutable)\/[A-Za-z0-9_-]+\/_ssgManifest.js/
+  ),
   '_not-found.html',
   '_not-found.txt',
   '_not-found/__next._full.txt',
@@ -186,7 +206,10 @@ export async function getFiles(cwd) {
       (f) =>
         !f.startsWith('_next/static/chunks/') &&
         !f.startsWith('_next/static/development/') &&
-        !f.startsWith('_next/static/webpack/')
+        !f.startsWith('_next/static/webpack/') &&
+        !f.startsWith('_next/immutable/chunks/') &&
+        !f.startsWith('_next/immutable/development/') &&
+        !f.startsWith('_next/immutable/webpack/')
     )
     .sort()
   return files

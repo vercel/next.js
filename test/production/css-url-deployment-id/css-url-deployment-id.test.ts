@@ -1,12 +1,11 @@
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('css-url-deployment-id', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: { sass: '1.54.0' },
     env: {
-      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
-      __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
+      NEXT_DEPLOYMENT_ID: 'test-deployment-id',
     },
     disableAutoSkewProtection: true,
   })

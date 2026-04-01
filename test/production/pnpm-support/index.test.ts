@@ -100,6 +100,14 @@ describe('pnpm support', () => {
         path.join(standaloneDir, './.next/static'),
         { overwrite: true }
       )
+      const immutableDir = path.join(next.testDir, './.next/immutable')
+      if (await fs.pathExists(immutableDir)) {
+        await fs.copy(
+          immutableDir,
+          path.join(standaloneDir, './.next/immutable'),
+          { overwrite: true }
+        )
+      }
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),
         /- Local:/,

@@ -28,6 +28,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -2150,4 +2151,18 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
       return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
     },
   }
+}
+
+export async function listClientChunks(distDir: string) {
+  const staticDir = path.join(distDir, 'static')
+  const immutableDir = path.join(distDir, 'immutable')
+
+  return [
+    ...(existsSync(staticDir)
+      ? await recursiveReadDir(staticDir, { relativePathnames: false })
+      : []),
+    ...(existsSync(immutableDir)
+      ? await recursiveReadDir(immutableDir, { relativePathnames: false })
+      : []),
+  ].map((f) => path.relative(distDir, f))
 }
