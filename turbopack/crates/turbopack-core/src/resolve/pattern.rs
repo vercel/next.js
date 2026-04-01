@@ -1,17 +1,17 @@
 use std::{
-    collections::{VecDeque, hash_map::Entry},
+    collections::{hash_map::Entry, VecDeque},
     mem::take,
     sync::LazyLock,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::{rcstr, RcStr};
 use turbo_tasks::{
-    NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, TaskInput, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
@@ -1485,7 +1485,7 @@ impl Pattern {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
+    Debug, PartialEq, Eq, Clone, Hash, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
@@ -1859,6 +1859,23 @@ pub async fn read_matches(
         for (pos, nested) in nested.into_iter() {
             results.extend(nested.await?.iter().cloned().map(|p| (pos, p)));
         }
+        let mut deduped = FxHashMap::default();
+        for (pos, pat_match) in results {
+            match deduped.entry(pat_match) {
+                Entry::Occupied(mut entry) => {
+                    if pos < *entry.get() {
+                        *entry.get_mut() = pos;
+                    }
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(pos);
+                }
+            }
+        }
+        let mut results = deduped
+            .into_iter()
+            .map(|(pat_match, pos)| (pos, pat_match))
+            .collect::<Vec<_>>();
         results.sort_by(|(a, am), (b, bm)| (*a).cmp(b).then_with(|| am.name().cmp(bm.name())));
         Ok(Vc::cell(
             results.into_iter().map(|(_, p)| p).collect::<Vec<_>>(),
@@ -1901,13 +1918,13 @@ mod tests {
     use std::path::Path;
 
     use rstest::*;
-    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_rcstr::{rcstr, RcStr};
     use turbo_tasks::Vc;
-    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
     use super::{
-        Pattern, longest_common_prefix, longest_common_suffix, read_matches, split_last_segment,
+        longest_common_prefix, longest_common_suffix, read_matches, split_last_segment, Pattern,
     };
 
     #[test]
@@ -1999,11 +2016,9 @@ mod tests {
 
     #[test]
     fn with_normalized_path() {
-        assert!(
-            Pattern::Constant(rcstr!("a/../.."))
-                .with_normalized_path()
-                .is_none()
-        );
+        assert!(Pattern::Constant(rcstr!("a/../.."))
+            .with_normalized_path()
+            .is_none());
         assert_eq!(
             Pattern::Constant(rcstr!("a/b/../c"))
                 .with_normalized_path()
@@ -2664,6 +2679,7 @@ mod tests {
                 node_modules_dynamic: Vec<String>,
                 extension_ordering: Vec<String>,
                 subpath_ordering: Vec<String>,
+                slash_ambiguous_dedup: Vec<String>,
             }
 
             #[turbo_tasks::function(operation)]
@@ -2761,12 +2777,42 @@ mod tests {
                 .map(|m| m.name().to_string())
                 .collect::<Vec<_>>();
 
+                // `path.join("sub", dynamic, ".js")` style patterns can create
+                // slash/no-slash alternatives that all resolve to the same file names.
+                // read_matches should collapse those duplicates.
+                let slash_ambiguous_dedup = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new({
+                        let mut p = Pattern::Alternatives(vec![
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("sub/")),
+                                Pattern::Dynamic,
+                                Pattern::Constant(rcstr!(".js")),
+                            ]),
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("sub")),
+                                Pattern::Dynamic,
+                                Pattern::Constant(rcstr!(".js")),
+                            ]),
+                        ]);
+                        p.normalize();
+                        p
+                    }),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
                 Ok(ReadMatchesOutput {
                     dynamic,
                     dynamic_file_suffix,
                     node_modules_dynamic,
                     extension_ordering,
                     subpath_ordering,
+                    slash_ambiguous_dedup,
                 }
                 .cell())
             }
@@ -2829,6 +2875,11 @@ mod tests {
                         .unwrap(),
                 "Expected prio/a/ results before prio/b/ results, got: {:?}",
                 matches.subpath_ordering
+            );
+
+            assert_eq!(
+                matches.slash_ambiguous_dedup,
+                &["sub/foo-a.js", "sub/foo-b.js"]
             );
 
             Ok(())
