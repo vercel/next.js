@@ -130,7 +130,7 @@ function defaultLoader({
   // Extract dpl parameter early so validation uses the clean URL
   let deploymentId = getDeploymentId()
   if (src.startsWith('/') && !src.startsWith('//')) {
-    if (src.startsWith('/_next/immutable') && !getAssetToken()) {
+    if (src.includes('/_next/immutable') && !getAssetToken()) {
       // immutable static asset and supported by platform, don't add `?dpl=`
       deploymentId = undefined
     } else {
