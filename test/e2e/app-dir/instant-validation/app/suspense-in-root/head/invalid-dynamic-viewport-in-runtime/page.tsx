@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{}],
+  samples: [{ cookies: [] }],
 }
 
 // Note that we're inside a root layout with suspense, so we skip the static shell

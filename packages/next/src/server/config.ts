@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  type PHASE_PRODUCTION_SERVER,
+  PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -40,6 +40,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
@@ -83,6 +84,12 @@ function normalizeNextConfigZodErrors(
           "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('dynamicIO')) {
+        shouldExit = true
+        message +=
+          '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
       }
     }
 
@@ -378,6 +385,24 @@ function assignDefaultsAndValidate(
       ...defaultConfig.experimental,
       ...config.experimental,
     },
+  }
+
+  // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
+  // resolved object with concrete defaults, so consumers don't have to
+  // resolve the values themselves.
+  if (result.experimental.prefetchInlining) {
+    const raw = result.experimental.prefetchInlining
+    const maxSize = typeof raw === 'object' ? (raw.maxSize ?? 2_048) : 2_048
+    const maxBundleSize =
+      typeof raw === 'object' ? (raw.maxBundleSize ?? 10_240) : 10_240
+    result.experimental.prefetchInlining = {
+      // Clamp Infinity to a finite value so the config survives
+      // JSON.stringify (used by output: standalone).
+      maxSize: Number.isFinite(maxSize) ? maxSize : Number.MAX_SAFE_INTEGER,
+      maxBundleSize: Number.isFinite(maxBundleSize)
+        ? maxBundleSize
+        : Number.MAX_SAFE_INTEGER,
+    }
   }
 
   // ensure correct default is set for api-resolver revalidate handling
@@ -777,6 +802,13 @@ function assignDefaultsAndValidate(
     result,
     'cacheHandlers',
     'cacheHandlers',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'adapterPath',
+    'adapterPath',
     configFileName,
     silent
   )
@@ -1272,7 +1304,10 @@ function assignDefaultsAndValidate(
           }
         )[key]
 
-        if (handlerPath && !existsSync(handlerPath)) {
+        const resolvedHandlerPath =
+          handlerPath && resolveCacheHandlerPathToFilesystem(handlerPath)
+
+        if (resolvedHandlerPath && !existsSync(resolvedHandlerPath)) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
@@ -1434,11 +1469,9 @@ async function applyModifyConfig(
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
-  if (config.experimental?.adapterPath) {
+  if (config.adapterPath) {
     const adapterMod = interopDefault(
-      await import(
-        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
-      )
+      await import(pathToFileURL(require.resolve(config.adapterPath)).href)
     ) as NextAdapter
 
     if (typeof adapterMod.modifyConfig === 'function') {
@@ -1773,7 +1806,10 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.experimental?.useLightningcss) {
+    if (
+      phase !== PHASE_PRODUCTION_SERVER &&
+      userConfig.experimental?.useLightningcss
+    ) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (
@@ -1992,6 +2028,25 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
+  }
+
+  // Enable node streams via env var (for CI testing).
+  if (
+    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
+    (config.experimental.useNodeStreams === undefined ||
+      (isDefaultConfig && !config.experimental.useNodeStreams))
+  ) {
+    config.experimental.useNodeStreams = true
+  }
+
+  // Keep runtime bundle selection env in sync with the resolved config.
+  // Explicit user config (e.g. useNodeStreams: false) should win over an
+  // inherited shell env var to avoid selecting nodestream runtime bundles
+  // while define-env compiled user bundles with node streams disabled.
+  if (config.experimental.useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = 'true'
+  } else {
+    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

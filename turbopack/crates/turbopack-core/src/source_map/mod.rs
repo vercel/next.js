@@ -48,16 +48,8 @@ pub trait GenerateSourceMap {
     }
 }
 
-/// Implements the source map specification as either a decoded or sectioned sourcemap.
-///
-/// - A "decoded" map represents a source map as if it was came out of a JSON
-/// decode.
-/// - A "sectioned" source map is a tree of many [SourceMap]
-/// covering regions of an output file.
-///
-/// The distinction between the source map spec's [sourcemap::Index] and our
-/// [SourceMap::Sectioned] is whether the sections are represented with Vcs
-/// pointers.
+/// Implements the source map specification as a [decoded][`DecodedMap`] sourcemap. A "decoded" map
+/// represents a source map as if it was came out of a JSON decode.
 #[turbo_tasks::value(shared, cell = "new", eq = "manual")]
 #[derive(Debug)]
 pub struct SourceMap {
@@ -236,12 +228,10 @@ impl TryInto<swc_sourcemap::RawToken> for Token {
 }
 
 impl SourceMap {
-    /// Creates a new SourceMap::Decoded Vc out of a [RegularMap] instance.
     fn new_regular(map: RegularMap) -> Self {
         Self::new_decoded(DecodedMap::Regular(map))
     }
 
-    /// Creates a new SourceMap::Decoded Vc out of a [DecodedMap] instance.
     fn new_decoded(map: DecodedMap) -> Self {
         SourceMap {
             map: Arc::new(CrateMapWrapper(map)),

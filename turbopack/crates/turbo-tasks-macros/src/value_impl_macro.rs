@@ -101,6 +101,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             };
             let is_self_used = func_args.operation.is_some() || is_self_used(block);
+            let is_root = func_args.root.is_some();
+            let is_session_dependent = func_args.session_dependent.is_some();
 
             let Some(turbo_fn) = TurboFn::new(
                 sig,
@@ -123,7 +125,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
-                is_root: false,
+                is_root,
+                is_session_dependent,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -149,12 +152,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    static #native_function_ident: #native_function_ty = #native_function_def;
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 })
         }
 
@@ -211,6 +211,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 };
                 // operations are not currently compatible with methods
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
+                let is_root = func_args.root.is_some();
+                let is_session_dependent = func_args.session_dependent.is_some();
 
                 let Some(turbo_fn) = TurboFn::new(
                     sig,
@@ -243,7 +245,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                    is_root: false,
+                    is_root,
+                    is_session_dependent,
                 };
 
                 let native_function_ident =
@@ -276,16 +279,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    static #native_function_ident: #native_function_ty = #native_function_def;
-
-                    // Register the function for deserialization
-                    turbo_tasks::macro_helpers::inventory_submit! {
-                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-                    }
+                    turbo_tasks::macro_helpers::turbo_register!(
+                        #native_function_ident: #native_function_ty = #native_function_def
+                    );
                 });
 
+                let method_name_str = syn::LitStr::new(&ident.to_string(), ident.span());
                 trait_methods.push(quote! {
-                    (stringify!(#ident), &#native_function_ident),
+                    (#method_name_str, &#native_function_ident)
                 });
             }
         }
@@ -296,15 +297,16 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // 2 TraitTypes (requires functions)
             // 3 ValueTypes (requires functions and TraitTypeIds)
             // 4.VTableRegistries (requires ValueTypeIds)
-            turbo_tasks::macro_helpers::inventory_submit!{
-                turbo_tasks::macro_helpers::CollectableTraitMethods(
-                    || (
-                        ::std::any::TypeId::of::<#ty>(),
-                        <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
-                        vec![#(#trait_methods)*]
-                    )
-                )
-            }
+            turbo_tasks::macro_helpers::inventory_submit!{{
+                const LEN: usize = <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::TraitVtablePrototype>::LEN;
+                static METHODS: [&turbo_tasks::macro_helpers::NativeFunction; LEN] = turbo_tasks::macro_helpers::build_trait_vtable::<::std::boxed::Box<dyn #trait_path>, LEN>(&[#(#trait_methods),*]);
+
+                turbo_tasks::macro_helpers::CollectableTraitMethods {
+                    value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                    trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
+                    methods: &METHODS,
+                }
+            }}
 
             // These can execute later so they can reference trait_types during registration
 

@@ -142,6 +142,25 @@ export abstract class RouteModule<
     this.relativeProjectDir = relativeProjectDir
   }
 
+  private getRouterServerContext(
+    req: NextIncomingMessage
+  ): RouterServerContext[string] | undefined {
+    const hostname = getRequestMeta(req, 'hostname')
+    const revalidate = getRequestMeta(req, 'revalidate')
+    const render404 = getRequestMeta(req, 'render404')
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
+    return {
+      ...routerServerContext,
+      ...(hostname !== undefined ? { hostname } : {}),
+      ...(revalidate !== undefined ? { revalidate } : {}),
+      ...(render404 !== undefined ? { render404 } : {}),
+    }
+  }
+
   public normalizeUrl(
     _req: IncomingMessage | BaseNextRequest,
     _parsedUrl: UrlWithParsedQuery
@@ -529,10 +548,7 @@ export abstract class RouteModule<
     let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
       | RequiredServerFilesManifest
       | undefined
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -636,11 +652,8 @@ export abstract class RouteModule<
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
 
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 

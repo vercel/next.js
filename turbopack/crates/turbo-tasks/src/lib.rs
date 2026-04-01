@@ -71,14 +71,16 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, turbobail, turbofmt, value_impl};
+pub use turbo_tasks_macros::{turbobail, turbofmt};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
-    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    effect::{
+        ApplyEffectsContext, Effect, EffectError, Effects, apply_effects, emit_effect, get_effects,
+    },
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
@@ -91,8 +93,8 @@ pub use crate::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
+        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
@@ -102,13 +104,13 @@ pub use crate::{
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::State,
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
-    trait_ref::{IntoTraitRef, TraitRef},
+    trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
@@ -158,6 +160,13 @@ macro_rules! fxindexset {
         }
     };
 }
+
+#[doc = include_str!("../singleton_pattern.md")]
+pub mod _singleton_pattern {}
+
+#[doc = include_str!("../function.md")]
+#[rustfmt::skip]
+pub use turbo_tasks_macros::function;
 
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
@@ -245,26 +254,88 @@ macro_rules! fxindexset {
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
 
-/// Allows this trait to be used as part of a trait object inside of a value
-/// cell, in the form of `Vc<dyn MyTrait>`.
+/// Allows this trait to be used as part of a trait object inside of a value cell, in the form of
+/// `Vc<Box<dyn MyTrait>>`. The annotated trait is made into a subtrait of [`VcValueTrait`].
+///
+/// ```ignore
+/// #[turbo_tasks::value_trait]
+/// pub trait MyTrait {
+///
+///     #[turbo_tasks::function]
+///     fn method(self: Vc<Self>, a: i32) -> Vc<Something>;
+///
+///     // External signature: fn method(self: Vc<Self>, a: i32) -> Vc<Something>
+///     #[turbo_tasks::function]
+///     async fn method2(&self, a: i32) -> Result<Vc<Something>> {
+///         // Default implementation
+///     }
+///
+///     // A normal trait item, not a turbo-task
+///     fn normal(&self) -> SomethingElse;
+/// }
+///
+/// #[turbo_tasks::value_trait]
+/// pub trait OtherTrait: MyTrait + ValueToString {
+///     // ...
+/// }
+///
+/// #[turbo_tasks::value_impl]
+/// impl MyTrait for MyValue {
+///     // only the external signature must match (see the docs for #[turbo_tasks::function])
+///     #[turbo_tasks::function]
+///     fn method(&self, a: i32) -> Vc<Something> {
+///         todo!()
+///     }
+///
+///     fn normal(&self) -> SomethingElse {
+///         todo!()
+///     }
+/// }
+/// ```
+///
+/// The `#[turbo_tasks::value_trait]` annotation derives [`VcValueTrait`] and registers the trait
+/// and its methods.
+///
+/// All methods annotated with [`#[turbo_tasks::function]`][function] are cached, and
+/// the external signature rewriting rules defined on that macro are applied.
+///
+/// Default implementation are supported.
 ///
 /// ## Arguments
 ///
-/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+/// Example: `#[turbo_tasks::value_trait(no_debug, operation)]`
 ///
-/// ### 'no_debug`
+/// ### `no_debug`
 ///
-/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+/// Disables the automatic implementation of [`ValueDebug`][debug::ValueDebug].
 ///
 /// Example: `#[turbo_tasks::value_trait(no_debug)]`
 ///
-/// ### 'resolved`
+/// ### `Operation`
 ///
-/// Adds [`NonLocalValue`] as a supertrait of this trait.
+/// Adds [`OperationValue`] as a supertrait of this trait.
 ///
-/// Example: `#[turbo_tasks::value_trait(resolved)]`
+/// Example: `#[turbo_tasks::value_trait(operation)]`
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value_trait;
+
+/// A macro used on any `impl` block for a [`VcValueType`]. This can either be an inherent
+/// implementation or a trait implementation (see [`turbo_tasks::value_trait`][value_trait] and
+/// [`VcValueTrait`]).
+///
+/// Methods should be annotated with the [`#[turbo_tasks::function]`][function] macro.
+///
+/// ```ignore
+/// #[turbo_tasks::value_impl]
+/// impl MyTrait for MyValue {
+///     #[turbo_tasks::function]
+///     fn method(&self, a: i32) -> Vc<Something> {
+///         todo!()
+///     }
+/// }
+/// ```
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_impl;
 
 /// Derives the TaskStorage struct and generates optimized storage structures.
 ///
@@ -304,6 +375,10 @@ pub use turbo_tasks_macros::value_trait;
 /// - Serialization methods
 #[rustfmt::skip]
 pub use turbo_tasks_macros::task_storage;
+
+/// Refer to [the trait documentation][trait@TaskInput] for usage.
+#[rustfmt::skip]
+pub use turbo_tasks_macros::TaskInput;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

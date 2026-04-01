@@ -1,11 +1,12 @@
 use std::{
+    cell::Cell,
     hash::Hash,
-    iter::Peekable,
     ops::{Deref, DerefMut},
     sync::{Arc, atomic::AtomicBool},
 };
 
 use smallvec::SmallVec;
+use thread_local::ThreadLocal;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, parallel};
 
@@ -105,7 +106,7 @@ impl Storage {
         }
     }
 
-    /// Processes every modified item (resp. a snapshot of it) with the given functions and returns
+    /// Processes every modified item (resp. a snapshot of it) with the given function and returns
     /// the results. Ends snapshot mode afterwards.
     /// process is called while holding a read lock on the task storage, so it can access
     /// the TaskStorage directly without cloning.
@@ -113,21 +114,24 @@ impl Storage {
     /// receives an owned Box<TaskStorage> snapshot.
     /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
     /// to avoid repeated allocations.
-    /// The returned iterators are guaranteed to be non-empty and only yield non-empty items.
+    /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
+    /// entries) are filtered out, but shards may still yield no items if all entries produce
+    /// empty `SnapshotItem`s (this is rare and only happens under error conditions).
     pub fn take_snapshot<
         'l,
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-        PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
         process: &'l P,
-        process_snapshot: &'l PS,
-    ) -> Vec<Peekable<SnapshotShard<'l, P, PS>>> {
+    ) -> Vec<SnapshotShard<'l, P>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
 
-        let guard = Arc::new(SnapshotGuard { storage: self });
+        let guard = Arc::new(SnapshotGuard {
+            storage: self,
+            scratch_buffers: ThreadLocal::new(),
+        });
 
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
@@ -163,22 +167,13 @@ impl Storage {
                 return None;
             }
 
-            /// How big of a buffer to allocate initially.  Based on metrics from a large
-            /// application this should cover about 98% of values with no resizes
-            const SCRATCH_BUFFER_SIZE: usize = 4096;
-            let shard = SnapshotShard {
+            Some(SnapshotShard {
                 direct_snapshots,
                 modified,
                 storage: self,
-                guard: Some(guard.clone()),
                 process,
-                process_snapshot,
-                scratch_buffer: TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_SIZE),
-            };
-
-            // Peek to filter out shards that only produce empty items
-            let mut iter = shard.peekable();
-            iter.peek().is_some().then_some(iter)
+                _guard: guard.clone(),
+            })
         })
         .into_iter()
         .flatten()
@@ -239,12 +234,12 @@ impl Storage {
         // And update the flags
         for key in removed_snapshots {
             if let Some(mut inner) = self.map.get_mut(&key) {
-                if inner.flags.meta_snapshot() {
-                    inner.flags.set_meta_snapshot(false);
+                if inner.flags.meta_modified_during_snapshot() {
+                    inner.flags.set_meta_modified_during_snapshot(false);
                     inner.flags.set_meta_modified(true);
                 }
-                if inner.flags.data_snapshot() {
-                    inner.flags.set_data_snapshot(false);
+                if inner.flags.data_modified_during_snapshot() {
+                    inner.flags.set_data_modified_during_snapshot(false);
                     inner.flags.set_data_modified(true);
                 }
             }
@@ -307,6 +302,10 @@ impl StorageWriteGuard<'_> {
         category: SpecificTaskDataCategory,
         #[allow(unused_variables)] name: &str,
     ) {
+        debug_assert!(
+            !self.inner.key().is_transient(),
+            "transient task_ids should never be enqueued to be persisted"
+        );
         self.track_modification_internal(
             category,
             #[cfg(feature = "trace_task_modification")]
@@ -320,16 +319,17 @@ impl StorageWriteGuard<'_> {
         #[cfg(feature = "trace_task_modification")] name: &str,
     ) {
         let flags = &self.inner.flags;
-        if flags.is_snapshot(category) {
+        if flags.is_modified_during_snapshot(category) {
             return;
         }
         let modified = flags.is_modified(category);
+        let already_modified_during_snapshot = flags.any_modified_during_snapshot();
         #[cfg(feature = "trace_task_modification")]
         let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
         match (self.storage.snapshot_mode(), modified) {
             (false, false) => {
                 // Not in snapshot mode and item is unmodified
-                if !flags.any_snapshot() && !flags.any_modified() {
+                if !already_modified_during_snapshot && !flags.any_modified() {
                     self.storage
                         .modified
                         .insert(*self.inner.key(), ModifiedState::Modified);
@@ -342,18 +342,22 @@ impl StorageWriteGuard<'_> {
             }
             (true, false) => {
                 // In snapshot mode and item is unmodified (so it's not part of the snapshot)
-                if !flags.any_snapshot() {
+                // Mark it so it gets re-added as Modified after this snapshot completes
+                if !already_modified_during_snapshot {
                     self.storage
                         .modified
                         .insert(*self.inner.key(), ModifiedState::Snapshot(None));
                 }
-                self.inner.flags.set_snapshot(category, true);
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
             }
             (true, true) => {
                 // In snapshot mode and item is modified (so it's part of the snapshot)
                 // We need to store the original version that is part of the snapshot
-                if !flags.any_snapshot() {
-                    // Snapshot all non-transient fields but keep the modified bits.
+                if !already_modified_during_snapshot {
+                    // Snapshot all non-transient fields but keep the modified bits since
+                    // save_snapshot relies on them
                     let mut snapshot = self.inner.clone_snapshot();
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
@@ -362,7 +366,9 @@ impl StorageWriteGuard<'_> {
                         ModifiedState::Snapshot(Some(Box::new(snapshot))),
                     );
                 }
-                self.inner.flags.set_snapshot(category, true);
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
             }
         }
     }
@@ -382,8 +388,69 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
+/// How big of a buffer to allocate initially. Based on metrics from a large
+/// application this should cover about 98% of values with no resizes.
+const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
+
+/// State machine for a per-thread scratch buffer slot.
+///
+/// Transitions:
+/// - `Uninit` → `Taken` (first take)
+/// - `Available` → `Taken` (subsequent takes)
+/// - `Taken` → `Available` (return)
+///
+/// Any other transition is a bug (e.g. double-take or double-return).
+#[derive(Default)]
+enum ScratchBufferSlot {
+    /// No buffer has been allocated on this thread yet.
+    #[default]
+    Uninit,
+    /// The buffer is currently checked out.
+    Taken,
+    /// The buffer is available for reuse.
+    Available(TurboBincodeBuffer),
+}
+
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
+    /// Per-thread scratch buffers for encoding task data. Buffers are taken
+    /// by `SnapshotShardIter` on creation and returned on drop, allowing reuse
+    /// across multiple shards processed by the same thread. When the guard is
+    /// dropped (after all iterators are done), the `ThreadLocal` drops too,
+    /// freeing all buffers.
+    scratch_buffers: ThreadLocal<Cell<ScratchBufferSlot>>,
+}
+
+impl SnapshotGuard<'_> {
+    fn take_scratch_buffer(&self) -> TurboBincodeBuffer {
+        let cell = self.scratch_buffers.get_or_default();
+        match cell.take() {
+            ScratchBufferSlot::Available(buf) => {
+                cell.set(ScratchBufferSlot::Taken);
+                buf
+            }
+            ScratchBufferSlot::Uninit => {
+                cell.set(ScratchBufferSlot::Taken);
+                TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_INITIAL_SIZE)
+            }
+            ScratchBufferSlot::Taken => {
+                panic!("scratch buffer taken twice without being returned");
+            }
+        }
+    }
+
+    fn return_scratch_buffer(&self, buffer: TurboBincodeBuffer) {
+        let cell = self.scratch_buffers.get_or_default();
+        match cell.take() {
+            ScratchBufferSlot::Taken => cell.set(ScratchBufferSlot::Available(buffer)),
+            ScratchBufferSlot::Available(_) => {
+                panic!("scratch buffer returned without being taken (already available)");
+            }
+            ScratchBufferSlot::Uninit => {
+                panic!("scratch buffer returned without being taken (uninit)");
+            }
+        }
+    }
 }
 
 impl Drop for SnapshotGuard<'_> {
@@ -392,49 +459,72 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
-pub struct SnapshotShard<'l, P, PS> {
+pub struct SnapshotShard<'l, P> {
     direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: SmallVec<[TaskId; 4]>,
     storage: &'l Storage,
-    guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,
-    process_snapshot: &'l PS,
-    /// Scratch buffer for encoding task data, reused across iterations to avoid allocations
-    scratch_buffer: TurboBincodeBuffer,
+    /// Held for its `Drop` impl — ensures snapshot mode ends when all shards are done.
+    _guard: Arc<SnapshotGuard<'l>>,
 }
 
-impl<'l, P, PS> SnapshotShard<'l, P, PS>
+impl<'l, P> IntoIterator for SnapshotShard<'l, P>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
-    fn next_item(&mut self) -> Option<SnapshotItem> {
-        if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
-            return Some((self.process_snapshot)(
-                task_id,
-                snapshot,
-                &mut self.scratch_buffer,
-            ));
+    type Item = SnapshotItem;
+    type IntoIter = SnapshotShardIter<'l, P>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let buffer = self._guard.take_scratch_buffer();
+        SnapshotShardIter {
+            shard: self,
+            buffer,
         }
-        while let Some(task_id) = self.modified.pop() {
-            let inner = self.storage.map.get(&task_id).unwrap();
-            if !inner.flags.any_snapshot() {
-                return Some((self.process)(task_id, &inner, &mut self.scratch_buffer));
+    }
+}
+
+/// Iterator over a single shard's snapshot items. Holds a thread-local scratch
+/// buffer for the duration of iteration and returns it on drop.
+pub struct SnapshotShardIter<'l, P> {
+    shard: SnapshotShard<'l, P>,
+    buffer: TurboBincodeBuffer,
+}
+
+impl<'l, P> Iterator for SnapshotShardIter<'l, P>
+where
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+{
+    type Item = SnapshotItem;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((task_id, snapshot)) = self.shard.direct_snapshots.pop() {
+            let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+            if !item.is_empty() {
+                return Some(item);
+            }
+        }
+        while let Some(task_id) = self.shard.modified.pop() {
+            let inner = self.shard.storage.map.get(&task_id).unwrap();
+            if !inner.flags.any_modified_during_snapshot() {
+                let item = (self.shard.process)(task_id, &inner, &mut self.buffer);
+                if !item.is_empty() {
+                    return Some(item);
+                }
             } else {
                 drop(inner);
                 let maybe_snapshot = {
-                    let mut modified_state = self.storage.modified.get_mut(&task_id).unwrap();
+                    let mut modified_state = self.shard.storage.modified.get_mut(&task_id).unwrap();
                     let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
                         unreachable!("The snapshot bit was set, so it must be in Snapshot state");
                     };
                     snapshot.take()
                 };
                 if let Some(snapshot) = maybe_snapshot {
-                    return Some((self.process_snapshot)(
-                        task_id,
-                        snapshot,
-                        &mut self.scratch_buffer,
-                    ));
+                    let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+                    if !item.is_empty() {
+                        return Some(item);
+                    }
                 }
             }
         }
@@ -442,20 +532,10 @@ where
     }
 }
 
-impl<'l, P, PS> Iterator for SnapshotShard<'l, P, PS>
-where
-    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-    PS: Fn(TaskId, Box<TaskStorage>, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-{
-    type Item = SnapshotItem;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.next_item() {
-            if !item.is_empty() {
-                return Some(item);
-            }
-        }
-        self.guard = None;
-        None
+impl<P> Drop for SnapshotShardIter<'_, P> {
+    fn drop(&mut self) {
+        self.shard
+            ._guard
+            .return_scratch_buffer(std::mem::take(&mut self.buffer));
     }
 }

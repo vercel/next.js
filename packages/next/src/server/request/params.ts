@@ -24,6 +24,7 @@ import {
   throwInvariantForMissingStore,
   type PrerenderStoreModernRuntime,
   type RequestStore,
+  type ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -67,8 +68,11 @@ export function createParamsFromClient(
           varyParamsAccumulator
         )
       case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
-        return createRenderParamsInProd(underlyingParams)
+        return createClientParamsInInstantValidation(
+          underlyingParams,
+          workStore,
+          workUnitStore.validationSamples
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -78,6 +82,10 @@ export function createParamsFromClient(
       case 'prerender-runtime':
         throw new InvariantError(
           'createParamsFromClient should not be called in a runtime prerender.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createParamsFromClient should not be called inside generateStaticParams.'
         )
       case 'request':
         if (process.env.NODE_ENV === 'development') {
@@ -93,6 +101,12 @@ export function createParamsFromClient(
             workStore,
             workUnitStore,
             isRuntimePrefetchable
+          )
+        } else if (workUnitStore.validationSamples) {
+          return createClientParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -152,6 +166,10 @@ export function createServerParamsForRoute(
       case 'unstable-cache':
         throw new InvariantError(
           'createServerParamsForRoute should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForRoute should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime': {
         // Route params are not runtime prefetchable
@@ -214,13 +232,18 @@ export function createServerParamsForServerSegment(
           varyParamsAccumulator
         )
       case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
-        return createRenderParamsInProd(underlyingParams)
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called in client contexts.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
         throw new InvariantError(
           'createServerParamsForServerSegment should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerParamsForServerSegment should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime':
         return createRuntimePrerenderParams(
@@ -241,6 +264,17 @@ export function createServerParamsForServerSegment(
             fallbackParams,
             workStore,
             workUnitStore,
+            isRuntimePrefetchable
+          )
+        } else if (
+          workUnitStore.asyncApiPromises &&
+          workUnitStore.validationSamples
+        ) {
+          return createServerParamsInInstantValidation(
+            underlyingParams,
+            workStore,
+            workUnitStore.validationSamples,
+            workUnitStore.asyncApiPromises,
             isRuntimePrefetchable
           )
         } else if (
@@ -295,13 +329,19 @@ export function createPrerenderParamsForClientSegment(
         }
         break
       case 'validation-client':
-        // TODO(instant-validation): in build, this depends on samples
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called in validation contexts.'
+        )
         break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
         throw new InvariantError(
           'createPrerenderParamsForClientSegment should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -419,6 +459,44 @@ function hasFallbackRouteParams(
     }
   }
   return false
+}
+
+function createServerParamsInInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: NonNullable<RequestStore['validationSamples']>,
+  asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
+  isRuntimePrefetchable: boolean
+): Promise<Params> {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples.params ?? {}))
+  const proxiedUnderlying = createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
+  )
+  return (
+    isRuntimePrefetchable
+      ? asyncApiPromises.earlySharedParamsParent
+      : asyncApiPromises.sharedParamsParent
+  ).then(() => proxiedUnderlying)
+}
+
+function createClientParamsInInstantValidation(
+  underlyingParams: Params,
+  workStore: WorkStore,
+  validationSamples: ValidationStoreClient['validationSamples']
+): Promise<Params> {
+  const { createExhaustiveParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredParams = new Set(Object.keys(validationSamples?.params ?? {}))
+  const proxiedUnderlying = createExhaustiveParamsProxy(
+    underlyingParams,
+    declaredParams,
+    workStore.route
+  )
+  return Promise.resolve(proxiedUnderlying)
 }
 
 function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {

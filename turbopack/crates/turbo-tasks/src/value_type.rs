@@ -1,20 +1,26 @@
 use std::{
+    any::TypeId,
+    cell::SyncUnsafeCell,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
 };
 
-use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, SharedReference, TaskPriority, VcValueType, id::TraitTypeId,
-    macro_helpers::NativeFunction, magic_any::any_as_encode, registry,
-    task::shared_reference::TypedSharedReference, vc::VcCellMode,
+    RawVc, SharedReference, TaskPriority, VcValueType,
+    id::TraitTypeId,
+    macro_helpers::{CollectableTraitMethods, NativeFunction},
+    magic_any::any_as_encode,
+    registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
+    task::shared_reference::TypedSharedReference,
+    vc::VcCellMode,
 };
 
 type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
+type Vtable = &'static [&'static NativeFunction];
 
 // TODO this type need some refactoring when multiple languages are added to
 // turbo-task In this case a trait_method might be of a different function type.
@@ -26,14 +32,7 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 ///
 /// Contains a list of traits and trait methods that are available on that type.
 pub struct ValueType {
-    /// A readable name of the type
-    pub name: &'static str,
-    /// The fully qualitifed global name of the type.
-    pub global_name: &'static str,
-    /// Set of traits available
-    traits: AutoSet<TraitTypeId>,
-    /// List of trait methods available
-    trait_methods: AutoMap<&'static TraitMethod, &'static NativeFunction>,
+    pub ty: RegistryType,
 
     /// Functions to convert to write the type to a buffer or read it from a buffer.
     pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
@@ -48,41 +47,29 @@ pub struct ValueType {
     /// Because we allow resolving `Vc<dyn Trait>`, it's otherwise not possible
     /// for `RawVc` to know what the appropriate `VcCellMode` is.
     pub(crate) raw_cell: RawCellFactoryFn,
-}
 
-impl Hash for ValueType {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self as *const ValueType).hash(state);
-    }
-}
-
-impl Eq for ValueType {}
-
-impl PartialEq for ValueType {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
-    }
+    traits: SyncUnsafeCell<ValueTypeTraits>,
 }
 
 impl Debug for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let mut d = f.debug_struct("ValueType");
-        d.field("name", &self.name);
-        for trait_id in self.traits.iter() {
-            for (name, m) in &registry::get_trait(*trait_id).methods {
-                if self.trait_methods.contains_key(&m) {
-                    d.field(name, &"(trait fn)");
-                }
-            }
-        }
-        d.finish()
+        f.debug_struct("ValueType")
+            .field("name", &self.ty.name)
+            .finish()
     }
 }
 
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(self.name)
+        f.write_str(self.ty.name)
     }
+}
+
+struct ValueTypeTraits {
+    /// Flat array indexed by TraitTypeId (1-based, so index 0 = TraitTypeId 1).
+    /// `None` means this value type does not implement that trait.
+    /// The outer Option is None before init, Some after.
+    traits: Option<Box<[Option<Vtable>]>>,
 }
 
 pub trait ManualEncodeWrapper: Encode {
@@ -100,12 +87,12 @@ pub trait ManualDecodeWrapper: Decode<()> {
 
 impl ValueType {
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
-    pub fn new<T: VcValueType>(global_name: &'static str) -> Self {
+    pub const fn new<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(global_name, None)
     }
 
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
-    pub fn new_with_bincode<T: VcValueType + Encode + Decode<()>>(
+    pub const fn new_with_bincode<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
     ) -> Self {
         Self::new_inner::<T>(
@@ -130,7 +117,7 @@ impl ValueType {
     /// the wrapped type.
     ///
     /// [orphan rules]: https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules
-    pub fn new_with_bincode_wrappers<
+    pub const fn new_with_bincode_wrappers<
         T: VcValueType,
         E: ManualEncodeWrapper<Value = T>,
         D: ManualDecodeWrapper<Value = T>,
@@ -153,56 +140,76 @@ impl ValueType {
     }
 
     // Helper for other constructor functions
-    fn new_inner<T: VcValueType>(
+    const fn new_inner<T: VcValueType>(
         global_name: &'static str,
         bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
     ) -> Self {
         Self {
-            name: std::any::type_name::<T>(),
-            global_name,
-            traits: AutoSet::new(),
-            trait_methods: AutoMap::new(),
+            ty: RegistryType::new::<T>(std::any::type_name::<T>(), global_name),
             bincode,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
+            traits: SyncUnsafeCell::new(ValueTypeTraits { traits: None }),
         }
     }
 
-    pub(crate) fn register_trait_method(
-        &mut self,
-        trait_method: &'static TraitMethod,
-        native_fn: &'static NativeFunction,
-    ) {
-        self.trait_methods.insert(trait_method, native_fn);
+    /// Returns the TypeId of the concrete type this ValueType represents.
+    pub fn type_id(&self) -> TypeId {
+        self.ty.type_id
     }
 
+    #[inline]
+    fn trait_info(&self) -> &ValueTypeTraits {
+        // SAFETY: Written during single-threaded Lazy init, read-only after.
+        unsafe { &*self.traits.get() }
+    }
+
+    #[inline]
     pub fn get_trait_method(
         &self,
         trait_method: &'static TraitMethod,
     ) -> Option<&'static NativeFunction> {
-        match self.trait_methods.get(trait_method) {
-            Some(f) => Some(*f),
-            None => trait_method.default_method,
-        }
+        let trait_type_id = trait_method.trait_type_id();
+        let vtable = self.trait_info().traits.as_ref()?[*trait_type_id as usize - 1]?;
+        Some(vtable[trait_method.index as usize])
     }
 
-    pub(crate) fn register_trait(&mut self, trait_type: TraitTypeId) {
-        self.traits.insert(trait_type);
+    fn register_trait(&self, trait_type: &'static TraitType, trait_methods: Vtable) {
+        // SAFETY: Called only during single-threaded registry init
+        let traits = unsafe { &mut *self.traits.get() };
+        let trait_type_id = get_trait_type_id(trait_type);
+        let array = traits
+            .traits
+            .get_or_insert_with(|| vec![None; trait_type_count()].into_boxed_slice());
+        array[*trait_type_id as usize - 1] = Some(trait_methods);
     }
 
+    #[inline]
     pub fn has_trait(&self, trait_type: &TraitTypeId) -> bool {
-        self.traits.contains(trait_type)
+        self.trait_info()
+            .traits
+            .as_ref()
+            .is_some_and(|t| t[**trait_type as usize - 1].is_some())
     }
 }
 
-// A collectable struct for value types
-pub struct CollectableValueType(pub &'static once_cell::sync::Lazy<ValueType>);
+turbo_registry!("Value", ValueType);
 
-inventory::collect! {CollectableValueType}
+// Called during ValueType registry post_init to register all trait methods.
+// Single-threaded during Lazy init.
+pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
+    for entry in inventory::iter::<CollectableTraitMethods> {
+        entry
+            .value_type
+            .register_trait(entry.trait_type, entry.methods)
+    }
+}
 
 pub struct TraitMethod {
-    pub(crate) trait_name: &'static str,
-    pub(crate) method_name: &'static str,
-    pub(crate) default_method: Option<&'static NativeFunction>,
+    pub trait_type: &'static TraitType,
+    pub index: u8,
+    pub trait_name: &'static str,
+    pub method_name: &'static str,
+    pub default_method: Option<&'static NativeFunction>,
 }
 impl Hash for TraitMethod {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -227,6 +234,16 @@ impl Debug for TraitMethod {
     }
 }
 impl TraitMethod {
+    /// Returns the TraitTypeId by reading directly from the trait type's registry entry.
+    /// Must only be called after registry init.
+    #[inline]
+    fn trait_type_id(&self) -> TraitTypeId {
+        // SAFETY: Written during single-threaded Lazy init. Lazy provides acquire barrier.
+        let raw = unsafe { std::ptr::read(self.trait_type.ty.id.get()) };
+        debug_assert!(raw != 0, "TraitMethod::trait_type_id not initialized");
+        unsafe { TraitTypeId::new_unchecked(raw) }
+    }
+
     pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {
         tracing::trace_span!(
             "turbo_tasks::resolve_trait_call",
@@ -236,58 +253,43 @@ impl TraitMethod {
     }
 }
 
-#[derive(Debug)]
 pub struct TraitType {
-    pub name: &'static str,
-    pub global_name: &'static str,
-    pub(crate) methods: AutoMap<&'static str, TraitMethod>,
+    pub ty: RegistryType,
+    pub methods: phf::Map<&'static str, TraitMethod>,
+    pub method_names: &'static [&'static str],
+    pub default_methods: &'static [Option<&'static NativeFunction>],
 }
 
-impl Hash for TraitType {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self as *const TraitType).hash(state);
+impl Debug for TraitType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("TraitType");
+        d.field("name", &self.ty.name);
+        for (name, method) in self.methods.entries() {
+            d.field(name, method);
+        }
+        d.finish()
     }
 }
 
 impl Display for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "trait {}", self.name)
-    }
-}
-
-impl Eq for TraitType {}
-
-impl PartialEq for TraitType {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
+        write!(f, "trait {}", self.ty.name)
     }
 }
 
 impl TraitType {
-    pub fn new(
+    pub const fn new<T: 'static>(
         name: &'static str,
         global_name: &'static str,
-        trait_methods: Vec<(&'static str, Option<&'static NativeFunction>)>,
+        methods: phf::Map<&'static str, TraitMethod>,
+        method_names: &'static [&'static str],
+        default_methods: &'static [Option<&'static NativeFunction>],
     ) -> Self {
-        let mut methods = AutoMap::new();
-        for (method_name, default_method) in trait_methods {
-            let prev = methods.insert(
-                method_name,
-                TraitMethod {
-                    trait_name: name,
-                    method_name,
-                    default_method,
-                },
-            );
-            debug_assert!(
-                prev.is_none(),
-                "duplicate methods {method_name} registered on {global_name}"
-            );
-        }
         Self {
-            name,
-            global_name,
+            ty: RegistryType::new::<T>(name, global_name),
             methods,
+            method_names,
+            default_methods,
         }
     }
 
@@ -296,6 +298,50 @@ impl TraitType {
     }
 }
 
-pub struct CollectableTrait(pub &'static once_cell::sync::Lazy<TraitType>);
+turbo_registry!("Trait", TraitType);
 
-inventory::collect! {CollectableTrait}
+pub trait TraitVtablePrototype {
+    const LEN: usize;
+    const NAMES: &'static [&'static str];
+    const DEFAULTS: &'static [Option<&'static NativeFunction>];
+}
+
+pub(crate) const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
+    let mut i = 0;
+    'outer: while i < array.len() {
+        if array[i].len() == name.len() {
+            let mut j = 0;
+            while j < name.len() {
+                if array[i].as_bytes()[j] != name.as_bytes()[j] {
+                    i += 1;
+                    continue 'outer;
+                }
+                j += 1;
+            }
+            return i;
+        }
+        i += 1;
+    }
+    panic!("Method not found!")
+}
+
+pub const fn build_trait_vtable<B: TraitVtablePrototype, const LEN: usize>(
+    overrides: &[(&'static str, &'static NativeFunction)],
+) -> [&'static NativeFunction; LEN] {
+    let mut methods = [&crate::native_function::VTABLE_DEFAULT; LEN];
+    let mut i = 0;
+    while i < LEN {
+        if let Some(default) = B::DEFAULTS[i] {
+            methods[i] = default;
+        }
+        i += 1;
+    }
+    // N*M scan where N = overrides, M = method names. Both are small (single digits).
+    let mut i = 0;
+    while i < overrides.len() {
+        let (name, f) = overrides[i];
+        methods[index_of_name(B::NAMES, name)] = f;
+        i += 1;
+    }
+    methods
+}

@@ -43,6 +43,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let is_self_used = args.operation.is_some() || is_self_used(&block);
     let is_root = args.root.is_some();
+    let is_session_dependent = args.session_dependent.is_some();
 
     let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, is_self_used) else {
         return quote! {
@@ -66,6 +67,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         is_self_used,
         filter_trait_call_args: None, // not a trait method
         is_root,
+        is_session_dependent,
     };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
@@ -82,12 +84,9 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        static #native_function_ident: #native_function_ty = #native_function_def;
-
-        // Register the function for deserialization
-        turbo_tasks::macro_helpers::inventory_submit! {
-            turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-        }
+        turbo_tasks::macro_helpers::turbo_register!(
+            #native_function_ident: #native_function_ty = #native_function_def
+        );
 
         #(#errors)*
     }

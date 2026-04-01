@@ -30,14 +30,15 @@ use crate::{
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
-    lookup_entry::{LazyLookupValue, LookupEntry, LookupValue},
+    lookup_entry::{IterValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
+    rc_bytes::RcBytes,
     sst_filter::SstFilter,
-    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile},
+    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
     write_batch::{FinishResult, WriteBatch},
 };
@@ -573,7 +574,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
 
-        let sync_span = tracing::info_span!("sync new files").entered();
+        let sync_span = tracing::trace_span!("sync new files").entered();
         let mut new_meta_files = self
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
@@ -813,7 +814,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
-        let _span = tracing::info_span!("compact database").entered();
         if self
             .active_write_operation
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -1075,19 +1075,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFile::open_for_compaction(
-                                        path,
-                                        entry.sst_metadata(),
-                                    )?
-                                    .try_into_iter()
+                                    StaticSortedFileIter::open(path, entry.sst_metadata())
                                 })
                                 .collect::<Result<Vec<_>>>()?;
 
                             let iter = MergeIter::new(iters.into_iter())?;
 
-                            // TODO figure out how to delete blobs when they are no longer
-                            // referenced
-                            let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
+                            let mut blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
 
                             struct Collector {
                                 /// The active writer and its sequence number. `None` if no
@@ -1190,7 +1184,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let mut used_collector = Collector::new(MetaEntryFlags::WARM);
                             let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
-                            let mut current_key: Option<ArcBytes> = None;
+                            let mut current_key: Option<RcBytes> = None;
                             let mut keys_written = 0;
 
                             // MergeIter yields entries from newer SSTs first (by SST sequence
@@ -1222,10 +1216,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         FamilyKind::MultiValue => {
                                             // For MultiValue families we only skip remaining if we
                                             // see a tombstone
-                                            if matches!(
-                                                entry.value,
-                                                LazyLookupValue::Eager(LookupValue::Deleted)
-                                            ) {
+                                            if matches!(entry.value, IterValue::Deleted) {
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
@@ -1241,6 +1232,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         sequence_number,
                                         &mut keys_written,
                                     )?;
+                                } else {
+                                    // Entry is being dropped (superseded by newer entry or
+                                    // pruned by tombstone). If it references a blob file,
+                                    // mark that blob for deletion.
+                                    if let IterValue::Blob { sequence_number } = &entry.value {
+                                        blob_seq_numbers_to_delete.push(*sequence_number);
+                                    }
                                 }
                             }
 

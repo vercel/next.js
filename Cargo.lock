@@ -267,15 +267,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arc-swap"
-version = "1.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9f3647c145568cec02c42054e07bdf9a5a698e15b466fb2341bfc393cd24aa5"
-dependencies = [
- "rustversion",
-]
-
-[[package]]
 name = "arg_enum_proc_macro"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1318,7 +1309,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -3481,6 +3472,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "io-uring"
+version = "0.7.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdd7bddefd0a8833b88a4b68f90dae22c7450d11b354198baee3874fd811b344"
+dependencies = [
+ "bitflags 2.9.1",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3935,29 +3937,6 @@ name = "litrs"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
-
-[[package]]
-name = "lmdb-rkv"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447a296f7aca299cfbb50f4e4f3d49451549af655fb7215d7f8c0c3d64bad42b"
-dependencies = [
- "bitflags 1.3.2",
- "byteorder",
- "libc",
- "lmdb-rkv-sys",
-]
-
-[[package]]
-name = "lmdb-rkv-sys"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b9ce6b3be08acefa3003c57b7565377432a89ec24476bbe72e11d101f852fe"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
-]
 
 [[package]]
 name = "lock_api"
@@ -5695,9 +5674,9 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.2.4"
+version = "0.3.0-alpha.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1f7df258517b16d2677d20c0e8f660f1f7d9677076c64b564e7a3b3de8b08fb"
+checksum = "6bd0ea20afc2eab082dde00f58d9e83ed70dcb693fa88c23890e122e19355635"
 dependencies = [
  "serde",
  "serde_bytes",
@@ -7057,6 +7036,16 @@ checksum = "e22376abed350d73dd1cd119b57ffccad95b4e585a7cda43e286245ce23c0678"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "socket2"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
+dependencies = [
+ "libc",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -8922,21 +8911,23 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.43.0"
+version = "1.47.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d61fa4ffa3de412bfea335c6ecff681de2b609ba3c77ef3e00e521813a9ed9e"
+checksum = "d89b5fb34fc88de6a0c0e32dcee5f4890c67b8afbbc4ba35afc0671c6eacda60"
 dependencies = [
  "backtrace",
  "bytes",
+ "io-uring",
  "libc",
  "mio 1.0.3",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2 0.5.10",
+ "slab",
+ "socket2 0.6.2",
  "tokio-macros",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -9545,6 +9536,7 @@ dependencies = [
  "inventory",
  "once_cell",
  "parking_lot",
+ "phf",
  "pin-project-lite",
  "rayon",
  "regex",
@@ -9572,11 +9564,9 @@ name = "turbo-tasks-backend"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arc-swap",
  "auto-hash-map",
  "bincode 2.0.1",
  "bitfield",
- "byteorder",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
  "either",
@@ -9584,7 +9574,6 @@ dependencies = [
  "hashbrown 0.14.5",
  "indexmap 2.13.0",
  "indoc",
- "lmdb-rkv",
  "lzzzz",
  "once_cell",
  "parking_lot",
@@ -9907,6 +9896,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "console-subscriber",
  "dunce",
+ "either",
  "futures",
  "owo-colors",
  "regex",
@@ -9938,6 +9928,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-resolve",
  "turbopack-trace-utils",
+ "vergen-gitcl",
  "webbrowser",
 ]
 
@@ -10265,6 +10256,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.4",
  "bincode 2.0.1",
+ "bytes",
  "const_format",
  "dashmap 6.1.0",
  "either",
@@ -10469,6 +10461,7 @@ dependencies = [
  "rstest_reuse",
  "serde",
  "serde_json",
+ "similar",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
@@ -10478,6 +10471,7 @@ dependencies = [
  "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
+ "turbopack-node",
  "turbopack-resolve",
 ]
 

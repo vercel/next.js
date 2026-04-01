@@ -54,7 +54,7 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/my-post')
+    expect(result.resolvedPathname).toBe('/posts/my-post')
   })
 
   it('should replace multiple numbered captures $1, $2, $3', async () => {
@@ -78,7 +78,7 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/archive/2024/01/post-title')
+    expect(result.resolvedPathname).toBe('/archive/2024/01/post-title')
   })
 
   it('should replace named captures in destination', async () => {
@@ -102,7 +102,7 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/u/alice/p/123')
+    expect(result.resolvedPathname).toBe('/u/alice/p/123')
   })
 
   it('should mix numbered and named captures', async () => {
@@ -126,7 +126,7 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/internal/v1/user/john')
+    expect(result.resolvedPathname).toBe('/internal/v1/user/john')
   })
 
   it('should use captures in query parameters', async () => {
@@ -150,7 +150,7 @@ describe('Regex Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/products')
+    expect(result.resolvedPathname).toBe('/api/products')
   })
 
   it('should replace captures in external rewrite', async () => {
@@ -240,7 +240,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/12345/profile')
+    expect(result.resolvedPathname).toBe('/users/12345/profile')
   })
 
   it('should use cookie value in destination', async () => {
@@ -275,7 +275,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/sessions/abc123xyz/dashboard')
+    expect(result.resolvedPathname).toBe('/sessions/abc123xyz/dashboard')
   })
 
   it('should use query parameter value in destination', async () => {
@@ -305,7 +305,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/results/nextjs')
+    expect(result.resolvedPathname).toBe('/results/nextjs')
   })
 
   it('should combine regex captures and has captures', async () => {
@@ -340,7 +340,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/tenants/acme/users/123')
+    expect(result.resolvedPathname).toBe('/tenants/acme/users/123')
   })
 
   it('should combine named regex captures and has captures', async () => {
@@ -375,7 +375,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/v2/products/electronics')
+    expect(result.resolvedPathname).toBe('/api/v2/products/electronics')
   })
 
   it('should use multiple has captures in destination', async () => {
@@ -415,7 +415,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/regions/us-west/tenants/acme/data')
+    expect(result.resolvedPathname).toBe('/regions/us-west/tenants/acme/data')
   })
 
   it('should use has captures with regex pattern match', async () => {
@@ -451,7 +451,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/localized/en-US/page')
+    expect(result.resolvedPathname).toBe('/localized/en-US/page')
   })
 
   it('should use has captures in query string', async () => {
@@ -486,7 +486,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/internal/dashboard')
+    expect(result.resolvedPathname).toBe('/internal/dashboard')
   })
 
   it('should use has captures in external rewrite', async () => {
@@ -601,7 +601,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/123')
+    expect(result.resolvedPathname).toBe('/users/123')
     expect(result.resolvedHeaders?.get('Location')).toBe('/profiles/123')
     expect(result.resolvedHeaders?.get('x-user-id')).toBe('123')
     expect(result.resolvedHeaders?.get('x-language')).toBe('es')
@@ -650,7 +650,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/posts')
+    expect(result.resolvedPathname).toBe('/api/posts')
     expect(result.resolvedHeaders?.get('x-resource')).toBe('posts')
     expect(result.resolvedHeaders?.get('x-language')).toBe('fr')
     expect(result.resolvedHeaders?.get('x-combined')).toBe('posts-fr')
@@ -689,7 +689,7 @@ describe('Has Condition Captures in Destination', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/fr/profile/john')
+    expect(result.resolvedPathname).toBe('/fr/profile/john')
     expect(result.routeMatches).toEqual({
       '1': 'john',
     })
@@ -736,7 +736,7 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe(
+    expect(result.resolvedPathname).toBe(
       '/orgs/myorg/users/john/projects/backend/issues/42'
     )
   })
@@ -762,7 +762,7 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/a/test/b/test/c/test')
+    expect(result.resolvedPathname).toBe('/a/test/b/test/c/test')
   })
 
   it('should handle capture with special characters', async () => {
@@ -786,7 +786,7 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/storage/my-file.test.js')
+    expect(result.resolvedPathname).toBe('/storage/my-file.test.js')
   })
 
   it('should not replace undefined captures', async () => {
@@ -810,7 +810,7 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/result/$1/$2')
+    expect(result.resolvedPathname).toBe('/result/$1/$2')
   })
 
   it('should handle captures across chained rewrites', async () => {
@@ -838,6 +838,6 @@ describe('Complex Capture Scenarios', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/internal/user-service/alice')
+    expect(result.resolvedPathname).toBe('/internal/user-service/alice')
   })
 })

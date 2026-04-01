@@ -1196,10 +1196,10 @@ struct IndexBlockBuilder<W: Write> {
 }
 
 /// Size of a single index block entry (u64 hash + u16 block index).
-const INDEX_BLOCK_ENTRY_SIZE: usize = size_of::<u64>() + size_of::<u16>();
+pub(crate) const INDEX_BLOCK_ENTRY_SIZE: usize = size_of::<u64>() + size_of::<u16>();
 
 /// Size of the index block header (u8 type + u16 first_block).
-const INDEX_BLOCK_HEADER_SIZE: usize = size_of::<u8>() + size_of::<u16>();
+pub(crate) const INDEX_BLOCK_HEADER_SIZE: usize = size_of::<u8>() + size_of::<u16>();
 
 impl<W: Write> IndexBlockBuilder<W> {
     /// Creates a new builder for an index block with the specified number of entries and a pointer

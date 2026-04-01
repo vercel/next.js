@@ -217,7 +217,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/string-hash/index.js",
            "/node_modules/next/dist/compiled/strip-ansi/index.js",
            "/node_modules/next/dist/compiled/superstruct/index.cjs",
-           "/node_modules/next/dist/compiled/tar/index.js",
+           "/node_modules/next/dist/compiled/tar/index.min.js",
            "/node_modules/next/dist/compiled/text-table/index.js",
            "/node_modules/next/dist/compiled/watchpack/watchpack.js",
            "/node_modules/next/dist/compiled/ws/index.js",

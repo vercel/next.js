@@ -11,13 +11,13 @@ use turbopack::module_options::{
     side_effect_free_packages_glob,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
-    react_refresh::assert_can_resolve_react_refresh,
+    BrowserChunkingContext, CurrentChunkMethod, react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapSourceType,
-        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -530,7 +530,7 @@ pub async fn get_client_chunking_context(
                     ..Default::default()
                 },
             )
-            .use_content_hashing(ContentHashing::Direct { length: 16 })
+            .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?);
     }
 

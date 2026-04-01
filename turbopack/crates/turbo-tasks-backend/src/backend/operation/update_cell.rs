@@ -89,7 +89,9 @@ impl UpdateCellOperation {
                     && content != task.get_cell_data(is_serializable_cell_content, cell)
                 {
                     let task_description = task.get_task_description();
-                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id).global_name;
+                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
+                        .ty
+                        .global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type

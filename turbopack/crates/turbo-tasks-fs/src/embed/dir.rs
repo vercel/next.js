@@ -25,17 +25,17 @@ pub fn directory_from_include_dir(
     Vc::upcast(EmbeddedFileSystem::new(name, dir))
 }
 
-/// Returns an embedded [Vc<Box<dyn FileSystem>>] for the given path.
+/// Returns an embedded [`Vc<Box<dyn FileSystem>>`][FileSystem] for the given path.
 ///
-/// This will embed a directory's content into the binary and
-/// create an [Vc<EmbeddedFileSystem>].
+/// This will embed a directory's content into the binary and create an
+/// [`Vc<EmbeddedFileSystem>`][EmbeddedFileSystem].
 ///
-/// If you enable the `dynamic_embed_contents` feature, calling
-/// the macro will return a [Vc<DiskFileSystem>].
+/// If you enable the `dynamic_embed_contents` feature, calling the macro will return a
+/// [`Vc<DiskFileSystem>`][DiskFileSystem].
 ///
-/// This enables dynamic linking (and hot reloading) of embedded files/dirs.
-/// A binary built with `dynamic_embed_contents` enabled is **is not portable**,
-/// only the directory path will be embedded into the binary.
+/// This enables dynamic linking (and hot reloading) of embedded files/dirs. A binary built with
+/// `dynamic_embed_contents` enabled is **is not portable**, only the directory path will be
+/// embedded into the binary.
 #[macro_export]
 macro_rules! embed_directory {
     ($name:tt, $path:tt) => {{        // make sure the path contains `$CARGO_MANIFEST_DIR`

@@ -4,19 +4,17 @@ import { formatZodError } from '../../../shared/lib/zod'
 const CookieSchema = z
   .object({
     name: z.string(),
-    value: z.string(),
-    httpOnly: z.boolean().optional(),
-    path: z.string().optional(),
+    value: z.string().or(z.null()),
   })
   .strict()
 
 const RuntimeSampleSchema = z
   .object({
     cookies: z.array(CookieSchema).optional(),
-    headers: z.array(z.tuple([z.string(), z.string()])).optional(),
+    headers: z.array(z.tuple([z.string(), z.string().or(z.null())])).optional(),
     params: z.record(z.union([z.string(), z.array(z.string())])).optional(),
     searchParams: z
-      .record(z.union([z.string(), z.array(z.string()), z.undefined()]))
+      .record(z.union([z.string(), z.array(z.string()), z.null()]))
       .optional(),
   })
   .strict()
@@ -24,8 +22,11 @@ const RuntimeSampleSchema = z
 const InstantConfigStaticSchema = z
   .object({
     prefetch: z.literal('static'),
+    samples: z.array(RuntimeSampleSchema).min(1).optional(),
     from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.boolean().optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
   })
   .strict()
 
@@ -34,7 +35,9 @@ const InstantConfigRuntimeSchema = z
     prefetch: z.literal('runtime'),
     samples: z.array(RuntimeSampleSchema).min(1),
     from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.boolean().optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
   })
   .strict()
 
@@ -47,6 +50,7 @@ const InstantConfigSchema = z.union([
 ])
 
 export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericPrefetch type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
@@ -56,41 +60,46 @@ export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // delete the __GenericPrefetch member.
 interface __GenericInstantConfig {
   prefetch: string
-  samples?: Array<WideRuntimeSample>
+  samples?: Array<WideInstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
+  unstable_disableDevValidation?: boolean
+  unstable_disableBuildValidation?: boolean
 }
 
 interface InstantConfigStatic {
   prefetch: 'static'
+  samples?: Array<InstantSample>
   from?: string[]
-  unstable_disableValidation?: boolean
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
 interface InstantConfigRuntime {
   prefetch: 'runtime'
-  samples: Array<RuntimeSample>
+  samples: Array<InstantSample>
   from?: string[]
-  unstable_disableValidation?: boolean
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
-type WideRuntimeSample = {
-  cookies?: RuntimeSample['cookies']
+type WideInstantSample = {
+  cookies?: InstantSample['cookies']
   headers?: Array<string[]>
-  params?: RuntimeSample['params']
-  searchParams?: RuntimeSample['searchParams']
+  params?: InstantSample['params']
+  searchParams?: InstantSample['searchParams']
 }
 
-type RuntimeSample = {
+export type InstantSample = {
   cookies?: Array<{
     name: string
-    value: string
-    httpOnly?: boolean
-    path?: string
+    value: string | null
   }>
-  headers?: Array<[string, string]>
+  headers?: Array<[string, string | null]>
   params?: { [key: string]: string | string[] }
-  searchParams?: { [key: string]: string | string[] | undefined }
+  searchParams?: { [key: string]: string | string[] | null }
 }
 
 /**
@@ -137,6 +146,13 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime: z.number().int().nonnegative().optional(),
+
+  /**
    * The preferred region for the page.
    */
   preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
@@ -177,6 +193,11 @@ export function parseAppSegmentConfig(
             return {
               // @TODO replace this link with a link to the docs when they are written
               message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+            }
+          }
+          case 'unstable_dynamicStaleTime': {
+            return {
+              message: `Invalid unstable_dynamicStaleTime value ${JSON.stringify(ctx.data)} on "${route}", must be a non-negative number`,
             }
           }
           default:
@@ -232,6 +253,13 @@ export type AppSegmentConfig = {
    * How this segment should be prefetched.
    */
   unstable_instant?: Instant
+
+  /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime?: number
 
   /**
    * The preferred region for the page.

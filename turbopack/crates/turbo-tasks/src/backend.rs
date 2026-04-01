@@ -77,10 +77,10 @@ pub struct CachedTaskType {
 }
 
 impl CachedTaskType {
-    /// Get the name of the function from the registry. Equivalent to the
+    /// Get the name of the function. Equivalent to the
     /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
-        self.native_fn.name
+        self.native_fn.ty.name
     }
 
     /// Encodes this task type directly to a hasher, avoiding buffer allocation.
@@ -617,14 +617,6 @@ pub trait Backend: Sync + Send {
     );
 
     fn mark_own_task_as_finished(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        // Do nothing by default
-    }
-
-    fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,

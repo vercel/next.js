@@ -5,7 +5,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunkingTypeOption, ChunksData, EvaluatableAsset,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset,
         availability_info::AvailabilityInfo,
     },
     context::AssetContext,
@@ -20,8 +20,8 @@ use turbopack_core::{
 use super::worker_type::WorkerType;
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
     utils::StringifyJs,
@@ -201,6 +201,14 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
 
         if estimated {
             // In estimation mode we cannot call into chunking context APIs
@@ -217,6 +225,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                     worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
                 }
                 .into(),
+                options,
                 ..Default::default()
             }
             .cell());
@@ -290,6 +299,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())
@@ -331,14 +341,13 @@ impl ModuleReference for WorkerModuleReference {
         *ModuleResolveResult::module(self.module)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Isolated {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Isolated {
             _ty: match self.worker_type {
                 WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
                 WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
             },
             merge_tag: None,
-        }))
+        })
     }
 }

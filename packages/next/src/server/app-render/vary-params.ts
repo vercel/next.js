@@ -117,9 +117,10 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           const accumulator = createSegmentVaryParamsAccumulator()
           responseAccumulator.segments.add(accumulator)
           return accumulator
@@ -128,12 +129,12 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -147,21 +148,22 @@ export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           return responseAccumulator.head
         }
         return null
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         return null
       default:
         workUnitStore satisfies never
@@ -209,6 +211,7 @@ export function getRootParamsVaryParamsAccumulator(): VaryParamsAccumulator | nu
       case 'prerender-client':
       case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         return null
       default:
         workUnitStore satisfies never

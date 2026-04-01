@@ -36,7 +36,7 @@ impl Display for CellId {
         write!(
             f,
             "{}#{}",
-            registry::get_value_type(self.type_id).name,
+            registry::get_value_type(self.type_id).ty.name,
             self.index
         )
     }
@@ -152,7 +152,7 @@ impl RawVc {
         ReadRawVcFuture::new(self, None)
     }
 
-    /// See [`crate::Vc::resolve`].
+    /// See [`crate::Vc::to_resolved`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
         self.resolve_inner(ReadOutputOptions {
             consistency: ReadConsistency::Eventual,

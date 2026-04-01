@@ -1,96 +1,75 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  retry,
-  waitForDevToolsIndicator,
-  toggleDevToolsIndicatorPopover,
-} from 'next-test-utils'
+import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
+import { Playwright } from 'next-webdriver'
 
 describe('instant-nav-panel', () => {
-  const { next } = nextTestSetup({
+  const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
-  async function clearInstantModeCookie(browser: any) {
+  async function waitForPanelRouterTransition() {
+    // Run all the necessary CSS transitions
+    // and click-outside event handler adjustment due to cascading update.
+    // TODO: Consider disabling transitions entirely in Next.js tests.
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        // MENU_DURATION_MS + some flakiness buffer
+        200 + 50
+      )
+    )
+  }
+
+  async function waitForInstantModeCookie(browser: Playwright): Promise<void> {
+    await retry(async () => {
+      const cookie = await browser.eval(() => document.cookie)
+      expect(cookie).toMatch(/next-instant-navigation-testing=[^;]+/)
+    })
+  }
+
+  async function clearInstantModeCookie(browser: Playwright) {
     await browser.eval(() => {
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
     })
   }
 
-  async function clickInstantNavMenuItem(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('[data-instant-nav]')?.click()
-    })
+  async function clickInstantNavMenuItem(browser: Playwright) {
+    await browser.elementByCss('[data-instant-nav]').click()
   }
 
-  async function clickStartClientNav(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('[data-instant-nav-client]')?.click()
-    })
+  async function clickStartClientNav(browser: Playwright) {
+    await browser
+      // TODO: Monitor if we need to increase timeouts for all *instant calls
+      .elementByCss('[data-instant-nav-client]', { timeout: 50 })
+      .click()
+    await waitForInstantModeCookie(browser)
   }
 
-  async function getBadgeStatus(browser: any): Promise<string> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      return (
-        portal?.shadowRoot
-          ?.querySelector('[data-next-badge]')
-          ?.getAttribute('data-status') || ''
-      )
-    })
+  async function getInstantNavPanelText(browser: Playwright): Promise<string> {
+    return browser.elementByCssInstant('.instant-nav-panel').text()
   }
 
-  async function getPanelText(browser: any): Promise<string> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      const panel = portal?.shadowRoot?.querySelector('.instant-nav-panel')
-      return panel?.innerText || ''
-    })
+  async function closePanelViaHeader(browser: Playwright) {
+    return browser.elementByCss('#_next-devtools-panel-close').click()
   }
 
-  async function hasPanelOpen(browser: any): Promise<boolean> {
-    return browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      return !!portal?.shadowRoot?.querySelector('.instant-nav-panel')
-    })
+  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
+    await browser.elementByCssInstant('.instant-nav-panel')
   }
 
-  async function closePanelViaHeader(browser: any) {
-    await browser.eval(() => {
-      const portal = [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p: any) =>
-          p.shadowRoot.querySelector('[data-nextjs-toast]')
-        ) as any
-      portal?.shadowRoot?.querySelector('#_next-devtools-panel-close')?.click()
-    })
-  }
-
-  async function openInstantNavPanel(browser: any) {
-    await waitForDevToolsIndicator(browser)
+  async function openInstantNavPanel(browser: Playwright) {
     await toggleDevToolsIndicatorPopover(browser)
+    await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)
+
+    await retry(
+      async () => {
+        await hasInstantNavPanelOpen(browser)
+      },
+      5_000,
+      500
+    )
+    await waitForPanelRouterTransition()
   }
 
   it('should open panel in waiting state without setting cookie', async () => {
@@ -98,17 +77,11 @@ describe('instant-nav-panel', () => {
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
-    // Wait for initial compilation to settle
-    await retry(async () => {
-      const status = await getBadgeStatus(browser)
-      expect(status).toBe('none')
-    })
-
     await openInstantNavPanel(browser)
 
     // Panel should show waiting state with Page load and Client navigation sections
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Page load')
       expect(text).toContain('Client navigation')
     })
@@ -122,47 +95,38 @@ describe('instant-nav-panel', () => {
   })
 
   it('should show client nav state after clicking Start and navigating', async () => {
+    const targetPage = '/target-page/my-post?search=foo'
+    if (isNextDev && !isTurbopack) {
+      // warmup target page compilation before clicking Start, to avoid extra flakiness.
+      void next.render(targetPage).catch(() => {})
+    }
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
-    // Wait for initial compilation to settle (tsconfig creation triggers Fast Refresh)
-    await retry(async () => {
-      const status = await getBadgeStatus(browser)
-      expect(status).toBe('none')
-    })
-
     await openInstantNavPanel(browser)
-
-    // Wait for panel to be open
-    await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
-    })
 
     // Click Start to enter client-nav-waiting state
     await clickStartClientNav(browser)
 
     // Cookie should now be set
-    await retry(async () => {
-      const cookie = await browser.eval(() => document.cookie)
-      expect(cookie).toContain('next-instant-navigation-testing=1')
-    })
+    await waitForInstantModeCookie(browser)
 
     // Panel should show client-nav-waiting state
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Client navigation')
       expect(text).toContain('Click any link')
     })
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-    await browser.eval(() => {
-      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
-    })
+    await browser.eval((page) => {
+      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
+    }, targetPage)
 
     // Panel should transition to client-nav state
     await retry(async () => {
-      const text = await getPanelText(browser)
+      const text = await getInstantNavPanelText(browser)
       expect(text).toContain('Client navigation')
       expect(text).toContain('prefetched UI')
       expect(text).toContain('Continue rendering')
@@ -173,31 +137,57 @@ describe('instant-nav-panel', () => {
   })
 
   it('should show loading skeleton during SPA navigation after clicking Start', async () => {
+    const targetPage = '/target-page/my-post?search=foo'
+    if (isNextDev && !isTurbopack) {
+      // warmup target page compilation before clicking Start, to avoid extra flakiness.
+      void next.render(targetPage).catch(() => {})
+    }
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
     await openInstantNavPanel(browser)
 
-    // Wait for panel to be open
-    await retry(async () => {
-      expect(await hasPanelOpen(browser)).toBe(true)
-    })
-
     // Click Start to activate the navigation lock
     await clickStartClientNav(browser)
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
-    await browser.eval(() => {
-      document.querySelector<HTMLAnchorElement>('#link-to-target')!.click()
-    })
+    await browser.eval((page) => {
+      document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
+    }, targetPage)
 
-    // The data fetching skeleton should be visible (dynamic content is locked)
+    // The data fetching skeleton should be visible (dynamic content is locked).
+    // Use a longer timeout because dev mode needs to compile the target page.
+    await retry(
+      async () => {
+        const skeleton = await browser.hasElementByCss(
+          '[data-testid="dynamic-skeleton"]'
+        )
+        expect(skeleton).toBe(true)
+      },
+      30000,
+      500
+    )
+
+    // Clean up
+    await clearInstantModeCookie(browser)
+  })
+
+  it('should auto-open panel on page load when cookie is already set', async () => {
+    const browser = await next.browser('/')
+    await clearInstantModeCookie(browser)
+    await browser.waitForElementByCss('[data-testid="home-title"]')
+
+    // Open the panel and click Start to set the cookie
+    await openInstantNavPanel(browser)
+    await clickStartClientNav(browser)
+
+    // Reload — the cookie persists, so the panel should auto-open
+    await browser.refresh()
+    await browser.waitForElementByCss('[data-testid="home-title"]')
+
     await retry(async () => {
-      const skeleton = await browser.hasElementByCss(
-        '[data-testid="dynamic-skeleton"]'
-      )
-      expect(skeleton).toBe(true)
+      await hasInstantNavPanelOpen(browser)
     })
 
     // Clean up

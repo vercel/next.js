@@ -36,7 +36,7 @@ pub enum LocalTaskType {
 impl fmt::Display for LocalTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.name),
+            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.ty.name),
             LocalTaskType::ResolveTrait { trait_method } => write!(
                 f,
                 "*{}::{}",

@@ -6,7 +6,7 @@ use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
 use turbo_tasks::{
-    IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator,
+    Invalidator, TraitRef, Vc, get_invalidator,
     unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
 };
 use turbo_tasks_testing::{Registration, register, run_once};

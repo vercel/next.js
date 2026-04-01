@@ -7,7 +7,7 @@ use turbo_dyn_eq_hash::{
 };
 
 use crate::{
-    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId, TurboTasksApi,
     manager::{current_task_if_available, mark_invalidator},
     trace::TraceRawVcs,
     util::StaticOrArc,
@@ -27,7 +27,7 @@ pub fn get_invalidator() -> Option<Invalidator> {
 
 /// A lightweight handle to invalidate a task. Only stores the task ID.
 /// The caller must provide the `TurboTasksApi` when calling invalidation methods.
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Encode, Decode)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct Invalidator {
     task: TaskId,
 }
@@ -54,6 +54,11 @@ impl TraceRawVcs for Invalidator {
         // nothing here
     }
 }
+
+unsafe impl OperationValue for Invalidator {}
+// Safety: Invalidator only contains a TaskId (a NonZero<u32> wrapper) and does not contain any
+// local Vc references.
+unsafe impl NonLocalValue for Invalidator {}
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.
