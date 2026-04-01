@@ -1338,6 +1338,21 @@ export async function handler(
         }
       }
 
+      // When route-module.ts resolved partial nxtP* params during
+      // background revalidation, filter fallbackRouteParams to only the
+      // params that are still unresolved. This lets doRender produce an
+      // intermediate PPR shell that suspends only for those params.
+      let effectiveFallbackRouteParams: FallbackRouteParam[] | null = null
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const resolvedKeys = getRequestMeta(req, 'resolvedRouteParamKeys')
+        if (resolvedKeys && resolvedKeys.size > 0) {
+          effectiveFallbackRouteParams =
+            prerenderInfo.fallbackRouteParams.filter(
+              (param) => !resolvedKeys.has(param.paramName)
+            )
+        }
+      }
+
       const fallbackRouteParams =
         // In production or when debugging the static shell for a
         // non-prerendered URL, use the prerender manifest's fallback route
@@ -1346,9 +1361,17 @@ export async function handler(
           (isDebugStaticShell && !isPrerendered)) &&
         prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : isDebugFallbackShell
-            ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-            : null
+          : // For intermediate shells where some params are resolved and
+            // others still have placeholders, use the filtered subset so the
+            // prerender suspends only for the unresolved params.
+            effectiveFallbackRouteParams &&
+              effectiveFallbackRouteParams.length > 0 &&
+              effectiveFallbackRouteParams.length <
+                (prerenderInfo?.fallbackRouteParams?.length ?? 0)
+            ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
+            : isDebugFallbackShell
+              ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+              : null
 
       // For staged dynamic rendering (Cached Navigations) and debug static
       // shell rendering, pass the fallback params via request meta so the

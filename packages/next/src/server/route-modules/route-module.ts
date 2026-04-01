@@ -916,6 +916,26 @@ export abstract class RouteModule<
           }
         }
       }
+
+      // When partial nxtP* params are provided (e.g. background
+      // revalidation for intermediate PPR shells), both
+      // normalizeDynamicRouteParams calls above fail because not all
+      // route params are present. Merge the normalized query params
+      // (from nxtP*) into the current params to override placeholders
+      // with concrete values.
+      if (
+        params &&
+        routeParamKeys.size > 0 &&
+        !paramsResult.hasValidParams &&
+        !queryResult.hasValidParams
+      ) {
+        for (const key of routeParamKeys) {
+          if (query[key] !== undefined) {
+            params[key] = query[key]
+          }
+        }
+        addRequestMeta(req, 'resolvedRouteParamKeys', routeParamKeys)
+      }
     }
 
     // Remove any normalized params from the query if they
