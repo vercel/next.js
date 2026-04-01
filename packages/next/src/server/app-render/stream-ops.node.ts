@@ -689,6 +689,7 @@ export async function continueFizzStream(
     suffix,
     inlinedDataStream,
     isStaticGeneration,
+    allReady,
     deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -699,9 +700,9 @@ export async function continueFizzStream(
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   if (isStaticGeneration) {
-    // If we're generating static HTML we need to wait for it to resolve before continuing.
-    // TODO: Add allReady
-    // await renderStream.allReady
+    if (allReady) {
+      await allReady
+    }
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work
     // before we start pulling the stream and cause a flush.
