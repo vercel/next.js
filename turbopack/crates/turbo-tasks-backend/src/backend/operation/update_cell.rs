@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskId, TypedSharedReference,
-    backend::{CellContent, VerificationMode},
+    backend::{CellContent, CellHash, VerificationMode},
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -56,7 +56,7 @@ impl UpdateCellOperation {
         content: CellContent,
         is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
+        content_hash: Option<CellHash>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,

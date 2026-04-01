@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
     ValueTypeId,
-    backend::{CachedTaskType, TransientTaskType},
+    backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
@@ -283,7 +283,7 @@ struct TaskStorageSchema {
     /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
     /// alignment requirement.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: AutoMap<CellId, [u8; 16]>,
+    cell_data_hash: AutoMap<CellId, CellHash>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]

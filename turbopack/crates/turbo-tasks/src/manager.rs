@@ -29,7 +29,7 @@ use crate::{
     ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
     VcValueTrait, VcValueType,
     backend::{
-        Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
+        Backend, CachedTaskType, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
@@ -175,7 +175,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -1574,7 +1574,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -2051,7 +2051,7 @@ impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
         &self,
-        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<[u8; 16]>)>,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<CellHash>)>,
     ) where
         T: VcValueType,
     {
@@ -2074,7 +2074,7 @@ impl CurrentCellRef {
         ) -> Option<(
             SharedReference,
             Option<SmallVec<[u64; 2]>>,
-            Option<[u8; 16]>,
+            Option<CellHash>,
         )>,
     ) {
         let tt = turbo_tasks();
