@@ -524,18 +524,27 @@ export async function startServer(
     server.listen(port, hostname)
   })
 
+  // Watch config files for changes and distDir ancestors for deletion.
   if (isDev) {
-    // Watch config files for changes and distDir ancestors for deletion.
-    // Ancestors are watched so that deleting a parent (e.g. `rm -rf .next`)
-    // is detected by a DirectoryWatcher that still exists on the project root.
+    // Note: dir is absolute and normalized (`..` segments removed), `absDistDir`
+    // is also normalized because `path.join()` performs normalization. `distDir`
+    // does not have to be inside of `dir`!
     const absDistDir = path.join(dir, distDir)
-    const distDirWatchPaths: string[] = []
-    for (
-      let current = absDistDir;
-      current !== dir && current.startsWith(dir + path.sep);
-      current = path.dirname(current)
-    ) {
-      distDirWatchPaths.push(current)
+    // always watch dir and absDistDir
+    const dirWatchPaths: string[] = [dir, absDistDir]
+    // also watch ancestors of absDistDir that are inside of dir.
+    let prevAncestor = absDistDir
+    while (true) {
+      const nextAncestor = path.dirname(prevAncestor)
+      // note: `dirname('/') === '/'` if we happen to reach the FS root
+      if (
+        !nextAncestor.startsWith(dir + path.sep) ||
+        nextAncestor === prevAncestor
+      ) {
+        break
+      }
+      dirWatchPaths.push(nextAncestor)
+      prevAncestor = nextAncestor
     }
 
     const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
@@ -543,7 +552,7 @@ export async function startServer(
     const wp = new Watchpack()
     wp.watch({
       files: configFiles,
-      missing: distDirWatchPaths,
+      missing: dirWatchPaths,
     })
     wp.on('change', async (filename) => {
       if (!configFiles.includes(filename)) {
@@ -557,9 +566,11 @@ export async function startServer(
       process.exit(RESTART_EXIT_CODE)
     })
     wp.on('remove', (removedPath: string) => {
-      if (distDirWatchPaths.includes(removedPath)) {
-        Log.warn(
-          `The ${path.basename(absDistDir)} directory was deleted. Restarting the server...`
+      if (dirWatchPaths.includes(removedPath)) {
+        Log.error(
+          `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory while Next.js is running can lead to ' +
+            'undefined behavior. Restarting the server to recover...'
         )
         process.exit(RESTART_EXIT_CODE)
       }
