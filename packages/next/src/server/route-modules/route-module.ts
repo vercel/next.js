@@ -934,6 +934,7 @@ export abstract class RouteModule<
             params[key] = query[key]
           }
         }
+        addRequestMeta(req, 'resolvedRouteParamKeys', routeParamKeys)
       }
     }
 

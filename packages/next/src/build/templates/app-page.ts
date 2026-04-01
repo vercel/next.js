@@ -1338,30 +1338,19 @@ export async function handler(
         }
       }
 
-      // In minimal mode (adapter deployments), compute effective fallback
-      // params by filtering to only params that still have placeholder
-      // values. This produces intermediate PPR shells where resolved params
-      // appear in the static shell and only truly unknown params suspend.
+      // When route-module.ts resolved partial nxtP* params during
+      // background revalidation, filter fallbackRouteParams to only the
+      // params that are still unresolved. This lets doRender produce an
+      // intermediate PPR shell that suspends only for those params.
       let effectiveFallbackRouteParams: FallbackRouteParam[] | null = null
-      if (
-        isMinimalMode &&
-        nextConfig.cacheComponents &&
-        !isPrerendered &&
-        prerenderInfo?.fallbackRouteParams
-      ) {
-        effectiveFallbackRouteParams = prerenderInfo.fallbackRouteParams.filter(
-          (param) => {
-            const value = params?.[param.paramName]
-            if (value === undefined) return true
-            const placeholder = buildDynamicSegmentPlaceholder(param)
-            return (
-              value === placeholder ||
-              (Array.isArray(value) &&
-                value.length === 1 &&
-                value[0] === placeholder)
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const resolvedKeys = getRequestMeta(req, 'resolvedRouteParamKeys')
+        if (resolvedKeys && resolvedKeys.size > 0) {
+          effectiveFallbackRouteParams =
+            prerenderInfo.fallbackRouteParams.filter(
+              (param) => !resolvedKeys.has(param.paramName)
             )
-          }
-        )
+        }
       }
 
       const fallbackRouteParams =
@@ -1369,23 +1358,6 @@ export async function handler(
         // non-prerendered URL, use the prerender manifest's fallback route
         // params which correctly identifies which params are unknown.
         ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
-          // In minimal mode (adapter deployments), dynamic matched-path
-          // requests can reach the lambda with placeholder params like
-          // "[teamSlug]" and no renderFallbackShell metadata. Treat these as
-          // fallback-shell renders so static and resumed renders use
-          // consistent param semantics.
-          (isMinimalMode &&
-            pageIsDynamic &&
-            prerenderInfo?.fallbackRouteParams?.every((param) => {
-              const placeholder = buildDynamicSegmentPlaceholder(param)
-              const value = params?.[param.paramName]
-              return (
-                value === placeholder ||
-                (Array.isArray(value) &&
-                  value.length === 1 &&
-                  value[0] === placeholder)
-              )
-            })) ||
           (isDebugStaticShell && !isPrerendered)) &&
         prerenderInfo?.fallbackRouteParams
           ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
