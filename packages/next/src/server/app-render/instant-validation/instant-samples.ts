@@ -257,6 +257,11 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
   declaredParamNames: Set<string>,
   route: string
 ): TParams {
+  if (isEmptyParams(underlyingParams)) {
+    throw new InvariantError(
+      'Empty params objects should not be wrapped in an exhaustive proxy'
+    )
+  }
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
       if (
@@ -280,6 +285,13 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
     // the shape of the params object is determined by the routing structure
     // and independent of the samples. We only need to instrument accessing the values.
   })
+}
+
+function isEmptyParams(params: Params) {
+  for (const _param in params) {
+    return false
+  }
+  return true
 }
 
 /**

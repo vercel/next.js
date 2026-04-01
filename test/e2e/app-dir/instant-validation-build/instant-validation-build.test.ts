@@ -603,6 +603,12 @@ describe('instant-validation-build', () => {
       expect(result.exitCode).toBe(1)
     })
 
+    it('valid - awaiting params in a segment with no params is allowed', async () => {
+      const result = await prerender('/(default)/params/valid-no-params')
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expectNoBuildValidationErrors(result)
+    })
+
     it('useParams() receives params from samples', async () => {
       const result = await prerender(
         '/(default)/params/valid-use-params/[one]/[two]'
