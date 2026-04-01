@@ -1,7 +1,10 @@
 import type { Params } from '../../server/request/params'
 import { parseAppRoute } from '../../shared/lib/router/routes/app'
 import type { FallbackRouteParam } from './types'
-import { resolveRouteParamsFromTree } from './utils'
+import {
+  prerenderedRouteMatchesRequestPath,
+  resolveRouteParamsFromTree,
+} from './utils'
 
 // Helper to create LoaderTree structures for testing
 type TestLoaderTree = [
@@ -969,5 +972,36 @@ describe('resolveRouteParamsFromTree', () => {
       expect(params.id).toBe('image-123')
       expect(fallbackRouteParams).toHaveLength(0)
     })
+  })
+})
+
+describe('prerenderedRouteMatchesRequestPath', () => {
+  const slug = 'café'
+  const route = {
+    params: { slug },
+    pathname: `/blog/${slug}`,
+    encodedPathname: `/blog/${encodeURIComponent(slug)}`,
+    fallbackRouteParams: undefined,
+    fallbackMode: undefined,
+    fallbackRootParams: undefined,
+    throwOnEmptyStaticShell: undefined,
+  } as const
+
+  it('matches decoded and encoded request pathnames', () => {
+    expect(prerenderedRouteMatchesRequestPath(route, `/blog/${slug}`)).toBe(
+      true
+    )
+    expect(
+      prerenderedRouteMatchesRequestPath(
+        route,
+        `/blog/${encodeURIComponent(slug)}`
+      )
+    ).toBe(true)
+  })
+
+  it('returns false for unrelated paths', () => {
+    expect(prerenderedRouteMatchesRequestPath(route, '/blog/other')).toBe(
+      false
+    )
   })
 })

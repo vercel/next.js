@@ -138,7 +138,8 @@ async function exportPageImpl(
 
   const filePath = normalizePagePath(path)
 
-  let updatedPath = exportPath._ssgPath || path
+  let updatedPath =
+    isAppDir && isDynamic && path ? path : exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
   if (commonRenderOpts.locale) {

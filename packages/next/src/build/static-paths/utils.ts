@@ -12,7 +12,7 @@ import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree
 import type { AppSegment } from '../segment-config/app/app-segments'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from './app/extract-pathname-route-param-segments-from-loader-tree'
 import { resolveParamValue } from '../../shared/lib/router/utils/resolve-param-value'
-import type { FallbackRouteParam } from './types'
+import type { FallbackRouteParam, PrerenderedRoute } from './types'
 
 /**
  * Encodes a parameter value using the provided encoder.
@@ -43,6 +43,32 @@ export function encodeParam(
  */
 export function normalizePathname(pathname: string) {
   return pathname.replace(/\\/g, '/').replace(/(?!^)\/$/, '')
+}
+
+/**
+ * Returns whether a request pathname matches a prerendered route from
+ * generateStaticParams. Request URLs may use percent-encoded segments while
+ * route.pathname uses decoded Unicode; route.encodedPathname covers the
+ * encoded form.
+ */
+export function prerenderedRouteMatchesRequestPath(
+  route: PrerenderedRoute,
+  requestPathname: string
+): boolean {
+  if (
+    route.pathname === requestPathname ||
+    route.encodedPathname === requestPathname
+  ) {
+    return true
+  }
+  if (requestPathname.includes('%')) {
+    try {
+      return route.pathname === decodeURIComponent(requestPathname)
+    } catch {
+      return false
+    }
+  }
+  return false
 }
 
 /**
