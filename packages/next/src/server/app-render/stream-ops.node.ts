@@ -309,6 +309,96 @@ function createHeadInsertionTransform(
 }
 
 // ---------------------------------------------------------------------------
+// Metadata transform – Node.js Transform that finds the «nxt-icon» meta mark
+// and replaces it with a script tag (or removes it if inside <head>).
+// ---------------------------------------------------------------------------
+
+function createMetadataTransform(
+  insert: () => Promise<string> | string
+): Transform {
+  let chunkIndex = -1
+  let isMarkRemoved = false
+
+  return new Transform({
+    async transform(chunk, _encoding, callback) {
+      let iconMarkIndex = -1
+      let closedHeadIndex = -1
+      chunkIndex++
+
+      if (isMarkRemoved) {
+        this.push(chunk)
+        callback()
+        return
+      }
+
+      try {
+        let iconMarkLength = 0
+        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+        if (iconMarkIndex === -1) {
+          this.push(chunk)
+          callback()
+          return
+        }
+
+        iconMarkLength = ENCODED_TAGS.META.ICON_MARK.length
+        if (chunk[iconMarkIndex + iconMarkLength] === 47) {
+          iconMarkLength += 2
+        } else {
+          iconMarkLength++
+        }
+
+        if (chunkIndex === 0) {
+          closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+          if (iconMarkIndex < closedHeadIndex) {
+            const replaced = Buffer.allocUnsafe(chunk.length - iconMarkLength)
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex
+            )
+            chunk = replaced
+          } else {
+            const insertion = await insert()
+            const encodedInsertion = Buffer.from(insertion)
+            const insertionLength = encodedInsertion.length
+            const replaced = Buffer.allocUnsafe(
+              chunk.length - iconMarkLength + insertionLength
+            )
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(encodedInsertion, iconMarkIndex)
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex + insertionLength
+            )
+            chunk = replaced
+          }
+          isMarkRemoved = true
+        } else {
+          const insertion = await insert()
+          const encodedInsertion = Buffer.from(insertion)
+          const insertionLength = encodedInsertion.length
+          const replaced = Buffer.allocUnsafe(
+            chunk.length - iconMarkLength + insertionLength
+          )
+          replaced.set(chunk.subarray(0, iconMarkIndex))
+          replaced.set(encodedInsertion, iconMarkIndex)
+          replaced.set(
+            chunk.subarray(iconMarkIndex + iconMarkLength),
+            iconMarkIndex + insertionLength
+          )
+          chunk = replaced
+          isMarkRemoved = true
+        }
+        this.push(chunk)
+        callback()
+      } catch (err) {
+        callback(err as Error)
+      }
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
 
@@ -432,7 +522,7 @@ export async function continueFizzStream(
     isStaticGeneration,
     // deploymentId,
     getServerInsertedHTML,
-    // getServerInsertedMetadata,
+    getServerInsertedMetadata,
     // validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
@@ -460,41 +550,42 @@ export async function continueFizzStream(
   webToReadable(renderStream).pipe(buffered)
 
   let source: Readable = buffered
+
+  // TODO: Insert data-dpl-id attribute on the html tag
+  // deploymentId ? createHtmlDataDplIdTransform(deploymentId) : null
+
+  // Metadata (icon mark replacement)
+  const metadata = createMetadataTransform(getServerInsertedMetadata)
+  source.pipe(metadata)
+  source = metadata
+
+  // TODO: Insert suffix content
+  // suffixUnclosed != null && suffixUnclosed.length > 0
+  //   ? createDeferredSuffixTransform(suffixUnclosed)
+  //   : null
+
+  // Flight data injection – interleaves RSC data chunks with the HTML stream
   if (inlinedDataStream) {
     const flightInjection = createFlightDataInjectionTransform(
       webToReadable(inlinedDataStream),
       true
     )
-    buffered.pipe(flightInjection)
+    source.pipe(flightInjection)
     source = flightInjection
   }
 
+  // TODO: Validate the root layout for missing html or body tags (dev-only)
+  // validateRootLayout ? createRootLayoutValidatorTransform() : null
+
+  // TODO: Close tags should always be deferred to the end
+  // createMoveSuffixTransform()
+
+  // Head insertion – inserts server-generated HTML before </head>
   const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
   source.pipe(headInsertion)
   source = headInsertion
 
   return source
-  // return chainTransformers(nodeReadableToWebReadableStream(headInsertion), [
-  //   // Insert data-dpl-id attribute on the html tag
-  //   // TODO: We can do this in the first createBufferedTransformStream pass
-  //   // deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
-
-  //   // Transform metadata
-  //   // TODO:
-  //   // createMetadataTransformStream(getServerInsertedMetadata),
-
-  //   // Insert suffix content
-  //   // suffixUnclosed != null && suffixUnclosed.length > 0
-  //   //   ? createDeferredSuffixStream(suffixUnclosed)
-  //   //   : null,
-
-  //   // Validate the root layout for missing html or body tags
-  //   // TODO: Implement this. dev-only.
-  //   // validateRootLayout ? createRootLayoutValidatorStream() : null,
-
-  //   // Close tags should always be deferred to the end
-  //   // createMoveSuffixStream(),
-  // ])
 }
 
 export async function continueStaticPrerender(
