@@ -1474,8 +1474,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let is_root = task_type.native_fn.is_root;
 
         // First check if the task exists in the cache which only uses a read lock
-        if let Some(task_id) = self.task_cache.get(&task_type) {
-            let task_id = *task_id;
+        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
+        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
+        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
             self.connect_child(
                 parent_task,
@@ -1564,9 +1565,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 /* cell_id */ None,
             );
         }
-        // First check if the task exists in the cache which only uses a read lock
-        if let Some(task_id) = self.task_cache.get(&task_type) {
-            let task_id = *task_id;
+        // First check if the task exists in the cache which only uses a read lock.
+        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
+        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
+        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
             self.connect_child(
                 parent_task,
