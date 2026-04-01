@@ -32,7 +32,7 @@ import {
   // createMetadataTransformStream,
   // createDeferredSuffixStream,
   // createMoveSuffixStream,
-  // CLOSE_TAG,
+  CLOSE_TAG,
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
@@ -399,6 +399,36 @@ function createMetadataTransform(
 }
 
 // ---------------------------------------------------------------------------
+// Deferred suffix – Node.js Transform that appends a suffix string after the
+// first HTML chunk, deferring via queueMicrotask so the chunk flushes first.
+// ---------------------------------------------------------------------------
+
+function createDeferredSuffixTransform(suffix: string): Transform {
+  let flushed = false
+  const encodedSuffix = Buffer.from(suffix)
+
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      this.push(chunk)
+
+      if (!flushed) {
+        flushed = true
+        queueMicrotask(() => {
+          this.push(encodedSuffix)
+        })
+      }
+      callback()
+    },
+    flush(callback) {
+      if (!flushed) {
+        this.push(encodedSuffix)
+      }
+      callback()
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
 
@@ -517,7 +547,7 @@ export async function resumeAndAbort(
 export async function continueFizzStream(
   renderStream: AnyStream,
   {
-    // suffix,
+    suffix,
     inlinedDataStream,
     isStaticGeneration,
     // deploymentId,
@@ -526,8 +556,7 @@ export async function continueFizzStream(
     // validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
-  // Suffix itself might contain close tags at the end, so we need to split it.
-  // const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
+  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
   if (isStaticGeneration) {
     // If we're generating static HTML we need to wait for it to resolve before continuing.
@@ -559,10 +588,12 @@ export async function continueFizzStream(
   source.pipe(metadata)
   source = metadata
 
-  // TODO: Insert suffix content
-  // suffixUnclosed != null && suffixUnclosed.length > 0
-  //   ? createDeferredSuffixTransform(suffixUnclosed)
-  //   : null
+  // Insert suffix content
+  if (suffixUnclosed != null && suffixUnclosed.length > 0) {
+    const deferredSuffix = createDeferredSuffixTransform(suffixUnclosed)
+    source.pipe(deferredSuffix)
+    source = deferredSuffix
+  }
 
   // Flight data injection – interleaves RSC data chunks with the HTML stream
   if (inlinedDataStream) {
