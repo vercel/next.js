@@ -5,7 +5,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, Val
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
@@ -219,6 +219,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -315,6 +320,8 @@ pub struct BrowserChunkingContext {
     /// The global variable name used for chunk loading.
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -367,6 +374,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -425,11 +433,17 @@ impl BrowserChunkingContext {
         )
     }
 }
+
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn hash_salt(&self) -> Vc<RcStr> {
+        *self.hash_salt
     }
 
     /// Returns the kind of runtime to include in output chunks.
@@ -558,14 +572,13 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let hash = asset
                     .content()
-                    .content_hash(HashAlgorithm::Xxh3Hash128Base38)
+                    .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
-                let length = length as usize;
-                let hash = &hash[0..length];
+                let hash = &hash[..length as usize];
                 if let Some(prefix) = prefix {
                     format!("{prefix}-{hash}{extension}").into()
                 } else {
@@ -624,16 +637,22 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
-        content_hash: Vc<RcStr>,
+        self: Vc<Self>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = content_hash.await?;
-        let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let short_hash = &content_hash[..length as usize];
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
+        let hash = content
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .await?;
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
@@ -644,8 +663,8 @@ impl ChunkingContext for BrowserChunkingContext {
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }

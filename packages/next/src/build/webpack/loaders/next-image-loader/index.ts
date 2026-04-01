@@ -10,16 +10,23 @@ interface Options {
   isDev: boolean
   assetPrefix: string
   basePath: string
+  hashSalt: string
 }
 
 function nextImageLoader(this: any, content: Buffer) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
     const options: Options = this.getOptions()
-    const { compilerType, isDev, assetPrefix, basePath } = options
+    const { compilerType, isDev, assetPrefix, basePath, hashSalt } = options
     const context = this.rootContext
 
-    const opts = { context, content }
+    // Prepend the hash salt to the content for filename hash computation, so
+    // that NEXT_HASH_SALT causes image filenames to change (like it does for
+    // chunks). The actual file content is unaffected.
+    const contentForHash = hashSalt
+      ? Buffer.concat([Buffer.from(hashSalt, 'utf8'), content])
+      : content
+    const opts = { context, content: contentForHash }
     const interpolatedName = loaderUtils.interpolateName(
       this,
       '/static/media/[name].[hash:8].[ext]',

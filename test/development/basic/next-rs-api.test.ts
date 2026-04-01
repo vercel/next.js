@@ -233,6 +233,7 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
+    hashSalt: '',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
@@ -393,6 +394,7 @@ describe('next.rs api', () => {
       currentNodeJsVersion: '18.0.0',
       isPersistentCachingEnabled: false,
       nextVersion: '0.0.0',
+      hashSalt: '',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),

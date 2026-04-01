@@ -142,7 +142,9 @@ impl Asset for AssetHashesManifestAsset {
             .map(async |(asset, path)| {
                 Ok((
                     path,
-                    asset.content_hash(HashAlgorithm::Xxh3Hash128Base38).await?,
+                    asset
+                        .content_hash(self.project.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+                        .await?,
                 ))
             })
             .try_join()

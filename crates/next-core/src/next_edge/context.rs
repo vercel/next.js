@@ -202,6 +202,7 @@ pub struct EdgeChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -226,6 +227,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         client_root,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -256,6 +258,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
@@ -303,6 +306,7 @@ pub async fn get_edge_chunking_context(
         client_root,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
@@ -347,6 +351,7 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 

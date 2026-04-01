@@ -8,7 +8,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::HashAlgorithm;
 
-use crate::asset::AssetContent;
+use crate::asset::{AssetContent, no_hash_salt};
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
@@ -231,7 +231,7 @@ impl FileHashVersion {
         match asset_content {
             AssetContent::File(file_vc) => {
                 let hash = file_vc
-                    .content_hash(HashAlgorithm::Xxh3Hash128Base38)
+                    .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                     .owned()
                     .await?
                     .context("file not found")?;

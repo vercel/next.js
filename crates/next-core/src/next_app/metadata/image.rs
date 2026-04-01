@@ -9,7 +9,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{AssetContent, no_hash_salt},
     context::AssetContext,
     file_source::FileSource,
     module::Module,
@@ -34,7 +34,10 @@ async fn dynamic_image_metadata_with_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
@@ -109,7 +112,10 @@ async fn dynamic_image_metadata_without_generator_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let hash = path.read().content_hash(HashAlgorithm::default()).await?;
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
     let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
