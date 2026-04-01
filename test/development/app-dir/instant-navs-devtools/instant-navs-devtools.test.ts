@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
+// force full test run
 describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,

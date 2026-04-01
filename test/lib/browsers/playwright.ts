@@ -437,7 +437,7 @@ export class Playwright<TCurrent = undefined> {
   /** A replacement for the default `browser.elementByCss` that doesn't wait for the page to fire "load". */
   elementByCssInstant(selector: string, opts?: ElementByCssOpts) {
     return this.waitForElementByCss(selector, {
-      timeout: 10,
+      timeout: 0,
       waitUntil: false,
       ...opts,
     })

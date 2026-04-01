@@ -7,6 +7,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// force full test run
 describe('PPR - partial hydration', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
