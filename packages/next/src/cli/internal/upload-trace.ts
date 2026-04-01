@@ -76,7 +76,6 @@ export async function uploadTraceToBlob(
   }
 
   const uploadUrl = getUploadUrl()
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
 
   console.log(
     `Found ${uploadableFiles.length} file(s) in ${profilesDir}. Uploading...`
@@ -106,15 +105,15 @@ export async function uploadTraceToBlob(
     }
 
     const content = await fs.readFile(filePath)
-    const blobPathname = `profiles/${timestamp}/${file}`
 
+    // Send only the filename — the server assigns the full storage path.
     const tokenRes = await fetch(uploadUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         type: 'blob.generate-client-token',
         payload: {
-          pathname: blobPathname,
+          pathname: `upload/${file}`,
           clientPayload: null,
           multipart: false,
         },
@@ -128,16 +127,23 @@ export async function uploadTraceToBlob(
       process.exit(1)
     }
 
-    const { clientToken } = (await tokenRes.json()) as { clientToken: string }
+    const tokenBody = (await tokenRes.json()) as {
+      clientToken: string
+      pathname?: string
+    }
 
-    if (!clientToken) {
+    if (!tokenBody.clientToken) {
       console.error('Error: No client token received from the upload endpoint.')
       process.exit(1)
     }
 
-    const blob = await put(blobPathname, content, {
+    // The server assigns the storage path — use whatever it returned,
+    // falling back to a simple prefix if the field is absent.
+    const serverPathname = tokenBody.pathname || `upload/${file}`
+
+    const blob = await put(serverPathname, content, {
       access: 'private',
-      token: clientToken,
+      token: tokenBody.clientToken,
     })
 
     console.log(`Uploaded ${file}: ${blob.url}`)
