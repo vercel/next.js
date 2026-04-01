@@ -38,6 +38,7 @@ parking_lot = { workspace = true }
 phf = { version = "0.11", features = ["macros"] }
 petgraph = { workspace = true }
 dashmap = { workspace = true }
+rand = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }

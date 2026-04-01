@@ -10094,6 +10094,7 @@ dependencies = [
  "parking_lot",
  "petgraph 0.8.3",
  "phf",
+ "rand 0.10.0",
  "regex",
  "rustc-hash 2.1.1",
  "serde",

@@ -1,5 +1,8 @@
+use std::fmt::Write;
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use rand::{SeedableRng, rngs::StdRng, seq::IndexedRandom};
 use swc_core::{
     common::{
         Span,
@@ -18,7 +21,8 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    resolve::{ModuleResolveResult, parse::Request, pattern::Pattern},
+    module::Module,
+    resolve::{ModuleResolveResult, ModuleResolveResultItem, parse::Request, pattern::Pattern},
 };
 
 use crate::errors;
@@ -70,19 +74,38 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
 /// If a pattern resolves to more than 10000 results, it's likely a mistake so issue a warning.
 const TOO_MANY_MATCHES_LIMIT: usize = 10000;
 
+/// Number of example file paths to include in the warning message.
+const SAMPLE_SIZE: usize = 5;
+
 pub async fn check_and_emit_too_many_matches_warning(
     result: Vc<ModuleResolveResult>,
     issue_source: IssueSource,
     context_dir: FileSystemPath,
     pattern: ResolvedVc<Pattern>,
 ) -> Result<()> {
-    let num_matches = result.await?.primary.len();
+    let result_ref = result.await?;
+    let num_matches = result_ref.primary.len();
     if num_matches > TOO_MANY_MATCHES_LIMIT {
+        // Collect a deterministic random sample of file paths to show in the warning.
+        let mut rng = StdRng::seed_from_u64(0);
+        let sampled: Vec<&(_, ModuleResolveResultItem)> =
+            result_ref.primary.sample(&mut rng, SAMPLE_SIZE).collect();
+
+        let mut sample_paths = Vec::new();
+        for (_, item) in sampled {
+            if let ModuleResolveResultItem::Module(module) = item {
+                let ident = module.ident().await?;
+                sample_paths.push(ident.path.path.clone());
+            }
+        }
+        sample_paths.sort();
+
         TooManyMatchesWarning {
             source: issue_source,
             context_dir,
             num_matches,
             pattern,
+            sample_paths,
         }
         .resolved_cell()
         .emit();
@@ -96,6 +119,7 @@ struct TooManyMatchesWarning {
     context_dir: FileSystemPath,
     num_matches: usize,
     pattern: ResolvedVc<Pattern>,
+    sample_paths: Vec<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -116,12 +140,16 @@ impl Issue for TooManyMatchesWarning {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "Overly broad patterns can lead to build performance issues and over bundling."
-            ))
-            .resolved_cell(),
-        ))
+        let mut description = String::from(
+            "Overly broad patterns can lead to build performance issues and over bundling.",
+        );
+        if !self.sample_paths.is_empty() {
+            write!(description, "\nExample files matched:").unwrap();
+            for path in &self.sample_paths {
+                write!(description, "\n  {path}").unwrap();
+            }
+        }
+        Vc::cell(Some(StyledString::Text(description.into()).resolved_cell()))
     }
 
     #[turbo_tasks::function]
