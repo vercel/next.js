@@ -216,7 +216,6 @@ export type EventBuildFeatureUsage = {
     | UseCacheTrackerKey
     | 'turbopackFileSystemCache'
     | 'runAfterProductionCompile'
-    | 'adapterPath'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

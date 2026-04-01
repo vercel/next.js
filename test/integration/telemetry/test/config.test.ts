@@ -358,14 +358,16 @@ describe('config telemetry', () => {
           path.join(appDir, 'next.config.adapter-path')
         )
 
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'adapterPath',
-          invocationCount: 1,
-        })
+        try {
+          const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event1).toMatch(/"adapterPath": true/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
       })
 
       it('emits telemetry for usage of middleware', async () => {
