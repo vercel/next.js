@@ -138,7 +138,7 @@ jobs:
             return await rerunIfRequiredNotSuccessful()
       - name: send webhook
         if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
-        uses: slackapi/slack-github-action@v1.25.0
+        uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
         with:
           # These urls are intentionally missing the protocol,
           # allowing them to be transformed into actual links in the Slack workflow

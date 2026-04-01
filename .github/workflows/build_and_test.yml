@@ -239,7 +239,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: ast-grep lint step
-        uses: ast-grep/action@v1.5.0
+        uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
           # Keep in sync with the next.js repo's root package.json
           version: 0.31.0
