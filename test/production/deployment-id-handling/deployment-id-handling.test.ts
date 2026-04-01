@@ -34,18 +34,17 @@ describe.each([
       disableAutoSkewProtection: true,
     })
 
-    const suffixForRequest = (url: string) => {
-      return (
-        'dpl=' +
-        (url.startsWith('_next/immutable/')
-          ? // Turbopack-emitted chunks
-            immutableAssetToken
-          : // e.g. _next/static/build-id/_ssgManifest.js
-            deploymentId)
-      )
-    }
     const validateTokenForRequest = (url: string) => {
-      expect(url).toContain(suffixForRequest(url))
+      const token = url.includes('/_next/immutable/')
+        ? // Turbopack-emitted chunks
+          immutableAssetToken
+        : // e.g. /_next/static/build-id/_ssgManifest.js
+          deploymentId
+      if (token) {
+        expect(url).toContain('dpl=' + token)
+      } else {
+        expect(url).not.toContain('dpl=')
+      }
     }
 
     it.each([
@@ -110,9 +109,7 @@ describe.each([
         await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
-          expect(dynamicImportRequests).toSatisfyAll((item) =>
-            item.includes(suffixForRequest(item))
-          )
+          dynamicImportRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error(
             'dynamicImportRequests',
@@ -121,9 +118,7 @@ describe.each([
         }
 
         try {
-          expect(clientRequests).toSatisfyAll((item) =>
-            item.includes(suffixForRequest(item))
-          )
+          clientRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error('clientRequests', clientRequests)
         }
