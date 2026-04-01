@@ -86,7 +86,11 @@ function preprocessStackTrace(stackTrace: string, distDir?: string): string {
       if (match) {
         const [, prefix, location] = match
 
-        if (location.startsWith('_next/static/') && distDir) {
+        if (
+          (location.startsWith('_next/static/') ||
+            location.startsWith('_next/immutable/')) &&
+          distDir
+        ) {
           const normalizedDistDir = distDir
             .replace(/\\/g, '/')
             .replace(/\/$/, '')

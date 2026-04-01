@@ -11,7 +11,8 @@ export const findSourceMapURL =
 
         if (
           filename.startsWith(document.location.origin) &&
-          filename.includes('/_next/static')
+          (filename.includes('/_next/static') ||
+            filename.includes('/_next/immutable'))
         ) {
           // This is a request for a client chunk. This can only happen when
           // using Turbopack. In this case, since we control how those source

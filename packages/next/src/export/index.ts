@@ -43,6 +43,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  CLIENT_IMMUTABLE_FILES_PATH,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -384,6 +385,24 @@ async function exportAppImpl(
         recursiveCopy(
           join(distDir, CLIENT_STATIC_FILES_PATH),
           join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+        )
+      )
+  }
+
+  // Copy .next/immutable directory
+  if (
+    !options.buildExport &&
+    existsSync(join(distDir, CLIENT_IMMUTABLE_FILES_PATH))
+  ) {
+    if (!options.silent) {
+      Log.info('Copying "immutable build" directory')
+    }
+    await span
+      .traceChild('copy-next-immutable-directory')
+      .traceAsyncFn(() =>
+        recursiveCopy(
+          join(distDir, CLIENT_IMMUTABLE_FILES_PATH),
+          join(outDir, '_next', CLIENT_IMMUTABLE_FILES_PATH)
         )
       )
   }
