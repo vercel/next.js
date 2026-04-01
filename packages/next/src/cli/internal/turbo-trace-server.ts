@@ -129,7 +129,8 @@ export async function startTurboTraceServerCli(
           }
           md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
           md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
-          md += `\n#### First span as example (ID: \`${span.id}\`)\n`
+          const exampleId = span.firstSpanId ?? span.id
+          md += `\n#### First span as example (ID: \`${exampleId}\`)\n`
           md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
           md += `- **Corrected Duration:** ${formatDuration(span.correctedDuration)}\n`
         } else {

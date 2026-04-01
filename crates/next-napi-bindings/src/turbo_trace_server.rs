@@ -2,15 +2,8 @@ use std::{path::PathBuf, sync::Arc};
 
 use napi_derive::napi;
 use turbopack_trace_server::{
-    QueryOptions, query_spans, start_turbopack_trace_server_non_blocking,
-    store_container::StoreContainer,
+    QueryOptions, query_spans, start_turbopack_trace_server, store_container::StoreContainer,
 };
-
-#[napi]
-pub fn start_turbopack_trace_server(path: String, port: Option<u16>) {
-    let path_buf = PathBuf::from(path);
-    turbopack_trace_server::start_turbopack_trace_server(path_buf, port);
-}
 
 /// An opaque handle to a running trace server instance.
 /// Holds a reference to the shared store so that `query_trace_spans` can
@@ -65,6 +58,8 @@ pub struct TraceSpanInfo {
     pub total_corrected_duration: Option<i64>,
     /// Average corrected duration across spans in the group.
     pub avg_corrected_duration: Option<i64>,
+    /// Raw span ID for aggregated groups (the index of the first span).
+    pub first_span_id: Option<String>,
 }
 
 /// The result of a `query_trace_spans` call.
@@ -84,7 +79,7 @@ pub struct TraceQueryResult {
 /// at `ws://127.0.0.1:<port>` (default port 5747).
 #[napi]
 pub fn start_turbopack_trace_server_handle(path: String, port: Option<u16>) -> TraceServerHandle {
-    let store = start_turbopack_trace_server_non_blocking(PathBuf::from(path), port);
+    let store = start_turbopack_trace_server(PathBuf::from(path), port);
     TraceServerHandle { store }
 }
 
@@ -123,6 +118,7 @@ pub fn query_trace_spans(
                 avg_cpu_duration: s.avg_cpu_duration.map(|v| v as i64),
                 total_corrected_duration: s.total_corrected_duration.map(|v| v as i64),
                 avg_corrected_duration: s.avg_corrected_duration.map(|v| v as i64),
+                first_span_id: s.first_span_id.clone(),
             })
             .collect(),
         page: result.page as u32,

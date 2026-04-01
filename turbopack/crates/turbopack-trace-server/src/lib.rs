@@ -38,21 +38,9 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
-pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) {
-    let store = Arc::new(StoreContainer::new());
-    let reader = TraceReader::spawn(store.clone(), path);
-
-    serve(store, port.unwrap_or(5747));
-
-    reader.join().unwrap();
-}
-
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
-pub fn start_turbopack_trace_server_non_blocking(
-    path: PathBuf,
-    port: Option<u16>,
-) -> Arc<StoreContainer> {
+pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
     let store = Arc::new(StoreContainer::new());
 
     let store_for_reader = store.clone();
@@ -121,6 +109,8 @@ pub struct SpanInfo {
     pub total_corrected_duration: Option<u64>,
     /// Average corrected_duration across all spans in the group.
     pub avg_corrected_duration: Option<u64>,
+    /// Raw span ID for aggregated groups (the index of the first span).
+    pub first_span_id: Option<String>,
 }
 
 /// Result of a `query_spans` call.
@@ -268,6 +258,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     avg_cpu_duration: Some(avg_cpu),
                     total_corrected_duration: Some(total_corrected),
                     avg_corrected_duration: Some(avg_corrected),
+                    first_span_id: Some(first_index.to_string()),
                 }
             })
             .collect();
@@ -348,6 +339,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     avg_cpu_duration: None,
                     total_corrected_duration: None,
                     avg_corrected_duration: None,
+                    first_span_id: None,
                 }
             })
             .collect();

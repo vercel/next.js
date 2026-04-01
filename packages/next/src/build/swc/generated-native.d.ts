@@ -615,10 +615,6 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(
-  path: string,
-  port?: number | undefined | null
-): void
 /** Options for `query_trace_spans`. */
 export interface TraceQueryOptions {
   /**
@@ -663,6 +659,8 @@ export interface TraceSpanInfo {
   totalCorrectedDuration?: number
   /** Average corrected duration across spans in the group. */
   avgCorrectedDuration?: number
+  /** Raw span ID for aggregated groups (the index of the first span). */
+  firstSpanId?: string
 }
 /** The result of a `query_trace_spans` call. */
 export interface TraceQueryResult {

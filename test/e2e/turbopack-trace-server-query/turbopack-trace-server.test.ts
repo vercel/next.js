@@ -1,11 +1,14 @@
 /**
- * End-to-end test for the turbopack trace server MCP API.
+ * E2E test for the turbopack trace server MCP API and CLI.
  *
- * This test:
- *  1. Builds a Next.js app with `NEXT_TURBOPACK_TRACING=1` to produce a trace file.
- *  2. Spawns `next internal trace <file> --mcp-port <port>` as a background process.
- *  3. Sends MCP `tools/call` requests over HTTP to the `query_spans` tool.
- *  4. Verifies the structured markdown response contains expected trace data.
+ * Flow:
+ *  1. Start the Next.js app with `NEXT_TURBOPACK_TRACING=1`.
+ *     - In dev mode: fetches `/` to trigger compilation so trace data is written.
+ *     - In start mode: the build already produced the trace file.
+ *  2. Wait for the trace file to appear.
+ *  3. Spawn `next internal trace <file> --mcp-port <port>` in the background.
+ *  4. Wait for the MCP HTTP server to be ready.
+ *  5. Run MCP HTTP and CLI queries and verify the response structure.
  */
 import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { existsSync } from 'fs'
@@ -23,44 +26,9 @@ const nextBin = path.join(
 )
 
 /**
- * Run `next internal query-trace` with the given extra arguments and return
- * the captured stdout, stderr, and exit code.
- */
-function runQueryTraceCli(
-  extraArgs: string[]
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  return new Promise((resolve) => {
-    const proc = spawn(
-      'node',
-      ['--no-deprecation', nextBin, 'internal', 'query-trace', ...extraArgs],
-      {
-        env: { ...process.env, __NEXT_TEST_MODE: 'e2e' },
-        stdio: 'pipe',
-      }
-    )
-    let stdout = ''
-    let stderr = ''
-    proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString()
-    })
-    proc.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString()
-    })
-    proc.on('close', (code) => {
-      resolve({ stdout, stderr, exitCode: code ?? 1 })
-    })
-  })
-}
-
-/**
- * Call a tool on the MCP server and return the text content of the response.
- *
- * The MCP Streamable-HTTP transport responds with Server-Sent Events (SSE).
- * Each event is:
- *   event: message
- *   data: <JSON-RPC response JSON>
- *
- * The connection is closed by the server after sending the response.
+ * POST a JSON-RPC `tools/call` to the MCP server and return the text content.
+ * The Streamable-HTTP transport responds with Server-Sent Events; we find the
+ * first `data:` line that contains a `result.content[].text` field.
  */
 async function callMcpTool(
   port: number,
@@ -80,43 +48,60 @@ async function callMcpTool(
       id: 1,
     }),
   })
-
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${await res.text()}`)
-  }
-
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`)
   const body = await res.text()
-
-  // Parse SSE: find "data: <json>" lines and extract the result text.
   for (const line of body.split('\n')) {
     if (!line.startsWith('data: ')) continue
     const msg = JSON.parse(line.slice('data: '.length)) as {
       result?: { content?: Array<{ type: string; text?: string }> }
       error?: unknown
     }
-    if (msg.error) {
-      throw new Error(`MCP error: ${JSON.stringify(msg.error)}`)
-    }
+    if (msg.error) throw new Error(`MCP error: ${JSON.stringify(msg.error)}`)
     const text = msg.result?.content?.find((c) => c.type === 'text')?.text
     if (text !== undefined) return text
   }
-
   throw new Error(`No text content in MCP response:\n${body}`)
+}
+
+/**
+ * Run `next internal query-trace` with the given extra arguments.
+ * Returns captured stdout, stderr, and exit code.
+ */
+function runQueryTraceCli(
+  extraArgs: string[]
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return new Promise((resolve) => {
+    const proc = spawn(
+      'node',
+      ['--no-deprecation', nextBin, 'internal', 'query-trace', ...extraArgs],
+      { env: { ...process.env, __NEXT_TEST_MODE: 'e2e' }, stdio: 'pipe' }
+    )
+    let stdout = ''
+    let stderr = ''
+    proc.stdout?.on('data', (chunk: Buffer) => (stdout += chunk.toString()))
+    proc.stderr?.on('data', (chunk: Buffer) => (stderr += chunk.toString()))
+    proc.on('close', (code) => resolve({ stdout, stderr, exitCode: code ?? 1 }))
+  })
+}
+
+/** Extract the first span ID from a markdown response. */
+function extractFirstSpanId(md: string): string {
+  const m = md.match(/ID: `([a-z0-9-]+)`/)
+  if (!m) throw new Error(`No span ID found in markdown:\n${md.slice(0, 500)}`)
+  return m[1]
 }
 
 // ─── test suite ──────────────────────────────────────────────────────────────
 
-describe('turbopack-trace-server-mcp', () => {
-  // This test requires a Turbopack production build.
-  // It is skipped in deploy mode and when running with webpack.
+describe('turbopack-trace-server', () => {
   if (isNextDeploy) {
     it('skipped for deploy mode', () => {})
     return
   }
 
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
-    skipStart: true,
+    env: { NEXT_TURBOPACK_TRACING: '1' },
     skipDeployment: true,
   })
 
@@ -128,25 +113,28 @@ describe('turbopack-trace-server-mcp', () => {
   beforeAll(async () => {
     if (!isTurbopack) return
 
-    // 1. Build with Turbopack tracing enabled.
-    const buildResult = await next.build({
-      env: { NEXT_TURBOPACK_TRACING: '1' },
-    })
-    if (buildResult.exitCode !== 0) {
-      throw new Error(
-        `Build failed with exit code ${buildResult.exitCode}:\n${buildResult.cliOutput}`
-      )
+    // In dev mode, trigger compilation so the trace file has real span data.
+    if (isNextDev) {
+      const res = await next.fetch('/')
+      if (res.status !== 200) {
+        throw new Error(`Dev server returned ${res.status} for /`)
+      }
     }
 
-    // 2. Verify the trace file was produced.
-    const traceFile = path.join(next.testDir, '.next', 'trace-turbopack')
-    if (!existsSync(traceFile)) {
-      throw new Error(`Trace file not found: ${traceFile}`)
-    }
+    // Wait for the trace file to appear.
+    const traceFile = path.join(next.testDir, next.distDir, 'trace-turbopack')
+    await retry(
+      async () => {
+        if (!existsSync(traceFile)) {
+          throw new Error(`Trace file not found yet: ${traceFile}`)
+        }
+      },
+      15_000,
+      500
+    )
 
-    // 3. Allocate a port and start the trace server with an MCP endpoint.
+    // Allocate a port and start the trace server with an MCP endpoint.
     mcpPort = await findPort()
-
     traceServerProcess = spawn(
       'node',
       [
@@ -158,20 +146,16 @@ describe('turbopack-trace-server-mcp', () => {
         '--mcp-port',
         String(mcpPort),
       ],
-      {
-        env: { ...process.env, __NEXT_TEST_MODE: 'e2e' },
-        stdio: 'pipe',
-      }
+      { env: { ...process.env, __NEXT_TEST_MODE: 'e2e' }, stdio: 'pipe' }
+    )
+    traceServerProcess.stdout?.on('data', (chunk) =>
+      process.stdout.write(chunk)
+    )
+    traceServerProcess.stderr?.on('data', (chunk) =>
+      process.stderr.write(chunk)
     )
 
-    traceServerProcess.stderr?.on('data', (chunk) => {
-      process.stderr.write(chunk)
-    })
-    traceServerProcess.stdout?.on('data', (chunk) => {
-      process.stdout.write(chunk)
-    })
-
-    // 4. Wait for the MCP HTTP server to be ready.
+    // Wait for the MCP HTTP server to be ready.
     await retry(
       async () => {
         const res = await fetch(`http://127.0.0.1:${mcpPort}/mcp`, {
@@ -186,8 +170,9 @@ describe('turbopack-trace-server-mcp', () => {
             id: 0,
           }),
         })
-        // Any HTTP response (even an error body) means the server is up.
-        expect(res.status).toBeGreaterThanOrEqual(200)
+        if (res.status >= 500) {
+          throw new Error(`MCP server not ready (HTTP ${res.status})`)
+        }
       },
       30_000,
       500
@@ -203,21 +188,16 @@ describe('turbopack-trace-server-mcp', () => {
     }
   })
 
+  // ─── MCP HTTP API tests ──────────────────────────────────────────────────
+
   it('should return root-level spans in markdown format', async () => {
     if (!isTurbopack) {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const md = await callMcpTool(mcpPort, 'query_spans', {})
-
-    // The response should be a markdown document listing spans.
     expect(md).toContain('## Spans at root level')
-    // Spans should include timing and ID information.
-    // IDs may be plain numbers (raw spans) or "a"-prefixed (aggregated spans),
-    // and can include path segments separated by "-", e.g. "a1", "a5-a34-20".
     expect(md).toMatch(/ID: `[a-z0-9-]+`/)
-    // CPU and corrected duration should be present.
     expect(md).toMatch(/CPU Duration|Corrected Duration/)
   })
 
@@ -226,11 +206,8 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const md = await callMcpTool(mcpPort, 'query_spans', { aggregated: true })
-
     expect(md).toContain('## Spans at root level')
-    // At least one span should be present.
     expect(md).toMatch(/###/)
   })
 
@@ -239,9 +216,7 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const md = await callMcpTool(mcpPort, 'query_spans', { page: 1 })
-
     expect(md).toMatch(/Page \d+ of \d+/)
     expect(md).toMatch(/\d+ total/)
   })
@@ -251,39 +226,46 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
+    const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
+    const spanId = extractFirstSpanId(rootMd)
 
-    // First, get a span ID from the root level.
-    const rootMd = await callMcpTool(mcpPort, 'query_spans', {
-      sort: true,
-    })
-
-    // Extract the first span ID from the markdown (format: plain number or "a"-prefixed, possibly path like "a5-a12-34").
-    const idMatch = rootMd.match(/ID: `([a-z0-9-]+)` *\)/)
-    expect(idMatch).not.toBeNull()
-    const spanId = idMatch![1]
-
-    // Now query children of that span.
     const childMd = await callMcpTool(mcpPort, 'query_spans', {
       parent: spanId,
     })
-
     expect(childMd).toContain(`children of ID \`${spanId}\``)
-    // The response should be a valid page header even if there are no children.
     expect(childMd).toMatch(/Page \d+ of \d+/)
   })
 
-  it('should support search filtering', async () => {
+  it('should return no results for an impossible search term', async () => {
     if (!isTurbopack) {
       console.log('Skipping: turbopack-only test')
       return
     }
-
-    // Search for a term unlikely to match anything.
-    const noMatchMd = await callMcpTool(mcpPort, 'query_spans', {
+    const md = await callMcpTool(mcpPort, 'query_spans', {
       search: 'zzz_unlikely_span_name_zzz',
     })
+    expect(md).toMatch(/\b0 total/)
+  })
 
-    expect(noMatchMd).toContain('0 total')
+  it('should return results when searching for a real span name', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+    // First get a span name from the root level to use as a search term.
+    const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
+    // Extract the first span name from the markdown (format: ### `name` (ID: ...))
+    const nameMatch = rootMd.match(/### `([^`]+)`/)
+    if (!nameMatch) throw new Error('No span name found in root listing')
+    // Use a substring of the first span's name as the search query.
+    const searchTerm = nameMatch[1].slice(0, 20)
+
+    const md = await callMcpTool(mcpPort, 'query_spans', {
+      search: searchTerm,
+    })
+    // Should find at least the span we took the name from.
+    expect(md).not.toMatch(/\b0 total/)
+    expect(md).toMatch(/###/)
   })
 
   it('should support sort by duration', async () => {
@@ -291,27 +273,22 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const md = await callMcpTool(mcpPort, 'query_spans', { sort: true })
-
-    // Should still return valid markdown.
     expect(md).toContain('## Spans at root level')
     expect(md).toMatch(/###/)
   })
 
-  // ─── CLI tests ─────────────────────────────────────────────────────────────
+  // ─── CLI tests ───────────────────────────────────────────────────────────
 
-  it('CLI: should return root-level spans via `next internal query-trace`', async () => {
+  it('CLI: should return root-level spans', async () => {
     if (!isTurbopack) {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
     ])
-
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
     expect(stdout).toMatch(/ID: `[a-z0-9-]+`/)
@@ -323,33 +300,51 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
       '--sort',
     ])
-
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
     expect(stdout).toMatch(/###/)
   })
 
-  it('CLI: should support --search flag', async () => {
+  it('CLI: should support --search flag with a real match', async () => {
     if (!isTurbopack) {
       console.log('Skipping: turbopack-only test')
       return
     }
+    // Get a real span name to search for.
+    const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
+    const nameMatch = rootMd.match(/### `([^`]+)`/)
+    if (!nameMatch) throw new Error('No span name found in root listing')
+    const searchTerm = nameMatch[1].slice(0, 20)
 
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--search',
+      searchTerm,
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).not.toMatch(/\b0 total/)
+    expect(stdout).toMatch(/###/)
+  })
+
+  it('CLI: should support --search flag with no match', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
       '--search',
       'zzz_unlikely_span_name_zzz',
     ])
-
     expect(exitCode).toBe(0)
-    expect(stdout).toContain('0 total')
+    expect(stdout).toMatch(/\b0 total/)
   })
 
   it('CLI: should support --no-aggregated flag', async () => {
@@ -357,16 +352,15 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
       '--no-aggregated',
     ])
-
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
-    expect(stdout).toMatch(/ID: `[a-z0-9-]+`/)
+    // Raw span IDs are plain numbers (no "a" prefix).
+    expect(stdout).toMatch(/ID: `\d+`/)
   })
 
   it('CLI: should support --parent to drill into children', async () => {
@@ -374,35 +368,27 @@ describe('turbopack-trace-server-mcp', () => {
       console.log('Skipping: turbopack-only test')
       return
     }
-
-    // Get a span ID from the root level using the HTTP API.
     const rootMd = await callMcpTool(mcpPort, 'query_spans', { sort: true })
-    const idMatch = rootMd.match(/ID: `([a-z0-9-]+)` *\)/)
-    expect(idMatch).not.toBeNull()
-    const spanId = idMatch![1]
+    const spanId = extractFirstSpanId(rootMd)
 
-    // Query children via the CLI.
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
       '--parent',
       spanId,
     ])
-
     expect(exitCode).toBe(0)
     expect(stdout).toContain(`children of ID \`${spanId}\``)
     expect(stdout).toMatch(/Page \d+ of \d+/)
   })
 
-  it('CLI: should show an error and instructions when the trace server is not running', async () => {
-    // Use a port with no server listening on it.
+  it('CLI: should show an error when the trace server is not running', async () => {
+    // This test does not need the turbopack guard — it tests the error path.
     const unusedPort = await findPort()
-
     const { stderr, exitCode } = await runQueryTraceCli([
       '--port',
       String(unusedPort),
     ])
-
     expect(exitCode).toBe(1)
     expect(stderr).toContain(
       `Could not connect to trace server on port ${unusedPort}`
