@@ -118,7 +118,7 @@ pub fn query_trace_spans(
                 avg_cpu_duration: s.avg_cpu_duration.map(|v| v as i64),
                 total_corrected_duration: s.total_corrected_duration.map(|v| v as i64),
                 avg_corrected_duration: s.avg_corrected_duration.map(|v| v as i64),
-                first_span_id: s.first_span_id.clone(),
+                first_span_id: s.first_span_id,
             })
             .collect(),
         page: result.page as u32,

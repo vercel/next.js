@@ -88,8 +88,12 @@ pub struct SpanInfo {
     /// Display name: `"category title"` or just `"title"`.
     pub name: String,
     /// Raw CPU total time in internal ticks (100 ticks = 1 µs).
+    /// For aggregated spans, this is the **first (example) span's** value, not the group total.
+    /// See `total_cpu_duration` for the group total.
     pub cpu_duration: u64,
     /// Concurrency-corrected total time in internal ticks.
+    /// For aggregated spans, this is the **first (example) span's** value, not the group total.
+    /// See `total_corrected_duration` for the group total.
     pub corrected_duration: u64,
     /// Start of span relative to parent start, in internal ticks.
     pub start_relative_to_parent: i64,
@@ -291,15 +295,13 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             store_ref.root_spans().collect()
         };
 
-        // Apply search filter.
+        // Apply search filter using the span's search index.
         let mut filtered: Vec<_> = if let Some(ref query) = options.search {
-            raw_children
-                .into_iter()
-                .filter(|s| {
-                    let (cat, title) = s.nice_name();
-                    cat.contains(query.as_str()) || title.contains(query.as_str())
-                })
-                .collect()
+            if let Some(ref parent) = parent_span {
+                parent.search(query).collect()
+            } else {
+                store_ref.root_span().search(query).collect()
+            }
         } else {
             raw_children
         };

@@ -1,6 +1,7 @@
 import http from 'node:http'
 import z from 'next/dist/compiled/zod'
 import { loadBindings } from '../../build/swc'
+import type { TraceSpanInfo } from '../../build/swc/generated-native'
 
 const { McpServer } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/mcp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/mcp')
@@ -37,22 +38,7 @@ function formatRelative(ticks: number): string {
 /**
  * Render a single span (or aggregated span group) as a markdown section.
  */
-function renderSpanMarkdown(span: {
-  name: string
-  id: string
-  isAggregated: boolean
-  count?: number
-  totalCpuDuration?: number
-  avgCpuDuration?: number
-  totalCorrectedDuration?: number
-  avgCorrectedDuration?: number
-  cpuDuration: number
-  correctedDuration: number
-  startRelativeToParent: number
-  endRelativeToParent: number
-  firstSpanId?: string
-  args: Array<Array<string>>
-}): string {
+function renderSpanMarkdown(span: TraceSpanInfo): string {
   let md = `### \`${span.name}\` (ID: \`${span.id}\`)\n`
 
   if (span.isAggregated && span.count !== undefined && span.count > 1) {
@@ -101,10 +87,26 @@ export async function startTurboTraceServerCli(
   const wsPort = port ?? DEFAULT_WS_PORT
   const httpPort = mcpPort ?? DEFAULT_MCP_PORT
 
-  const bindings = await loadBindings()
+  let bindings
+  try {
+    bindings = await loadBindings()
+  } catch {
+    console.error(
+      'Error: Could not load native bindings. The trace server requires native (non-WASM) bindings.'
+    )
+    process.exit(1)
+  }
 
-  // Start the WebSocket trace server on a background thread (non-blocking).
-  const handle = bindings.turbo.startTurbopackTraceServerHandle(file, wsPort)
+  let handle
+  try {
+    // Start the WebSocket trace server on a background thread (non-blocking).
+    handle = bindings.turbo.startTurbopackTraceServerHandle(file, wsPort)
+  } catch (err) {
+    console.error(
+      `Error: Could not start trace server for "${file}": ${err instanceof Error ? err.message : err}`
+    )
+    process.exit(1)
+  }
 
   console.log(
     `Turbopack trace server started. View trace at https://trace.nextjs.org?port=${wsPort}`
@@ -222,6 +224,17 @@ export async function startTurboTraceServerCli(
         )
       }
     }
+  })
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `Error: MCP port ${httpPort} is already in use. Use --mcp-port to specify a different port.`
+      )
+    } else {
+      console.error(`Error starting MCP server: ${err.message}`)
+    }
+    process.exit(1)
   })
 
   server.listen(httpPort, '127.0.0.1', () => {
