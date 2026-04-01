@@ -955,7 +955,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
-        // task the get the cell content.
+        // task to get the cell content.
+
+        // Bail early if the task was cancelled — no point in registering a listener
+        // on a task that won't execute again.
+        if is_cancelled {
+            bail!("{} was canceled", task.get_task_description());
+        }
 
         // Listen to the cell and potentially schedule the task
         let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, &reader_task, cell);
@@ -970,11 +976,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             cell_index = cell.index
         )
         .entered();
-
-        // Schedule the task, if not already scheduled
-        if is_cancelled {
-            bail!("{} was canceled", task.get_task_description());
-        }
 
         let _ = task.add_scheduled(
             TaskExecutionReason::CellNotAvailable,
@@ -1857,7 +1858,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
                 InProgressState::Scheduled {
@@ -1870,8 +1871,87 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 InProgressState::Canceled => {}
             }
         }
-        let old = task.set_in_progress(InProgressState::Canceled);
-        debug_assert!(old.is_none(), "InProgress already exists");
+        // Notify any readers waiting on in-progress cells so their listeners
+        // resolve and foreground jobs can finish (prevents stop_and_wait hang).
+        let in_progress_cells = task.take_in_progress_cells();
+        if let Some(ref cells) = in_progress_cells {
+            for state in cells.values() {
+                state.event.notify(usize::MAX);
+            }
+        }
+
+        // Mark the cancelled task as session-dependent dirty so it will be re-executed
+        // in the next session. Without this, any reader that encounters the cancelled task
+        // records an error in its output. That error is persisted and would poison
+        // subsequent builds. By marking the task session-dependent dirty, the next build
+        // re-executes it, which invalidates dependents and corrects the stale errors.
+        if self.should_track_dependencies() && !task_id.is_transient() {
+            let old_dirtyness = task.get_dirty().cloned();
+            let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
+                None => (false, false),
+                Some(Dirtyness::Dirty(_)) => (true, false),
+                Some(Dirtyness::SessionDependent) => {
+                    let clean_in_current_session = task.current_session_clean();
+                    (true, clean_in_current_session)
+                }
+            };
+            let (new_dirtyness, new_self_dirty, new_current_session_self_clean) =
+                (Some(Dirtyness::SessionDependent), true, true);
+
+            let dirty_changed = old_dirtyness != new_dirtyness;
+            if dirty_changed {
+                task.set_dirty(new_dirtyness.unwrap());
+            }
+            if old_current_session_self_clean != new_current_session_self_clean {
+                task.set_current_session_clean(true);
+            }
+
+            let data_update = if old_self_dirty != new_self_dirty
+                || old_current_session_self_clean != new_current_session_self_clean
+            {
+                let dirty_container_count = task
+                    .get_aggregated_dirty_container_count()
+                    .cloned()
+                    .unwrap_or_default();
+                let current_session_clean_container_count = task
+                    .get_aggregated_current_session_clean_container_count()
+                    .copied()
+                    .unwrap_or_default();
+                ComputeDirtyAndCleanUpdate {
+                    old_dirty_container_count: dirty_container_count,
+                    new_dirty_container_count: dirty_container_count,
+                    old_current_session_clean_container_count:
+                        current_session_clean_container_count,
+                    new_current_session_clean_container_count:
+                        current_session_clean_container_count,
+                    old_self_dirty,
+                    new_self_dirty,
+                    old_current_session_self_clean,
+                    new_current_session_self_clean,
+                }
+                .compute()
+                .aggregated_update(task_id)
+                .and_then(|aggregated_update| {
+                    AggregationUpdateJob::data_update(&mut task, aggregated_update)
+                })
+            } else {
+                None
+            };
+
+            let old = task.set_in_progress(InProgressState::Canceled);
+            debug_assert!(old.is_none(), "InProgress already exists");
+            drop(task);
+
+            if let Some(data_update) = data_update {
+                AggregationUpdateQueue::run(data_update, &mut ctx);
+            }
+        } else {
+            let old = task.set_in_progress(InProgressState::Canceled);
+            debug_assert!(old.is_none(), "InProgress already exists");
+            drop(task);
+        }
+
+        drop(in_progress_cells);
     }
 
     fn try_start_task_execution(
