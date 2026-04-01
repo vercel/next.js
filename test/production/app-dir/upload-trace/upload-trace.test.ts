@@ -36,7 +36,10 @@ describe('upload-trace', () => {
       expect(allFiles).toContain('trace-turbopack')
     }
 
-    const expectedUploadCount = cpuProfiles.length + (isTurbopack ? 1 : 0)
+    const uploadableFiles = allFiles.filter(
+      (f: string) => f.endsWith('.cpuprofile') || f === 'trace-turbopack'
+    )
+    const expectedUploadCount = uploadableFiles.length
 
     const handshakeRequests: any[] = []
 
@@ -47,25 +50,30 @@ describe('upload-trace', () => {
       }
       const body = Buffer.concat(chunks).toString('utf-8')
 
+      let parsed: any = null
       try {
-        const parsed = JSON.parse(body)
-
-        if (parsed.type === 'blob.generate-client-token') {
-          handshakeRequests.push(parsed)
-
-          res.writeHead(200, { 'content-type': 'application/json' })
-          res.end(
-            JSON.stringify({
-              type: 'blob.generate-client-token',
-              clientToken: 'vercel_blob_client_TESTSTOREID_dGVzdC5wYXlsb2Fk',
-            })
-          )
-          return
-        }
+        parsed = JSON.parse(body)
       } catch {
-        // Not JSON — the blob upload itself
+        // Not JSON — binary blob upload
       }
 
+      // Handle the upload-trace token handshake (sends { filename })
+      if (parsed && parsed.filename) {
+        handshakeRequests.push(parsed)
+
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            clientToken: 'vercel_blob_client_TESTSTOREID_dGVzdC5wYXlsb2Fk',
+            pathname: `profiles/${parsed.filename}`,
+            sessionId: 'test-session-id',
+            sessionToken: 'test-session-token',
+          })
+        )
+        return
+      }
+
+      // Handle @vercel/blob put() — the actual blob upload
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(
         JSON.stringify({
@@ -93,6 +101,7 @@ describe('upload-trace', () => {
         stdout: true,
         env: {
           __NEXT_UPLOAD_TRACE_URL_OVERRIDE: mockUrl,
+          VERCEL_BLOB_API_URL: mockUrl,
         },
       })
 
@@ -104,8 +113,7 @@ describe('upload-trace', () => {
       expect(result.code).toBe(0)
       expect(handshakeRequests.length).toBe(expectedUploadCount)
       for (const req of handshakeRequests) {
-        expect(req.type).toBe('blob.generate-client-token')
-        expect(req.payload.pathname).toMatch(/^profiles\//)
+        expect(req.filename).toBeTruthy()
       }
       expect(result.stdout + result.stderr).toContain(
         'All files uploaded successfully'
