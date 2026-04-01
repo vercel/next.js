@@ -24,6 +24,7 @@ byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
+libc = { workspace = true }
 next-core = { workspace = true }
 regex = { workspace = true }
 roaring = { workspace = true }

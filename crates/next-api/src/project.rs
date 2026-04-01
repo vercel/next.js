@@ -1,5 +1,73 @@
 use std::time::Duration;
 
+/// Returns total physical memory in bytes, or 0 if it cannot be determined.
+fn total_memory_bytes() -> u64 {
+    #[cfg(target_os = "macos")]
+    {
+        let mut mib = [libc::CTL_HW, libc::HW_MEMSIZE];
+        let mut total: u64 = 0;
+        let mut len = std::mem::size_of::<u64>();
+        // SAFETY: sysctl with CTL_HW/HW_MEMSIZE writes a u64 into `total`.
+        unsafe {
+            libc::sysctl(
+                mib.as_mut_ptr(),
+                2,
+                &mut total as *mut u64 as *mut libc::c_void,
+                &mut len,
+                std::ptr::null_mut(),
+                0,
+            );
+        }
+        total
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Parse MemTotal from /proc/meminfo (value is in kB).
+        std::fs::read_to_string("/proc/meminfo")
+            .ok()
+            .and_then(|content| {
+                content.lines().find_map(|line| {
+                    let rest = line.strip_prefix("MemTotal:")?;
+                    let kb: u64 = rest.trim().strip_suffix("kB")?.trim().parse().ok()?;
+                    Some(kb * 1024)
+                })
+            })
+            .unwrap_or(0)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        #[repr(C)]
+        struct MemoryStatusEx {
+            dw_length: u32,
+            dw_memory_load: u32,
+            ull_total_phys: u64,
+            ull_avail_phys: u64,
+            ull_total_page_file: u64,
+            ull_avail_page_file: u64,
+            ull_total_virtual: u64,
+            ull_avail_virtual: u64,
+            ull_avail_extended_virtual: u64,
+        }
+        unsafe extern "system" {
+            fn GlobalMemoryStatusEx(lp_buffer: *mut MemoryStatusEx) -> i32;
+        }
+        // SAFETY: GlobalMemoryStatusEx fills the struct when dw_length is set correctly.
+        unsafe {
+            let mut info: MemoryStatusEx = std::mem::zeroed();
+            info.dw_length = std::mem::size_of::<MemoryStatusEx>() as u32;
+            GlobalMemoryStatusEx(&mut info);
+            info.ull_total_phys
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+    {
+        0
+    }
+}
+
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
@@ -592,6 +660,7 @@ impl ProjectContainer {
             cpu_cores = std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(0),
+            system_memory_mb = (total_memory_bytes() / (1024 * 1024)) as u32,
             dev = options.dev,
             env_diff = Empty
         );

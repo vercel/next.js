@@ -274,6 +274,7 @@ indexmap = "2.13.0"
 indoc = "2.0.0"
 inventory = "0.3.21"
 itertools = "0.10.5"
+libc = "0.2.174"
 lightningcss = { version = "1.0.0-alpha.70", features = [
   "serde",
   "visitor",
