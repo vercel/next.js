@@ -136,7 +136,7 @@ export async function uploadTraceToBlob(
     }
 
     const blob = await put(blobPathname, content, {
-      access: 'public',
+      access: 'private',
       token: clientToken,
     })
 
