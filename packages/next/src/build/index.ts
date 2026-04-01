@@ -2733,6 +2733,10 @@ export default async function build(
             ? 1
             : 0,
         },
+        {
+          featureName: 'adapterPath',
+          invocationCount: config.adapterPath ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {

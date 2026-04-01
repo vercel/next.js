@@ -342,6 +342,32 @@ describe('config telemetry', () => {
         })
       })
 
+      it('emits telemetry for usage of `adapterPath`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.adapter-path'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.adapter-path')
+        )
+
+        const featureUsageEvents = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(featureUsageEvents).toContainEqual({
+          featureName: 'adapterPath',
+          invocationCount: 1,
+        })
+      })
+
       it('emits telemetry for usage of middleware', async () => {
         await fs.writeFile(
           path.join(appDir, 'middleware.js'),
