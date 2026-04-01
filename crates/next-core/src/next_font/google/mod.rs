@@ -12,7 +12,7 @@ use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{FetchClientConfig, HttpResponseBody};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath,
-    json::parse_json_with_source_context,
+    json::parse_json_with_source_context, to_sys_path,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack::evaluate_context::node_evaluate_asset_context;
@@ -44,6 +44,7 @@ use crate::{
     next_font::{
         font_fallback::FontFallback,
         google::{
+            font_cache::FontDiskCache,
             font_fallback::get_font_fallback,
             options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
             stylesheet::build_stylesheet,
@@ -58,6 +59,7 @@ use crate::{
     util::load_next_js_json_file,
 };
 
+pub mod font_cache;
 pub mod font_fallback;
 pub mod options;
 pub mod request;
@@ -238,6 +240,10 @@ impl NextFontGoogleCssModuleReplacer {
             .read(rcstr!("NEXT_FONT_GOOGLE_MOCKED_RESPONSES"))
             .await?;
 
+        let disk_cache = to_sys_path(self.project_path.clone())
+            .await?
+            .and_then(|p| FontDiskCache::new(&p));
+
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
@@ -246,6 +252,7 @@ impl NextFontGoogleCssModuleReplacer {
                         *self.fetch_client,
                         stylesheet_url.clone(),
                         css_virtual_path.clone(),
+                        &disk_cache,
                     )
                     .boxed()
                 },
@@ -454,20 +461,35 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             .await?
             .join(&format!("/{name}.{ext}"))?;
 
-        // doesn't seem ideal to download the font into a string, but probably doesn't
-        // really matter either.
-        let Some(font) =
-            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
-                .await?
-        else {
-            return Ok(
-                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
-            );
+        let disk_cache = to_sys_path(self.project_path.clone())
+            .await?
+            .and_then(|p| FontDiskCache::new(&p));
+
+        // Check disk cache before fetching from Google
+        let font_data = if let Some(cached) = disk_cache.as_ref().and_then(|c| c.get_font(&url)) {
+            cached
+        } else {
+            let Some(font) = fetch_from_google_fonts(
+                *self.fetch_client,
+                url.clone().into(),
+                font_virtual_path.clone(),
+            )
+            .await?
+            else {
+                return Ok(
+                    ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+                );
+            };
+            let bytes = font.await?.0.clone();
+            if let Some(cache) = &disk_cache {
+                cache.set_font(&url, &bytes);
+            }
+            bytes
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
+            AssetContent::file(FileContent::Content(font_data.as_slice().into()).cell()),
         )
         .to_resolved()
         .await?;
@@ -693,8 +715,24 @@ async fn fetch_real_stylesheet(
     fetch_client: Vc<FetchClientConfig>,
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
+    disk_cache: &Option<FontDiskCache>,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
+    // Check disk cache first
+    if let Some(cache) = disk_cache {
+        if let Some(css) = cache.get_css(&stylesheet_url) {
+            return Ok(Some(Vc::cell(css.into())));
+        }
+    }
+
+    let body =
+        fetch_from_google_fonts(fetch_client, stylesheet_url.clone(), css_virtual_path).await?;
+
+    if let Some(body) = &body {
+        if let Some(cache) = disk_cache {
+            let css_str = body.to_string().await?;
+            cache.set_css(&stylesheet_url, &css_str);
+        }
+    }
 
     Ok(body.map(|body| body.to_string()))
 }
