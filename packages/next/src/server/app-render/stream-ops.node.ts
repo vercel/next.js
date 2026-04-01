@@ -36,6 +36,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
+import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import { htmlEscapeJsonString } from '../htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
@@ -476,6 +477,60 @@ function createMoveSuffixTransform(): Transform {
 }
 
 // ---------------------------------------------------------------------------
+// Root layout validator – Node.js Transform that checks whether <html> and
+// <body> tags are present in the streamed output.  Dev-only; appends an
+// error template when tags are missing so the error overlay can display it.
+// ---------------------------------------------------------------------------
+
+function createRootLayoutValidatorTransform(): Transform {
+  let foundHtml = false
+  let foundBody = false
+
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      if (
+        !foundHtml &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.HTML) > -1
+      ) {
+        foundHtml = true
+      }
+      if (
+        !foundBody &&
+        indexOfUint8Array(chunk, ENCODED_TAGS.OPENING.BODY) > -1
+      ) {
+        foundBody = true
+      }
+      this.push(chunk)
+      callback()
+    },
+    flush(callback) {
+      const missingTags: ('html' | 'body')[] = []
+      if (!foundHtml) missingTags.push('html')
+      if (!foundBody) missingTags.push('body')
+
+      if (missingTags.length) {
+        this.push(
+          Buffer.from(
+            `<html id="__next_error__">
+            <template
+              data-next-error-message="Missing ${missingTags
+                .map((c) => `<${c}>`)
+                .join(
+                  missingTags.length > 1 ? ' and ' : ''
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags"
+              data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
+              data-next-error-stack=""
+            ></template>
+          `
+          )
+        )
+      }
+      callback()
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Rendering functions (output Node Readable natively via PassThrough)
 // ---------------------------------------------------------------------------
 
@@ -600,7 +655,7 @@ export async function continueFizzStream(
     // deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
-    // validateRootLayout,
+    validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
@@ -652,8 +707,11 @@ export async function continueFizzStream(
     source = flightInjection
   }
 
-  // TODO: Validate the root layout for missing html or body tags (dev-only)
-  // validateRootLayout ? createRootLayoutValidatorTransform() : null
+  if (validateRootLayout) {
+    const rootLayoutValidator = createRootLayoutValidatorTransform()
+    source.pipe(rootLayoutValidator)
+    source = rootLayoutValidator
+  }
 
   // Close tags should always be deferred to the end
   const moveSuffix = createMoveSuffixTransform()
