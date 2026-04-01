@@ -22,7 +22,7 @@ __turbopack_context__.s([
     "foo",
     ()=>foo
 ]);
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js")}`;
     }
