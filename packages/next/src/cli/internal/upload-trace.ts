@@ -6,12 +6,48 @@ const UPLOAD_TRACE_URL = 'https://api.nextjs.org/api/upload-trace'
 // V8 CPU profiles are JSON objects starting with {"nodes":
 const CPUPROFILE_HEADER = Buffer.from('{"nodes":')
 
+const PROGRESS_CHUNK_SIZE = 64 * 1024 // 64 KB
+
 export interface UploadTraceOptions {
   directory?: string
 }
 
 function getUploadUrl(): string {
   return process.env.__NEXT_UPLOAD_TRACE_URL_OVERRIDE || UPLOAD_TRACE_URL
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function renderProgressBar(current: number, total: number): string {
+  const width = 30
+  const ratio = Math.min(current / total, 1)
+  const filled = Math.round(width * ratio)
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled)
+  const percent = (ratio * 100).toFixed(0).padStart(3)
+  return `  [${bar}] ${percent}% ${formatBytes(current)}/${formatBytes(total)}`
+}
+
+function createProgressStream(
+  content: Buffer,
+  onProgress: (bytesRead: number) => void
+): ReadableStream<Uint8Array> {
+  let offset = 0
+  return new ReadableStream({
+    pull(controller) {
+      if (offset >= content.length) {
+        controller.close()
+        return
+      }
+      const end = Math.min(offset + PROGRESS_CHUNK_SIZE, content.length)
+      controller.enqueue(content.subarray(offset, end))
+      offset = end
+      onProgress(offset)
+    },
+  })
 }
 
 function validateCpuProfile(header: Buffer, file: string): void {
@@ -77,12 +113,14 @@ export async function uploadTraceToBlob(
 
   const uploadUrl = getUploadUrl()
 
-  console.log(
-    `Found ${uploadableFiles.length} file(s) in ${profilesDir}. Uploading...`
-  )
+  console.log(`Found ${uploadableFiles.length} file(s) in ${profilesDir}.`)
+  console.log(`Uploading to the Next.js team...`)
 
   const { put } =
     require('next/dist/compiled/@vercel/blob') as typeof import('next/dist/compiled/@vercel/blob')
+
+  let sessionId: string | undefined
+  let sessionToken: string | undefined
 
   for (const file of uploadableFiles) {
     const filePath = path.join(profilesDir, file)
@@ -106,11 +144,13 @@ export async function uploadTraceToBlob(
 
     const content = await fs.readFile(filePath)
 
-    // Ask the server for a token — the server decides the storage path.
     const tokenRes = await fetch(uploadUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ filename: file }),
+      body: JSON.stringify({
+        filename: file,
+        ...(sessionId && sessionToken ? { sessionId, sessionToken } : {}),
+      }),
     })
 
     if (!tokenRes.ok) {
@@ -120,23 +160,48 @@ export async function uploadTraceToBlob(
       process.exit(1)
     }
 
-    const { clientToken, pathname } = (await tokenRes.json()) as {
+    const tokenBody = (await tokenRes.json()) as {
       clientToken: string
       pathname: string
+      sessionId: string
+      sessionToken: string
     }
 
-    if (!clientToken || !pathname) {
+    if (!tokenBody.clientToken || !tokenBody.pathname) {
       console.error('Error: Invalid response from the upload endpoint.')
       process.exit(1)
     }
 
-    const blob = await put(pathname, content, {
-      access: 'private',
-      token: clientToken,
-    })
+    if (!sessionId) {
+      sessionId = tokenBody.sessionId
+      sessionToken = tokenBody.sessionToken
+    }
 
-    console.log(`Uploaded ${file}: ${blob.url}`)
+    const totalSize = content.length
+
+    if (process.stdout.isTTY) {
+      const stream = createProgressStream(content, (bytesRead) => {
+        process.stdout.write(`\r${renderProgressBar(bytesRead, totalSize)}`)
+      })
+
+      await put(tokenBody.pathname, stream, {
+        access: 'private',
+        token: tokenBody.clientToken,
+      })
+
+      process.stdout.write('\r' + ' '.repeat(80) + '\r')
+    } else {
+      await put(tokenBody.pathname, content, {
+        access: 'private',
+        token: tokenBody.clientToken,
+      })
+    }
+
+    console.log(`Uploaded ${file} (${formatBytes(totalSize)})`)
   }
 
+  if (sessionId) {
+    console.log(`\nUpload session: ${sessionId}`)
+  }
   console.log('All files uploaded successfully.')
 }
