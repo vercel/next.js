@@ -39,9 +39,9 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
 export async function writeAgentsMd(sandbox: Sandbox): Promise<void> {
   const body = `<!-- BEGIN:nextjs-agent-rules -->
 
-# Next.js: ALWAYS read docs before coding
+# This is NOT the Next.js you know
 
-Before any Next.js work, find and read the relevant doc in \`node_modules/next/dist/docs/\`. Your training data is outdated — the docs are the source of truth.
+This version has breaking changes — APIs, conventions, and file structure may differ from your training data. Read the docs in \`node_modules/next/dist/docs/\` before coding.
 
 <!-- END:nextjs-agent-rules -->
 `
