@@ -55,14 +55,24 @@ export async function writeRootParamsTypes(
 ) {
   const rootParams = manifest.rootParams
 
-  if (
-    (!config.experimental.rootParams && !config.cacheComponents) ||
-    !rootParams.size
-  ) {
+  const featureEnabled =
+    !!config.experimental.rootParams || !!config.cacheComponents
+
+  if (!featureEnabled) {
     await fs.promises.rm(filePath, { force: true })
     return
   }
 
   await fs.promises.mkdir(path.dirname(filePath), { recursive: true })
+
+  if (!rootParams.size) {
+    // Write an empty declaration so the import in next-env.d.ts resolves.
+    await fs.promises.writeFile(
+      filePath,
+      `// Type definitions for Next.js root params (next/root-params)\n// No root params detected.\nexport {}\n`
+    )
+    return
+  }
+
   await fs.promises.writeFile(filePath, generateRootParamsTypes(rootParams))
 }

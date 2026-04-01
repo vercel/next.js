@@ -57,7 +57,7 @@ describe('root-params-type-utils', () => {
     )
   })
 
-  it('should delete stale type files when there are no root params to emit', async () => {
+  it('should delete stale type files when the feature is disabled', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-root-params-'))
     const filePath = path.join(tempDir, 'root-params.d.ts')
     fs.writeFileSync(filePath, 'stale')
@@ -75,7 +75,12 @@ describe('root-params-type-utils', () => {
 
     expect(fs.existsSync(filePath)).toBe(false)
 
-    fs.writeFileSync(filePath, 'stale')
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  })
+
+  it('should write a placeholder when the feature is enabled but there are no root params', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-root-params-'))
+    const filePath = path.join(tempDir, 'root-params.d.ts')
 
     await writeRootParamsTypes(createManifest(new Map()), filePath, {
       experimental: {
@@ -84,7 +89,8 @@ describe('root-params-type-utils', () => {
       cacheComponents: false,
     } as NextConfigComplete)
 
-    expect(fs.existsSync(filePath)).toBe(false)
+    expect(fs.existsSync(filePath)).toBe(true)
+    expect(fs.readFileSync(filePath, 'utf8')).toContain('export {}')
 
     fs.rmSync(tempDir, { recursive: true, force: true })
   })
