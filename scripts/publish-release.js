@@ -5,7 +5,6 @@ const path = require('path')
 const execa = require('execa')
 const semver = require('semver')
 const { Sema } = require('async-sema')
-const { execSync } = require('child_process')
 const fs = require('fs')
 
 const cwd = process.cwd()
@@ -16,9 +15,10 @@ const cwd = process.cwd()
   let isBeta = false
 
   try {
-    const tagOutput = execSync(
-      `node ${path.join(__dirname, 'check-is-release.js')}`
-    ).toString()
+    const tagResult = await execa('node', [
+      '--', path.join(__dirname, 'check-is-release.js'),
+    ])
+    const tagOutput = tagResult.stdout
     console.log(tagOutput)
 
     if (tagOutput.trim().startsWith('v')) {

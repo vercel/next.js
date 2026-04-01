@@ -15,9 +15,15 @@ module.exports = (actionInfo) => {
   return {
     async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
       await fs.promises.rm(dest, { recursive: true, force: true })
-      await exec(
-        `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
-      )
+      await exec('git', [
+        'clone',
+        `${actionInfo.gitRoot}${repoPath}`,
+        '--single-branch',
+        '--branch',
+        branch,
+        `--depth=${depth}`,
+        dest,
+      ])
     },
     async getLastStable() {
       const res = await fetch(
@@ -38,24 +44,38 @@ module.exports = (actionInfo) => {
       return data.tag_name
     },
     async getCommitId(repoDir = '') {
-      const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
+      const { stdout } = await exec('git', ['rev-parse', 'HEAD'], false, {
+        cwd: repoDir,
+      })
       return stdout.trim()
     },
     async resetToRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git reset --hard ${ref}`)
+      await exec('git', ['reset', '--hard', ref], false, { cwd: repoDir })
     },
     async mergeBranch(ref = '', origRepoDir = '', destRepoDir = '') {
-      await exec(`cd ${destRepoDir} && git remote add upstream ${origRepoDir}`)
-      await exec(`cd ${destRepoDir} && git fetch upstream`)
+      await exec(
+        'git',
+        ['remote', 'add', 'upstream', origRepoDir],
+        false,
+        { cwd: destRepoDir }
+      )
+      await exec('git', ['fetch', 'upstream'], false, { cwd: destRepoDir })
 
       try {
-        await exec(`cd ${destRepoDir} && git merge upstream/${ref}`)
+        await exec(
+          'git',
+          ['merge', `upstream/${ref}`],
+          false,
+          { cwd: destRepoDir }
+        )
         logger('Auto merge of main branch successful')
       } catch (err) {
         logger.error('Failed to auto merge main branch:', err)
 
         if (err.stdout && err.stdout.includes('CONFLICT')) {
-          await exec(`cd ${destRepoDir} && git merge --abort`)
+          await exec('git', ['merge', '--abort'], false, {
+            cwd: destRepoDir,
+          })
           logger('aborted auto merge')
         }
       }

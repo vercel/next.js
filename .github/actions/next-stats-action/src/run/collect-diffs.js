@@ -15,7 +15,7 @@ module.exports = async function collectDiffs(
     // set-up diffing directory
     await fs.rm(diffingDir, { recursive: true, force: true })
     await fs.mkdir(diffingDir, { recursive: true })
-    await exec(`cd ${diffingDir} && git init`)
+    await exec('git', ['init'], false, { cwd: diffingDir })
   } else {
     // remove any previous files in case they won't be overwritten
     const toRemove = await glob('!(.git)', { cwd: diffingDir, dot: true })
@@ -59,11 +59,15 @@ module.exports = async function collectDiffs(
           __dirname,
           '../../node_modules/.bin/prettier'
         )
+        const prettierCwd = process.env.LOCAL_STATS
+          ? process.cwd()
+          : diffingDir
+        const prettierFiles = curFiles.map((f) => path.join(diffingDir, f))
         await exec(
-          `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
-            `${prettierPath} --write --no-error-on-unmatched-pattern ${curFiles
-              .map((f) => path.join(diffingDir, f))
-              .join(' ')}`
+          prettierPath,
+          ['--write', '--no-error-on-unmatched-pattern', '--', ...prettierFiles],
+          false,
+          { cwd: prettierCwd }
         )
       }
     })

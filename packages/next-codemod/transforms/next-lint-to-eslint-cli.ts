@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import semver from 'semver'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { createParserFromPath } from '../lib/parser'
@@ -1096,11 +1096,16 @@ export default function transformer(
     if (existingConfig.isLegacy && existingConfig.path) {
       console.log(`   Found legacy ESLint config: ${eslintConfigFilename}`)
 
-      // Run npx @eslint/migrate-config
-      const command = `npx @eslint/migrate-config ${existingConfig.path}`
-      console.log(`   Running "${command}" to convert legacy config...`)
+      // Run npx @eslint/migrate-config without going through a shell
+      const command = 'npx'
+      const args = ['@eslint/migrate-config', existingConfig.path]
+      console.log(
+        `   Running "${command} ${args
+          .map((arg) => JSON.stringify(arg))
+          .join(' ')}" to convert legacy config...`
+      )
       try {
-        execSync(command, {
+        execFileSync(command, args, {
           cwd: projectRoot,
           stdio: 'pipe',
         })
