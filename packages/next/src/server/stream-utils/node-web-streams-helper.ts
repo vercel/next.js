@@ -1021,51 +1021,26 @@ export async function continueDynamicPrerender(
   ])
 }
 
-type ContinueStaticPrerenderOptions = {
+type ContinuePrerenderStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   deploymentId: string | undefined
+  insertClientResumeScript?: boolean
+  delayDataUntilFirstHtmlChunk?: boolean
 }
 
-export async function continueStaticPrerender(
+export async function continuePrerenderStream(
   prerenderStream: ReadableStream<Uint8Array>,
   {
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
-  }: ContinueStaticPrerenderOptions
+    insertClientResumeScript = false,
+    delayDataUntilFirstHtmlChunk = true,
+  }: ContinuePrerenderStreamOptions
 ) {
-  return chainTransformers(prerenderStream, [
-    // Buffer everything to avoid flushing too frequently
-    createBufferedTransformStream(),
-    // Add build id comment to start of the HTML document (in export mode)
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
-    // Insert generated tags to head
-    createHeadInsertionTransformStream(getServerInsertedHTML),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
-    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-    createFlightDataInjectionTransformStream(inlinedDataStream, true),
-    // Close tags should always be deferred to the end
-    createMoveSuffixStream(),
-  ])
-}
-
-export async function continueStaticFallbackPrerender(
-  prerenderStream: ReadableStream<Uint8Array>,
-  {
-    inlinedDataStream,
-    getServerInsertedHTML,
-    getServerInsertedMetadata,
-    deploymentId,
-  }: ContinueStaticPrerenderOptions
-) {
-  // Same as `continueStaticPrerender`, but also inserts an additional script
-  // to instruct the client to start fetching the hydration data as early
-  // as possible.
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
@@ -1074,41 +1049,9 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    createClientResumeScriptInsertionTransformStream(),
-    // Transform metadata
-    createMetadataTransformStream(getServerInsertedMetadata),
-    // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-    createFlightDataInjectionTransformStream(inlinedDataStream, true),
-    // Close tags should always be deferred to the end
-    createMoveSuffixStream(),
-  ])
-}
-
-type ContinueResumeOptions = {
-  inlinedDataStream: ReadableStream<Uint8Array>
-  getServerInsertedHTML: () => Promise<string>
-  getServerInsertedMetadata: () => Promise<string>
-  delayDataUntilFirstHtmlChunk: boolean
-  deploymentId: string | undefined
-}
-
-export async function continueDynamicHTMLResume(
-  renderStream: ReadableStream<Uint8Array>,
-  {
-    delayDataUntilFirstHtmlChunk,
-    inlinedDataStream,
-    getServerInsertedHTML,
-    getServerInsertedMetadata,
-    deploymentId,
-  }: ContinueResumeOptions
-) {
-  return chainTransformers(renderStream, [
-    // Buffer everything to avoid flushing too frequently
-    createBufferedTransformStream(),
-    // Insert data-dpl-id attribute on the html tag
-    deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
-    // Insert generated tags to head
-    createHeadInsertionTransformStream(getServerInsertedHTML),
+    insertClientResumeScript
+      ? createClientResumeScriptInsertionTransformStream()
+      : null,
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

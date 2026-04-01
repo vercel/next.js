@@ -41,9 +41,7 @@ import {
   chainStreams,
   continueFizzStream,
   continueDynamicPrerender,
-  continueStaticPrerender,
-  continueDynamicHTMLResume,
-  continueStaticFallbackPrerender,
+  continuePrerenderStream,
   streamToBuffer,
   streamToString,
   createInlinedDataStream,
@@ -3361,7 +3359,7 @@ async function renderToStream(
             if (renderSpan.isRecording()) renderSpan.end()
           })
 
-          return await continueDynamicHTMLResume(htmlStream, {
+          return await continuePrerenderStream(htmlStream, {
             delayDataUntilFirstHtmlChunk:
               preludeState === DynamicHTMLPreludeState.Empty,
             inlinedDataStream: createInlinedDataStream(
@@ -6587,7 +6585,8 @@ async function prerenderToStream(
                 onError: serverComponentsErrorHandler,
               })
             )
-          finalStream = await continueStaticFallbackPrerender(htmlStream, {
+          finalStream = await continuePrerenderStream(htmlStream, {
+            insertClientResumeScript: true,
             inlinedDataStream: createInlinedDataStream(
               emptyReactServerResult.consumeAsStream(),
               nonce,
@@ -6599,7 +6598,7 @@ async function prerenderToStream(
           })
         } else {
           // Normal static prerender case, no fallback param handling needed
-          finalStream = await continueStaticPrerender(htmlStream, {
+          finalStream = await continuePrerenderStream(htmlStream, {
             inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
@@ -6853,7 +6852,7 @@ async function prerenderToStream(
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: await continueStaticPrerender(htmlStream, {
+          stream: await continuePrerenderStream(htmlStream, {
             inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,

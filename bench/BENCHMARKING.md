@@ -86,7 +86,7 @@ Micro benchmark output includes cases for:
 - `teeNodeReadable`
 - `createBufferedTransformNode`
 - `createInlinedDataNodeStream`
-- `continueStaticPrerender` / `continueDynamicPrerender` / `continueDynamicHTMLResume`
+- `continuePrerenderStream` / `continueDynamicPrerender`
 
 Flight payload mode toggles:
 

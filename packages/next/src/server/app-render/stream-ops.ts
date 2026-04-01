@@ -7,9 +7,8 @@
 export type {
   AnyStream,
   ContinueFizzStreamOptions,
-  ContinueStaticPrerenderOptions,
+  ContinuePrerenderStreamOptions,
   ContinueStreamSharedOptions,
-  ContinueDynamicHTMLResumeOptions,
   FlightComponentMod,
   ServerPrerenderComponentMod,
   FlightPayload,
@@ -20,10 +19,8 @@ export type {
 
 export {
   continueFizzStream,
-  continueStaticPrerender,
+  continuePrerenderStream,
   continueDynamicPrerender,
-  continueStaticFallbackPrerender,
-  continueDynamicHTMLResume,
   streamToBuffer,
   chainStreams,
   createDocumentClosingStream,
