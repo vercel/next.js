@@ -40,12 +40,15 @@ jobs:
     steps:
       - name: Optimize CI
         id: check-skip
-        uses: withgraphite/graphite-ci-action@main
+        uses: withgraphite/graphite-ci-action@ee395f3a78254c006d11339669c6cabddf196f72 # main
         with:
           graphite_token: ${{ secrets.GRAPHITE_TOKEN }}
       - name: Debug Output
         run: |
           echo 'github.event_name: ${{ github.event_name }}'
-          echo "secrets.GRAPHITE_TOKEN != '': ${{ secrets.GRAPHITE_TOKEN != '' }}"
+          echo "secrets.GRAPHITE_TOKEN != '': ${GRAPHITE_TOKEN}"
           echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
           echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'
+
+        env:
+          GRAPHITE_TOKEN: ${{ secrets.GRAPHITE_TOKEN != '' }}
