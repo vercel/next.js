@@ -1532,8 +1532,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Create a single ExecuteContext for both lookup and connect_child
         let mut ctx = self.execute_context(turbo_tasks);
         // First check if the task exists in the cache which only uses a read lock
-        if let Some(task_id) = self.task_cache.get(&task_type) {
-            let task_id = *task_id;
+        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
+        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
+        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
             operation::ConnectChildOperation::run(
                 parent_task,
@@ -1614,9 +1615,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             );
         }
         let mut ctx = self.execute_context(turbo_tasks);
-        // First check if the task exists in the cache which only uses a read lock
-        if let Some(task_id) = self.task_cache.get(&task_type) {
-            let task_id = *task_id;
+        // First check if the task exists in the cache which only uses a read lock.
+        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
+        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
+        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
             operation::ConnectChildOperation::run(
                 parent_task,
