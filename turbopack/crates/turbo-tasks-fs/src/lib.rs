@@ -66,8 +66,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, Effect, InvalidationReason, Invalidator, NonLocalValue,
     ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs,
-    turbo_tasks_weak, turbobail, turbofmt,
+    debug::ValueDebugFormat, emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak,
+    turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -752,10 +752,8 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
@@ -780,10 +778,8 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
-        mark_session_dependent();
-
         // Check if directory itself is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
@@ -870,10 +866,8 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
@@ -961,9 +955,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but
-        // `write` purely declares a side effect and does not need to be reexecuted in the next
-        // session. All side effects are reexecuted in general.
+        // You might be tempted to use `session_dependent` here, but `write` purely declares a side
+        // effect and does not need to be reexecuted in the next session. All side effects are
+        // reexecuted in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -1114,7 +1108,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
+        // You might be tempted to use `session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
@@ -1347,9 +1341,8 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
@@ -2416,13 +2409,20 @@ impl FileContent {
         Ok(Vc::cell(hash_xxh3_hash64(self)))
     }
 
-    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` if the file does not exist.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(file.content().content_hash(), algorithm).into(),
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }

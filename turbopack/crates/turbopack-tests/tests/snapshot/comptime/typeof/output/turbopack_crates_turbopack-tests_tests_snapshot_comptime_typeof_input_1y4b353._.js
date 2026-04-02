@@ -1,7 +1,7 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_comptime_typeof_input_1y4b353._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js")}`;
     }
@@ -22,7 +22,7 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$dep$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)");
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js")}`;
     }
@@ -40,7 +40,7 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.z);
 "use strict";
 
 __turbopack_context__.s([]);
-const __TURBOPACK__import$2e$meta__ = {
+var __TURBOPACK__import$2e$meta__ = {
     get url () {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs")}`;
     }

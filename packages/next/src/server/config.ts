@@ -84,6 +84,12 @@ function normalizeNextConfigZodErrors(
           "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('dynamicIO')) {
+        shouldExit = true
+        message +=
+          '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
       }
     }
 
@@ -1449,6 +1455,10 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
+  // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
+  ;(result as NextConfigComplete).hashSalt =
+    (result.experimental?.outputHashSalt ?? '') +
+    (process.env.NEXT_HASH_SALT ?? '')
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }

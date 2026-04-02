@@ -1808,6 +1808,10 @@ impl JsValue {
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
                     WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::RequireFrom(rel) => (
+                        format!("createRequire('{rel}')"),
+                        "The return value of Node.js module.createRequire: https://nodejs.org/api/module.html#modulecreaterequirefilename"
+                    ),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -1817,6 +1821,10 @@ impl JsValue {
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
+                    ),
+                    WellKnownFunctionKind::FsReadDir => (
+                        "fs.readdir".to_string(),
+                        "The Node.js fs.readdir method: https://nodejs.org/api/fs.html",
                     ),
                     WellKnownFunctionKind::PathToFileUrl => (
                         "url.pathToFileURL".to_string(),
@@ -3477,6 +3485,8 @@ pub enum WellKnownFunctionKind {
     PathResolve(Box<JsValue>),
     Import,
     Require,
+    /// `0` is the path to resolve from (relative to the current module).
+    RequireFrom(Box<ConstantString>),
     RequireResolve,
     RequireContext,
     RequireContextRequire(RequireContextValue),
@@ -3484,6 +3494,7 @@ pub enum WellKnownFunctionKind {
     RequireContextRequireResolve(RequireContextValue),
     Define,
     FsReadMethod(Atom),
+    FsReadDir,
     PathToFileUrl,
     CreateRequire,
     ChildProcessSpawnMethod(Atom),
