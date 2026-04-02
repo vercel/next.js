@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -108,21 +108,28 @@ pub enum ModuleResolveResultItem {
     Custom(u8),
 }
 
-impl ModuleResolveResultItem {
-    /// Returns a short description of this item, suitable for display in diagnostics.
-    pub async fn description(&self) -> Result<RcStr> {
+impl ValueToStringRef for ModuleResolveResultItem {
+    async fn to_string_ref(&self) -> Result<RcStr> {
         Ok(match self {
-            ModuleResolveResultItem::Module(module) => module.ident().await?.path.path.clone(),
-            ModuleResolveResultItem::OutputAsset(asset) => asset.path().await?.path.clone(),
+            ModuleResolveResultItem::Module(module) => {
+                module.ident().await?.path.to_string_ref().await?
+            }
+            ModuleResolveResultItem::OutputAsset(asset) => {
+                asset.path().await?.to_string_ref().await?
+            }
             ModuleResolveResultItem::External { name, .. } => name.clone(),
-            ModuleResolveResultItem::Unknown(source) => source.ident().await?.path.path.clone(),
+            ModuleResolveResultItem::Unknown(source) => {
+                source.ident().await?.path.to_string_ref().await?
+            }
             ModuleResolveResultItem::Ignore => rcstr!("(ignore)"),
             ModuleResolveResultItem::Error(_) => rcstr!("(error)"),
             ModuleResolveResultItem::Empty => rcstr!("(empty)"),
             ModuleResolveResultItem::Custom(n) => format!("(custom {n})").into(),
         })
     }
+}
 
+impl ModuleResolveResultItem {
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),

@@ -10,7 +10,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs, turbofmt};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToStringRef, Vc, trace::TraceRawVcs, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
@@ -90,7 +90,7 @@ pub async fn check_and_emit_too_many_matches_warning(
 
         let mut sample_paths = Vec::with_capacity(SAMPLE_SIZE);
         for (_, item) in sampled {
-            sample_paths.push(item.description().await?);
+            sample_paths.push(item.to_string_ref().await?);
         }
         sample_paths.sort_unstable();
 
