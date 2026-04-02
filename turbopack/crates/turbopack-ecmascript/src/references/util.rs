@@ -88,18 +88,19 @@ pub async fn check_and_emit_too_many_matches_warning(
         let sampled: Vec<&(_, ModuleResolveResultItem)> =
             result_ref.primary.sample(&mut rng, SAMPLE_SIZE).collect();
 
-        let mut sample_paths = Vec::with_capacity(SAMPLE_SIZE);
-        for (_, item) in sampled {
-            sample_paths.push(item.to_string_ref().await?);
+        let mut sample_entries = Vec::with_capacity(SAMPLE_SIZE);
+        for (request_key, item) in sampled {
+            let path = item.to_string_ref().await?;
+            sample_entries.push((request_key.to_string().into(), path));
         }
-        sample_paths.sort_unstable();
+        sample_entries.sort_unstable();
 
         TooManyMatchesWarning {
             source: issue_source,
             context_dir,
             num_matches,
             pattern,
-            sample_paths,
+            sample_entries,
         }
         .resolved_cell()
         .emit();
@@ -113,7 +114,8 @@ struct TooManyMatchesWarning {
     context_dir: FileSystemPath,
     num_matches: usize,
     pattern: ResolvedVc<Pattern>,
-    sample_paths: Vec<RcStr>,
+    /// Sampled (request_key, resolved_path) pairs for the diagnostic message.
+    sample_entries: Vec<(RcStr, RcStr)>,
 }
 
 #[turbo_tasks::value_impl]
@@ -140,8 +142,12 @@ impl Issue for TooManyMatchesWarning {
             )),
             StyledString::Text(rcstr!("Example files matched:")),
         ];
-        for path in &self.sample_paths {
-            parts.push(StyledString::Code(path.clone()));
+        for (request_key, path) in &self.sample_entries {
+            parts.push(StyledString::Line(vec![
+                StyledString::Code(request_key.clone()),
+                StyledString::Text(rcstr!(" → ")),
+                StyledString::Code(path.clone()),
+            ]));
         }
         Vc::cell(Some(StyledString::Stack(parts).resolved_cell()))
     }
