@@ -151,8 +151,11 @@ export default async function createUser(formData: FormData) {
 
   // Return early if the form data is invalid
   if (!validatedFields.success) {
+    const tree = z.treeifyError(validatedFields.error)
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: {
+        email: tree.properties?.email?.errors,
+      },
     }
   }
 
@@ -178,8 +181,11 @@ export default async function createUser(formData) {
 
   // Return early if the form data is invalid
   if (!validatedFields.success) {
+    const tree = z.treeifyError(validatedFields.error)
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: {
+        email: tree.properties?.email?.errors,
+      },
     }
   }
 
@@ -202,7 +208,15 @@ export async function createUser(initialState: any, formData: FormData) {
   const validatedFields = schema.safeParse({
     email: formData.get('email'),
   })
-  // ...
+
+  if (!validatedFields.success) {
+    const tree = z.treeifyError(validatedFields.error)
+    return {
+      errors: {
+        email: tree.properties?.email?.errors,
+      },
+    }
+  }
 }
 ```
 
@@ -217,20 +231,30 @@ export async function createUser(initialState, formData) {
   const validatedFields = schema.safeParse({
     email: formData.get('email'),
   })
-  // ...
+
+  if (!validatedFields.success) {
+    const tree = z.treeifyError(validatedFields.error)
+    return {
+      errors: {
+        email: tree.properties?.email?.errors,
+      },
+    }
+  }
 }
 ```
 
-You can then conditionally render the error message based on the `state` object.
+You can then conditionally render the error message based on the `state` object. The shape of the `state` object will match the shape that is returned by your server action.
 
-```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
+```tsx filename="app/ui/signup.tsx" highlight={13,20-22} switcher
 'use client'
 
 import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: '',
+  errors: {
+    email: [] as string[],
+  },
 }
 
 export function Signup() {
@@ -241,21 +265,23 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite">{state?.message}</p>
+      <p aria-live="polite">{state?.errors?.email?.[0]}</p>
       <button disabled={pending}>Sign up</button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
+```jsx filename="app/ui/signup.js" highlight={13,20-22} switcher
 'use client'
 
 import { useActionState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: '',
+  errors: {
+    email: [],
+  },
 }
 
 export function Signup() {
@@ -266,7 +292,7 @@ export function Signup() {
       <label htmlFor="email">Email</label>
       <input type="text" id="email" name="email" required />
       {/* ... */}
-      <p aria-live="polite">{state?.message}</p>
+      <p aria-live="polite">{state?.errors?.email?.[0]}</p>
       <button disabled={pending}>Sign up</button>
     </form>
   )
