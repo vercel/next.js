@@ -368,5 +368,126 @@
   ],
   "engines": {
     "node": ">=20.9.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./dist/server/next.js"
+    },
+    "./package.json": "./package.json",
+    "./app": {
+      "types": "./app.d.ts",
+      "default": "./app.js"
+    },
+    "./babel": {
+      "types": "./babel.d.ts",
+      "default": "./babel.js"
+    },
+    "./cache": {
+      "types": "./cache.d.ts",
+      "default": "./cache.js"
+    },
+    "./client": {
+      "types": "./client.d.ts",
+      "default": "./client.js"
+    },
+    "./constants": {
+      "types": "./constants.d.ts",
+      "default": "./constants.js"
+    },
+    "./document": {
+      "types": "./document.d.ts",
+      "default": "./document.js"
+    },
+    "./dynamic": {
+      "types": "./dynamic.d.ts",
+      "default": "./dynamic.js"
+    },
+    "./error": {
+      "types": "./error.d.ts",
+      "default": "./error.js"
+    },
+    "./form": {
+      "types": "./form.d.ts",
+      "default": "./form.js"
+    },
+    "./head": {
+      "types": "./head.d.ts",
+      "default": "./head.js"
+    },
+    "./headers": {
+      "types": "./headers.d.ts",
+      "default": "./headers.js"
+    },
+    "./image": {
+      "types": "./image.d.ts",
+      "default": "./image.js"
+    },
+    "./link": {
+      "types": "./link.d.ts",
+      "default": "./link.js"
+    },
+    "./navigation": {
+      "types": "./navigation.d.ts",
+      "default": "./navigation.js"
+    },
+    "./og": {
+      "types": "./og.d.ts",
+      "default": "./og.js"
+    },
+    "./root-params": {
+      "types": "./root-params.d.ts",
+      "default": "./root-params.js"
+    },
+    "./router": {
+      "types": "./router.d.ts",
+      "default": "./router.js"
+    },
+    "./script": {
+      "types": "./script.d.ts",
+      "default": "./script.js"
+    },
+    "./server": {
+      "types": "./server.d.ts",
+      "default": "./server.js"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "default": "./types.js"
+    },
+    "./web-vitals": {
+      "types": "./web-vitals.d.ts",
+      "default": "./web-vitals.js"
+    },
+    "./jest": {
+      "types": "./jest.d.ts",
+      "default": "./jest.js"
+    },
+    "./compat/router": {
+      "types": "./compat/router.d.ts",
+      "default": "./compat/router.js"
+    },
+    "./legacy/image": {
+      "types": "./legacy/image.d.ts",
+      "default": "./legacy/image.js"
+    },
+    "./font/google": "./font/google",
+    "./font/local": "./font/local",
+    "./experimental/testing/server": {
+      "types": "./experimental/testing/server.d.ts",
+      "default": "./experimental/testing/server.js"
+    },
+    "./experimental/testmode/playwright": {
+      "types": "./experimental/testmode/playwright.d.ts",
+      "default": "./experimental/testmode/playwright.js"
+    },
+    "./experimental/testmode/playwright/msw": {
+      "types": "./experimental/testmode/playwright/msw.d.ts",
+      "default": "./experimental/testmode/playwright/msw.js"
+    },
+    "./experimental/testmode/proxy": {
+      "types": "./experimental/testmode/proxy.d.ts",
+      "default": "./experimental/testmode/proxy.js"
+    }
   }
 }
