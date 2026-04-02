@@ -758,7 +758,9 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     if (input.scroll) {
       const { x, y } = input.scroll
       disableSmoothScrollDuringRouteTransition(() => {
-        window.scrollTo(x, y)
+        requestAnimationFrame(() => {
+          window.scrollTo(x, y)
+        })
       })
     }
   }
