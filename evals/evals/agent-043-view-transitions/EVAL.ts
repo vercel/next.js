@@ -19,6 +19,15 @@ import { expect, test } from 'vitest'
 import { readFileSync, existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 
+const IGNORE_DIRS = new Set([
+  'node_modules',
+  '.next',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+])
+
 function findFiles(dir: string, ext: string): string[] {
   const results: string[] = []
   const base = join(process.cwd(), dir)
@@ -26,7 +35,7 @@ function findFiles(dir: string, ext: string): string[] {
 
   function walk(d: string) {
     for (const entry of readdirSync(d, { withFileTypes: true })) {
-      if (entry.name === 'node_modules' || entry.name === '.next') continue
+      if (IGNORE_DIRS.has(entry.name)) continue
       const full = join(d, entry.name)
       if (entry.isDirectory()) walk(full)
       else if (entry.name.endsWith(ext)) results.push(full)
@@ -36,18 +45,20 @@ function findFiles(dir: string, ext: string): string[] {
   return results
 }
 
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\r\n]*/g, '')
+}
+
+const SOURCE_EXTS = ['.tsx', '.ts', '.jsx', '.js']
+const SOURCE_DIRS = ['app', 'lib', 'components', 'src']
+
 function readAllSourceFiles(): string {
-  const files = [
-    ...findFiles('app', '.tsx'),
-    ...findFiles('app', '.ts'),
-    ...findFiles('lib', '.tsx'),
-    ...findFiles('lib', '.ts'),
-    ...findFiles('components', '.tsx'),
-    ...findFiles('components', '.ts'),
-    ...findFiles('src', '.tsx'),
-    ...findFiles('src', '.ts'),
-  ]
-  return files.map((f) => readFileSync(f, 'utf-8')).join('\n---FILE---\n')
+  const files = SOURCE_DIRS.flatMap((dir) =>
+    SOURCE_EXTS.flatMap((ext) => findFiles(dir, ext))
+  )
+  return files
+    .map((f) => stripComments(readFileSync(f, 'utf-8')))
+    .join('\n---FILE---\n')
 }
 
 function readAllCssFiles(): string {
@@ -66,7 +77,9 @@ test('next.config enables viewTransition', () => {
   const configPath = existsSync(join(process.cwd(), 'next.config.ts'))
     ? 'next.config.ts'
     : 'next.config.js'
-  const content = readFileSync(join(process.cwd(), configPath), 'utf-8')
+  const content = stripComments(
+    readFileSync(join(process.cwd(), configPath), 'utf-8')
+  )
 
   expect(content).toMatch(/viewTransition\s*:\s*true/)
 })
@@ -96,7 +109,7 @@ test('Link uses transitionTypes for directional navigation', () => {
 test('Suspense content uses ViewTransition with enter or exit', () => {
   const allSource = readAllSourceFiles()
 
-  expect(allSource).toMatch(/<ViewTransition[^>]*\benter\s*=/)
+  expect(allSource).toMatch(/<ViewTransition[^>]*\b(enter|exit)\s*=/)
 })
 
 test('default="none" prevents unintended animations', () => {
