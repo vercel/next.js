@@ -121,7 +121,7 @@ The blur hides pixel-level interpolation artifacts during the transition. At 400
 
 The photo detail page loads its content asynchronously. While data is in flight, a Suspense boundary shows a skeleton. When the data resolves, the skeleton is replaced by the real content.
 
-Without a transition, the swap is instant. The skeleton vanishes and the content pops in. The layout may shift. The user cannot tell what changed, only that something jumped.
+Without a transition, the swap is instant. The skeleton vanishes and the content pops in.
 
 In motion design, vertical direction encodes hierarchy. Content sliding up communicates arrival. Content sliding down communicates departure. The pair together creates a handoff: the placeholder yields to the real thing.
 
@@ -192,7 +192,7 @@ The CSS animations use asymmetric timing. The exit is fast (150ms). The enter is
 
 The asymmetry is deliberate. Old content should leave quickly so it does not compete for attention. New content should arrive more gently so the user has time to register it. The `var(--duration-exit)` delay on the enter animation means the new content waits for the old content to finish leaving before it appears.
 
-On page load, a well-sized skeleton prevents layout shift. But without a transition, the swap from skeleton to content is still instant. If we refresh the page, the skeleton slides down and fades out, and a moment later the real content slides up and fades in. The slide animation makes the handoff visible.
+If we refresh the page, the skeleton slides down and fades out, and a moment later the real content slides up and fades in.
 
 ### Step 3: Add directional motion for navigation
 
@@ -207,6 +207,8 @@ Use the `transitionTypes` prop on `<Link>` to tag forward navigations:
   {/* photo thumbnail */}
 </Link>
 ```
+
+The same pattern works for any navigation within the app. For example, previous/next arrows on a photo detail page can use `nav-back` and `nav-forward` to animate in the corresponding direction.
 
 For links that return the user to a previous page, use `nav-back`:
 
@@ -310,7 +312,7 @@ The `display: none` on the old snapshot prevents a flash where both old and new 
 
 If we navigate forward to a photo, content slides left. If we click the "← Gallery" link (tagged with `nav-back`), content slides right. The header stays fixed throughout both transitions.
 
-Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type. With `default: "none"`, these produce an instant swap. The shared element morph from Step 1 still applies if both pages have matching `name` props.
+Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type, so the directional slide does not play. The shared element morph from Step 1 still applies if both pages have matching `name` props.
 
 #### Respecting reduced motion
 
