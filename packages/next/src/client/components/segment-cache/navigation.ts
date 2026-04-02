@@ -40,6 +40,17 @@ import { computeChangedPath } from '../router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../../lib/javascript-url'
 import { UnknownDynamicStaleTime, computeDynamicStaleAt } from './bfcache'
 
+function getParallelSlotKey(
+  flightRouterState: FlightRouterState
+): string | null {
+  const parallelRoutes = flightRouterState[1]
+  if (!parallelRoutes || Object.keys(parallelRoutes).length === 0) {
+    return null
+  }
+  const slots = Object.keys(parallelRoutes).sort()
+  return slots.join('|')
+}
+
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
  *
@@ -114,7 +125,8 @@ function navigateImpl(
   const now = Date.now()
   const href = url.href
 
-  const cacheKey = createCacheKey(href, nextUrl)
+  const parallelSlotKey = getParallelSlotKey(currentFlightRouterState)
+  const cacheKey = createCacheKey(href, nextUrl, parallelSlotKey)
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
@@ -960,7 +972,8 @@ async function ensurePrefetchThenNavigate(
     require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
   transitionToCapturedSPA(currentFlightRouterState, null)
 
-  const cacheKey = createCacheKey(url.href, nextUrl)
+  const parallelSlotKey = getParallelSlotKey(currentFlightRouterState)
+  const cacheKey = createCacheKey(url.href, nextUrl, parallelSlotKey)
 
   await new Promise<void>((resolve) => {
     schedulePrefetchTask(
