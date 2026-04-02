@@ -69,9 +69,7 @@ let DEV_BACKEND: DevRuntimeBackend
 
         const link = document.createElement('link')
         link.rel = 'stylesheet'
-        if (CROSS_ORIGIN) {
-          link.crossOrigin = CROSS_ORIGIN
-        }
+        link.crossOrigin = CROSS_ORIGIN
 
         if (
           navigator.userAgent.includes('Firefox') ||
