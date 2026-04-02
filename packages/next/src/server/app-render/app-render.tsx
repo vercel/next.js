@@ -851,6 +851,10 @@ async function generateDynamicFlightRenderResult(
 
   const { clientModules } = getClientReferenceManifest()
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const rscPayload = await workUnitAsyncStorage.run(
@@ -862,7 +866,7 @@ async function generateDynamicFlightRenderResult(
 
   const flightStream = workUnitAsyncStorage.run(
     requestStore,
-    renderToWebFlightStream,
+    renderFlightStream,
     ctx.componentMod,
     rscPayload,
     clientModules,
@@ -1138,12 +1142,16 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
   const { clientModules } = getClientReferenceManifest()
   const rscPayload = await getPayload(requestStore)
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+
   return await runInSequentialTasks(
     () => {
       stageController.advanceStage(RenderStage.Static)
       return workUnitAsyncStorage.run(
         requestStore,
-        renderToWebFlightStream,
+        renderFlightStream,
         ctx.componentMod,
         rscPayload,
         clientModules,
@@ -3947,6 +3955,10 @@ async function renderWithRestartOnCacheMissInDev(
   let debugChannel = setReactDebugChannel && createDebugChannel()
   const { clientModules } = getClientReferenceManifest()
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+
   // Note: The stage controller starts out in the `Before` stage,
   // where sync IO does not cause aborts, so it's okay if it happens before render.
   const initialRscPayload = await getPayload(requestStore)
@@ -3959,7 +3971,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToWebFlightStream,
+          renderFlightStream,
           ComponentMod,
           initialRscPayload,
           clientModules,
@@ -4126,7 +4138,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToWebFlightStream,
+          renderFlightStream,
           ComponentMod,
           finalRscPayload,
           clientModules,
@@ -5027,13 +5039,17 @@ async function validateInstantConfigs(
 
   const clientReferenceManifest = getClientReferenceManifest()
 
+  const validationFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+
   const {
     cache,
     payload: initialRscPayload,
     stageEndTimes,
   } = await collectStagedSegmentData(
     ctx.componentMod,
-    renderToWebFlightStream,
+    validationFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -5110,7 +5126,7 @@ async function validateInstantConfigs(
     const { stream: serverStream, debugStream } =
       await createCombinedPayloadStream(
         ctx.componentMod,
-        renderToWebFlightStream,
+        validationFlightStream,
         payloadResult.payload,
         extraChunksController,
         reactController.signal,
