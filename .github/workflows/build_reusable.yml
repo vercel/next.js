@@ -284,6 +284,12 @@ jobs:
       - run: pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      - name: Install system dependencies for canvas
+        if: ${{ inputs.needsNextest == 'yes' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libpixman-1-dev
+
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
