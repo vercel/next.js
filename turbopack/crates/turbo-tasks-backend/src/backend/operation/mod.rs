@@ -757,6 +757,83 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
+    /// Update the task's dirty state to `new_dirtyness`, applying the change to stored fields
+    /// and computing the aggregated propagation update.
+    ///
+    /// Returns `(job, result)`:
+    /// - `job` — an optional `AggregationUpdateJob` that the caller must run via
+    ///   `AggregationUpdateQueue::run` to propagate the change to aggregating ancestors.
+    /// - `result` — the raw `ComputeDirtyAndCleanUpdateResult`, whose `dirty_count_update` and
+    ///   `current_session_clean_update` fields the caller may inspect for post-processing (e.g. the
+    ///   `all_clean_event` notification in `task_execution_completed_finish`).
+    fn update_dirty_state(
+        &mut self,
+        new_dirtyness: Option<Dirtyness>,
+    ) -> (
+        Option<AggregationUpdateJob>,
+        ComputeDirtyAndCleanUpdateResult,
+    )
+    where
+        Self: Sized,
+    {
+        use self::aggregation_update::{
+            AggregationUpdateJob, ComputeDirtyAndCleanUpdate, ComputeDirtyAndCleanUpdateResult,
+        };
+        let task_id = self.id();
+        let old_dirtyness = self.get_dirty().cloned();
+        let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
+        let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
+            None => (false, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::SessionDependent) => (true, true),
+        };
+        if old_dirtyness != new_dirtyness {
+            if let Some(value) = new_dirtyness {
+                self.set_dirty(value);
+            } else {
+                self.take_dirty();
+            }
+        }
+        if old_current_session_self_clean != new_current_session_self_clean {
+            self.set_current_session_clean(new_current_session_self_clean);
+        }
+        if old_self_dirty == new_self_dirty
+            && old_current_session_self_clean == new_current_session_self_clean
+        {
+            return (
+                None,
+                ComputeDirtyAndCleanUpdateResult {
+                    dirty_count_update: 0,
+                    current_session_clean_update: 0,
+                },
+            );
+        }
+        let dirty_container_count = self
+            .get_aggregated_dirty_container_count()
+            .cloned()
+            .unwrap_or_default();
+        let current_session_clean_container_count = self
+            .get_aggregated_current_session_clean_container_count()
+            .copied()
+            .unwrap_or_default();
+        let result = ComputeDirtyAndCleanUpdate {
+            old_dirty_container_count: dirty_container_count,
+            new_dirty_container_count: dirty_container_count,
+            old_current_session_clean_container_count: current_session_clean_container_count,
+            new_current_session_clean_container_count: current_session_clean_container_count,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
+        }
+        .compute();
+        let job = result
+            .aggregated_update(task_id)
+            .and_then(|aggregated_update| {
+                AggregationUpdateJob::data_update(self, aggregated_update)
+            });
+        (job, result)
+    }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
             .map(|(task_id, _)| task_id)
@@ -1103,7 +1180,8 @@ pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdate,
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        ComputeDirtyAndCleanUpdateResult, get_aggregation_number, get_uppers, is_aggregating_node,
+        is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

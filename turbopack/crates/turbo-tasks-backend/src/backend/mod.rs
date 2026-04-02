@@ -55,10 +55,10 @@ use crate::{
     backend::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
-            CleanupOldEdgesOperation, ComputeDirtyAndCleanUpdate, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, LeafDistanceUpdateQueue, Operation, OutdatedEdge,
-            TaskGuard, TaskType, connect_children, get_aggregation_number, get_uppers,
-            is_root_node, make_task_dirty_internal, prepare_new_children,
+            CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
+            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType,
+            connect_children, get_aggregation_number, get_uppers, is_root_node,
+            make_task_dirty_internal, prepare_new_children,
         },
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
@@ -1886,57 +1886,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // subsequent builds. By marking the task session-dependent dirty, the next build
         // re-executes it, which invalidates dependents and corrects the stale errors.
         if self.should_track_dependencies() && !task_id.is_transient() {
-            let old_dirtyness = task.get_dirty().cloned();
-            let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
-                None => (false, false),
-                Some(Dirtyness::Dirty(_)) => (true, false),
-                Some(Dirtyness::SessionDependent) => {
-                    let clean_in_current_session = task.current_session_clean();
-                    (true, clean_in_current_session)
-                }
-            };
-            let (new_dirtyness, new_self_dirty, new_current_session_self_clean) =
-                (Some(Dirtyness::SessionDependent), true, true);
-
-            let dirty_changed = old_dirtyness != new_dirtyness;
-            if dirty_changed {
-                task.set_dirty(new_dirtyness.unwrap());
-            }
-            if old_current_session_self_clean != new_current_session_self_clean {
-                task.set_current_session_clean(true);
-            }
-
-            let data_update = if old_self_dirty != new_self_dirty
-                || old_current_session_self_clean != new_current_session_self_clean
-            {
-                let dirty_container_count = task
-                    .get_aggregated_dirty_container_count()
-                    .cloned()
-                    .unwrap_or_default();
-                let current_session_clean_container_count = task
-                    .get_aggregated_current_session_clean_container_count()
-                    .copied()
-                    .unwrap_or_default();
-                ComputeDirtyAndCleanUpdate {
-                    old_dirty_container_count: dirty_container_count,
-                    new_dirty_container_count: dirty_container_count,
-                    old_current_session_clean_container_count:
-                        current_session_clean_container_count,
-                    new_current_session_clean_container_count:
-                        current_session_clean_container_count,
-                    old_self_dirty,
-                    new_self_dirty,
-                    old_current_session_self_clean,
-                    new_current_session_self_clean,
-                }
-                .compute()
-                .aggregated_update(task_id)
-                .and_then(|aggregated_update| {
-                    AggregationUpdateJob::data_update(&mut task, aggregated_update)
-                })
-            } else {
-                None
-            };
+            let (data_update, _result) = task.update_dirty_state(Some(Dirtyness::SessionDependent));
 
             let old = task.set_in_progress(InProgressState::Canceled);
             debug_assert!(old.is_none(), "InProgress already exists");
@@ -2693,83 +2643,28 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Grab the old dirty state
-        let old_dirtyness = task.get_dirty().cloned();
-        let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
-            None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
-            Some(Dirtyness::SessionDependent) => {
-                let clean_in_current_session = task.current_session_clean();
-                (true, clean_in_current_session)
-            }
-        };
-
-        // Compute the new dirty state
+        // Compute and apply the new dirty state, propagating to aggregating ancestors
         let session_dependent = task.is_session_dependent();
-        let (new_dirtyness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
-            (Some(Dirtyness::SessionDependent), true, true)
-        } else {
-            (None, false, false)
-        };
-
-        // Update the dirty state
-        let dirty_changed = old_dirtyness != new_dirtyness;
-        if dirty_changed {
-            if let Some(value) = new_dirtyness {
-                task.set_dirty(value);
-            } else if old_dirtyness.is_some() {
-                task.take_dirty();
-            }
-        }
-        if old_current_session_self_clean != new_current_session_self_clean {
-            if new_current_session_self_clean {
-                task.set_current_session_clean(true);
-            } else if old_current_session_self_clean {
-                task.set_current_session_clean(false);
-            }
-        }
-
-        // Propagate dirtyness changes
-        let data_update = if old_self_dirty != new_self_dirty
-            || old_current_session_self_clean != new_current_session_self_clean
-        {
-            let dirty_container_count = task
-                .get_aggregated_dirty_container_count()
-                .cloned()
-                .unwrap_or_default();
-            let current_session_clean_container_count = task
-                .get_aggregated_current_session_clean_container_count()
-                .copied()
-                .unwrap_or_default();
-            let result = ComputeDirtyAndCleanUpdate {
-                old_dirty_container_count: dirty_container_count,
-                new_dirty_container_count: dirty_container_count,
-                old_current_session_clean_container_count: current_session_clean_container_count,
-                new_current_session_clean_container_count: current_session_clean_container_count,
-                old_self_dirty,
-                new_self_dirty,
-                old_current_session_self_clean,
-                new_current_session_self_clean,
-            }
-            .compute();
-            if result.dirty_count_update - result.current_session_clean_update < 0 {
-                // The task is clean now
-                if let Some(activeness_state) = task.get_activeness_mut() {
-                    activeness_state.all_clean_event.notify(usize::MAX);
-                    activeness_state.unset_active_until_clean();
-                    if activeness_state.is_empty() {
-                        task.take_activeness();
-                    }
-                }
-            }
-            result
-                .aggregated_update(task_id)
-                .and_then(|aggregated_update| {
-                    AggregationUpdateJob::data_update(&mut task, aggregated_update)
-                })
+        let new_dirtyness = if session_dependent {
+            Some(Dirtyness::SessionDependent)
         } else {
             None
         };
+        #[cfg(feature = "verify_determinism")]
+        let dirty_changed = task.get_dirty().cloned() != new_dirtyness;
+        let (data_update, result) = task.update_dirty_state(new_dirtyness);
+
+        // Fire the all_clean_event if the task transitioned to clean
+        if result.dirty_count_update - result.current_session_clean_update < 0 {
+            // The task is clean now
+            if let Some(activeness_state) = task.get_activeness_mut() {
+                activeness_state.all_clean_event.notify(usize::MAX);
+                activeness_state.unset_active_until_clean();
+                if activeness_state.is_empty() {
+                    task.take_activeness();
+                }
+            }
+        }
 
         #[cfg(feature = "verify_determinism")]
         let reschedule =
