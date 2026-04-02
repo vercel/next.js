@@ -96,10 +96,26 @@ For Firefox:
 
 In either browser, any time your client-side code reaches a [`debugger`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/debugger) statement, code execution will pause and that file will appear in the debug area. You can also search for files to set breakpoints manually:
 
-- In Chrome: Press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS
-- In Firefox: Press `Ctrl+P` on Windows/Linux or `⌘+P` on macOS, or use the file tree in the left panel
+## Error Type
+Console TypeError
 
-Note that when searching, your source files will have paths starting with `webpack://_N_E/./`.
+## Error Message
+Cannot read properties of undefined (reading 'hash')
+
+
+    at <anonymous> (src/ai/flows/automated-humanized-floor-plan-generation-flow.ts:99:40)
+
+## Code Frame
+   97 |   async (input) => {
+   98 |     // Step 1: Analyze the floor plan and generate detailed description + image generation prompt
+>  99 |     const { output: analysisOutput } = await humanizationAnalysisPrompt(input);
+      |                                        ^
+  100 |
+  101 |     if (!analysisOutput) {
+  102 |       throw new Error('Failed to get analysis and image generation prompt.');
+
+Next.js version: 15.5.9 (Turbopack)
+
 
 ### React Developer Tools
 
