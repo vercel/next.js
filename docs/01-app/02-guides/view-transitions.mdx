@@ -316,7 +316,9 @@ Browser-initiated back navigations (the back button or swipe gestures) do not ca
 
 #### Respecting reduced motion
 
-All of these animations must degrade gracefully. Users who prefer reduced motion should see instant transitions with no animation:
+Directional slides simulate physical movement across the viewport. This is the most common trigger for motion sensitivity. Morphs, reveals, and crossfades carry less risk since they affect smaller areas or rely on opacity rather than position.
+
+The simplest approach is to disable all animation durations:
 
 ```css filename="app/globals.css"
 @media (prefers-reduced-motion: reduce) {
@@ -329,7 +331,7 @@ All of these animations must degrade gracefully. Users who prefer reduced motion
 }
 ```
 
-This preserves the transition (content still swaps) but removes the motion. The page changes instantly, which is the browser's default behavior.
+Without animation, content swaps instantly, which is the browser's default behavior. A more refined approach would preserve crossfades and opacity transitions while removing positional movement. See ["No Motion Isn't Always prefers-reduced-motion"](https://css-tricks.com/nuking-motion-with-prefers-reduced-motion/) for more on this.
 
 ### Step 4: Crossfade content within the same route
 
