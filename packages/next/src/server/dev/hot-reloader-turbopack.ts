@@ -1855,6 +1855,11 @@ export async function createHotReloaderTurbopack(
           __next__clear_chunk_cache__()
         }
 
+        // Reset the server HMR handler registry. All server runtime chunks are
+        // cleared from require.cache above; when they're next required they'll
+        // re-register into this array and reinstall the multicast dispatcher.
+        ;(globalThis as any).__turbopack_server_hmr_handlers__ = []
+
         // Clear all edge contexts
         await clearAllModuleContexts()
 
