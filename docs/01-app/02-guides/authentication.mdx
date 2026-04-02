@@ -159,6 +159,7 @@ To prevent unnecessary calls to your authentication provider's API or database, 
 
 ```ts filename="app/actions/auth.ts" switcher
 import { SignupFormSchema, FormState } from '@/app/lib/definitions'
+import * as z from 'zod'
 
 export async function signup(state: FormState, formData: FormData) {
   // Validate form fields
@@ -171,7 +172,7 @@ export async function signup(state: FormState, formData: FormData) {
   // If any form fields are invalid, return early
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: z.flattenError(validatedFields.error).fieldErrors,
     }
   }
 
@@ -181,6 +182,7 @@ export async function signup(state: FormState, formData: FormData) {
 
 ```js filename="app/actions/auth.js" switcher
 import { SignupFormSchema } from '@/app/lib/definitions'
+import * as z from 'zod'
 
 export async function signup(state, formData) {
   // Validate form fields
@@ -193,7 +195,7 @@ export async function signup(state, formData) {
   // If any form fields are invalid, return early
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: z.flattenError(validatedFields.error).fieldErrors,
     }
   }
 
