@@ -110,7 +110,11 @@ import {
   walkTreeWithFlightRouterState,
   createFullTreeFlightDataForNavigation,
 } from './walk-tree-with-flight-router-state'
-import { createComponentTree, getRootParams } from './create-component-tree'
+import {
+  createComponentTree,
+  getRootParams,
+  type PrerenderHTTPErrorState,
+} from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import {
   getClientReferenceManifest,
@@ -501,6 +505,54 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       : { 'global-error': components['global-error'] },
     null, // staticSiblings
   ]
+}
+
+type HTTPAccessErrorStatusCode = 404 | 403 | 401
+
+function hasPrerenderHTTPErrorBoundary(
+  loaderTree: LoaderTree,
+  triggeredStatus: HTTPAccessErrorStatusCode,
+  authInterrupts: boolean
+): boolean {
+  switch (triggeredStatus) {
+    case 404:
+      return !!loaderTree[2]['not-found']
+    case 403:
+      return authInterrupts && !!loaderTree[2].forbidden
+    case 401:
+      return authInterrupts && !!loaderTree[2].unauthorized
+    default:
+      return false
+  }
+}
+
+function findPrerenderHTTPErrorBoundaryTree(
+  loaderTree: LoaderTree,
+  triggeredStatus: HTTPAccessErrorStatusCode,
+  authInterrupts: boolean
+): LoaderTree | null {
+  let boundaryTree: LoaderTree | null = hasPrerenderHTTPErrorBoundary(
+    loaderTree,
+    triggeredStatus,
+    authInterrupts
+  )
+    ? loaderTree
+    : null
+
+  const childrenTree = loaderTree[1].children
+  if (childrenTree) {
+    const deeperBoundaryTree = findPrerenderHTTPErrorBoundaryTree(
+      childrenTree,
+      triggeredStatus,
+      authInterrupts
+    )
+
+    if (deeperBoundaryTree) {
+      boundaryTree = deeperBoundaryTree
+    }
+  }
+
+  return boundaryTree
 }
 
 /**
@@ -1702,6 +1754,9 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   options: {
     is404: boolean
+    // When set, rerender a segment-scoped HTTP fallback inside the normal app
+    // router tree instead of falling back to the generic error shell payload.
+    prerenderHTTPError?: PrerenderHTTPErrorState
     staleTimeIterable?: AsyncIterable<number>
     staticStageByteLengthPromise?: Promise<number>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
@@ -1709,6 +1764,7 @@ async function getRSCPayload(
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
   const {
     is404,
+    prerenderHTTPError,
     staleTimeIterable,
     staticStageByteLengthPromise,
     runtimePrefetchStream,
@@ -1776,6 +1832,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
+    prerenderHTTPError,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -7018,16 +7075,46 @@ async function prerenderToStream(
           : INFINITE_CACHE,
       tags: [...(prerenderStore?.tags || implicitTags.tags)],
     })
-    const errorRSCPayload = await workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      getErrorRSCPayload,
-      tree,
-      ctx,
-      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-      errorType
-    )
+    let prerenderHTTPError: PrerenderHTTPErrorState | undefined
+    if (cacheComponents && isHTTPAccessFallbackError(err)) {
+      const triggeredStatus = getAccessFallbackHTTPStatus(
+        err
+      ) as HTTPAccessErrorStatusCode
+      const boundaryTree = findPrerenderHTTPErrorBoundaryTree(
+        tree,
+        triggeredStatus,
+        ctx.renderOpts.experimental.authInterrupts
+      )
 
-    const errorServerStream = workUnitAsyncStorage.run(
+      if (boundaryTree) {
+        prerenderHTTPError = {
+          boundaryTree,
+          triggeredStatus,
+        }
+      }
+    }
+
+    const errorRSCPayload = prerenderHTTPError
+      ? await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          getRSCPayload,
+          tree,
+          ctx,
+          {
+            is404: errorType === 'not-found',
+            prerenderHTTPError,
+          }
+        )
+      : await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          getErrorRSCPayload,
+          tree,
+          ctx,
+          reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+          errorType
+        )
+
+    const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
       renderToFlightStream,
       ComponentMod,
@@ -7038,6 +7125,19 @@ async function prerenderToStream(
         onError: serverComponentsErrorHandler,
       }
     )
+
+    let errorServerStream = errorServerStreamRaw
+    const errorFlightResultPromise = prerenderHTTPError
+      ? (() => {
+          // Fizz still needs to read the Flight stream to render ErrorApp, but
+          // the prerender path also needs a buffered Flight result for the HTML
+          // prelude and segment data collectors. Tee the stream so each consumer
+          // gets its own copy.
+          const [appStream, flightStream] = errorServerStreamRaw.tee()
+          errorServerStream = appStream
+          return createReactServerPrerenderResultFromRender(flightStream)
+        })()
+      : null
 
     try {
       const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
@@ -7058,10 +7158,15 @@ async function prerenderToStream(
         }
       )
 
+      const resolvedFlightResult = errorFlightResultPromise
+        ? await errorFlightResultPromise
+        : reactServerPrerenderResult
+      if (errorFlightResultPromise) {
+        reactServerPrerenderResult.consume()
+      }
+
       if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(
-          reactServerPrerenderResult.asStream()
-        )
+        const flightData = await streamToBuffer(resolvedFlightResult.asStream())
         metadata.flightData = flightData
         await collectSegmentData(
           flightData,
@@ -7073,9 +7178,7 @@ async function prerenderToStream(
         )
       }
 
-      // This is intentionally using the readable datastream from the main
-      // render rather than the flight data from the error page render
-      const flightStream = reactServerPrerenderResult.consumeAsStream()
+      const flightStream = resolvedFlightResult.consumeAsStream()
 
       return {
         digestErrorsMap: reactServerErrorsByDigest,
