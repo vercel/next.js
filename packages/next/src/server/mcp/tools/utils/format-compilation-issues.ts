@@ -1,17 +1,19 @@
 import type { Issue, StyledString } from '../../../../build/swc/types'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
-/** Flatten a StyledString tree to plain text, discarding all styling. */
-function flattenStyledString(s: StyledString): string {
+/** Convert a StyledString tree to Markdown. */
+function styledStringToMarkdown(s: StyledString): string {
   switch (s.type) {
     case 'text':
-    case 'code':
-    case 'strong':
       return s.value
+    case 'code':
+      return `\`${s.value}\``
+    case 'strong':
+      return `**${s.value}**`
     case 'line':
-      return s.value.map(flattenStyledString).join('')
+      return s.value.map(styledStringToMarkdown).join('')
     case 'stack':
-      return s.value.map(flattenStyledString).join('\n')
+      return s.value.map(styledStringToMarkdown).join('\n')
     default:
       return ''
   }
@@ -32,13 +34,13 @@ export interface FormattedIssue {
       end: { line: number; column: number }
     }
   }
-  /** Plain-text code frame (ANSI codes stripped) */
+  /** Code frame with ANSI codes stripped */
   codeFrame?: string
 }
 
 /**
  * Transform raw Turbopack issues into a clean format for MCP consumers:
- * - Flattens StyledString trees (title/description/detail) to plain strings
+ * - Converts StyledString trees (title/description/detail) to Markdown
  * - Strips ANSI codes from code frames
  * - Converts 0-indexed source positions to 1-indexed
  * - Deduplicates issues (same error can surface from multiple endpoints)
@@ -48,7 +50,7 @@ export function formatCompilationIssues(issues: Issue[]): FormattedIssue[] {
   const formattedIssues: FormattedIssue[] = []
 
   for (const issue of issues) {
-    const title = flattenStyledString(issue.title)
+    const title = styledStringToMarkdown(issue.title)
     // Include source position in the key so two distinct errors in the same
     // file with the same message are not collapsed into one.
     const startLine = issue.source?.range?.start.line ?? ''
@@ -63,9 +65,9 @@ export function formatCompilationIssues(issues: Issue[]): FormattedIssue[] {
       filePath: issue.filePath,
       title,
       description: issue.description
-        ? flattenStyledString(issue.description)
+        ? styledStringToMarkdown(issue.description)
         : undefined,
-      detail: issue.detail ? flattenStyledString(issue.detail) : undefined,
+      detail: issue.detail ? styledStringToMarkdown(issue.detail) : undefined,
       source: issue.source
         ? {
             filePath: issue.source.source.filePath,
