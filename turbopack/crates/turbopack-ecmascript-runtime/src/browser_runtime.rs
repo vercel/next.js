@@ -159,16 +159,13 @@ pub async fn get_browser_runtime_code(
         }
     }
 
-    let cross_origin_literal = cross_origin
-        .as_str()
-        .map(|value| StringifyJs(value).to_string())
-        .unwrap_or_else(|| "null".to_string());
+    let cross_origin = cross_origin.as_str();
     writedoc!(
         code,
         r#"
-            const CROSS_ORIGIN = {};
+            var CROSS_ORIGIN = {};
         "#,
-        cross_origin_literal
+        StringifyJs(&cross_origin)
     )?;
 
     // Output the list of global variable names to forward to workers
