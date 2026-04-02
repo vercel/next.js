@@ -248,6 +248,14 @@ describe.each(['', '/docs'])(
         })
       })
 
+      it('should allow requests from multi-level localhost subdomains', async () => {
+        const res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'https://sub.app.localhost'
+        )
+        expect(res.status).not.toBe(403)
+      })
       it('should allow same-site requests without an origin header', async () => {
         const res = await fetchViaHTTP(
           next.appPort,
