@@ -19,7 +19,6 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module::Module,
     resolve::{ModuleResolveResult, ModuleResolveResultItem, parse::Request, pattern::Pattern},
 };
 
@@ -89,12 +88,9 @@ pub async fn check_and_emit_too_many_matches_warning(
         let sampled: Vec<&(_, ModuleResolveResultItem)> =
             result_ref.primary.sample(&mut rng, SAMPLE_SIZE).collect();
 
-        let mut sample_paths = Vec::new();
+        let mut sample_paths = Vec::with_capacity(SAMPLE_SIZE);
         for (_, item) in sampled {
-            if let ModuleResolveResultItem::Module(module) = item {
-                let ident = module.ident().await?;
-                sample_paths.push(ident.path.path.clone());
-            }
+            sample_paths.push(item.description().await?);
         }
         sample_paths.sort_unstable();
 

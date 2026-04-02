@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::BTreeMap,
-    fmt::{Display, Formatter, Write},
+    fmt::{Display, Formatter},
     future::Future,
     iter::{empty, once},
 };
@@ -109,6 +109,20 @@ pub enum ModuleResolveResultItem {
 }
 
 impl ModuleResolveResultItem {
+    /// Returns a short description of this item, suitable for display in diagnostics.
+    pub async fn description(&self) -> Result<RcStr> {
+        Ok(match self {
+            ModuleResolveResultItem::Module(module) => module.ident().await?.path.path.clone(),
+            ModuleResolveResultItem::OutputAsset(asset) => asset.path().await?.path.clone(),
+            ModuleResolveResultItem::External { name, .. } => name.clone(),
+            ModuleResolveResultItem::Unknown(source) => source.ident().await?.path.path.clone(),
+            ModuleResolveResultItem::Ignore => rcstr!("(ignore)"),
+            ModuleResolveResultItem::Error(_) => rcstr!("(error)"),
+            ModuleResolveResultItem::Empty => rcstr!("(empty)"),
+            ModuleResolveResultItem::Custom(n) => format!("(custom {n})").into(),
+        })
+    }
+
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
@@ -565,70 +579,6 @@ pub struct ResolveResult {
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ResolveResult {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut result = String::new();
-        if self.is_unresolvable_ref() {
-            result.push_str("unresolvable");
-        }
-        for (i, (request, item)) in self.primary.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            write!(result, "{request} -> ").unwrap();
-            match item {
-                ResolveResultItem::Source(a) => {
-                    result.push_str(&a.ident().to_string().await?);
-                }
-                ResolveResultItem::External {
-                    name: s,
-                    ty,
-                    traced,
-                    target,
-                } => {
-                    result.push_str("external ");
-                    result.push_str(s);
-                    write!(
-                        result,
-                        " ({ty}, {traced}, {:?})",
-                        if let Some(target) = target {
-                            Some(target.value_to_string().await?)
-                        } else {
-                            None
-                        }
-                    )?;
-                }
-                ResolveResultItem::Ignore => {
-                    result.push_str("ignore");
-                }
-                ResolveResultItem::Empty => {
-                    result.push_str("empty");
-                }
-                ResolveResultItem::Error(_) => {
-                    result.push_str("error");
-                }
-                ResolveResultItem::Custom(_) => {
-                    result.push_str("custom");
-                }
-            }
-            result.push('\n');
-        }
-        if !self.affecting_sources.is_empty() {
-            result.push_str(" (affecting sources: ");
-            for (i, source) in self.affecting_sources.iter().enumerate() {
-                if i > 0 {
-                    result.push_str(", ");
-                }
-                result.push_str(&source.ident().to_string().await?);
-            }
-            result.push(')');
-        }
-        Ok(Vc::cell(result.into()))
-    }
 }
 
 impl ResolveResult {
