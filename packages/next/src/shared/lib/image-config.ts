@@ -137,6 +137,13 @@ export type ImageConfigComplete = {
   unoptimized: boolean
 
   /**
+   * When true, preserves the ICC color profile of the source image during
+   * optimization. This prevents wide color gamut images (such as Display P3)
+   * from being converted to sRGB, maintaining color accuracy on capable displays.
+   */
+  preserveColorProfile: boolean
+
+  /**
    * When true, the `cacheHandler` configured in next.config.js will also be used
    * for caching optimized images. When false, images use the default filesystem cache.
    * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
@@ -170,5 +177,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   remotePatterns: [], // default: allow no remote images
   qualities: [75],
   unoptimized: false,
+  preserveColorProfile: false,
   customCacheHandler: false,
 }

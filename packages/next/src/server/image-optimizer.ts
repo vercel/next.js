@@ -808,6 +808,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  preserveColorProfile,
 }: {
   buffer: Buffer
   contentType: string
@@ -818,6 +819,7 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  preserveColorProfile?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency)
   const transformer = sharp(buffer, {
@@ -828,6 +830,10 @@ export async function optimizeImage({
       seconds: timeoutInSeconds ?? 7,
     })
     .rotate()
+
+  if (preserveColorProfile) {
+    transformer.keepIccProfile()
+  }
 
   if (height) {
     transformer.resize(width, height)
@@ -843,11 +849,20 @@ export async function optimizeImage({
       effort: 3,
     })
   } else if (contentType === WEBP) {
-    transformer.webp({ quality })
+    transformer.webp({
+      quality,
+      ...(preserveColorProfile ? { smartSubsample: false } : {}),
+    })
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
+    transformer.jpeg({
+      quality,
+      mozjpeg: true,
+      ...(preserveColorProfile
+        ? { chromaSubsampling: '4:4:4' }
+        : {}),
+    })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -1151,6 +1166,7 @@ export async function imageOptimizer(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+      preserveColorProfile: nextConfig.images?.preserveColorProfile,
     })
     if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
