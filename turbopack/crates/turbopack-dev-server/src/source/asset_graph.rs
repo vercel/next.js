@@ -135,7 +135,7 @@ async fn expand(
             .assets
             .await?
             .into_iter()
-            .chain(refs.referenced_assets.await?.into_iter());
+            .chain(refs.referenced_assets.await?);
         for &asset in ref_assets {
             if assets_set.insert(asset) {
                 let path = asset.path().await?;
