@@ -1,4 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
+import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
@@ -9,7 +10,11 @@ import {
   streamFromString,
   streamToString,
 } from './stream-utils/node-web-streams-helper'
-import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import {
+  isAbortError,
+  pipeToNodeResponse,
+  pipeNodeReadableToNodeResponse,
+} from './pipe-readable'
 import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 import { InvariantError } from '../shared/lib/invariant-error'
 import type {
@@ -82,6 +87,7 @@ export type RenderResultMetadata = AppPageRenderResultMetadata &
 export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
+  | Readable
   | string
   | Buffer
   | null
@@ -92,6 +98,16 @@ export type RenderResultOptions<
   contentType: ContentTypeOption | null
   waitUntil?: Promise<unknown>
   metadata: Metadata
+}
+
+function isNodeReadable(value: unknown): value is Readable {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as Record<string, unknown>).pipe === 'function' &&
+    typeof (value as Record<string, unknown>).on === 'function' &&
+    !(value instanceof ReadableStream)
+  )
 }
 
 export default class RenderResult<
@@ -231,6 +247,19 @@ export default class RenderResult<
       return chainStreams(...this.response)
     }
 
+    if (isNodeReadable(this.response)) {
+      let Readable: typeof import('node:stream').Readable
+      if (process.env.TURBOPACK) {
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      } else {
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      }
+      return Readable.toWeb(this.response) as ReadableStream<Uint8Array>
+    }
+
     return this.response
   }
 
@@ -253,6 +282,17 @@ export default class RenderResult<
       return this.response
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
+    } else if (isNodeReadable(this.response)) {
+      let Readable: typeof import('node:stream').Readable
+      if (process.env.TURBOPACK) {
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      } else {
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      }
+      return [Readable.toWeb(this.response) as ReadableStream<Uint8Array>]
     } else {
       return [this.response]
     }
@@ -349,6 +389,16 @@ export default class RenderResult<
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
+    if (
+      this.response !== null &&
+      typeof this.response !== 'string' &&
+      !Buffer.isBuffer(this.response) &&
+      !Array.isArray(this.response) &&
+      isNodeReadable(this.response)
+    ) {
+      await pipeNodeReadableToNodeResponse(this.response, res, this.waitUntil)
+      return
+    }
     await pipeToNodeResponse(this.readable, res, this.waitUntil)
   }
 }

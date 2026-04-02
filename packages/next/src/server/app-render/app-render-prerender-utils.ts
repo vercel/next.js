@@ -1,28 +1,53 @@
+import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
+
+export type AnyStream = ReadableStream<Uint8Array> | Readable
+
+function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
+  return typeof (stream as ReadableStream).tee === 'function'
+}
 
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
 // closes then whatever hanging chunks exist will be errored. This is because prerender (an experimental feature)
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
-  private _stream: null | ReadableStream<Uint8Array>
+  private _stream: null | AnyStream
 
-  constructor(stream: ReadableStream<Uint8Array>) {
+  constructor(stream: AnyStream) {
     this._stream = stream
   }
 
-  tee() {
+  tee(): AnyStream {
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
       )
     }
-    const tee = this._stream.tee()
-    this._stream = tee[0]
-    return tee[1]
+    if (isWebStream(this._stream)) {
+      const tee = this._stream.tee()
+      this._stream = tee[0]
+      return tee[1]
+    }
+
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    }
+    const webStream = Readable.toWeb(this._stream) as ReadableStream<Uint8Array>
+    const tee = webStream.tee()
+    this._stream = Readable.fromWeb(
+      tee[0] as import('stream/web').ReadableStream
+    )
+    return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
   }
 
-  consume() {
+  consume(): AnyStream {
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -55,18 +80,26 @@ export async function createReactServerPrerenderResult(
 }
 
 export async function createReactServerPrerenderResultFromRender(
-  underlying: ReadableStream<Uint8Array>
+  underlying: AnyStream
 ): Promise<ReactServerPrerenderResult> {
   const chunks: Array<Uint8Array> = []
-  const reader = underlying.getReader()
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    } else {
-      chunks.push(value)
+
+  if (isWebStream(underlying)) {
+    const reader = underlying.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      } else {
+        chunks.push(value)
+      }
+    }
+  } else {
+    for await (const chunk of underlying) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
     }
   }
+
   return new ReactServerPrerenderResult(chunks)
 }
 export class ReactServerPrerenderResult {

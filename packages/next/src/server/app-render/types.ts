@@ -21,6 +21,7 @@ import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { PrefetchHints } from '../../shared/lib/app-router-types'
+import type { AnyStream } from './stream-ops'
 
 const dynamicParamTypesSchema = s.enums([
   'c',
@@ -115,12 +116,12 @@ export interface RenderOptsPartial {
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
-    debugChannel: { readable: ReadableStream<Uint8Array> },
+    debugChannel: { readable: AnyStream },
     htmlRequestId: string,
     requestId: string
   ) => void
   sendErrorsToBrowser?: (
-    errorsRscStream: ReadableStream<Uint8Array>,
+    errorsRscStream: AnyStream,
     htmlRequestId: string
   ) => void
   isBuildTimePrerendering?: boolean
