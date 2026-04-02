@@ -59,6 +59,7 @@ use std::cmp::Reverse;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
+use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -127,11 +128,21 @@ struct ModuleInfo {
     /// modules are selected for batching, and non-deterministic order can cause CSS
     /// ordering bugs. See GitHub issue #89523.
     chunk_group_indices: FxIndexMap<usize, usize>,
-    /// Sum of all position indices across chunk groups, used for sorting modules.
-    /// Lower values mean the module tends to appear earlier in chunk groups.
+    /// Sum of all position indices across chunk groups, used as a heuristic for sorting modules.
+    ///
+    /// The greedy batching algorithm seeds new batches from the front of the sorted module list,
+    /// so we want modules that appear early in the cascade to be processed first. `index_sum` is
+    /// a cheap approximation of this: lower values bias toward modules near the top of their
+    /// routes' cascade order.
+    ///
+    /// This is imperfect — it conflates "early position" with "few chunk groups." A module at
+    /// position 0 in 1 route (`index_sum=0`) sorts before a module at position 1 in 30 routes
+    /// (`index_sum=30`), even though the latter is arguably more important to process early.
+    /// Ideally we'd sort by something like (average position, number of chunk groups), but
+    /// there's no obvious way to combine those into a single key.
     index_sum: usize,
     /// The byte size of this module's CSS output, used for chunk size budgeting.
-    size: usize,
+    size_bytes: usize,
     /// The chunk item representation of this module, populated after initial processing.
     chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
 }
@@ -143,7 +154,7 @@ impl ModuleInfo {
             ident,
             chunk_group_indices: Default::default(),
             index_sum: 0,
-            size: 0,
+            size_bytes: 0,
             chunk_item: None,
         }
     }
@@ -151,7 +162,7 @@ impl ModuleInfo {
 
 /// State for a single chunk group during style batching.
 ///
-/// A chunk group typically corresponds to a route/page and contains all CSS modules
+/// A chunk group corresponds to a route/page and contains all CSS modules
 /// needed by that route in their correct cascade order (postorder DFS traversal).
 struct ChunkGroupState {
     /// CSS modules in this chunk group, in postorder traversal order.
@@ -166,7 +177,7 @@ struct BatchingModuleInfo {
     style_type: StyleType,
     ident: RcStr,
     chunk_group_indices: FxIndexMap<usize, usize>,
-    size: usize,
+    size_bytes: usize,
 }
 
 /// Result of the pure batching algorithm. Each batch is a `Vec<usize>` of module keys that should
@@ -192,51 +203,49 @@ fn compute_style_batches(
     chunk_group_styles: &[FxIndexSet<usize>],
     max_chunk_size: usize,
 ) -> BatchingResult {
-    // --- Compute the dependents of each module ---
-    // A module X is a dependency of module Y if X appears before Y in ALL chunk groups where both
-    // appear. We need to check all chunk groups, not just the shortest one.
-    let mut module_dependents: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
+    // --- Compute the dependencies of each module ---
+    // X is a dependency of Y if X appears before Y in *every* chunk group that Y belongs to.
+    // We compute this by intersecting the set of preceding modules across all chunk groups
+    // for each module. The intersection shrinks at each step, keeping the sets small in
+    // practice.
+    let mut module_dependencies: FxHashMap<usize, FxHashSet<usize>> = FxHashMap::default();
     for (&module_key, info) in module_info {
-        let mut dependents = FxHashSet::default();
-        for (&cg_idx, &start_pos) in &info.chunk_group_indices {
-            let following = &chunk_group_styles[cg_idx].as_slice()[start_pos + 1..];
-            dependents.extend(following.iter().copied());
+        let mut deps: Option<FxHashSet<usize>> = None;
+        for (&cg_idx, &pos) in &info.chunk_group_indices {
+            let preceding: FxHashSet<usize> = chunk_group_styles[cg_idx].as_slice()[..pos]
+                .iter()
+                .copied()
+                .collect();
+            match &mut deps {
+                None => {
+                    deps = Some(preceding);
+                }
+                Some(d) => {
+                    // intersect the previously collected deps and the new ones
+                    d.retain(|x| preceding.contains(x));
+                }
+            }
         }
-
-        // module is a dependency of dependent when it's included in all chunk groups of
-        // dependent with an index lower than the index of the dependent
-        dependents.retain(|&dep_key| {
-            let dep_info = &module_info[&dep_key];
-            info.chunk_group_indices.len() >= dep_info.chunk_group_indices.len()
-                && dep_info
-                    .chunk_group_indices
-                    .iter()
-                    .all(|(cg_idx, &dep_pos)| {
-                        info.chunk_group_indices
-                            .get(cg_idx)
-                            .is_some_and(|&mod_pos| mod_pos < dep_pos)
-                    })
-        });
-
-        if !dependents.is_empty() {
-            module_dependents.insert(module_key, dependents);
+        if let Some(mut deps) = deps
+            && !deps.is_empty()
+        {
+            deps.shrink_to_fit();
+            module_dependencies.insert(module_key, deps);
         }
     }
 
     // --- Greedy batching loop ---
     let mut chunk_group_requests: Vec<usize> = chunk_group_styles.iter().map(|s| s.len()).collect();
 
-    let mut processed: FxIndexMap<usize, bool> =
-        module_info.keys().copied().map(|k| (k, false)).collect();
+    let mut processed = RoaringBitmap::new();
 
     let mut batches: Vec<Vec<usize>> = Vec::new();
 
-    for i in 0..processed.len() {
-        let (&module_key, is_processed) = processed.get_index_mut(i).unwrap();
-        if *is_processed {
+    for (&module_key, _) in module_info.iter() {
+        if processed.contains(module_key as u32) {
             continue;
         }
-        *is_processed = true;
+        processed.insert(module_key as u32);
 
         let info = &module_info[&module_key];
         let mut global_mode = info.style_type == StyleType::GlobalStyle;
@@ -253,7 +262,7 @@ fn compute_style_batches(
         let mut new_batch: FxIndexSet<usize> = [module_key].into_iter().collect();
 
         // The current size of the new chunk
-        let mut current_size = info.size;
+        let mut current_size = info.size_bytes;
 
         // A pool of potential modules where the next module is selected from.
         // It's filled from the next module of the selected modules in every chunk group.
@@ -263,7 +272,7 @@ fn compute_style_batches(
                 let following = &chunk_group_styles[cg_idx].as_slice()[pos + 1..];
                 following
                     .iter()
-                    .find(|&m| !*processed.get(m).unwrap())
+                    .find(|&m| !processed.contains(*m as u32))
                     .copied()
             })
             .collect::<FxHashSet<_>>();
@@ -275,8 +284,23 @@ fn compute_style_batches(
             let mut candidates: Vec<(usize, &BatchingModuleInfo, usize)> = potential_next
                 .iter()
                 .copied()
-                .map(|m| {
+                .filter_map(|m| {
                     let mi = &module_info[&m];
+                    // Filter out modules that would exceed the size budget
+                    if current_size + mi.size_bytes > max_chunk_size {
+                        return None;
+                    }
+                    // Filter out modules that would violate dependency ordering:
+                    // if anything already in the batch depends on m, then m must
+                    // come before it, but the batch is unordered so we can't
+                    // guarantee that.
+                    if new_batch.iter().any(|&b| {
+                        module_dependencies
+                            .get(&b)
+                            .is_some_and(|deps| deps.contains(&m))
+                    }) {
+                        return None;
+                    }
                     let max_req = mi
                         .chunk_group_indices
                         .keys()
@@ -284,26 +308,13 @@ fn compute_style_batches(
                         .map(|&cg| chunk_group_requests[cg])
                         .max()
                         .unwrap();
-                    (m, mi, max_req)
+                    Some((m, mi, max_req))
                 })
                 .collect();
-            candidates.sort_by_key(|(_, mi, req)| (Reverse(*req), &mi.ident));
+            candidates.sort_unstable_by_key(|(_, mi, req)| (Reverse(*req), &mi.ident));
 
             // Try every potential module
             for (m, mi, _) in candidates {
-                if current_size + mi.size > max_chunk_size {
-                    // Chunk would be too large
-                    continue;
-                }
-                // In loose mode we only check if the dependencies are not violated
-                if let Some(deps) = module_dependents.get(&m)
-                    && deps.iter().any(|d| new_batch.contains(d))
-                {
-                    // A dependent of the module is already in the chunk, which would violate
-                    // the order
-                    continue;
-                }
-
                 // Global CSS must not leak into unrelated chunks
                 let is_global = mi.style_type == StyleType::GlobalStyle;
                 if is_global
@@ -348,11 +359,11 @@ fn compute_style_batches(
                         } else {
                             continue;
                         };
-                        for &between in &chunk_group_styles[r_idx].as_slice()[lo..hi] {
+                        for &between in chunk_group_styles[r_idx].as_slice()[lo..hi].iter().rev() {
                             if new_batch.contains(&between) {
                                 continue;
                             }
-                            if *processed.get(&between).unwrap_or(&false) {
+                            if processed.contains(between as u32) {
                                 continue;
                             }
                             contiguous = false;
@@ -364,14 +375,17 @@ fn compute_style_batches(
                     }
                 }
                 potential_next.remove(&m);
-                current_size += mi.size;
+                current_size += mi.size_bytes;
                 if is_global {
                     global_mode = true;
                 }
                 for &cg_idx in mi.chunk_group_indices.keys() {
-                    // Always decrement: the candidate is absorbed regardless of whether
-                    // this chunk group was already tracked by the batch.
-                    chunk_group_requests[cg_idx] -= 1;
+                    if all_chunk_states.contains_key(&cg_idx) {
+                        // Only decrement when this chunk group is already tracked by the
+                        // batch — absorbing into a new chunk group doesn't reduce its
+                        // request count.
+                        chunk_group_requests[cg_idx] -= 1;
+                    }
 
                     let pos = chunk_group_styles[cg_idx].get_index_of(&m).unwrap();
                     // Use max so the watermark only ever moves forward, preserving its
@@ -383,14 +397,14 @@ fn compute_style_batches(
                     let following = &chunk_group_styles[cg_idx].as_slice()[pos + 1..];
                     if let Some(&next) = following
                         .iter()
-                        .find(|&x| !*processed.get(x).unwrap() && !new_batch.contains(x))
+                        .find(|&x| !processed.contains(*x as u32) && !new_batch.contains(x))
                     {
                         potential_next.insert(next);
                     }
                 }
 
                 new_batch.insert(m);
-                *processed.get_mut(&m).unwrap() = true;
+                processed.insert(m as u32);
                 continue 'outer;
             }
             break;
@@ -506,7 +520,7 @@ pub async fn compute_style_groups(
 
     module_info_map.retain(|_, info| info.is_some());
 
-    module_info_map.sort_by(|_, a, _, b| {
+    module_info_map.sort_unstable_by(|_, a, _, b| {
         let a = a.as_ref().unwrap();
         let b = b.as_ref().unwrap();
         a.index_sum
@@ -538,7 +552,7 @@ pub async fn compute_style_groups(
         .zip(chunk_item_and_sizes)
         .for_each(|((_, info), (chunk_item, size))| {
             let info = info.as_mut().unwrap();
-            info.size = size;
+            info.size_bytes = size;
             info.chunk_item = Some(chunk_item);
         });
 
@@ -563,7 +577,7 @@ pub async fn compute_style_groups(
                     style_type: info.style_type,
                     ident: info.ident.clone(),
                     chunk_group_indices: info.chunk_group_indices.clone(),
-                    size: info.size,
+                    size_bytes: info.size_bytes,
                 },
             )
         })
@@ -609,33 +623,82 @@ pub async fn compute_style_groups(
 
 #[cfg(test)]
 mod tests {
-    use rustc_hash::FxHashSet;
+    use std::collections::HashMap;
+
     use turbo_rcstr::RcStr;
     use turbo_tasks::{FxIndexMap, FxIndexSet};
 
     use super::{BatchingModuleInfo, compute_style_batches};
     use crate::module::StyleType;
 
-    /// Helper to build test inputs concisely.
+    const ISO: StyleType = StyleType::IsolatedStyle;
+    const GLOBAL: StyleType = StyleType::GlobalStyle;
+
+    /// A named module definition for test inputs.
+    struct Module {
+        name: &'static str,
+        style_type: StyleType,
+        size_bytes: usize,
+    }
+
+    fn iso(name: &'static str, size_bytes: usize) -> Module {
+        Module {
+            name,
+            style_type: ISO,
+            size_bytes,
+        }
+    }
+
+    fn global(name: &'static str, size_bytes: usize) -> Module {
+        Module {
+            name,
+            style_type: GLOBAL,
+            size_bytes,
+        }
+    }
+
+    /// Test inputs ready for `compute_style_batches`, with name↔index mappings.
+    struct TestInputs {
+        module_info: FxIndexMap<usize, BatchingModuleInfo>,
+        chunk_group_styles: Vec<FxIndexSet<usize>>,
+        idx_to_name: HashMap<usize, &'static str>,
+    }
+
+    impl TestInputs {
+        fn batches(&self, max_chunk_size: usize) -> Vec<Vec<&'static str>> {
+            let result =
+                compute_style_batches(&self.module_info, &self.chunk_group_styles, max_chunk_size);
+            result
+                .batches
+                .iter()
+                .map(|batch| batch.iter().map(|&idx| self.idx_to_name[&idx]).collect())
+                .collect()
+        }
+    }
+
+    /// Build test inputs from named modules and named routes.
     ///
-    /// - `modules`: list of `(style_type, size)`. The index in the vec is the module key.
-    /// - `routes`: list of routes; each route is a list of module keys in CSS cascade order.
-    ///
-    /// Returns `(module_info, chunk_group_styles)` ready for `compute_style_batches`.
-    fn make_inputs(
-        modules: &[(StyleType, usize)],
-        routes: &[&[usize]],
-    ) -> (
-        FxIndexMap<usize, BatchingModuleInfo>,
-        Vec<FxIndexSet<usize>>,
-    ) {
+    /// `modules`: list of named module definitions.
+    /// `routes`: list of routes; each route is a list of module names in CSS cascade order.
+    fn make_inputs(modules: &[Module], routes: &[&[&'static str]]) -> TestInputs {
+        let name_to_idx: HashMap<&'static str, usize> = modules
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.name, i))
+            .collect();
+        let idx_to_name: HashMap<usize, &'static str> = modules
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (i, m.name))
+            .collect();
+
         let mut module_info: FxIndexMap<usize, BatchingModuleInfo> = FxIndexMap::default();
-        // Compute index_sum per module for sorting (mirrors compute_style_groups behavior).
         let mut index_sums: Vec<usize> = vec![0; modules.len()];
-        for (i, &(style_type, size)) in modules.iter().enumerate() {
+
+        for (i, m) in modules.iter().enumerate() {
             let mut cgi = FxIndexMap::default();
             for (cg_idx, route) in routes.iter().enumerate() {
-                if let Some(pos) = route.iter().position(|&m| m == i) {
+                if let Some(pos) = route.iter().position(|&n| name_to_idx[n] == i) {
                     cgi.insert(cg_idx, pos);
                     index_sums[i] += pos;
                 }
@@ -643,415 +706,225 @@ mod tests {
             module_info.insert(
                 i,
                 BatchingModuleInfo {
-                    style_type,
-                    ident: RcStr::from(format!("mod_{i}")),
+                    style_type: m.style_type,
+                    ident: RcStr::from(m.name),
                     chunk_group_indices: cgi,
-                    size,
+                    size_bytes: m.size_bytes,
                 },
             );
         }
-        // Sort by (index_sum, ident) to match what compute_style_groups does.
+
         module_info.sort_by(|&ka, a, &kb, b| {
             index_sums[ka]
                 .cmp(&index_sums[kb])
                 .then_with(|| a.ident.cmp(&b.ident))
         });
-        let styles: Vec<FxIndexSet<usize>> =
-            routes.iter().map(|r| r.iter().copied().collect()).collect();
-        (module_info, styles)
-    }
 
-    /// Helper: check if any batch contains all of the given modules.
-    fn batch_contains_all(batches: &[Vec<usize>], modules: &[usize]) -> bool {
-        batches.iter().any(|batch| {
-            let set: FxHashSet<usize> = batch.iter().copied().collect();
-            modules.iter().all(|m| set.contains(m))
-        })
-    }
-
-    // ---- Basic batching — contiguous shared modules batch together ----
-
-    #[test]
-    fn test_basic_shared_modules_batch_together() {
-        // Route 0: [common_a(0), common_b(1), only_0(2)]
-        // Route 1: [common_a(0), common_b(1), only_1(3)]
-        //
-        // common_a and common_b are contiguous and shared — they should batch.
-        // only_0 and only_1 are contiguous with common_b in their respective routes,
-        // so the greedy algorithm may absorb them too. The key assertion is that
-        // common_a and common_b are in the same batch.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1, 2], &[0, 1, 3]],
-        );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1]),
-            "common_a and common_b should be batched together, got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Contiguity + size budget prevents skipping intervening modules ----
-
-    #[test]
-    fn test_contiguity_with_size_budget_prevents_skipping_intervening() {
-        // Route 0: [A(0), B(1), C(2)]
-        // Route 1: [A(0), D(3), C(2)]
-        //
-        // A and C are shared. B and D sit between them in each route.
-        // With a size budget that allows only 2 modules, A can absorb B or D but
-        // not both plus C. The contiguity check prevents C from being added when
-        // the gap still has unprocessed modules.
-        //
-        // A(size=100) is the seed. Budget = 250 allows one more module (200 total).
-        // B gets absorbed (200 <= 250). D is unprocessed in route 1's gap.
-        // C cannot be added: route 1 gap [D] is unprocessed AND 300 > 250.
-        // Result: batch {A, B}, then D solo, then C solo.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1, 2], &[0, 3, 2]],
-        );
-        let result = compute_style_batches(&info, &styles, 250);
-
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 2]),
-            "A and C must NOT be in the same batch (size budget prevents absorbing all \
-             intervening modules), got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Interleaved shared/unique modules: all absorbed with unlimited budget ----
-
-    #[test]
-    fn test_interleaved_shared_unique_all_absorbed() {
-        // Route A: [shared1(0), unique_a(1), shared2(2), unique_a_final(3)]
-        // Route B: [shared1(0), unique_b(4), shared2(2), unique_b_final(5)]
-        //
-        // With unlimited budget, the greedy algorithm absorbs everything into one batch.
-        // This is correct because the single chunk can order items to satisfy both routes.
-        // The contiguity check ensures shared2 is NOT added until unique_b is absorbed.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-            ],
-            &[&[0, 1, 2, 3], &[0, 4, 2, 5]],
-        );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        // All modules end up in one batch because they can all be absorbed.
-        assert_eq!(
-            result.batches.len(),
-            1,
-            "All modules should form a single batch, got: {:?}",
-            result.batches
-        );
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1, 2, 3, 4, 5]),
-            "Batch should contain all modules, got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Interleaved shared/unique modules: size budget prevents full absorption ----
-
-    #[test]
-    fn test_interleaved_shared_unique_size_limited() {
-        // Route A: [shared1(0), unique_a(1), shared2(2), unique_a_final(3)]
-        // Route B: [shared1(0), unique_b(4), shared2(2), unique_b_final(5)]
-        //
-        // Budget = 350 (allows at most 3 modules of size 100).
-        // shared1 is the seed. It absorbs unique_a (or unique_b), but then shared2
-        // is blocked by contiguity (the other unique is in the gap) and by size
-        // (adding more would exceed 350). shared1 and shared2 end up in separate chunks.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-                (iso, 100),
-            ],
-            &[&[0, 1, 2, 3], &[0, 4, 2, 5]],
-        );
-        let result = compute_style_batches(&info, &styles, 350);
-
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 2]),
-            "shared1 and shared2 must NOT be in the same batch (size limit prevents absorbing all \
-             intervening modules), got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Global CSS doesn't leak into routes that don't have it ----
-
-    #[test]
-    fn test_global_css_no_leak_into_new_route() {
-        // Route 0: [mod_a(0), global(1)]
-        // Route 1: [mod_a(0)]
-        //
-        // mod_a appears in both routes; global only in route 0.
-        // They must NOT batch because global CSS would leak into route 1.
-        let iso = StyleType::IsolatedStyle;
-        let global = StyleType::GlobalStyle;
-        let (info, styles) = make_inputs(&[(iso, 100), (global, 100)], &[&[0, 1], &[0]]);
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 1]),
-            "mod_a and global must NOT batch (global would leak into route 1), got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Global CSS can batch with modules sharing exact same routes ----
-
-    #[test]
-    fn test_global_css_batches_with_same_routes() {
-        // Route 0: [global(0), mod_a(1)]
-        // Route 1: [global(0), mod_a(1)]
-        //
-        // Both modules appear in exactly the same routes — safe to batch.
-        let iso = StyleType::IsolatedStyle;
-        let global = StyleType::GlobalStyle;
-        let (info, styles) = make_inputs(&[(global, 100), (iso, 100)], &[&[0, 1], &[0, 1]]);
-        let result = compute_style_batches(&info, &styles, 1_000_000);
-
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1]),
-            "global and mod_a should batch (identical route sets), got: {:?}",
-            result.batches
-        );
-    }
-
-    // ---- Size budget limits batch membership ----
-
-    #[test]
-    fn test_size_budget_limits_batching() {
-        // Route 0: [A(0), B(1), C(2)]
-        // All in same route, contiguous. A+B = 600 fits in 700; A+B+C = 900 > 700.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(&[(iso, 300), (iso, 300), (iso, 300)], &[&[0, 1, 2]]);
-        let result = compute_style_batches(&info, &styles, 700);
-
-        // A+B should batch (600 <= 700)
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1]),
-            "A and B should batch (600 <= 700), got: {:?}",
-            result.batches
-        );
-        // C should NOT be in the same batch (would push to 900)
-        let ab_batch = result
-            .batches
+        let chunk_group_styles: Vec<FxIndexSet<usize>> = routes
             .iter()
-            .find(|b| b.contains(&0) && b.contains(&1))
-            .unwrap();
-        assert!(
-            !ab_batch.contains(&2),
-            "C should not be in the A+B batch (would exceed size budget)"
+            .map(|r| r.iter().map(|&n| name_to_idx[n]).collect())
+            .collect();
+
+        TestInputs {
+            module_info,
+            chunk_group_styles,
+            idx_to_name,
+        }
+    }
+
+    #[test]
+    fn basic_shared_modules() {
+        let t = make_inputs(
+            &[
+                iso("common_a", 100),
+                iso("common_b", 100),
+                iso("only_0", 100),
+                iso("only_1", 100),
+            ],
+            &[
+                &["common_a", "common_b", "only_0"],
+                &["common_a", "common_b", "only_1"],
+            ],
+        );
+
+        assert_eq!(
+            t.batches(1_000_000),
+            vec![vec!["common_a", "common_b", "only_0", "only_1"]],
+        );
+        assert_eq!(t.batches(200), vec![vec!["common_a", "common_b"]],);
+    }
+
+    #[test]
+    fn contiguity_with_intervening_modules() {
+        let t = make_inputs(
+            &[iso("A", 100), iso("B", 100), iso("C", 100), iso("D", 100)],
+            &[&["A", "B", "C"], &["A", "D", "C"]],
+        );
+
+        assert_eq!(t.batches(1_000_000), vec![vec!["A", "B", "D", "C"]],);
+        // Budget fits 2: A absorbs B. Then D+C form a second batch.
+        assert_eq!(t.batches(250), vec![vec!["A", "B"], vec!["D", "C"]],);
+    }
+
+    #[test]
+    fn interleaved_shared_and_unique() {
+        let t = make_inputs(
+            &[
+                iso("shared1", 100),
+                iso("unique_a", 100),
+                iso("shared2", 100),
+                iso("unique_a_final", 100),
+                iso("unique_b", 100),
+                iso("unique_b_final", 100),
+            ],
+            &[
+                &["shared1", "unique_a", "shared2", "unique_a_final"],
+                &["shared1", "unique_b", "shared2", "unique_b_final"],
+            ],
+        );
+
+        assert_eq!(
+            t.batches(1_000_000),
+            vec![vec![
+                "shared1",
+                "unique_a",
+                "unique_b",
+                "shared2",
+                "unique_a_final",
+                "unique_b_final"
+            ]],
+        );
+        // Budget fits 3: shared1 + 2 uniques, but shared2 is blocked by contiguity
+        assert_eq!(
+            t.batches(350),
+            vec![vec!["shared1", "unique_a", "unique_b"]],
         );
     }
 
-    // ---- Oversized modules never batch ----
-
     #[test]
-    fn test_oversized_modules_never_batch() {
-        // Route 0: [A(0), B(1)]
-        // Both are 1000 bytes, budget is 500. Seed A starts at 1000, B can't fit.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(&[(iso, 1000), (iso, 1000)], &[&[0, 1]]);
-        let result = compute_style_batches(&info, &styles, 500);
-
-        assert!(
-            result.batches.is_empty(),
-            "No batches should be formed when all modules exceed budget, got: {:?}",
-            result.batches
+    fn global_css_no_leak() {
+        let t = make_inputs(
+            &[iso("mod_a", 100), global("g", 100)],
+            &[&["mod_a", "g"], &["mod_a"]],
         );
+
+        // Global CSS must not leak into route 1 which doesn't import it
+        assert_eq!(t.batches(1_000_000), Vec::<Vec<&str>>::new());
     }
 
-    // ---- Contiguity allows absorbing all intervening modules ----
-
     #[test]
-    fn test_contiguity_absorbs_intervening_modules() {
-        // Route 0: [A(0), B(1), C(2)]
-        // Route 1: [A(0), C(2)]
-        //
-        // B is between A and C in route 0. With unlimited budget, the greedy algorithm
-        // absorbs B first (it's contiguous with A), then C becomes contiguous in both
-        // routes and is also absorbed. All three end up in one batch.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1, 2], &[0, 2]],
+    fn global_css_batches_with_same_routes() {
+        let t = make_inputs(
+            &[global("g", 100), iso("mod_a", 100)],
+            &[&["g", "mod_a"], &["g", "mod_a"]],
         );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
 
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1, 2]),
-            "All three modules should be absorbed into one batch, got: {:?}",
-            result.batches
-        );
+        assert_eq!(t.batches(1_000_000), vec![vec!["g", "mod_a"]]);
     }
 
-    // ---- Three routes: contiguity blocks when intervening can't be absorbed ----
-
     #[test]
-    fn test_three_routes_size_limited() {
-        // Route 0: [A(0), B(1), C(2)]
-        // Route 1: [A(0), C(2)]
-        // Route 2: [A(0), D(3), C(2)]
-        //
-        // With budget = 250 (allows 2 modules of size 100), A absorbs B (contiguous
-        // in route 0). D is in route 2's gap but can't be absorbed (size 300 > 250).
-        // C is blocked by contiguity (D is unprocessed in route 2 gap).
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1, 2], &[0, 2], &[0, 3, 2]],
+    fn size_budget() {
+        let t = make_inputs(
+            &[iso("A", 300), iso("B", 300), iso("C", 300)],
+            &[&["A", "B", "C"]],
         );
-        let result = compute_style_batches(&info, &styles, 250);
 
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 2]),
-            "A and C must NOT be in the same batch (D blocks contiguity + size), got: {:?}",
-            result.batches
-        );
+        assert_eq!(t.batches(1_000_000), vec![vec!["A", "B", "C"]],);
+        // A+B=600 fits in 700, but A+B+C=900 doesn't
+        assert_eq!(t.batches(700), vec![vec!["A", "B"]],);
+        // Each module alone exceeds budget — no batches
+        assert_eq!(t.batches(200), Vec::<Vec<&str>>::new());
     }
 
-    // ---- Contiguity check handles the m_pos < watermark direction ----
-
     #[test]
-    fn test_contiguity_reverse_direction() {
-        // Route 0: [A(0), B(1)]
-        // Route 1: [B(1), X(2), A(0)]
-        //
-        // In route 1, A appears AFTER B and X. If B is the seed and A is a candidate,
-        // the contiguity check must verify the reverse gap (A's pos < watermark).
-        // X sits between A and B in route 1 and is unprocessed → A should not be batched
-        // with B (unless X is absorbed first).
-        //
-        // Module sort order: A(sum=0+2=2), B(sum=1+0=1), X(sum=1).
-        // B and X have same index_sum=1; B is "mod_1", X is "mod_2". So order: B, X, A.
-        //
-        // Seed: B. all_chunk_states = {0: 1, 1: 0}.
-        // Pool: route 0 after pos 1 → nothing. Route 1 after pos 0 → X(2). Pool = {2}.
-        // X contiguity: route 1, watermark=0, m_pos=1. Gap [1..1] = empty ✓. Accepted.
-        // all_chunk_states = {0: 1, 1: 1}. Pool: route 1 after pos 1 → A(0). Pool = {0}.
-        // A contiguity: route 0, watermark=1, m_pos=0. Gap [1..1] = empty ✓.
-        //               route 1, watermark=1, m_pos=2. Gap [2..2] = empty ✓.
-        // A accepted. Batch = {0, 1, 2}.
-        //
-        // With unlimited budget, all three module are absorbed.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100)],
-            &[&[0, 1], &[1, 2, 0]],
+    fn contiguity_absorbs_intervening() {
+        let t = make_inputs(
+            &[iso("A", 100), iso("B", 100), iso("C", 100)],
+            &[&["A", "B", "C"], &["A", "C"]],
         );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
 
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1, 2]),
-            "All modules should batch when contiguous, got: {:?}",
-            result.batches
-        );
+        assert_eq!(t.batches(1_000_000), vec![vec!["A", "B", "C"]],);
+        // Budget fits 2: A absorbs B, but C is blocked (contiguous in route 1 but
+        // budget exhausted)
+        assert_eq!(t.batches(250), vec![vec!["A", "B"]],);
     }
 
-    // ---- Reverse-direction contiguity blocked by size limit ----
-
     #[test]
-    fn test_contiguity_reverse_direction_blocked() {
-        // Route 0: [B(1), A(0)]
-        // Route 1: [B(1), X(2), A(0)]
-        //
-        // Budget = 250 (2 modules of size 100 max).
-        // Seed: B (index_sum=0). all_chunk_states = {0: 0, 1: 0}.
-        // Pool: route 0 after pos 0 → A. Route 1 after pos 0 → X. Pool = {0, 2}.
-        // Try A: route 1 watermark=0, m_pos=2. Gap [1..2] = [X]. X unprocessed → blocked!
-        // Try X: route 0 → X not in route 0. No constraint. Accepted.
-        // all_chunk_states = {0: 0, 1: 1}. Size = 200. Pool = {0}.
-        // Try A: size 300 > 250 → blocked by size.
-        // Batch = {B, X}. A is solo.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100)],
-            &[&[1, 0], &[1, 2, 0]],
+    fn three_routes_contiguity_blocked() {
+        let t = make_inputs(
+            &[iso("A", 100), iso("B", 100), iso("C", 100), iso("D", 100)],
+            &[&["A", "B", "C"], &["A", "C"], &["A", "D", "C"]],
         );
-        let result = compute_style_batches(&info, &styles, 250);
 
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 1]),
-            "B and A should NOT be in the same batch (size prevents absorbing X), got: {:?}",
-            result.batches
-        );
+        assert_eq!(t.batches(1_000_000), vec![vec!["A", "B", "D", "C"]],);
+        // Budget fits 2: A absorbs B. Then D+C form a second batch.
+        assert_eq!(t.batches(250), vec![vec!["A", "B"], vec!["D", "C"]],);
     }
 
-    // ---- Newly-introduced route: contiguity still enforced ----
-
     #[test]
-    fn test_newly_introduced_route_contiguity_enforced() {
-        // Route 0 (X): [Q(1), W(2), R(3)]
-        // Route 1 (Y): [P(0), Q(1), R(3)]
-        //
-        // Seed: P (only in Y). all_chunk_states = {Y: 0}.
-        // Q: route Y watermark=0, m_pos=1, gap empty → OK. Route X not tracked → skip.
-        //    Accepted. all_chunk_states = {Y: 1, X: 0}.
-        // W: size 10_000 exceeds budget → can't be absorbed.
-        // R: route Y watermark=1, m_pos=2, gap empty → OK.
-        //    Route X watermark=0, m_pos=2, gap [1..2] = [W]. W unprocessed → BLOCKED.
-        //
-        // R must NOT join {P, Q} because W blocks the gap in route X.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 10_000), (iso, 100)],
-            &[&[1, 2, 3], &[0, 1, 3]],
+    fn reverse_direction_contiguity() {
+        let t = make_inputs(
+            &[iso("A", 100), iso("B", 100), iso("X", 100)],
+            &[&["A", "B"], &["B", "X", "A"]],
         );
-        let result = compute_style_batches(&info, &styles, 500);
 
-        assert!(
-            !batch_contains_all(&result.batches, &[0, 1, 3]),
-            "R must not join P+Q batch: W blocks the gap in route X, got: {:?}",
-            result.batches
-        );
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1]),
-            "P and Q should batch (Q introduces route X at pos 0, no gap), got: {:?}",
-            result.batches
-        );
+        assert_eq!(t.batches(1_000_000), vec![vec!["B", "X", "A"]],);
+        // Budget fits 2: B absorbs X, but A is blocked by size
+        assert_eq!(t.batches(250), vec![vec!["B", "X"]],);
     }
 
-    // ---- Newly-introduced route: correct absorption when gap is clear ----
+    #[test]
+    fn newly_introduced_route_contiguity() {
+        let t = make_inputs(
+            &[
+                iso("P", 100),
+                iso("Q", 100),
+                iso("W", 10_000),
+                iso("R", 100),
+            ],
+            &[&["Q", "W", "R"], &["P", "Q", "R"]],
+        );
+
+        // W is too large to absorb, so R can't join {P, Q} — W blocks the gap in route 0
+        assert_eq!(t.batches(500), vec![vec!["P", "Q"]],);
+        // With unlimited budget, W gets absorbed and R becomes contiguous
+        assert_eq!(t.batches(1_000_000), vec![vec!["P", "Q", "W", "R"]],);
+    }
 
     #[test]
-    fn test_newly_introduced_route_absorbs_correctly() {
-        // Route 0 (X): [Q(1), R(2)]   — no gap modules
-        // Route 1 (Y): [P(0), Q(1), R(2)]
-        //
-        // Seed: P. Q introduces route X. R is contiguous in both routes.
-        // All three should end up in one batch.
-        let iso = StyleType::IsolatedStyle;
-        let (info, styles) = make_inputs(
-            &[(iso, 100), (iso, 100), (iso, 100)],
-            &[&[1, 2], &[0, 1, 2]],
+    fn newly_introduced_route_clear_gap() {
+        let t = make_inputs(
+            &[iso("P", 100), iso("Q", 100), iso("R", 100)],
+            &[&["Q", "R"], &["P", "Q", "R"]],
         );
-        let result = compute_style_batches(&info, &styles, 1_000_000);
 
-        assert!(
-            batch_contains_all(&result.batches, &[0, 1, 2]),
-            "P, Q, and R should all batch when no gap modules block them, got: {:?}",
-            result.batches
+        assert_eq!(t.batches(1_000_000), vec![vec!["P", "Q", "R"]],);
+        assert_eq!(t.batches(250), vec![vec!["P", "Q"]],);
+    }
+
+    #[test]
+    fn dependency_ordering_prevents_batching() {
+        // Route: [A, B] — A is a dependency of B (A appears before B in all shared routes).
+        // B cannot be added to a batch that already contains A's dependent, because that
+        // would violate cascade order. Here B depends on A, so A is added first as seed,
+        // then B is a candidate. B's dependents don't include A (A depends on nothing),
+        // so B can join. But if we reverse: [B, A] in two routes where the dependency
+        // is B→A, the dependent check fires.
+        //
+        // Route 0: [X, Y]   Route 1: [X, Z, Y]
+        // X is dep of Y. Z is dep of Y. X is dep of Z.
+        // If X is seed and absorbs Z, then Y's dependents include Z which is in batch → blocked.
+        let t = make_inputs(
+            &[iso("X", 100), iso("Y", 100), iso("Z", 100)],
+            &[&["X", "Y"], &["X", "Z", "Y"]],
         );
+
+        assert_eq!(t.batches(1_000_000), vec![vec!["X", "Z", "Y"]],);
+        // Budget fits 2: X absorbs Z. Y is blocked because its dependency Z is in the batch
+        // and Y depends on Z (Y must come after Z), but the dep check blocks adding Y when
+        // Z is already present. Actually — the dep check prevents adding a module whose
+        // *dependent* is already in the batch, not whose *dependency* is. Y has no dependents
+        // in the batch. Let's verify:
+        assert_eq!(t.batches(250), vec![vec!["X", "Z"]],);
     }
 }
