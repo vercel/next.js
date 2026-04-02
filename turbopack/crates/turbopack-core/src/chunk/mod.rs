@@ -96,7 +96,7 @@ impl TryFrom<Option<&str>> for CrossOrigin {
 
     fn try_from(value: Option<&str>) -> Result<Self> {
         match value {
-            None | Some("") => Ok(Self::None),
+            None => Ok(Self::None),
             Some("anonymous") => Ok(Self::Anonymous),
             Some("use-credentials") => Ok(Self::UseCredentials),
             Some(value) => bail!(
