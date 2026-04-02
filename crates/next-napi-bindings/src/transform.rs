@@ -50,6 +50,11 @@ use swc_core::{
 
 use crate::{complete_output, get_compiler, util::MapErr};
 
+/// The runtime_id from the most recent register_wasm_plugin_runtime call.
+/// Used by the webpack transform path which doesn't go through Project.
+#[cfg(feature = "plugin")]
+static CURRENT_WASM_RUNTIME_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Input to transform
 #[derive(Debug)]
 pub enum Input {
@@ -63,6 +68,8 @@ pub struct TransformTask {
     pub c: Compiler,
     pub input: Input,
     pub options: Buffer,
+    #[cfg(feature = "plugin")]
+    pub wasm_plugin_runtime_id: u64,
 }
 
 fn skip_filename() -> bool {
@@ -133,11 +140,16 @@ impl Task for TransformTask {
 
                             #[cfg(feature = "plugin")]
                             {
-                                options.swc.runtime_options =
-                                    swc_core::base::config::RuntimeOptions::default()
-                                        .plugin_runtime(std::sync::Arc::new(
-                                            swc_plugin_backend_napi::NapiRuntime,
-                                        ));
+                                if self.wasm_plugin_runtime_id != 0 {
+                                    let runtime =
+                                        swc_plugin_backend_napi::NapiRuntime::from_runtime_id(
+                                            self.wasm_plugin_runtime_id,
+                                        )
+                                        .map_err(|e| anyhow!(e))?;
+                                    options.swc.runtime_options =
+                                        swc_core::base::config::RuntimeOptions::default()
+                                            .plugin_runtime(std::sync::Arc::new(runtime));
+                                }
                             }
 
                             let cm = self.c.cm.clone();
@@ -227,7 +239,13 @@ pub fn transform(
         Either3::C(_) => Input::FromFilename,
     };
 
-    let task = TransformTask { c, input, options };
+    let task = TransformTask {
+        c,
+        input,
+        options,
+        #[cfg(feature = "plugin")]
+        wasm_plugin_runtime_id: CURRENT_WASM_RUNTIME_ID.load(std::sync::atomic::Ordering::Relaxed),
+    };
     Ok(AsyncTask::with_optional_signal(task, signal))
 }
 
@@ -248,7 +266,13 @@ pub fn transform_sync(
         Either3::C(_) => Input::FromFilename,
     };
 
-    let mut task = TransformTask { c, input, options };
+    let mut task = TransformTask {
+        c,
+        input,
+        options,
+        #[cfg(feature = "plugin")]
+        wasm_plugin_runtime_id: CURRENT_WASM_RUNTIME_ID.load(std::sync::atomic::Ordering::Relaxed),
+    };
     let output = task.compute()?;
     task.resolve(env, output)
 }
@@ -263,10 +287,13 @@ fn test_deser() {
 
 /// Register the NAPI-based WASM plugin runtime.
 /// Must be called from JS before any SWC transforms that use plugins.
+/// Returns the runtime_id that identifies this registration.
 #[cfg(feature = "plugin")]
 #[napi]
-pub fn register_wasm_plugin_runtime(env: Env, js_manager: JsObject) -> napi::Result<()> {
-    swc_plugin_backend_napi::register_wasm_runtime(&env, &js_manager)
+pub fn register_wasm_plugin_runtime(env: Env, js_manager: JsObject) -> napi::Result<f64> {
+    let runtime_id = swc_plugin_backend_napi::register_wasm_runtime(&env, &js_manager)?;
+    CURRENT_WASM_RUNTIME_ID.store(runtime_id, std::sync::atomic::Ordering::Relaxed);
+    Ok(runtime_id as f64)
 }
 
 #[test]

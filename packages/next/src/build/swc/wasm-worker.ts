@@ -23,6 +23,7 @@ if (!parentPort) {
 // Load native addon directly in the worker thread.
 // This gives us direct NAPI access for host function callbacks.
 const bindings = require(workerData.nativeBindingsPath)
+const runtimeId: number = workerData.runtimeId
 
 // ---------------------------------------------------------------------------
 // Instance storage — the ops object closes over the WASM instance/memory,
@@ -105,6 +106,7 @@ parentPort.on('message', (req: any) => {
               throw new Error(`Instance ${instanceId} not found for host fn`)
             }
             return bindings.wasmWorkerDispatchHostFn(
+              runtimeId,
               instanceId,
               index,
               args.slice(0, paramCount),
@@ -128,7 +130,7 @@ parentPort.on('message', (req: any) => {
         // the instance handle and the ops interface for Rust.
         const ops = createInstanceOps(instance, memory)
         instances.set(instanceId, ops)
-        bindings.wasmWorkerRegisterCallback(instanceId, ops)
+        bindings.wasmWorkerRegisterCallback(runtimeId, instanceId, ops)
 
         response = { result: instanceId }
         break

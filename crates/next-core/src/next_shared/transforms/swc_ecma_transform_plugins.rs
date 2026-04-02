@@ -12,18 +12,25 @@ use crate::next_config::NextConfig;
 pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
     project_path: FileSystemPath,
+    wasm_plugin_runtime_id: u64,
 ) -> Result<Option<ModuleRule>> {
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
         #[cfg(feature = "plugin")]
         {
             let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-            get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
+            get_swc_ecma_transform_rule_impl(
+                project_path,
+                &plugin_configs,
+                enable_mdx_rs,
+                wasm_plugin_runtime_id,
+            )
+            .await
         }
 
         #[cfg(not(feature = "plugin"))]
         {
-            let _ = project_path; // To satisfy lint
+            let _ = (project_path, wasm_plugin_runtime_id);
             Ok(None)
         }
     } else {
@@ -66,6 +73,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
     enable_mdx_rs: bool,
+    wasm_plugin_runtime_id: u64,
 ) -> Result<Option<ModuleRule>> {
     use anyhow::bail;
     use turbo_tasks::TryFlatJoinIterExt;
@@ -147,8 +155,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 };
 
                 Ok(Some((
-                    SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
-                        .resolved_cell(),
+                    SwcPluginModule::new(
+                        name.clone(),
+                        file.content().to_bytes().to_vec(),
+                        wasm_plugin_runtime_id,
+                    )
+                    .resolved_cell(),
                     config.clone(),
                 )))
             }
@@ -157,7 +169,10 @@ pub async fn get_swc_ecma_transform_rule_impl(
         .await?;
 
     Ok(Some(get_ecma_transform_rule(
-        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
+        Box::new(SwcEcmaTransformPluginsTransformer::new(
+            plugins,
+            wasm_plugin_runtime_id,
+        )),
         enable_mdx_rs,
         EcmascriptTransformStage::Main,
     )))

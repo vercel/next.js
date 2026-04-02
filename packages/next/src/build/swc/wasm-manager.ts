@@ -39,6 +39,9 @@ const instanceWorkerMap = new Map<number, number>()
 // Path to the native .node binding, set during init
 let nativeBindingsPath: string | null = null
 
+// The runtime_id from registerWasmPluginRuntime, passed to workers
+let runtimeId: number = 0
+
 // ---------------------------------------------------------------------------
 // Module cache: compile once, clone to workers for free
 // ---------------------------------------------------------------------------
@@ -57,7 +60,7 @@ function createWorker(): WorkerEntry {
 
   const workerPath = path.join(__dirname, 'wasm-worker.js')
   const worker = new Worker(workerPath, {
-    workerData: { nativeBindingsPath },
+    workerData: { nativeBindingsPath, runtimeId },
     // Suppress the WASI warnings, this isn't a great solution
     execArgv: ['--no-warnings'],
   })
@@ -143,6 +146,14 @@ export const wasmManager = {
    */
   setBindingsPath(bindingsPath: string): void {
     nativeBindingsPath = bindingsPath
+  },
+
+  /**
+   * Set the runtime_id returned by registerWasmPluginRuntime.
+   * Workers use this to look up the correct runtime state in NAPI calls.
+   */
+  setRuntimeId(id: number): void {
+    runtimeId = id
   },
 
   /**

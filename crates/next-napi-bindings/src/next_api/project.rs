@@ -221,6 +221,9 @@ pub struct NapiProjectOptions {
     /// force new filenames without changing file content. Empty string means
     /// no salt.
     pub hash_salt: RcStr,
+    /// The runtime_id from registerWasmPluginRuntime, used to look up the
+    /// NAPI-based WASM plugin runtime. Omit or pass 0 if no plugins are used.
+    pub wasm_plugin_runtime_id: Option<f64>,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -335,6 +338,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             next_version,
             server_hmr,
             hash_salt,
+            wasm_plugin_runtime_id: _wasm_plugin_runtime_id,
         } = val;
         ProjectOptions {
             root_path,
@@ -360,6 +364,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
             hash_salt,
+            wasm_plugin_runtime_id: _wasm_plugin_runtime_id.map(|v| v as u64).unwrap_or(0),
         }
     }
 }

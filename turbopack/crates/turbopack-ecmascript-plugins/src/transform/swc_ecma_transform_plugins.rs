@@ -22,7 +22,7 @@ pub struct SwcPluginModule {
 }
 
 impl SwcPluginModule {
-    pub fn new(plugin_name: RcStr, plugin_bytes: Vec<u8>) -> Self {
+    pub fn new(plugin_name: RcStr, plugin_bytes: Vec<u8>, wasm_plugin_runtime_id: u64) -> Self {
         #[cfg(feature = "swc_ecma_transform_plugin")]
         {
             use swc_core::plugin_runner::plugin_module_bytes::{
@@ -30,9 +30,12 @@ impl SwcPluginModule {
             };
             use swc_plugin_backend_napi::NapiRuntime;
 
+            let runtime = NapiRuntime::from_runtime_id(wasm_plugin_runtime_id)
+                .expect("WASM plugin runtime not registered");
+
             Self {
                 plugin: CompiledPluginModuleBytes::from_raw_module(
-                    &NapiRuntime,
+                    &runtime,
                     RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
                 ),
                 name: plugin_name,
@@ -41,7 +44,7 @@ impl SwcPluginModule {
 
         #[cfg(not(feature = "swc_ecma_transform_plugin"))]
         {
-            let _ = plugin_bytes;
+            let _ = (plugin_bytes, wasm_plugin_runtime_id);
             Self { name: plugin_name }
         }
     }
@@ -140,14 +143,20 @@ impl Issue for SwcEcmaTransformFailureIssue {
 pub struct SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
     plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
+    #[cfg(feature = "swc_ecma_transform_plugin")]
+    wasm_plugin_runtime_id: u64,
 }
 
 impl SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
     pub fn new(
         plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
+        wasm_plugin_runtime_id: u64,
     ) -> Self {
-        Self { plugins }
+        Self {
+            plugins,
+            wasm_plugin_runtime_id,
+        }
     }
 
     // [TODO] Due to WEB-1102 putting this module itself behind compile time feature
@@ -184,6 +193,9 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             use swc_plugin_backend_napi::NapiRuntime;
             use turbo_tasks::TryJoinIterExt;
 
+            let runtime = NapiRuntime::from_runtime_id(self.wasm_plugin_runtime_id)
+                .expect("WASM plugin runtime not registered");
+
             let plugins = self
                 .plugins
                 .iter()
@@ -192,7 +204,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     Ok((
                         plugin_module.name.clone(),
                         config.clone(),
-                        Box::new(plugin_module.plugin.clone_module(&NapiRuntime)),
+                        Box::new(plugin_module.plugin.clone_module(&runtime)),
                     ))
                 })
                 .try_join()
@@ -232,8 +244,10 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 ctx: &TransformContext<'_>,
                 plugins: Vec<(RcStr, serde_json::Value, Box<CompiledPluginModuleBytes>)>,
                 should_enable_comments_proxy: bool,
+                runtime_id: u64,
             ) -> Result<Program> {
                 use either::Either;
+                use swc_plugin_backend_napi::NapiRuntime;
 
                 let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
                     Some(ctx.file_path_str.to_string()),
@@ -251,6 +265,8 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 // still have to construct from raw bytes internally to perform actual
                 // transform.
                 for (plugin_name, plugin_config, plugin_module) in plugins {
+                    let runtime = NapiRuntime::from_runtime_id(runtime_id)
+                        .expect("WASM plugin runtime not registered");
                     let mut transform_plugin_executor =
                         swc_core::plugin_runner::create_plugin_transform_executor(
                             ctx.source_map,
@@ -259,7 +275,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                             None,
                             plugin_module,
                             Some(plugin_config),
-                            Arc::new(NapiRuntime),
+                            Arc::new(runtime),
                         );
 
                     serialized_program = Either::Right(
@@ -294,6 +310,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                         ctx,
                         plugins,
                         should_enable_comments_proxy,
+                        self.wasm_plugin_runtime_id,
                     ) {
                         Ok(program) => anyhow::Ok(program),
                         Err(e) => {

@@ -172,6 +172,9 @@ let loadedBindings: Binding | undefined = undefined
 let downloadWasmPromise: any
 let swcTraceFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
+// The runtime_id returned by registerWasmPluginRuntime, passed to turbopack
+// project creation so it can look up the correct WASM plugin runtime.
+let wasmPluginRuntimeId: number = 0
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
@@ -662,6 +665,7 @@ function bindingToApi(
         path.join(options.rootPath, options.projectPath)
       ),
       env: rustifyEnv(options.env),
+      wasmPluginRuntimeId: wasmPluginRuntimeId || undefined,
     }
   }
 
@@ -1743,7 +1747,8 @@ function loadNative(importPath?: string): Binding {
       const { wasmManager } =
         require('./wasm-manager') as typeof import('./wasm-manager')
       wasmManager.setBindingsPath(bindingsPath)
-      bindings.registerWasmPluginRuntime(wasmManager)
+      wasmPluginRuntimeId = bindings.registerWasmPluginRuntime(wasmManager)
+      wasmManager.setRuntimeId(wasmPluginRuntimeId)
     }
 
     return loadedBindings!

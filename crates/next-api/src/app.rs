@@ -188,6 +188,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -220,6 +221,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -235,6 +237,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -250,6 +253,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -265,6 +269,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -592,6 +597,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 
@@ -607,6 +613,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
+            *self.project().wasm_plugin_runtime_id().await?,
         ))
     }
 

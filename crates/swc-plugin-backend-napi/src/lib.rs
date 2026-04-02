@@ -2,7 +2,11 @@ use std::{
     cell::UnsafeCell,
     collections::HashMap,
     path::Path,
-    sync::{Arc, LazyLock, Mutex, OnceLock, mpsc},
+    sync::{
+        Arc, LazyLock, Mutex, RwLock,
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
 };
 
 use napi::{
@@ -14,26 +18,60 @@ use swc_plugin_runner::runtime;
 /// Identifier for cache stored in local filesystem.
 const NAPI_RUNTIME_ID: &str = "napi-v8-v1";
 
-/// Global TSFN for dispatching operations to the JS main thread.
-/// Used for module compilation, instantiation, and non-hot-path memory ops.
-static WASM_TSFN: OnceLock<ThreadsafeFunction<WasmRequest>> = OnceLock::new();
+// ---------------------------------------------------------------------------
+// Shared runtime state — one per register_wasm_runtime call
+// ---------------------------------------------------------------------------
 
-/// The raw napi_env pointer that registered the WASM runtime.
-/// Used to assert we're never re-registered from a different environment.
-static WASM_TSFN_ENV: OnceLock<usize> = OnceLock::new();
+/// All per-env state that was previously in global statics.
+pub struct WasmRuntimeState {
+    /// Unique ID for this runtime registration.
+    pub runtime_id: u64,
+    /// TSFN for dispatching operations to the JS main thread.
+    tsfn: ThreadsafeFunction<WasmRequest>,
+    /// Per-instance TSFN registry: maps instance_id → TSFN targeting the worker thread.
+    instance_tsfns: Mutex<HashMap<u64, Arc<ThreadsafeFunction<InstanceWork>>>>,
+    /// Per-instance host function registry: maps instance_id → Vec<Func>.
+    host_fns: Mutex<HashMap<u64, Arc<Vec<runtime::Func>>>>,
+}
 
-/// Global host function registry: maps instance_id → Vec<Func>.
-/// Workers call back into these during WASM execution via NAPI.
-static HOST_FNS: LazyLock<Mutex<HashMap<u64, Arc<Vec<runtime::Func>>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+impl std::fmt::Debug for WasmRuntimeState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WasmRuntimeState")
+            .field("runtime_id", &self.runtime_id)
+            .finish_non_exhaustive()
+    }
+}
 
-/// Global per-instance TSFN registry: maps instance_id → TSFN targeting the worker thread.
-/// Used to dispatch transform/getDiag/memory ops to the correct worker.
-static INSTANCE_TSFNS: LazyLock<Mutex<HashMap<u64, Arc<ThreadsafeFunction<InstanceWork>>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+/// Monotonically increasing runtime ID counter.
+static NEXT_RUNTIME_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Global registry of live runtime states, keyed by runtime_id.
+/// Multiple runtimes can coexist (e.g. across different napi_envs in tests).
+static RUNTIMES: LazyLock<RwLock<HashMap<u64, Arc<WasmRuntimeState>>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+fn get_runtime_state(runtime_id: u64) -> anyhow::Result<Arc<WasmRuntimeState>> {
+    RUNTIMES
+        .read()
+        .unwrap()
+        .get(&runtime_id)
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("No WASM runtime registered with id {}", runtime_id))
+}
+
+fn get_runtime_state_napi(runtime_id: u64) -> napi::Result<Arc<WasmRuntimeState>> {
+    RUNTIMES
+        .read()
+        .unwrap()
+        .get(&runtime_id)
+        .cloned()
+        .ok_or_else(|| {
+            napi::Error::from_reason(format!("No WASM runtime registered with id {}", runtime_id))
+        })
+}
 
 // ---------------------------------------------------------------------------
-// Per-instance work dispatch via TSFN (no more Condvar work queue)
+// Per-instance work dispatch via TSFN
 // ---------------------------------------------------------------------------
 
 enum InstanceWork {
@@ -110,12 +148,13 @@ impl OptRef {
 
 /// Dispatch work to an instance's worker thread via its TSFN and block for the result.
 fn instance_call_blocking<T: Send + 'static>(
+    state: &WasmRuntimeState,
     instance_id: u64,
     work: InstanceWork,
     rx: mpsc::Receiver<anyhow::Result<T>>,
 ) -> anyhow::Result<T> {
     let tsfn = {
-        let tsfns = INSTANCE_TSFNS.lock().unwrap();
+        let tsfns = state.instance_tsfns.lock().unwrap();
         tsfns
             .get(&instance_id)
             .ok_or_else(|| anyhow::anyhow!("No TSFN for instance {}", instance_id))?
@@ -149,10 +188,13 @@ fn instance_call_blocking<T: Send + 'static>(
 #[napi_derive::napi]
 pub fn wasm_worker_register_callback(
     env: Env,
+    runtime_id: f64,
     instance_id: f64,
     ops: JsObject,
 ) -> napi::Result<()> {
+    let rid = runtime_id as u64;
     let id = instance_id as u64;
+    let state = get_runtime_state_napi(rid)?;
 
     // Extract and ref each function up front so we don't do property lookups on every call.
     let transform_fn: JsFunction = ops.get_named_property("transform")?;
@@ -318,7 +360,11 @@ pub fn wasm_worker_register_callback(
         },
     )?;
 
-    INSTANCE_TSFNS.lock().unwrap().insert(id, Arc::new(tsfn));
+    state
+        .instance_tsfns
+        .lock()
+        .unwrap()
+        .insert(id, Arc::new(tsfn));
     Ok(())
 }
 
@@ -333,13 +379,17 @@ pub fn wasm_worker_register_callback(
 #[napi_derive::napi]
 pub fn wasm_worker_dispatch_host_fn(
     env: Env,
+    runtime_id: f64,
     instance_id: f64,
     fn_index: u32,
     args: Vec<i32>,
     memory_accessor: JsObject,
 ) -> napi::Result<JsUnknown> {
+    let rid = runtime_id as u64;
     let id = instance_id as u64;
-    let fns = HOST_FNS.lock().unwrap();
+    let state = get_runtime_state_napi(rid)?;
+
+    let fns = state.host_fns.lock().unwrap();
     let host_functions = fns
         .get(&id)
         .ok_or_else(|| napi::Error::from_reason(format!("No host fns for instance {}", id)))?
@@ -456,6 +506,8 @@ enum WasmRequest {
     },
     DropInstance {
         instance_id: u64,
+        /// The runtime state, needed to clean up instance_tsfns and host_fns.
+        state: Arc<WasmRuntimeState>,
     },
 }
 
@@ -473,18 +525,10 @@ struct HostFnDescriptor {
 // TSFN registration
 // ---------------------------------------------------------------------------
 
-pub fn register_wasm_runtime(env: &Env, js_manager: &JsObject) -> napi::Result<()> {
-    let env_addr = env.raw() as usize;
-
-    // Idempotent: skip if already registered from the same Env.
-    if WASM_TSFN.get().is_some() {
-        let registered_env = WASM_TSFN_ENV.get().copied().unwrap_or(0);
-        assert_eq!(
-            registered_env, env_addr,
-            "WASM runtime already registered from a different napi_env"
-        );
-        return Ok(());
-    }
+/// Register the NAPI-based WASM plugin runtime.
+/// Returns the runtime_id that can be used to look up this runtime later.
+pub fn register_wasm_runtime(env: &Env, js_manager: &JsObject) -> napi::Result<u64> {
+    let runtime_id = NEXT_RUNTIME_ID.fetch_add(1, Ordering::Relaxed);
 
     let mut global = env.get_global()?;
     global.set_named_property("__nextSwcWasmManager", js_manager)?;
@@ -510,12 +554,16 @@ pub fn register_wasm_runtime(env: &Env, js_manager: &JsObject) -> napi::Result<(
             Ok(Vec::<JsUnknown>::new())
         })?;
 
-    WASM_TSFN
-        .set(tsfn)
-        .map_err(|_| napi::Error::from_reason("WASM TSFN already registered"))?;
-    let _ = WASM_TSFN_ENV.set(env_addr);
+    let state = Arc::new(WasmRuntimeState {
+        runtime_id,
+        tsfn,
+        instance_tsfns: Mutex::new(HashMap::new()),
+        host_fns: Mutex::new(HashMap::new()),
+    });
 
-    Ok(())
+    RUNTIMES.write().unwrap().insert(runtime_id, state);
+
+    Ok(runtime_id)
 }
 
 fn num_cpus() -> usize {
@@ -556,11 +604,16 @@ fn handle_wasm_request(env: &Env, manager: &JsObject, request: WasmRequest) -> n
             drop_fn.call(None, &[env.create_double(module_id as f64)?.into_unknown()])?;
         }
 
-        WasmRequest::DropInstance { instance_id } => {
+        WasmRequest::DropInstance { instance_id, state } => {
             // Send Cleanup to the worker's TSFN to unref NAPI Refs before
             // we drop the TSFN (which would drop the closure and trigger
             // debug_assert panics in Ref::drop).
-            let tsfn = INSTANCE_TSFNS.lock().unwrap().get(&instance_id).cloned();
+            let tsfn = state
+                .instance_tsfns
+                .lock()
+                .unwrap()
+                .get(&instance_id)
+                .cloned();
 
             if let Some(tsfn) = &tsfn {
                 let (tx, rx) = mpsc::sync_channel(1);
@@ -574,10 +627,10 @@ fn handle_wasm_request(env: &Env, manager: &JsObject, request: WasmRequest) -> n
 
             // Now safe to remove the TSFN — all Refs have been unref'd
             drop(tsfn);
-            INSTANCE_TSFNS.lock().unwrap().remove(&instance_id);
+            state.instance_tsfns.lock().unwrap().remove(&instance_id);
 
             // Clean up host functions
-            HOST_FNS.lock().unwrap().remove(&instance_id);
+            state.host_fns.lock().unwrap().remove(&instance_id);
 
             let drop_fn: JsFunction = manager.get_named_property("dropInstance")?;
             drop_fn.call(
@@ -590,14 +643,14 @@ fn handle_wasm_request(env: &Env, manager: &JsObject, request: WasmRequest) -> n
 }
 
 fn tsfn_call_blocking<T: Send + 'static>(
+    state: &WasmRuntimeState,
     request_fn: impl FnOnce(mpsc::SyncSender<T>) -> WasmRequest,
 ) -> anyhow::Result<T> {
-    let tsfn = WASM_TSFN
-        .get()
-        .ok_or_else(|| anyhow::anyhow!("WASM TSFN not registered"))?;
     let (tx, rx) = mpsc::sync_channel(1);
     let request = request_fn(tx);
-    let status = tsfn.call(Ok(request), ThreadsafeFunctionCallMode::Blocking);
+    let status = state
+        .tsfn
+        .call(Ok(request), ThreadsafeFunctionCallMode::Blocking);
     if !matches!(status, Status::Ok) {
         anyhow::bail!("TSFN call failed with status: {:?}", status);
     }
@@ -682,8 +735,18 @@ struct NapiModuleCache {
     module_id: u64,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct NapiRuntime;
+#[derive(Clone, Debug)]
+pub struct NapiRuntime {
+    state: Arc<WasmRuntimeState>,
+}
+
+impl NapiRuntime {
+    /// Look up a registered runtime by its ID.
+    pub fn from_runtime_id(runtime_id: u64) -> anyhow::Result<Self> {
+        let state = get_runtime_state(runtime_id)?;
+        Ok(NapiRuntime { state })
+    }
+}
 
 impl runtime::Runtime for NapiRuntime {
     fn identifier(&self) -> &'static str {
@@ -692,8 +755,10 @@ impl runtime::Runtime for NapiRuntime {
 
     fn prepare_module(&self, bytes: &[u8]) -> anyhow::Result<runtime::ModuleCache> {
         let wasm_bytes = bytes.to_vec();
-        let module_id =
-            tsfn_call_blocking(|reply| WasmRequest::CompileModule { wasm_bytes, reply })??;
+        let module_id = tsfn_call_blocking(&self.state, |reply| WasmRequest::CompileModule {
+            wasm_bytes,
+            reply,
+        })??;
         Ok(runtime::ModuleCache(Box::new(NapiModuleCache {
             module_id,
         })))
@@ -712,7 +777,10 @@ impl runtime::Runtime for NapiRuntime {
             }
             runtime::Module::Bytes(buf) => {
                 let wasm_bytes = buf.to_vec();
-                tsfn_call_blocking(|reply| WasmRequest::CompileModule { wasm_bytes, reply })??
+                tsfn_call_blocking(&self.state, |reply| WasmRequest::CompileModule {
+                    wasm_bytes,
+                    reply,
+                })??
             }
         };
 
@@ -731,18 +799,23 @@ impl runtime::Runtime for NapiRuntime {
 
         // Instantiate on a worker thread via TSFN → postMessage.
         // The worker will call wasmWorkerRegisterCallback to set up the per-instance TSFN.
-        let instance_id = tsfn_call_blocking(|reply| WasmRequest::Instantiate {
+        let instance_id = tsfn_call_blocking(&self.state, |reply| WasmRequest::Instantiate {
             module_id,
             host_fn_descriptors,
             reply,
         })??;
 
         // Store host functions so worker can call them via NAPI.
-        HOST_FNS.lock().unwrap().insert(instance_id, host_functions);
+        self.state
+            .host_fns
+            .lock()
+            .unwrap()
+            .insert(instance_id, host_functions);
 
         let mut instance = NapiInstance {
             instance_id,
             module_id,
+            state: self.state.clone(),
         };
 
         // The runtime contract requires calling __get_transform_plugin_core_pkg_diag
@@ -754,7 +827,7 @@ impl runtime::Runtime for NapiRuntime {
 
     fn clone_cache(&self, cache: &runtime::ModuleCache) -> Option<runtime::ModuleCache> {
         let cache = cache.0.downcast_ref::<NapiModuleCache>()?;
-        let module_id = tsfn_call_blocking(|reply| WasmRequest::CloneModule {
+        let module_id = tsfn_call_blocking(&self.state, |reply| WasmRequest::CloneModule {
             module_id: cache.module_id,
             reply,
         })
@@ -781,6 +854,7 @@ impl runtime::Runtime for NapiRuntime {
 struct NapiInstance {
     instance_id: u64,
     module_id: u64,
+    state: Arc<WasmRuntimeState>,
 }
 
 unsafe impl Sync for NapiInstance {}
@@ -795,6 +869,7 @@ impl runtime::Instance for NapiInstance {
     ) -> anyhow::Result<u32> {
         let (tx, rx) = mpsc::sync_channel(1);
         let result = instance_call_blocking(
+            &self.state,
             self.instance_id,
             InstanceWork::Transform {
                 program_ptr,
@@ -815,6 +890,7 @@ impl runtime::Instance for NapiInstance {
     fn caller(&mut self) -> anyhow::Result<Box<dyn runtime::Caller<'_> + '_>> {
         Ok(Box::new(TsfnCaller {
             instance_id: self.instance_id,
+            state: &self.state,
         }))
     }
 
@@ -826,8 +902,12 @@ impl runtime::Instance for NapiInstance {
 impl NapiInstance {
     fn get_diag(&mut self) -> anyhow::Result<u32> {
         let (tx, rx) = mpsc::sync_channel(1);
-        let result =
-            instance_call_blocking(self.instance_id, InstanceWork::GetDiag { reply: tx }, rx)?;
+        let result = instance_call_blocking(
+            &self.state,
+            self.instance_id,
+            InstanceWork::GetDiag { reply: tx },
+            rx,
+        )?;
 
         if result == -1 {
             anyhow::bail!("getDiag failed in worker");
@@ -841,22 +921,25 @@ impl Drop for NapiInstance {
         // Clean up host functions synchronously so that Arc references held by
         // Func closures (e.g. TransformResultHostEnvironment) are released
         // before the caller tries Arc::try_unwrap on transform_result.
-        HOST_FNS.lock().unwrap().remove(&self.instance_id);
+        self.state
+            .host_fns
+            .lock()
+            .unwrap()
+            .remove(&self.instance_id);
 
-        if let Some(tsfn) = WASM_TSFN.get() {
-            tsfn.call(
-                Ok(WasmRequest::DropInstance {
-                    instance_id: self.instance_id,
-                }),
-                ThreadsafeFunctionCallMode::NonBlocking,
-            );
-            tsfn.call(
-                Ok(WasmRequest::DropModule {
-                    module_id: self.module_id,
-                }),
-                ThreadsafeFunctionCallMode::NonBlocking,
-            );
-        }
+        self.state.tsfn.call(
+            Ok(WasmRequest::DropInstance {
+                instance_id: self.instance_id,
+                state: self.state.clone(),
+            }),
+            ThreadsafeFunctionCallMode::NonBlocking,
+        );
+        self.state.tsfn.call(
+            Ok(WasmRequest::DropModule {
+                module_id: self.module_id,
+            }),
+            ThreadsafeFunctionCallMode::NonBlocking,
+        );
     }
 }
 
@@ -864,15 +947,17 @@ impl Drop for NapiInstance {
 // TsfnCaller: memory ops via per-instance TSFN
 // ---------------------------------------------------------------------------
 
-struct TsfnCaller {
+struct TsfnCaller<'a> {
     instance_id: u64,
+    state: &'a WasmRuntimeState,
 }
 
-impl<'a> runtime::Caller<'a> for TsfnCaller {
+impl<'a> runtime::Caller<'a> for TsfnCaller<'a> {
     fn read_buf(&self, ptr: u32, buf: &mut [u8]) -> anyhow::Result<()> {
         let len = buf.len() as u32;
         let (tx, rx) = mpsc::sync_channel(1);
         let data = instance_call_blocking(
+            self.state,
             self.instance_id,
             InstanceWork::ReadMemory {
                 ptr,
@@ -888,6 +973,7 @@ impl<'a> runtime::Caller<'a> for TsfnCaller {
     fn write_buf(&mut self, ptr: u32, buf: &[u8]) -> anyhow::Result<()> {
         let (tx, rx) = mpsc::sync_channel(1);
         instance_call_blocking(
+            self.state,
             self.instance_id,
             InstanceWork::WriteMemory {
                 ptr,
@@ -901,6 +987,7 @@ impl<'a> runtime::Caller<'a> for TsfnCaller {
     fn alloc(&mut self, size: u32) -> anyhow::Result<u32> {
         let (tx, rx) = mpsc::sync_channel(1);
         instance_call_blocking(
+            self.state,
             self.instance_id,
             InstanceWork::Alloc { size, reply: tx },
             rx,
@@ -910,6 +997,7 @@ impl<'a> runtime::Caller<'a> for TsfnCaller {
     fn free(&mut self, ptr: u32, size: u32) -> anyhow::Result<u32> {
         let (tx, rx) = mpsc::sync_channel(1);
         instance_call_blocking(
+            self.state,
             self.instance_id,
             InstanceWork::Free {
                 ptr,
