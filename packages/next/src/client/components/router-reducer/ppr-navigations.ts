@@ -1537,6 +1537,7 @@ function dispatchRetryDueToTreeMismatch(
         retryUrl.pathname,
         retryNextUrl,
         null,
+        null,
         seed.routeTree,
         metadataVaryPath,
         false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite

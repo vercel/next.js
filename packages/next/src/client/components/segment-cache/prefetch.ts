@@ -4,6 +4,14 @@ import { createCacheKey } from './cache-key'
 import { schedulePrefetchTask } from './scheduler'
 import { PrefetchPriority, type PrefetchTaskFetchStrategy } from './types'
 
+function getParallelSlotKey(tree: FlightRouterState): string | null {
+  const parallelRoutes = tree[1]
+  if (!parallelRoutes || Object.keys(parallelRoutes).length === 0) {
+    return null
+  }
+  return Object.keys(parallelRoutes).sort().join('|')
+}
+
 /**
  * Entrypoint for prefetching a URL into the Segment Cache.
  * @param href - The URL to prefetch. Typically this will come from a <Link>,
@@ -36,7 +44,11 @@ export function prefetch(
     // This href should not be prefetched.
     return
   }
-  const cacheKey = createCacheKey(url.href, nextUrl)
+  const cacheKey = createCacheKey(
+    url.href,
+    nextUrl,
+    getParallelSlotKey(treeAtTimeOfPrefetch)
+  )
   schedulePrefetchTask(
     cacheKey,
     treeAtTimeOfPrefetch,

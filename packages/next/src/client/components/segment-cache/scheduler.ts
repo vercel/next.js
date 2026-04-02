@@ -620,7 +620,11 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
     // non-trivial to implement because it needs to account for things like
     // fallback route entries, hence this temporary workaround.
     const url = new URL(key.pathname, location.origin)
-    const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
+    const keyWithoutSearch = createCacheKey(
+      url.href,
+      key.nextUrl,
+      key.parallelSlot
+    )
     const routeWithoutSearch = readOrCreateRouteCacheEntry(
       now,
       task,

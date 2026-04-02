@@ -19,6 +19,14 @@ type LinkElement = HTMLAnchorElement | SVGAElement
 
 type Element = LinkElement | HTMLFormElement
 
+function getParallelSlotKey(tree: FlightRouterState): string | null {
+  const parallelRoutes = tree[1]
+  if (!parallelRoutes || Object.keys(parallelRoutes).length === 0) {
+    return null
+  }
+  return Object.keys(parallelRoutes).sort().join('|')
+}
+
 // Properties that are shared between Link and Form instances. We use the same
 // shape for both to prevent a polymorphic de-opt in the VM.
 type LinkOrFormInstanceShared = {
@@ -316,7 +324,11 @@ function rescheduleLinkPrefetch(
       if (existingPrefetchTask === null) {
         // Initiate a prefetch task.
         const nextUrl = appRouterState.nextUrl
-        const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
+        const cacheKey = createCacheKey(
+          instance.prefetchHref,
+          nextUrl,
+          getParallelSlotKey(appRouterState.tree)
+        )
         instance.prefetchTask = scheduleSegmentPrefetchTask(
           cacheKey,
           treeAtTimeOfPrefetch,
@@ -361,7 +373,11 @@ export function pingVisibleLinks(
     if (task !== null) {
       cancelPrefetchTask(task)
     }
-    const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
+    const cacheKey = createCacheKey(
+      instance.prefetchHref,
+      nextUrl,
+      getParallelSlotKey(tree)
+    )
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       tree,

@@ -61,6 +61,7 @@ import type {
   NormalizedPathname,
   NormalizedSearch,
   NormalizedNextUrl,
+  ParallelSlotKey,
   RouteCacheKey,
 } from './cache-key'
 import { createCacheKey as createPrefetchRequestKey } from './cache-key'
@@ -450,7 +451,8 @@ export function readRouteCacheEntry(
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
     key.search,
-    key.nextUrl
+    key.nextUrl,
+    key.parallelSlot
   )
   const isRevalidation = false
   const existingEntry = getFromCacheMap(
@@ -561,7 +563,8 @@ export function readOrCreateRouteCacheEntry(
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
     key.search,
-    key.nextUrl
+    key.nextUrl,
+    key.parallelSlot
   )
   const isRevalidation = false
   setInCacheMap(routeCacheMap, varyPath, pendingEntry, isRevalidation)
@@ -1109,6 +1112,7 @@ export function writeRouteIntoCache(
   now: number,
   pathname: NormalizedPathname,
   nextUrl: string | null,
+  parallelSlot: ParallelSlotKey | null,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
@@ -1130,6 +1134,7 @@ export function writeRouteIntoCache(
     pathname,
     renderedSearch,
     nextUrl as NormalizedNextUrl | null,
+    parallelSlot,
     couldBeIntercepted
   )
   const isRevalidation = false
@@ -1776,6 +1781,7 @@ export async function fetchRouteOnCacheMiss(
         Date.now(),
         pathname,
         nextUrl,
+        null,
         entry,
         routeTree,
         metadataVaryPath,
@@ -1852,6 +1858,7 @@ export async function fetchRouteOnCacheMiss(
         pathname,
         search,
         nextUrl,
+        key.parallelSlot,
         couldBeIntercepted
       )
       const isRevalidation = false
@@ -2369,6 +2376,7 @@ function writeDynamicTreeResponseIntoCache(
     now,
     originalPathname,
     nextUrl,
+    null,
     entry,
     routeTree,
     metadataVaryPath,

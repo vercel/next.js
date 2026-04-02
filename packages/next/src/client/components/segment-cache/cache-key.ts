@@ -1,3 +1,5 @@
+import type { FlightRouterState } from '../../../shared/lib/app-router-types'
+
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
 
@@ -25,11 +27,20 @@ export function createCacheKey(
   parallelSlot?: string | null
 ): RouteCacheKey {
   const originalUrl = new URL(originalHref)
-  const cacheKey = {
+  return {
     pathname: originalUrl.pathname as NormalizedPathname,
     search: originalUrl.search as NormalizedSearch,
     nextUrl: nextUrl as NormalizedNextUrl | null,
     parallelSlot: (parallelSlot ?? null) as ParallelSlotKey | null,
   } as RouteCacheKey
-  return cacheKey
+}
+
+export function getParallelSlotKey(
+  flightRouterState: FlightRouterState
+): ParallelSlotKey | null {
+  const parallelRoutes = flightRouterState[1]
+  if (!parallelRoutes || Object.keys(parallelRoutes).length === 0) {
+    return null
+  }
+  return Object.keys(parallelRoutes).sort().join('|') as ParallelSlotKey
 }

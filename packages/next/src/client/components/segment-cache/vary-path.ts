@@ -3,6 +3,7 @@ import type {
   NormalizedPathname,
   NormalizedSearch,
   NormalizedNextUrl,
+  ParallelSlotKey,
 } from './cache-key'
 import type { RouteTree } from './cache'
 import { Fallback, type FallbackType } from './cache-map'
@@ -44,7 +45,7 @@ export type VaryPath = {
 // we use opaque type aliases to ensure these are only created within
 // this module.
 
-// requestKey -> searchParams -> nextUrl
+// requestKey -> searchParams -> nextUrl -> parallelSlot
 export type RouteVaryPath = Opaque<
   {
     id: null
@@ -55,7 +56,11 @@ export type RouteVaryPath = Opaque<
       parent: {
         id: null
         value: NormalizedNextUrl | null | FallbackType
-        parent: null
+        parent: {
+          id: null
+          value: ParallelSlotKey | null
+          parent: null
+        }
       }
     }
   },
@@ -95,9 +100,10 @@ export type PartialSegmentVaryPath = Opaque<VaryPath, 'PartialSegmentVaryPath'>
 export function getRouteVaryPath(
   pathname: NormalizedPathname,
   search: NormalizedSearch,
-  nextUrl: NormalizedNextUrl | null
+  nextUrl: NormalizedNextUrl | null,
+  parallelSlot: ParallelSlotKey | null
 ): RouteVaryPath {
-  // requestKey -> searchParams -> nextUrl
+  // requestKey -> searchParams -> nextUrl -> parallelSlot
   const varyPath: VaryPath = {
     id: null,
     value: pathname,
@@ -107,7 +113,11 @@ export function getRouteVaryPath(
       parent: {
         id: null,
         value: nextUrl,
-        parent: null,
+        parent: {
+          id: null,
+          value: parallelSlot,
+          parent: null,
+        },
       },
     },
   }
@@ -118,11 +128,12 @@ export function getFulfilledRouteVaryPath(
   pathname: NormalizedPathname,
   search: NormalizedSearch,
   nextUrl: NormalizedNextUrl | null,
+  parallelSlot: ParallelSlotKey | null,
   couldBeIntercepted: boolean
 ): RouteVaryPath {
   // This is called when a route's data is fulfilled. The cache entry will be
   // re-keyed based on which inputs the response varies by.
-  // requestKey -> searchParams -> nextUrl
+  // requestKey -> searchParams -> nextUrl -> parallelSlot
   const varyPath: VaryPath = {
     id: null,
     value: pathname,
@@ -132,7 +143,11 @@ export function getFulfilledRouteVaryPath(
       parent: {
         id: null,
         value: couldBeIntercepted ? nextUrl : Fallback,
-        parent: null,
+        parent: {
+          id: null,
+          value: parallelSlot,
+          parent: null,
+        },
       },
     },
   }
