@@ -1886,7 +1886,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // subsequent builds. By marking the task session-dependent dirty, the next build
         // re-executes it, which invalidates dependents and corrects the stale errors.
         let data_update = if self.should_track_dependencies() && !task_id.is_transient() {
-            let (data_update, _result) = task.update_dirty_state(Some(Dirtyness::SessionDependent));
+            let data_update = task.update_dirty_state(Some(Dirtyness::SessionDependent));
             data_update
         } else {
             None
@@ -2653,19 +2653,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         #[cfg(feature = "verify_determinism")]
         let dirty_changed = task.get_dirty().cloned() != new_dirtyness;
-        let (data_update, result) = task.update_dirty_state(new_dirtyness);
-
-        // Fire the all_clean_event if the task transitioned to clean
-        if result.dirty_count_update - result.current_session_clean_update < 0 {
-            // The task is clean now
-            if let Some(activeness_state) = task.get_activeness_mut() {
-                activeness_state.all_clean_event.notify(usize::MAX);
-                activeness_state.unset_active_until_clean();
-                if activeness_state.is_empty() {
-                    task.take_activeness();
-                }
-            }
-        }
+        let data_update = task.update_dirty_state(new_dirtyness);
 
         #[cfg(feature = "verify_determinism")]
         let reschedule =

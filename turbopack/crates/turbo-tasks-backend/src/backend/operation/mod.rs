@@ -758,22 +758,16 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
-    /// Update the task's dirty state to `new_dirtyness`, applying the change to stored fields
-    /// and computing the aggregated propagation update.
+    /// Update the task's dirty state to `new_dirtyness`, applying the change to stored fields,
+    /// computing the aggregated propagation update, and firing the `all_clean_event` if the task
+    /// transitioned to clean.
     ///
-    /// Returns `(job, result)`:
-    /// - `job` — an optional `AggregationUpdateJob` that the caller must run via
-    ///   `AggregationUpdateQueue::run` to propagate the change to aggregating ancestors.
-    /// - `result` — the raw `ComputeDirtyAndCleanUpdateResult`, whose `dirty_count_update` and
-    ///   `current_session_clean_update` fields the caller may inspect for post-processing (e.g. the
-    ///   `all_clean_event` notification in `task_execution_completed_finish`).
+    /// Returns an optional `AggregationUpdateJob` that the caller must run via
+    /// `AggregationUpdateQueue::run` to propagate the change to aggregating ancestors.
     fn update_dirty_state(
         &mut self,
         new_dirtyness: Option<Dirtyness>,
-    ) -> (
-        Option<AggregationUpdateJob>,
-        ComputeDirtyAndCleanUpdateResult,
-    )
+    ) -> Option<AggregationUpdateJob>
     where
         Self: Sized,
     {
@@ -798,13 +792,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         if old_self_dirty == new_self_dirty
             && old_current_session_self_clean == new_current_session_self_clean
         {
-            return (
-                None,
-                ComputeDirtyAndCleanUpdateResult {
-                    dirty_count_update: 0,
-                    current_session_clean_update: 0,
-                },
-            );
+            return None;
         }
         let dirty_container_count = self
             .get_aggregated_dirty_container_count()
@@ -825,12 +813,21 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             new_current_session_self_clean,
         }
         .compute();
-        let job = result
+        // Fire the all_clean_event if the task transitioned to clean
+        if result.dirty_count_update - result.current_session_clean_update < 0 {
+            if let Some(activeness_state) = self.get_activeness_mut() {
+                activeness_state.all_clean_event.notify(usize::MAX);
+                activeness_state.unset_active_until_clean();
+                if activeness_state.is_empty() {
+                    self.take_activeness();
+                }
+            }
+        }
+        result
             .aggregated_update(task_id)
             .and_then(|aggregated_update| {
                 AggregationUpdateJob::data_update(self, aggregated_update)
-            });
-        (job, result)
+            })
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
@@ -1177,8 +1174,8 @@ impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdateResult,
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
