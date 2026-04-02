@@ -983,6 +983,19 @@ impl ChunkingContext for BrowserChunkingContext {
             EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals, is_esm);
         Ok(Vc::upcast(entrypoint))
     }
+
+    #[turbo_tasks::function]
+    async fn worker_chunk_context(
+        self: Vc<Self>,
+        is_esm: bool,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        if !is_esm {
+            return Ok(Vc::upcast(self));
+        }
+        let mut inner = (*self.await?).clone();
+        inner.esm_chunks = true;
+        Ok(Vc::upcast(BrowserChunkingContext::cell(inner)))
+    }
 }
 
 #[turbo_tasks::value]

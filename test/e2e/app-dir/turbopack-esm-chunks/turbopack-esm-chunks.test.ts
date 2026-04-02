@@ -19,10 +19,17 @@ describe('turbopack-esm-chunks', () => {
 
   it('should support client-side interactivity', async () => {
     const browser = await next.browser('/')
+    // Wrap in retry in case React hydration (async with ESM chunks) isn't
+    // complete yet when the click fires.
+    await retry(async () => {
+      await browser.elementByCss('#increment').click()
+      expect(await browser.elementByCss('#count').text()).toBe('Count: 1')
+    })
+    // Hydration confirmed; subsequent clicks work immediately.
     await browser.elementByCss('#increment').click()
-    expect(await browser.elementByCss('#count').text()).toBe('Count: 1')
-    await browser.elementByCss('#increment').click()
-    expect(await browser.elementByCss('#count').text()).toBe('Count: 2')
+    await retry(async () => {
+      expect(await browser.elementByCss('#count').text()).toBe('Count: 2')
+    })
   })
 
   it('should load next/dynamic components', async () => {

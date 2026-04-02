@@ -64,15 +64,20 @@ impl WorkerLoaderModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         Ok(match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => chunking_context
-                .evaluated_chunk_group_assets(
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                // When `is_esm` is true, use a derived context that emits ESM chunks so the
+                // worker runtime can load dependencies via `import()` instead of
+                // `importScripts` (which is forbidden in module workers).
+                let worker_context = chunking_context.worker_chunk_context(this.is_esm);
+                worker_context.evaluated_chunk_group_assets(
                     this.inner
                         .ident()
                         .with_modifier(this.worker_type.chunk_modifier_str()),
                     ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     AvailabilityInfo::root(),
-                ),
+                )
+            }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             WorkerType::NodeWorkerThread => {

@@ -735,4 +735,12 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(self.worker_forwarded_globals.clone())
     }
+
+    #[turbo_tasks::function]
+    async fn worker_chunk_context(
+        self: Vc<Self>,
+        _is_esm: bool,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(Vc::upcast(self))
+    }
 }

@@ -494,6 +494,22 @@ pub trait ChunkingContext {
     async fn worker_entrypoint(self: Vc<Self>, _is_esm: bool) -> Result<Vc<Box<dyn OutputAsset>>> {
         turbobail!("Worker entrypoint is not supported by {}", self.name());
     }
+
+    /// Returns a derived chunking context suitable for building a worker's chunk group.
+    ///
+    /// When `is_esm` is true the returned context must emit ESM chunks (using `import()`
+    /// for chunk loading) so that the worker runtime can load dependencies without
+    /// calling `importScripts`, which is forbidden in module workers.
+    #[turbo_tasks::function]
+    async fn worker_chunk_context(
+        self: Vc<Self>,
+        _is_esm: bool,
+    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        turbobail!(
+            "worker_chunk_context is not implemented for {}",
+            self.name()
+        )
+    }
 }
 pub trait ChunkingContextExt {
     fn root_chunk_group(
