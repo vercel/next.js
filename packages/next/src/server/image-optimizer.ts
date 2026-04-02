@@ -1047,7 +1047,7 @@ export async function imageOptimizer(
     >
     images: Pick<
       NextConfigComplete['images'],
-      'dangerouslyAllowSVG' | 'minimumCacheTTL'
+      'dangerouslyAllowSVG' | 'minimumCacheTTL' | 'preserveColorProfile'
     >
   },
   opts: {
