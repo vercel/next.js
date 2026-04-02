@@ -1886,8 +1886,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // subsequent builds. By marking the task session-dependent dirty, the next build
         // re-executes it, which invalidates dependents and corrects the stale errors.
         let data_update = if self.should_track_dependencies() && !task_id.is_transient() {
-            let data_update = task.update_dirty_state(Some(Dirtyness::SessionDependent));
-            data_update
+            task.update_dirty_state(Some(Dirtyness::SessionDependent))
         } else {
             None
         };

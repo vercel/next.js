@@ -814,13 +814,13 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         }
         .compute();
         // Fire the all_clean_event if the task transitioned to clean
-        if result.dirty_count_update - result.current_session_clean_update < 0 {
-            if let Some(activeness_state) = self.get_activeness_mut() {
-                activeness_state.all_clean_event.notify(usize::MAX);
-                activeness_state.unset_active_until_clean();
-                if activeness_state.is_empty() {
-                    self.take_activeness();
-                }
+        if result.dirty_count_update - result.current_session_clean_update < 0
+            && let Some(activeness_state) = self.get_activeness_mut()
+        {
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+            if activeness_state.is_empty() {
+                self.take_activeness();
             }
         }
         result
