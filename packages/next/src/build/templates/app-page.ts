@@ -31,8 +31,6 @@ import {
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
-  getPlaceholderFallbackRouteParams,
-  buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
@@ -118,7 +116,10 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
-import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  getParamProperties,
+  getSegmentParam,
+} from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -139,6 +140,22 @@ export const routeModule = new AppPageRouteModule({
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
+
+function buildDynamicSegmentPlaceholder(
+  param: Pick<FallbackRouteParam, 'paramName' | 'paramType'>
+): string {
+  const { repeat, optional } = getParamProperties(param.paramType)
+
+  if (optional) {
+    return `[[...${param.paramName}]]`
+  }
+
+  if (repeat) {
+    return `[...${param.paramName}]`
+  }
+
+  return `[${param.paramName}]`
+}
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -1321,30 +1338,6 @@ export async function handler(
         }
       }
 
-      const placeholderFallbackRouteParams =
-        // In minimal mode (adapter deployments), derive fallback params from
-        // only the dynamic params that are still placeholder values for this
-        // request. This keeps known params concrete while deferring only the
-        // unknown subset.
-        isMinimalMode && pageIsDynamic && prerenderInfo?.fallbackRouteParams
-          ? getPlaceholderFallbackRouteParams(
-              params as
-                | Record<string, undefined | string | string[]>
-                | undefined,
-              prerenderInfo.fallbackRouteParams
-            )
-          : null
-
-      const fallbackRouteParamsForRender =
-        placeholderFallbackRouteParams &&
-        placeholderFallbackRouteParams.length > 0
-          ? placeholderFallbackRouteParams
-          : prerenderInfo?.fallbackRouteParams
-
-      const fallbackParamsForMinimalMode =
-        placeholderFallbackRouteParams &&
-        placeholderFallbackRouteParams.length > 0
-
       // When route-module.ts resolved partial nxtP* params during
       // background revalidation, filter fallbackRouteParams to only the
       // params that are still unresolved. This lets doRender produce an
@@ -1365,10 +1358,9 @@ export async function handler(
         // non-prerendered URL, use the prerender manifest's fallback route
         // params which correctly identifies which params are unknown.
         ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
-          (isMinimalMode && fallbackParamsForMinimalMode) ||
           (isDebugStaticShell && !isPrerendered)) &&
-        fallbackRouteParamsForRender
-          ? createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
+        prerenderInfo?.fallbackRouteParams
+          ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
           : // For intermediate shells where some params are resolved and
             // others still have placeholders, use the filtered subset so the
             // prerender suspends only for the unresolved params.
@@ -1393,7 +1385,7 @@ export async function handler(
         prerenderInfo?.fallbackRouteParams
       ) {
         const fallbackParams = createOpaqueFallbackRouteParams(
-          fallbackRouteParamsForRender ?? prerenderInfo.fallbackRouteParams
+          prerenderInfo.fallbackRouteParams
         )
 
         if (fallbackParams) {
