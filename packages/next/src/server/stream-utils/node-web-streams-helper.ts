@@ -133,8 +133,8 @@ export async function webstreamToUint8Array(
 }
 
 function webToReadable(
-  stream: ReadableStream<Uint8Array> | Readable
-): Readable {
+  stream: ReadableStream<Uint8Array> | import('node:stream').Readable
+): import('node:stream').Readable {
   let Readable: typeof import('node:stream').Readable
   if (process.env.TURBOPACK) {
     Readable = (require('node:stream') as typeof import('node:stream')).Readable
