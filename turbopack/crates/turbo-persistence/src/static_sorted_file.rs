@@ -211,41 +211,38 @@ impl StaticSortedFile {
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<SstLookupResult> {
-        let mut current_block = self.meta.block_count - 1;
-        // TODO: there is only one index block per file, so we can simplify control flow directly
-        // parsing the index block and then proceeding to key blocks.  Basically there is no need to
-        // loop.
-        loop {
-            let key_block_arc = self.get_key_block(current_block, key_block_cache)?;
-            ensure!(!key_block_arc.is_empty(), "empty key block");
-            let block_type = be::read_u8(&key_block_arc);
-            match block_type {
-                BLOCK_TYPE_INDEX => {
-                    current_block = self.lookup_index_block(&key_block_arc, key_hash)?;
-                }
-                BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-                    let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                    return self.lookup_key_block::<K, FIND_ALL>(
-                        key_block_arc,
-                        key_hash,
-                        key,
-                        has_hash,
-                        value_block_cache,
-                    );
-                }
-                BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-                    let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
-                    return self.lookup_fixed_key_block::<K, FIND_ALL>(
-                        key_block_arc,
-                        key_hash,
-                        key,
-                        has_hash,
-                        value_block_cache,
-                    );
-                }
-                _ => {
-                    bail!("Invalid block type");
-                }
+        // There is exactly one index block per file (always the last block).
+        // Read it first, then dispatch directly to the key block it points to.
+        let index_block_index = self.meta.block_count - 1;
+        let index_block = self.get_key_block(index_block_index, key_block_cache)?;
+        let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
+
+        let key_block_arc = self.get_key_block(key_block_index, key_block_cache)?;
+        let block_type = be::read_u8(&key_block_arc);
+        match block_type {
+            BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
+                let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
+                self.lookup_key_block::<K, FIND_ALL>(
+                    key_block_arc,
+                    key_hash,
+                    key,
+                    has_hash,
+                    value_block_cache,
+                )
+            }
+
+            BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
+                let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
+                self.lookup_fixed_key_block::<K, FIND_ALL>(
+                    key_block_arc,
+                    key_hash,
+                    key,
+                    has_hash,
+                    value_block_cache,
+                )
+            }
+            _ => {
+                bail!("Invalid block type");
             }
         }
     }
@@ -253,6 +250,10 @@ impl StaticSortedFile {
     /// Looks up a hash in a index block.
     fn lookup_index_block(&self, block: &[u8], hash: u64) -> Result<u16> {
         ensure!(block.len() >= 3, "index block too short");
+        debug_assert!(
+            be::read_u8(block) == BLOCK_TYPE_INDEX,
+            "expected index block as last block"
+        );
         let first_block = be::read_u16(&block[1..]);
         let (entries, remainder) = block[3..].as_chunks::<INDEX_BLOCK_ENTRY_SIZE>();
         if entries.is_empty() {
@@ -452,18 +453,13 @@ impl StaticSortedFile {
             match key_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
                 GuardResult::Value(block) => block,
                 GuardResult::Guard(guard) => {
-                    let block = self.read_key_block(block)?;
+                    let block = self.read_block(block)?;
                     let _ = guard.insert(block.clone());
                     block
                 }
                 GuardResult::Timeout => unreachable!(),
             },
         )
-    }
-
-    /// Reads a key block from the file.
-    fn read_key_block(&self, block_index: u16) -> Result<ArcBytes> {
-        self.read_block(block_index)
     }
 
     /// Reads a block from the file, decompressing if needed, and verifies its checksum.
