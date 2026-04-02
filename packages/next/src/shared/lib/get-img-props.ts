@@ -46,6 +46,12 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  /**
+   * When true, preserves the ICC color profile during image optimization.
+   * This prevents wide color gamut images (such as Display P3) from being
+   * converted to sRGB. Overrides the global `images.preserveColorProfile` config.
+   */
+  preserveColorProfile?: boolean
   overrideSrc?: string
   /**
    * @deprecated Use `onLoad` instead.
@@ -286,6 +292,7 @@ export function getImgProps(
     src,
     sizes,
     unoptimized = false,
+    preserveColorProfile,
     priority = false,
     preload = false,
     loading,
@@ -334,6 +341,11 @@ export function getImgProps(
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
     const qualities = c.qualities?.sort((a, b) => a - b)
     config = { ...c, allSizes, deviceSizes, qualities }
+  }
+
+  // Per-image preserveColorProfile overrides the global config
+  if (preserveColorProfile !== undefined) {
+    config = { ...config, preserveColorProfile }
   }
 
   if (typeof defaultLoader === 'undefined') {

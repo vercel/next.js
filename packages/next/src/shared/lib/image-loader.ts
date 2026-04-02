@@ -119,7 +119,7 @@ function defaultLoader({
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
-  }`
+  }${config.preserveColorProfile ? '&pcp=1' : ''}`
 }
 
 // We use this to determine if the import is the default loader

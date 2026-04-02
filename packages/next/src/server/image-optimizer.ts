@@ -120,6 +120,7 @@ export interface ImageParamsResult {
   mimeType: string
   sizes: number[]
   minimumCacheTTL: number
+  preserveColorProfile: boolean
 }
 
 interface ImageUpstream {
@@ -395,7 +396,7 @@ export class ImageOptimizerCache {
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
-    const { url, w, q } = query
+    const { url, w, q, pcp } = query
     let href: string
 
     if (domains.length > 0) {
@@ -537,6 +538,7 @@ export class ImageOptimizerCache {
       quality,
       mimeType,
       minimumCacheTTL,
+      preserveColorProfile: pcp === '1',
     }
   }
 
@@ -1034,7 +1036,7 @@ export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
     ImageParamsResult,
-    'href' | 'width' | 'quality' | 'mimeType'
+    'href' | 'width' | 'quality' | 'mimeType' | 'preserveColorProfile'
   >,
   nextConfig: {
     experimental: Pick<
@@ -1063,7 +1065,7 @@ export async function imageOptimizer(
   upstreamEtag: string
   error?: unknown
 }> {
-  const { href, quality, width, mimeType } = paramsResult
+  const { href, quality, width, mimeType, preserveColorProfile } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
   const maxAge = Math.max(
     nextConfig.images.minimumCacheTTL,
@@ -1166,7 +1168,8 @@ export async function imageOptimizer(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
-      preserveColorProfile: nextConfig.images?.preserveColorProfile,
+      preserveColorProfile:
+        preserveColorProfile || nextConfig.images?.preserveColorProfile,
     })
     if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
