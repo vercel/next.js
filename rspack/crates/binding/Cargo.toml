@@ -21,7 +21,7 @@ rspack_regex = { version = "=0.100.0-rc.0" }
 rustc-hash   = { version = "2.1.1" }
 
 napi        = { version = "=3.8.3" }
-napi-derive = { version = "=3.8.3" }
+napi-derive = { version = "=3.5.2" }
 
 anyhow     = { version = "1.0.102" }
 serde_json = { version = "1.0.149" }
