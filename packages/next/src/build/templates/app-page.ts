@@ -1377,9 +1377,9 @@ export async function handler(
               effectiveFallbackRouteParams.length <
                 (prerenderInfo?.fallbackRouteParams?.length ?? 0)
             ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
-          : isDebugFallbackShell
-            ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-            : null
+            : isDebugFallbackShell
+              ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+              : null
 
       // For staged dynamic rendering (Cached Navigations) and debug static
       // shell rendering, pass the fallback params via request meta so the
