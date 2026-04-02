@@ -15,8 +15,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, MangleType, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
+        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -44,7 +44,7 @@ use crate::{
         runtime_entry::{RuntimeEntries, RuntimeEntry},
         transforms::get_next_client_transforms_rules,
     },
-    next_config::{NextConfig, OptionCrossOriginConfig},
+    next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
@@ -471,7 +471,7 @@ pub struct ClientChunkingContextOptions {
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
-    pub cross_origin: Vc<OptionCrossOriginConfig>,
+    pub cross_origin: Vc<CrossOrigin>,
 }
 
 #[turbo_tasks::function]
@@ -502,7 +502,7 @@ pub async fn get_client_chunking_context(
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let cross_origin_loading = cross_origin.owned().await?.unwrap_or_default();
+    let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),

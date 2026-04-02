@@ -67,7 +67,7 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
-    pub cross_origin: Option<CrossOrigin>,
+    pub cross_origin: CrossOrigin,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]
@@ -178,7 +178,7 @@ async fn build_manifest(
             rcstr!("")
         };
 
-        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
+        entry_manifest.module_loading.cross_origin = *next_config.cross_origin().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
