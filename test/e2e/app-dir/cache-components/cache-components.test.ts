@@ -64,6 +64,20 @@ describe('cache-components', () => {
     }
   })
 
+  it('should render not-found with Suspense in layout without connection errors', async () => {
+    const browser = await next.browser('/cases/not-found-suspense')
+
+    // The custom not-found component should render
+    expect(await browser.elementById('not-found-text').text()).toBe(
+      'Custom 404 - Not Found'
+    )
+
+    // The async Suspense content in the layout should also render
+    expect(await browser.elementById('async-data').text()).toBe(
+      'Async Data Loaded'
+    )
+  })
+
   it('should prerender pages that render in a microtask', async () => {
     let $ = await next.render$('/cases/microtask', {})
     if (isNextDev) {
