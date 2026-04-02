@@ -23,7 +23,6 @@ import {
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
-import { Readable } from 'node:stream'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -136,6 +135,14 @@ export async function webstreamToUint8Array(
 function webToReadable(
   stream: ReadableStream<Uint8Array> | Readable
 ): Readable {
+  let Readable: typeof import('node:stream').Readable
+  if (process.env.TURBOPACK) {
+    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+  } else {
+    Readable = (
+      __non_webpack_require__('node:stream') as typeof import('node:stream')
+    ).Readable
+  }
   if (stream instanceof Readable) {
     return stream
   }
@@ -153,6 +160,14 @@ export async function nodestreamToUint8Array(
 }
 
 export async function streamToUint8Array(stream: AnyStream) {
+  let Readable: typeof import('node:stream').Readable
+  if (process.env.TURBOPACK) {
+    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+  } else {
+    Readable = (
+      __non_webpack_require__('node:stream') as typeof import('node:stream')
+    ).Readable
+  }
   if (stream instanceof Readable) {
     return nodestreamToUint8Array(stream)
   }
