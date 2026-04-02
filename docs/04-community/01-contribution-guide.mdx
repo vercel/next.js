@@ -345,6 +345,58 @@ For information that is important but not critical, use notes. Notes are a good 
 > - We also use this format for multi-line notes.
 > - There are sometimes multiple items worth knowing or keeping in mind.
 
+## Alerts
+
+For information that needs to stand out with a specific level of severity, use [GitHub-style alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts). These render as styled callout boxes with icons.
+
+Five alert types are supported:
+
+```mdx filename="alerts.mdx"
+> [!NOTE]
+> Useful background information the reader should be aware of.
+
+> [!TIP]
+> Helpful advice for getting the most out of a feature.
+
+> [!IMPORTANT]
+> Key information the reader needs to know for things to work correctly.
+
+> [!WARNING]
+> Potential issues or pitfalls the reader should watch out for.
+
+> [!CAUTION]
+> Actions that could cause data loss, security issues, or other serious problems.
+```
+
+**Output:**
+
+> [!NOTE]
+> Useful background information the reader should be aware of.
+
+> [!TIP]
+> Helpful advice for getting the most out of a feature.
+
+> [!IMPORTANT]
+> Key information the reader needs to know for things to work correctly.
+
+> [!WARNING]
+> Potential issues or pitfalls the reader should watch out for.
+
+> [!CAUTION]
+> Actions that could cause data loss, security issues, or other serious problems.
+
+Alerts can contain multiple paragraphs, lists, and other Markdown content:
+
+```mdx filename="multi-line-alert.mdx"
+> [!WARNING]
+> Server Functions are reachable via direct POST requests.
+>
+> - Always verify authentication inside every Server Function.
+> - See the [Data Security guide](/docs/app/guides/data-security) for recommended patterns.
+```
+
+Use the appropriate severity level for the content. Prefer **Note** for general context, **Warning** for potential pitfalls, and **Caution** only for actions that could cause serious problems. Avoid overusing alerts as they lose impact when every section has one.
+
 ## Related Links
 
 Related Links guide the user's learning journey by adding links to logical next steps.
