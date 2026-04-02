@@ -2,6 +2,8 @@
 
 > **Note:** `CLAUDE.md` is a symlink to `AGENTS.md`. They are the same file.
 
+> **See also:** `docs/01-app/02-guides/ai-agents.mdx` — explains how Next.js bundles version-matched documentation inside `node_modules/next/dist/docs/` and how to configure `AGENTS.md` in user projects so AI coding agents read the right docs.
+
 ## Codebase structure
 
 ### Monorepo Overview
