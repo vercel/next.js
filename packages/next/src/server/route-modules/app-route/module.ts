@@ -264,9 +264,11 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * Ensures the userland module is fully loaded before a request is handled.
    * Required for route files that use top-level await, where require() returns
-   * a Promise instead of the module directly.
+   * a Promise instead of the module directly. Must be called before accessing
+   * `userland` in contexts where the module may not yet be resolved (e.g. the
+   * export/static-generation worker).
    */
-  private async ensureUserland(): Promise<void> {
+  async ensureUserland(): Promise<void> {
     // Trigger lazy loading if not yet started.
     void this.userland
     if (this._pendingUserland) {
@@ -785,7 +787,14 @@ export class AppRouteRouteModule extends RouteModule<
     // In Turbopack dev mode, fetch the live userland module on every request
     // via the synchronous require() getter so server HMR updates are reflected
     // immediately. This is cheap — it is just a devModuleCache lookup.
-    const liveUserland = this._getUserland?.()
+    // For routes with top-level await, require() may still return a Promise
+    // (async module); in that case fall back to the already-resolved
+    // _userland from ensureUserland() above.
+    const rawLiveUserland = this._getUserland?.()
+    const liveUserland =
+      rawLiveUserland instanceof Promise
+        ? undefined
+        : (rawLiveUserland as AppRouteUserlandModule | undefined)
 
     const handler = liveUserland
       ? this.resolveHandlerFromUserland(req.method, liveUserland)
