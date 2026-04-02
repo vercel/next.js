@@ -22,6 +22,8 @@ import {
   NEXT_INSTANT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import type { AnyStream } from '../app-render/stream-ops'
+import { Readable } from 'node:stream'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -125,10 +127,36 @@ function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
   return result
 }
 
-export async function streamToUint8Array(
+export async function webstreamToUint8Array(
   stream: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
   return concatUint8Arrays(await streamToChunks(stream))
+}
+
+function webToReadable(
+  stream: ReadableStream<Uint8Array> | Readable
+): Readable {
+  if (stream instanceof Readable) {
+    return stream
+  }
+  return Readable.fromWeb(stream as import('stream/web').ReadableStream)
+}
+
+export async function nodestreamToUint8Array(
+  stream: AnyStream
+): Promise<Uint8Array> {
+  const chunks: Buffer[] = []
+  for await (const chunk of webToReadable(stream)) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+  }
+  return Buffer.concat(chunks)
+}
+
+export async function streamToUint8Array(stream: AnyStream) {
+  if (stream instanceof Readable) {
+    return nodestreamToUint8Array(stream)
+  }
+  return webstreamToUint8Array(stream)
 }
 
 export async function streamToBuffer(
