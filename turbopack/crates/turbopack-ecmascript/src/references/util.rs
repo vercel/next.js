@@ -138,23 +138,16 @@ impl Issue for TooManyMatchesWarning {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        let styled = if self.sample_paths.is_empty() {
+        let mut parts = vec![
             StyledString::Text(rcstr!(
                 "Overly broad patterns can lead to build performance issues and over bundling."
-            ))
-        } else {
-            let mut parts = vec![
-                StyledString::Text(rcstr!(
-                    "Overly broad patterns can lead to build performance issues and over bundling."
-                )),
-                StyledString::Text(rcstr!("Example files matched:")),
-            ];
-            for path in &self.sample_paths {
-                parts.push(StyledString::Code(path.clone()));
-            }
-            StyledString::Stack(parts)
-        };
-        Vc::cell(Some(styled.resolved_cell()))
+            )),
+            StyledString::Text(rcstr!("Example files matched:")),
+        ];
+        for path in &self.sample_paths {
+            parts.push(StyledString::Code(path.clone()));
+        }
+        Vc::cell(Some(StyledString::Stack(parts).resolved_cell()))
     }
 
     #[turbo_tasks::function]
