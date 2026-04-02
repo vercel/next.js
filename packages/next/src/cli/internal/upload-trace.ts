@@ -6,6 +6,9 @@ const UPLOAD_TRACE_URL = 'https://api.nextjs.org/api/upload-trace'
 // V8 CPU profiles are JSON objects starting with {"nodes":
 const CPUPROFILE_HEADER = Buffer.from('{"nodes":')
 
+// Turbopack trace files start with this magic header (written by trace_writer.rs)
+const TURBOPACK_TRACE_HEADER = Buffer.from('TRACEv0')
+
 const PROGRESS_CHUNK_SIZE = 64 * 1024 // 64 KB
 
 export interface UploadTraceOptions {
@@ -63,21 +66,14 @@ function validateCpuProfile(header: Buffer, file: string): void {
 }
 
 function validateTurbopackTrace(header: Buffer, file: string): void {
-  if (header.length < 2) {
-    console.error(`Error: ${file} is too small to be a valid trace file.`)
-    process.exit(1)
-  }
-
-  // Must be either gzip-compressed or postcard binary.
-  // Reject anything that looks like plaintext/HTML (common in bogus files).
-  const firstByte = header[0]
   if (
-    firstByte === 0x3c || // '<' (HTML)
-    firstByte === 0x0a || // bare newline
-    firstByte === 0x0d // bare carriage return
+    header.length < TURBOPACK_TRACE_HEADER.length ||
+    !header
+      .subarray(0, TURBOPACK_TRACE_HEADER.length)
+      .equals(TURBOPACK_TRACE_HEADER)
   ) {
     console.error(
-      `Error: ${file} does not appear to be a valid Turbopack trace.`
+      `Error: ${file} does not appear to be a valid Turbopack trace (missing TRACEv0 header).`
     )
     process.exit(1)
   }
@@ -103,7 +99,7 @@ export async function uploadTraceToBlob(
   }
 
   const uploadableFiles = entries.filter(
-    (f) => f.endsWith('.cpuprofile') || f === 'trace-turbopack'
+    (f) => f.endsWith('.cpuprofile') || f.endsWith('trace-turbopack')
   )
 
   if (uploadableFiles.length === 0) {
@@ -121,6 +117,7 @@ export async function uploadTraceToBlob(
 
   let sessionId: string | undefined
   let sessionToken: string | undefined
+  let uploadedCount = 0
 
   for (const file of uploadableFiles) {
     const filePath = path.join(profilesDir, file)
@@ -138,7 +135,7 @@ export async function uploadTraceToBlob(
 
     if (file.endsWith('.cpuprofile')) {
       validateCpuProfile(headerBuf, file)
-    } else if (file === 'trace-turbopack') {
+    } else if (file.endsWith('trace-turbopack')) {
       validateTurbopackTrace(headerBuf, file)
     }
 
@@ -197,7 +194,13 @@ export async function uploadTraceToBlob(
       })
     }
 
+    uploadedCount++
     console.log(`Uploaded ${file} (${formatBytes(totalSize)})`)
+  }
+
+  if (uploadedCount === 0) {
+    console.error('Error: No files were uploaded (all candidates were empty).')
+    process.exit(1)
   }
 
   if (sessionId) {
