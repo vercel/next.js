@@ -23,7 +23,7 @@ env:
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
-  NODE_LTS_VERSION: 20
+  NODE_LTS_VERSION: 22
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
   # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.

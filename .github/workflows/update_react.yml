@@ -14,7 +14,7 @@ on:
         required: false
 
 env:
-  NODE_LTS_VERSION: 20
+  NODE_LTS_VERSION: 22
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
 
 jobs:
