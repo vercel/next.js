@@ -945,7 +945,7 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         // Build AMQF from collected hashes using sorted Builder insertion.
         // Hashes are already sorted by key_hash (SST invariant), but fingerprints
-        // (truncated hashes) may not be sorted, so we sort by fingerprint.
+        // (truncated hashes) may not be sorted, so we sort by `fingerprint & mask`.
         let actual_count = self.collected_fingerprints.len() as u64;
         let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
             .expect("Filter can't be constructed");
