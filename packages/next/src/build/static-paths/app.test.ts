@@ -9,9 +9,7 @@ import {
 } from './app'
 import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { WorkUnitAsyncStorage } from '../../server/app-render/work-unit-async-storage.external'
 import type { AppSegment } from '../segment-config/app/app-segments'
-import { AsyncLocalStorage } from 'async_hooks'
 
 function pathnameSegments(
   ...segments: Array<string | [string, boolean]>
@@ -983,8 +981,6 @@ const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
   page: '/test-page',
 })
 
-const mockWorkUnitAsyncStorage = new AsyncLocalStorage() as WorkUnitAsyncStorage
-
 // Helper to create mock segments
 const createMockSegment = (
   generateStaticParams?: (options: { params?: Params }) => Promise<Params[]>,
@@ -1001,7 +997,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         [],
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1017,7 +1013,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1032,7 +1028,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1054,7 +1050,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1079,7 +1075,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1101,7 +1097,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1116,7 +1112,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1132,7 +1128,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1150,7 +1146,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1172,7 +1168,7 @@ describe('generateRouteStaticParams', () => {
       await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1187,7 +1183,7 @@ describe('generateRouteStaticParams', () => {
       await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1207,7 +1203,7 @@ describe('generateRouteStaticParams', () => {
       await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1228,7 +1224,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1246,7 +1242,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1266,7 +1262,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1283,7 +1279,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1312,7 +1308,7 @@ describe('generateRouteStaticParams', () => {
         generateRouteStaticParams(
           segments,
           store,
-          mockWorkUnitAsyncStorage,
+
           false,
           []
         )
@@ -1330,7 +1326,7 @@ describe('generateRouteStaticParams', () => {
         generateRouteStaticParams(
           segments,
           store,
-          mockWorkUnitAsyncStorage,
+
           false,
           []
         )
@@ -1352,7 +1348,7 @@ describe('generateRouteStaticParams', () => {
         generateRouteStaticParams(
           segments,
           store,
-          mockWorkUnitAsyncStorage,
+
           false,
           []
         )
@@ -1369,7 +1365,7 @@ describe('generateRouteStaticParams', () => {
         generateRouteStaticParams(
           segments,
           store,
-          mockWorkUnitAsyncStorage,
+
           true,
           []
         )
@@ -1387,7 +1383,7 @@ describe('generateRouteStaticParams', () => {
         generateRouteStaticParams(
           segments,
           store,
-          mockWorkUnitAsyncStorage,
+
           true,
           []
         )
@@ -1405,7 +1401,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1420,7 +1416,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1449,7 +1445,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1487,7 +1483,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1528,7 +1524,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
@@ -1554,7 +1550,7 @@ describe('generateRouteStaticParams', () => {
       const result = await generateRouteStaticParams(
         segments,
         store,
-        mockWorkUnitAsyncStorage,
+
         false,
         []
       )
