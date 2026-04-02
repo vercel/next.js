@@ -2923,6 +2923,7 @@ async function renderToStream(
   fallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
+  // MARK: renderToStream setup
   const {
     assetPrefix,
     htmlRequestId,
@@ -3030,6 +3031,7 @@ async function renderToStream(
   // Run the rest of the function within the span's context so child spans
   // (like "build component tree", "generateMetadata") are properly parented.
   return getTracer().withSpan(renderSpan, async () => {
+    // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
       return onInstrumentationRequestError?.(
@@ -3077,6 +3079,7 @@ async function renderToStream(
     const { clientModules } = getClientReferenceManifest()
 
     try {
+      // MARK: devCacheComponents RSC
       if (
         process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
@@ -3200,6 +3203,7 @@ async function renderToStream(
           )
         }
       } else if (cacheComponents && cachedNavigations) {
+        // MARK: cacheComponents RSC
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the static stage byte length
         // (`l` field), enabling the client to cache the static subset during
@@ -3323,7 +3327,7 @@ async function renderToStream(
 
         reactServerResult = new ReactServerResult(flightStream)
       } else {
-        // MARK: Node.js RSC
+        // MARK: nodeStreams RSC
         if (process.env.__NEXT_USE_NODE_STREAMS) {
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
           const RSCPayload: RSCPayload & RSCPayloadDevProperties =
@@ -3366,6 +3370,7 @@ async function renderToStream(
             )
           )
         } else {
+          // MARK: webStreams RSC
           // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
           const RSCPayload: RSCPayload & RSCPayloadDevProperties =
             await workUnitAsyncStorage.run(
@@ -3414,7 +3419,7 @@ async function renderToStream(
       // one task before continuing
       await waitAtLeastOneReactRenderTask()
 
-      // MARK: Node.js HTML
+      // MARK: nodeStreams HTML
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
@@ -3554,6 +3559,7 @@ async function renderToStream(
           validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
         })
       } else {
+        // MARK: webStreams HTML
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
         if (typeof renderOpts.postponed === 'string') {
@@ -3691,6 +3697,7 @@ async function renderToStream(
           validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
         })
       }
+      // MARK: renderToStream errorRecovery
     } catch (err) {
       if (
         isStaticGenBailoutError(err) ||
