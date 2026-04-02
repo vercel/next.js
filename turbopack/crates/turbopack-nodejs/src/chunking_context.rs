@@ -1,7 +1,9 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -577,7 +579,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let span = tracing::info_span!(
             "chunking",
-            name = display(path.value_to_string().await?),
+            name = display(path.to_string_ref().await?),
             chunking_type = "entry",
         );
         async move {
