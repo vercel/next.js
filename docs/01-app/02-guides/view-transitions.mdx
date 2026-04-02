@@ -4,9 +4,9 @@ description: Learn how to use view transitions to communicate meaning during nav
 nav_title: View transitions
 ---
 
-Without transitions, every navigation replaces the entire page at once. The browser performs a jump cut. The user sees no relationship between where they were and where they landed. A thumbnail in a grid becomes a hero image on a detail page, but nothing connects the two. The user has to re-orient.
+In web apps, route changes replace the entire page at once. One set of elements disappears, another appears, with no visual connection between them. A user selects a photo thumbnail to view it in detail on another page. They are the same image, but nothing on screen communicates that. Apps that need these transitions typically rely on complex animation libraries that manage mount/unmount lifecycles, track element positions across routes, and coordinate timing manually, to animate how elements enter, exit, and move between states.
 
-View transitions replace jump cuts with motivated motion. A thumbnail morphs into its hero. Content slides in the direction of navigation. A skeleton yields to real data with a vertical handoff. Each animation encodes a specific message: "same thing, going deeper," "going forward," or "data loaded." The motion is not decoration. It is information.
+React's `<ViewTransition>` component integrates with the browser's [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API) to handle this declaratively. You name the elements that should persist, and the browser animates between their old and new positions. This guide walks through four patterns that cover the most common cases: morphing shared elements, animating loading states, adding directional navigation, and crossfading content within the same route.
 
 ## Example
 
@@ -34,7 +34,7 @@ export default nextConfig
 ```
 
 > [!NOTE]
-> The View Transitions API is supported in all major browsers. Pages work without it. The transitions simply do not animate.
+> The View Transitions API is supported in all major browsers, though some animations may behave differently in Safari. Without browser support, your application works normally, the transitions simply do not animate.
 
 Then import the `ViewTransition` component from React:
 
@@ -42,13 +42,15 @@ Then import the `ViewTransition` component from React:
 import { ViewTransition } from 'react'
 ```
 
+`<ViewTransition>` animations are activated by [Transitions](https://react.dev/reference/react/useTransition), [`<Suspense>`](https://react.dev/reference/react/Suspense), and [`useDeferredValue`](https://react.dev/reference/react/useDeferredValue). Regular `setState` calls do not trigger them. In Next.js, route navigations are transitions, so `<ViewTransition>` animations activate automatically during navigation.
+
 ### Step 1: Morph a thumbnail into a hero image
 
 The gallery displays photos in a grid. Clicking a photo opens a detail page with a larger version of the same image. Without transitions, the thumbnail disappears and the hero appears. Nothing connects them visually. The user has to scan the detail page to confirm they clicked the right photo.
 
 In motion design, when an object persists across a cut, it communicates continuity. The viewer understands they are looking at the same thing, not a replacement. This is the most important transition pattern: **shared element morphing**.
 
-Wrap both the grid thumbnail and the detail hero in `<ViewTransition>` with the same `name` and `share="morph"`:
+Wrap both the grid thumbnail and the detail hero in `<ViewTransition>` with the same `name`:
 
 ```tsx filename="components/photo-grid.tsx"
 import { ViewTransition } from 'react'
@@ -60,7 +62,7 @@ function PhotoGrid({ photos }) {
     <div className="grid grid-cols-3 gap-3">
       {photos.map((photo) => (
         <Link key={photo.id} href={`/photo/${photo.id}`}>
-          <ViewTransition name={`photo-${photo.id}`} share="morph">
+          <ViewTransition name={`photo-${photo.id}`}>
             <Image src={photo.src} alt={photo.title} />
           </ViewTransition>
         </Link>
@@ -78,18 +80,26 @@ async function PhotoContent({ id }) {
   const photo = await getPhoto(id)
 
   return (
-    <ViewTransition name={`photo-${photo.id}`} share="morph">
+    <ViewTransition name={`photo-${photo.id}`}>
       <Image src={photo.src} alt={photo.title} fill />
     </ViewTransition>
   )
 }
 ```
 
-The `name` prop creates identity. React finds elements with the same name on the old and new pages, then animates between their size and position. The `share="morph"` prop tells it to interpolate the geometry rather than crossfade.
+The `name` prop creates identity. React finds elements with the same name on the old and new pages, then animates between their size and position automatically. No additional props are needed for the morph to work.
 
 If we click a thumbnail now, the image scales and repositions from its grid cell to the hero slot. Navigating back reverses the morph. The user sees one object moving, not two objects swapping.
 
-To soften the morph mid-flight, add a blur keyframe that peaks at 30% of the animation:
+#### Customizing the morph animation
+
+To control the morph CSS, add `share="morph"`. This assigns the `morph` class to the view transition, which you can target with CSS pseudo-elements. For example, to soften the morph mid-flight with a [`blur`](https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/blur) keyframe:
+
+```tsx
+<ViewTransition name={`photo-${photo.id}`} share="morph">
+  <Image src={photo.src} alt={photo.title} />
+</ViewTransition>
+```
 
 ```css filename="app/globals.css"
 ::view-transition-group(.morph) {
@@ -139,6 +149,8 @@ export default async function PhotoPage({ params }) {
 }
 ```
 
+The `default="none"` prop prevents this `ViewTransition` from animating during unrelated transitions, like the shared element morph from Step 1. Without it, every transition on the page would trigger every `ViewTransition`'s animation.
+
 The CSS animations use asymmetric timing. The exit is fast (150ms). The enter is slower (210ms) and delayed until the exit completes:
 
 ```css filename="app/globals.css"
@@ -180,7 +192,7 @@ The CSS animations use asymmetric timing. The exit is fast (150ms). The enter is
 
 The asymmetry is deliberate. Old content should leave quickly so it does not compete for attention. New content should arrive more gently so the user has time to register it. The `var(--duration-exit)` delay on the enter animation means the new content waits for the old content to finish leaving before it appears.
 
-If we refresh the page, the skeleton slides down and fades out. A moment later, the real content slides up and fades in. The layout does not jump.
+On page load, a well-sized skeleton prevents layout shift. But without a transition, the swap from skeleton to content is still instant. If we refresh the page, the skeleton slides down and fades out, and a moment later the real content slides up and fades in. The slide animation makes the handoff visible.
 
 ### Step 3: Add directional motion for navigation
 
@@ -364,10 +376,11 @@ Each pattern answers a different question for the user:
 | Directional slide      | "Going forward / coming back"   |
 | Same-route crossfade   | "Same place, different content" |
 
-Next, learn more about:
+For API details and more patterns:
 
 - [View transition configuration](/docs/app/api-reference/config/next-config-js/viewTransition)
 - [Link `transitionTypes` prop](/docs/app/api-reference/components/link#transitiontypes)
 - [`useRouter`](/docs/app/api-reference/functions/use-router) — also supports `transitionTypes` in `push()` and `replace()`
 - [React `ViewTransition` component](https://react.dev/reference/react/ViewTransition)
 - [Complete CSS from this guide](https://github.com/vercel-labs/react-view-transitions-demo/blob/main/src/app/globals.css) — all keyframes and view transition rules in one file
+- [React View Transitions skill](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-view-transitions) — additional patterns, gotchas, and implementation guidance for AI-assisted development
