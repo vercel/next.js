@@ -21,7 +21,7 @@ use turbopack_core::{
 };
 
 use crate::next_api::utils::{
-    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
+    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics, get_issues,
     strongly_consistent_catch_collectables, subscribe,
 };
 
@@ -299,4 +299,55 @@ pub fn endpoint_client_changed_subscribe(
             }])
         },
     )
+}
+
+/// Like [`WrittenEndpointWithIssues`] but without writing to disk or collecting
+/// effects. Used for a read-only peek at current compilation issues.
+#[turbo_tasks::value(serialization = "none")]
+struct EndpointIssuesPeek {
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+/// Peeks issues from [`endpoint_server_changed_operation`] without triggering a
+/// disk write (unlike [`get_written_endpoint_with_issues_operation`]).
+#[turbo_tasks::function(operation)]
+async fn peek_endpoint_issues_operation(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<EndpointIssuesPeek>> {
+    let changed_op = endpoint_server_changed_operation(endpoint_op);
+    let filter = issue_filter_from_endpoint(endpoint_op).await?;
+    let issues = get_issues(changed_op, filter).await?;
+    let diagnostics = get_diagnostics(changed_op).await?;
+    Ok(EndpointIssuesPeek {
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get endpoint issues", skip_all)]
+#[napi]
+pub async fn endpoint_get_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
+) -> napi::Result<TurbopackResult<()>> {
+    let ctx = endpoint.turbopack_ctx();
+    let endpoint_op = ***endpoint;
+    let (issues, diags) = ctx
+        .turbo_tasks()
+        .run(async move {
+            let peek_op = peek_endpoint_issues_operation(endpoint_op);
+            let EndpointIssuesPeek {
+                issues,
+                diagnostics,
+            } = &*peek_op.read_strongly_consistent().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
+        .await?;
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
 }

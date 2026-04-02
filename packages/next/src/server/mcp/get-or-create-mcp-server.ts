@@ -5,8 +5,11 @@ import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
+import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
+import type { Entrypoints } from '../../build/swc/types'
+import type { EntryKey } from '../../shared/lib/turbopack/entry-key'
 
 export interface McpServerOptions {
   projectPath: string
@@ -17,6 +20,8 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
+  getCurrentEntrypoints?: () => Entrypoints
+  getWrittenEntrypoints?: () => ReadonlyMap<EntryKey, unknown>
 }
 
 let mcpServer: McpServer | undefined
@@ -54,6 +59,15 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     pagesDir: options.pagesDir,
     appDir: options.appDir,
   })
+
+  // Turbopack-only: these options provide live access to compiled endpoint
+  // state that the webpack dev server does not expose.
+  if (options.getCurrentEntrypoints && options.getWrittenEntrypoints) {
+    registerGetCompilationIssuesTool(mcpServer, {
+      getCurrentEntrypoints: options.getCurrentEntrypoints,
+      getWrittenEntrypoints: options.getWrittenEntrypoints,
+    })
+  }
 
   return mcpServer
 }

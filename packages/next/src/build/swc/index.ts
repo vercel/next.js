@@ -858,6 +858,12 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
+    async getIssues(): Promise<TurbopackResult> {
+      return (await binding.endpointGetIssues(
+        this._nativeEndpoint
+      )) as TurbopackResult
+    }
+
     async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
