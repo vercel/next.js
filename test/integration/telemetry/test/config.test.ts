@@ -342,6 +342,34 @@ describe('config telemetry', () => {
         })
       })
 
+      it('emits telemetry for usage of `adapterPath`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.adapter-path'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.adapter-path')
+        )
+
+        try {
+          const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event1).toMatch(/"adapterPath": true/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
+      })
+
       it('emits telemetry for usage of middleware', async () => {
         await fs.writeFile(
           path.join(appDir, 'middleware.js'),
