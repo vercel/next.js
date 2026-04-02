@@ -57,11 +57,14 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // Using a lazy require ensures userland is only loaded when the first request
-  // is handled. This is important for accurate devRequestTimingInternalsEnd
-  // measurement: framework time ends when userland starts executing, not at
-  // module load time.
-  userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
+  // In dev: use a lazy require so userland is only loaded when the first
+  // request is handled. This ensures devRequestTimingInternalsEnd is set
+  // before userland executes, correctly attributing module load time.
+  // In production: eagerly load userland at module initialization time to
+  // avoid adding cold-start latency to the first request.
+  userland: process.env.__NEXT_DEV_SERVER
+    ? () => require('VAR_USERLAND') as typeof import('VAR_USERLAND')
+    : (require('VAR_USERLAND') as typeof import('VAR_USERLAND')),
   // In Turbopack dev mode, also provide a synchronous per-request getter so
   // server HMR updates are picked up without re-executing the entry chunk.
   // Using require() (synchronous) avoids adding async overhead that would be
