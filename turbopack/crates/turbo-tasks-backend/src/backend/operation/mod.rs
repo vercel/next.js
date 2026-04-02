@@ -18,6 +18,7 @@ use turbo_tasks::{
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
 };
 
+use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
         EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
@@ -776,9 +777,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     where
         Self: Sized,
     {
-        use self::aggregation_update::{
-            AggregationUpdateJob, ComputeDirtyAndCleanUpdate, ComputeDirtyAndCleanUpdateResult,
-        };
         let task_id = self.id();
         let old_dirtyness = self.get_dirty().cloned();
         let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();

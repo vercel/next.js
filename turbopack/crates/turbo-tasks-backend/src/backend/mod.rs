@@ -1885,20 +1885,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // records an error in its output. That error is persisted and would poison
         // subsequent builds. By marking the task session-dependent dirty, the next build
         // re-executes it, which invalidates dependents and corrects the stale errors.
-        if self.should_track_dependencies() && !task_id.is_transient() {
+        let data_update = if self.should_track_dependencies() && !task_id.is_transient() {
             let (data_update, _result) = task.update_dirty_state(Some(Dirtyness::SessionDependent));
-
-            let old = task.set_in_progress(InProgressState::Canceled);
-            debug_assert!(old.is_none(), "InProgress already exists");
-            drop(task);
-
-            if let Some(data_update) = data_update {
-                AggregationUpdateQueue::run(data_update, &mut ctx);
-            }
+            data_update
         } else {
-            let old = task.set_in_progress(InProgressState::Canceled);
-            debug_assert!(old.is_none(), "InProgress already exists");
-            drop(task);
+            None
+        };
+
+        let old = task.set_in_progress(InProgressState::Canceled);
+        debug_assert!(old.is_none(), "InProgress already exists");
+        drop(task);
+
+        if let Some(data_update) = data_update {
+            AggregationUpdateQueue::run(data_update, &mut ctx);
         }
 
         drop(in_progress_cells);
@@ -2224,6 +2223,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // still hold dependencies on those cells. The old cell data is preserved on error
         // (see task_execution_completed_cleanup), so keeping cell_type_max_index consistent with
         // that data is correct.
+        // NOTE: This must stay in sync with task_execution_completed_cleanup, which similarly
+        // skips cell data removal on error.
         if result.is_ok() {
             let old_counters: FxHashMap<_, _> = task
                 .iter_cell_type_max_index()
@@ -2707,6 +2708,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // An error is potentially caused by a eventual consistency, so we avoid updating cells
         // after an error as it is likely transient and we want to keep the dependent tasks
         // clean to avoid re-executions.
+        // NOTE: This must stay in sync with task_execution_completed_prepare, which similarly
+        // skips cell_type_max_index updates on error.
         if !is_error {
             // Remove no longer existing cells and
             // find all outdated data items (removed cells, outdated edges)
