@@ -454,8 +454,7 @@ impl MetaFile {
             if key_hash < entry.min_hash || key_hash > entry.max_hash {
                 continue;
             }
-            let amqf = &entry.amqf;
-            if !amqf.contains_fingerprint(key_hash) {
+            if !entry.amqf.contains_fingerprint(key_hash) {
                 miss_result = MetaLookupResult::QuickFilterMiss;
                 continue;
             }
