@@ -96,7 +96,7 @@ pub async fn check_and_emit_too_many_matches_warning(
                 sample_paths.push(ident.path.path.clone());
             }
         }
-        sample_paths.sort();
+        sample_paths.sort_unstable();
 
         TooManyMatchesWarning {
             source: issue_source,
