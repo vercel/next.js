@@ -3,8 +3,9 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
@@ -162,6 +163,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -234,6 +240,8 @@ pub struct NodeJsChunkingContext {
     worker_forwarded_globals: Vec<RcStr>,
     /// Content hashing for asset filenames.
     asset_content_hashing: ContentHashing,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -279,6 +287,7 @@ impl NodeJsChunkingContext {
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -299,6 +308,11 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn hash_salt(&self) -> Vc<RcStr> {
+        *self.hash_salt
     }
 
     #[turbo_tasks::function]
@@ -462,16 +476,22 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
-        content_hash: Vc<RcStr>,
+        self: Vc<Self>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = content_hash.await?;
-        let ContentHashing::Direct { length } = self.asset_content_hashing;
-        let short_hash = &content_hash[..length as usize];
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
+        let hash = content
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .await?;
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
         let asset_path = match source_path.extension_ref() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
@@ -482,8 +502,8 @@ impl ChunkingContext for NodeJsChunkingContext {
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }

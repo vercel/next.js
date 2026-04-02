@@ -23,8 +23,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
     parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
@@ -366,6 +366,14 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                 )?)
             } else {
                 None
+            },
+            options: EcmascriptChunkItemOptions {
+                supports_arrow_functions: *chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+                    .await?,
+                ..Default::default()
             },
             ..Default::default()
         }

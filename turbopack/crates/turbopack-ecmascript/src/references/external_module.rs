@@ -151,7 +151,7 @@ impl CachedExternalModule {
             CachedExternalType::EcmaScriptViaImport => {
                 writeln!(
                     code,
-                    "const mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
+                    "var mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
                     StringifyJs(&self.request())
                 )?;
             }
@@ -159,18 +159,18 @@ impl CachedExternalModule {
                 let request = self.request();
                 writeln!(
                     code,
-                    "const mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
+                    "var mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
                     StringifyJs(&request),
                     StringifyJs(&request)
                 )?;
             }
             CachedExternalType::Global => {
                 if self.request.is_empty() {
-                    writeln!(code, "const mod = {{}};")?;
+                    writeln!(code, "var mod = {{}};")?;
                 } else {
                     writeln!(
                         code,
-                        "const mod = globalThis[{}];",
+                        "var mod = globalThis[{}];",
                         StringifyJs(&self.request)
                     )?;
                 }
@@ -183,7 +183,7 @@ impl CachedExternalModule {
                     let url = &self.request[at_index + 1..];
 
                     // Wrap the loading and variable access in a try-catch block
-                    writeln!(code, "let mod;")?;
+                    writeln!(code, "var mod;")?;
                     writeln!(code, "try {{")?;
 
                     // First load the URL
@@ -226,7 +226,7 @@ impl CachedExternalModule {
                          got: {}');",
                         StringifyJs(&self.request)
                     )?;
-                    writeln!(code, "const mod = undefined;")?;
+                    writeln!(code, "var mod = undefined;")?;
                 }
             }
         }

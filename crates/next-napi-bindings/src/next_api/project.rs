@@ -214,6 +214,11 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -264,6 +269,9 @@ pub struct NapiPartialProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
+
+    /// An optional salt to mix into chunk and asset content hashes.
+    pub hash_salt: Option<RcStr>,
 }
 
 #[napi(object)]
@@ -324,6 +332,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
+            hash_salt,
         } = val;
         ProjectOptions {
             root_path,
@@ -348,6 +357,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
+            hash_salt,
         }
     }
 }
@@ -368,6 +378,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            hash_salt,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -384,6 +395,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             debug_build_paths: None,
+            hash_salt,
         }
     }
 }
@@ -786,7 +798,7 @@ pub struct AppPageNapiRoute {
 #[derive(Default)]
 pub struct NapiRoute {
     /// The router path
-    pub pathname: String,
+    pub pathname: RcStr,
     /// The relative path from project_path to the route file
     pub original_name: Option<RcStr>,
 
@@ -804,7 +816,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(
-        pathname: String,
+        pathname: RcStr,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
     ) -> Self {
@@ -928,7 +940,7 @@ impl NapiEntrypoints {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
+            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
