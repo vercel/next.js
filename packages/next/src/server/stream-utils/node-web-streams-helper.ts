@@ -138,10 +138,12 @@ function webToReadable(
   let Readable: typeof import('node:stream').Readable
   if (process.env.TURBOPACK) {
     Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else {
+  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
     Readable = (
       __non_webpack_require__('node:stream') as typeof import('node:stream')
     ).Readable
+  } else {
+    Readable = (require('node:stream') as typeof import('node:stream')).Readable
   }
   if (stream instanceof Readable) {
     return stream
@@ -163,10 +165,12 @@ export async function streamToUint8Array(stream: AnyStream) {
   let Readable: typeof import('node:stream').Readable
   if (process.env.TURBOPACK) {
     Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else {
+  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
     Readable = (
       __non_webpack_require__('node:stream') as typeof import('node:stream')
     ).Readable
+  } else {
+    Readable = (require('node:stream') as typeof import('node:stream')).Readable
   }
   if (stream instanceof Readable) {
     return nodestreamToUint8Array(stream)
