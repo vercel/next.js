@@ -50,27 +50,14 @@ Some UI patterns behave differently when components stay mounted instead of unmo
 The top-level `cacheComponents` replaces two earlier experimental flags. If your config uses either of these, update it to use `cacheComponents: true` instead:
 
 ```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    useCache: true,
-    // or
-    cacheComponents: true,
-  },
-}
-
-export default nextConfig
-```
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
+// Before
+experimental: {
+  useCache: true,        // or
   cacheComponents: true,
 }
 
-export default nextConfig
+// After
+cacheComponents: true,
 ```
 
 `experimental.useCache` and `experimental.cacheComponents` are legacy options still supported for backwards compatibility, but top-level `cacheComponents` is preferred.
