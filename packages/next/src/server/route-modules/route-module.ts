@@ -999,9 +999,10 @@ export abstract class RouteModule<
       )
     }
 
-    if (resolvedPathname === '/index') {
-      resolvedPathname = '/'
-    }
+    resolvedPathname = normalizeResolvedPathname(
+      resolvedPathname,
+      normalizedSrcPage
+    )
 
     if (
       res &&
@@ -1135,4 +1136,21 @@ export abstract class RouteModule<
     }
     return cacheEntry
   }
+}
+
+/**
+ * Normalizes resolvedPathname for ISR cache key usage.
+ *
+ * Only normalizes /index to / when the source page is not a dynamic route.
+ * For dynamic routes (e.g., [slug] with slug="index"), resolvedPathname
+ * must remain /index to avoid colliding with the / page's ISR cache key.
+ */
+export function normalizeResolvedPathname(
+  resolvedPathname: string,
+  normalizedSrcPage: string
+): string {
+  if (resolvedPathname === '/index' && !isDynamicRoute(normalizedSrcPage)) {
+    resolvedPathname = '/'
+  }
+  return resolvedPathname
 }
