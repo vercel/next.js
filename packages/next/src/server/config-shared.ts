@@ -40,6 +40,9 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
+  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
+  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -393,6 +396,17 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */

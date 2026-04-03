@@ -2409,13 +2409,20 @@ impl FileContent {
         Ok(Vc::cell(hash_xxh3_hash64(self)))
     }
 
-    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` if the file does not exist.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(file.content().content_hash(), algorithm).into(),
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }
