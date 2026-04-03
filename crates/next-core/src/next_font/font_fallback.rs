@@ -17,7 +17,7 @@ pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: rcstr!("Arial"),
         capsize_key: rcstr!("arial"),
-        x_width_avg: 904.0,
+        x_width_avg: 913.0,
         units_per_em: 2048,
     });
 
@@ -25,7 +25,7 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: rcstr!("Times New Roman"),
         capsize_key: rcstr!("timesNewRoman"),
-        x_width_avg: 819.0,
+        x_width_avg: 832.0,
         units_per_em: 2048,
     });
 
