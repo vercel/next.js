@@ -52,7 +52,6 @@ The top-level `cacheComponents` replaces two earlier experimental flags. If your
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
 
-// Before
 const nextConfig: NextConfig = {
   experimental: {
     useCache: true,
@@ -61,7 +60,12 @@ const nextConfig: NextConfig = {
   },
 }
 
-// After
+export default nextConfig
+```
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
 }
@@ -69,7 +73,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Both `experimental.useCache` and `experimental.cacheComponents` are deprecated and will be removed in a future version.
+`experimental.useCache` and `experimental.cacheComponents` are legacy options still supported for backwards compatibility, but top-level `cacheComponents` is preferred.
 
 ## Version History
 
