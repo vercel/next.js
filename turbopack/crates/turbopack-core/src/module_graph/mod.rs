@@ -406,7 +406,7 @@ impl SingleModuleGraph {
                     for (key, debug, parents) in duplicate_modules {
                         map.entry(key).or_default().push((debug, parents));
                     }
-                    panic!("Duplicate module idents in graph: {map:#?}",);
+                    bail!("Duplicate module idents in graph: {map:#?}",);
                 }
             }
         }
@@ -1521,6 +1521,11 @@ impl SingleModuleGraph {
             include_binding_usage,
         )
         .await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_count(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(self.number_of_modules as u64))
     }
 }
 

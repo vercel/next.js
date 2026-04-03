@@ -2,6 +2,7 @@
 
 import '../server/require-hook'
 
+import os from 'os'
 import {
   Argument,
   Command,
@@ -30,6 +31,7 @@ import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
+import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -87,6 +89,16 @@ class NextRootCommand extends Command {
 
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+      if (
+        process.platform === 'darwin' &&
+        process.arch === 'x64' &&
+        os.cpus().some((cpu) => cpu.model.includes('Apple'))
+      ) {
+        warn(
+          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 translation, which may cause degraded performance.'
+        )
+      }
 
       if (
         commandName !== 'dev' &&
@@ -313,7 +325,14 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
-  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  // `--server-fast-refresh` is hidden because it's the default behavior and
+  // only needs to be explicitly passed to override a
+  // `experimental.turbopackServerFastRefresh: false` in next.config. The
+  // `--no-server-fast-refresh` negation is the meaningful user-facing flag.
+  .addOption(new Option('--server-fast-refresh').default(undefined).hideHelp())
+  .addOption(
+    new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  )
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
@@ -550,5 +569,25 @@ internal
       mod.startTurboTraceServerCli(file, options.port)
     )
   })
+
+internal
+  .command('post-build')
+  .description(
+    'Runs post-build optimization steps (e.g. Turbopack database compaction).'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to run post-build steps. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string, options: NextPostBuildOptions) => {
+    return (
+      require('../cli/next-post-build.js') as typeof import('../cli/next-post-build.js')
+    )
+      .nextPostBuild(options, directory)
+      .then(() => process.exit(0))
+  })
+  .usage('[directory] [options]')
 
 program.parse(process.argv)

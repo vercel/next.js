@@ -445,6 +445,7 @@ pub struct ClientChunkingContextOptions {
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -469,6 +470,7 @@ pub async fn get_client_chunking_context(
         debug_ids,
         should_use_absolute_url_references,
         css_url_suffix,
+        hash_salt,
     } = options;
 
     let next_mode = mode.await?;
@@ -502,6 +504,7 @@ pub async fn get_client_chunking_context(
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
+    .hash_salt(hash_salt)
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,

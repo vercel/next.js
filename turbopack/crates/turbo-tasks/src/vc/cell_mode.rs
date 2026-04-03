@@ -23,7 +23,7 @@ where
     /// [`SharedReference`][crate::task::SharedReference].
     ///
     /// This is used in APIs that already have a `SharedReference`, such as in
-    /// [`ReadRef::cell`][crate::ReadRef::cell] or in [`Vc::resolve`] when
+    /// [`ReadRef::cell`][crate::ReadRef::cell] or in [`Vc::to_resolved`] when
     /// resolving a local [`Vc`]. This avoids unnecessary cloning.
     fn raw_cell(value: TypedSharedReference) -> RawVc;
 }

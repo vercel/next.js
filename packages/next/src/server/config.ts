@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  type PHASE_PRODUCTION_SERVER,
+  PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
@@ -40,6 +40,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
@@ -83,6 +84,12 @@ function normalizeNextConfigZodErrors(
           "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('dynamicIO')) {
+        shouldExit = true
+        message +=
+          '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
       }
     }
 
@@ -1297,7 +1304,10 @@ function assignDefaultsAndValidate(
           }
         )[key]
 
-        if (handlerPath && !existsSync(handlerPath)) {
+        const resolvedHandlerPath =
+          handlerPath && resolveCacheHandlerPathToFilesystem(handlerPath)
+
+        if (resolvedHandlerPath && !existsSync(resolvedHandlerPath)) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
@@ -1445,6 +1455,10 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
+  // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
+  ;(result as NextConfigComplete).hashSalt =
+    (result.experimental?.outputHashSalt ?? '') +
+    (process.env.NEXT_HASH_SALT ?? '')
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }
@@ -1796,7 +1810,10 @@ export default async function loadConfig(
       )
     }
 
-    if (userConfig.experimental?.useLightningcss) {
+    if (
+      phase !== PHASE_PRODUCTION_SERVER &&
+      userConfig.experimental?.useLightningcss
+    ) {
       const { loadBindings } =
         require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (
@@ -2015,6 +2032,25 @@ function enforceExperimentalFeatures(
         'enabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
       )
     }
+  }
+
+  // Enable node streams via env var (for CI testing).
+  if (
+    process.env.__NEXT_USE_NODE_STREAMS === 'true' &&
+    (config.experimental.useNodeStreams === undefined ||
+      (isDefaultConfig && !config.experimental.useNodeStreams))
+  ) {
+    config.experimental.useNodeStreams = true
+  }
+
+  // Keep runtime bundle selection env in sync with the resolved config.
+  // Explicit user config (e.g. useNodeStreams: false) should win over an
+  // inherited shell env var to avoid selecting nodestream runtime bundles
+  // while define-env compiled user bundles with node streams disabled.
+  if (config.experimental.useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = 'true'
+  } else {
+    delete process.env.__NEXT_USE_NODE_STREAMS
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

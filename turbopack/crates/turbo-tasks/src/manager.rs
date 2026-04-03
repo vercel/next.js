@@ -177,7 +177,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -1473,9 +1472,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let reader = current_task_if_available("reading Vcs");
-        if cfg!(debug_assertions) && reader != Some(task) {
-            debug_assert_not_in_top_level_task("read_task_cell");
-        }
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
     }
@@ -1593,10 +1589,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn mark_own_task_as_finished(&self, task: TaskId) {
         self.backend.mark_own_task_as_finished(task, self);
-    }
-
-    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
-        self.backend.mark_own_task_as_session_dependent(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1894,13 +1886,6 @@ pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
-/// Marks the current task as dirty when restored from filesystem cache.
-pub fn mark_session_dependent() {
-    with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
-}
-
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1946,7 +1931,7 @@ pub fn mark_invalidator() {
 }
 
 /// Marks the current task as stateful. This is used to indicate that the task
-/// has interior mutability (e.g., via State or TransientState), which means
+/// has interior mutability (e.g., via State), which means
 /// the task may produce different outputs even with the same inputs.
 ///
 /// Only has an effect when the `verify_determinism` feature is enabled.

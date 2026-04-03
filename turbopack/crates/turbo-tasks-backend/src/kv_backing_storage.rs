@@ -521,7 +521,7 @@ mod tests {
 
         // Use is_short_session=true to disable background compaction (which requires turbo-tasks
         // context)
-        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true)?;
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), false, true, false)?;
 
         // Simulate a hash collision by writing multiple TaskIds with the same hash key
         let collision_hash: u64 = 0xDEADBEEF;

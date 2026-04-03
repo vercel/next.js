@@ -275,8 +275,17 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
     /**
@@ -1070,8 +1079,26 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes - they will be output as static files
-          if (isStaticMetadataFile(normalizedPage)) {
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[normalizedPage] ||
+            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                normalizedPage.slice(1)
+              )
+              return (
+                prerenderManifest.routes[localePathname] ||
+                prerenderManifest.dynamicRoutes[localePathname]
+              )
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1620,16 +1647,8 @@ export async function handleBuildComplete({
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
 
-        // Today, consumers of this build output can only upgrade a fallback shell
-        // when all remaining route params become concrete in the upgraded entry.
-        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
-        // because we do not emit which fallback params should remain deferred after
-        // the upgrade. Until that contract exists, only emit `partialFallback` for
-        // the conservative case where the upgraded entry can become fully concrete.
         const canEmitPartialFallback =
-          partialFallback &&
-          fallbackRootParams?.length === 0 &&
-          allowQuery.length === remainingPrerenderableParams?.length
+          partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1940,8 +1959,6 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const { hasFallbackRootParams } = route
-
       const sourceRegex = routeRegex.namedRegex.replace(
         '^',
         `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
@@ -1955,23 +1972,11 @@ export async function handleBuildComplete({
         ) + getDestinationQuery(route.routeKeys)
 
       if (appPageKeys && appPageKeys.length > 0) {
-        // If we have fallback root params (implying we've already
-        // emitted a rewrite for the /_tree request), or if the route
-        // has PPR enabled and client param parsing is enabled, then
-        // we don't need to include any other suffixes.
-        const shouldSkipSuffixes = hasFallbackRootParams
-
         dynamicRoutes.push({
           source: route.page + '.rsc',
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            // Now than the upstream issues has been resolved, we can safely
-            // add the suffix back, this resolves a bug related to segment
-            // rewrites not capturing the correct suffix values when
-            // enabled.
-            shouldSkipSuffixes
-              ? '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-              : '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
           has:

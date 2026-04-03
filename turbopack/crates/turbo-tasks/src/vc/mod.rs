@@ -274,8 +274,8 @@ where
 {
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
-        let resolved = vc.resolve().await?;
-        let raw_vc: RawVc = resolved.node;
+        let resolved = vc.to_resolved().await?;
+        let raw_vc: RawVc = resolved.node.node;
         if let RawVc::TaskCell(task_id, CellId { type_id, index }) = raw_vc {
             let value_ty = registry::get_value_type(type_id);
             Ok(format!("{}#{}: {}", value_ty.ty.name, index, task_id))
@@ -337,21 +337,15 @@ where
         Ok(())
     }
 
-    /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
-    /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
-    pub async fn resolve(self) -> Result<Vc<T>> {
-        Ok(Self {
-            node: self.node.resolve().await?,
-            _t: PhantomData,
-        })
-    }
-
     /// Resolve the reference until it points to a cell directly, and wrap the
     /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
     pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {
-            node: self.resolve().await?,
+            node: Vc {
+                node: self.node.resolve().await?,
+                _t: PhantomData,
+            },
         })
     }
 

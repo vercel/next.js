@@ -72,6 +72,11 @@ impl EcmascriptChunkItemContent {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
+        let supports_arrow_functions = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let externals = *chunking_context
             .environment()
             .supports_commonjs_externals()
@@ -103,6 +108,7 @@ impl EcmascriptChunkItemContent {
                     strict: true,
                     externals,
                     async_module,
+                    supports_arrow_functions,
                     ..Default::default()
                 }
             } else {
@@ -113,6 +119,7 @@ impl EcmascriptChunkItemContent {
                 EcmascriptChunkItemOptions {
                     strict,
                     externals,
+                    supports_arrow_functions,
                     // These things are not available in ESM
                     module_and_exports: true,
                     ..Default::default()
@@ -130,11 +137,23 @@ impl EcmascriptChunkItemContent {
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
-        if self.options.module_and_exports {
-            code += "((__turbopack_context__, module, exports) => {\n";
+
+        if self.options.supports_arrow_functions {
+            code += "((";
         } else {
-            code += "((__turbopack_context__) => {\n";
+            code += "(function(";
         }
+        if self.options.module_and_exports {
+            code += "__turbopack_context__, module, exports";
+        } else {
+            code += "__turbopack_context__";
+        }
+        if self.options.supports_arrow_functions {
+            code += ") => {\n";
+        } else {
+            code += "){\n";
+        }
+
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
@@ -142,11 +161,19 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.async_module.is_some() {
-            writeln!(
-                code,
-                "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
-                 __turbopack_async_result__) => {{ try {{\n"
-            )?;
+            write!(code, "return {TURBOPACK_ASYNC_MODULE}")?;
+            if self.options.supports_arrow_functions {
+                code += "(async (";
+            } else {
+                code += "(async function(";
+            }
+            code += "__turbopack_handle_async_dependencies__, __turbopack_async_result__";
+            if self.options.supports_arrow_functions {
+                code += ") => {";
+            } else {
+                code += "){";
+            }
+            code += " try {\n";
         }
 
         let source_map = match &self.rewrite_source_path {
@@ -194,6 +221,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
+    /// Whether the environment supports arrow functions (e.g. when targeting modern browsers).
+    pub supports_arrow_functions: bool,
     pub placeholder_for_future_extensions: (),
 }
 

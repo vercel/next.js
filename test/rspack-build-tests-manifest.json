@@ -139,7 +139,6 @@
   },
   "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts": {
     "passed": [
-      "app-dir action allowed origins should not crash for requests from privacy sensitive contexts",
       "app-dir action allowed origins should pass if localhost is set as a safe origin"
     ],
     "failed": [],
@@ -150,6 +149,16 @@
   "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts": {
     "passed": [
       "app-dir action disallowed origins should error if x-forwarded-host does not match the origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-allowed-origins/app-action-opaque-origin.test.ts": {
+    "passed": [
+      "app-dir action allowed from opaque origins should succeed on submission",
+      "app-dir action disallowed from opaque origins should fail on submission"
     ],
     "failed": [],
     "pending": [],
@@ -472,6 +481,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": [
+      "adapter-dynamic-metadata should classify dynamic metadata routes as app routes in adapter outputs",
+      "adapter-dynamic-metadata should serve dynamic metadata routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -595,10 +614,11 @@
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
     "passed": [
-      "app dir client cache with parallel routes prefetch={true} should prefetch the full page",
+      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
+    ],
+    "failed": [
       "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -678,7 +698,8 @@
     "passed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
-      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
+      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler",
+      "app-dir - custom-cache-handler - esm import.meta.resolve esm default export should have logs from cache-handler"
     ],
     "failed": [],
     "pending": [],
@@ -999,8 +1020,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-root-params-getters/generate-static-params-error.test.ts": {
+    "passed": [
+      "app-root-param-getters - generateStaticParams error should error when reading a root param inside the generateStaticParams that defines it - build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-root-params-getters/generate-static-params.test.ts": {
     "passed": [
+      "app-root-param-getters - generateStaticParams should allow reading root params inside generateStaticParams",
       "app-root-param-getters - generateStaticParams should allow reading root params that were not prerendered",
       "app-root-param-getters - generateStaticParams should be part of the static shell",
       "app-root-param-getters - generateStaticParams should be statically prerenderable"
@@ -1038,9 +1069,15 @@
   },
   "test/e2e/app-dir/app-root-params-getters/use-cache.test.ts": {
     "passed": [
-      "app-root-param-getters - cache - at build should error when building a project that uses root params within `\"use cache\"`",
+      "app-root-param-getters - cache - at build should allow using root params within a \"use cache\" at build time",
+      "app-root-param-getters - cache - at runtime should allow using root params within a \"use cache\" - start",
+      "app-root-param-getters - cache - at runtime should create separate cache entries for different root params",
+      "app-root-param-getters - cache - at runtime should error when using root params in \"use cache\" nested inside unstable_cache - start",
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - start",
-      "app-root-param-getters - cache - at runtime should error when using root params within a \"use cache\" - start",
+      "app-root-param-getters - cache - at runtime should handle conditional root param reads based on arguments",
+      "app-root-param-getters - cache - at runtime should handle root param reads conditional on another root param value",
+      "app-root-param-getters - cache - at runtime should handle root param reads introduced after revalidation",
+      "app-root-param-getters - cache - at runtime should resume with the same cached data that was prerendered",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - start"
     ],
     "failed": [],
@@ -2311,6 +2348,32 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/catch-error/catch-error-react-compiler.test.ts": {
+    "passed": [
+      "app-dir - unstable_catchError with react compiler should recover Client Component error after reset",
+      "app-dir - unstable_catchError with react compiler should recover Client Component error after unstable_retry",
+      "app-dir - unstable_catchError with react compiler should recover Server Component error after unstable_retry",
+      "app-dir - unstable_catchError with react compiler should recover after reset on Pages Router",
+      "app-dir - unstable_catchError with react compiler should throw when unstable_retry is called on Pages Router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/catch-error/catch-error.test.ts": {
+    "passed": [
+      "app-dir - unstable_catchError should recover Client Component error after reset",
+      "app-dir - unstable_catchError should recover Client Component error after unstable_retry",
+      "app-dir - unstable_catchError should recover Server Component error after unstable_retry",
+      "app-dir - unstable_catchError should recover after reset on Pages Router",
+      "app-dir - unstable_catchError should throw when unstable_retry is called on Pages Router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/catchall-parallel-routes-group/catchall-parallel-routes-group.test.ts": {
     "passed": [
       "catchall-parallel-routes-group should work without throwing any errors about invalid pages"
@@ -3429,6 +3492,7 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api - root params includes root param in instant shell",
       "instant-navigation-testing-api clears cookie after instant scope exits",
       "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
@@ -3445,6 +3509,8 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
       "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during client navigation",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during page load",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope",
       "instant-navigation-testing-api throws descriptive error on fresh page without baseURL",
@@ -3487,6 +3553,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/instant-validation/instant-validation-parallel-slots.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "instant validation - parallel slot configs TODO: snapshot tests for webpack"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -3762,6 +3837,16 @@
       "mdx without-mdx-rs pages directory should work in initial html with mdx import",
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
     ],
     "failed": [],
     "pending": [],
@@ -5811,8 +5896,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/partial-fallback-root-blocking/partial-fallback-root-blocking.test.ts": {
+    "passed": [
+      "partial-fallback-root-blocking should not reuse a shared shell cache entry for unknown root branches",
+      "partial-fallback-root-blocking should still serve a fallback shell for generated root branches"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
     "passed": [
+      "partial-fallback-shell-upgrade should not keep upgrading once only fully dynamic params remain",
+      "partial-fallback-shell-upgrade should not upgrade a route shell when no params were prerendered",
+      "partial-fallback-shell-upgrade should upgrade a generic shell into the most specific prerendered shell",
       "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell"
     ],
     "failed": [],
@@ -6195,6 +6293,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-root-param-rsc-fallback/ppr-root-param-rsc-fallback.test.ts": {
+    "passed": [
+      "ppr-root-param-rsc-fallback does not return HTML for a non-pregenerated root param full-route rsc request",
+      "ppr-root-param-rsc-fallback does not return HTML for a pregenerated root param full-route rsc request"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-unstable-cache/ppr-unstable-cache.test.ts": {
     "passed": ["ppr-unstable-cache should not cache inner fetch calls"],
     "failed": [],
@@ -6394,6 +6502,7 @@
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
+      "turbo-resolve-extensions should respect resolveExtensions priority (.web.tsx before .tsx)",
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
@@ -6602,6 +6711,7 @@
       "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
+      "router autoscrolling on navigation server action refresh should not scroll when refresh() is called from a server action",
       "router autoscrolling on navigation should scroll to top even if React hoists children",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
       "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
@@ -7284,6 +7394,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/max-prefetch-inlining/max-prefetch-inlining.test.ts": {
+    "passed": [
+      "max prefetch inlining bundles all segment data into a single request per route",
+      "max prefetch inlining deduplicates inlined prefetch requests for the same route",
+      "max prefetch inlining works with dynamic routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": [
       "segment cache memory pressure does not leak memory when repeatedly triggering prefetches",
@@ -7343,9 +7464,19 @@
   },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
     "passed": [
-      "prefetch inlining bundles all segment data into a single request per route",
-      "prefetch inlining deduplicates inlined prefetch requests for the same route",
-      "prefetch inlining works with dynamic routes"
+      "prefetch inlining deep chain: all small segments inline to the leaf",
+      "prefetch inlining dynamic route: hints are based on concrete params, not fallback shell",
+      "prefetch inlining home: root inlines directly into page",
+      "prefetch inlining independent head: metadata is prefetched even when no runtime segment request is needed",
+      "prefetch inlining instant false at root: does not prefetch segment data",
+      "prefetch inlining instant false passthrough: static parents inline through dynamic layout to static child",
+      "prefetch inlining outlined: large segment breaks the inlining chain",
+      "prefetch inlining parallel routes: parent inlines into one slot only",
+      "prefetch inlining restart: large segment in the middle creates two inlining groups",
+      "prefetch inlining runtime parallel: pass-through only flows into one child slot",
+      "prefetch inlining runtime passthrough: static parents inline through runtime layout to static child",
+      "prefetch inlining runtime prefetch: layout cannot inline into a runtime leaf",
+      "prefetch inlining small chain: inlines multiple ancestors into deepest child"
     ],
     "failed": [],
     "pending": [],
@@ -7481,12 +7612,43 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/staleness/segment-cache-per-page-dynamic-stale-time.test.ts": {
+    "passed": [
+      "segment cache (per-page dynamic stale time) back/forward navigation always reuses BFCache regardless of stale time",
+      "segment cache (per-page dynamic stale time) per-page value overrides global staleTimes.dynamic regardless of direction",
+      "segment cache (per-page dynamic stale time) reuses dynamic data within the per-page stale time window",
+      "segment cache (per-page dynamic stale time) two dynamic pages with different stale times behave independently",
+      "segment cache (per-page dynamic stale time) with parallel routes, uses the minimum stale time across all slots"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
       "segment cache (staleness) caches omitted from the prerender should not affect when the prefetch is expired",
       "segment cache (staleness) entry expires when its stale time has elapsed",
       "segment cache (staleness) expires runtime prefetches when their stale time has elapsed",
       "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params-base-dynamic/vary-params-base-dynamic.test.ts": {
+    "passed": [
+      "segment cache - vary params base dynamic keeps dynamic segment params valid before and after time-based revalidation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params/root-params-segment-prefetch.test.ts": {
+    "passed": [
+      "segment cache - root params segment prefetch does not encode root param placeholders in segment-prefetch responses"
     ],
     "failed": [],
     "pending": [],
@@ -7500,16 +7662,20 @@
       "segment cache - vary params does not reuse cached segment for optional catch-all when page checks slug with in operator",
       "segment cache - vary params does not reuse cached segment for optional catch-all when page enumerates params",
       "segment cache - vary params does not reuse prefetched segment when page accesses searchParams",
+      "segment cache - vary params does not share cached segment when all params accessed statically (runtime prefetch)",
       "segment cache - vary params renders cached loading state instantly during navigation",
+      "segment cache - vary params renders cached loading state instantly with runtime prefetching",
       "segment cache - vary params reuses page segment when layout varies but page does not",
       "segment cache - vary params reuses prefetched segment when page does not access searchParams",
+      "segment cache - vary params shares cached segment across all params when none accessed statically (runtime prefetch)",
+      "segment cache - vary params shares cached segment across search params when not accessed (runtime prefetch)",
+      "segment cache - vary params tracks metadata param access separately from body (runtime prefetch)",
       "segment cache - vary params tracks param access in generateMetadata",
-      "segment cache - vary params tracks root param access via rootParams API"
+      "segment cache - vary params tracks root param access via rootParams API",
+      "segment cache - vary params tracks vary params per-segment with layout/page split (runtime prefetch)"
     ],
     "failed": [],
-    "pending": [
-      "segment cache - vary params renders cached loading state instantly with runtime prefetching"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7594,6 +7760,7 @@
       "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
+      "app-dir - server source maps logged errors in client components during ssr have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors include `[errors]` for AggregateError",
       "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps sourcemaps errors during module evaluation",
@@ -8072,6 +8239,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
+    "passed": [
+      "use-cache-swr should pass implicit tags to cache handler get() for nested caches during SWR",
+      "use-cache-swr should serve stale data and then pre-warmed data on subsequent request"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
     "passed": [
       "use-cache-unknown-cache-kind should fail the build with an error",
@@ -8148,6 +8325,17 @@
       "use-cache works with \"use cache\" in static class methods",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function (separate export)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-offline/use-offline.test.ts": {
+    "passed": [
+      "useOffline retries navigation after connectivity is restored",
+      "useOffline shows offline indicator even without prefetch data",
+      "useOffline updates offline indicator immediately on disconnect"
     ],
     "failed": [],
     "pending": [],
@@ -8235,6 +8423,15 @@
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-import-module/webpack-loader-import-module.test.ts": {
+    "passed": [],
+    "failed": [
+      "webpack-loader-import-module should support this.importModule() in a webpack loader"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8553,6 +8750,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/cache-handlers-upstream-wiring/index.test.ts": {
+    "passed": [
+      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router uses configured cacheHandlers for custom app-router cache kind",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router wires revalidateTag and revalidatePath to the custom cache handler",
+      "cache-handlers-upstream-wiring pages router non-edge wires res.revalidate() through the configured custom cacheHandler"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/cancel-request/stream-cancel.test.ts": {
     "passed": [
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stalled stream",
@@ -8827,8 +9036,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
@@ -10738,7 +10947,14 @@
       "opentelemetry root context pages should handle getServerSideProps returning notFound",
       "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry with custom server should set attributes correctly on handleRequest span",
-      "opentelemetry with direct entrypoint handler should propagate incoming context without next-server wrapper",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/app/param/data should add route names to handleRequest and parent spans for direct entrypoint /api/app/param/data",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/app/param/data should propagate incoming context without next-server wrapper for direct entrypoint /api/app/param/data",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/pages/param/basic should add route names to handleRequest and parent spans for direct entrypoint /api/pages/param/basic",
+      "opentelemetry with direct entrypoint handler direct entrypoint /api/pages/param/basic should propagate incoming context without next-server wrapper for direct entrypoint /api/pages/param/basic",
+      "opentelemetry with direct entrypoint handler direct entrypoint /app/param/rsc-fetch should add route names to handleRequest and parent spans for direct entrypoint /app/param/rsc-fetch",
+      "opentelemetry with direct entrypoint handler direct entrypoint /app/param/rsc-fetch should propagate incoming context without next-server wrapper for direct entrypoint /app/param/rsc-fetch",
+      "opentelemetry with direct entrypoint handler direct entrypoint /pages/param/getServerSideProps should add route names to handleRequest and parent spans for direct entrypoint /pages/param/getServerSideProps",
+      "opentelemetry with direct entrypoint handler direct entrypoint /pages/param/getServerSideProps should propagate incoming context without next-server wrapper for direct entrypoint /pages/param/getServerSideProps",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "failed": [],
@@ -11570,6 +11786,17 @@
       "Vary Header Tests should preserve middleware vary header in combination with route handlers"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/webpack-loader-parse-error/webpack-loader-parse-error.test.ts": {
+    "passed": [
+      "webpack-loader-parse-error (development) skipped in production mode"
+    ],
+    "failed": [
+      "webpack-loader-parse-error (production) should fail the build with parse errors from loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12495,7 +12722,10 @@
       "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
-      "create-next-app should not install dependencies if --skip-install"
+      "create-next-app should not install dependencies if --skip-install",
+      "create-next-app should not print assumed defaults when all flags are provided",
+      "create-next-app should not print assumed defaults with --yes flag",
+      "create-next-app should print assumed defaults when flags are partially provided"
     ],
     "failed": [],
     "pending": [],
@@ -12555,12 +12785,12 @@
   "test/integration/create-next-app/prompts.test.ts": {
     "passed": [
       "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
-      "create-next-app prompts should prompt user for choice if --import-alias is absent",
-      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
-      "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences",
       "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use default for --tailwind when other flags are provided",
+      "create-next-app prompts should use default for --ts when other flags are provided",
+      "create-next-app prompts should use default import alias when other flags are provided",
       "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
@@ -21430,6 +21660,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/adapter-partial-fallback/adapter-partial-fallback.test.ts": {
+    "passed": [
+      "adapter-partial-fallback should emit partial fallback metadata when infra can upgrade the shell"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
     "passed": [
       "app edge middleware with node.js modules should have errors about using Node.js modules when present in middleware",
@@ -21605,6 +21844,30 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/empty-shell-route-cache/empty-shell-route-cache.test.ts": {
+    "passed": [
+      "empty-shell-route-cache after next start should not rewrite /with-suspense build artifacts on the first request",
+      "empty-shell-route-cache after next start should not rewrite /without-suspense build artifacts on the first request",
+      "empty-shell-route-cache should emit both routes as partially static build artifacts"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/generate-static-params-errors/generate-static-params-errors.test.ts": {
+    "passed": [
+      "generate-static-params-errors should allow root params access inside generateStaticParams",
+      "generate-static-params-errors should error when connection() is called inside generateStaticParams",
+      "generate-static-params-errors should error when cookies() is called inside generateStaticParams",
+      "generate-static-params-errors should error when draftMode() is called inside generateStaticParams",
+      "generate-static-params-errors should error when headers() is called inside generateStaticParams"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/global-default-cache-handler/global-default-cache-handler.test.ts": {
     "passed": [
       "global-default-cache-handler should call refreshTags on global default cache handler",
@@ -21708,10 +21971,10 @@
     "runtimeError": false
   },
   "test/production/app-dir/metadata-static-route-cache/metadata-static-route-cache.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - metadata static routes cache should generate different content after replace the static metadata file"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21798,6 +22061,16 @@
   "test/production/app-dir/parallel-routes-static/index.test.ts": {
     "passed": [
       "app-dir parallel-routes-static should static generate parallel routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/post-build/post-build.test.ts": {
+    "passed": [
+      "post-build should report nothing to do when persistent caching is disabled",
+      "post-build should run post-build compaction on the turbopack cache"
     ],
     "failed": [],
     "pending": [],
@@ -21963,6 +22236,15 @@
   "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts": {
     "passed": [
       "unstable-cache-foreground-revalidate should block and wait for fresh data when ISR page revalidate time is greater than unstable_cache TTL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
+    "passed": [
+      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
     ],
     "failed": [],
     "pending": [],
@@ -22276,10 +22558,11 @@
   },
   "test/production/dynamic-css-client-navigation/react-lazy.test.ts": {
     "passed": [
-      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge",
+      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge"
+    ],
+    "failed": [
       "dynamic-css-client-navigation react lazy nodejs should not remove style when navigating from static imported component to react lazy at runtime nodejs"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22858,6 +23141,29 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/rewrite-request-smuggling/rewrite-request-smuggling.test.ts": {
+    "passed": [
+      "rewrite-request-smuggling does not smuggle a second request for OPTIONS with Transfer-Encoding, upgrade",
+      "rewrite-request-smuggling does not smuggle a second request when an intermediary strips transfer-encoding unconditionally",
+      "rewrite-request-smuggling does not smuggle a second request when using keep-alive only",
+      "rewrite-request-smuggling does not smuggle a second request with Transfer-Encoding, upgrade",
+      "rewrite-request-smuggling does not smuggle a second request with keep-alive, upgrade"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/route-bundle-stats/route-bundle-stats.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "route-bundle-stats includes both Pages Router and App Router routes",
+      "route-bundle-stats writes .next/diagnostics/route-bundle-stats.json after build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/sharp-basic/sharp-basic.test.ts": {
     "passed": ["sharp support with hasNextSupport should work using cheerio"],
     "failed": [],
@@ -23124,6 +23430,16 @@
       "standalone mode: runtimeServerDeploymentId it should load app-route-edge",
       "standalone mode: runtimeServerDeploymentId it should load pages-page",
       "standalone mode: runtimeServerDeploymentId it should load pages-page-edge"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/server-actions/standalone-mode-server-actions.test.ts": {
+    "passed": [
+      "standalone mode: server actions should be able to execute MPA server actions",
+      "standalone mode: server actions should be able to execute server actions"
     ],
     "failed": [],
     "pending": [],

@@ -35,7 +35,7 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
-use tracing::Instrument;
+use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
@@ -860,7 +860,7 @@ impl AppProject {
             None,
             ResolveErrorMode::Error,
         )
-        .resolve()
+        .to_resolved()
         .await?
         .first_module()
         .await?
@@ -874,8 +874,7 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
-        client_shared_entries: Vc<EvaluatableAssets>,
-        has_layout_segments: bool,
+        client_shared_entries_when_has_layout_segments: Option<Vc<EvaluatableAssets>>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
@@ -883,43 +882,49 @@ impl AppProject {
             let should_trace = next_mode_ref.is_production();
             let should_read_binding_usage = next_mode_ref.is_production();
 
-            let client_shared_entries = client_shared_entries
-                .await?
-                .into_iter()
-                .map(|m| ResolvedVc::upcast(*m))
-                .collect();
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
+            let span = tracing::info_span!("module graph for endpoint", modules = Empty);
+            let span_clone = span.clone();
             async move {
                 let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
 
                 let mut graphs = vec![];
-                let mut visited_modules = if has_layout_segments {
+                let mut visited_modules = VisitedModules::empty();
+
+                if let Some(client_shared_entries) = client_shared_entries_when_has_layout_segments
+                {
                     let ServerEntries {
-                        server_utils,
                         server_component_entries,
+                        server_utils,
                     } = &*find_server_entries(*rsc_entry, should_trace, should_read_binding_usage)
                         .await?;
 
+                    let client_shared_entries = client_shared_entries
+                        .await?
+                        .into_iter()
+                        .map(|m| ResolvedVc::upcast(*m))
+                        .collect();
+
+                    // SEGMENT: client_shared_entries and server utils shared by the layout segments
+                    // and the page
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
-                            ChunkGroupEntry::SharedMerged {
-                                parent: Box::new(rsc_entry_chunk_group.clone()),
-                                merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                entries: server_utils
+                            ChunkGroupEntry::Entry(client_shared_entries),
+                            ChunkGroupEntry::SharedMultiple(
+                                server_utils
                                     .iter()
                                     .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                                     .try_join()
                                     .await?,
-                            },
-                            ChunkGroupEntry::Entry(client_shared_entries),
+                            ),
                         ],
-                        VisitedModules::empty(),
+                        visited_modules,
                         should_trace,
                         should_read_binding_usage,
                     );
                     graphs.push(graph);
-                    let mut visited_modules = VisitedModules::from_graph(graph);
+                    visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
                     // Skip the last server component, which is the page itself, because that one
                     // won't have it's visited modules added, and will be visited in the next step
@@ -928,6 +933,7 @@ impl AppProject {
                         .iter()
                         .take(server_component_entries.len().saturating_sub(1))
                     {
+                        // SEGMENT: layout segment
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
                             vec![ChunkGroupEntry::Shared(ResolvedVc::upcast(*module))],
                             visited_modules,
@@ -948,18 +954,9 @@ impl AppProject {
                             VisitedModules::with_incremented_index(visited_modules)
                         };
                     }
-                    visited_modules
-                } else {
-                    let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                        vec![ChunkGroupEntry::Entry(client_shared_entries)],
-                        VisitedModules::empty(),
-                        should_trace,
-                        should_read_binding_usage,
-                    );
-                    graphs.push(graph);
-                    VisitedModules::from_graph(graph)
-                };
+                }
 
+                // SEGMENT: rsc entry chunk group
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![rsc_entry_chunk_group],
                     visited_modules,
@@ -978,6 +975,14 @@ impl AppProject {
                     should_read_binding_usage,
                 );
                 graphs.push(additional_module_graph);
+
+                if !span.is_disabled() {
+                    let mut module_count = 0u64;
+                    for g in &graphs {
+                        module_count += g.connect().module_count().untracked().owned().await?;
+                    }
+                    span.record("modules", module_count);
+                }
 
                 let remove_unused_imports = *self
                     .project
@@ -1009,7 +1014,7 @@ impl AppProject {
                 }
                 .cell())
             }
-            .instrument(tracing::info_span!("module graph for endpoint"))
+            .instrument(span_clone)
             .await
         } else {
             Ok(self.project.whole_app_module_graphs())
@@ -1254,12 +1259,7 @@ impl AppEndpoint {
                 self,
                 *rsc_entry,
                 // We only need the client runtime entries for pages not for Route Handlers
-                if is_app_page {
-                    this.app_project.client_runtime_entries()
-                } else {
-                    EvaluatableAssets::empty()
-                },
-                is_app_page,
+                is_app_page.then(|| this.app_project.client_runtime_entries()),
             )
             .await?;
 
@@ -2133,13 +2133,14 @@ impl Endpoint for AppEndpoint {
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
+        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
         let module_graphs = this
             .app_project
             .app_module_graphs(
                 self,
                 *app_entry.rsc_entry,
-                this.app_project.client_runtime_entries(),
-                matches!(this.ty, AppEndpointType::Page { .. }),
+                // We only need the client runtime entries for pages not for Route Handlers
+                is_app_page.then(|| this.app_project.client_runtime_entries()),
             )
             .await?;
         Ok(Vc::cell(vec![module_graphs.full]))

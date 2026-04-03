@@ -40,6 +40,9 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
+  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
+  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -393,6 +396,17 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
@@ -415,6 +429,7 @@ export interface ExperimentalConfig {
    */
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
+  useOffline?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -675,6 +690,18 @@ export interface ExperimentalConfig {
   turbopackModuleIds?: 'named' | 'deterministic'
 
   /**
+   * Enable server-side Fast Refresh (Hot Module Replacement) during development
+   * with Turbopack. When set to `false`, server-side HMR is disabled and a full
+   * restart is performed on server file changes.
+   *
+   * Can also be controlled via the `--no-server-fast-refresh` CLI flag.
+   * If both are set, the CLI flag takes precedence.
+   *
+   * @default true
+   */
+  turbopackServerFastRefresh?: boolean
+
+  /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
@@ -915,6 +942,13 @@ export interface ExperimentalConfig {
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
+
+  /**
+   * Use Node.js native streams instead of web streams for the App Router
+   * rendering pipeline on the Node.js runtime. This can improve performance
+   * by avoiding the overhead of web stream wrappers.
+   */
+  useNodeStreams?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -1727,6 +1761,7 @@ export const defaultConfig = Object.freeze({
     cachedNavigations: false,
     partialFallbacks: false,
     dynamicOnHover: false,
+    useOffline: false,
     varyParams: false,
     prefetchInlining: false,
     preloadEntriesOnStart: true,
@@ -1872,6 +1907,7 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'useOffline'
     | 'optimisticRouting'
     | 'inlineCss'
     | 'prefetchInlining'
@@ -1907,6 +1943,7 @@ export interface NextConfigRuntime {
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'immutableAssetToken'
+    | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1937,6 +1974,7 @@ export function getNextConfigRuntime(
         serverActions: ex.serverActions,
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
+        useOffline: ex.useOffline,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         prefetchInlining: ex.prefetchInlining,
@@ -1973,6 +2011,7 @@ export function getNextConfigRuntime(
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
+        useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

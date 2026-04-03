@@ -144,7 +144,11 @@ impl PostCssTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(
+        &self,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
@@ -152,6 +156,7 @@ impl SourceTransform for PostCssTransform {
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                asset_context,
                 source_map: self.source_maps,
             }
             .cell(),
@@ -166,6 +171,7 @@ struct PostCssTransformedAsset {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source_map: bool,
 }
 
@@ -553,8 +559,10 @@ impl PostCssTransformedAsset {
             node_backend: *node_backend,
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
+            evaluate_context: self.evaluate_context,
             module_graph,
             resolve_options_context: None,
+            asset_context: self.asset_context,
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),

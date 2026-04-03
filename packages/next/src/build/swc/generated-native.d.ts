@@ -153,8 +153,8 @@ export declare function minify(
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiAssetPath {
-  path: string
-  contentHash: string
+  path: RcStr
+  contentHash: RcStr
 }
 export interface NapiWrittenEndpoint {
   type: string
@@ -258,6 +258,12 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /**
+   * A salt to mix into chunk and asset content hashes, allowing users to
+   * force new filenames without changing file content. Empty string means
+   * no salt.
+   */
+  hashSalt: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -302,6 +308,8 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
+  /** An optional salt to mix into chunk and asset content hashes. */
+  hashSalt?: RcStr
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
@@ -317,6 +325,8 @@ export interface NapiTurboEngineOptions {
   isCi?: boolean
   /** Whether the project is running in a short session. */
   isShortSession?: boolean
+  /** Whether to skip database compaction during shutdown. */
+  skipCompaction?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -361,7 +371,7 @@ export interface AppPageNapiRoute {
 }
 export interface NapiRoute {
   /** The router path */
-  pathname: string
+  pathname: RcStr
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   /** The type of route, eg a Page or App */
@@ -482,6 +492,12 @@ export declare function projectWriteAnalyzeData(
   appDirOnly: boolean
 ): Promise<TurbopackResult>
 /**
+ * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+ *
+ * The `path` should point to the `<distDir>/cache/turbopack` directory.
+ */
+export declare function turbopackDatabaseCompact(path: string): Promise<void>
+/**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
  * This can be converted into a [`NapiNextTurbopackCallbacks`] with
@@ -514,13 +530,13 @@ export declare function rootTaskDispose(rootTask: {
 export interface NapiIssue {
   severity: string
   stage: string
-  filePath: string
+  filePath: RcStr
   title: any
   description?: any
   detail?: any
   source?: NapiIssueSource
   additionalSources: Array<NapiAdditionalIssueSource>
-  documentationLink: string
+  documentationLink: RcStr
   importTraces: any
   /**
    * Pre-rendered code frame for the issue's source location, if available.
@@ -529,7 +545,7 @@ export interface NapiIssue {
   codeFrame?: string
 }
 export interface NapiAdditionalIssueSource {
-  description: string
+  description: RcStr
   source: NapiIssueSource
   /** Pre-rendered code frame for this additional source location, if available. */
   codeFrame?: string
@@ -543,16 +559,16 @@ export interface NapiIssueSourceRange {
   end: NapiSourcePos
 }
 export interface NapiSource {
-  ident: string
-  filePath: string
+  ident: RcStr
+  filePath: RcStr
 }
 export interface NapiSourcePos {
   line: number
   column: number
 }
 export interface NapiDiagnostic {
-  category: string
-  name: string
+  category: RcStr
+  name: RcStr
   payload: Record<string, string>
 }
 export declare function expandNextJsTemplate(

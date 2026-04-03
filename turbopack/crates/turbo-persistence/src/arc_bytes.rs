@@ -2,13 +2,16 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
-    io::{self, Read},
     ops::{Deref, Range},
     sync::Arc,
 };
 
 use memmap2::Mmap;
 
+use crate::{
+    compression::decompress_into_arc,
+    shared_bytes::{SharedBytes, is_subslice_of},
+};
 /// The backing storage for an `ArcBytes`.
 ///
 /// The inner values are never read directly — they exist solely to keep the
@@ -78,27 +81,17 @@ impl Debug for ArcBytes {
 
 impl Eq for ArcBytes {}
 
-impl Read for ArcBytes {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let available = &**self;
-        let len = std::cmp::min(buf.len(), available.len());
-        buf[..len].copy_from_slice(&available[..len]);
-        // Advance the slice view
-        self.data = &available[len..] as *const [u8];
-        Ok(len)
+impl ArcBytes {
+    /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
+    pub fn is_mmap_backed(&self) -> bool {
+        matches!(self.backing, Backing::Mmap { .. })
     }
 }
 
-/// Returns `true` if `subslice` lies entirely within `backing`.
-fn is_subslice_of(subslice: &[u8], backing: &[u8]) -> bool {
-    let backing = backing.as_ptr_range();
-    let sub = subslice.as_ptr_range();
-    sub.start >= backing.start && sub.end <= backing.end
-}
+impl SharedBytes for ArcBytes {
+    type MmapHandle = Arc<Mmap>;
 
-impl ArcBytes {
-    /// Returns a new `ArcBytes` that points to a sub-range of the current slice.
-    pub fn slice(self, range: Range<usize>) -> ArcBytes {
+    fn slice(self, range: Range<usize>) -> Self {
         let data = &*self;
         let data = &data[range] as *const [u8];
         Self {
@@ -107,14 +100,7 @@ impl ArcBytes {
         }
     }
 
-    /// Creates a sub-slice from a slice reference that points into this ArcBytes' backing data.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `subslice` points to memory within this ArcBytes'
-    /// backing storage (not just within the current slice view, but anywhere in the original
-    /// backing data).
-    pub unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> ArcBytes {
+    unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(
                 subslice,
@@ -131,24 +117,23 @@ impl ArcBytes {
         }
     }
 
-    /// Creates an `ArcBytes` backed by a memory-mapped file.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `subslice` points to memory within the given `mmap`.
-    pub unsafe fn from_mmap(mmap: Arc<Mmap>, subslice: &[u8]) -> ArcBytes {
+    unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
-            is_subslice_of(subslice, &mmap),
+            is_subslice_of(subslice, mmap),
             "from_mmap: subslice is not within the mmap"
         );
         ArcBytes {
             data: subslice as *const [u8],
-            backing: Backing::Mmap { _backing: mmap },
+            backing: Backing::Mmap {
+                _backing: mmap.clone(),
+            },
         }
     }
 
-    /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
-    pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.backing, Backing::Mmap { .. })
+    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+        Ok(ArcBytes::from(decompress_into_arc(
+            uncompressed_length,
+            block,
+        )?))
     }
 }

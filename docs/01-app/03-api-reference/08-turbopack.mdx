@@ -199,6 +199,15 @@ module.exports = {
 }
 ```
 
+### CSS / Sass / SCSS decimal precision
+
+Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightning CSS uses 5 digits of decimal precision for numeric CSS values, while webpack uses 10 digits. This applies to both plain CSS and Sass/SCSS output. For example, a value that evaluates to `25/17` produces:
+
+- **Webpack:** `line-height: 1.4705882353` (10 digits)
+- **Turbopack:** `line-height: 1.47059` (5 digits)
+
+This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
+
 ### Build Caching
 
 Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:

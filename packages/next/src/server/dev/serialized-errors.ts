@@ -1,16 +1,14 @@
-import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
+import type { AnyStream } from '../app-render/stream-ops'
+import { streamToUint8Array } from '../app-render/stream-ops'
 
-const errorsRscStreamsByHtmlRequestId = new Map<
-  string,
-  ReadableStream<Uint8Array>
->()
+const errorsRscStreamsByHtmlRequestId = new Map<string, AnyStream>()
 
 export function sendSerializedErrorsToClient(
-  errorsRscStream: ReadableStream<Uint8Array>,
+  errorsRscStream: AnyStream,
   sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
   streamToUint8Array(errorsRscStream).then(
@@ -43,7 +41,7 @@ export function sendSerializedErrorsToClientForHtmlRequest(
 
 export function setErrorsRscStreamForHtmlRequest(
   htmlRequestId: string,
-  errorsRscStream: ReadableStream<Uint8Array>
+  errorsRscStream: AnyStream
 ) {
   // TODO: Clean up after a timeout, in case the client never connects, e.g.
   // when CURL'ing the page, or loading the page with JavaScript disabled etc.
