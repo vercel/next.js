@@ -995,214 +995,317 @@ export async function handler(
       const isProduction = routeModule.isDev === false
       const didRespond = hasResolved || res.writableEnded
 
-      // skip on-demand revalidate if cache is not present and
-      // revalidate-if-generated is set
-      if (
-        isOnDemandRevalidate &&
-        revalidateOnlyGenerated &&
-        !previousIncrementalCacheEntry &&
-        !isMinimalMode
-      ) {
-        if (routerServerContext?.render404) {
-          await routerServerContext.render404(req, res)
-        } else {
-          res.statusCode = 404
-          res.end('This page could not be found')
+      try {
+        // skip on-demand revalidate if cache is not present and
+        // revalidate-if-generated is set
+        if (
+          isOnDemandRevalidate &&
+          revalidateOnlyGenerated &&
+          !previousIncrementalCacheEntry &&
+          !isMinimalMode
+        ) {
+          if (routerServerContext?.render404) {
+            await routerServerContext.render404(req, res)
+          } else {
+            res.statusCode = 404
+            res.end('This page could not be found')
+          }
+          return null
         }
-        return null
-      }
 
-      let fallbackMode: FallbackMode | undefined
+        let fallbackMode: FallbackMode | undefined
 
-      if (prerenderInfo) {
-        fallbackMode = parseFallbackField(prerenderInfo.fallback)
-      }
+        if (prerenderInfo) {
+          fallbackMode = parseFallbackField(prerenderInfo.fallback)
+        }
 
-      if (
-        nextConfig.experimental.partialFallbacks === true &&
-        prerenderInfo?.fallback === null &&
-        !hasUnresolvedRootFallbackParams &&
-        remainingPrerenderableParams.length > 0
-      ) {
-        // Generic source shells without unresolved root params don't have a
-        // concrete fallback file of their own, so they're marked as blocking.
-        // When we can complete the shell into a more specific
-        // prerendered shell for this request, treat it like a prerender
-        // fallback so we can serve that shell instead of blocking on the full
-        // route. Root-param shells stay blocking, since unknown root branches
-        // should not inherit a shell from another generated branch.
-        fallbackMode = FallbackMode.PRERENDER
-      }
+        if (
+          nextConfig.experimental.partialFallbacks === true &&
+          prerenderInfo?.fallback === null &&
+          !hasUnresolvedRootFallbackParams &&
+          remainingPrerenderableParams.length > 0
+        ) {
+          // Generic source shells without unresolved root params don't have a
+          // concrete fallback file of their own, so they're marked as blocking.
+          // When we can complete the shell into a more specific
+          // prerendered shell for this request, treat it like a prerender
+          // fallback so we can serve that shell instead of blocking on the full
+          // route. Root-param shells stay blocking, since unknown root branches
+          // should not inherit a shell from another generated branch.
+          fallbackMode = FallbackMode.PRERENDER
+        }
 
-      // When serving a HTML bot request, we want to serve a blocking render and
-      // not the prerendered page. This ensures that the correct content is served
-      // to the bot in the head.
-      if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-        if (!isRoutePPREnabled || isHtmlBot) {
+        // When serving a HTML bot request, we want to serve a blocking render and
+        // not the prerendered page. This ensures that the correct content is served
+        // to the bot in the head.
+        if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
+          if (!isRoutePPREnabled || isHtmlBot) {
+            fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+          }
+        }
+
+        if (previousIncrementalCacheEntry?.isStale === -1) {
+          isOnDemandRevalidate = true
+        }
+
+        // TODO: adapt for PPR
+        // only allow on-demand revalidate for fallback: true/blocking
+        // or for prerendered fallback: false paths
+        if (
+          isOnDemandRevalidate &&
+          (fallbackMode !== FallbackMode.NOT_FOUND ||
+            previousIncrementalCacheEntry)
+        ) {
           fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
         }
-      }
 
-      if (previousIncrementalCacheEntry?.isStale === -1) {
-        isOnDemandRevalidate = true
-      }
-
-      // TODO: adapt for PPR
-      // only allow on-demand revalidate for fallback: true/blocking
-      // or for prerendered fallback: false paths
-      if (
-        isOnDemandRevalidate &&
-        (fallbackMode !== FallbackMode.NOT_FOUND ||
-          previousIncrementalCacheEntry)
-      ) {
-        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
-      }
-
-      if (
-        !isMinimalMode &&
-        fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
-        staticPathKey &&
-        !didRespond &&
-        !isDraftMode &&
-        pageIsDynamic &&
-        (isProduction || !isPrerendered)
-      ) {
-        // if the page has dynamicParams: false and this pathname wasn't
-        // prerendered trigger the no fallback handling
         if (
-          // In development, fall through to render to handle missing
-          // getStaticPaths.
-          (isProduction || prerenderInfo) &&
-          // When fallback isn't present, abort this render so we 404
-          fallbackMode === FallbackMode.NOT_FOUND
+          !isMinimalMode &&
+          fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
+          staticPathKey &&
+          !didRespond &&
+          !isDraftMode &&
+          pageIsDynamic &&
+          (isProduction || !isPrerendered)
         ) {
-          if (nextConfig.adapterPath) {
-            return await render404()
+          // if the page has dynamicParams: false and this pathname wasn't
+          // prerendered trigger the no fallback handling
+          if (
+            // In development, fall through to render to handle missing
+            // getStaticPaths.
+            (isProduction || prerenderInfo) &&
+            // When fallback isn't present, abort this render so we 404
+            fallbackMode === FallbackMode.NOT_FOUND
+          ) {
+            if (nextConfig.adapterPath) {
+              return await render404()
+            }
+            throw new NoFallbackError()
           }
-          throw new NoFallbackError()
+
+          // When cacheComponents is enabled, we can use the fallback
+          // response if the request is not a dynamic RSC request because the
+          // RSC data when this feature flag is enabled does not contain any
+          // param references. Without this feature flag enabled, the RSC data
+          // contains param references, and therefore we can't use the fallback.
+          if (
+            isRoutePPREnabled &&
+            (nextConfig.cacheComponents ? !isDynamicRSCRequest : !isRSCRequest)
+          ) {
+            const cacheKey =
+              isProduction && typeof prerenderInfo?.fallback === 'string'
+                ? prerenderInfo.fallback
+                : normalizedSrcPage
+
+            const fallbackRouteParams =
+              // In production or when debugging the static shell (e.g. instant
+              // navigation testing), use the prerender manifest's fallback
+              // route params which correctly identifies which params are
+              // unknown. Note: in dev, this block is only entered for
+              // non-prerendered URLs (guarded by the outer condition).
+              (isProduction || isDebugStaticShell) &&
+              prerenderInfo?.fallbackRouteParams
+                ? createOpaqueFallbackRouteParams(
+                    prerenderInfo.fallbackRouteParams
+                  )
+                : // When debugging the fallback shell, treat all params as
+                  // fallback (simulating the worst-case shell).
+                  isDebugFallbackShell
+                  ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+                  : null
+
+            // When rendering a debug static shell, override the fallback
+            // params on the request so that the staged rendering correctly
+            // defers params that are not statically known.
+            if (isDebugStaticShell && fallbackRouteParams) {
+              addRequestMeta(req, 'fallbackParams', fallbackRouteParams)
+            }
+
+            // We use the response cache here to handle the revalidation and
+            // management of the fallback shell.
+            const fallbackResponse = await routeModule.handleResponse({
+              cacheKey,
+              req,
+              nextConfig,
+              routeKind: RouteKind.APP_PAGE,
+              isFallback: true,
+              prerenderManifest,
+              isRoutePPREnabled,
+              responseGenerator: async () =>
+                doRender({
+                  span,
+                  // We pass `undefined` as rendering a fallback isn't resumed
+                  // here.
+                  postponed: undefined,
+                  // Always serve the shell that matched this request
+                  // immediately. If there are still prerenderable params left,
+                  // the background path below will complete the shell into a
+                  // more specific cache entry for later requests.
+                  fallbackRouteParams,
+                  forceStaticRender: true,
+                }),
+              waitUntil: ctx.waitUntil,
+              isMinimalMode,
+            })
+
+            // If the fallback response was set to null, then we should return null.
+            if (fallbackResponse === null) return null
+
+            // Otherwise, if we did get a fallback response, we should return it.
+            if (fallbackResponse) {
+              if (
+                !isMinimalMode &&
+                isRoutePPREnabled &&
+                // Match the build-time contract: only fallback shells that can
+                // still be completed with prerenderable params should upgrade.
+                remainingPrerenderableParams.length > 0 &&
+                nextConfig.experimental.partialFallbacks === true &&
+                ssgCacheKey &&
+                incrementalCache &&
+                !isOnDemandRevalidate &&
+                !isDebugFallbackShell &&
+                // The testing API relies on deterministic shell behavior, so
+                // don't upgrade fallback shells in the background when it's
+                // exposed.
+                !exposeTestingApi &&
+                // Instant Navigation Testing API requests intentionally keep
+                // the route in shell mode; don't upgrade these in background.
+                !isInstantNavigationTest &&
+                // Avoid background revalidate during prefetches; this can trigger
+                // static prerender errors that surface as 500s for the prefetch
+                // request itself.
+                !isPrefetchRSCRequest
+              ) {
+                scheduleOnNextTick(async () => {
+                  const responseCache = routeModule.getResponseCache(req)
+
+                  try {
+                    // Only the params that were just specialized should be
+                    // removed from the fallback render. Any remaining fallback
+                    // params stay deferred so the revalidated result is a more
+                    // specific shell (e.g. `/prefix/c/[two]`), not a fully
+                    // concrete route (`/prefix/c/foo`).
+                    await responseCache.revalidate(
+                      ssgCacheKey,
+                      incrementalCache,
+                      isRoutePPREnabled,
+                      false,
+                      (c) => {
+                        return doRender({
+                          span: c.span,
+                          postponed: undefined,
+                          fallbackRouteParams:
+                            remainingFallbackRouteParams.length > 0
+                              ? createOpaqueFallbackRouteParams(
+                                  remainingFallbackRouteParams
+                                )
+                              : null,
+                          forceStaticRender: true,
+                        })
+                      },
+                      // We don't have a prior entry for this param-specific shell.
+                      null,
+                      hasResolved,
+                      ctx.waitUntil
+                    )
+                  } catch (err) {
+                    console.error(
+                      'Error revalidating the page in the background',
+                      err
+                    )
+                  }
+                })
+              }
+
+              // Remove the cache control from the response to prevent it from being
+              // used in the surrounding cache.
+              delete fallbackResponse.cacheControl
+
+              return fallbackResponse
+            }
+          }
         }
 
-        // When cacheComponents is enabled, we can use the fallback
-        // response if the request is not a dynamic RSC request because the
-        // RSC data when this feature flag is enabled does not contain any
-        // param references. Without this feature flag enabled, the RSC data
-        // contains param references, and therefore we can't use the fallback.
+        // Only requests that aren't revalidating can be resumed. If we have the
+        // minimal postponed data, then we should resume the render with it.
+        let postponed =
+          !isOnDemandRevalidate && !isRevalidating && minimalPostponed
+            ? minimalPostponed
+            : undefined
+
         if (
-          isRoutePPREnabled &&
-          (nextConfig.cacheComponents ? !isDynamicRSCRequest : !isRSCRequest)
+          // If this is a dynamic RSC request or a server action request, we should
+          // use the postponed data from the static render (if available). This
+          // ensures that we can utilize the resume data cache (RDC) from the static
+          // render to ensure that the data is consistent between the static and
+          // dynamic renders (for navigations) or when re-rendering after a server
+          // action.
+          // Only enable RDC for Navigations if the feature is enabled.
+          supportsRDCForNavigations &&
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          !isMinimalMode &&
+          incrementalCache &&
+          // Include both dynamic RSC requests (navigations) and server actions
+          (isDynamicRSCRequest || isPossibleServerAction) &&
+          // We don't typically trigger an on-demand revalidation for dynamic RSC
+          // requests, as we're typically revalidating the page in the background
+          // instead. However, if the cache entry is stale, we should trigger a
+          // background revalidation on dynamic RSC requests. This prevents us
+          // from entering an infinite loop of revalidations.
+          !forceStaticRender
         ) {
-          const cacheKey =
-            isProduction && typeof prerenderInfo?.fallback === 'string'
-              ? prerenderInfo.fallback
-              : normalizedSrcPage
+          const incrementalCacheEntry = await incrementalCache.get(
+            resolvedPathname,
+            {
+              kind: IncrementalCacheKind.APP_PAGE,
+              isRoutePPREnabled: true,
+              isFallback: false,
+            }
+          )
 
-          const fallbackRouteParams =
-            // In production or when debugging the static shell (e.g. instant
-            // navigation testing), use the prerender manifest's fallback
-            // route params which correctly identifies which params are
-            // unknown. Note: in dev, this block is only entered for
-            // non-prerendered URLs (guarded by the outer condition).
-            (isProduction || isDebugStaticShell) &&
-            prerenderInfo?.fallbackRouteParams
-              ? createOpaqueFallbackRouteParams(
-                  prerenderInfo.fallbackRouteParams
-                )
-              : // When debugging the fallback shell, treat all params as
-                // fallback (simulating the worst-case shell).
-                isDebugFallbackShell
-                ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-                : null
+          // If the cache entry is found, we should use the postponed data from
+          // the cache.
+          if (
+            incrementalCacheEntry &&
+            incrementalCacheEntry.value &&
+            incrementalCacheEntry.value.kind === CachedRouteKind.APP_PAGE
+          ) {
+            // CRITICAL: we're assigning the postponed data from the cache entry
+            // here as we're using the RDC to resume the render.
+            postponed = incrementalCacheEntry.value.postponed
 
-          // When rendering a debug static shell, override the fallback
-          // params on the request so that the staged rendering correctly
-          // defers params that are not statically known.
-          if (isDebugStaticShell && fallbackRouteParams) {
-            addRequestMeta(req, 'fallbackParams', fallbackRouteParams)
-          }
-
-          // We use the response cache here to handle the revalidation and
-          // management of the fallback shell.
-          const fallbackResponse = await routeModule.handleResponse({
-            cacheKey,
-            req,
-            nextConfig,
-            routeKind: RouteKind.APP_PAGE,
-            isFallback: true,
-            prerenderManifest,
-            isRoutePPREnabled,
-            responseGenerator: async () =>
-              doRender({
-                span,
-                // We pass `undefined` as rendering a fallback isn't resumed
-                // here.
-                postponed: undefined,
-                // Always serve the shell that matched this request
-                // immediately. If there are still prerenderable params left,
-                // the background path below will complete the shell into a
-                // more specific cache entry for later requests.
-                fallbackRouteParams,
-                forceStaticRender: true,
-              }),
-            waitUntil: ctx.waitUntil,
-            isMinimalMode,
-          })
-
-          // If the fallback response was set to null, then we should return null.
-          if (fallbackResponse === null) return null
-
-          // Otherwise, if we did get a fallback response, we should return it.
-          if (fallbackResponse) {
+            // If the cache entry is stale, we should trigger a background
+            // revalidation so that subsequent requests will get a fresh response.
             if (
-              !isMinimalMode &&
-              isRoutePPREnabled &&
-              // Match the build-time contract: only fallback shells that can
-              // still be completed with prerenderable params should upgrade.
-              remainingPrerenderableParams.length > 0 &&
-              nextConfig.experimental.partialFallbacks === true &&
-              ssgCacheKey &&
-              incrementalCache &&
-              !isOnDemandRevalidate &&
-              !isDebugFallbackShell &&
-              // The testing API relies on deterministic shell behavior, so
-              // don't upgrade fallback shells in the background when it's
-              // exposed.
-              !exposeTestingApi &&
-              // Instant Navigation Testing API requests intentionally keep
-              // the route in shell mode; don't upgrade these in background.
-              !isInstantNavigationTest &&
-              // Avoid background revalidate during prefetches; this can trigger
-              // static prerender errors that surface as 500s for the prefetch
-              // request itself.
-              !isPrefetchRSCRequest
+              incrementalCacheEntry &&
+              // We want to trigger this flow if the cache entry is stale and if
+              // the requested revalidation flow is either foreground or
+              // background.
+              (incrementalCacheEntry.isStale === -1 ||
+                incrementalCacheEntry.isStale === true)
             ) {
+              // We want to schedule this on the next tick to ensure that the
+              // render is not blocked on it.
               scheduleOnNextTick(async () => {
                 const responseCache = routeModule.getResponseCache(req)
 
                 try {
-                  // Only the params that were just specialized should be
-                  // removed from the fallback render. Any remaining fallback
-                  // params stay deferred so the revalidated result is a more
-                  // specific shell (e.g. `/prefix/c/[two]`), not a fully
-                  // concrete route (`/prefix/c/foo`).
                   await responseCache.revalidate(
-                    ssgCacheKey,
+                    resolvedPathname,
                     incrementalCache,
                     isRoutePPREnabled,
                     false,
-                    (c) => {
-                      return doRender({
-                        span: c.span,
-                        postponed: undefined,
-                        fallbackRouteParams:
-                          remainingFallbackRouteParams.length > 0
-                            ? createOpaqueFallbackRouteParams(
-                                remainingFallbackRouteParams
-                              )
-                            : null,
+                    (c) =>
+                      responseGenerator({
+                        ...c,
+                        // CRITICAL: we need to set this to true as we're
+                        // revalidating in the background and typically this dynamic
+                        // RSC request is not treated as static.
                         forceStaticRender: true,
-                      })
-                    },
-                    // We don't have a prior entry for this param-specific shell.
+                      }),
+                    // CRITICAL: we need to pass null here because passing the
+                    // previous cache entry here (which is stale) will switch on
+                    // isOnDemandRevalidate and break the prerendering.
                     null,
                     hasResolved,
                     ctx.waitUntil
@@ -1215,191 +1318,112 @@ export async function handler(
                 }
               })
             }
-
-            // Remove the cache control from the response to prevent it from being
-            // used in the surrounding cache.
-            delete fallbackResponse.cacheControl
-
-            return fallbackResponse
           }
         }
-      }
 
-      // Only requests that aren't revalidating can be resumed. If we have the
-      // minimal postponed data, then we should resume the render with it.
-      let postponed =
-        !isOnDemandRevalidate && !isRevalidating && minimalPostponed
-          ? minimalPostponed
-          : undefined
-
-      // If this is a dynamic RSC request or a server action request, we should
-      // use the postponed data from the static render (if available). This
-      // ensures that we can utilize the resume data cache (RDC) from the static
-      // render to ensure that the data is consistent between the static and
-      // dynamic renders (for navigations) or when re-rendering after a server
-      // action.
-      if (
-        // Only enable RDC for Navigations if the feature is enabled.
-        supportsRDCForNavigations &&
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        !isMinimalMode &&
-        incrementalCache &&
-        // Include both dynamic RSC requests (navigations) and server actions
-        (isDynamicRSCRequest || isPossibleServerAction) &&
-        // We don't typically trigger an on-demand revalidation for dynamic RSC
-        // requests, as we're typically revalidating the page in the background
-        // instead. However, if the cache entry is stale, we should trigger a
-        // background revalidation on dynamic RSC requests. This prevents us
-        // from entering an infinite loop of revalidations.
-        !forceStaticRender
-      ) {
-        const incrementalCacheEntry = await incrementalCache.get(
-          resolvedPathname,
-          {
-            kind: IncrementalCacheKind.APP_PAGE,
-            isRoutePPREnabled: true,
-            isFallback: false,
-          }
-        )
-
-        // If the cache entry is found, we should use the postponed data from
-        // the cache.
+        // When we're in minimal mode, if we're trying to debug the static shell,
+        // we should just return nothing instead of resuming the dynamic render.
         if (
-          incrementalCacheEntry &&
-          incrementalCacheEntry.value &&
-          incrementalCacheEntry.value.kind === CachedRouteKind.APP_PAGE
+          (isDebugStaticShell || isDebugDynamicAccesses) &&
+          typeof postponed !== 'undefined'
         ) {
-          // CRITICAL: we're assigning the postponed data from the cache entry
-          // here as we're using the RDC to resume the render.
-          postponed = incrementalCacheEntry.value.postponed
-
-          // If the cache entry is stale, we should trigger a background
-          // revalidation so that subsequent requests will get a fresh response.
-          if (
-            incrementalCacheEntry &&
-            // We want to trigger this flow if the cache entry is stale and if
-            // the requested revalidation flow is either foreground or
-            // background.
-            (incrementalCacheEntry.isStale === -1 ||
-              incrementalCacheEntry.isStale === true)
-          ) {
-            // We want to schedule this on the next tick to ensure that the
-            // render is not blocked on it.
-            scheduleOnNextTick(async () => {
-              const responseCache = routeModule.getResponseCache(req)
-
-              try {
-                await responseCache.revalidate(
-                  resolvedPathname,
-                  incrementalCache,
-                  isRoutePPREnabled,
-                  false,
-                  (c) =>
-                    responseGenerator({
-                      ...c,
-                      // CRITICAL: we need to set this to true as we're
-                      // revalidating in the background and typically this dynamic
-                      // RSC request is not treated as static.
-                      forceStaticRender: true,
-                    }),
-                  // CRITICAL: we need to pass null here because passing the
-                  // previous cache entry here (which is stale) will switch on
-                  // isOnDemandRevalidate and break the prerendering.
-                  null,
-                  hasResolved,
-                  ctx.waitUntil
-                )
-              } catch (err) {
-                console.error(
-                  'Error revalidating the page in the background',
-                  err
-                )
-              }
-            })
+          return {
+            cacheControl: { revalidate: 1, expire: undefined },
+            value: {
+              kind: CachedRouteKind.PAGES,
+              html: RenderResult.EMPTY,
+              pageData: {},
+              headers: undefined,
+              status: undefined,
+            } satisfies CachedPageValue,
           }
         }
-      }
 
-      // When we're in minimal mode, if we're trying to debug the static shell,
-      // we should just return nothing instead of resuming the dynamic render.
-      if (
-        (isDebugStaticShell || isDebugDynamicAccesses) &&
-        typeof postponed !== 'undefined'
-      ) {
-        return {
-          cacheControl: { revalidate: 1, expire: undefined },
-          value: {
-            kind: CachedRouteKind.PAGES,
-            html: RenderResult.EMPTY,
-            pageData: {},
-            headers: undefined,
-            status: undefined,
-          } satisfies CachedPageValue,
+        // When route-module.ts resolved partial nxtP* params during
+        // background revalidation, filter fallbackRouteParams to only the
+        // params that are still unresolved. This lets doRender produce an
+        // intermediate PPR shell that suspends only for those params.
+        let effectiveFallbackRouteParams: FallbackRouteParam[] | null = null
+        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+          const resolvedKeys = getRequestMeta(req, 'resolvedRouteParamKeys')
+          if (resolvedKeys && resolvedKeys.size > 0) {
+            effectiveFallbackRouteParams =
+              prerenderInfo.fallbackRouteParams.filter(
+                (param) => !resolvedKeys.has(param.paramName)
+              )
+          }
         }
-      }
 
-      // When route-module.ts resolved partial nxtP* params during
-      // background revalidation, filter fallbackRouteParams to only the
-      // params that are still unresolved. This lets doRender produce an
-      // intermediate PPR shell that suspends only for those params.
-      let effectiveFallbackRouteParams: FallbackRouteParam[] | null = null
-      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
-        const resolvedKeys = getRequestMeta(req, 'resolvedRouteParamKeys')
-        if (resolvedKeys && resolvedKeys.size > 0) {
-          effectiveFallbackRouteParams =
-            prerenderInfo.fallbackRouteParams.filter(
-              (param) => !resolvedKeys.has(param.paramName)
-            )
+        const fallbackRouteParams =
+          // In production or when debugging the static shell for a
+          // non-prerendered URL, use the prerender manifest's fallback route
+          // params which correctly identifies which params are unknown.
+          ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+            (isDebugStaticShell && !isPrerendered)) &&
+          prerenderInfo?.fallbackRouteParams
+            ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+            : // For intermediate shells where some params are resolved and
+              // others still have placeholders, use the filtered subset so the
+              // prerender suspends only for the unresolved params.
+              effectiveFallbackRouteParams &&
+                effectiveFallbackRouteParams.length > 0 &&
+                effectiveFallbackRouteParams.length <
+                  (prerenderInfo?.fallbackRouteParams?.length ?? 0)
+              ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
+              : isDebugFallbackShell
+                ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+                : null
+
+        // For staged dynamic rendering (Cached Navigations) and debug static
+        // shell rendering, pass the fallback params via request meta so the
+        // RequestStore knows which params to defer. We don't pass them as
+        // fallbackRouteParams because that would replace actual param values
+        // with opaque placeholders during segment resolution.
+        if (
+          (isProduction || isDebugStaticShell) &&
+          nextConfig.cacheComponents &&
+          !isPrerendered &&
+          prerenderInfo?.fallbackRouteParams
+        ) {
+          const fallbackParams = createOpaqueFallbackRouteParams(
+            prerenderInfo.fallbackRouteParams
+          )
+
+          if (fallbackParams) {
+            addRequestMeta(req, 'fallbackParams', fallbackParams)
+          }
         }
-      }
 
-      const fallbackRouteParams =
-        // In production or when debugging the static shell for a
-        // non-prerendered URL, use the prerender manifest's fallback route
-        // params which correctly identifies which params are unknown.
-        ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
-          (isDebugStaticShell && !isPrerendered)) &&
-        prerenderInfo?.fallbackRouteParams
-          ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          : // For intermediate shells where some params are resolved and
-            // others still have placeholders, use the filtered subset so the
-            // prerender suspends only for the unresolved params.
-            effectiveFallbackRouteParams &&
-              effectiveFallbackRouteParams.length > 0 &&
-              effectiveFallbackRouteParams.length <
-                (prerenderInfo?.fallbackRouteParams?.length ?? 0)
-            ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
-            : isDebugFallbackShell
-              ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-              : null
-
-      // For staged dynamic rendering (Cached Navigations) and debug static
-      // shell rendering, pass the fallback params via request meta so the
-      // RequestStore knows which params to defer. We don't pass them as
-      // fallbackRouteParams because that would replace actual param values
-      // with opaque placeholders during segment resolution.
-      if (
-        (isProduction || isDebugStaticShell) &&
-        nextConfig.cacheComponents &&
-        !isPrerendered &&
-        prerenderInfo?.fallbackRouteParams
-      ) {
-        const fallbackParams = createOpaqueFallbackRouteParams(
-          prerenderInfo.fallbackRouteParams
-        )
-
-        if (fallbackParams) {
-          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        // Perform the render.
+        return doRender({
+          span,
+          postponed,
+          fallbackRouteParams,
+          forceStaticRender,
+        })
+      } catch (err) {
+        // if this is a background revalidate we need to report
+        // the request error here as it won't be bubbled
+        if (previousIncrementalCacheEntry?.isStale) {
+          const silenceLog = false
+          await routeModule.onRequestError(
+            req,
+            err,
+            {
+              routerKind: 'App Router',
+              routePath: srcPage,
+              routeType: 'render',
+              revalidateReason: getRevalidateReason({
+                isStaticGeneration: isSSG,
+                isOnDemandRevalidate,
+              }),
+            },
+            silenceLog,
+            routerServerContext
+          )
         }
+        throw err
       }
-
-      // Perform the render.
-      return doRender({
-        span,
-        postponed,
-        fallbackRouteParams,
-        forceStaticRender,
-      })
     }
 
     const handleResponse = async (span?: Span): Promise<null | void> => {
