@@ -1180,6 +1180,11 @@ async fn directory_tree_to_loader_tree_internal(
     let app_path = AppPath::from(app_page.clone());
 
     if !for_app_path.contains(&app_path) {
+        eprintln!(
+            "[DEBUG loader-tree] PRUNED directory_name={:?} app_path={:?} not contained in \
+             for_app_path={:?}",
+            directory_name, app_path, for_app_path
+        );
         return Ok(None);
     }
 
@@ -1266,6 +1271,17 @@ async fn directory_tree_to_loader_tree_internal(
     if current_level_is_parallel_route {
         tree.segment = rcstr!("(__SLOT__)");
     }
+
+    eprintln!(
+        "[DEBUG loader-tree] directory_name={:?} app_page={:?} app_path={:?} for_app_path={:?} \
+         is_catchall={} has_page={}",
+        directory_name,
+        app_page,
+        app_path,
+        for_app_path,
+        app_path.is_catchall(),
+        modules.page.is_some()
+    );
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
         .then_some(modules.page)

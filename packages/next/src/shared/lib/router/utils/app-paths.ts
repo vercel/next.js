@@ -52,6 +52,35 @@ export function normalizeAppPath(route: string) {
 }
 
 /**
+ * Like `normalizeAppPath` but keeps parallel slot segments (`@slot`).
+ * Used for route conflict detection where `@slot` segments separate
+ * routes into independent parallel slots that can't conflict with
+ * each other.
+ */
+export function normalizeAppPathWithSlots(route: string) {
+  return ensureLeadingSlash(
+    route.split('/').reduce((pathname, segment, index, segments) => {
+      if (!segment) {
+        return pathname
+      }
+
+      if (isGroupSegment(segment)) {
+        return pathname
+      }
+
+      if (
+        (segment === 'page' || segment === 'route') &&
+        index === segments.length - 1
+      ) {
+        return pathname
+      }
+
+      return `${pathname}/${segment}`
+    }, '')
+  )
+}
+
+/**
  * Comparator for sorting app paths so that parallel slot paths (containing
  * `/@`) come before the children/root page path. This ensures the last item
  * is always the children page, which is what `renderPageComponent` reads via

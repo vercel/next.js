@@ -7,6 +7,7 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
+import { InvariantError } from '../../../shared/lib/invariant-error'
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
 import fs from 'fs'
@@ -96,6 +97,7 @@ import {
 } from '../../../build/file-classifier'
 import {
   normalizeAppPath,
+  normalizeAppPathWithSlots,
   compareAppPaths,
 } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
@@ -418,6 +420,7 @@ async function startWatcher(
 
     let initialWatchTime = performance.now() + performance.timeOrigin
     wp.on('aggregated', async () => {
+      console.log('[DEBUG] aggregated callback started')
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
@@ -643,6 +646,8 @@ async function startWatcher(
           continue
         }
 
+        let routedPageName = pageName
+
         if (isAppPath) {
           // Track root not-found
           if (validFileMatcher.isRootNotFound(fileName)) {
@@ -706,7 +711,35 @@ async function startWatcher(
             appRoutes.push(routeEntry)
           }
 
-          if (routedPages.includes(pageName)) continue
+          routedPageName = normalizeAppPathWithSlots(originalPageName).replace(
+            /%5F/g,
+            '_'
+          )
+          console.log('[DEBUG] app route:', {
+            pageName,
+            routedPageName,
+            originalPageName,
+          })
+          if (routedPages.includes(routedPageName)) {
+            console.log(
+              '[DEBUG] skipping duplicate routedPageName:',
+              routedPageName
+            )
+            continue
+          }
+
+          // If this normalized pageName was already processed from another
+          // parallel slot, skip the rest of the loop (which includes
+          // conflict detection) but still add the slot-preserving name
+          // to routedPages for route sorting.
+          if (appPageFilePaths.has(pageName)) {
+            console.log('[DEBUG] skipping already-processed slot route:', {
+              pageName,
+              routedPageName,
+            })
+            routedPages.push(routedPageName)
+            continue
+          }
         } else {
           // Pages router
           if (useFileSystemPublicRoutes) {
@@ -745,8 +778,9 @@ async function startWatcher(
           continue
         }
 
-        routedPages.push(pageName)
+        routedPages.push(routedPageName)
       }
+      console.log('[DEBUG] loop done, routedPages:', routedPages)
 
       const numConflicting = conflictingAppPagePaths.size
       conflictingPageChange = numConflicting - previousConflictingPagePaths.size
@@ -758,8 +792,15 @@ async function startWatcher(
           } found, please remove the conflicting files to continue:\n`
 
           for (const p of conflictingAppPagePaths) {
-            const appPath = path.relative(dir, appPageFilePaths.get(p)!)
-            const pagesPath = path.relative(dir, pagesPageFilePaths.get(p)!)
+            const appFile = appPageFilePaths.get(p)
+            const pagesFile = pagesPageFilePaths.get(p)
+            if (typeof appFile !== 'string' || typeof pagesFile !== 'string') {
+              throw new InvariantError(
+                `Expected conflicting page "${p}" to have both an app and pages file path but got app: ${appFile}, pages: ${pagesFile}`
+              )
+            }
+            const appPath = path.relative(dir, appFile)
+            const pagesPath = path.relative(dir, pagesFile)
             errorMessage += `  "${pagesPath}" - "${appPath}"\n`
           }
           hotReloader.setHmrServerError(new Error(errorMessage))
@@ -1028,8 +1069,23 @@ async function startWatcher(
       try {
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
-        // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(routedPages)
+        // before it has been built and is populated in the _buildManifest.
+        // routedPages includes @slot segments so getSortedRoutes can
+        // validate and sort routes per slot independently. The output
+        // has @slot segments stripped. Deduplicate in case multiple
+        // slots produce the same URL path.
+        console.log('[DEBUG] routedPages:', routedPages)
+        const sortedRoutesWithDups = getSortedRoutes(routedPages)
+        console.log('[DEBUG] sortedRoutesWithDups:', sortedRoutesWithDups)
+        const sortedRoutes: string[] = []
+        const seen = new Set<string>()
+        for (const route of sortedRoutesWithDups) {
+          if (!seen.has(route)) {
+            seen.add(route)
+            sortedRoutes.push(route)
+          }
+        }
+        console.log('[DEBUG] sortedRoutes:', sortedRoutes)
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {

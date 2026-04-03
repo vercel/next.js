@@ -606,7 +606,28 @@ async function createTreeCodeFromPath(
             // This also handles route groups correctly by filtering them out.
             const isLeafSegment = !hasChildRoutesForSegment(segmentPath)
 
-            if (!isInsideCatchAll && !isLeafSegment) {
+            // Check if the slot itself contains an optional catch-all route.
+            // An optional catch-all ([[...slug]]) matches all URL paths
+            // including the parent, so default.js is not required. A
+            // regular catch-all ([...slug]) still requires default.js
+            // because it doesn't match the parent path.
+            let slotHasOptionalCatchAll = false
+            const absoluteSlotPath = resolveDir(fullSegmentPath)
+            if (absoluteSlotPath && (await isDirectory(absoluteSlotPath))) {
+              const slotFiles = await fs.opendir(absoluteSlotPath)
+              for await (const dirent of slotFiles) {
+                if (dirent.isDirectory() && dirent.name.startsWith('[[...')) {
+                  slotHasOptionalCatchAll = true
+                  break
+                }
+              }
+            }
+
+            if (
+              !isInsideCatchAll &&
+              !isLeafSegment &&
+              !slotHasOptionalCatchAll
+            ) {
               // Replace internal webpack alias with user-facing directory name
               const userFacingPath = fullSegmentPath.replace(
                 APP_DIR_ALIAS,

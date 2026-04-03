@@ -449,11 +449,13 @@ impl AppPath {
     }
 
     pub fn contains(&self, other: &AppPath) -> bool {
-        // TODO: handle OptionalCatchAll properly.
         for (i, segment) in other.0.iter().enumerate() {
             let Some(self_segment) = self.0.get(i) else {
-                // other is longer than self
-                return false;
+                // other is longer than self. An optional catch-all as the
+                // extra trailing segment can match zero URL segments, so
+                // it's still contained.
+                return matches!(segment, PathSegment::OptionalCatchAll(_))
+                    && i == other.0.len() - 1;
             };
 
             if self_segment == segment {

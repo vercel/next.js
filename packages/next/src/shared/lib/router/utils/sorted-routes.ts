@@ -5,8 +5,11 @@ class UrlNode {
   restSlugName: string | null = null
   optionalRestSlugName: string | null = null
 
+  private placeholderSlot: string | null = null
+  private optionalRestSlugSlot: string | null = null
+
   insert(urlPath: string): void {
-    this._insert(urlPath.split('/').filter(Boolean), [], false)
+    this._insert(urlPath.split('/').filter(Boolean), [], false, null)
   }
 
   smoosh(): string[] {
@@ -37,7 +40,10 @@ class UrlNode {
 
     if (!this.placeholder) {
       const r = prefix === '/' ? '/' : prefix.slice(0, -1)
-      if (this.optionalRestSlugName != null) {
+      if (
+        this.optionalRestSlugName != null &&
+        this.placeholderSlot === this.optionalRestSlugSlot
+      ) {
         throw new Error(
           `You cannot define a route with the same specificity as a optional catch-all route ("${r}" and "${r}[[...${this.optionalRestSlugName}]]").`
         )
@@ -68,19 +74,32 @@ class UrlNode {
   private _insert(
     urlPaths: string[],
     slugNames: string[],
-    isCatchAll: boolean
+    isCatchAll: boolean,
+    slot: string | null
   ): void {
     if (urlPaths.length === 0) {
       this.placeholder = false
+      this.placeholderSlot = slot
+      return
+    }
+
+    // The next segment in the urlPaths list
+    let nextSegment = urlPaths[0]
+
+    // Parallel slot segments (@slot) are transparent — skip them
+    // without creating a trie node. The slot name is tracked as
+    // metadata so validation only flags conflicts within the same slot.
+    // This must come before the isCatchAll check because @slot segments
+    // can appear after a catchall (e.g., /[...slug]/@header).
+    if (nextSegment.startsWith('@')) {
+      const nestedSlot = slot ? `${slot}/${nextSegment}` : nextSegment
+      this._insert(urlPaths.slice(1), slugNames, isCatchAll, nestedSlot)
       return
     }
 
     if (isCatchAll) {
       throw new Error(`Catch-all must be the last part of the URL.`)
     }
-
-    // The next segment in the urlPaths list
-    let nextSegment = urlPaths[0]
 
     // Check if the segment matches `[something]`
     if (nextSegment.startsWith('[') && nextSegment.endsWith(']')) {
@@ -161,6 +180,7 @@ class UrlNode {
           handleSlug(this.optionalRestSlugName, segmentName)
           // slugName is kept as it can only be one particular slugName
           this.optionalRestSlugName = segmentName
+          this.optionalRestSlugSlot = slot
           // nextSegment is overwritten to [[...]] so that it can later be sorted specifically
           nextSegment = '[[...]]'
         } else {
@@ -197,7 +217,7 @@ class UrlNode {
 
     this.children
       .get(nextSegment)!
-      ._insert(urlPaths.slice(1), slugNames, isCatchAll)
+      ._insert(urlPaths.slice(1), slugNames, isCatchAll, slot)
   }
 }
 
