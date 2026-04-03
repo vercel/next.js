@@ -5,8 +5,12 @@ import {
   type PrefetchHints,
 } from '../../shared/lib/app-router-types'
 import type { GetDynamicParamFromSegment } from './app-render'
-import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  addSearchParamsIfPageSegment,
+} from '../../shared/lib/segment'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/default'
 
 async function createFlightRouterStateFromLoaderTreeImpl(
   loaderTree: LoaderTree,
@@ -92,6 +96,26 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // Check if this segment has a loading boundary
   if (loading) {
     prefetchHints |= PrefetchHint.SegmentHasLoadingBoundary
+  }
+
+  // Check if this __DEFAULT__ segment uses the built-in default component
+  // that calls notFound(). This tells the client router not to reuse the
+  // previous page content when navigating to a URL with no matching page.
+  // The path comparison uses endsWith because the loader tree stores
+  // absolute filesystem paths while PARALLEL_ROUTE_DEFAULT_PATH is a
+  // package-relative path (e.g., "next/dist/client/components/builtin/default.js").
+  if (segment === DEFAULT_SEGMENT_KEY) {
+    const { defaultPage } = loaderTree[2]
+    if (
+      defaultPage !== undefined &&
+      typeof defaultPage[1] === 'string' &&
+      defaultPage[1].endsWith(
+        // Strip the leading "next/" from the constant to match absolute paths.
+        PARALLEL_ROUTE_DEFAULT_PATH.slice('next/'.length)
+      )
+    ) {
+      prefetchHints |= PrefetchHint.IsBuiltinNotFoundDefault
+    }
   }
 
   const children: FlightRouterState[1] = {}

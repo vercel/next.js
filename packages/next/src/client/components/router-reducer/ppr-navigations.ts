@@ -459,7 +459,16 @@ function updateCacheNodeOnNavigation(
         // was stashed in the history entry as-is.
         freshness !== FreshnessPolicy.HistoryTraversal &&
         newSegmentChild === DEFAULT_SEGMENT_KEY &&
-        oldSegmentChild !== DEFAULT_SEGMENT_KEY
+        oldSegmentChild !== DEFAULT_SEGMENT_KEY &&
+        // Do not reuse the previously active segment if this __DEFAULT__
+        // segment uses the built-in default component that calls notFound().
+        // The built-in default means there is no matching page or
+        // user-provided default.tsx for this slot. Reusing old content would
+        // hide the 404 that should be triggered by the built-in default.
+        !(
+          newRouteTreeChild.prefetchHints &
+          PrefetchHint.IsBuiltinNotFoundDefault
+        )
       ) {
         // This is a "default" segment. These are never sent by the server during
         // a soft navigation; instead, the client reuses whatever segment was

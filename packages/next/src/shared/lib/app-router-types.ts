@@ -209,6 +209,12 @@ export const enum PrefetchHint {
   // (HasRuntimePrefetch). Propagates upward so the root reflects the
   // entire subtree.
   SubtreeHasRuntimePrefetch = 0b100000000000,
+  // This __DEFAULT__ segment uses the built-in default component that
+  // calls notFound(). Set so the client can distinguish between a
+  // user-provided default.tsx (where old content should be reused during
+  // navigation) and the built-in not-found default (where a 404 should
+  // be shown).
+  IsBuiltinNotFoundDefault = 0b1000000000000,
 }
 
 /**
