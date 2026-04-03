@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import execa from 'execa'
 import { retry, runNextCommand } from 'next-test-utils'
 
 const expectedDts = `
@@ -22,13 +23,39 @@ describe('typed-routes', () => {
   }
 
   it('should generate route types correctly', async () => {
+    // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
       const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(expectedDts)
-    })
+    }, 30000)
+  })
+
+  it('should have passing tsc after start', async () => {
+    // Wait for routes.d.ts before stopping the server; route type generation
+    // happens after the "Ready" log fires and tsc may run before it completes.
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(expectedDts)
+    }, 30000)
+
+    await next.stop()
+    try {
+      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+        cwd: next.testDir,
+        reject: false,
+      })
+
+      expect({ stdout, stderr }).toEqual({
+        stdout: '',
+        stderr: '',
+      })
+    } finally {
+      await next.start()
+    }
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
+    // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
       const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
@@ -41,7 +68,7 @@ describe('typed-routes', () => {
       // Test catch-all zero-or-more: :slug* -> [[...slug]]
       expect(dts).toContain('"/blog/[category]/[[...slug]]"')
       expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
-    })
+    }, 30000)
   })
 
   if (isNextDev) {

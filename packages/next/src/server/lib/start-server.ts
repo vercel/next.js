@@ -2,9 +2,6 @@
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
-if (performance.getEntriesByName('next-start').length === 0) {
-  performance.mark('next-start')
-}
 import '../next'
 import '../require-hook'
 
@@ -25,14 +22,23 @@ import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import { CONFIG_FILES } from '../../shared/lib/constants'
-import { getStartServerInfo, logStartInfo } from './app-info-log'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+} from '../../shared/lib/constants'
+import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace, flushAllTraces } from '../../trace'
+import {
+  type Span,
+  trace,
+  flushAllTraces,
+  exportTraceState,
+  initializeTraceState,
+} from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
-import type { ConfiguredExperimentalFeature } from '../config'
+import { durationToString } from '../../build/duration-to-string'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -123,6 +129,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
+  serverFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({
@@ -135,6 +142,7 @@ export async function getRequestHandlers({
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
+  serverFastRefresh,
   quiet,
 }: {
   dir: string
@@ -146,6 +154,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
+  serverFastRefresh?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -158,14 +167,19 @@ export async function getRequestHandlers({
     server,
     keepAliveTimeout,
     experimentalHttpsServer,
+    serverFastRefresh,
     startServerSpan,
     quiet,
   })
 }
 
+export type StartServerResult = {
+  distDir: string
+}
+
 export async function startServer(
   serverOptions: StartServerOptions
-): Promise<void> {
+): Promise<StartServerResult> {
   const {
     dir,
     isDev,
@@ -174,6 +188,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
+    serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
 
@@ -298,7 +313,7 @@ export async function startServer(
 
   let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
 
-  await new Promise<void>((resolve) => {
+  const distDir = await new Promise<string>((resolve) => {
     server.on('listening', async () => {
       const addr = server.address()
       const actualHostname = formatHostname(
@@ -351,31 +366,34 @@ export async function startServer(
         process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
       }
 
-      // Only load env and config in dev to for logging purposes
-      let envInfo: string[] | undefined
-      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      let cacheComponents: boolean | undefined
+      // Get env info first (fast, doesn't require config)
+      const envInfo = isDev ? getEnvInfo(dir) : undefined
+
+      // Log basic startup info immediately (before loading config)
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        logBundler: isDev,
+      })
+
+      // Calculate and log "Ready in X" before loading config
+      // so it reflects actual framework startup time.
+      // NEXT_PRIVATE_START_TIME is set by bin/next.ts or cli/next-start.ts.
+      const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
+      const endTime = Date.now()
+      const startServerProcessDurationMs = startTime ? endTime - startTime : 0
+
+      const formattedStartDuration = durationToString(
+        startServerProcessDurationMs / 1000
+      )
+
+      Log.event(`Ready in ${formattedStartDuration}`)
+
       try {
-        if (isDev) {
-          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-          envInfo = startServerInfo.envInfo
-          cacheComponents = startServerInfo.cacheComponents
-          experimentalFeatures = startServerInfo.experimentalFeatures
-        }
-        logStartInfo({
-          networkUrl,
-          appUrl,
-          envInfo,
-          experimentalFeatures,
-          cacheComponents,
-          logBundler: isDev,
-        })
-
-        Log.event(`Starting...`)
-
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = () => {
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -406,6 +424,9 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush any remaining traces to the trace file on shutdown
+            await flushAllTraces()
+
             // Flush telemetry if this is a dev server
             if (isDev) {
               try {
@@ -428,7 +449,23 @@ export async function startServer(
             }
 
             debug('start-server process cleanup finished')
-            process.exit(0)
+
+            // Exit with signal-based exit code (128 + signal number) so that
+            // Node.js treats this as a signal termination, not a normal exit.
+            // This avoids waiting for the debugger to disconnect.
+            switch (signal) {
+              case 'SIGINT':
+                process.exit(130)
+                break
+              case 'SIGTERM':
+                process.exit(143)
+                break
+              default:
+                // Make sure all handled signals have explicit exit codes.
+                // This is just a fallback to guard against unsound types.
+                signal satisfies never
+                process.exit(128)
+            }
           })()
         }
 
@@ -439,6 +476,7 @@ export async function startServer(
           process.on('SIGTERM', cleanup)
         }
 
+        // Now load config via getRequestHandlers (single loadConfig call)
         const initResult = await getRequestHandlers({
           dir,
           port,
@@ -451,42 +489,37 @@ export async function startServer(
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
+          serverFastRefresh,
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
 
-        const startServerProcessDuration =
-          performance.mark('next-start-end') &&
-          performance.measure(
-            'next-start-duration',
-            'next-start',
-            'next-start-end'
-          ).duration
-
-        handlersReady()
-        const formatDurationText =
-          startServerProcessDuration > 2000
-            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
-            : `${Math.round(startServerProcessDuration)}ms`
-
-        Log.event(`Ready in ${formatDurationText}`)
-
-        if (process.env.TURBOPACK) {
-          await validateTurboNextConfig({
-            dir: serverOptions.dir,
-            isDev: serverOptions.isDev,
+        // Log experimental features after config is loaded
+        if (isDev) {
+          logExperimentalInfo({
+            experimentalFeatures: initResult.experimentalFeatures,
+            cacheComponents: initResult.cacheComponents,
           })
         }
+
+        handlersReady()
+
+        if (process.env.TURBOPACK && isDev) {
+          await validateTurboNextConfig({
+            dir: serverOptions.dir,
+            configPhase: PHASE_DEVELOPMENT_SERVER,
+          })
+        }
+
+        resolve(initResult.distDir)
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
         console.error(err)
         process.exit(1)
       }
-
-      resolve()
     })
     server.listen(port, hostname)
   })
@@ -518,6 +551,8 @@ export async function startServer(
       process.exit(RESTART_EXIT_CODE)
     })
   }
+
+  return { distDir }
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
@@ -528,14 +563,32 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       msg.nextWorkerOptions &&
       process.send
     ) {
+      let enabledFeaturesFromParent = {}
+      if (process.env.NEXT_PRIVATE_ENABLED_FEATURES) {
+        const parsed = JSON.parse(process.env.NEXT_PRIVATE_ENABLED_FEATURES)
+        enabledFeaturesFromParent = Object.fromEntries(
+          Object.entries(parsed).map(([key, value]) => [
+            `feature.${key}`,
+            value,
+          ])
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+        ...enabledFeaturesFromParent,
       })
-      await startServerSpan.traceAsyncFn(() =>
+
+      initializeTraceState({
+        ...exportTraceState(),
+        defaultParentSpanId: startServerSpan.getId(),
+      })
+
+      const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )
       const memoryUsage = process.memoryUsage()
@@ -548,7 +601,11 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true, port: process.env.PORT })
+      process.send({
+        nextServerReady: true,
+        port: process.env.PORT,
+        distDir: result.distDir,
+      })
     }
   })
   process.send({ nextWorkerReady: true })

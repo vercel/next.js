@@ -84,7 +84,7 @@ pub async fn emit_assets(
 async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     asset
         .content()
-        .resolve()
+        .to_resolved()
         .await?
         .write(asset.path().owned().await?)
         .as_side_effect()
@@ -103,7 +103,7 @@ async fn emit_rebase(
         .await?;
     let content = asset.content();
     content
-        .resolve()
+        .to_resolved()
         .await?
         .write(path)
         .as_side_effect()

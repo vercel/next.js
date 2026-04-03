@@ -1,8 +1,12 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { LoadComponentsReturnType } from './load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
-import type { NextConfig, NextConfigComplete } from './config-shared'
+import type { NextConfig, NextConfigRuntime } from './config-shared'
+import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -14,11 +18,7 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-} from './response-cache'
-import type { UrlWithParsedQuery } from 'url'
+import type { ServerComponentsHmrCache } from './response-cache'
 import {
   NormalizeError,
   DecodeError,
@@ -46,7 +46,7 @@ import type { PathnameNormalizer } from './normalizers/request/pathname-normaliz
 import type { InstrumentationModule } from './instrumentation/types'
 
 import * as path from 'path'
-import { format as formatUrl, parse as parseUrl } from 'url'
+import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
   APP_PATHS_MANIFEST,
@@ -75,7 +75,10 @@ import {
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
-import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
+import {
+  parseUrl,
+  parseUrl as parseUrlUtil,
+} from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
@@ -84,6 +87,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -147,9 +151,17 @@ import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 import { RouteKind } from './route-kind'
+import type { ErrorModule } from './load-default-error-components'
+import {
+  getMaxPostponedStateSize,
+  getPostponedStateExceededErrorMessage,
+  readBodyWithSizeLimit,
+} from './lib/postponed-request-body'
 
-export type FindComponentsResult = {
-  components: LoadComponentsReturnType
+export type FindComponentsResult<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = {
+  components: LoadComponentsReturnType<NextModule>
   query: NextParsedUrlQuery
 }
 
@@ -231,9 +243,9 @@ export interface Options {
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
-export type LoadedRenderOpts = RenderOpts &
-  LoadComponentsReturnType &
-  RequestLifecycleOpts
+export type LoadedRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = RenderOpts & LoadComponentsReturnType<NextModule> & RequestLifecycleOpts
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
@@ -308,13 +320,15 @@ export default abstract class Server<
   public readonly port?: number
   protected readonly dir: string
   protected readonly quiet: boolean
-  protected readonly nextConfig: NextConfigComplete
+  protected readonly nextConfig: NextConfigRuntime
   protected readonly distDir: string
   protected readonly publicDir: string
   protected readonly hasStaticDir: boolean
   protected readonly pagesManifest?: PagesManifest
   protected readonly appPathsManifest?: PagesManifest
   protected readonly buildId: string
+  protected readonly deploymentId: string
+  protected readonly dev: boolean
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
@@ -323,7 +337,6 @@ export default abstract class Server<
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
   protected instrumentation: InstrumentationModule | undefined
-  private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -390,10 +403,6 @@ export default abstract class Server<
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
-
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
     | undefined {
@@ -438,6 +447,7 @@ export default abstract class Server<
       experimentalTestProxy,
     } = options
 
+    this.dev = dev
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
@@ -448,7 +458,28 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = conf as NextConfigRuntime
+
+    if (this.nextConfig.experimental.runtimeServerDeploymentId) {
+      if (!process.env.NEXT_DEPLOYMENT_ID) {
+        throw new Error(
+          'process.env.NEXT_DEPLOYMENT_ID is missing but runtimeServerDeploymentId is enabled'
+        )
+      }
+      this.deploymentId = process.env.NEXT_DEPLOYMENT_ID
+    } else {
+      let id = this.nextConfig.experimental.useSkewCookie
+        ? ''
+        : this.nextConfig.deploymentId || ''
+
+      this.deploymentId = id
+      process.env.NEXT_DEPLOYMENT_ID = id
+    }
+    ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
+      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
+        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
+        : ''
+
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched
@@ -503,13 +534,11 @@ export default abstract class Server<
     }
 
     this.nextFontManifest = this.getNextFontManifest()
-    process.env.NEXT_DEPLOYMENT_ID = this.nextConfig.deploymentId || ''
 
     this.renderOpts = {
       dir: this.dir,
       supportsDynamicResponse: true,
       trailingSlash: this.nextConfig.trailingSlash,
-      deploymentId: this.nextConfig.deploymentId,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPrerenderManifest().preview,
@@ -541,12 +570,25 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
+        optimisticRouting:
+          this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          this.nextConfig.experimental.maxPostponedStateSize
+        ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
+      logServerFunctions:
+        typeof this.nextConfig.logging === 'object' &&
+        Boolean(this.nextConfig.logging.serverFunctions),
     }
 
     this.pagesManifest = this.getPagesManifest()
@@ -563,7 +605,6 @@ export default abstract class Server<
     void this.matchers.reload()
 
     this.setAssetPrefix(assetPrefix)
-    this.responseCache = this.getResponseCache({ dev })
   }
 
   protected reloadMatchers() {
@@ -838,6 +879,13 @@ export default abstract class Server<
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
+      // Capture the parent span before creating the handleRequest span.
+      // When deployed with an adapter, the platform's runtime may create its
+      // own OTEL HTTP server span before Next.js runs. We propagate http.route
+      // to this parent span so APM tools (e.g. Datadog) can derive the
+      // resource name correctly.
+      const parentSpan = tracer.getActiveScopeSpan()
+
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -896,6 +944,14 @@ export default abstract class Server<
                 'next.span_name': name,
               })
               span.updateName(name)
+
+              // Propagate http.route to the parent span if one exists and
+              // is different from the handleRequest span. This ensures APM
+              // tools that read attributes from the outermost span (e.g.
+              // a platform-created HTTP span) can derive the resource name.
+              if (parentSpan && parentSpan !== span) {
+                parentSpan.setAttribute('http.route', route)
+              }
             } else {
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
@@ -939,7 +995,7 @@ export default abstract class Server<
           throw new Error('Invariant: url can not be undefined')
         }
 
-        parsedUrl = parseUrl(req.url!, true)
+        parsedUrl = parseUrl(req.url)
       }
 
       if (!parsedUrl.pathname) {
@@ -1035,14 +1091,28 @@ export default abstract class Server<
             req.headers[NEXT_RESUME_HEADER] === '1' &&
             req.method === 'POST'
           ) {
+            const { maxPostponedStateSize, maxPostponedStateSizeBytes } =
+              getMaxPostponedStateSize(
+                this.nextConfig.experimental.maxPostponedStateSize
+              )
+
             // Decode the postponed state from the request body, it will come as
             // an array of buffers, so collect them and then concat them to form
             // the string.
-            const body: Array<Buffer> = []
-            for await (const chunk of req.body) {
-              body.push(chunk)
+            const body = await readBodyWithSizeLimit(
+              req.body,
+              maxPostponedStateSizeBytes
+            )
+            if (body === null) {
+              res.statusCode = 413
+              res
+                .body(
+                  getPostponedStateExceededErrorMessage(maxPostponedStateSize)
+                )
+                .send()
+              return
             }
-            const postponed = Buffer.concat(body).toString('utf8')
+            const postponed = body.toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
           }
@@ -1161,7 +1231,11 @@ export default abstract class Server<
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
           if (didRewrite && rewrittenParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
+            addRequestMeta(
+              req,
+              'rewrittenPathname',
+              rewrittenParsedUrl.pathname
+            )
           }
 
           const routeParamKeys = new Set<string>()
@@ -1456,7 +1530,7 @@ export default abstract class Server<
 
         if (parsedUrl.pathname !== parsedMatchedPath.pathname) {
           parsedUrl.pathname = parsedMatchedPath.pathname
-          addRequestMeta(req, 'rewroteURL', invokePathnameInfo.pathname)
+          addRequestMeta(req, 'rewrittenPathname', invokePathnameInfo.pathname)
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
@@ -1534,11 +1608,7 @@ export default abstract class Server<
         return this.renderError(null, req, res, '/_error', {})
       }
 
-      if (
-        this.minimalMode ||
-        this.renderOpts.dev ||
-        (isBubbledError(err) && err.bubble)
-      ) {
+      if (this.minimalMode || this.dev || (isBubbledError(err) && err.bubble)) {
         throw err
       }
       this.logError(getProperError(err))
@@ -1667,7 +1737,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -1677,7 +1747,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: NextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -1729,11 +1799,11 @@ export default abstract class Server<
     const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader, dev } = this.renderOpts
+      const { generateEtags, poweredByHeader } = this.renderOpts
 
       // In dev, we should not cache pages for any reason.
-      if (dev) {
-        res.setHeader('Cache-Control', 'no-store, must-revalidate')
+      if (this.dev) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         cacheControl = undefined
       }
 
@@ -2035,12 +2105,13 @@ export default abstract class Server<
       }
     }
 
-    // Compute the iSSG cache key. We use the rewroteUrl since
+    // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
-    let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+    let resolvedUrlPathname =
+      getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
@@ -2057,7 +2128,7 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
-    } else if (!this.renderOpts.dev) {
+    } else if (!this.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
 
@@ -2132,6 +2203,22 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // Whether the testing API is exposed (dev mode or explicit flag)
+    const exposeTestingApi =
+      this.dev === true ||
+      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
+
+    // Check for the instant test cookie for MPA navigations (page reload, full
+    // page load) in the Instant Navigation Testing API. Only applies to
+    // document requests (no RSC header) - RSC requests should proceed normally
+    // even during a locked scope, with blocking happening on the client side.
+    const hasInstantTestCookie =
+      exposeTestingApi &&
+      req.headers[RSC_HEADER] === undefined &&
+      typeof req.headers.cookie === 'string' &&
+      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      couldSupportPPR
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2143,10 +2230,9 @@ export default abstract class Server<
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
-        // but only during development.
-        (hasDebugStaticShellQuery &&
-          (this.renderOpts.dev === true ||
-            this.experimentalTestProxy === true)))
+        // but only during development or when the testing API is exposed.
+        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
+          (exposeTestingApi || this.experimentalTestProxy === true)))
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2212,7 +2298,7 @@ export default abstract class Server<
     }
 
     // In development, we always want to generate dynamic HTML.
-    if (!isNextDataRequest && isAppPath && opts.dev) {
+    if (!isNextDataRequest && isAppPath && this.dev) {
       opts.supportsDynamicResponse = true
     }
 
@@ -2248,6 +2334,11 @@ export default abstract class Server<
       isDynamicRoute(pathname) &&
       (components.getStaticPaths || isAppPath)
     ) {
+      let getStaticPathsStart: bigint | undefined
+      if (this.dev) {
+        getStaticPathsStart = process.hrtime.bigint()
+      }
+
       const pathsResults = await this.getStaticPaths({
         pathname,
         urlPathname,
@@ -2255,6 +2346,15 @@ export default abstract class Server<
         page: components.page,
         isAppPath,
       })
+
+      if (this.dev && getStaticPathsStart && pathsResults.staticPaths?.length) {
+        addRequestMeta(
+          req,
+          'devGenerateStaticParamsDuration',
+          process.hrtime.bigint() - getStaticPathsStart
+        )
+      }
+
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
           let smallestFallbackRouteParams = null
@@ -2275,7 +2375,7 @@ export default abstract class Server<
           if (smallestFallbackRouteParams) {
             addRequestMeta(
               req,
-              'devFallbackParams',
+              'fallbackParams',
               createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
@@ -2326,15 +2426,7 @@ export default abstract class Server<
       addRequestMeta(request, 'invokeError', opts.err)
     }
 
-    const handler: (
-      req: ServerRequest | IncomingMessage,
-      res: ServerResponse | HTTPServerResponse,
-      ctx: {
-        waitUntil: ReturnType<Server['getWaitUntil']>
-      }
-    ) => Promise<void> = components.ComponentMod.handler
-
-    const maybeDevRequest =
+    const maybeDevRequest: ServerRequest | IncomingMessage =
       // we need to capture fetch metrics when they are set
       // and can't wait for handler to resolve as the fetch
       // metrics are logged on response close which happens
@@ -2357,7 +2449,14 @@ export default abstract class Server<
           })
         : request
 
-    await handler(maybeDevRequest, response, {
+    // @ts-expect-error This isn't entirely correct, but the ServerRequest type param seems overly
+    // generic anyway.
+    let handlerReq: IncomingMessage = maybeDevRequest
+    // @ts-expect-error This isn't entirely correct, but the ServerResponse type param seems overly
+    // generic anyway.
+    let handlerRes: HTTPServerResponse = response
+
+    await components.ComponentMod.handler(handlerReq, handlerRes, {
       waitUntil: this.getWaitUntil(),
     })
 
@@ -2455,7 +2554,7 @@ export default abstract class Server<
   protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
-  ): Promise<LoadComponentsReturnType | null>
+  ): Promise<LoadComponentsReturnType<ErrorModule> | null>
   protected abstract getRoutesManifest(): NormalizedRouteManifest | undefined
 
   private async renderToResponseImpl(
@@ -2552,8 +2651,8 @@ export default abstract class Server<
               url: ctx.req.url,
               matchedPath: ctx.req.headers[MATCHED_PATH_HEADER],
               initUrl: getRequestMeta(ctx.req, 'initURL'),
-              didRewrite: !!getRequestMeta(ctx.req, 'rewroteURL'),
-              rewroteUrl: getRequestMeta(ctx.req, 'rewroteURL'),
+              didRewrite: !!getRequestMeta(ctx.req, 'rewrittenPathname'),
+              rewrittenPathname: getRequestMeta(ctx.req, 'rewrittenPathname'),
             },
             null,
             2
@@ -2583,7 +2682,7 @@ export default abstract class Server<
       const isWrappedError = err instanceof WrappedBuildError
 
       if (!isWrappedError) {
-        if (this.minimalMode || this.renderOpts.dev) {
+        if (this.minimalMode || this.dev) {
           if (isError(err)) err.page = page
           throw err
         }
@@ -2705,7 +2804,7 @@ export default abstract class Server<
   ): Promise<ResponsePayload | null> {
     // Short-circuit favicon.ico in development to avoid compiling 404 page when the app has no favicon.ico.
     // Since favicon.ico is automatically requested by the browser.
-    if (this.renderOpts.dev && ctx.pathname === '/favicon.ico') {
+    if (this.dev && ctx.pathname === '/favicon.ico') {
       return {
         body: RenderResult.EMPTY,
       }
@@ -2757,7 +2856,7 @@ export default abstract class Server<
       ) {
         // skip ensuring /500 in dev mode as it isn't used and the
         // dev overlay is used instead
-        if (statusPage !== '/500' || !this.renderOpts.dev) {
+        if (statusPage !== '/500' || !this.dev) {
           if (!result && hasAppDir) {
             // Otherwise if app router present, load app router built-in 500 page
             result = await this.findPageComponents({
@@ -2814,7 +2913,7 @@ export default abstract class Server<
       if (!result) {
         // this can occur when a project directory has been moved/deleted
         // which is handled in the parent process in development
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           return {
             // wait for dev-server to restart before refreshing
             body: RenderResult.fromStatic(
@@ -2936,7 +3035,7 @@ export default abstract class Server<
     parsedUrl?: Pick<NextUrlWithParsedQuery, 'pathname' | 'query'>,
     setHeaders = true
   ): Promise<void> {
-    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url!, true)
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(req.url)
 
     // Ensure the locales are provided on the request meta.
     if (this.nextConfig.i18n) {

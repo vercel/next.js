@@ -1,19 +1,39 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
+  private _deploymentId: string | undefined
+  private _immutableAssetToken: string | undefined
   private _cliOutput: string = ''
 
   private _prerenderFinishedTimeMS: number | null = null
 
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (!opts.disableAutoSkewProtection && shouldUseTurbopack()) {
+      this.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+      this.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    }
+  }
+
   public get buildId() {
     return this._buildId
+  }
+
+  public get deploymentId() {
+    return this._deploymentId
+  }
+
+  public get immutableAssetToken() {
+    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
   }
 
   public get cliOutput() {
@@ -113,6 +133,24 @@ export class NextStartInstance extends NextInstance {
           )
           .catch(() => '')
       ).trim()
+
+      try {
+        const requiredServerFiles = JSON.parse(
+          await fs.readFile(
+            path.join(
+              this.testDir,
+              this.nextConfig?.distDir || '.next',
+              'required-server-files.json'
+            ),
+            'utf8'
+          )
+        )
+        this._deploymentId =
+          requiredServerFiles.config?.deploymentId || undefined
+        this._immutableAssetToken =
+          requiredServerFiles.config?.experimental.immutableAssetToken ||
+          undefined
+      } catch {}
     }
 
     console.log('running', shellQuote(startArgs))
@@ -217,7 +255,7 @@ export class NextStartInstance extends NextInstance {
       )
     }
 
-    return new Promise<{
+    let result = await new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
@@ -238,6 +276,38 @@ export class NextStartInstance extends NextInstance {
         })
       })
     })
+
+    this._buildId = (
+      await fs
+        .readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'BUILD_ID'
+          ),
+          'utf8'
+        )
+        .catch(() => '')
+    ).trim()
+
+    try {
+      const requiredServerFiles = JSON.parse(
+        await fs.readFile(
+          path.join(
+            this.testDir,
+            this.nextConfig?.distDir || '.next',
+            'required-server-files.json'
+          ),
+          'utf8'
+        )
+      )
+      this._deploymentId = requiredServerFiles.config?.deploymentId || undefined
+      this._immutableAssetToken =
+        requiredServerFiles.config?.experimental.immutableAssetToken ||
+        undefined
+    } catch {}
+
+    return result
   }
 
   public async waitForMinPrerenderAge(minAgeMS: number): Promise<void> {

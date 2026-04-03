@@ -1,13 +1,15 @@
+import type { NextConfigComplete } from '../../server/config-shared'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { isFileSystemCacheEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers } from '../get-supported-browsers'
+import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
-import type { NextConfigComplete } from '../../server/config-shared'
-import type { __ApiPreviewProps } from '../../server/api-utils'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -25,7 +27,7 @@ export async function turbopackAnalyze(
 }> {
   await validateTurboNextConfig({
     dir: analyzeContext.dir,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const { config, dir, distDir, noMangling } = analyzeContext
@@ -33,11 +35,21 @@ export async function turbopackAnalyze(
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack analyze is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   const dev = false
 
   const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isFileSystemCacheEnabledForBuild(config)
+  const persistentCaching =
+    config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
   const project = await bindings.turbo.createProject(
     {
@@ -77,9 +89,11 @@ export async function turbopackAnalyze(
       noMangling,
       writeRoutesHashesManifest: false,
       currentNodeJsVersion,
+      isPersistentCachingEnabled: persistentCaching,
+      nextVersion: process.env.__NEXT_VERSION as string,
+      hashSalt: config.hashSalt,
     },
     {
-      persistentCaching,
       memoryLimit: config.experimental?.turbopackMemoryLimit,
       dependencyTracking: persistentCaching,
       isCi: isCI,
@@ -88,7 +102,11 @@ export async function turbopackAnalyze(
   )
 
   try {
-    backgroundLogCompilationEvents(project)
+    const analyzeEventsSpan = trace('turbopack-analyze-events')
+    // Stop immediately: this span is only used as a parent for
+    // manualTraceChild calls which carry their own timestamps.
+    analyzeEventsSpan.stop()
+    backgroundLogCompilationEvents(project, { parentSpan: analyzeEventsSpan })
 
     await project.writeAnalyzeData(analyzeContext.appDirOnly)
 

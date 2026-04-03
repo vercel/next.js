@@ -15,6 +15,7 @@ describe('next-link', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E319",
          "description": "Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
@@ -28,8 +29,9 @@ describe('next-link', () => {
        }
       `)
     }
-    expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-      `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
+    // Client errors show "This page couldn\u2019t load"
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This page couldn\u2019t load'
     )
   })
 
@@ -39,6 +41,7 @@ describe('next-link', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E319",
          "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto"\` in \`<Link>\`, but got \`string\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
@@ -51,8 +54,9 @@ describe('next-link', () => {
          ],
        }
       `)
-      expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-        `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
+      // Client errors show "This page couldn\u2019t load"
+      expect(await browser.elementByCss('body').text()).toContain(
+        'This page couldn\u2019t load'
       )
     } else {
       expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(

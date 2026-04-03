@@ -6,11 +6,13 @@ describe('getSegmentValue', () => {
   })
 
   it('should support dynamic segment', () => {
-    expect(getSegmentValue(['slug', 'hello-world', 'd'])).toEqual('hello-world')
+    expect(getSegmentValue(['slug', 'hello-world', 'd', null])).toEqual(
+      'hello-world'
+    )
   })
 
   it('should support catch all segment', () => {
-    expect(getSegmentValue(['slug', 'blog/hello-world', 'c'])).toEqual(
+    expect(getSegmentValue(['slug', 'blog/hello-world', 'c', null])).toEqual(
       'blog/hello-world'
     )
   })

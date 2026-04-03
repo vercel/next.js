@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use arbitrary::Arbitrary;
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -15,10 +15,10 @@ use turbo_tasks_malloc::TurboMalloc;
     Eq,
     Hash,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskReferenceSpec {
     task: u16,
@@ -35,10 +35,10 @@ pub struct TaskReferenceSpec {
     Eq,
     Hash,
     NonLocalValue,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
@@ -146,7 +146,7 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
             for i in 0..iterations {
                 let spec = spec.clone();
                 tt.run(async move {
-                    let it = create_state().resolve().await?;
+                    let it = *create_state().to_resolved().await?;
                     it.await?.set(i);
                     let task = run_task(spec.clone(), it, 0);
                     task.strongly_consistent().await?;

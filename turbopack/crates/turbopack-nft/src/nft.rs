@@ -2,11 +2,10 @@ use std::{collections::HashSet, env::current_dir, path::PathBuf};
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -25,6 +24,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     traced_asset::TracedAsset,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 pub async fn node_file_trace(
@@ -35,7 +35,7 @@ pub async fn node_file_trace(
     max_depth: Option<usize>,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph, max_depth);
-    let result = op.resolve_strongly_consistent().await?;
+    let result = op.read_strongly_consistent().await?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -51,7 +51,7 @@ pub async fn node_file_trace(
     }
 
     println!("FILELIST:");
-    for a in result.await? {
+    for a in result {
         println!("{a}");
     }
 
@@ -155,17 +155,18 @@ async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>, max_depth: usize) -> 
         for _ in 0..depth {
             indent.push_str("  ");
         }
+        let path = asset.path();
         if visited.insert(asset) {
             if depth < max_depth {
                 for &asset in references.iter().rev() {
                     queue.push((depth + 1, asset));
                 }
             }
-            result.push(format!("{}{}", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path}").await?);
         } else if references.is_empty() {
-            result.push(format!("{}{} *", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path} *").await?);
         } else {
-            result.push(format!("{}{} *...", indent, asset.path().to_string().await?).into());
+            result.push(turbofmt!("{indent}{path} *...").await?);
         }
     }
     result.push("".into());

@@ -39,6 +39,13 @@ declare module '*.module.scss' {
   export default classes
 }
 
+// CSS side-effect imports (non-modules)
+// These are needed for `noUncheckedSideEffectImports` support
+// See: https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports
+declare module '*.css' {}
+declare module '*.sass' {}
+declare module '*.scss' {}
+
 // We implement the behavior of `import 'server-only'` and `import 'client-only'` on the compiler level
 // and thus don't require having them installed as dependencies.
 // By default it works fine with typescript, because (surprisingly) TSC *doesn't check side-effecting imports*.
@@ -63,6 +70,26 @@ declare module 'client-only' {
    */
 }
 
+interface TurbopackHotApi {
+  accept(): void
+  accept(cb: () => void): void
+  accept(dep: string | string[], cb?: () => void): void
+  decline(): void
+  decline(dep: string | string[]): void
+  dispose(cb: (data: Record<string, unknown>) => void): void
+  invalidate(): void
+  readonly data: Record<string, unknown>
+}
+
+interface ImportMeta {
+  /**
+   * The HMR API for ESM modules when using Turbopack.
+   * Equivalent to `module.hot` in CommonJS modules.
+   * Only available in development mode.
+   */
+  turbopackHot?: TurbopackHotApi
+}
+
 interface Window {
   MSInputMethodContext?: unknown
   /** @internal */
@@ -75,6 +102,8 @@ interface Window {
     | 'top-right'
     | 'bottom-left'
     | 'bottom-right'
+  /** @internal - Set by the server when serving a static shell for instant navigation tests */
+  __next_instant_test?: 1
 }
 
 interface NextFetchRequestConfig {

@@ -178,12 +178,6 @@ impl<'a> SpanRef<'a> {
 
     // TODO(sokra) use events instead of children for visualizing span graphs
     #[allow(dead_code)]
-    pub fn events_count(&self) -> usize {
-        self.span.events.len()
-    }
-
-    // TODO(sokra) use events instead of children for visualizing span graphs
-    #[allow(dead_code)]
     pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
         self.span.events.iter().map(|event| match event {
             &SpanEvent::SelfTime { start, end } => SpanEventRef::SelfTime {
@@ -475,7 +469,7 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
                     }
-                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                    if !span.is_complete() && span.span.name != "thread" {
                         let name = "incomplete_span";
                         index
                             .raw_entry_mut()

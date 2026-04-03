@@ -24,7 +24,6 @@ let currentBatch: Batch | null = null
 type ExpectedResponseConfig = {
   includes: string
   block?: boolean | 'reject'
-  allowMultipleResponses?: boolean
 }
 
 /**
@@ -225,9 +224,18 @@ export function createRouterAct(
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: (async () => {
-              const originalResponse = await page.request.fetch(request, {
-                maxRedirects: 0,
-              })
+              let originalResponse: Playwright.APIResponse
+              try {
+                originalResponse = await page.request.fetch(request, {
+                  maxRedirects: 0,
+                })
+              } catch (fetchError) {
+                error.message =
+                  fetchError instanceof Error
+                    ? fetchError.message
+                    : String(fetchError)
+                throw error
+              }
 
               // WORKAROUND:
               // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
@@ -285,6 +293,7 @@ export function createRouterAct(
     }
 
     const prevBatch = currentBatch
+
     const batch: Batch = {
       pendingRequestChecks: new Set(),
       pendingRequests: new Set(),
@@ -330,33 +339,10 @@ export function createRouterAct(
       // keep checking for more requests until the queue has settled.
       const remaining = new Set<PendingRSCRequest>()
       let actualResponses: Array<ExpectedResponseConfig> = []
-      let alreadyMatched = new Map<string, string>()
 
-      // Track when the queue was last empty to implement a settling period
-      let queueEmptyStartTime: number | null = null
-      const SETTLING_PERIOD_MS = 500 // Wait 500ms after queue empties
+      let claimedExpectations = new Set<ExpectedResponseConfig>()
 
-      while (
-        batch.pendingRequests.size > 0 ||
-        queueEmptyStartTime === null ||
-        Date.now() - queueEmptyStartTime < SETTLING_PERIOD_MS
-      ) {
-        if (batch.pendingRequests.size > 0) {
-          // Queue has requests, reset settling timer
-          queueEmptyStartTime = null
-        } else if (queueEmptyStartTime === null) {
-          // Queue just became empty, start settling timer
-          queueEmptyStartTime = Date.now()
-        }
-
-        if (batch.pendingRequests.size === 0) {
-          // Queue is empty during settling period, wait a bit and check again
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          await waitForIdleCallback()
-          await waitForPendingRequestChecks()
-          continue
-        }
-
+      while (batch.pendingRequests.size > 0) {
         const pending = batch.pendingRequests
         batch.pendingRequests = new Set()
         for (const item of pending) {
@@ -416,47 +402,73 @@ ${fulfilled.body}
               }
             }
             if (expectedResponses !== null) {
+              // Check if this response matches any of the expectations.
+              //
+              //
+              // The same response may match multiple expectations, but within
+              // that response the expected strings must appear in order. So
+              // once something matches, keep track of the remaining
+              // response body.
+              const entireResponseBody = fulfilled.body
+              let remainingUnclaimedBody = entireResponseBody
+
+              // If the response doesn't match any of the expectations, that's
+              // fine. If it does match an expectation, but the only thing
+              // it matches is an expectation that was already claimed, then
+              // that's an error — each occurence of an expectation must be
+              // given separately.
+              let responseWasClaimed = false
+              let firstAlreadyClaimedMatch: ExpectedResponseConfig | null = null
               for (const expectedResponse of expectedResponses) {
                 const includes = expectedResponse.includes
                 const block = expectedResponse.block
-                if (fulfilled.body.includes(includes)) {
-                  // Match. Don't check yet whether the responses are received
-                  // in the expected order. Instead collect all the matches and
-                  // check at the end so we can include a diff in the
-                  // error message.
-                  const otherResponse = alreadyMatched.get(includes)
-                  if (otherResponse !== undefined) {
-                    if (!expectedResponse.allowMultipleResponses) {
-                      error.message = `
-Received multiple responses containing the same expected substring.
+                if (!claimedExpectations.has(expectedResponse)) {
+                  // This expectation was not already claimed. Check if we
+                  // can claim it.
+                  if (remainingUnclaimedBody.includes(includes)) {
+                    // Match.
+                    responseWasClaimed = true
+                    // Remove everything up to and including the first
+                    // occurrence of the matched substring.
+                    remainingUnclaimedBody = remainingUnclaimedBody.slice(
+                      remainingUnclaimedBody.indexOf(includes) + includes.length
+                    )
+                    claimedExpectations.add(expectedResponse)
+                    actualResponses.push(expectedResponse)
+                    if (block) {
+                      shouldBlock = true
+                    }
+                    continue
+                  }
+                }
 
-Expected substring:
-${includes}
+                // This expectation was already claimed, but let's check if the
+                // same string occurs later, too. If it does, it implies that
+                // the server sent the same string multiple times. This is fine
+                // as long as there's a separate expectation for
+                // each occurrence.
+                if (
+                  firstAlreadyClaimedMatch === null &&
+                  remainingUnclaimedBody.includes(includes)
+                ) {
+                  firstAlreadyClaimedMatch = expectedResponse
+                }
+              }
 
-Responses:
+              if (!responseWasClaimed && firstAlreadyClaimedMatch !== null) {
+                // This response did not match any of the _unclaimed_
+                // expecations, but it did match something that had already
+                // been claimed by an earlier response. This is an error —
+                // if the same expectation matches multiple times, you must
+                // list out a separate expectation for each occurrence.
+                error.message = `
+The same expected substring was sent multiple times by the server:
 
-${otherResponse}
-
-${fulfilled.body}
+${firstAlreadyClaimedMatch.includes}
 
 Choose a more specific substring to assert on.
 `
-                      throw error
-                    }
-                  } else {
-                    alreadyMatched.set(includes, fulfilled.body)
-                    if (actualResponses === null) {
-                      actualResponses = [expectedResponse]
-                    } else {
-                      actualResponses.push(expectedResponse)
-                    }
-                  }
-                  if (block) {
-                    shouldBlock = true
-                  }
-                  // Keep checking all the expected responses to verify there
-                  // are no duplicate matches
-                }
+                throw error
               }
             }
           }
@@ -586,7 +598,10 @@ ${fulfilled.body}
             error.message =
               'Expected sequence of responses does not match:\n\n' +
               diff(expectedSubstrings, actualSubstrings) +
-              '\n'
+              '\n\n' +
+              'NOTE: Assertions are checked in order, so if an expectation ' +
+              'is missing, it may have actually appeared earlier in the ' +
+              'sequence than expected. Make sure the order is correct.'
           }
           throw error
         }

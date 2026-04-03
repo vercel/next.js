@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'http'
-import type { NextConfigComplete } from '../config-shared'
+import type { NextConfigRuntime } from '../config-shared'
 
 import { randomUUID } from 'crypto'
 import * as fs from 'fs'
@@ -18,7 +18,7 @@ export function isChromeDevtoolsWorkspaceUrl(
 export async function handleChromeDevtoolsWorkspaceRequest(
   response: ServerResponse,
   opts: { dir: string },
-  config: NextConfigComplete
+  config: NextConfigRuntime
 ): Promise<void> {
   response.setHeader('Content-Type', 'application/json')
   response.end(

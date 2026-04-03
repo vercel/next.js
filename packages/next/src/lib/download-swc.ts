@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
-import tar from 'next/dist/compiled/tar'
+import { x } from 'next/dist/compiled/tar'
 const { WritableStream } =
   require('node:stream/web') as typeof import('node:stream/web')
 import { getRegistry } from './helpers/get-registry'
@@ -20,7 +20,7 @@ async function extractBinary(
   )
 
   const extractFromTar = () =>
-    tar.x({
+    x({
       file: path.join(cacheDirectory, tarFileName),
       cwd: outputDirectory,
       strip: 1,

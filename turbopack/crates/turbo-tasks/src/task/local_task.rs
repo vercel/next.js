@@ -1,14 +1,10 @@
 use std::{fmt, sync::Arc};
 
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 
 use crate::{
-    MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
-    ValueTypeId,
-    backend::{Backend, TypedCellContent},
-    event::Event,
-    macro_helpers::NativeFunction,
-    registry,
+    CellId, MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
+    ValueTypeId, backend::Backend, event::Event, macro_helpers::NativeFunction, registry,
 };
 
 /// A potentially in-flight local task stored in `CurrentGlobalTaskState::local_tasks`.
@@ -40,7 +36,7 @@ pub enum LocalTaskType {
 impl fmt::Display for LocalTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.name),
+            LocalTaskType::ResolveNative { native_fn } => write!(f, "*{}", native_fn.ty.name),
             LocalTaskType::ResolveTrait { trait_method } => write!(
                 f,
                 "*{}::{}",
@@ -75,9 +71,11 @@ impl LocalTaskType {
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
         let this = this.resolve().await?;
-        let TypedCellContent(this_ty, _) = this.into_read().await?;
+        let RawVc::TaskCell(_, CellId { type_id, .. }) = this else {
+            bail!("Trait method receiver must be a cell");
+        };
 
-        let native_fn = Self::resolve_trait_method_from_value(trait_method, this_ty)?;
+        let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
         Ok(turbo_tasks.native_call(native_fn, Some(this), arg, persistence))
     }
@@ -88,11 +86,11 @@ impl LocalTaskType {
     ) -> Result<&'static NativeFunction> {
         match registry::get_value_type(value_type).get_trait_method(trait_method) {
             Some(native_fn) => Ok(native_fn),
-            None => Err(anyhow!(
+            None => bail!(
                 "{} doesn't implement the trait for {:?}, the compiler should have flagged this",
                 registry::get_value_type(value_type),
                 trait_method
-            )),
+            ),
         }
     }
 }

@@ -19,23 +19,25 @@ use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::css::{CssModuleAsset, ModuleCssAsset};
 use turbopack_core::{
     context::AssetContext,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraphWithBindingUsage},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
+use turbopack_css::{CssModule, EcmascriptCssModule};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
     dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
-    server_actions::{AllActions, AllModuleActions, map_server_actions, to_rsc_context},
+    server_actions::{
+        ActionMeta, AllActions, AllModuleActions, map_server_actions, to_rsc_context,
+    },
 };
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// list of NextDynamicEntryModules
@@ -52,12 +54,13 @@ impl NextDynamicGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = &graphs.iter_graphs().await?;
         let next_dynamic = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    NextDynamicGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    NextDynamicGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -130,10 +133,10 @@ pub struct DynamicImportEntriesWithImporter(
 impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_next_dynamic(*graph.graph);
+        let mapped = map_next_dynamic(*graph);
 
         Ok(NextDynamicGraph {
             is_single_page,
@@ -151,7 +154,7 @@ impl NextDynamicGraph {
         let span = tracing::info_span!("collect next/dynamic imports for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = self.graph.read().await?;
+            let graph = self.graph.await?;
 
             #[derive(Clone, PartialEq, Eq)]
             enum VisitState {
@@ -173,7 +176,7 @@ impl NextDynamicGraph {
 
             // module -> the client reference entry (if any)
             let mut state_map = FxHashMap::default();
-            graph.traverse_edges_from_entries_dfs(
+            graph.traverse_edges_dfs(
                 entries,
                 &mut (),
                 |parent_info, node, _| {
@@ -232,7 +235,7 @@ impl NextDynamicGraph {
 
 #[turbo_tasks::value]
 pub struct ServerActionsGraph {
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
 
     /// (Layer, RSC or Browser module) -> list of actions
@@ -249,12 +252,13 @@ impl ServerActionsGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = &graphs.iter_graphs().await?;
         let server_actions = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -316,10 +320,10 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph.graph);
+        let mapped = map_server_actions(*graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
@@ -343,7 +347,7 @@ impl ServerActionsGraph {
                 Cow::Borrowed(data)
             } else {
                 // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = self.graph.read().await?;
+                let graph = self.graph.await?;
 
                 if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
@@ -351,7 +355,7 @@ impl ServerActionsGraph {
                 }
 
                 let mut result = FxIndexMap::default();
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     vec![entry],
                     &mut result,
                     |node, result| {
@@ -372,12 +376,15 @@ impl ServerActionsGraph {
                     actions
                         .actions
                         .iter()
-                        .map(async |(hash, name)| {
+                        .map(async |(hash, entry)| {
                             Ok((
                                 hash.to_string(),
                                 (
                                     *layer,
-                                    name.to_string(),
+                                    ActionMeta {
+                                        name: entry.name.clone(),
+                                        source_path: actions.entry_path.clone(),
+                                    },
                                     if *layer == ActionLayer::Rsc {
                                         *module
                                     } else {
@@ -407,7 +414,7 @@ impl ServerActionsGraph {
 #[turbo_tasks::value]
 pub struct ClientReferencesGraph {
     is_single_page: bool,
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
 
     /// List of client references (modules that entries into the client graph)
     data: ResolvedVc<ClientReferenceData>,
@@ -423,12 +430,13 @@ impl ClientReferencesGraphs {
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let graphs_ref = &graphs.await?;
+        let graphs_ref = graphs.iter_graphs().await?;
         let client_references = async {
             graphs_ref
-                .iter_graphs()
+                .iter()
                 .map(|graph| {
-                    ClientReferencesGraph::new_with_entries(graph, is_single_page).to_resolved()
+                    ClientReferencesGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
                 })
                 .try_join()
                 .await
@@ -460,6 +468,7 @@ impl ClientReferencesGraphs {
         entry: Vc<Box<dyn Module>>,
         has_layout_segments: bool,
         include_traced: bool,
+        include_binding_usage: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -477,7 +486,9 @@ impl ClientReferencesGraphs {
                 // messes up the order of the server_component_entries.
                 let server_entries = async {
                     if has_layout_segments {
-                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        let server_entries =
+                            find_server_entries(entry, include_traced, include_binding_usage)
+                                .await?;
                         Ok(Some(server_entries))
                     } else {
                         Ok(None)
@@ -515,10 +526,10 @@ impl ClientReferencesGraphs {
 impl ClientReferencesGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: SingleModuleGraphWithBindingUsage,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_client_references(*graph.graph);
+        let mapped = map_client_references(*graph);
 
         Ok(Self {
             is_single_page,
@@ -536,7 +547,7 @@ impl ClientReferencesGraph {
         let span = tracing::info_span!("collect client references for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = self.graph.read().await?;
+            let graph = self.graph.await?;
 
             let entries = if !self.is_single_page {
                 if !graph.graphs.first().unwrap().has_entry_module(entry) {
@@ -556,7 +567,7 @@ impl ClientReferencesGraph {
             let mut server_components = FxIndexSet::default();
 
             // Perform a DFS traversal to find all server components included by this page.
-            graph.traverse_nodes_from_entries_dfs(
+            graph.traverse_nodes_dfs(
                 entries,
                 &mut (),
                 |node, _| {
@@ -612,7 +623,7 @@ impl ClientReferencesGraph {
             // necessarily rendered at the same time (not-found, or parallel routes), we need to
             // determine the order of client references individually for each server component.
             for sc in server_components.iter().copied() {
-                graph.traverse_nodes_from_entries_dfs(
+                graph.traverse_nodes_dfs(
                     std::iter::once(ResolvedVc::upcast(sc)),
                     &mut (),
                     |node, _| {
@@ -755,20 +766,15 @@ impl Issue for CssGlobalImportIssue {
     // TODO(PACK-4879): compute the source information by following the module references
 }
 
-type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
-
-#[turbo_tasks::value(transparent)]
-struct ModuleNameMap(pub FxModuleNameMap);
-
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports_individual(
-    graph: SingleModuleGraphWithBindingUsage,
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
     app_module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<()> {
-    let graph = graph.read().await?;
+    let graph = graph.await?;
     let entry = entry.to_resolved().await?;
 
     let entries = if !is_single_page {
@@ -783,7 +789,7 @@ async fn validate_pages_css_imports_individual(
 
     let mut candidates = vec![];
 
-    graph.traverse_edges_from_entries_dfs(
+    graph.traverse_edges_dfs(
         entries,
         &mut (),
         |parent_info, node, _| {
@@ -803,16 +809,15 @@ async fn validate_pages_css_imports_individual(
 
             // If the module being imported isn't a global css module, there is nothing to
             // validate.
-            let module_is_global_css =
-                ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+            let module_is_global_css = ResolvedVc::try_downcast_type::<CssModule>(module).is_some();
 
             if !module_is_global_css {
                 return Ok(GraphTraversalAction::Continue);
             }
 
             let parent_is_css_module =
-                ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module).is_some()
-                    || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
+                ResolvedVc::try_downcast_type::<EcmascriptCssModule>(parent_module).is_some()
+                    || ResolvedVc::try_downcast_type::<CssModule>(parent_module).is_some();
 
             // We also always allow .module css/scss/sass files to import global css files as
             // well.
@@ -835,9 +840,12 @@ async fn validate_pages_css_imports_individual(
     candidates
         .into_iter()
         .map(async |issue| {
+            let path = issue.module.ident().path().await?;
             // We allow imports of global CSS files which are inside of `node_modules`.
+            // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
+            // are mostly tooling-generated and co-located with the importing components
             Ok(
-                if !issue.module.ident().path().await?.is_in_node_modules() {
+                if !path.is_in_node_modules() && !path.file_name().starts_with("data:") {
                     Some(issue)
                 } else {
                     None
@@ -857,8 +865,9 @@ async fn validate_pages_css_imports_individual(
 /// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
 /// rules:
 /// * The import is made from a `node_modules` package
+/// * The imported CSS is a `data:` URL module
 /// * The import is made from a `.module.css` file
-/// * The import is made from the `pages/_app.js`, or equivalent file.
+/// * The import is made from the `pages/_app.js`, or equivalent file
 #[turbo_tasks::function]
 pub async fn validate_pages_css_imports(
     graph: Vc<ModuleGraph>,
@@ -866,12 +875,17 @@ pub async fn validate_pages_css_imports(
     entry: Vc<Box<dyn Module>>,
     app_module: Vc<Box<dyn Module>>,
 ) -> Result<()> {
-    let graphs = &graph.await?;
+    let graphs = graph.iter_graphs().await?;
     graphs
-        .iter_graphs()
+        .iter()
         .map(|graph| {
-            validate_pages_css_imports_individual(graph, is_single_page, entry, app_module)
-                .as_side_effect()
+            validate_pages_css_imports_individual(
+                graph.connect(),
+                is_single_page,
+                entry,
+                app_module,
+            )
+            .as_side_effect()
         })
         .try_join()
         .await?;

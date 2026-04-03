@@ -557,9 +557,9 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    */
   other?:
-    | ({
+    | {
         [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+      }
     | undefined
 }
 
@@ -567,7 +567,7 @@ interface Metadata extends DeprecatedMetadataFields {
  * ResolvedMetadataWithURLs represents the fully processed metadata after
  * defaults are applied and relative URLs are composed with `metadataBase`.
  */
-interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
+interface ResolvedMetadataWithURLs {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
   metadataBase: string | null | URL
@@ -657,11 +657,9 @@ interface ResolvedMetadataWithURLs extends DeprecatedMetadataFields {
   // meta name properties
   category: null | string
   classification: null | string
-  other:
-    | null
-    | ({
-        [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+  other: null | {
+    [name: string]: string | number | Array<string | number>
+  }
 }
 
 export type WithStringifiedURLs<T> = T extends URL

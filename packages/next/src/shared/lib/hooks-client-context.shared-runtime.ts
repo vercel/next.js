@@ -2,6 +2,7 @@
 
 import { createContext } from 'react'
 import type { Params } from '../../server/request/params'
+import { ReadonlyURLSearchParams } from '../../client/components/readonly-url-search-params'
 
 export const SearchParamsContext = createContext<URLSearchParams | null>(null)
 export const PathnameContext = createContext<string | null>(null)
@@ -17,8 +18,8 @@ export type InstrumentedPromise<T> = Promise<T> & {
 
 export type NavigationPromises = {
   pathname: InstrumentedPromise<string>
-  searchParams: InstrumentedPromise<any> // ReadonlyURLSearchParams
-  params: InstrumentedPromise<any> // Params
+  searchParams: InstrumentedPromise<ReadonlyURLSearchParams>
+  params: InstrumentedPromise<Params>
   // Layout segment hooks (updated at each layout boundary)
   selectedLayoutSegmentPromises?: Map<
     string,
@@ -43,6 +44,8 @@ export function createDevToolsInstrumentedPromise<T>(
   promise.displayName = `${displayName} (SSR)`
   return promise
 }
+
+export { ReadonlyURLSearchParams }
 
 if (process.env.NODE_ENV !== 'production') {
   SearchParamsContext.displayName = 'SearchParamsContext'

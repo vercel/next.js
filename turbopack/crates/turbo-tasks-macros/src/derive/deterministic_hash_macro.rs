@@ -24,6 +24,7 @@ pub fn derive_deterministic_hash(input: TokenStream) -> TokenStream {
     };
 
     quote! {
+        #[automatically_derived]
         impl turbo_tasks_hash::DeterministicHash for #ident {
             fn deterministic_hash<H: turbo_tasks_hash::DeterministicHasher>(&self, __state__: &mut H) {
                 #discriminant

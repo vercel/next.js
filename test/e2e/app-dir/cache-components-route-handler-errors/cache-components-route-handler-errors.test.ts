@@ -34,7 +34,7 @@ describe('cache-components-route-handler-errors', () => {
 
       if (isTurbopack) {
         expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(

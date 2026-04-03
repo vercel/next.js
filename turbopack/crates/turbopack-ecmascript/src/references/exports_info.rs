@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident, KeyValueProp, ObjectLit, PropName, PropOrSpread},
@@ -24,7 +24,7 @@ use crate::{
 ///
 /// This singleton behavior must be enforced by the caller!
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct ExportsInfoBinding {}
 
@@ -72,7 +72,7 @@ impl ExportsInfoBinding {
         Ok(CodeGeneration::hoisted_stmt(
             rcstr!("__webpack_exports_info__"),
             quote!(
-                "const $name = $data;" as Stmt,
+                "var $name = $data;" as Stmt,
                 name = exports_ident(),
                 data: Expr = data
             ),
@@ -92,7 +92,7 @@ impl From<ExportsInfoBinding> for CodeGen {
 /// There can be many references, and they appear at any nesting in the file. But all references
 /// refer to the same mutable object.
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct ExportsInfoRef {
     ast_path: AstPath,

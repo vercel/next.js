@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -24,6 +25,8 @@ use crate::{
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -44,17 +47,7 @@ impl ModuleOrBatch {
 }
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    TaskInput,
+    Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
 )]
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),

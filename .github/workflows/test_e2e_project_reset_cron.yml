@@ -10,6 +10,8 @@ on:
 env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
   NODE_LTS_VERSION: 20
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'

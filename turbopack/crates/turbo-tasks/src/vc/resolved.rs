@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -48,6 +49,12 @@ use crate::{
 /// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
 ///
 ///
+/// ## Reading a `ResolvedVc`
+///
+/// Even though a `Vc` may be resolved as a `ResolvedVc`, we must still use `.await?` to read it's
+/// value, as the value could be invalidated or cache-evicted.
+///
+///
 /// ## Equality & Hashing
 ///
 /// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
@@ -64,8 +71,9 @@ use crate::{
 /// [`NonLocalValue`]: crate::NonLocalValue
 /// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
 /// [`ReadRef`]: crate::ReadRef
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Encode, Decode)]
 #[serde(transparent, bound = "")]
+#[bincode(bounds = "T: ?Sized")]
 #[repr(transparent)]
 pub struct ResolvedVc<T>
 where
@@ -133,11 +141,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> Default for ResolvedVc<T>
+impl<T, Inner> Default for ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync + Default,
-    Repr: VcValueType,
 {
     fn default() -> Self {
         Self::cell(Default::default())
@@ -176,11 +183,10 @@ where
     }
 }
 
-impl<T, Inner, Repr> ResolvedVc<T>
+impl<T, Inner> ResolvedVc<T>
 where
-    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    T: VcValueType<Read = VcTransparentRead<T, Inner>>,
     Inner: Any + Send + Sync,
-    Repr: VcValueType,
 {
     pub fn cell(inner: Inner) -> Self {
         Self {
@@ -260,8 +266,6 @@ where
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
-    ///
-    /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
@@ -273,7 +277,9 @@ where
             <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
             "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
              instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id())
+                .ty
+                .global_name
         );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
@@ -292,8 +298,6 @@ where
     /// is of the form `Box<dyn L>`, and `L` is a value trait.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast`].
     pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueTrait + ?Sized,
@@ -305,8 +309,6 @@ where
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
     ///
     /// Returns `None` if the underlying value type is not a `K`.
-    ///
-    /// See also: [`Vc::try_resolve_downcast_type`].
     pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: UpcastStrict<T> + VcValueType,

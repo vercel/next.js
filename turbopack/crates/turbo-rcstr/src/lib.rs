@@ -9,6 +9,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -171,6 +178,12 @@ impl Deref for RcStr {
 
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for RcStr {
+    fn as_ref(&self) -> &str {
         self.as_str()
     }
 }
@@ -369,6 +382,20 @@ impl<'de> Deserialize<'de> for RcStr {
     }
 }
 
+impl Encode for RcStr {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.as_str().encode(encoder)
+    }
+}
+
+impl<Context> Decode<Context> for RcStr {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(RcStr::from(String::decode(decoder)?))
+    }
+}
+
+impl_borrow_decode!(RcStr);
+
 impl Drop for RcStr {
     fn drop(&mut self) {
         match self.tag() {
@@ -544,5 +571,57 @@ mod tests {
             }
         };
         assert_eq!(STR, RcStr::from("hello"));
+    }
+
+    #[test]
+    fn test_hash_matches_str() {
+        use std::hash::{Hash, Hasher};
+
+        use rustc_hash::FxHasher;
+
+        fn fxhash<T: Hash>(value: T) -> u64 {
+            let mut hasher = FxHasher::default();
+            value.hash(&mut hasher);
+            hasher.finish()
+        }
+
+        // Test various string lengths covering inline and prehashed storage
+        let test_strings = [
+            "",
+            "a",
+            "ab",
+            "abc",
+            "abcdef",  // max inline (6 chars)
+            "abcdefg", // just beyond inline (7 chars)
+            "abcdefgh",
+            "a very long string that exceeds sixteen bytes",
+        ];
+
+        // Test RcStr vs &str
+        for s in test_strings {
+            let rcstr = RcStr::from(s);
+            assert_eq!(
+                fxhash(&rcstr),
+                fxhash(s),
+                "Hash mismatch for string of length {}: {:?}",
+                s.len(),
+                s
+            );
+        }
+
+        // Test (RcStr, RcStr) vs (&str, &str)
+        for s1 in test_strings {
+            for s2 in test_strings {
+                let rcstr1 = RcStr::from(s1);
+                let rcstr2 = RcStr::from(s2);
+                assert_eq!(
+                    fxhash((&rcstr1, &rcstr2)),
+                    fxhash((s1, s2)),
+                    "Tuple hash mismatch for ({:?}, {:?})",
+                    s1,
+                    s2
+                );
+            }
+        }
     }
 }

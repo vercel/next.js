@@ -1,33 +1,39 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
-use super::{EsmAssetReference, base::ReferencedAsset};
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        esm::{EsmAssetReference, base::ReferencedAsset},
+    },
     utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
+    chunking_type: Option<ChunkingType>,
 }
 
 impl EsmModuleIdAssetReference {
-    pub fn new(inner: ResolvedVc<EsmAssetReference>) -> Self {
-        EsmModuleIdAssetReference { inner }
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, chunking_type: Option<ChunkingType>) -> Self {
+        EsmModuleIdAssetReference {
+            inner,
+            chunking_type,
+        }
     }
 }
 
@@ -37,23 +43,9 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("module id of {}", self.inner.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type.clone()
     }
 }
 
@@ -74,7 +66,7 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
 }
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPath,

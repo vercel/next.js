@@ -1699,7 +1699,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         _ => None,
     })
 }
-/// givin a number, return a base54 encoded string
+/// given a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
 pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =

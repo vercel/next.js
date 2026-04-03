@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     atoms::atom,
     base::SwcComments,
@@ -14,14 +14,14 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
-use super::AstPath;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
+    references::AstPath,
 };
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct MemberReplacement {
     key: RcStr,

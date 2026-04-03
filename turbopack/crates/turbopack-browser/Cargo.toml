@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bincode = { workspace = true }
 either = { workspace = true }
 indoc = { workspace = true }
 serde = { workspace = true }
@@ -28,6 +29,7 @@ serde_qs = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

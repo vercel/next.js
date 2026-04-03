@@ -21,7 +21,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::Layer,
     issue::{IssueExt, IssueSeverity, StyledString},
-    module_graph::ModuleGraph,
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ResolveResult,
@@ -37,22 +37,25 @@ use turbopack_node::{
     execution_context::ExecutionContext,
 };
 
-use self::{
-    font_fallback::get_font_fallback,
-    options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
-    stylesheet::build_stylesheet,
-    util::{get_font_axes, get_stylesheet_url},
-};
-use super::{
-    font_fallback::FontFallback,
-    util::{
-        FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
-        get_scoped_font_family,
-    },
-};
 use crate::{
-    embed_js::next_js_file_path, mode::NextMode, next_app::metadata::split_extension,
-    next_font::issue::NextFontIssue, util::load_next_js_json_file,
+    embed_js::next_js_file_path,
+    mode::NextMode,
+    next_app::metadata::split_extension,
+    next_font::{
+        font_fallback::FontFallback,
+        google::{
+            font_fallback::get_font_fallback,
+            options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
+            stylesheet::build_stylesheet,
+            util::{get_font_axes, get_stylesheet_url},
+        },
+        issue::NextFontIssue,
+        util::{
+            FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
+            get_scoped_font_family,
+        },
+    },
+    util::load_next_js_json_file,
 };
 
 pub mod font_fallback;
@@ -74,7 +77,8 @@ pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac
 pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
 
 #[turbo_tasks::value(transparent)]
-struct FontData(FxIndexMap<RcStr, FontDataEntry>);
+#[derive(Deserialize)]
+struct FontData(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FontDataEntry>);
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
@@ -140,7 +144,10 @@ impl NextFontGoogleReplacer {
             )
             .cell()),
         ).to_resolved().await?;
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(js_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -332,7 +339,10 @@ impl NextFontGoogleCssModuleReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(css_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -450,7 +460,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
                 .await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
@@ -460,7 +472,10 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(font_source))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -726,6 +741,7 @@ async fn get_mock_stylesheet(
         env,
         project_path: _,
         chunking_context,
+        node_backend,
     } = *execution_context.await?;
     let asset_context = node_evaluate_asset_context(
         execution_context,
@@ -755,14 +771,20 @@ async fn get_mock_stylesheet(
         )
         .module();
 
-    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_modules(entries.graph_entries(), false);
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        false,
+    ));
+    let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;
     let val = evaluate(
         entries,
         root,
         *env,
+        *node_backend,
         loader_source,
         *chunking_context,
         module_graph,

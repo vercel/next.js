@@ -2,11 +2,17 @@ import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,
   type AppRouteRouteModuleOptions,
+  type AppRouteUserlandModule,
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { addRequestMeta, getRequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+  type RequestMeta,
+} from '../../server/request-meta'
 import { getTracer, type Span, SpanKind } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -30,7 +36,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-
 import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
@@ -54,7 +59,17 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  userland,
+  // The static import is used for initialization (methods, dynamic, etc.).
+  userland: userland as AppRouteUserlandModule,
+  // In Turbopack dev mode, also provide a getter that calls require() on every
+  // request. This re-reads from devModuleCache so HMR updates are picked up,
+  // and the async wrapper unwraps async-module Promises (ESM-only
+  // serverExternalPackages) automatically.
+  ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
+    ? {
+        getUserland: () => import('VAR_USERLAND'),
+      }
+    : {}),
 })
 
 // Pull out the exports that we need to expose from the module. This should
@@ -81,9 +96,13 @@ export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
   ctx: {
-    waitUntil: (prom: Promise<void>) => void
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
   }
 ) {
+  if (ctx.requestMeta) {
+    setRequestMeta(req, ctx.requestMeta)
+  }
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -151,7 +170,7 @@ export async function handler(
 
     if (prerenderInfo) {
       if (prerenderInfo.fallback === false && !isPrerendered) {
-        if (nextConfig.experimental.adapterPath) {
+        if (nextConfig.adapterPath) {
           return await render404()
         }
         throw new NoFallbackError()
@@ -194,17 +213,33 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+
+  const incrementalCache =
+    getRequestMeta(req, 'incrementalCache') ||
+    (await routeModule.getIncrementalCache(
+      req,
+      nextConfig,
+      prerenderManifest,
+      isMinimalMode
+    ))
+
+  incrementalCache?.resetRequestCache()
+  ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest,
+    previewProps: prerenderManifest.preview,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
-      incrementalCache: getRequestMeta(req, 'incrementalCache'),
+      incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
@@ -238,6 +273,7 @@ export async function handler(
   )
 
   try {
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) => {
       return routeModule.handle(nextReq, context).finally(() => {
         if (!span) return
@@ -265,24 +301,24 @@ export async function handler(
           return
         }
 
-        const route = rootSpanAttributes.get('next.route')
-        if (route) {
-          const name = `${method} ${route}`
+        const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
+        const name = `${method} ${route}`
 
-          span.setAttributes({
-            'next.route': route,
-            'http.route': route,
-            'next.span_name': name,
-          })
-          span.updateName(name)
-        } else {
-          span.updateName(`${method} ${srcPage}`)
+        span.setAttributes({
+          'next.route': route,
+          'http.route': route,
+          'next.span_name': name,
+        })
+        span.updateName(name)
+
+        // Propagate http.route to the parent span if one exists (e.g.
+        // a platform-created HTTP span in adapter deployments).
+        if (parentSpan && parentSpan !== span) {
+          parentSpan.setAttribute('http.route', route)
+          parentSpan.updateName(name)
         }
       })
     }
-    const isMinimalMode = Boolean(
-      process.env.MINIMAL_MODE || getRequestMeta(req, 'minimalMode')
-    )
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -472,22 +508,27 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      parentSpan = tracer.getActiveScopeSpan()
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

@@ -1,18 +1,16 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::quote;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbopack_core::chunk::ChunkingContext;
 
-use super::AstPath;
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
+    references::AstPath,
 };
 
-#[derive(
-    Copy, Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum ConstantConditionValue {
     Truthy,
     Falsy,
@@ -20,7 +18,7 @@ pub enum ConstantConditionValue {
 }
 
 #[derive(
-    PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash,
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct ConstantConditionCodeGen {
     value: ConstantConditionValue,

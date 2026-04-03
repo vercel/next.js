@@ -51,6 +51,7 @@ import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
 import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
 import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
+import { DeferredEntriesPlugin } from './webpack/plugins/deferred-entries-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -64,7 +65,7 @@ import loadJsConfig, {
 } from './load-jsconfig'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
+import { getSupportedBrowsers } from './get-supported-browsers'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -320,9 +321,9 @@ export default async function getBaseWebpackConfig(
     compilerType,
     dev = false,
     entrypoints,
+    deferredEntrypoints,
     isDevFallback = false,
     pagesDir,
-    reactProductionProfiling = false,
     rewrites,
     originalRewrites,
     originalRedirects,
@@ -347,9 +348,9 @@ export default async function getBaseWebpackConfig(
     compilerType: CompilerNameValues
     dev?: boolean
     entrypoints: webpack.EntryObject
+    deferredEntrypoints?: webpack.EntryObject
     isDevFallback?: boolean
     pagesDir: string | undefined
-    reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
@@ -397,6 +398,8 @@ export default async function getBaseWebpackConfig(
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
+
+  const reactProductionProfiling = config.reactProductionProfiling ?? false
 
   const babelConfigFile = getBabelConfigFile(dir)
 
@@ -1232,7 +1235,7 @@ export default async function getBaseWebpackConfig(
         isRspack
           ? new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
-              // options should align with crates/napi/src/minify.rs#patch_opts
+              // options should align with crates/next-napi-bindings/src/minify.rs#patch_opts
               minimizerOptions: {
                 compress: {
                   inline: 2,
@@ -1342,6 +1345,9 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+      // Webpack requires hashSalt to be a non-empty string; omit it entirely
+      // when no salt is configured.
+      ...(config.hashSalt ? { hashSalt: config.hashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1793,6 +1799,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  hashSalt: config.hashSalt,
                 },
               },
             ]
@@ -1972,6 +1979,15 @@ export default async function getBaseWebpackConfig(
       //
       // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
       dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      // Handle deferred entries - must be added early to intercept entry processing
+      !isRspack &&
+        config.experimental.deferredEntries?.length &&
+        deferredEntrypoints &&
+        new DeferredEntriesPlugin({
+          dev,
+          config,
+          deferredEntrypoints,
+        }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(
           /\.\/(.+)\.shared-runtime$/,
@@ -2263,6 +2279,15 @@ export default async function getBaseWebpackConfig(
   if (isRspack) {
     // The layers experiment is now stable in Rspack
     delete webpack5Config.experiments!.layers
+
+    if (!webpack5Config.node) {
+      webpack5Config.node = {}
+    }
+    // NOTE: Rspack's defaults differ from webpack.
+    if (isClient || isEdgeServer) {
+      webpack5Config.node.__dirname = 'mock'
+      webpack5Config.node.__filename = 'mock'
+    }
   }
 
   webpack5Config.module!.parser = {
@@ -2352,7 +2377,7 @@ export default async function getBaseWebpackConfig(
     serverReferenceHashSalt: encryptionKey,
   })
 
-  const cache: any = {
+  const cache: webpack.Configuration['cache'] = {
     type: 'filesystem',
     // Disable memory cache in development in favor of our own MemoryWithGcCachePlugin.
     maxMemoryGenerations: dev ? 0 : Infinity, // Infinity is default value for production in webpack currently.
@@ -2397,6 +2422,30 @@ export default async function getBaseWebpackConfig(
   })
 
   webpack5Config.cache = cache
+
+  if (isRspack) {
+    const buildDependencies: string[] = []
+    if (config.configFile) {
+      buildDependencies.push(config.configFile)
+    }
+    if (babelConfigFile) {
+      buildDependencies.push(babelConfigFile)
+    }
+    if (jsConfigPath) {
+      buildDependencies.push(jsConfigPath)
+    }
+
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+      buildDependencies,
+      storage: {
+        type: 'filesystem',
+        directory: cache.cacheDirectory,
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
+    }
+  }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
@@ -2479,6 +2528,7 @@ export default async function getBaseWebpackConfig(
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    deploymentId: config.deploymentId,
   })
 
   // @ts-ignore Cache exists

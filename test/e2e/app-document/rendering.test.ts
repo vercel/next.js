@@ -89,13 +89,11 @@ describe('Document and App - Rendering via HTTP', () => {
         })
         $('link[rel=preload]').each((index, element) => {
           const href = $(element).attr('href')
-          expect(href.match(/\?/g)).toHaveLength(1)
-          expect(href).toMatch(/\?ts=/)
+          expect(href).toMatch(/^[^?]+\?ts=\d+$/)
         })
         $('script[src]').each((index, element) => {
           const src = $(element).attr('src')
-          expect(src.match(/\?/g)).toHaveLength(1)
-          expect(src).toMatch(/\?ts=/)
+          expect(src).toMatch(/^[^?]+\?ts=\d+$/)
         })
       })
     }

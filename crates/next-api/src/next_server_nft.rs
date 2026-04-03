@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -20,10 +20,10 @@ use turbopack_core::{
     file_source::FileSource,
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     nft_json::{all_assets_from_entries_filtered, relativize_glob},
@@ -31,7 +31,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Deserialize, Serialize, Debug, Clone, Hash, TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
 )]
 enum ServerNftType {
     Minimal,
@@ -177,6 +177,7 @@ impl ServerNftJsonAsset {
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
+            false,
         ));
 
         let project_path = self.project.project_path().owned().await?;
@@ -245,7 +246,7 @@ impl ServerNftJsonAsset {
                                 Request::parse_string(path.into()),
                                 CommonJsReferenceSubType::Undefined,
                                 None,
-                                false,
+                                ResolveErrorMode::Error,
                             )
                             .primary_modules()
                             .await?

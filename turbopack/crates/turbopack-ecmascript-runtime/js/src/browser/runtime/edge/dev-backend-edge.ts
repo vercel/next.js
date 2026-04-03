@@ -7,7 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../base/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
 
 let DEV_BACKEND: DevRuntimeBackend
 ;(() => {

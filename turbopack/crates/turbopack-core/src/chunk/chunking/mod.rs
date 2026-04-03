@@ -1,8 +1,8 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
@@ -11,13 +11,13 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
-use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext};
 use crate::{
     chunk::{
+        Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
         batch_info,
         chunk_item_batch::{
-            ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
-            ChunkItemOrBatchWithAsyncModuleInfo,
+            ChunkItemBatchGroup, ChunkItemBatchGroups, ChunkItemBatchWithAsyncModuleInfo,
+            ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfos,
         },
         chunking::{
             dev::{app_vendors_split, expand_batches},
@@ -49,9 +49,7 @@ struct BatchChunkItemsWithInfo(
     FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
-#[derive(
-    Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, ValueDebugFormat,
-)]
+#[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
         chunk_item: ChunkItemWithAsyncModuleInfo,
@@ -283,14 +281,17 @@ async fn batch_chunk_items_with_info_with_type(
 }
 
 /// Creates chunks based on heuristics for the passed `chunk_items`.
+#[turbo_tasks::function]
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
-    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    chunk_items_or_batches: ResolvedVc<ChunkItemOrBatchWithAsyncModuleInfos>,
+    batch_groups: ResolvedVc<ChunkItemBatchGroups>,
     key_prefix: RcStr,
-) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
+) -> Result<Vc<Chunks>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
+    let chunk_items_or_batches = chunk_items_or_batches.await?;
+    let batch_groups = batch_groups.await?;
 
     let span = tracing::trace_span!(
         "get chunk item info",
@@ -386,7 +387,7 @@ pub async fn make_chunks(
         .try_join()
         .await?;
 
-    Ok(resolved_chunks)
+    Ok(Vc::cell(resolved_chunks))
 }
 
 struct SplitContext<'a> {

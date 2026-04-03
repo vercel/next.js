@@ -1,4 +1,5 @@
 import { computeChangedPath } from './compute-changed-path'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 
 describe('computeChangedPath', () => {
   it('should return the correct path', () => {
@@ -15,7 +16,7 @@ describe('computeChangedPath', () => {
                   '(...)stats',
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ['key', 'github', 'd', null],
                       {
                         children: ['__PAGE__', {}],
                       },
@@ -27,7 +28,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          true,
+          PrefetchHint.IsRootLayout,
         ],
         [
           '',
@@ -40,7 +41,7 @@ describe('computeChangedPath', () => {
                   '(...)stats',
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ['key', 'github', 'd', null],
                       {
                         children: ['__PAGE__', {}],
                       },
@@ -52,7 +53,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          true,
+          PrefetchHint.IsRootLayout,
         ]
       )
     ).toBe('/')

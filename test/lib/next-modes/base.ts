@@ -54,6 +54,7 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  disableAutoSkewProtection?: boolean
 }
 
 /**
@@ -68,7 +69,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.0";
+const nextjsReactPeerVersion = "19.2.4";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -102,6 +103,11 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
+    const nextTestWasm =
+      process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
+    if (nextTestWasm) {
+      this.env.NEXT_TEST_WASM = nextTestWasm
+    }
 
     if (!isNextDeploy) {
       this.env = {
@@ -275,12 +281,19 @@ export class NextInstance {
                 },
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
-                  // since we can't get the build id as a build artifact, make it
-                  // available under the static files
-                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
+                  ...(isNextDeploy
+                    ? // since we can't get the build id as a build artifact,
+                      // add it in build logs
+                      {
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nIMMUTABLE_ASSET" + "_TOKEN: " + process.env.VERCEL_IMMUTABLE_ASSET_TOKEN)'`,
+                      }
+                    : {}),
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
+                    (this.buildArgs?.length
+                      ? ` ${this.buildArgs.join(' ')}`
+                      : '') +
                     ' && pnpm post-build',
                 },
               },
@@ -432,6 +445,13 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
+            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
+          }
+
         `
           )
 
@@ -619,6 +639,28 @@ export class NextInstance {
 
   public get buildId(): string {
     return ''
+  }
+
+  public get deploymentId(): string | undefined {
+    return undefined
+  }
+
+  public getDeploymentIdQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
+  }
+
+  public get immutableAssetToken(): string | undefined {
+    return undefined
+  }
+
+  public get assetToken(): string | undefined {
+    return this.immutableAssetToken || this.deploymentId
+  }
+
+  public getAssetQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.assetToken ? `${prefix}dpl=${this.assetToken}` : ''
   }
 
   public get cliOutput(): string {

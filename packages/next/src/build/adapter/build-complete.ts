@@ -30,22 +30,27 @@ import type {
   ManifestRewriteRoute,
   FunctionsConfigManifest,
   DynamicPrerenderManifestRoute,
+  ManifestHeaderRoute,
 } from '..'
 
 import {
+  CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
+
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-routes'
-import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { defaultOverrides } from '../../server/require-hook'
-import { makeIgnoreFn } from '../collect-build-traces'
+import { generateRoutesManifest } from '../generate-routes-manifest'
+import { Bundler } from '../../lib/bundler'
 
 interface SharedRouteFields {
   /**
@@ -84,6 +89,26 @@ interface SharedRouteFields {
    * to filePath on disk
    */
   wasmAssets?: Record<string, string>
+
+  /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
 
   /**
    * config related to the route
@@ -175,9 +200,9 @@ export interface AdapterOutput {
      */
     fallback?: {
       /**
-       * path to the fallback file can be HTML/JSON/RSC
+       * path to the fallback file can be HTML/JSON/RSC,
        */
-      filePath: string
+      filePath: string | undefined
       /**
        * initialStatus is the status code that should be applied
        * when serving the fallback
@@ -202,8 +227,9 @@ export interface AdapterOutput {
       /**
        * postponedState is the PPR state when it postponed and is used for resuming
        */
-      postponedState?: string
+      postponedState: string | undefined
     }
+
     /**
      * config related to the route
      */
@@ -229,6 +255,11 @@ export interface AdapterOutput {
        * renderingMode signals PPR or not for a prerender
        */
       renderingMode?: RenderingMode
+      /**
+       * partialFallback signals this prerender serves a partial fallback shell
+       * and should be upgraded to a full route in the background.
+       */
+      partialFallback?: boolean
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -244,10 +275,24 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
+    /**
+     * If this static file is immutable (because its filename contains a content hash), then this
+     * field contains the untruncated content hash.
+     */
+    immutableHash: string | undefined
   }
 
   /**
@@ -298,6 +343,20 @@ type DynamicRouteItem = {
   missing: RouteHas[] | undefined
 }
 
+type Route = {
+  // regex as string can have named or un-named matches
+  source?: string
+  sourceRegex: string
+  // destination can have matches to replace in destination
+  // keyed by $1 for un-named and $name for named
+  destination?: string
+  headers?: Record<string, string>
+  has?: RouteHas[]
+  missing?: RouteHas[]
+  status?: number
+  priority?: boolean
+}
+
 export interface NextAdapter {
   name: string
   /**
@@ -311,33 +370,28 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
-    routes: {
-      headers: Array<{
-        source: string
-        sourceRegex: string
-        headers: Record<string, string>
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      redirects: Array<{
-        source: string
-        sourceRegex: string
-        destination: string
-        statusCode: number
-        has: RouteHas[] | undefined
-        missing: RouteHas[] | undefined
-        priority?: boolean
-      }>
-      rewrites: {
-        beforeFiles: RewriteItem[]
-        afterFiles: RewriteItem[]
-        fallback: RewriteItem[]
-      }
-      dynamicRoutes: Array<DynamicRouteItem>
+    routing: {
+      beforeMiddleware: Array<Route>
+      beforeFiles: Array<Route>
+      afterFiles: Array<Route>
+      dynamicRoutes: Array<Route>
+      onMatch: Array<Route>
+      fallback: Array<Route>
+      /**
+       * shouldNormalizeNextData indicates whether Next.js data URLs
+       * (e.g., /_next/data/BUILD_ID/page.json) should be normalized
+       * during route resolution. This is true when middleware is present
+       * and there are pages router items to resolve.
+       */
+      shouldNormalizeNextData: boolean
+      rsc: RoutesManifest['rsc']
     }
     outputs: AdapterOutputs
     /**
@@ -392,10 +446,12 @@ function normalizePathnames(
 export async function handleBuildComplete({
   dir,
   config,
+  appType,
   buildId,
   configOutDir,
   distDir,
   pageKeys,
+  bundler,
   tracingRoot,
   adapterPath,
   appPageKeys,
@@ -413,6 +469,7 @@ export async function handleBuildComplete({
   functionsConfigManifest,
 }: {
   dir: string
+  appType: 'app' | 'pages' | 'hybrid'
   distDir: string
   buildId: string
   configOutDir: string
@@ -421,6 +478,7 @@ export async function handleBuildComplete({
   nextVersion: string
   hasStatic404: boolean
   hasStatic500: boolean
+  bundler: Bundler
   staticPages: Set<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
@@ -464,43 +522,38 @@ export async function handleBuildComplete({
           pathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
+          immutableHash: undefined,
         } satisfies AdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
+      const clientHashes: Record<string, string> | undefined =
+        bundler === Bundler.Turbopack && config.experimental.immutableAssetToken
+          ? JSON.parse(
+              await fs.readFile(
+                path.join(distDir, 'immutable-static-hashes.json'),
+                'utf8'
+              )
+            )
+          : undefined
+
       for (const file of staticFiles) {
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)
+        const id = path.join('static', file)
         outputs.staticFiles.push({
           type: AdapterOutputType.STATIC_FILE,
-          id: path.join('static', file),
+          id,
           pathname,
           filePath,
+          immutableHash: clientHashes?.[id],
         })
       }
 
       const sharedNodeAssets: Record<string, string> = {}
       const pagesSharedNodeAssets: Record<string, string> = {}
       const appPagesSharedNodeAssets: Record<string, string> = {}
-
-      const sharedTraceIgnores = [
-        '**/next/dist/compiled/next-server/**/*.dev.js',
-        '**/next/dist/compiled/webpack/*',
-        '**/node_modules/webpack5/**/*',
-        '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/semver/semver/**/*.js',
-        '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
-        '**/*.d.ts',
-        '**/*.map',
-        '**/next/dist/pages/**/*',
-        '**/node_modules/sharp/**/*',
-        '**/@img/sharp-libvips*/**/*',
-        '**/next/dist/compiled/edge-runtime/**/*',
-        '**/next/dist/server/web/sandbox/**/*',
-        '**/next/dist/server/post-process.js',
-      ]
-      const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
 
       for (const file of requiredServerFiles) {
         // add to shared node assets
@@ -509,6 +562,15 @@ export async function handleBuildComplete({
         sharedNodeAssets[fileOutputPath] = filePath
       }
 
+      // add "next/setup-node-env" stub so it can be required top-level
+      // TODO: should we make this always available without adapters
+      const setupNodeStubPath = path.join(
+        path.dirname(require.resolve('next/package.json')),
+        'setup-node-env.js'
+      )
+      sharedNodeAssets[path.relative(tracingRoot, setupNodeStubPath)] =
+        require.resolve('next/dist/build/adapter/setup-node-env.external')
+
       const moduleTypes = ['app-page', 'pages'] as const
 
       for (const type of moduleTypes) {
@@ -516,6 +578,8 @@ export async function handleBuildComplete({
         const modulePath = require.resolve(
           `next/dist/server/route-modules/${type}/module.compiled`
         )
+        currentDependencies.push(modulePath)
+
         const contextDir = path.join(
           path.dirname(modulePath),
           'vendored',
@@ -528,16 +592,12 @@ export async function handleBuildComplete({
           }
         }
 
-        const { fileList, esmFileList } = await nodeFileTrace(
-          currentDependencies,
-          {
-            base: tracingRoot,
-            ignore: sharedIgnoreFn,
-          }
-        )
-        esmFileList.forEach((item) => fileList.add(item))
+        for (const dependencyPath of currentDependencies) {
+          const rootRelativeFilePath = path.relative(
+            tracingRoot,
+            dependencyPath
+          )
 
-        for (const rootRelativeFilePath of fileList) {
           if (type === 'pages') {
             pagesSharedNodeAssets[rootRelativeFilePath] = path.join(
               tracingRoot,
@@ -552,28 +612,55 @@ export async function handleBuildComplete({
         }
       }
 
-      // These are modules that are necessary for bootstrapping node env
-      const necessaryNodeDependencies = [
-        require.resolve('next/dist/server/node-environment'),
-        require.resolve('next/dist/server/require-hook'),
-        require.resolve('next/dist/server/node-polyfill-crypto'),
-        ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
-      ]
+      if (bundler !== Bundler.Turbopack) {
+        const { nodeFileTrace } =
+          require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
+        const { makeIgnoreFn } =
+          require('../collect-build-traces') as typeof import('../collect-build-traces')
 
-      const { fileList, esmFileList } = await nodeFileTrace(
-        necessaryNodeDependencies,
-        {
-          base: tracingRoot,
-          ignore: sharedIgnoreFn,
-        }
-      )
-      esmFileList.forEach((item) => fileList.add(item))
+        const sharedTraceIgnores = [
+          '**/next/dist/compiled/next-server/**/*.dev.js',
+          '**/next/dist/compiled/webpack/*',
+          '**/node_modules/webpack5/**/*',
+          '**/next/dist/server/lib/route-resolver*',
+          'next/dist/compiled/semver/semver/**/*.js',
+          '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
+          '**/*.d.ts',
+          '**/*.map',
+          '**/next/dist/pages/**/*',
+          '**/node_modules/sharp/**/*',
+          '**/@img/sharp-libvips*/**/*',
+          '**/next/dist/compiled/edge-runtime/**/*',
+          '**/next/dist/server/web/sandbox/**/*',
+          '**/next/dist/server/post-process.js',
+        ]
+        const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
 
-      for (const rootRelativeFilePath of fileList) {
-        sharedNodeAssets[rootRelativeFilePath] = path.join(
-          tracingRoot,
-          rootRelativeFilePath
+        // These are modules that are necessary for bootstrapping node env
+        const necessaryNodeDependencies = [
+          require.resolve('next/dist/server/node-environment'),
+          require.resolve('next/dist/server/require-hook'),
+          require.resolve('next/dist/server/node-polyfill-crypto'),
+          ...Object.values(defaultOverrides).filter((item) =>
+            path.extname(item)
+          ),
+        ]
+
+        const { fileList, esmFileList } = await nodeFileTrace(
+          necessaryNodeDependencies,
+          {
+            base: tracingRoot,
+            ignore: sharedIgnoreFn,
+          }
         )
+        esmFileList.forEach((item) => fileList.add(item))
+
+        for (const rootRelativeFilePath of fileList) {
+          sharedNodeAssets[rootRelativeFilePath] = path.join(
+            tracingRoot,
+            rootRelativeFilePath
+          )
+        }
       }
 
       if (hasInstrumentationHook) {
@@ -647,6 +734,16 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        const pathname = isAppPrefix
+          ? normalizeAppPath(route)
+          : route === '/index'
+            ? '/'
+            : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -655,20 +752,13 @@ export async function handleBuildComplete({
           id: page.name,
           runtime: 'edge',
           sourcePage: route,
-          pathname: isAppPrefix ? normalizeAppPath(route) : route,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          pathname,
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
           wasmAssets: {},
           config: {
@@ -678,9 +768,9 @@ export async function handleBuildComplete({
 
         function handleFile(file: string) {
           const originalPath = path.join(distDir, file)
-          const fileOutputPath = path.join(
-            path.relative(tracingRoot, distDir),
-            file
+          const fileOutputPath = path.relative(
+            config.distDir,
+            path.join(path.relative(tracingRoot, distDir), file)
           )
           if (!output.assets) {
             output.assets = {}
@@ -691,7 +781,10 @@ export async function handleBuildComplete({
           handleFile(file)
         }
         for (const item of [...(page.assets || [])]) {
-          handleFile(item.filePath)
+          if (!output.assets) {
+            output.assets = {}
+          }
+          output.assets[item.name] = path.join(distDir, item.filePath)
         }
         for (const item of page.wasm || []) {
           if (!output.wasmAssets) {
@@ -732,6 +825,19 @@ export async function handleBuildComplete({
             ...output,
             pathname: rscPathname,
             id: page.name + '.rsc',
+          })
+        } else if (
+          type !== AdapterOutputType.MIDDLEWARE &&
+          serverPropsPages.has(pathname)
+        ) {
+          const nextDataPath = path.posix.join(
+            '/_next/data/',
+            buildId,
+            normalizePagePath(pathname) + '.json'
+          )
+          outputs.pages.push({
+            ...output,
+            pathname: nextDataPath,
           })
         }
       }
@@ -787,6 +893,7 @@ export async function handleBuildComplete({
                   pagesDistDir,
                   `${normalizePagePath(localePage)}.html`
                 ),
+                immutableHash: undefined,
               } satisfies AdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
@@ -797,6 +904,7 @@ export async function handleBuildComplete({
                   pathname: `${localePage}.rsc`,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
+                  immutableHash: undefined,
                 })
               }
             }
@@ -806,6 +914,7 @@ export async function handleBuildComplete({
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
+              immutableHash: undefined,
             } satisfies AdapterOutput['STATIC_FILE']
 
             outputs.staticFiles.push(staticOutput)
@@ -816,6 +925,7 @@ export async function handleBuildComplete({
                 pathname: `${route}.rsc`,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
+                immutableHash: undefined,
               })
             }
           }
@@ -870,6 +980,17 @@ export async function handleBuildComplete({
               pathname: dataPathname,
               id: dataPathname,
             })
+
+            if (appPageKeys && appPageKeys.length > 0) {
+              const rscPage = `${page === '/' ? '/index' : page}.rsc`
+              outputs.staticFiles.push({
+                id: rscPage,
+                pathname: rscPage,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: rscFallbackPath,
+                immutableHash: undefined,
+              })
+            }
           }
 
           for (const locale of config.i18n?.locales || []) {
@@ -893,19 +1014,19 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 id: dataPathname,
               })
+              if (appPageKeys && appPageKeys.length > 0) {
+                outputs.staticFiles.push({
+                  id: `${localePage}.rsc`,
+                  pathname: `${localePage}.rsc`,
+                  type: AdapterOutputType.STATIC_FILE,
+                  filePath: rscFallbackPath,
+                  immutableHash: undefined,
+                })
+              }
             }
           }
         } else {
           outputs.pagesApi.push(output)
-        }
-
-        if (appPageKeys && appPageKeys.length > 0) {
-          outputs.staticFiles.push({
-            id: `${output.id}.rsc`,
-            pathname: `${output.pathname}.rsc`,
-            type: AdapterOutputType.STATIC_FILE,
-            filePath: rscFallbackPath,
-          })
         }
       }
 
@@ -957,6 +1078,29 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
+
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[normalizedPage] ||
+            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                normalizedPage.slice(1)
+              )
+              return (
+                prerenderManifest.routes[localePathname] ||
+                prerenderManifest.dynamicRoutes[localePathname]
+              )
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
+            continue
+          }
           const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
           const assets = await handleTraceFiles(pageTraceFile, 'app').catch(
@@ -1007,6 +1151,11 @@ export async function handleBuildComplete({
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)
+            outputs.appRoutes.push({
+              ...output,
+              pathname: normalizePagePath(output.pathname) + '.rsc',
+              id: normalizePagePath(output.pathname) + '.rsc',
+            })
           }
         }
       }
@@ -1046,9 +1195,10 @@ export async function handleBuildComplete({
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
-        meta: {
-          postponed?: string
-          segmentPaths?: string[]
+        meta: AppRouteMeta,
+        ctx: {
+          htmlAllowQuery?: string[]
+          dataAllowQuery?: string[]
         }
       ) => {
         if (meta.postponed && initialOutput.fallback) {
@@ -1062,6 +1212,20 @@ export async function handleBuildComplete({
             `${normalizedRoute}${prefetchSegmentDirSuffix}`
           )
 
+          // If client param parsing is enabled, we follow the same logic as
+          // the HTML allowQuery as it's already going to vary based on if
+          // there's a static shell generated or if there's fallback root
+          // params. If there are fallback root params, and we can serve a
+          // fallback, then we should follow the same logic for the segment
+          // prerenders.
+          //
+          // If client param parsing is not enabled, we have to use the
+          // allowQuery because the segment payloads will contain dynamic
+          // segment values.
+          const segmentAllowQuery = routesManifest.rsc.clientParamParsing
+            ? ctx.htmlAllowQuery
+            : ctx.dataAllowQuery
+
           for (const segmentPath of meta.segmentPaths) {
             const outputSegmentPath =
               path.join(
@@ -1069,10 +1233,18 @@ export async function handleBuildComplete({
                 segmentPath
               ) + prefetchSegmentSuffix
 
-            const fallbackPathname = path.join(
-              segmentsDir,
-              segmentPath + prefetchSegmentSuffix
-            )
+            // Only use the fallback value when the allowQuery is defined and
+            // either: (1) it is empty, meaning segments do not vary by params,
+            // or (2) client param parsing is enabled, meaning the segment
+            // payloads are safe to reuse across params.
+            const shouldAttachSegmentFallback =
+              segmentAllowQuery &&
+              (segmentAllowQuery.length === 0 ||
+                routesManifest.rsc.clientParamParsing)
+
+            const fallbackPathname = shouldAttachSegmentFallback
+              ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
+              : undefined
 
             outputs.prerenders.push({
               id: outputSegmentPath,
@@ -1083,14 +1255,18 @@ export async function handleBuildComplete({
 
               config: {
                 ...initialOutput.config,
+                bypassFor: undefined,
+                partialFallback: undefined,
               },
 
               fallback: {
                 filePath: fallbackPathname,
+                postponedState: undefined,
                 initialExpiration: initialOutput.fallback?.initialExpiration,
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
 
                 initialHeaders: {
+                  ...meta.headers,
                   ...initialOutput.fallback?.initialHeaders,
                   vary: varyHeader,
                   'content-type': rscContentTypeHeader,
@@ -1128,11 +1304,19 @@ export async function handleBuildComplete({
           // normalize these for consistency
           for (const key of Object.keys(meta.headers)) {
             const keyLower = key.toLowerCase()
-            if (keyLower !== key) {
-              const value = meta.headers[key]
-              delete meta.headers[key]
-              meta.headers[keyLower] = value
+            let value = meta.headers[key]
+
+            // normalize values to strings (e.g. set-cookie can be an array)
+            if (Array.isArray(value)) {
+              value = value.join(', ')
+            } else if (typeof value !== 'string') {
+              value = String(value)
             }
+
+            if (keyLower !== key) {
+              delete meta.headers[key]
+            }
+            meta.headers[keyLower] = value
           }
         }
 
@@ -1159,8 +1343,8 @@ export async function handleBuildComplete({
           initialRevalidateSeconds: initialRevalidate,
           initialHeaders,
           initialStatus,
-          prefetchDataRoute,
           dataRoute,
+          prefetchDataRoute,
           renderingMode,
           allowHeader,
           experimentalBypassFor,
@@ -1172,6 +1356,12 @@ export async function handleBuildComplete({
         const isAppPage =
           Boolean(appOutputMap[srcRoute]) || srcRoute === '/_not-found'
 
+        // if we already have 404.html favor that instead of
+        // _not-found prerender
+        if (srcRoute === '/_not-found' && hasStatic404) {
+          continue
+        }
+
         const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
 
         let allowQuery: string[] | undefined
@@ -1179,7 +1369,7 @@ export async function handleBuildComplete({
           (item) => item.page === srcRoute
         )?.routeKeys
 
-        if (!isDynamicRoute(srcRoute)) {
+        if (!isDynamicRoute(route)) {
           // for non-dynamic routes we use an empty array since
           // no query values bust the cache for non-dynamic prerenders
           // prerendered paths also do not pass allowQuery as they match
@@ -1196,6 +1386,26 @@ export async function handleBuildComplete({
           isAppPage ? appDistDir : pagesDistDir,
           `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
+
+        // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
+        // These should be output as static files, not prerenders.
+        if (isStaticMetadataFile(route)) {
+          // For static metadata from app router, check if the .body file exists
+          const staticMetadataFilePath = path.join(
+            appDistDir,
+            `${normalizePagePath(route)}.body`
+          )
+          if (await cachedFilePathCheck(staticMetadataFilePath)) {
+            outputs.staticFiles.push({
+              id: route,
+              pathname: route,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: staticMetadataFilePath,
+              immutableHash: undefined,
+            })
+            continue
+          }
+        }
 
         // we use the static 404 for notFound: true if available
         // if not we do a blocking invoke on first request
@@ -1217,6 +1427,42 @@ export async function handleBuildComplete({
 
         const meta = await getAppRouteMeta(route, isAppPage)
 
+        let htmlAllowQuery = allowQuery
+        let dataAllowQuery = allowQuery
+        const dataInitialHeaders: Record<string, string> = {}
+
+        // We additionally vary based on if there's a postponed prerender
+        // because if there isn't, then that means that we generated an
+        // empty shell, and producing an empty RSC shell would be a waste.
+        // If there is a postponed prerender, then the RSC shell would be
+        // non-empty, and it would be valuable to also generate an empty
+        // RSC shell.
+        if (meta.postponed) {
+          htmlAllowQuery = []
+
+          if (routesManifest.rsc.dynamicRSCPrerender) {
+            // If client param parsing is enabled, we follow the same logic as the
+            // HTML allowQuery as it's already going to vary based on if there's a
+            // static shell generated or if there's fallback root params. If there
+            // are fallback root params, and we can serve a fallback, then we
+            // should follow the same logic for the dynamic RSC routes.
+            //
+            // If client param parsing is not enabled, we have to use the
+            // allowQuery because the RSC payloads will contain dynamic segment
+            // values.
+            if (routesManifest.rsc.clientParamParsing) {
+              dataAllowQuery = htmlAllowQuery
+            }
+          }
+        }
+
+        if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
+          // Dynamic RSC requests cannot be cached, so we explicity set it
+          // here to ensure that the response is not cached by the browser.
+          dataInitialHeaders['cache-control'] =
+            'private, no-store, no-cache, max-age=0, must-revalidate'
+        }
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
@@ -1228,7 +1474,7 @@ export async function handleBuildComplete({
           groupId: prerenderGroupId,
 
           pprChain:
-            isAppPage && config.experimental.ppr
+            isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
               ? {
                   headers: {
                     [NEXT_RESUME_HEADER]: '1',
@@ -1242,8 +1488,11 @@ export async function handleBuildComplete({
             !isNotFoundTrue || (isNotFoundTrue && hasStatic404)
               ? {
                   filePath,
+                  postponedState: undefined,
                   initialStatus:
-                    (initialStatus ?? isNotFoundTrue) ? 404 : undefined,
+                    initialStatus ??
+                    meta.status ??
+                    (isNotFoundTrue ? 404 : undefined),
                   initialHeaders: {
                     ...initialHeaders,
                     vary: varyHeader,
@@ -1261,17 +1510,38 @@ export async function handleBuildComplete({
             allowQuery,
             allowHeader,
             renderingMode,
-            bypassFor: experimentalBypassFor,
+            bypassFor:
+              isAppPage && srcRoute !== '/_not-found'
+                ? experimentalBypassFor
+                : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
         }
         outputs.prerenders.push(initialOutput)
 
+        if (!isAppPage && appPageKeys && appPageKeys.length > 0) {
+          const rscPage = `${route === '/' ? '/index' : route}.rsc`
+          outputs.staticFiles.push({
+            id: rscPage,
+            pathname: rscPage,
+            type: AdapterOutputType.STATIC_FILE,
+            filePath: rscFallbackPath,
+            immutableHash: undefined,
+          })
+        }
+
         if (dataRoute) {
-          let dataFilePath = path.join(
+          let dataFilePath: string | undefined = path.join(
             pagesDistDir,
             `${normalizePagePath(route)}.json`
           )
+          let postponed = meta.postponed
+
+          const dataRouteToUse =
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            prefetchDataRoute
+              ? prefetchDataRoute
+              : dataRoute
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -1281,34 +1551,61 @@ export async function handleBuildComplete({
             // route.
             dataFilePath = path.join(
               appDistDir,
-              prefetchDataRoute &&
-                renderingMode === RenderingMode.PARTIALLY_STATIC
-                ? prefetchDataRoute
-                : dataRoute
+              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
             )
           }
 
-          outputs.prerenders.push({
-            ...initialOutput,
-            id: dataRoute,
-            pathname: dataRoute,
-            fallback: isNotFoundTrue
-              ? undefined
-              : {
-                  ...initialOutput.fallback,
-                  initialHeaders: {
-                    ...initialOutput.fallback?.initialHeaders,
-                    'content-type': isAppPage
-                      ? rscContentTypeHeader
-                      : JSON_CONTENT_TYPE_HEADER,
-                  },
-                  filePath: dataFilePath,
+          if (
+            renderingMode === RenderingMode.PARTIALLY_STATIC &&
+            !(await cachedFilePathCheck(dataFilePath))
+          ) {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: {
+                ...initialOutput.fallback,
+                postponedState: postponed,
+                initialStatus: undefined,
+                initialHeaders: {
+                  ...initialOutput.fallback?.initialHeaders,
+                  ...dataInitialHeaders,
+                  'content-type': isAppPage
+                    ? rscContentTypeHeader
+                    : JSON_CONTENT_TYPE_HEADER,
                 },
-          })
+                filePath: undefined,
+              },
+            })
+          } else {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: dataRoute,
+              pathname: dataRoute,
+              fallback: isNotFoundTrue
+                ? undefined
+                : {
+                    ...initialOutput.fallback,
+                    initialStatus: undefined,
+                    initialHeaders: {
+                      ...initialOutput.fallback?.initialHeaders,
+                      ...dataInitialHeaders,
+                      'content-type': isAppPage
+                        ? rscContentTypeHeader
+                        : JSON_CONTENT_TYPE_HEADER,
+                    },
+                    postponedState: undefined,
+                    filePath: dataFilePath,
+                  },
+            })
+          }
         }
 
         if (isAppPage) {
-          await handleAppMeta(route, initialOutput, meta)
+          await handleAppMeta(route, initialOutput, meta, {
+            htmlAllowQuery,
+            dataAllowQuery,
+          })
         }
         prerenderGroupId += 1
       }
@@ -1320,34 +1617,87 @@ export async function handleBuildComplete({
           fallbackRevalidate,
           fallbackHeaders,
           fallbackStatus,
+          fallbackSourceRoute,
+          fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
           experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
-        const isAppPage = Boolean(appOutputMap[dynamicRoute])
+        const srcRoute = fallbackSourceRoute || dynamicRoute
+        const parentOutput = getParentOutput(srcRoute, dynamicRoute)
+        const isAppPage = Boolean(appOutputMap[srcRoute])
 
-        const allowQuery = Object.values(
+        const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
-        const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
+        const allowQuery = Object.values(routeKeys)
+        const partialFallbacksEnabled =
+          config.experimental.partialFallbacks === true
+        const partialFallback =
+          partialFallbacksEnabled &&
+          isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          typeof fallback === 'string' &&
+          Boolean(meta.postponed)
+
+        const canEmitPartialFallback =
+          partialFallback && fallbackRootParams?.length === 0
+        let htmlAllowQuery = allowQuery
+
+        // We only want to vary on the shell contents if there is a fallback
+        // present and able to be served.
+        if (typeof fallback === 'string') {
+          if (fallbackRootParams && fallbackRootParams.length > 0) {
+            htmlAllowQuery = fallbackRootParams as string[]
+          }
+
+          // We additionally vary based on if there's a postponed prerender
+          // because if there isn't, then that means that we generated an
+          // empty shell, and producing an empty RSC shell would be a waste.
+          // If there is a postponed prerender, then the RSC shell would be
+          // non-empty, and it would be valuable to also generate an empty
+          // RSC shell.
+          else if (meta.postponed) {
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For opt-in partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
+            htmlAllowQuery =
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
+                : []
+          }
+        }
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
           pathname: dynamicRoute,
-          parentOutputId: getParentOutput(dynamicRoute, dynamicRoute).id,
+          parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
-          config: {
-            allowQuery,
-            allowHeader,
-            renderingMode,
-            bypassFor: experimentalBypassFor,
-            bypassToken: prerenderManifest.preview.previewModeId,
-          },
+
+          pprChain:
+            isAppPage && renderingMode === RenderingMode.PARTIALLY_STATIC
+              ? {
+                  headers: {
+                    [NEXT_RESUME_HEADER]: '1',
+                  },
+                }
+              : undefined,
+
           fallback:
             typeof fallback === 'string'
               ? {
@@ -1357,36 +1707,120 @@ export async function handleBuildComplete({
                     // extension so ensure it's added here
                     fallback.endsWith('.html') ? fallback : `${fallback}.html`
                   ),
-                  initialStatus: fallbackStatus,
+                  postponedState: undefined,
+                  initialStatus: fallbackStatus ?? meta.status,
                   initialHeaders: {
                     ...fallbackHeaders,
+                    ...(appPageKeys?.length ? { vary: varyHeader } : {}),
                     'content-type': HTML_CONTENT_TYPE_HEADER,
+                    ...meta.headers,
                   },
                   initialExpiration: fallbackExpire,
-                  initialRevalidate: fallbackRevalidate || 1,
+                  initialRevalidate: fallbackRevalidate ?? 1,
                 }
               : undefined,
+          config: {
+            allowQuery: htmlAllowQuery,
+            allowHeader,
+            renderingMode,
+            partialFallback: canEmitPartialFallback || undefined,
+            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassToken: prerenderManifest.preview.previewModeId,
+          },
         }
 
         if (!config.i18n || isAppPage) {
           outputs.prerenders.push(initialOutput)
 
-          if (isAppPage) {
-            await handleAppMeta(dynamicRoute, initialOutput, meta)
+          if (
+            !isAppPage &&
+            fallback !== false &&
+            appPageKeys &&
+            appPageKeys.length > 0
+          ) {
+            const rscPage = `${srcRoute === '/' ? '/index' : srcRoute}.rsc`
+            outputs.staticFiles.push({
+              id: rscPage,
+              pathname: rscPage,
+              type: AdapterOutputType.STATIC_FILE,
+              filePath: rscFallbackPath,
+              immutableHash: undefined,
+            })
           }
 
-          if (dataRoute) {
+          let dataAllowQuery = allowQuery
+          const dataInitialHeaders: Record<string, string> = {}
+
+          if (meta.postponed && routesManifest.rsc.dynamicRSCPrerender) {
+            // If client param parsing is enabled, we follow the same logic as the
+            // HTML allowQuery as it's already going to vary based on if there's a
+            // static shell generated or if there's fallback root params. If there
+            // are fallback root params, and we can serve a fallback, then we
+            // should follow the same logic for the dynamic RSC routes.
+            //
+            // If client param parsing is not enabled, we have to use the
+            // allowQuery because the RSC payloads will contain dynamic segment
+            // values.
+            if (routesManifest.rsc.clientParamParsing) {
+              dataAllowQuery = htmlAllowQuery
+            }
+          }
+
+          if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
+            // Dynamic RSC requests cannot be cached, so we explicity set it
+            // here to ensure that the response is not cached by the browser.
+            dataInitialHeaders['cache-control'] =
+              'private, no-store, no-cache, max-age=0, must-revalidate'
+          }
+
+          if (isAppPage) {
+            await handleAppMeta(dynamicRoute, initialOutput, meta, {
+              htmlAllowQuery,
+              dataAllowQuery,
+            })
+          }
+
+          if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
+            outputs.prerenders.push({
+              ...initialOutput,
+              id: `${dynamicRoute}.rsc`,
+              pathname: `${dynamicRoute}.rsc`,
+              fallback: {
+                ...initialOutput.fallback,
+                filePath: undefined,
+                postponedState: meta.postponed,
+                initialStatus: undefined,
+                initialHeaders: {
+                  ...initialOutput.fallback?.initialHeaders,
+                  ...dataInitialHeaders,
+                  'content-type': isAppPage
+                    ? rscContentTypeHeader
+                    : JSON_CONTENT_TYPE_HEADER,
+                },
+              },
+
+              config: {
+                ...initialOutput.config,
+                allowQuery: dataAllowQuery,
+                partialFallback: undefined,
+              },
+            })
+          } else if (dataRoute) {
             outputs.prerenders.push({
               ...initialOutput,
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
+              config: {
+                ...initialOutput.config,
+                partialFallback: undefined,
+              },
             })
           }
           prerenderGroupId += 1
         } else {
           for (const locale of config.i18n.locales) {
-            const currentOutput = {
+            const currentOutput: AdapterOutput['PRERENDER'] = {
               ...initialOutput,
               pathname: path.posix.join(`/${locale}`, initialOutput.pathname),
               id: path.posix.join(`/${locale}`, initialOutput.id),
@@ -1394,6 +1828,8 @@ export async function handleBuildComplete({
                 typeof fallback === 'string'
                   ? {
                       ...initialOutput.fallback,
+                      initialStatus: undefined,
+                      postponedState: undefined,
                       filePath: path.join(
                         pagesDistDir,
                         locale,
@@ -1409,6 +1845,22 @@ export async function handleBuildComplete({
             }
             outputs.prerenders.push(currentOutput)
 
+            if (
+              !isAppPage &&
+              fallback !== false &&
+              appPageKeys &&
+              appPageKeys.length > 0
+            ) {
+              const rscPage = `${path.posix.join(`/${locale}`, initialOutput.pathname)}.rsc`
+              outputs.staticFiles.push({
+                id: rscPage,
+                pathname: rscPage,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: rscFallbackPath,
+                immutableHash: undefined,
+              })
+            }
+
             if (dataRoute) {
               const dataPathname = path.posix.join(
                 `/_next/data`,
@@ -1422,6 +1874,10 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
+                config: {
+                  ...initialOutput.config,
+                  partialFallback: undefined,
+                },
                 groupId: prerenderGroupId,
               })
             }
@@ -1460,6 +1916,7 @@ export async function handleBuildComplete({
                 id: currentDocPath,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: currentFilePath,
+                immutableHash: undefined,
               })
             }
           }
@@ -1502,11 +1959,9 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const { hasFallbackRootParams } = route
-
       const sourceRegex = routeRegex.namedRegex.replace(
         '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})?' : ''}`
+        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
       )
       const destination =
         path.posix.join(
@@ -1516,27 +1971,18 @@ export async function handleBuildComplete({
           route.page
         ) + getDestinationQuery(route.routeKeys)
 
-      if (appPageKeys && appPageKeys.length > 0 && config.cacheComponents) {
-        // If we have fallback root params (implying we've already
-        // emitted a rewrite for the /_tree request), or if the route
-        // has PPR enabled and client param parsing is enabled, then
-        // we don't need to include any other suffixes.
-        const shouldSkipSuffixes = hasFallbackRootParams
-
+      if (appPageKeys && appPageKeys.length > 0) {
         dynamicRoutes.push({
           source: route.page + '.rsc',
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            // Now than the upstream issues has been resolved, we can safely
-            // add the suffix back, this resolves a bug related to segment
-            // rewrites not capturing the correct suffix values when
-            // enabled.
-            shouldSkipSuffixes
-              ? '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-              : '(?<rscSuffix>\\.rsc|\\.prefetch\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
-          has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
+          has:
+            isFallbackFalse && !pageKeys.includes(route.page)
+              ? fallbackFalseHasCondition
+              : undefined,
           missing: undefined,
         })
       }
@@ -1630,7 +2076,7 @@ export async function handleBuildComplete({
                     config.basePath,
                     `_next/data`,
                     escapeStringRegexp(buildId)
-                  )}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})?' : ''}`
+                  )}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
                 ),
           destination,
           has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
@@ -1649,53 +2095,94 @@ export async function handleBuildComplete({
         destination: converted.dest || route.destination,
         has: route.has,
         missing: route.missing,
-      }
+      } satisfies Route
+    }
+
+    const buildRouteFromHeader = (route: ManifestHeaderRoute): Route => {
+      const converted = convertHeaders([route])[0]
+      const regex = converted.src || route.regex
+      return {
+        source: route.source,
+        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        headers: 'headers' in converted ? converted.headers || {} : {},
+        has: route.has,
+        missing: route.missing,
+        priority: route.internal || undefined,
+      } satisfies Route
     }
 
     try {
       Log.info(`Running onBuildComplete from ${adapterMod.name}`)
+
+      const combinedDynamicRoutes = [
+        ...dynamicDataRoutes,
+        ...dynamicSegmentRoutes,
+        ...dynamicRoutes,
+      ] satisfies Route[]
+
+      const rewrites = {
+        beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
+        afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
+        fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
+      }
+
+      const redirects = routesManifest.redirects.map((route) => {
+        const converted = convertRedirects([route], 307)[0]
+        const regex = converted.src || route.regex
+
+        return {
+          source: route.source,
+          sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+          headers: 'headers' in converted ? converted.headers || {} : {},
+          status: converted.status || getRedirectStatus(route),
+          has: route.has,
+          missing: route.missing,
+          priority: route.internal || undefined,
+        } satisfies Route
+      })
+
+      const headers = routesManifest.headers.map((route) =>
+        buildRouteFromHeader(route)
+      )
+      const onMatchHeaders = routesManifest.onMatchHeaders.map((route) =>
+        buildRouteFromHeader(route)
+      )
+
       await adapterMod.onBuildComplete({
-        routes: {
-          dynamicRoutes: [
-            ...dynamicDataRoutes,
-            ...dynamicSegmentRoutes,
-            ...dynamicRoutes,
+        routing: {
+          beforeMiddleware: [...headers, ...redirects],
+          beforeFiles: rewrites.beforeFiles,
+          afterFiles: rewrites.afterFiles,
+          dynamicRoutes: combinedDynamicRoutes,
+          onMatch: [
+            {
+              // This ensures we only match known emitted-by-Next.js files and not
+              // user-emitted files which may be missing a hash in their filename.
+              sourceRegex: `${path.posix.join(config.basePath || '/', '_next/static', `/(?:[^/]+/pages|pages|chunks|runtime|css|image|media|${escapeStringRegexp(buildId)})/.+`)}`,
+              // Next.js assets contain a hash or entropy in their filenames, so they
+              // are guaranteed to be unique and cacheable indefinitely.
+              headers: {
+                'cache-control': `public,max-age=${CACHE_ONE_YEAR_SECONDS},immutable`,
+              },
+            },
+            ...onMatchHeaders,
           ],
-          rewrites: {
-            beforeFiles:
-              routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
-            afterFiles:
-              routesManifest.rewrites.afterFiles.map(buildRewriteItem),
-            fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
-          },
-          redirects: routesManifest.redirects.map((route) => {
-            const converted = convertRedirects([route], 307)[0]
-            let dest = 'headers' in converted && converted.headers?.Location
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              destination: dest || route.destination,
-              statusCode: converted.status || getRedirectStatus(route),
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
-          headers: routesManifest.headers.map((route) => {
-            const converted = convertHeaders([route])[0]
-            const regex = converted.src || route.regex
-
-            return {
-              source: route.source,
-              sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
-              headers: 'headers' in converted ? converted.headers || {} : {},
-              has: route.has,
-              missing: route.missing,
-              priority: route.internal || undefined,
-            }
-          }),
+          fallback: rewrites.fallback,
+          shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
+          rsc: generateRoutesManifest({
+            appType,
+            pageKeys: {
+              pages: pageKeys as string[],
+              app: appPageKeys as string[],
+            },
+            config,
+            redirects: [],
+            headers: [],
+            onMatchHeaders: [],
+            rewrites,
+            restrictedRedirectPaths: [],
+            isAppPPREnabled: config.cacheComponents,
+          }).routesManifest.rsc,
         },
         outputs,
 

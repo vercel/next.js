@@ -9,6 +9,8 @@ use crate::{
     RawDirectoryEntry,
 };
 
+#[derive(ValueToString)]
+#[value_to_string(self.name)]
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
@@ -86,13 +88,5 @@ impl FileSystem for EmbeddedFileSystem {
         }
 
         Ok(FileMeta::default().cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EmbeddedFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.name.clone())
     }
 }

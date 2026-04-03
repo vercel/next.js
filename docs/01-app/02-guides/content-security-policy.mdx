@@ -35,18 +35,21 @@ If an attacker wanted to load a script into your page, they'd need to guess the 
 
 [Proxy](/docs/app/api-reference/file-conventions/proxy) enables you to add headers and generate nonces before the page renders.
 
-Every time a page is viewed, a fresh nonce should be generated. This means that you **must use [dynamic rendering](/docs/app/guides/caching#dynamic-rendering) to add nonces**.
+Every time a page is viewed, a fresh nonce should be generated. This means that you **must use [dynamic rendering](/docs/app/glossary#dynamic-rendering) to add nonces**.
 
 For example:
+
+> **Good to know**: In development, `'unsafe-eval'` is required because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser. `unsafe-eval` is not required for production. Neither React nor Next.js use `eval` in production by default.
 
 ```ts filename="proxy.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -88,9 +91,10 @@ import { NextResponse } from 'next/server'
 
 export function proxy(request) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const isDev = process.env.NODE_ENV === 'development'
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
+    script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'nonce-${nonce}';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -415,9 +419,11 @@ Consider nonces when:
 For applications that do not require nonces, you can set the CSP header directly in your [`next.config.js`](/docs/app/api-reference/config/next-config-js) file:
 
 ```js filename="next.config.js"
+const isDev = process.env.NODE_ENV === 'development'
+
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -451,7 +457,7 @@ module.exports = {
 
 As an alternative to nonces, Next.js offers experimental support for hash-based CSP using Subresource Integrity (SRI). This approach allows you to maintain static generation while still having a strict CSP.
 
-> **Good to know**: This feature is experimental and only available with webpack bundler in App Router applications.
+> **Good to know**: This feature is experimental and available in App Router applications.
 
 ### How SRI works
 
@@ -481,9 +487,11 @@ When SRI is enabled, you can continue using your existing CSP policies. SRI work
 > **Good to know**: For dynamic rendering scenarios, you can still generate nonces with proxy if needed, combining both SRI integrity attributes and nonce-based CSP approaches.
 
 ```js filename="next.config.js"
+const isDev = process.env.NODE_ENV === 'development'
+
 const cspHeader = `
     default-src 'self';
-    script-src 'self';
+    script-src 'self'${isDev ? " 'unsafe-eval'" : ''};
     style-src 'self';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -526,7 +534,6 @@ module.exports = {
 ### Limitations of SRI
 
 - **Experimental**: Feature may change or be removed
-- **Webpack only**: Not available with Turbopack
 - **App Router only**: Not supported in Pages Router
 - **Build-time only**: Cannot handle dynamically generated scripts
 
@@ -538,7 +545,7 @@ CSP implementation differs between development and production environments:
 
 ### Development Environment
 
-In development, you will need to enable `'unsafe-eval'` to support APIs that provide additional debugging information:
+In development, you will need to enable `'unsafe-eval'` because React uses `eval` to provide enhanced debugging information, such as reconstructing server-side error stacks in the browser to show you where errors originated on the server:
 
 ```ts filename="proxy.ts" switcher
 export function proxy(request: NextRequest) {

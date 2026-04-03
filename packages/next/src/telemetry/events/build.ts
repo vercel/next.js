@@ -196,7 +196,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
-    | 'experimental/isolatedDevBuild'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'
@@ -260,6 +259,7 @@ export type McpToolName =
   | 'mcp/get_project_metadata'
   | 'mcp/get_routes'
   | 'mcp/get_server_action_by_id'
+  | 'mcp/get_compilation_issues'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName

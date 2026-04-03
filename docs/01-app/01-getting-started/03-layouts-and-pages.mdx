@@ -129,7 +129,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/blog/[slug]/page.js" switcher
+```jsx filename="app/blog/page.js" switcher
 // Dummy imports
 import { getPosts } from '@/lib/posts'
 import { Post } from '@/ui/post'
@@ -269,11 +269,11 @@ export default async function Page({ searchParams }) {
 }
 ```
 
-Using `searchParams` opts your page into [**dynamic rendering**](/docs/app/guides/caching#dynamic-rendering) because it requires an incoming request to read the search parameters from.
+Using `searchParams` opts your page into [**dynamic rendering**](/docs/app/glossary#dynamic-rendering) because it requires an incoming request to read the search parameters from.
 
 Client Components can read search params using the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook.
 
-Learn more about `useSearchParams` in [statically rendered](/docs/app/api-reference/functions/use-search-params#static-rendering) and [dynamically rendered](/docs/app/api-reference/functions/use-search-params#dynamic-rendering) routes.
+Learn more about `useSearchParams` in [prerendered](/docs/app/api-reference/functions/use-search-params#prerendering) and [dynamically rendered](/docs/app/api-reference/functions/use-search-params#dynamic-rendering) routes.
 
 ### What to use and when
 

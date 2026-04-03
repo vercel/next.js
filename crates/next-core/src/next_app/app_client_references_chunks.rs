@@ -22,10 +22,13 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_client_chunks:
         FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_ssr_chunks:
         FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub layout_segment_client_chunks:
         FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
 }
@@ -175,9 +178,7 @@ pub async fn get_app_client_references_chunks(
                 client_references_by_server_component.into_iter()
             {
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
-                        server_component.await?.module,
-                    )))
+                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
                     .await?;
 
                 let base_ident = server_component.ident();

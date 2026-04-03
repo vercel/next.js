@@ -34,13 +34,10 @@ pub trait ResolveOrigin {
 
     /// Get the resolve options that apply for this origin.
     #[turbo_tasks::function]
-    async fn resolve_options(
-        self: Vc<Self>,
-        reference_type: ReferenceType,
-    ) -> Result<Vc<ResolveOptions>> {
+    async fn resolve_options(self: Vc<Self>) -> Result<Vc<ResolveOptions>> {
         Ok(self
             .asset_context()
-            .resolve_options(self.origin_path().owned().await?, reference_type))
+            .resolve_options(self.origin_path().owned().await?))
     }
 }
 
@@ -101,12 +98,12 @@ async fn resolve_asset(
     }
     Ok(resolve_origin
         .asset_context()
-        .resolve()
+        .to_resolved()
         .await?
         .resolve_asset(
             resolve_origin.origin_path().owned().await?,
-            request.resolve().await?,
-            options.resolve().await?,
+            *request.to_resolved().await?,
+            *options.to_resolved().await?,
             reference_type,
         ))
 }

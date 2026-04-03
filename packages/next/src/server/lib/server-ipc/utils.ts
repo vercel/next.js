@@ -48,6 +48,7 @@ const INTERNAL_HEADERS = [
   'x-middleware-next',
   'x-now-route-matches',
   'x-matched-path',
+  'x-next-resume-state-length',
 ]
 
 export const filterInternalHeaders = (
