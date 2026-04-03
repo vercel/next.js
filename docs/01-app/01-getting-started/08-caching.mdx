@@ -40,8 +40,6 @@ module.exports = nextConfig
 ```
 
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
->
-> **Good to know:** By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). `use cache` scopes that are not part of the static shell may see cache misses in serverless environments where memory does not persist across requests. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
 ## Usage
 
@@ -193,6 +191,8 @@ async function CachedContent({ sessionId }: { sessionId: string }) {
 ```
 
 At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
+
+> **Good to know:** By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). `use cache` scopes that are not part of the static shell may see cache misses in serverless environments where memory does not persist across requests. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
 ## Working with non-deterministic operations
 
