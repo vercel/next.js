@@ -81,7 +81,11 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"nextConfigOutput": null/)
           expect(event1).toMatch(/"trailingSlashEnabled": false/)
           expect(event1).toMatch(/"reactStrictMode": false/)
-          expect(event1).toMatch(/"turboFlag": false/)
+          if (process.env.IS_TURBOPACK_TEST) {
+            expect(event1).toMatch(/"turboFlag": true/)
+          } else {
+            expect(event1).toMatch(/"turboFlag": false/)
+          }
           expect(event1).toMatch(/"pagesDir": true/)
           expect(event1).toMatch(/"appDir": true/)
         } catch (err) {
@@ -336,6 +340,34 @@ describe('config telemetry', () => {
           featureName: 'experimental/nextScriptWorkers',
           invocationCount: 1,
         })
+      })
+
+      it('emits telemetry for usage of `adapterPath`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.adapter-path'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.adapter-path')
+        )
+
+        try {
+          const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event1).toMatch(/"adapterPath": true/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
       })
 
       it('emits telemetry for usage of middleware', async () => {

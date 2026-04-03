@@ -66,8 +66,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, Effect, InvalidationReason, Invalidator, NonLocalValue,
     ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs,
-    turbo_tasks_weak, turbobail, turbofmt,
+    debug::ValueDebugFormat, emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak,
+    turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -752,10 +752,8 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
@@ -780,10 +778,8 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
-        mark_session_dependent();
-
         // Check if directory itself is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
@@ -870,10 +866,8 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
@@ -961,9 +955,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but
-        // `write` purely declares a side effect and does not need to be reexecuted in the next
-        // session. All side effects are reexecuted in general.
+        // You might be tempted to use `session_dependent` here, but `write` purely declares a side
+        // effect and does not need to be reexecuted in the next session. All side effects are
+        // reexecuted in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -971,12 +965,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        // Persist the file content so it is stored in the persistent cache.
-        // Since FileContent uses serialization = "hash", persisting it here ensures the full
-        // content is available in the persistent cache (via PersistedFileContent) and does not
-        // require recomputing the content on cache restore — avoiding unnecessary downstream
-        // recomputation.
-        let content = content.persist().await?;
+        let content = content.await?;
 
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -986,7 +975,7 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             invalidator: Option<Invalidator>,
-            content: ReadRef<PersistedFileContent>,
+            content: ReadRef<FileContent>,
         }
 
         impl Effect for WriteEffect {
@@ -1035,7 +1024,7 @@ impl FileSystem for DiskFileSystem {
                 }
 
                 match &*self.content {
-                    PersistedFileContent::Content(..) => {
+                    FileContent::Content(..) => {
                         let create_directory = compare == FileComparison::Create;
                         if create_directory && let Some(parent) = full_path.parent() {
                             self.inner.create_directory(parent).await.with_context(|| {
@@ -1049,7 +1038,7 @@ impl FileSystem for DiskFileSystem {
                         let content = self.content.clone();
                         retry_blocking(|| {
                             let mut f = std::fs::File::create(&full_path)?;
-                            let PersistedFileContent::Content(file) = &*content else {
+                            let FileContent::Content(file) = &*content else {
                                 unreachable!()
                             };
                             std::io::copy(&mut file.read(), &mut f)?;
@@ -1084,7 +1073,7 @@ impl FileSystem for DiskFileSystem {
                         .await
                         .with_context(|| format!("failed to write to {full_path:?}"))?;
                     }
-                    PersistedFileContent::NotFound => {
+                    FileContent::NotFound => {
                         retry_blocking(|| std::fs::remove_file(&full_path))
                             .instrument(tracing::info_span!("remove file", name = ?full_path))
                             .concurrency_limited(&self.inner.write_semaphore)
@@ -1119,7 +1108,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
+        // You might be tempted to use `session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
@@ -1352,9 +1341,8 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
@@ -1976,8 +1964,8 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "hash")]
-#[derive(Clone, Debug, PartialOrd, Ord)]
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1989,39 +1977,35 @@ impl From<File> for FileContent {
     }
 }
 
-/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
-///
-/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
-/// When reading the file content back from the cache, the hash is compared to detect changes, but
-/// the actual data is not available. `PersistedFileContent` provides the full data so that
-/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
-pub enum PersistedFileContent {
-    Content(File),
-    NotFound,
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileComparison {
+    Create,
+    Equal,
+    NotEqual,
 }
 
-impl PersistedFileContent {
-    /// Performs a comparison of self's data against a disk file's streamed read.
+impl FileContent {
+    /// Performs a comparison of self's data against a disk file's streamed
+    /// read.
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
         let old_file =
             extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
         let Some(old_file) = old_file else {
             return Ok(match self {
-                PersistedFileContent::NotFound => FileComparison::Equal,
+                FileContent::NotFound => FileComparison::Equal,
                 _ => FileComparison::Create,
             });
         };
         // We know old file exists, does the new file?
-        let PersistedFileContent::Content(new_file) = self else {
+        let FileContent::Content(new_file) = self else {
             return Ok(FileComparison::NotEqual);
         };
 
         let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never existed.
+            // handle open. In which case, we just pretend the file never
+            // existed.
             return Ok(FileComparison::Create);
         };
         // If the meta is different, we need to rewrite the file to update it.
@@ -2056,13 +2040,6 @@ impl PersistedFileContent {
             old_contents.consume(len);
         })
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum FileComparison {
-    Create,
-    Equal,
-    NotEqual,
 }
 
 bitflags! {
@@ -2432,25 +2409,20 @@ impl FileContent {
         Ok(Vc::cell(hash_xxh3_hash64(self)))
     }
 
-    /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` if the file does not exist.
     ///
-    /// Use this in contexts where the full file content must be serialized to the persistent
-    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub fn persist(&self) -> Vc<PersistedFileContent> {
-        match self {
-            FileContent::Content(file) => PersistedFileContent::Content(file.clone()).cell(),
-            FileContent::NotFound => PersistedFileContent::NotFound.cell(),
-        }
-    }
-
-    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
-    #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(file.content().content_hash(), algorithm).into(),
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }

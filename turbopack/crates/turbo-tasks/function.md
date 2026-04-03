@@ -71,6 +71,78 @@ fn foo(
 ) -> Vc<i32>;                 // was: impl Future<Output = Result<Vc<i32>>>
 ```
 
+## Attributes
+
+The `#[turbo_tasks::function]` macro accepts optional attributes that modify the behavior of the
+task. Multiple attributes can be combined by separating them with commas.
+
+```rust
+#[turbo_tasks::function(fs, session_dependent)]
+async fn read_file(path: RcStr) -> Result<Vc<FileContent>> {
+    // ...
+}
+```
+
+### `operation`
+
+Marks the task as an **operation**. The external signature will return an [`OperationVc<T>`] instead
+of a [`Vc<T>`], and all arguments must implement `OperationValue`. Operation tasks serve as explicit
+entry points into the task graph and can be used to connect non-reactive code to the reactive
+computation graph. Mutually exclusive with `&self` receivers.
+
+### `root`
+
+Marks the task as a **root** in the aggregation graph. Root tasks start with the maximum aggregation
+number (`u32::MAX`), which places them at the top of the aggregation tree. This is used for tasks
+that represent top-level entry points into the computation.
+
+### `fs`
+
+An **I/O marker** indicating the task directly performs filesystem operations. This should only be
+applied to the task that directly performs the I/O, not tasks that transitively call it.
+
+### `network`
+
+An **I/O marker** indicating the task directly performs network operations. Like `fs`, this should
+only be applied to the task that directly performs the I/O.
+
+### `session_dependent`
+
+Marks the task as **session dependent**. Session-dependent tasks are re-executed when restored from
+persistent cache because they depend on external state (filesystem, environment, network) that may
+have changed between sessions.
+
+When a session-dependent task completes, it is not marked as fully clean — it retains a special
+"session dependent" dirty state. If the task is later restored from persistent cache in a new
+session, this state causes it to be re-executed rather than reusing the cached result.
+
+Typical use cases:
+
+- **Filesystem reads** — file contents may have changed on disk between sessions.
+- **Environment variable reads** — process environment may differ between sessions.
+- **Network requests** — remote resources may return different results.
+
+```rust
+#[turbo_tasks::function(fs, session_dependent)]
+async fn read(&self, path: FileSystemPath) -> Result<Vc<FileContent>> {
+    // File contents may have changed since the last session,
+    // so this task is always re-executed on cache restore.
+    // ...
+}
+
+#[turbo_tasks::function(session_dependent)]
+fn read_all_env(&self) -> Vc<TransientEnvMap> {
+    // Environment variables may differ between sessions.
+    Vc::cell(self.vars.clone())
+}
+```
+
+Note: `session_dependent` should be applied to the **leaf task** that directly reads external state.
+Tasks that transitively depend on a session-dependent task do not need this attribute — they will
+naturally re-execute when the session-dependent task they depend on produces a new result.
+
+[`OperationVc<T>`]: crate::OperationVc
+
 ## Methods and Self
 
 Tasks can be methods associated with a value or a trait implementation using the [`arbitrary_self_types` nightly compiler feature][self-types].

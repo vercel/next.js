@@ -3095,14 +3095,19 @@
       }
       name = { name: name, message: message, stack: stack, env: env };
       "cause" in error &&
-        ((error = outlineModel(request, error.cause)),
-        (name.cause = serializeByValueID(error)));
+        ((message = outlineModel(request, error.cause)),
+        (name.cause = serializeByValueID(message)));
+      "undefined" !== typeof AggregateError &&
+        error instanceof AggregateError &&
+        ((error = outlineModel(request, error.errors)),
+        (name.errors = serializeByValueID(error)));
       return "$Z" + outlineModel(request, name).toString(16);
     }
     function emitErrorChunk(request, id, digest, error, debug, owner) {
       var name = "Error",
         env = (0, request.environmentName)(),
-        causeReference = null;
+        causeReference = null,
+        errorsReference = null;
       try {
         if (error instanceof Error) {
           name = error.name;
@@ -3116,6 +3121,16 @@
                 ? outlineDebugModel(request, { objectLimit: 5 }, cause)
                 : outlineModel(request, cause);
             causeReference = serializeByValueID(causeId);
+          }
+          if (
+            "undefined" !== typeof AggregateError &&
+            error instanceof AggregateError
+          ) {
+            var errors = error.errors,
+              errorsId = debug
+                ? outlineDebugModel(request, { objectLimit: 5 }, errors)
+                : outlineModel(request, errors);
+            errorsReference = serializeByValueID(errorsId);
           }
         } else
           (message =
@@ -3138,6 +3153,7 @@
         owner: error
       };
       null !== causeReference && (digest.cause = causeReference);
+      null !== errorsReference && (digest.errors = errorsReference);
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       debug
         ? request.completedDebugChunks.push(id)
@@ -3579,8 +3595,13 @@
           key = { name: name, message: key, stack: ref, env: parent };
           "cause" in value &&
             (counter.objectLimit--,
-            (value = outlineDebugModel(request, counter, value.cause)),
-            (key.cause = serializeByValueID(value)));
+            (entry = outlineDebugModel(request, counter, value.cause)),
+            (key.cause = serializeByValueID(entry)));
+          "undefined" !== typeof AggregateError &&
+            value instanceof AggregateError &&
+            (counter.objectLimit--,
+            (value = outlineDebugModel(request, counter, value.errors)),
+            (key.errors = serializeByValueID(value)));
           request =
             "$Z" +
             outlineDebugModel(
@@ -6584,13 +6605,13 @@
           );
         else {
           pendingFiles++;
-          var JSCompiler_object_inline_chunks_284 = [];
+          var JSCompiler_object_inline_chunks_286 = [];
           value.on("data", function (chunk) {
-            JSCompiler_object_inline_chunks_284.push(chunk);
+            JSCompiler_object_inline_chunks_286.push(chunk);
           });
           value.on("end", function () {
             try {
-              var blob = new Blob(JSCompiler_object_inline_chunks_284, {
+              var blob = new Blob(JSCompiler_object_inline_chunks_286, {
                 type: mimeType
               });
               response._formData.append(name, blob, filename);

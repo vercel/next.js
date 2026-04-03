@@ -70,6 +70,8 @@ jobs:
 
       - run: pnpm install
 
-      - run: node ./scripts/create-release-branch.js --branch-name ${{ github.event.inputs.branchName }} --tag-name ${{ github.event.inputs.tagName }}
+      - run: node ./scripts/create-release-branch.js --branch-name "${INPUT_BRANCHNAME}" --tag-name "${INPUT_TAGNAME}"
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          INPUT_BRANCHNAME: ${{ github.event.inputs.branchName }}
+          INPUT_TAGNAME: ${{ github.event.inputs.tagName }}

@@ -481,6 +481,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": [
+      "adapter-dynamic-metadata should classify dynamic metadata routes as app routes in adapter outputs",
+      "adapter-dynamic-metadata should serve dynamic metadata routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -688,7 +698,8 @@
     "passed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
-      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
+      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler",
+      "app-dir - custom-cache-handler - esm import.meta.resolve esm default export should have logs from cache-handler"
     ],
     "failed": [],
     "pending": [],
@@ -3832,6 +3843,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts": {
     "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
@@ -6481,6 +6502,7 @@
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
+      "turbo-resolve-extensions should respect resolveExtensions priority (.web.tsx before .tsx)",
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
@@ -7445,9 +7467,15 @@
       "prefetch inlining deep chain: all small segments inline to the leaf",
       "prefetch inlining dynamic route: hints are based on concrete params, not fallback shell",
       "prefetch inlining home: root inlines directly into page",
+      "prefetch inlining independent head: metadata is prefetched even when no runtime segment request is needed",
+      "prefetch inlining instant false at root: does not prefetch segment data",
+      "prefetch inlining instant false passthrough: static parents inline through dynamic layout to static child",
       "prefetch inlining outlined: large segment breaks the inlining chain",
       "prefetch inlining parallel routes: parent inlines into one slot only",
       "prefetch inlining restart: large segment in the middle creates two inlining groups",
+      "prefetch inlining runtime parallel: pass-through only flows into one child slot",
+      "prefetch inlining runtime passthrough: static parents inline through runtime layout to static child",
+      "prefetch inlining runtime prefetch: layout cannot inline into a runtime leaf",
       "prefetch inlining small chain: inlines multiple ancestors into deepest child"
     ],
     "failed": [],
@@ -7460,11 +7488,10 @@
       "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
       "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
-    "failed": [
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available"
-    ],
+    "failed": [],
     "pending": [
       "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
@@ -8304,9 +8331,11 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
+  "test/e2e/app-dir/use-offline/use-offline.test.ts": {
     "passed": [
-      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
+      "useOffline retries navigation after connectivity is restored",
+      "useOffline shows offline indicator even without prefetch data",
+      "useOffline updates offline indicator immediately on disconnect"
     ],
     "failed": [],
     "pending": [],
@@ -9007,8 +9036,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
@@ -12693,7 +12722,10 @@
       "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
-      "create-next-app should not install dependencies if --skip-install"
+      "create-next-app should not install dependencies if --skip-install",
+      "create-next-app should not print assumed defaults when all flags are provided",
+      "create-next-app should not print assumed defaults with --yes flag",
+      "create-next-app should print assumed defaults when flags are partially provided"
     ],
     "failed": [],
     "pending": [],
@@ -12753,12 +12785,12 @@
   "test/integration/create-next-app/prompts.test.ts": {
     "passed": [
       "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
-      "create-next-app prompts should prompt user for choice if --import-alias is absent",
-      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
-      "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences",
       "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use default for --tailwind when other flags are provided",
+      "create-next-app prompts should use default for --ts when other flags are provided",
+      "create-next-app prompts should use default import alias when other flags are provided",
       "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
@@ -22035,6 +22067,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/post-build/post-build.test.ts": {
+    "passed": [
+      "post-build should report nothing to do when persistent caching is disabled",
+      "post-build should run post-build compaction on the turbopack cache"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/ppr-use-server-inserted-html/ppr-use-server-inserted-html.test.ts": {
     "passed": [
       "ppr-use-server-inserted-html should insert the html insertion into html body",
@@ -22194,6 +22236,15 @@
   "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts": {
     "passed": [
       "unstable-cache-foreground-revalidate should block and wait for fresh data when ISR page revalidate time is greater than unstable_cache TTL"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
+    "passed": [
+      "use-node-streams env precedence should respect explicit useNodeStreams=false even when env flag is true"
     ],
     "failed": [],
     "pending": [],
@@ -22507,10 +22558,11 @@
   },
   "test/production/dynamic-css-client-navigation/react-lazy.test.ts": {
     "passed": [
-      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge",
+      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge"
+    ],
+    "failed": [
       "dynamic-css-client-navigation react lazy nodejs should not remove style when navigating from static imported component to react lazy at runtime nodejs"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -23378,6 +23430,16 @@
       "standalone mode: runtimeServerDeploymentId it should load app-route-edge",
       "standalone mode: runtimeServerDeploymentId it should load pages-page",
       "standalone mode: runtimeServerDeploymentId it should load pages-page-edge"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/standalone-mode/server-actions/standalone-mode-server-actions.test.ts": {
+    "passed": [
+      "standalone mode: server actions should be able to execute MPA server actions",
+      "standalone mode: server actions should be able to execute server actions"
     ],
     "failed": [],
     "pending": [],
