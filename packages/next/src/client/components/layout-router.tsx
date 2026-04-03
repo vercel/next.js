@@ -80,6 +80,7 @@ const rectProperties = [
   'x',
   'y',
 ] as const
+
 /**
  * Check if a HTMLElement is hidden or fixed/sticky position
  */
@@ -282,15 +283,41 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
 }
 
 /**
+ * Find the first child Element of a FragmentInstance by querying its client
+ * rects and using document.elementFromPoint to resolve a real DOM element.
+ * FragmentInstance does not expose parentElement or child references, so this
+ * is a workaround to locate an element we can walk up from for ancestor
+ * style checks (e.g. sticky/fixed container detection).
+ *
+ * Returns null if no element can be found (e.g. the fragment is empty or
+ * all children are outside the viewport).
+ */
+function findElementInFragment(fragment: FragmentInstance): Element | null {
+  const rects = fragment.getClientRects()
+  for (let i = 0; i < rects.length; i++) {
+    const rect = rects[i]
+    // Use the center of the rect to avoid hitting borders/edges of
+    // adjacent elements.
+    const x = rect.left + rect.width / 2
+    const y = rect.top + rect.height / 2
+    const el = document.elementFromPoint(x, y)
+    if (
+      el !== null &&
+      el !== document.documentElement &&
+      el !== document.body
+    ) {
+      return el
+    }
+  }
+  return null
+}
+
+/**
  * Fork of InnerScrollAndFocusHandlerOld using Fragment refs for scrolling.
  * No longer focuses the first host descendant.
  */
 function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
-  // A marker element used to detect sticky/fixed containers. FragmentInstance
-  // does not expose parentElement, so we need an actual DOM element in the
-  // same tree position to walk up from.
-  const markerRef = React.useRef<HTMLSpanElement>(null)
 
   useLayoutEffect(
     () => {
@@ -326,9 +353,9 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           instance instanceof Element
             ? instance
             : // FragmentInstance does not expose parentElement or child
-              // references, so we use the marker ref (an actual DOM element
-              // rendered alongside the children) to walk up the tree.
-              markerRef.current
+              // references, so we find a real DOM element within the
+              // fragment to walk up from.
+              findElementInFragment(instance)
         if (
           elementToCheck !== null &&
           isInStickyOrFixedContainer(elementToCheck)
@@ -402,19 +429,7 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
     undefined
   )
 
-  return (
-    <Fragment ref={childrenRef}>
-      <span
-        ref={markerRef}
-        // This marker is used only for sticky/fixed container detection.
-        // display:contents ensures it generates no box and has zero layout
-        // impact, while still participating in the DOM tree so that
-        // parentElement traversal works.
-        style={{ display: 'contents' }}
-      />
-      {props.children}
-    </Fragment>
-  )
+  return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
 
 const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
