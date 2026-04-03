@@ -290,6 +290,8 @@ export interface Project {
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
+  getAllCompilationIssues(): Promise<TurbopackResult<void>>
+
   writeAllEntrypointsToDisk(
     appDirOnly: boolean
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
