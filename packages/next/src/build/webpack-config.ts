@@ -1341,6 +1341,9 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+      // Webpack requires hashSalt to be a non-empty string; omit it entirely
+      // when no salt is configured.
+      ...(config.hashSalt ? { hashSalt: config.hashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1792,6 +1795,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  hashSalt: config.hashSalt,
                 },
               },
             ]

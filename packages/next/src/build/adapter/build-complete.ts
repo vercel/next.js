@@ -275,8 +275,17 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
     /**
@@ -1638,16 +1647,8 @@ export async function handleBuildComplete({
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
 
-        // Today, consumers of this build output can only upgrade a fallback shell
-        // when all remaining route params become concrete in the upgraded entry.
-        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
-        // because we do not emit which fallback params should remain deferred after
-        // the upgrade. Until that contract exists, only emit `partialFallback` for
-        // the conservative case where the upgraded entry can become fully concrete.
         const canEmitPartialFallback =
-          partialFallback &&
-          fallbackRootParams?.length === 0 &&
-          allowQuery.length === remainingPrerenderableParams?.length
+          partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
