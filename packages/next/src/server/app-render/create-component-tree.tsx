@@ -44,6 +44,29 @@ import {
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import { RenderStage, type StagedRenderingController } from './staged-rendering'
 
+/**
+ * Resolves all unresolved slot gates to false. Called in early-return
+ * paths and after the layout has rendered to signal that any remaining
+ * unrendered slots should skip their page component execution.
+ */
+function flushUnresolvedSlotGates(
+  gates: Map<
+    string,
+    {
+      promise: Promise<boolean>
+      resolve: (rendered: boolean) => void
+      resolved: boolean
+    }
+  >
+) {
+  for (const [, gate] of gates) {
+    if (!gate.resolved) {
+      gate.resolved = true
+      gate.resolve(false)
+    }
+  }
+}
+
 type HTTPAccessErrorStatusCode = 404 | 403 | 401
 
 export type PrerenderHTTPErrorState = {
@@ -529,6 +552,26 @@ async function createComponentTreeInternal(
     tree,
   })
 
+  // For layouts with multiple parallel route slots AND a server component
+  // layout, we gate each slot's seed data rendering so that unused slots
+  // don't execute their page components. Each slot gets a "gate" promise
+  // that resolves to true when the layout renders the slot, or false when
+  // the microtask-based flush determines the slot is unused.
+  //
+  // This optimization only applies to server component layouts because for
+  // client component layouts, the RSC encoder serializes all slot props
+  // (making all slots "used" from the serialization perspective).
+  const isLayoutClientComponent = isClientReference(layoutOrPageMod)
+  const hasMultipleSlots =
+    Object.keys(parallelRoutes).length > 1 && !isLayoutClientComponent
+
+  type SlotGate = {
+    promise: Promise<boolean>
+    resolve: (rendered: boolean) => void
+    resolved: boolean
+  }
+  const slotGates = new Map<string, SlotGate>()
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -731,35 +774,95 @@ async function createComponentTreeInternal(
             )
           : null
 
-        return [
-          parallelRouteKey,
-          createElement(LayoutRouter, {
-            parallelRouterKey: parallelRouteKey,
-            error: ErrorComponent,
-            errorStyles: wrappedErrorStyles,
-            errorScripts: errorScripts,
-            template:
-              isSegmentViewEnabled && templateFilePath
-                ? createElement(
-                    SegmentViewNode,
-                    {
-                      type: 'template',
-                      pagePath: templateFilePath,
-                    },
-                    templateNode
-                  )
-                : templateNode,
-            templateStyles: templateStyles,
-            templateScripts: templateScripts,
-            notFound: notFoundComponent,
-            forbidden: forbiddenComponent,
-            unauthorized: unauthorizedComponent,
-            ...(isSegmentViewEnabled && {
-              segmentViewBoundaries,
-            }),
+        const layoutRouterElement = createElement(LayoutRouter, {
+          parallelRouterKey: parallelRouteKey,
+          error: ErrorComponent,
+          errorStyles: wrappedErrorStyles,
+          errorScripts: errorScripts,
+          template:
+            isSegmentViewEnabled && templateFilePath
+              ? createElement(
+                  SegmentViewNode,
+                  {
+                    type: 'template',
+                    pagePath: templateFilePath,
+                  },
+                  templateNode
+                )
+              : templateNode,
+          templateStyles: templateStyles,
+          templateScripts: templateScripts,
+          notFound: notFoundComponent,
+          forbidden: forbiddenComponent,
+          unauthorized: unauthorizedComponent,
+          ...(isSegmentViewEnabled && {
+            segmentViewBoundaries,
           }),
-          childCacheNodeSeedData,
-        ]
+        })
+
+        // When there are multiple parallel route slots, gate the slot
+        // rendering so that unused slots' page components don't execute.
+        // The slot prop is wrapped in a component that signals the gate
+        // when rendered. The seed data node is wrapped in an async
+        // component that awaits the gate before rendering the content.
+        if (hasMultipleSlots && childCacheNodeSeedData !== null) {
+          let resolveGate!: (rendered: boolean) => void
+          const gatePromise = new Promise<boolean>((resolve) => {
+            resolveGate = resolve
+          })
+          const gate: SlotGate = {
+            promise: gatePromise,
+            resolve: resolveGate,
+            resolved: false,
+          }
+          slotGates.set(parallelRouteKey, gate)
+
+          // Wrap the slot prop in a component that signals the gate
+          // when the layout renders this slot. After each signal, we
+          // schedule a microtask to flush remaining unused gates.
+          function SlotRenderedSignal(): React.ReactNode {
+            if (!gate.resolved) {
+              gate.resolved = true
+              gate.resolve(true)
+            }
+            // Schedule a flush of remaining unused gates. This runs
+            // after the encoder finishes processing the layout's output
+            // synchronously, ensuring all used slots' gates have been
+            // resolved before flushing.
+            Promise.resolve().then(() => {
+              flushUnresolvedSlotGates(slotGates)
+            })
+            return layoutRouterElement
+          }
+
+          // Wrap the seed data's node in a gated async component.
+          // This only renders the actual content when the slot is used.
+          // The gate is resolved by SlotRenderedSignal when the layout
+          // renders this slot. If the gate is not resolved (unused slot),
+          // a flush mechanism resolves it to false.
+          const originalNode = childCacheNodeSeedData[0]
+          async function GatedSeedDataNode(): Promise<React.ReactNode> {
+            const shouldRender = await gatePromise
+            return shouldRender ? originalNode : null
+          }
+
+          // Replace the node in the seed data with the gated version.
+          const gatedSeedData: CacheNodeSeedData = [
+            createElement(GatedSeedDataNode, null),
+            childCacheNodeSeedData[1],
+            childCacheNodeSeedData[2],
+            childCacheNodeSeedData[3],
+            childCacheNodeSeedData[4],
+          ]
+
+          return [
+            parallelRouteKey,
+            createElement(SlotRenderedSignal, null),
+            gatedSeedData,
+          ]
+        }
+
+        return [parallelRouteKey, layoutRouterElement, childCacheNodeSeedData]
       }
     )
   )
@@ -801,6 +904,15 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
+    // When there's no component, only the children slot is rendered.
+    // Resolve the children gate (if gated) and flush other slots.
+    const childrenGate = slotGates.get('children')
+    if (childrenGate && !childrenGate.resolved) {
+      childrenGate.resolved = true
+      childrenGate.resolve(true)
+    }
+    flushUnresolvedSlotGates(slotGates)
+
     return createSeedData(
       ctx,
       createElement(
@@ -839,6 +951,9 @@ async function createComponentTreeInternal(
     workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
+    // Flush all slot gates since force-dynamic bypasses normal rendering
+    flushUnresolvedSlotGates(slotGates)
+
     return createSeedData(
       ctx,
       createElement(
@@ -1138,6 +1253,10 @@ async function createComponentTreeInternal(
           parallelRouteProps.children
         )
       }
+
+      // Note: For gated slots, the SlotRenderedSignal components schedule
+      // microtasks to flush unused slot gates. No separate flush component
+      // is needed here.
 
       if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
         // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
