@@ -730,8 +730,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-output/dev-output.test.ts": {
-    "passed": [],
-    "failed": ["dev-output shows Cache Components indicator when enabled"],
+    "passed": ["dev-output shows Cache Components indicator when enabled"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1382,6 +1382,7 @@
       "allowed-dev-origins, basePath: \"\" configured allowed origins should load images regardless of allowed origins",
       "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
       "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"\" default blocking should allow requests from multi-level localhost subdomains",
       "allowed-dev-origins, basePath: \"\" default blocking should allow same-site requests without an origin header",
       "allowed-dev-origins, basePath: \"\" default blocking should block WebSocket from cross-site",
       "allowed-dev-origins, basePath: \"\" default blocking should block loading internal middleware from cross-site",
@@ -1394,6 +1395,7 @@
       "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should load images regardless of allowed origins",
       "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
       "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should allow requests from multi-level localhost subdomains",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should allow same-site requests without an origin header",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should block WebSocket from cross-site",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should block loading internal middleware from cross-site",
@@ -3648,12 +3650,12 @@
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies",
-      "app-dir with middleware should support unstable_cache in middleware"
+      "app-dir with middleware should support unstable_cache in middleware",
+      "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "failed": [
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
-      "app-dir with middleware should filter correctly after middleware rewrite",
-      "app-dir with middleware should warn when deprecated middleware file is used"
+      "app-dir with middleware should filter correctly after middleware rewrite"
     ],
     "pending": [],
     "flakey": [],
@@ -4810,7 +4812,8 @@
       "cache-components should prerender pages that only use cached (unstable_cache) IO",
       "cache-components should prerender pages that only use cached fetches",
       "cache-components should prerender pages that render in a microtask",
-      "cache-components should prerender static not-found pages"
+      "cache-components should prerender static not-found pages",
+      "cache-components should render not-found with Suspense in layout without connection errors"
     ],
     "failed": [],
     "pending": [],
@@ -6019,6 +6022,12 @@
   },
   "test/e2e/app-dir/instant-validation/instant-validation-parallel-slots.test.ts": {
     "passed": [
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, no cookies",
       "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
       "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in slot when config is on children page",
       "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when config is on slot layout",
@@ -6026,6 +6035,12 @@
       "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when runtime config is on slot page",
       "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on both children and slot pages",
       "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on slot, children dynamic content inside Suspense",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, no cookies",
       "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
       "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in slot when config is on children page",
       "instant validation - parallel slot configs dev - initial load config on slot page catches unsuspended dynamic content in children when config is on slot layout",
@@ -6076,11 +6091,14 @@
       "instant validation dev - client navigation invalid - loading.js above route group does not cover dynamic in page",
       "instant validation dev - client navigation invalid - loading.js covers page, but not layout at the same level",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot default slot",
+      "instant validation dev - client navigation invalid - missing suspense in parallel slot index",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot subpage",
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic",
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
       "instant validation dev - client navigation invalid - runtime prefetch - suspense too high",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
       "instant validation dev - client navigation invalid - static layout above runtime config blocks navigation",
@@ -6177,11 +6195,7 @@
       "instant validation dev - initial load valid - static prefetch - suspense around runtime and dynamic",
       "instant validation dev - initial load valid - target segment not visible in all navigations"
     ],
-    "failed": [
-      "instant validation dev - client navigation invalid - missing suspense in parallel slot index",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6267,10 +6281,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9872,17 +9886,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "layout sharing in non-static prefetches disabled in development"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
-    "failed": [],
+    "passed": [],
+    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9902,9 +9916,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
-    "passed": ["segment cache (refresh) disabled in development"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["segment cache (refresh) disabled in development"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9934,11 +9948,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-per-page-dynamic-stale-time.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "segment cache (per-page dynamic stale time) disabled in development"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10326,11 +10340,10 @@
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start"
-    ],
-    "failed": [
+      "typed-routes should have passing tsc after start",
       "typed-routes should update route types file when routes change"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -23320,6 +23333,7 @@
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
+      "config telemetry production mode emits telemetry for usage of `adapterPath`",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
