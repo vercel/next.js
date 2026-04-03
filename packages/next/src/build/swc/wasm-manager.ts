@@ -206,6 +206,7 @@ export const wasmManager = {
       instanceId,
       module,
       hostFnDescriptors,
+      runtimeId,
     }).then(
       () => callback(instanceId),
       (err) => callback(String(err))

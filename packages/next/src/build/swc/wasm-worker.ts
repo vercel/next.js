@@ -23,7 +23,8 @@ if (!parentPort) {
 // Load native addon directly in the worker thread.
 // This gives us direct NAPI access for host function callbacks.
 const bindings = require(workerData.nativeBindingsPath)
-const runtimeId: number = workerData.runtimeId
+// runtimeId may be 0 at worker creation time; it gets updated per-instantiate message.
+let runtimeId: number = workerData.runtimeId
 
 // ---------------------------------------------------------------------------
 // Instance storage — the ops object closes over the WASM instance/memory,
@@ -91,6 +92,11 @@ parentPort.on('message', (req: any) => {
     switch (req.type) {
       case 'instantiate': {
         const instanceId = req.instanceId as number
+        // Update runtimeId from the message (may differ from workerData if
+        // workers were created before runtime registration).
+        if (req.runtimeId != null) {
+          runtimeId = req.runtimeId as number
+        }
 
         // Build env imports that call Rust host functions directly via NAPI
         const envImports: Record<string, Function> = {}
@@ -100,13 +106,14 @@ parentPort.on('message', (req: any) => {
           ,
           index,
         ] of req.hostFnDescriptors as HostFnDescriptor[]) {
+          const capturedRuntimeID = runtimeId
           envImports[name] = (...args: number[]) => {
             const ops = instances.get(instanceId)
             if (!ops) {
               throw new Error(`Instance ${instanceId} not found for host fn`)
             }
             return bindings.wasmWorkerDispatchHostFn(
-              runtimeId,
+              capturedRuntimeID,
               instanceId,
               index,
               args.slice(0, paramCount),
