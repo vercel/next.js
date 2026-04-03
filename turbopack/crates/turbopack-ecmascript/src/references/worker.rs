@@ -173,9 +173,9 @@ impl ModuleReference for WorkerAssetReference {
 
         // Wrap each resolved module in a WorkerLoaderModule
         let result_ref = result.await?;
-        let mut primary = Vec::with_capacity(result_ref.primary.len());
+        let mut primary = Vec::with_capacity(result_ref.primary_len());
 
-        for (request_key, resolve_item) in result_ref.primary.iter() {
+        for (request_key, resolve_item) in result_ref.primary_iter() {
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
                     let Some(chunkable) =
@@ -249,11 +249,7 @@ impl ModuleReference for WorkerAssetReference {
             }
         }
 
-        Ok(ModuleResolveResult {
-            primary: primary.into_boxed_slice(),
-            affecting_sources: result_ref.affecting_sources.clone(),
-        }
-        .cell())
+        Ok(ModuleResolveResult::from_pairs(primary, result_ref.affecting_sources.clone()).cell())
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

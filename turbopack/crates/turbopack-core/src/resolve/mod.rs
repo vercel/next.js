@@ -88,7 +88,7 @@ type AfterResolvePluginWithCondition = (
 );
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
     OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
@@ -208,10 +208,42 @@ impl ExportUsage {
     }
 }
 
+/// Build deduplicated indexed arrays from an iterator of key-value pairs.
+///
+/// Returns `(primary_indices, deduplicated_keys, deduplicated_values)` where each primary index
+/// pair `(ki, ri)` references into the keys and values arrays respectively.
+fn build_indexed_primary<V: Eq + std::hash::Hash>(
+    pairs: impl IntoIterator<Item = (RequestKey, V)>,
+) -> (Box<[(u32, u32)]>, Box<[RequestKey]>, Box<[V]>) {
+    let iter = pairs.into_iter();
+    let (lower, _) = iter.size_hint();
+    let mut key_dedup: FxIndexMap<RequestKey, u32> =
+        FxIndexMap::with_capacity_and_hasher(lower, Default::default());
+    let mut val_dedup: FxIndexMap<V, u32> =
+        FxIndexMap::with_capacity_and_hasher(lower, Default::default());
+    let mut primary = Vec::with_capacity(lower);
+
+    for (key, val) in iter {
+        let next_ki = key_dedup.len() as u32;
+        let ki = *key_dedup.entry(key).or_insert(next_ki);
+        let next_ri = val_dedup.len() as u32;
+        let ri = *val_dedup.entry(val).or_insert(next_ri);
+        primary.push((ki, ri));
+    }
+
+    (
+        primary.into_boxed_slice(),
+        key_dedup.into_keys().collect(),
+        val_dedup.into_keys().collect(),
+    )
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: Box<[(RequestKey, ModuleResolveResultItem)]>,
+    pub primary: Box<[(u32, u32)]>,
+    pub keys: Box<[RequestKey]>,
+    pub module_results: Box<[ModuleResolveResultItem]>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -221,6 +253,8 @@ impl ModuleResolveResult {
     pub fn unresolvable() -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: Default::default(),
+            keys: Default::default(),
+            module_results: Default::default(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -235,8 +269,9 @@ impl ModuleResolveResult {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
-                .into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            module_results: Box::new([ModuleResolveResultItem::Module(module)]),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -247,11 +282,9 @@ impl ModuleResolveResult {
         output_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: vec![(
-                request_key,
-                ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            module_results: Box::new([ModuleResolveResultItem::OutputAsset(output_asset)]),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -260,11 +293,15 @@ impl ModuleResolveResult {
     pub fn modules(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: modules
+        let (primary, keys, module_results) = build_indexed_primary(
+            modules
                 .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
+        );
+        ModuleResolveResult {
+            primary,
+            keys,
+            module_results,
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -274,23 +311,73 @@ impl ModuleResolveResult {
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: modules
+        let (primary, keys, module_results) = build_indexed_primary(
+            modules
                 .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
+        );
+        ModuleResolveResult {
+            primary,
+            keys,
+            module_results,
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
+
+    /// Build a `ModuleResolveResult` from an iterator of `(RequestKey, ModuleResolveResultItem)`
+    /// pairs. Deduplicates keys and items.
+    pub fn from_pairs(
+        pairs: impl IntoIterator<Item = (RequestKey, ModuleResolveResultItem)>,
+        affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
+    ) -> Self {
+        let (primary, keys, module_results) = build_indexed_primary(pairs);
+        ModuleResolveResult {
+            primary,
+            keys,
+            module_results,
+            affecting_sources,
+        }
+    }
 }
 
 impl ModuleResolveResult {
+    /// Iterate over `(key, item)` pairs in the primary results.
+    pub fn primary_iter(
+        &self,
+    ) -> impl Iterator<Item = (&RequestKey, &ModuleResolveResultItem)> + '_ {
+        self.primary
+            .iter()
+            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.module_results[ri as usize]))
+    }
+
+    /// Number of primary entries.
+    pub fn primary_len(&self) -> usize {
+        self.primary.len()
+    }
+
+    /// Whether this result has no primary entries (is unresolvable).
+    pub fn primary_is_empty(&self) -> bool {
+        self.primary.is_empty()
+    }
+
+    /// First `(key, item)` pair, if any.
+    pub fn primary_first(&self) -> Option<(&RequestKey, &ModuleResolveResultItem)> {
+        self.primary
+            .first()
+            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.module_results[ri as usize]))
+    }
+
+    /// Mutate all keys in-place via a mapping function.
+    pub fn map_keys_mut(&mut self, mut f: impl FnMut(&RequestKey) -> RequestKey) {
+        self.keys = self.keys.iter().map(|k| f(k)).collect();
+    }
+
     /// Returns all module results (but ignoring any errors).
     pub fn primary_modules_raw_iter(
         &self,
     ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.primary.iter().filter_map(|(_, item)| match *item {
+        self.primary_iter().filter_map(|(_, item)| match *item {
             ModuleResolveResultItem::Module(a) => Some(a),
             _ => None,
         })
@@ -299,7 +386,7 @@ impl ModuleResolveResult {
     /// Returns a set (no duplicates) of primary modules in the result.
     pub async fn primary_modules_ref(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
         let mut set = FxIndexSet::default();
-        for (_, item) in self.primary.iter() {
+        for (_, item) in self.primary_iter() {
             if let Some(module) = item.as_module().await? {
                 set.insert(module);
             }
@@ -312,11 +399,11 @@ impl ModuleResolveResult {
     }
 
     pub fn is_unresolvable_ref(&self) -> bool {
-        self.primary.is_empty()
+        self.primary_is_empty()
     }
 
     pub fn errors(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
-        self.primary.iter().filter_map(|i| match &i.1 {
+        self.primary_iter().filter_map(|(_, item)| match item {
             ModuleResolveResultItem::Error(e) => Some(*e),
             _ => None,
         })
@@ -330,8 +417,11 @@ pub struct ModuleResolveResultBuilder {
 
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
+        let (primary, keys, module_results) = build_indexed_primary(v.primary);
         ModuleResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary,
+            keys,
+            module_results,
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -339,16 +429,27 @@ impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
         ModuleResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary: v
+                .primary
+                .iter()
+                .map(|&(ki, ri)| {
+                    (
+                        v.keys[ki as usize].clone(),
+                        v.module_results[ri as usize].clone(),
+                    )
+                })
+                .collect(),
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
-        for (k, v) in other.primary.iter() {
+        for &(ki, ri) in other.primary.iter() {
+            let k = &other.keys[ki as usize];
             if !self.primary.contains_key(k) {
-                self.primary.insert(k.clone(), v.clone());
+                self.primary
+                    .insert(k.clone(), other.module_results[ri as usize].clone());
             }
         }
         let set = self
@@ -394,7 +495,7 @@ impl ModuleResolveResult {
 
     #[turbo_tasks::function]
     pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
-        for (_, item) in self.primary.iter() {
+        for (_, item) in self.primary_iter() {
             if let Some(module) = item.as_module().await? {
                 return Ok(Vc::cell(Some(module)));
             }
@@ -407,7 +508,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
         let mut set = FxIndexSet::default();
-        for (_, item) in self.primary.iter() {
+        for (_, item) in self.primary_iter() {
             if let Some(module) = item.as_module().await? {
                 set.insert(module);
             }
@@ -418,8 +519,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
         Vc::cell(
-            self.primary
-                .iter()
+            self.primary_iter()
                 .filter_map(|(_, item)| match item {
                     &ModuleResolveResultItem::OutputAsset(a) => Some(a),
                     _ => None,
@@ -494,7 +594,7 @@ impl Display for ExternalType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
     External {
@@ -561,7 +661,9 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
-    pub primary: Box<[(RequestKey, ResolveResultItem)]>,
+    pub primary: Box<[(u32, u32)]>,
+    pub keys: Box<[RequestKey]>,
+    pub resolve_results: Box<[ResolveResultItem]>,
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -575,7 +677,7 @@ impl ValueToString for ResolveResult {
         if self.is_unresolvable_ref() {
             result.push_str("unresolvable");
         }
-        for (i, (request, item)) in self.primary.iter().enumerate() {
+        for (i, (request, item)) in self.primary_iter().enumerate() {
             if i > 0 {
                 result.push_str(", ");
             }
@@ -635,6 +737,8 @@ impl ResolveResult {
     pub fn unresolvable() -> Self {
         ResolveResult {
             primary: Default::default(),
+            keys: Default::default(),
+            resolve_results: Default::default(),
             affecting_sources: Default::default(),
         }
     }
@@ -644,6 +748,8 @@ impl ResolveResult {
     ) -> Self {
         ResolveResult {
             primary: Default::default(),
+            keys: Default::default(),
+            resolve_results: Default::default(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
     }
@@ -654,7 +760,9 @@ impl ResolveResult {
 
     pub fn primary_with_key(request_key: RequestKey, result: ResolveResultItem) -> Self {
         ResolveResult {
-            primary: vec![(request_key, result)].into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            resolve_results: Box::new([result]),
             affecting_sources: Default::default(),
         }
     }
@@ -665,7 +773,9 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         ResolveResult {
-            primary: vec![(request_key, result)].into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            resolve_results: Box::new([result]),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
     }
@@ -676,7 +786,9 @@ impl ResolveResult {
 
     fn source_with_key(request_key: RequestKey, source: ResolvedVc<Box<dyn Source>>) -> Self {
         ResolveResult {
-            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            resolve_results: Box::new([ResolveResultItem::Source(source)]),
             affecting_sources: Default::default(),
         }
     }
@@ -687,13 +799,30 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         ResolveResult {
-            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
+            primary: Box::new([(0, 0)]),
+            keys: Box::new([request_key]),
+            resolve_results: Box::new([ResolveResultItem::Source(source)]),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
     }
 
+    /// Build a `ResolveResult` from an iterator of `(RequestKey, ResolveResultItem)` pairs.
+    /// Deduplicates keys and items.
+    pub fn from_pairs(
+        pairs: impl IntoIterator<Item = (RequestKey, ResolveResultItem)>,
+        affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
+    ) -> Self {
+        let (primary, keys, resolve_results) = build_indexed_primary(pairs);
+        ResolveResult {
+            primary,
+            keys,
+            resolve_results,
+            affecting_sources,
+        }
+    }
+
     pub fn errors(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
-        self.primary.iter().filter_map(|i| match &i.1 {
+        self.primary_iter().filter_map(|(_, item)| match item {
             ResolveResultItem::Error(e) => Some(*e),
             _ => None,
         })
@@ -701,6 +830,30 @@ impl ResolveResult {
 }
 
 impl ResolveResult {
+    /// Iterate over `(key, item)` pairs in the primary results.
+    pub fn primary_iter(&self) -> impl Iterator<Item = (&RequestKey, &ResolveResultItem)> + '_ {
+        self.primary
+            .iter()
+            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.resolve_results[ri as usize]))
+    }
+
+    /// Number of primary entries.
+    pub fn primary_len(&self) -> usize {
+        self.primary.len()
+    }
+
+    /// Whether this result has no primary entries (is unresolvable).
+    pub fn primary_is_empty(&self) -> bool {
+        self.primary.is_empty()
+    }
+
+    /// First `(key, item)` pair, if any.
+    pub fn primary_first(&self) -> Option<(&RequestKey, &ResolveResultItem)> {
+        self.primary
+            .first()
+            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.resolve_results[ri as usize]))
+    }
+
     /// Returns the affecting sources for this result. Will be empty if affecting sources are
     /// disabled for this result.
     pub fn get_affecting_sources(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
@@ -708,106 +861,108 @@ impl ResolveResult {
     }
 
     pub fn is_unresolvable_ref(&self) -> bool {
-        self.primary.is_empty()
+        self.primary_is_empty()
     }
 
+    /// Transform each unique `ResolveResultItem` into a `ModuleResolveResultItem` using the
+    /// provided async function. Only unique items are transformed (shared items are transformed
+    /// once).
     pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
     where
         A: Fn(ResolvedVc<Box<dyn Source>>) -> AF,
         AF: Future<Output = Result<ModuleResolveResultItem>>,
     {
+        // Transform only the unique resolve_results, not per-primary-entry
+        let new_module_results: Box<[ModuleResolveResultItem]> = self
+            .resolve_results
+            .iter()
+            .map(|item| {
+                let asset_fn = &source_fn;
+                let item = item.clone();
+                async move {
+                    Ok(match item {
+                        ResolveResultItem::Source(source) => asset_fn(source).await?,
+                        ResolveResultItem::External {
+                            name,
+                            ty,
+                            traced,
+                            target,
+                        } => {
+                            if traced == ExternalTraced::Traced || target.is_some() {
+                                // Should use map_primary_items instead
+                                bail!("map_module doesn't handle traced externals");
+                            }
+                            ModuleResolveResultItem::External { name, ty }
+                        }
+                        ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
+                        ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
+                        ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
+                        ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
+                    })
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
         Ok(ModuleResolveResult {
-            primary: self
-                .primary
-                .iter()
-                .map(|(request, item)| {
-                    let asset_fn = &source_fn;
-                    let request = request.clone();
-                    let item = item.clone();
-                    async move {
-                        Ok((
-                            request,
-                            match item {
-                                ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External {
-                                    name,
-                                    ty,
-                                    traced,
-                                    target,
-                                } => {
-                                    if traced == ExternalTraced::Traced || target.is_some() {
-                                        // Should use map_primary_items instead
-                                        bail!("map_module doesn't handle traced externals");
-                                    }
-                                    ModuleResolveResultItem::External { name, ty }
-                                }
-                                ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
-                                ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
-                                ResolveResultItem::Custom(u8) => {
-                                    ModuleResolveResultItem::Custom(u8)
-                                }
-                            },
-                        ))
-                    }
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            primary: self.primary.clone(),
+            keys: self.keys.clone(),
+            module_results: new_module_results,
             affecting_sources: self.affecting_sources.clone(),
         })
     }
 
+    /// Transform each unique `ResolveResultItem` into a `ModuleResolveResultItem` using the
+    /// provided async function.
     pub async fn map_primary_items<A, AF>(&self, item_fn: A) -> Result<ModuleResolveResult>
     where
         A: Fn(ResolveResultItem) -> AF,
         AF: Future<Output = Result<ModuleResolveResultItem>>,
     {
+        let new_module_results: Box<[ModuleResolveResultItem]> = self
+            .resolve_results
+            .iter()
+            .map(|item| {
+                let asset_fn = &item_fn;
+                let item = item.clone();
+                async move { asset_fn(item).await }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
         Ok(ModuleResolveResult {
-            primary: self
-                .primary
-                .iter()
-                .map(|(request, item)| {
-                    let asset_fn = &item_fn;
-                    let request = request.clone();
-                    let item = item.clone();
-                    async move { Ok((request, asset_fn(item).await?)) }
-                })
-                .try_join()
-                .await?
-                .into_iter()
-                .collect(),
+            primary: self.primary.clone(),
+            keys: self.keys.clone(),
+            module_results: new_module_results,
             affecting_sources: self.affecting_sources.clone(),
         })
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
-    /// passed `request`.
+    /// passed `request`. Items are shared without cloning.
     fn with_request_ref(&self, request: RcStr) -> Self {
-        let new_primary = self
-            .primary
+        let new_keys: Box<[RequestKey]> = self
+            .keys
             .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: Some(request.clone()),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
+            .map(|k| RequestKey {
+                request: Some(request.clone()),
+                conditions: k.conditions.clone(),
             })
             .collect();
         ResolveResult {
-            primary: new_primary,
+            primary: self.primary.clone(),
+            keys: new_keys,
+            resolve_results: self.resolve_results.clone(),
             affecting_sources: self.affecting_sources.clone(),
         }
     }
 
     pub fn with_conditions(&self, new_conditions: &[(RcStr, bool)]) -> Self {
-        let primary = self
-            .primary
-            .iter()
+        // Need to go through full pairs for dedup, since conditions changes may collapse keys
+        let pairs = self
+            .primary_iter()
             .map(|(k, v)| {
                 (
                     RequestKey {
@@ -817,11 +972,12 @@ impl ResolveResult {
                     v.clone(),
                 )
             })
-            .collect::<FxIndexMap<_, _>>() // Deduplicate
-            .into_iter()
-            .collect();
+            .collect::<FxIndexMap<_, _>>(); // Deduplicate by key
+        let (primary, keys, resolve_results) = build_indexed_primary(pairs);
         ResolveResult {
             primary,
+            keys,
+            resolve_results,
             affecting_sources: self.affecting_sources.clone(),
         }
     }
@@ -834,8 +990,11 @@ struct ResolveResultBuilder {
 
 impl From<ResolveResultBuilder> for ResolveResult {
     fn from(v: ResolveResultBuilder) -> Self {
+        let (primary, keys, resolve_results) = build_indexed_primary(v.primary);
         ResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary,
+            keys,
+            resolve_results,
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -843,16 +1002,27 @@ impl From<ResolveResultBuilder> for ResolveResult {
 impl From<ResolveResult> for ResolveResultBuilder {
     fn from(v: ResolveResult) -> Self {
         ResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary: v
+                .primary
+                .iter()
+                .map(|&(ki, ri)| {
+                    (
+                        v.keys[ki as usize].clone(),
+                        v.resolve_results[ri as usize].clone(),
+                    )
+                })
+                .collect(),
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ResolveResult) {
-        for (k, v) in other.primary.iter() {
+        for &(ki, ri) in other.primary.iter() {
+            let k = &other.keys[ki as usize];
             if !self.primary.contains_key(k) {
-                self.primary.insert(k.clone(), v.clone());
+                self.primary
+                    .insert(k.clone(), other.resolve_results[ri as usize].clone());
             }
         }
         let set = self
@@ -891,6 +1061,8 @@ impl ResolveResult {
     ) -> Result<Vc<Self>> {
         Ok(Self {
             primary: self.primary.clone(),
+            keys: self.keys.clone(),
+            resolve_results: self.resolve_results.clone(),
             affecting_sources: self
                 .affecting_sources
                 .iter()
@@ -958,7 +1130,7 @@ impl ResolveResult {
 
     #[turbo_tasks::function]
     pub fn first_source(&self) -> Vc<OptionSource> {
-        Vc::cell(self.primary.iter().find_map(|(_, item)| {
+        Vc::cell(self.primary_iter().find_map(|(_, item)| {
             if let &ResolveResultItem::Source(a) = item {
                 Some(a)
             } else {
@@ -970,8 +1142,7 @@ impl ResolveResult {
     #[turbo_tasks::function]
     pub fn primary_sources(&self) -> Vc<Sources> {
         Vc::cell(
-            self.primary
-                .iter()
+            self.primary_iter()
                 .filter_map(|(_, item)| {
                     if let &ResolveResultItem::Source(a) = item {
                         Some(a)
@@ -993,9 +1164,9 @@ impl ResolveResult {
         old_request_key: RcStr,
         request_key: RequestKey,
     ) -> Result<Vc<Self>> {
-        let new_primary = self
-            .primary
-            .iter()
+        // Filter and rebuild — some entries may be discarded, so we rebuild from pairs
+        let pairs: Vec<(RequestKey, ResolveResultItem)> = self
+            .primary_iter()
             .filter_map(|(k, v)| {
                 let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
                 Some((
@@ -1010,11 +1181,7 @@ impl ResolveResult {
                 ))
             })
             .collect();
-        Ok(ResolveResult {
-            primary: new_primary,
-            affecting_sources: self.affecting_sources.clone(),
-        }
-        .cell())
+        Ok(ResolveResult::from_pairs(pairs, self.affecting_sources.clone()).cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The prefix is removed
@@ -1022,9 +1189,8 @@ impl ResolveResult {
     /// without the prefix, but if there are still some, they are discarded.
     #[turbo_tasks::function]
     fn with_stripped_request_key_prefix(&self, prefix: RcStr) -> Result<Vc<Self>> {
-        let new_primary = self
-            .primary
-            .iter()
+        let pairs: Vec<(RequestKey, ResolveResultItem)> = self
+            .primary_iter()
             .filter_map(|(k, v)| {
                 let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
                 Some((
@@ -1036,11 +1202,7 @@ impl ResolveResult {
                 ))
             })
             .collect();
-        Ok(ResolveResult {
-            primary: new_primary,
-            affecting_sources: self.affecting_sources.clone(),
-        }
-        .cell())
+        Ok(ResolveResult::from_pairs(pairs, self.affecting_sources.clone()).cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
@@ -1056,49 +1218,44 @@ impl ResolveResult {
         let old_request_key = &*old_request_key.await?;
         let request_key = &*request_key.await?;
 
-        let new_primary = self
-            .primary
+        // Only keys change — share the resolve_results array
+        let new_keys: Box<[RequestKey]> = self
+            .keys
             .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: k
-                            .request
-                            .as_ref()
-                            .and_then(|r| old_request_key.match_apply_template(r, request_key))
-                            .map(Into::into),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
+            .map(|k| RequestKey {
+                request: k
+                    .request
+                    .as_ref()
+                    .and_then(|r| old_request_key.match_apply_template(r, request_key))
+                    .map(Into::into),
+                conditions: k.conditions.clone(),
             })
             .collect();
         Ok(ResolveResult {
-            primary: new_primary,
+            primary: self.primary.clone(),
+            keys: new_keys,
+            resolve_results: self.resolve_results.clone(),
             affecting_sources: self.affecting_sources.clone(),
         }
         .cell())
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
-    /// passed `request`.
+    /// passed `request`. Items are shared without cloning.
     #[turbo_tasks::function]
     fn with_request(&self, request: RcStr) -> Vc<Self> {
-        let new_primary = self
-            .primary
+        let new_keys: Box<[RequestKey]> = self
+            .keys
             .iter()
-            .map(|(k, v)| {
-                (
-                    RequestKey {
-                        request: Some(request.clone()),
-                        conditions: k.conditions.clone(),
-                    },
-                    v.clone(),
-                )
+            .map(|k| RequestKey {
+                request: Some(request.clone()),
+                conditions: k.conditions.clone(),
             })
             .collect();
         ResolveResult {
-            primary: new_primary,
+            primary: self.primary.clone(),
+            keys: new_keys,
+            resolve_results: self.resolve_results.clone(),
             affecting_sources: self.affecting_sources.clone(),
         }
         .cell()
@@ -1822,7 +1979,7 @@ async fn handle_after_resolve_plugins(
     let mut new_primary = FxIndexMap::default();
     let mut new_affecting_sources = Vec::new();
 
-    for (key, primary) in result_value.primary.iter() {
+    for (key, primary) in result_value.primary_iter() {
         if let &ResolveResultItem::Source(source) = primary {
             let path = source.ident().path().owned().await?;
             if let Some(new_result) = apply_plugins_to_path(
@@ -1838,8 +1995,7 @@ async fn handle_after_resolve_plugins(
                 changed = true;
                 new_primary.extend(
                     new_result
-                        .primary
-                        .iter()
+                        .primary_iter()
                         .map(|(_, item)| (key.clone(), item.clone())),
                 );
                 new_affecting_sources.extend(new_result.affecting_sources.iter().copied());
@@ -1858,11 +2014,7 @@ async fn handle_after_resolve_plugins(
     let mut affecting_sources = result_value.affecting_sources.to_vec();
     affecting_sources.append(&mut new_affecting_sources);
 
-    Ok(ResolveResult {
-        primary: new_primary.into_iter().collect(),
-        affecting_sources: affecting_sources.into_boxed_slice(),
-    }
-    .cell())
+    Ok(ResolveResult::from_pairs(new_primary, affecting_sources.into_boxed_slice()).cell())
 }
 
 #[turbo_tasks::function]
@@ -3761,8 +3913,7 @@ mod tests {
                 .await?;
 
                 let results: Vec<(String, String)> = result
-                    .primary
-                    .iter()
+                    .primary_iter()
                     .map(async |(k, v)| {
                         Ok((
                             k.to_string(),

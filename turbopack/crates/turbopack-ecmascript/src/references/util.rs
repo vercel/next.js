@@ -76,7 +76,7 @@ pub async fn check_and_emit_too_many_matches_warning(
     context_dir: FileSystemPath,
     pattern: ResolvedVc<Pattern>,
 ) -> Result<()> {
-    let num_matches = result.await?.primary.len();
+    let num_matches = result.await?.primary_len();
     if num_matches > TOO_MANY_MATCHES_LIMIT {
         TooManyMatchesWarning {
             source: issue_source,

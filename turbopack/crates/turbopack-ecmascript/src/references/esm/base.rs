@@ -287,7 +287,7 @@ impl ReferencedAsset {
         if result.is_unresolvable_ref() {
             return Ok(ReferencedAsset::Unresolvable.cell());
         }
-        for (_, result) in result.primary.iter() {
+        for (_, result) in result.primary_iter() {
             match result {
                 ModuleResolveResultItem::External {
                     name: request, ty, ..
@@ -456,10 +456,10 @@ impl ModuleReference for EsmAssetReference {
             if let Some(ModulePart::Evaluation) = &self.export_name
                 && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
             {
-                return Ok(ModuleResolveResult {
-                    primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
-                    affecting_sources: Default::default(),
-                }
+                return Ok(ModuleResolveResult::from_pairs(
+                    [(RequestKey::default(), ModuleResolveResultItem::Ignore)],
+                    Default::default(),
+                )
                 .cell());
             }
 

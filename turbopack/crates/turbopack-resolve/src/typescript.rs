@@ -1,5 +1,3 @@
-use std::mem::take;
-
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
@@ -465,17 +463,10 @@ pub async fn type_resolve(
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
-    result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(k, v)| {
-            (
-                RequestKey {
-                    request: k.request.clone(),
-                    conditions: k.conditions.extend([(rcstr!("types"), true)]),
-                },
-                v,
-            )
-        })
-        .collect();
+    result.map_keys_mut(|k| RequestKey {
+        request: k.request.clone(),
+        conditions: k.conditions.extend([(rcstr!("types"), true)]),
+    });
     Ok(result.cell())
 }
 
