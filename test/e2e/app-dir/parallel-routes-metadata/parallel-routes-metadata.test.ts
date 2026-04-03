@@ -6,18 +6,30 @@ describe('app-dir - parallel-routes-metadata', () => {
     files: __dirname,
   })
 
-  it('should use metadata from the parallel slot when layout renders parallel slot', async () => {
-    // When the layout only renders the @parallel slot (not {children}),
-    // metadata should come from @parallel/test/page.tsx, not from test/page.tsx.
-    // Bug #77888: children slot metadata always overrides parallel slot metadata
-    // because resolve-metadata.ts iterates all slots and children comes last.
+  it('should apply layout title template to parallel slot metadata', async () => {
+    // When both children and @parallel slots define metadata,
+    // the parallel slot title wins because it is processed after children.
+    // The key fix (#77888) is that the layout's title template is preserved
+    // and applied, rather than being reset to null by intermediate pages.
     const browser = await next.browser('/test')
 
     await retry(async () => {
       const title = await browser.eval('document.title')
-      // Expected: "Parallel Test | My App" (template from layout + title from @parallel/test/page.tsx)
-      // Actual (bug): metadata from the parallel slot is not properly resolved
+      // The parallel slot title "Parallel Test" takes precedence, and the
+      // layout's template "%s | My App" is correctly applied to it.
       expect(title).toBe('Parallel Test | My App')
+    })
+  })
+
+  it('should apply layout title template to parallel slot when children has no metadata', async () => {
+    // When only the @parallel slot defines metadata (children page has none),
+    // the parallel slot's title should be used with the layout's template.
+    // This proves the template propagates correctly to parallel slots.
+    const browser = await next.browser('/no-children-meta')
+
+    await retry(async () => {
+      const title = await browser.eval('document.title')
+      expect(title).toBe('Only Parallel | My App')
     })
   })
 })
