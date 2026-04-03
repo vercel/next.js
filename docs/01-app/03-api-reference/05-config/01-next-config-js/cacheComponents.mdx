@@ -45,6 +45,32 @@ This behavior improves the navigation experience by maintaining UI state (form i
 
 Some UI patterns behave differently when components stay mounted instead of unmounting. See the [Preserving UI state guide](/docs/app/guides/preserving-ui-state) for handling common patterns like dropdowns, dialogs, and testing.
 
+## Migrating from experimental flags
+
+The top-level `cacheComponents` replaces two earlier experimental flags. If your config uses either of these, update it to use `cacheComponents: true` instead:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+// Before
+const nextConfig: NextConfig = {
+  experimental: {
+    useCache: true,
+    // or
+    cacheComponents: true,
+  },
+}
+
+// After
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+Both `experimental.useCache` and `experimental.cacheComponents` are deprecated and will be removed in a future version.
+
 ## Version History
 
 | Version | Change                                                                                                                            |
