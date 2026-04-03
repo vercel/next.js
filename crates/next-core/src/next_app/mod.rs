@@ -448,7 +448,44 @@ impl AppPath {
         )
     }
 
+    /// Returns true if `self` has at least one Dynamic segment and each segment
+    /// in `self` either equals the corresponding segment in `other` or is a
+    /// Dynamic segment (which matches any single segment). Both paths must have
+    /// the same length. This is used to allow parallel routes with dynamic
+    /// segments to match static paths from other slots.
+    pub fn matches_dynamic(&self, other: &AppPath) -> bool {
+        if self.0.len() != other.0.len() {
+            return false;
+        }
+
+        let mut has_dynamic = false;
+
+        for (self_seg, other_seg) in self.0.iter().zip(other.0.iter()) {
+            if self_seg == other_seg {
+                continue;
+            }
+            if matches!(self_seg, PathSegment::Dynamic(_)) {
+                has_dynamic = true;
+                continue;
+            }
+            return false;
+        }
+
+        has_dynamic
+    }
+
     pub fn contains(&self, other: &AppPath) -> bool {
+        self.contains_impl(other, false)
+    }
+
+    /// Like `contains` but also treats Dynamic segments in `other` as matching
+    /// any single Static segment in `self`. Used when checking if a parallel
+    /// route with a dynamic segment could serve a static path.
+    pub fn contains_dynamic(&self, other: &AppPath) -> bool {
+        self.contains_impl(other, true)
+    }
+
+    fn contains_impl(&self, other: &AppPath, match_dynamic: bool) -> bool {
         // TODO: handle OptionalCatchAll properly.
         for (i, segment) in other.0.iter().enumerate() {
             let Some(self_segment) = self.0.get(i) else {
@@ -465,6 +502,13 @@ impl AppPath {
                 PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
             ) {
                 return true;
+            }
+
+            // A Dynamic segment matches any single Static segment.
+            // This allows parallel routes with dynamic segments (e.g. @parallel/test/[param])
+            // to match static paths (e.g. /test/static) in other slots.
+            if match_dynamic && matches!(segment, PathSegment::Dynamic(_)) {
+                continue;
             }
 
             return false;

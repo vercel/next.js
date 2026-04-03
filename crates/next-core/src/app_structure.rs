@@ -1096,6 +1096,7 @@ async fn directory_tree_to_loader_tree(
         for_app_path,
         AppDirModules::default(),
         Some(&plain_tree.url_tree),
+        false,
     )
     .await?;
 
@@ -1176,10 +1177,20 @@ async fn directory_tree_to_loader_tree_internal(
     for_app_path: AppPath,
     mut parent_modules: AppDirModules,
     url_tree: Option<&UrlSegmentTree>,
+    // When true, Dynamic segments in app_path are treated as matching any Static
+    // segment in for_app_path. Used for parallel route slots so that e.g.
+    // @parallel/test/[param] can match the static path /test/static.
+    match_dynamic: bool,
 ) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
-    if !for_app_path.contains(&app_path) {
+    let is_contained = if match_dynamic {
+        for_app_path.contains_dynamic(&app_path)
+    } else {
+        for_app_path.contains(&app_path)
+    };
+
+    if !is_contained {
         return Ok(None);
     }
 
@@ -1267,9 +1278,11 @@ async fn directory_tree_to_loader_tree_internal(
         tree.segment = rcstr!("(__SLOT__)");
     }
 
-    if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
-        .then_some(modules.page)
-        .flatten()
+    if let Some(page) = (app_path == for_app_path
+        || app_path.is_catchall()
+        || (match_dynamic && app_path.matches_dynamic(&for_app_path)))
+    .then_some(modules.page)
+    .flatten()
     {
         tree.parallel_routes.insert(
             rcstr!("children"),
@@ -1311,6 +1324,11 @@ async fn directory_tree_to_loader_tree_internal(
                 url_tree.and_then(|t| t.get_child(&directory_name))
             };
 
+        // For parallel route slots, use dynamic matching so that a slot with
+        // e.g. @parallel/test/[param] can match the static path /test/static.
+        // The match_dynamic flag propagates down the entire parallel subtree.
+        let child_match_dynamic = match_dynamic || parallel_route_key.is_some();
+
         let subtree = Box::pin(directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             global_metadata,
@@ -1320,6 +1338,7 @@ async fn directory_tree_to_loader_tree_internal(
             for_app_path.clone(),
             parent_modules.clone(),
             child_url_tree,
+            child_match_dynamic,
         ))
         .await?;
 
