@@ -41,7 +41,6 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
     'packages/next/src/client/components/react-dev-overlay/README.md',
   ],
-  'deploy-examples': ['examples/image-component'],
   cna: [
     'packages/create-next-app',
     'test/integration/create-next-app',
