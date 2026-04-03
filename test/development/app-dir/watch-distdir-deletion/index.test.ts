@@ -27,9 +27,7 @@ describe('app-dir watch-distdir-deletion', () => {
     // Wait for restart message and server to come back up
     await retry(
       async () => {
-        expect(next.cliOutput).toMatch(
-          /The directory at .* was deleted/
-        )
+        expect(next.cliOutput).toMatch(/The directory at .* was deleted/)
       },
       30_000,
       1000
