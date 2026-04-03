@@ -3,14 +3,6 @@ import execa from 'execa'
 import fs from 'fs'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
-import {
-  findPort,
-  launchApp,
-  retry,
-  fetchViaHTTP,
-  killApp,
-} from 'next-test-utils'
-import { once } from 'events'
 
 describe('lockfile', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -76,55 +68,4 @@ describe('lockfile', () => {
     await browser.refresh()
     expect(await browser.elementByCss('p').text()).toBe('Page')
   })
-
-  if (process.platform !== 'win32') {
-    it('releases the lockfile immediately when the dev server child process is killed', async () => {
-      // Stop the test harness server so we have full control over the
-      // server lifecycle for this test.
-      await next.stop()
-
-      const appPort = await findPort()
-      const app = await launchApp(next.testDir, appPort)
-
-      try {
-        // Verify the dev server is running
-        await retry(async () => {
-          const res = await fetchViaHTTP(appPort, '/')
-          expect(res.status).toBe(200)
-        })
-
-        // Read the lockfile to get the child PID
-        const distDir = path.join(next.testDir, '.next', 'dev')
-        const lockfilePath = path.join(distDir, 'lock')
-        expect(fs.existsSync(lockfilePath)).toBe(true)
-
-        const serverInfo = JSON.parse(fs.readFileSync(lockfilePath, 'utf-8'))
-        const childPid = serverInfo.pid
-
-        // Kill the child process (this is what users do when following
-        // the error message's instructions)
-        const exitPromise = once(app, 'exit')
-        process.kill(childPid, 'SIGTERM')
-
-        // The parent process should also exit
-        await exitPromise
-
-        // The lockfile should be released so a new dev server can start.
-        // launchApp waits until "Ready in" appears, confirming the server
-        // fully started (which includes acquiring the lockfile).
-        const newPort = await findPort()
-        const newApp = await launchApp(next.testDir, newPort)
-        try {
-          await retry(async () => {
-            const res = await fetchViaHTTP(newPort, '/')
-            expect(res.status).toBe(200)
-          })
-        } finally {
-          await killApp(newApp)
-        }
-      } finally {
-        await killApp(app).catch(() => {})
-      }
-    })
-  }
 })

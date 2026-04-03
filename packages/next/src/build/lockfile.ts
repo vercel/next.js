@@ -240,36 +240,26 @@ export class Lockfile {
    *
    * If this is not called, the lock will be released by the operating system
    * when the file handle is closed during process exit.
-   *
-   * This method is idempotent — calling it after the lockfile has already been
-   * unlocked is a no-op.
    */
   async unlock(): Promise<void> {
     const { nativeLockfile, listener } = this
     if (nativeLockfile !== undefined) {
-      this.nativeLockfile = undefined
       await this.bindings.lockfileUnlock(nativeLockfile)
     }
     if (listener !== undefined) {
-      this.listener = undefined
       process.off('exit', listener)
     }
   }
 
   /**
    * A blocking version of `unlock`.
-   *
-   * This method is idempotent — calling it after the lockfile has already been
-   * unlocked is a no-op.
    */
   unlockSync(): void {
     const { nativeLockfile, listener } = this
     if (nativeLockfile !== undefined) {
-      this.nativeLockfile = undefined
       this.bindings.lockfileUnlockSync(nativeLockfile)
     }
     if (listener !== undefined) {
-      this.listener = undefined
       process.off('exit', listener)
     }
   }

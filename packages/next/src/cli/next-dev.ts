@@ -373,13 +373,7 @@ const nextDev = async (
       })
 
       child.on('exit', async (code, signal) => {
-        if (sessionStopHandled) {
-          return
-        }
-        if (signal) {
-          // The child was killed by a signal we didn't send (e.g. `kill <pid>`
-          // targeting the child directly). Shut down the parent too.
-          await handleSessionStop(/* signal */ null)
+        if (sessionStopHandled || signal) {
           return
         }
         if (code === RESTART_EXIT_CODE) {
