@@ -1,7 +1,7 @@
 'use client'
 
 export default function Page() {
-  // String.prototype.replaceAll requires polyfill for Chrome < 85
+  // Same code as the enabled fixture, but without swcEnvOptions
   const text = 'a-b-c'
   const result = text.replaceAll('-', '_')
 
