@@ -788,7 +788,14 @@ async function resolveMetadataItemsImpl(
       .join('/'),
   })
 
-  for (const key in parallelRoutes) {
+  // Process children first, then other parallel routes, for consistent ordering
+  const metadataParallelRouteKeys = Object.keys(parallelRoutes)
+  metadataParallelRouteKeys.sort((a, b) => {
+    if (a === 'children') return -1
+    if (b === 'children') return 1
+    return a.localeCompare(b)
+  })
+  for (const key of metadataParallelRouteKeys) {
     const childTree = parallelRoutes[key]
     await resolveMetadataItemsImpl(
       metadataItems,
@@ -911,7 +918,14 @@ async function resolveViewportItemsImpl(
       .join('/'),
   })
 
-  for (const key in parallelRoutes) {
+  // Process children first, then other parallel routes, for consistent ordering
+  const viewportParallelRouteKeys = Object.keys(parallelRoutes)
+  viewportParallelRouteKeys.sort((a, b) => {
+    if (a === 'children') return -1
+    if (b === 'children') return 1
+    return a.localeCompare(b)
+  })
+  for (const key of viewportParallelRouteKeys) {
     const childTree = parallelRoutes[key]
     await resolveViewportItemsImpl(
       viewportItems,
