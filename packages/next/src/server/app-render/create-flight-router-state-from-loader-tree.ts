@@ -102,17 +102,14 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   // that calls notFound(). This tells the client router not to reuse the
   // previous page content when navigating to a URL with no matching page.
   // The path comparison uses endsWith because the loader tree stores
-  // absolute filesystem paths while PARALLEL_ROUTE_DEFAULT_PATH is a
-  // package-relative path (e.g., "next/dist/client/components/builtin/default.js").
+  // paths that may include a prefix before the package-relative portion
+  // (e.g., "next/dist/client/components/builtin/default.js").
   if (segment === DEFAULT_SEGMENT_KEY) {
     const { defaultPage } = loaderTree[2]
     if (
       defaultPage !== undefined &&
       typeof defaultPage[1] === 'string' &&
-      defaultPage[1].endsWith(
-        // Strip the leading "next/" from the constant to match absolute paths.
-        PARALLEL_ROUTE_DEFAULT_PATH.slice('next/'.length)
-      )
+      defaultPage[1].endsWith(PARALLEL_ROUTE_DEFAULT_PATH)
     ) {
       prefetchHints |= PrefetchHint.IsBuiltinNotFoundDefault
     }
