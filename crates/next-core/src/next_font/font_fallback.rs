@@ -8,7 +8,7 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,
     pub capsize_key: RcStr,
-    pub az_avg_width: f64,
+    pub x_width_avg: f64,
     pub units_per_em: u32,
 }
 
@@ -17,7 +17,7 @@ pub(crate) static DEFAULT_SANS_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: rcstr!("Arial"),
         capsize_key: rcstr!("arial"),
-        az_avg_width: 934.5116279069767,
+        x_width_avg: 904.0,
         units_per_em: 2048,
     });
 
@@ -25,7 +25,7 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
     Lazy::new(|| DefaultFallbackFont {
         name: rcstr!("Times New Roman"),
         capsize_key: rcstr!("timesNewRoman"),
-        az_avg_width: 854.3953488372093,
+        x_width_avg: 819.0,
         units_per_em: 2048,
     });
 
