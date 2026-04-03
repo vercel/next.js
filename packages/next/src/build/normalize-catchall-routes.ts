@@ -95,7 +95,8 @@ function normalizeDynamicRoutes(
           (route) =>
             route.includes('@') &&
             hasDynamicSegment(route) &&
-            !isCatchAllRoute(route)
+            !isCatchAllRoute(route) &&
+            !isInterceptionRouteAppPath(route)
         )
         // Prefer more specific (deeper) routes first.
         .sort((a, b) => b.split('/').length - a.split('/').length)

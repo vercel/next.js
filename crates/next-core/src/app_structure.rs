@@ -1354,7 +1354,11 @@ async fn directory_tree_to_loader_tree_internal(
         // However, if a static subdirectory at this level directly matches the
         // target path, dynamic segment subdirectories should not use dynamic
         // matching (static routes take priority over dynamic ones).
-        let child_match_dynamic = if has_static_match_at_this_level
+        // Catch-all directories (e.g. [...slug]) are also excluded from dynamic
+        // matching because they have their own catch-all matching logic.
+        let child_match_dynamic = if subdir_name.contains("...") {
+            false
+        } else if has_static_match_at_this_level
             && is_dynamic_segment(subdir_name)
             && parallel_route_key.is_none()
         {
