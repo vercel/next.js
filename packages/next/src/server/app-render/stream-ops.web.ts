@@ -20,7 +20,6 @@ import {
   continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
   continueDynamicHTMLResume as webContinueDynamicHTMLResume,
   streamToBuffer as webStreamToBuffer,
-  streamToUint8Array as webStreamToUint8Array,
   chainStreams as webChainStreams,
   createDocumentClosingStream as webCreateDocumentClosingStream,
 } from '../stream-utils/node-web-streams-helper'
@@ -157,12 +156,6 @@ export async function continueDynamicHTMLResume(
 
 export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
   return webStreamToBuffer(stream as ReadableStream<Uint8Array>)
-}
-
-export async function streamToUint8Array(
-  stream: AnyStream
-): Promise<Uint8Array> {
-  return webStreamToUint8Array(stream as ReadableStream<Uint8Array>)
 }
 
 export function chainStreams(...streams: AnyStream[]): AnyStream {

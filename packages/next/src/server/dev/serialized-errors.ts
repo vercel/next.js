@@ -3,7 +3,7 @@ import {
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
 import type { AnyStream } from '../app-render/stream-ops'
-import { streamToUint8Array } from '../app-render/stream-ops'
+import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
 
 const errorsRscStreamsByHtmlRequestId = new Map<string, AnyStream>()
 

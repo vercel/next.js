@@ -357,16 +357,6 @@ export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
   return webStreamToBuffer(nodeReadableToWebReadableStream(stream))
 }
 
-export async function streamToUint8Array(
-  stream: AnyStream
-): Promise<Uint8Array> {
-  const chunks: Buffer[] = []
-  for await (const chunk of webToReadable(stream)) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
-  }
-  return Buffer.concat(chunks)
-}
-
 export async function streamToString(stream: AnyStream): Promise<string> {
   return webStreamToString(nodeReadableToWebReadableStream(stream))
 }
