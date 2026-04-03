@@ -287,6 +287,10 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
  */
 function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
+  // A marker element used to detect sticky/fixed containers. FragmentInstance
+  // does not expose parentElement, so we need an actual DOM element in the
+  // same tree position to walk up from.
+  const markerRef = React.useRef<HTMLSpanElement>(null)
 
   useLayoutEffect(
     () => {
@@ -321,10 +325,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
         const elementToCheck: Element | null =
           instance instanceof Element
             ? instance
-            : // FragmentInstance is a DOM-backed object with parentElement at
-              // runtime, but TypeScript's type is opaque.
-              (instance as unknown as { parentElement: Element | null })
-                .parentElement
+            : // FragmentInstance does not expose parentElement or child
+              // references, so we use the marker ref (an actual DOM element
+              // rendered alongside the children) to walk up the tree.
+              markerRef.current
         if (
           elementToCheck !== null &&
           isInStickyOrFixedContainer(elementToCheck)
@@ -398,7 +402,19 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
     undefined
   )
 
-  return <Fragment ref={childrenRef}>{props.children}</Fragment>
+  return (
+    <Fragment ref={childrenRef}>
+      <span
+        ref={markerRef}
+        // This marker is used only for sticky/fixed container detection.
+        // display:contents ensures it generates no box and has zero layout
+        // impact, while still participating in the DOM tree so that
+        // parentElement traversal works.
+        style={{ display: 'contents' }}
+      />
+      {props.children}
+    </Fragment>
+  )
 }
 
 const InnerScrollAndMaybeFocusHandler = enableNewScrollHandler
