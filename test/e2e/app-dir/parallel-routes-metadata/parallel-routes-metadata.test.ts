@@ -7,15 +7,14 @@ describe('app-dir - parallel-routes-metadata', () => {
   })
 
   it('should apply layout title template to parallel slot metadata', async () => {
-    // When both children and @parallel slots define metadata,
-    // the parallel slot title wins because it is processed after children.
+    // Only the @parallel slot defines metadata on this route (children has none).
     // The key fix (#77888) is that the layout's title template is preserved
-    // and applied, rather than being reset to null by intermediate pages.
+    // and applied to the parallel slot's title, rather than being reset to null.
     const browser = await next.browser('/test')
 
     await retry(async () => {
       const title = await browser.eval('document.title')
-      // The parallel slot title "Parallel Test" takes precedence, and the
+      // The parallel slot title "Parallel Test" is used, and the
       // layout's template "%s | My App" is correctly applied to it.
       expect(title).toBe('Parallel Test | My App')
     })
