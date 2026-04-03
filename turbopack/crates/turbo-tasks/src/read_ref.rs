@@ -94,7 +94,8 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
+        // Fast path: if both point to the same allocation, they're equal.
+        Self::ptr_eq(self, other) || Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
