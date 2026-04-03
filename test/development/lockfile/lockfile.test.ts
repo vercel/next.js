@@ -79,6 +79,10 @@ describe('lockfile', () => {
 
   if (process.platform !== 'win32') {
     it('releases the lockfile immediately when the dev server child process is killed', async () => {
+      // Stop the test harness server so we have full control over the
+      // server lifecycle for this test.
+      await next.stop()
+
       const appPort = await findPort()
       const app = await launchApp(next.testDir, appPort)
 
@@ -106,8 +110,8 @@ describe('lockfile', () => {
         await exitPromise
 
         // The lockfile should be released so a new dev server can start.
-        // Use a short retry window — the lockfile should already be released
-        // by the time we get here since it's released synchronously on signal.
+        // launchApp waits until "Ready in" appears, confirming the server
+        // fully started (which includes acquiring the lockfile).
         const newPort = await findPort()
         const newApp = await launchApp(next.testDir, newPort)
         try {
