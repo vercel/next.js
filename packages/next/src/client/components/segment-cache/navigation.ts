@@ -60,12 +60,12 @@ export function navigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
-  // Clear nextUrl for same-page navigations to avoid re-triggering
-  // interception rewrites. This applies to both link clicks and programmatic
-  // navigations (e.g. router.push, router.replace).
-  if (url.href === currentUrl.href) {
-    nextUrl = null
-  }
+  // When navigating to the same URL, clear nextUrl so the Next-Url header is
+  // not sent. This prevents the server from re-applying interception rewrites,
+  // which would incorrectly re-trigger intercepting routes on same-page
+  // navigations (e.g. router.push, router.replace, link clicks).
+  // See: https://github.com/vercel/next.js/issues/82934
+  const effectiveNextUrl = url.href === currentUrl.href ? null : nextUrl
 
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
@@ -84,7 +84,7 @@ export function navigate(
         currentRenderedSearch,
         currentCacheNode,
         currentFlightRouterState,
-        nextUrl,
+        effectiveNextUrl,
         freshnessPolicy,
         scrollBehavior,
         navigateType
@@ -99,7 +99,7 @@ export function navigate(
     currentRenderedSearch,
     currentCacheNode,
     currentFlightRouterState,
-    nextUrl,
+    effectiveNextUrl,
     freshnessPolicy,
     scrollBehavior,
     navigateType

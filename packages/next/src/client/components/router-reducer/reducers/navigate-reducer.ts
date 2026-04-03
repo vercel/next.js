@@ -42,12 +42,6 @@ export function navigateReducer(
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
 
-  // Clear nextUrl for same-page navigations to avoid re-triggering
-  // interception rewrites. When the user navigates to the same URL they're
-  // already on, we should not send the Next-Url header that would cause the
-  // server to apply interception rewrites again.
-  const nextUrl = url.href === currentUrl.href ? null : state.nextUrl
-
   return navigateUsingSegmentCache(
     state,
     url,
@@ -55,7 +49,7 @@ export function navigateReducer(
     currentRenderedSearch,
     state.cache,
     state.tree,
-    nextUrl,
+    state.nextUrl,
     FreshnessPolicy.Default,
     scrollBehavior,
     navigateType
