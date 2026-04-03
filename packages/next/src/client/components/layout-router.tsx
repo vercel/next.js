@@ -98,6 +98,27 @@ function shouldSkipElement(element: HTMLElement) {
 }
 
 /**
+ * Check if an element or any of its ancestors (up to the body) has
+ * position: sticky or position: fixed. This is used to prevent parallel
+ * route slots rendered in sticky/fixed headers from consuming the shared
+ * scrollRef, which would prevent the main content area from scrolling to
+ * top on navigation.
+ */
+function isInStickyOrFixedContainer(element: Element): boolean {
+  let current: Element | null = element
+  while (current && current !== document.body) {
+    if (current instanceof HTMLElement) {
+      const position = getComputedStyle(current).position
+      if (position === 'sticky' || position === 'fixed') {
+        return true
+      }
+    }
+    current = current.parentElement
+  }
+  return false
+}
+
+/**
  * Check if the top corner of the HTMLElement is in the viewport.
  */
 function topOfElementInViewport(
@@ -191,6 +212,14 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
       domNode = domNode.nextElementSibling
     }
 
+    // If this element is inside a sticky or fixed container (e.g. a parallel
+    // route rendered in a sticky header), skip this scroll handler without
+    // consuming the scrollRef. This allows the main content slot to handle
+    // the scroll instead.
+    if (isInStickyOrFixedContainer(domNode)) {
+      return
+    }
+
     // Mark as scrolled so no other segment scrolls for this navigation.
     scrollRef.current = false
 
@@ -282,6 +311,26 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
       // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
       if (instance === null) {
         return
+      }
+
+      // If this element is inside a sticky or fixed container (e.g. a parallel
+      // route rendered in a sticky header), skip this scroll handler without
+      // consuming the scrollRef. This allows the main content slot to handle
+      // the scroll instead.
+      {
+        const elementToCheck: Element | null =
+          instance instanceof Element
+            ? instance
+            : // FragmentInstance is a DOM-backed object with parentElement at
+              // runtime, but TypeScript's type is opaque.
+              (instance as unknown as { parentElement: Element | null })
+                .parentElement
+        if (
+          elementToCheck !== null &&
+          isInStickyOrFixedContainer(elementToCheck)
+        ) {
+          return
+        }
       }
 
       // Mark as scrolled so no other segment scrolls for this navigation.
