@@ -591,7 +591,6 @@ pub trait Backend: Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
@@ -618,14 +617,6 @@ pub trait Backend: Sync + Send {
     );
 
     fn mark_own_task_as_finished(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        // Do nothing by default
-    }
-
-    fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,

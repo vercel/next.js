@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{HashAlgorithm, encode_hex};
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, no_hash_salt},
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -39,7 +39,7 @@ async fn asset_path(
             let hash = if let Some(algorithm) = should_content_hash {
                 asset
                     .content()
-                    .content_hash(algorithm)
+                    .content_hash(no_hash_salt(), algorithm)
                     .owned()
                     .await?
                     .context("asset content not found")?

@@ -2,6 +2,7 @@
 
 import '../server/require-hook'
 
+import os from 'os'
 import {
   Argument,
   Command,
@@ -88,6 +89,16 @@ class NextRootCommand extends Command {
 
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+      if (
+        process.platform === 'darwin' &&
+        process.arch === 'x64' &&
+        os.cpus().some((cpu) => cpu.model.includes('Apple'))
+      ) {
+        warn(
+          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 translation, which may cause degraded performance.'
+        )
+      }
 
       if (
         commandName !== 'dev' &&
@@ -314,7 +325,14 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
-  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  // `--server-fast-refresh` is hidden because it's the default behavior and
+  // only needs to be explicitly passed to override a
+  // `experimental.turbopackServerFastRefresh: false` in next.config. The
+  // `--no-server-fast-refresh` negation is the meaningful user-facing flag.
+  .addOption(new Option('--server-fast-refresh').default(undefined).hideHelp())
+  .addOption(
+    new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  )
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'

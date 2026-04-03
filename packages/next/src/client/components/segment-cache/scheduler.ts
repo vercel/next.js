@@ -418,6 +418,15 @@ export function pingPrefetchScheduler() {
  * prefetch requests are delayed to allow CDN cache propagation.
  */
 function hasNetworkBandwidth(task: PrefetchTask): boolean {
+  // When offline, don't issue any prefetch requests. The scheduler will be
+  // re-pinged when connectivity is restored.
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { getOffline } = require('../offline') as typeof import('../offline')
+    if (getOffline()) {
+      return false
+    }
+  }
+
   // Check if we're within the revalidation cooldown window
   if (revalidationCooldownTimeoutHandle !== null) {
     // We're within the cooldown window. Return false to prevent prefetching.

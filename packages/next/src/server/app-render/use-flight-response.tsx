@@ -76,9 +76,17 @@ export function getFlightStream<T>(
       const { Readable } =
         require('node:stream') as typeof import('node:stream')
 
-      // The types of flightStream and debugStream should match.
-      if (debugStream && !(debugStream instanceof Readable)) {
-        throw new InvariantError('Expected debug stream to be a Readable')
+      // Convert debug stream to Readable if it's a ReadableStream.
+      // When __NEXT_USE_NODE_STREAMS is enabled, the debug channel produces
+      // Node Readables natively. Otherwise, it produces web ReadableStreams.
+      let nodeDebugStream: Readable | undefined
+      if (debugStream) {
+        if (debugStream instanceof Readable) {
+          nodeDebugStream = debugStream
+        } else {
+          type WebReadableStream = import('stream/web').ReadableStream
+          nodeDebugStream = Readable.fromWeb(debugStream as WebReadableStream)
+        }
       }
 
       // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
@@ -96,7 +104,7 @@ export function getFlightStream<T>(
         {
           findSourceMapURL,
           nonce,
-          debugChannel: debugStream,
+          debugChannel: nodeDebugStream,
           endTime: debugEndTime,
         }
       )

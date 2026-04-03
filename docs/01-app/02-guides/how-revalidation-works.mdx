@@ -42,7 +42,7 @@ Next.js uses a tag-based system to track which cached content needs to be invali
 
 ### Explicit tags
 
-Explicit tags are set by the developer using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside a `use cache` function, or via `next: { tags: [...] }` on a `fetch` call. When [`revalidateTag('my-tag')`](/docs/app/api-reference/functions/revalidateTag) is called, all cache entries with that tag are invalidated.
+Explicit tags are set by the developer using [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside a `use cache` function, or via `next: { tags: [...] }` on a `fetch` call. When [`revalidateTag('my-tag', 'max')`](/docs/app/api-reference/functions/revalidateTag) is called, all cache entries with that tag are invalidated.
 
 ### Soft tags
 

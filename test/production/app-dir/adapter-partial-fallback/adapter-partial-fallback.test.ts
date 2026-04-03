@@ -42,14 +42,14 @@ describe('adapter-partial-fallback', () => {
     expect(withoutGspPrerender.config.partialFallback).toBeUndefined()
     expect(withoutGspPrerender.config.allowQuery).toEqual([])
 
-    expect(genericPrefixPrerender.config.partialFallback).toBeUndefined()
-    expect(genericPrefixPrerender.config.allowQuery).toEqual([])
+    expect(genericPrefixPrerender.config.partialFallback).toBe(true)
+    expect(genericPrefixPrerender.config.allowQuery).toEqual(['nxtPone'])
 
     expect(generatedPrefixPrerender.config.partialFallback).toBeUndefined()
     expect(generatedPrefixPrerender.config.allowQuery).toEqual([])
 
-    expect(genericDashedPrerender.config.partialFallback).toBeUndefined()
-    expect(genericDashedPrerender.config.allowQuery).toEqual([])
+    expect(genericDashedPrerender.config.partialFallback).toBe(true)
+    expect(genericDashedPrerender.config.allowQuery).toEqual(['nxtPmy-slug'])
 
     expect(generatedDashedPrerender.config.partialFallback).toBeUndefined()
     expect(generatedDashedPrerender.config.allowQuery).toEqual([])

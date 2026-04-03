@@ -406,20 +406,33 @@ function getChunkFromRegistration(
   }
 }
 
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ * Checks if a given path/URL ends with the given extension,
+ * optionally followed by ?query or #fragment.
  */
-function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
-  return regexJsUrl.test(chunkUrlOrPath)
+function endsWithExtension(
+  chunkUrlOrPath: ChunkUrl | ChunkPath,
+  ext: string
+): boolean {
+  // Find where the path ends (before query or fragment)
+  const q = chunkUrlOrPath.indexOf('?')
+  let end: number
+  if (q !== -1) {
+    end = q
+  } else {
+    const h = chunkUrlOrPath.indexOf('#')
+    end = h !== -1 ? h : chunkUrlOrPath.length
+  }
+  // Check if the path portion ends with the extension
+  return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length)
 }
 
-const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
-/**
- * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return endsWithExtension(chunkUrlOrPath, '.js')
+}
+
 function isCss(chunkUrl: ChunkUrl): boolean {
-  return regexCssUrl.test(chunkUrl)
+  return endsWithExtension(chunkUrl, '.css')
 }
 
 function loadWebAssembly(
