@@ -922,7 +922,7 @@ export interface ExperimentalConfig {
   staticGenerationMinPagesPerWorker?: number
 
   /**
-   * Allows previously fetched data to be re-used when editing server components.
+   * Allows previously fetched data to be reused when editing server components.
    */
   serverComponentsHmrCache?: boolean
 

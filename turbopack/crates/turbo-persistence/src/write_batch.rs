@@ -187,11 +187,11 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         // After flushing write all the full global collectors to disk.
         // TODO: This can distribute work unfairly
         // * a thread could fill up multiple global collectors and then get stuck writing them all
-        //   out, if multiple threads could work on it we could take care of spare IO parallism
-        // * we can also have too much IO parallism with many threads concurrently writing files.
+        //   out, if multiple threads could work on it we could take care of spare IO parallelism
+        // * we can also have too much IO parallelism with many threads concurrently writing files.
         //
         // Ideally we would limit the amount of data buffered in memory and control the amount of IO
-        // parallism.  Consider:
+        // parallelism.  Consider:
         // * store full-buffers as a field on WireBatch (queued writes)
         // * each thread will attempt to poll and flush a full buffer after flushing its local
         //   buffer.

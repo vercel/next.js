@@ -35,7 +35,7 @@ export function getScriptNonceFromHeader(
     // Grab the nonce by trimming the 'nonce-' prefix.
     ?.slice(7, -1)
 
-  // If we could't find the nonce, then we're done.
+  // If we couldn't find the nonce, then we're done.
   if (!nonce) {
     return
   }

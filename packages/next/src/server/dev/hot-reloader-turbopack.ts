@@ -907,7 +907,7 @@ export async function createHotReloaderTurbopack(
       // Always process issues/diagnostics, even if there are no entrypoints yet
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
-      // Certain crtical issues prevent any entrypoints from being constructed so return early
+      // Certain critical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints)) {
         printBuildErrors(entrypoints, true)
 

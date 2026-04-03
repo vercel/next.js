@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Serializer, ser::SerializeMap};
+use serde::{Serializer, set::SerializeMap};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};

@@ -322,7 +322,7 @@ pub trait ChunkingContext {
     fn chunk_root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
     // TODO(alexkirsz) Remove this from the chunking context. This should be at the
-    // discretion of chunking context implementors. However, we currently use this
+    // discretion of chunking context implementers. However, we currently use this
     // in a couple of places in `turbopack-css`, so we need to remove that
     // dependency first.
     #[turbo_tasks::function]

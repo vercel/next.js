@@ -2095,7 +2095,7 @@ impl CurrentCellRef {
     /// just forwards to the inner value's [`PartialEq`].
     ///
     /// If you already have a `SharedReference`, consider calling
-    /// [`Self::compare_and_update_with_shared_reference`] which can re-use the [`SharedReference`]
+    /// [`Self::compare_and_update_with_shared_reference`] which can reuse the [`SharedReference`]
     /// object.
     pub fn compare_and_update<T>(&self, new_value: T)
     where

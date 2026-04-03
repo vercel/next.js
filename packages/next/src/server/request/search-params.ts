@@ -551,7 +551,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
     // This does not affect the `promiseInitialized` logic above,
     // because `proxiedUnderlying` will not be used to resolve the promise,
     // so there's no risk of any of its properties being accessed and triggering
-    // an undesireable warning.
+    // an undesirable warning.
     ignoreReject
   )
 

@@ -39,7 +39,7 @@ impl TraceRawVcsContext {
 /// This is important for Garbage Collection to mark all Cells and therefore
 /// Tasks that are still in use.
 ///
-/// It can also be used to optimize transferring of Tasks, where knowning the
+/// It can also be used to optimize transferring of Tasks, where knowing the
 /// referenced Cells/Tasks allows pushing them earlier.
 ///
 /// `#[derive(TraceRawVcs)]` is available.

@@ -720,7 +720,7 @@ export default class Router implements BaseRouter {
   _initialMatchesMiddlewarePromise: Promise<boolean>
   // static entries filter
   _bfl_s?: import('../../lib/bloom-filter').BloomFilter
-  // dynamic entires filter
+  // dynamic entries filter
   _bfl_d?: import('../../lib/bloom-filter').BloomFilter
 
   private state: Readonly<{
@@ -2335,9 +2335,9 @@ export default class Router implements BaseRouter {
         // Decode hash to make non-latin anchor works.
         const rawHash = decodeURIComponent(hash)
         // First we check if the element by id is found
-        const idEl = document.getElementById(rawHash)
-        if (idEl) {
-          idEl.scrollIntoView()
+        const idle = document.getElementById(rawHash)
+        if (idle) {
+          idle.scrollIntoView()
           return
         }
         // If there's no element with the id, we check the `name` property

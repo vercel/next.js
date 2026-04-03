@@ -1375,7 +1375,7 @@ impl ModuleGraphSnapshot {
     ) -> Result<usize> {
         if self.skip_visited_module_children {
             panic!(
-                "traverse_edges_fixed_point_with_priority musn't be called on individual graphs"
+                "traverse_edges_fixed_point_with_priority mustn't be called on individual graphs"
             );
         }
 

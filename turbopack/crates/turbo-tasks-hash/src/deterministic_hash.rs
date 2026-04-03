@@ -24,7 +24,7 @@ macro_rules! impl_write_number {
     )*}
 }
 
-/// Signals the implementor can safely be hashed in a replicatable way across platforms and process
+/// Signals the implementer can safely be hashed in a replicatable way across platforms and process
 /// runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
@@ -38,7 +38,7 @@ pub trait DeterministicHash {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H);
 }
 
-/// Signals the implementor can safely hash in a replicatable way across platforms and process runs.
+/// Signals the implementer can safely hash in a replicatable way across platforms and process runs.
 ///
 /// Note that the default [`std::hash::Hash`] trait used by Rust allows for hashing that differs
 /// across process runs, so it is not suitable for filesystem cache with turbo-tasks.

@@ -38,7 +38,7 @@ impl<V> Iterator for PathMapExtractPathWithChildren<'_, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // this simple implementation works because `Path` implements `Ord` (and `starts_with`)
-        // using path component comparision, rather than raw byte comparisions. The parent path is
+        // using path component comparison, rather than raw byte comparisons. The parent path is
         // always guaranteed to be placed immediately before its children (pre-order traversal).
         if self
             .cursor
@@ -81,7 +81,7 @@ impl<'a> Iterator for PathSetIterPathChildren<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // this simple implementation works because `Path` implements `Ord` (and `starts_with`)
-        // using path component comparision, rather than raw byte comparisions. The parent path is
+        // using path component comparison, rather than raw byte comparisons. The parent path is
         // always guaranteed to be placed immediately before its children (pre-order traversal).
         let current_path = self.range.next()?;
         if !current_path.starts_with(self.parent_path) {

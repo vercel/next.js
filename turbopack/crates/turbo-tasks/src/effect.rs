@@ -92,7 +92,7 @@ enum EffectState {
     Started(Arc<dyn DynEffect>, Event),
     Finished(Result<(), Arc<dyn EffectError>>),
 
-    /// Can occur if we paniced while constructing the Started state
+    /// Can occur if we panicked while constructing the Started state
     Invalid,
 }
 

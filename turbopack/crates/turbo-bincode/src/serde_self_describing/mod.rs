@@ -16,7 +16,7 @@ use bincode::{
 use serde::{Serialize, de::DeserializeOwned};
 
 mod de;
-mod ser;
+mod set;
 
 /// Uses a u8 representation, which is slightly more efficient than bincode's default u32 varint
 /// approach for enum discriminants:
@@ -106,7 +106,7 @@ impl TryFrom<u8> for TypeTag {
 
 pub fn encode<E: Encoder, T: Serialize>(value: &T, encoder: &mut E) -> Result<(), EncodeError> {
     value
-        .serialize(&mut ser::BincodeSerializer::new(encoder))
+        .serialize(&mut set::BincodeSerializer::new(encoder))
         .map_err(|e| e.0)
 }
 

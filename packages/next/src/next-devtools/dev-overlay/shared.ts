@@ -328,7 +328,7 @@ function getInitialState(
 ): OverlayState & { routerType: 'pages' | 'app' } {
   return {
     ...INITIAL_OVERLAY_STATE,
-    // Pages Router only listenes to thrown errors which
+    // Pages Router only listens to thrown errors which
     // always open the overlay.
     // TODO: Should be the same default as App Router once we surface console.error in Pages Router.
     isErrorOverlayOpen: routerType === 'pages',

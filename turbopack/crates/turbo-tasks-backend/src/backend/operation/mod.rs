@@ -26,7 +26,7 @@ use crate::{
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::BackingStorage,
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{ActivenessState, CollectibleRef, Dirtiness, InProgressState, TransientTask},
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -730,9 +730,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>>;
 
     fn is_dirty(&self) -> Option<TaskPriority> {
-        self.get_dirty().and_then(|dirtyness| match dirtyness {
-            Dirtyness::Dirty(priority) => Some(*priority),
-            Dirtyness::SessionDependent => {
+        self.get_dirty().and_then(|dirtiness| match dirtiness {
+            Dirtiness::Dirty(priority) => Some(*priority),
+            Dirtiness::SessionDependent => {
                 if !self.current_session_clean() {
                     Some(TaskPriority::leaf())
                 } else {
@@ -741,11 +741,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             }
         })
     }
-    fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
+    fn dirtyness_and_session(&self) -> Option<(Dirtiness, bool)> {
         match self.get_dirty()? {
-            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
-            Dirtyness::SessionDependent => {
-                Some((Dirtyness::SessionDependent, self.current_session_clean()))
+            Dirtiness::Dirty(priority) => Some((Dirtiness::Dirty(*priority), false)),
+            Dirtiness::SessionDependent => {
+                Some((Dirtiness::SessionDependent, self.current_session_clean()))
             }
         }
     }
@@ -753,8 +753,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn dirty_state(&self) -> (bool, bool) {
         match self.get_dirty() {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
-            Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
+            Some(Dirtiness::Dirty(_)) => (true, false),
+            Some(Dirtiness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {

@@ -145,7 +145,7 @@ Fill in the form with the following values:
 - **Url**: http://localhost:3000/api/preview?secret=YOUR_PREVIEW_SECRET
 - **Name**: Local Test
 - **Path type**: Path in querystring
-- **Querystring parameter nam**: slug
+- **Querystring parameter name**: slug
 
 If you go back to one of the posts, you should now see a **Preview** button at the bottom right of the screen next to the **Save** button. If you click it, you should be in **Preview Mode**.
 

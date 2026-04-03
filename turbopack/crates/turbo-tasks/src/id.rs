@@ -141,7 +141,7 @@ define_id!(
     derive(Debug, Serialize, Deserialize, Encode, Decode),
     serde(transparent),
     doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
-        leak. This value may overflow and re-use old values.",
+        leak. This value may overflow and reuse old values.",
 );
 
 impl Debug for TaskId {

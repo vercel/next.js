@@ -17,7 +17,7 @@ use rustc_hash::FxHasher;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
-    ser::SerializeMap,
+    set::SerializeMap,
 };
 use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;

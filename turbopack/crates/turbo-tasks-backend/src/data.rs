@@ -213,7 +213,7 @@ impl Display for TransientTask {
 transient_traits!(TransientTask);
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
-pub enum Dirtyness {
+pub enum Dirtiness {
     Dirty(TaskPriority),
     SessionDependent,
 }

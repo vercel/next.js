@@ -25,7 +25,7 @@ pub trait VersionedContent {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
-    /// Get a [`Version`] implementor that contains enough information to
+    /// Get a [`Version`] implementer that contains enough information to
     /// identify and diff a future [`VersionedContent`] against it.
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>>;

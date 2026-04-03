@@ -6,7 +6,7 @@ use std::{
 use bincode::{Encode, enc::Encoder, error::EncodeError};
 use serde::{
     Serialize, Serializer,
-    ser::{
+    set::{
         self, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
         SerializeTupleStruct,
     },
@@ -17,7 +17,7 @@ use crate::serde_self_describing::TypeTag;
 #[derive(Debug)]
 pub struct Error(pub EncodeError);
 
-impl serde::ser::Error for Error {
+impl serde::set::Error for Error {
     fn custom<T>(msg: T) -> Self
     where
         T: Display,
@@ -348,7 +348,7 @@ impl<E: Encoder> SerializeTupleStruct for BincodeCollectionSerializer<'_, E> {
     }
 }
 
-impl<E: Encoder> ser::SerializeTupleVariant for BincodeCollectionSerializer<'_, E> {
+impl<E: Encoder> set::SerializeTupleVariant for BincodeCollectionSerializer<'_, E> {
     type Ok = ();
     type Error = Error;
 
@@ -364,7 +364,7 @@ impl<E: Encoder> ser::SerializeTupleVariant for BincodeCollectionSerializer<'_, 
     }
 }
 
-impl<E: Encoder> ser::SerializeMap for BincodeCollectionSerializer<'_, E> {
+impl<E: Encoder> set::SerializeMap for BincodeCollectionSerializer<'_, E> {
     type Ok = ();
     type Error = Error;
 

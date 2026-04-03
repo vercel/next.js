@@ -236,7 +236,7 @@ export const logQueue: {
     logQueue.cancelFlush = afterThisFrame(() => {
       logQueue.flushScheduled = false
 
-      // just incase
+      // just in case
       try {
         const payload = JSON.stringify({
           event: 'browser-logs',
@@ -269,7 +269,7 @@ export const logQueue: {
       return
     }
 
-    // incase an existing timeout was going to run with a stale socket
+    // in case an existing timeout was going to run with a stale socket
     logQueue.cancelFlush?.()
     logQueue.socket = socket
 
@@ -293,7 +293,7 @@ export const logQueue: {
         logQueue.entries = []
         logQueue.sourceType = undefined
       } catch {
-        /** noop just incase */
+        /** noop just in case */
       }
     }
 
@@ -563,7 +563,7 @@ export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
   if (isPatched) {
     return
   }
-  // TODO(rob): why does this break rendering on server, important to know incase the same bug appears in browser
+  // TODO(rob): why does this break rendering on server, important to know in case the same bug appears in browser
   if (typeof window === 'undefined') {
     return
   }

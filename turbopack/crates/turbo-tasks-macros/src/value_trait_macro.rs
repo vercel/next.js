@@ -145,7 +145,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                         )
                         .emit();
                 }
-                // Add a dummy implementation that derefences the box and delegates to the
+                // Add a dummy implementation that dereferences the box and delegates to the
                 // actual implementation.  We need to conditionally add an await if it is async
                 dynamic_trait_fns.push(if sig.asyncness.is_some() {
                     quote! {

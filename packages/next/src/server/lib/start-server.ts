@@ -356,7 +356,7 @@ export async function startServer(
 
       // Store the selected port to:
       // - expose it to render workers
-      // - re-use it for automatic dev server restarts with a randomly selected port
+      // - reuse it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl

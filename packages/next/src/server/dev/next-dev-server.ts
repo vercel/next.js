@@ -823,7 +823,7 @@ export default class DevServer extends Server {
         })
         return pathsResult
       } finally {
-        // we don't re-use workers so destroy the used one
+        // we don't reuse workers so destroy the used one
         staticPathsWorker.end()
       }
     }

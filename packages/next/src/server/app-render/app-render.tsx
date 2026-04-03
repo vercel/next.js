@@ -5174,7 +5174,7 @@ async function renderWithRestartOnCacheMissInValidation(
   trackPendingModules(cacheSignal)
 
   // The prerender we rean before the validation probably already filled some caches,
-  // so we want to save work and re-use them.
+  // so we want to save work and reuse them.
   const prerenderResumeDataCache = prefilledDataCache
     ? createPrerenderResumeDataCache(prefilledDataCache)
     : createPrerenderResumeDataCache()
@@ -5289,7 +5289,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
   requestStore = createRequestStore()
 
-  // Unlike dev, where we're re-using the render that'll be visible in the browser,
+  // Unlike dev, where we're reusing the render that'll be visible in the browser,
   // we *can* abort the validation render.
 
   const finalReactController = new AbortController()
@@ -5396,7 +5396,7 @@ async function validateInstantConfigsInBuild(
     } catch (err) {
       console.error(
         new InvariantError(
-          'An unexpected error occcured during instant validation',
+          'An unexpected error occurred during instant validation',
           { cause: err }
         )
       )
@@ -6641,7 +6641,7 @@ async function prerenderToStream(
         }
       } else {
         // Static case
-        // We will not perform resumption per request. The result can be served statically to the requestor
+        // We will not perform resumption per request. The result can be served statically to the requester
         // and if there was anything dynamic it will only be rendered in the browser.
         if (workStore.forceDynamic) {
           throw new StaticGenBailoutError(

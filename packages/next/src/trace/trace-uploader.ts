@@ -57,7 +57,7 @@ const BUILD_ALLOWED_EVENTS = new Set([
 
 const {
   NEXT_TRACE_UPLOAD_DEBUG,
-  // An external env to allow to upload full trace without picking up the relavant spans.
+  // An external env to allow to upload full trace without picking up the relevant spans.
   // This is mainly for the debugging purpose, to allow manual audit for full trace for the given build.
   // [NOTE] This may fail if build is large and generated trace is excessively large.
   NEXT_TRACE_UPLOAD_FULL,

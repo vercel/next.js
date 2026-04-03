@@ -65,7 +65,7 @@ use crate::{
     },
     backing_storage::{BackingStorage, SnapshotItem},
     data::{
-        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
+        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtiness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::TaskError,
@@ -2609,8 +2609,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let old_dirtyness = task.get_dirty().cloned();
         let (old_self_dirty, old_current_session_self_clean) = match old_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
-            Some(Dirtyness::SessionDependent) => {
+            Some(Dirtiness::Dirty(_)) => (true, false),
+            Some(Dirtiness::SessionDependent) => {
                 let clean_in_current_session = task.current_session_clean();
                 (true, clean_in_current_session)
             }
@@ -2619,7 +2619,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Compute the new dirty state
         let session_dependent = task.is_session_dependent();
         let (new_dirtyness, new_self_dirty, new_current_session_self_clean) = if session_dependent {
-            (Some(Dirtyness::SessionDependent), true, true)
+            (Some(Dirtiness::SessionDependent), true, true)
         } else {
             (None, false, false)
         };
@@ -2641,7 +2641,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Propagate dirtyness changes
+        // Propagate dirtiness changes
         let data_update = if old_self_dirty != new_self_dirty
             || old_current_session_self_clean != new_current_session_self_clean
         {
