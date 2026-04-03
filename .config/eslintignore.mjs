@@ -47,6 +47,7 @@ export default globalIgnores([
   'examples/with-typescript-graphql/lib/gql/',
   'test/development/basic/hmr/components/parse-error.js',
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
+  'test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx',
   'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
   'packages/next-swc/native/index.d.ts',
   'packages/next-swc/docs/assets/**/*',
