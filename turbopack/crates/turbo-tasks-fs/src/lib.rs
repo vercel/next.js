@@ -2,13 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(io_error_more)]
-#![feature(iter_advance_by)]
 #![feature(min_specialization)]
 // if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
-#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
