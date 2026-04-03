@@ -939,6 +939,7 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
+   * Enables the use of the `"use cache"` directive.
    * @deprecated use top-level `cacheComponents` instead
    */
   useCache?: boolean
