@@ -193,7 +193,7 @@ async function startWatcher(
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
-  let lockfile
+  let lockfile: Lockfile | undefined
   if (opts.nextConfig.experimental.lockDistDir) {
     fs.mkdirSync(distDir, { recursive: true })
 
@@ -216,6 +216,19 @@ async function startWatcher(
       opts.dir,
       opts.nextConfig.distDir
     )
+
+    // Release the lockfile as early as possible on termination signals so
+    // that a new `next dev` instance can immediately acquire it, even while
+    // this process is still doing slow async cleanup (closing the HTTP
+    // server, flushing traces/telemetry, etc.). Signal handlers are called
+    // in registration order, and this runs before the one in start-server.ts.
+    const releaseLockOnSignal = () => {
+      lockfile?.unlockSync()
+    }
+    if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+      process.on('SIGINT', releaseLockOnSignal)
+      process.on('SIGTERM', releaseLockOnSignal)
+    }
   }
 
   const validFileMatcher = createValidFileMatcher(

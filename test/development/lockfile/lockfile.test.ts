@@ -3,6 +3,14 @@ import execa from 'execa'
 import fs from 'fs'
 import path from 'path'
 import stripAnsi from 'strip-ansi'
+import {
+  findPort,
+  launchApp,
+  retry,
+  fetchViaHTTP,
+  killApp,
+} from 'next-test-utils'
+import { once } from 'events'
 
 describe('lockfile', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -50,14 +58,15 @@ describe('lockfile', () => {
     // The kill command varies by platform: `kill <pid>` on Unix, `taskkill /PID <pid> /F` on Windows
     const killPattern =
       process.platform === 'win32'
-        ? 'Run taskkill /PID \\d+ /F to stop it\\.'
-        : 'Run kill \\d+ to stop it\\.'
+        ? 'or run taskkill /PID \\d+ /F to stop it and start a new one\\.'
+        : 'or run kill \\d+ to stop it and start a new one\\.'
     const errorPattern = new RegExp(
       'Another next dev server is already running\\.\\s*' +
         '- Local:\\s+http://[^\\s]+\\s+' +
         '- PID:\\s+\\d+\\s+' +
         '- Dir:\\s+[^\\s]+\\s+' +
         '- Log:\\s+\\.next/dev/logs/next-development\\.log\\s+' +
+        'You can access the existing server at http://[^\\s]+,\\s+' +
         killPattern
     )
     expect(output).toMatch(errorPattern)
@@ -67,4 +76,51 @@ describe('lockfile', () => {
     await browser.refresh()
     expect(await browser.elementByCss('p').text()).toBe('Page')
   })
+
+  if (process.platform !== 'win32') {
+    it('releases the lockfile immediately when the dev server child process is killed', async () => {
+      const appPort = await findPort()
+      const app = await launchApp(next.testDir, appPort)
+
+      try {
+        // Verify the dev server is running
+        await retry(async () => {
+          const res = await fetchViaHTTP(appPort, '/')
+          expect(res.status).toBe(200)
+        })
+
+        // Read the lockfile to get the child PID
+        const distDir = path.join(next.testDir, '.next', 'dev')
+        const lockfilePath = path.join(distDir, 'lock')
+        expect(fs.existsSync(lockfilePath)).toBe(true)
+
+        const serverInfo = JSON.parse(fs.readFileSync(lockfilePath, 'utf-8'))
+        const childPid = serverInfo.pid
+
+        // Kill the child process (this is what users do when following
+        // the error message's instructions)
+        const exitPromise = once(app, 'exit')
+        process.kill(childPid, 'SIGTERM')
+
+        // The parent process should also exit
+        await exitPromise
+
+        // The lockfile should be released so a new dev server can start.
+        // Use a short retry window — the lockfile should already be released
+        // by the time we get here since it's released synchronously on signal.
+        const newPort = await findPort()
+        const newApp = await launchApp(next.testDir, newPort)
+        try {
+          await retry(async () => {
+            const res = await fetchViaHTTP(newPort, '/')
+            expect(res.status).toBe(200)
+          })
+        } finally {
+          await killApp(newApp)
+        }
+      } finally {
+        await killApp(app).catch(() => {})
+      }
+    })
+  }
 })
