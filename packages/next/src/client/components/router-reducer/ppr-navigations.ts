@@ -461,14 +461,17 @@ function updateCacheNodeOnNavigation(
         newSegmentChild === DEFAULT_SEGMENT_KEY &&
         oldSegmentChild !== DEFAULT_SEGMENT_KEY &&
         // Do not reuse the previously active segment if this __DEFAULT__
-        // segment uses the built-in default component that calls notFound().
-        // The built-in default means there is no matching page or
-        // user-provided default.tsx for this slot. Reusing old content would
-        // hide the 404 that should be triggered by the built-in default.
-        !(
+        // segment uses the built-in default component that calls notFound(),
+        // UNLESS a sibling parallel slot has a specific (non-catch-all) page
+        // match. A specific sibling match means the URL is intentional (e.g.,
+        // a modal route) and the children slot should keep its previous
+        // content. Only skip reuse when all sibling matches are catch-all or
+        // default segments, which indicates a truly nonexistent route.
+        (!(
           newRouteTreeChild.prefetchHints &
           PrefetchHint.IsBuiltinNotFoundDefault
-        )
+        ) ||
+          hasSiblingWithSpecificPage(newSlots, parallelRouteKey))
       ) {
         // This is a "default" segment. These are never sent by the server during
         // a soft navigation; instead, the client reuses whatever segment was
@@ -836,6 +839,120 @@ function accumulateRefreshUrl(
   } else {
     separateRefreshUrls.add(refreshUrl)
   }
+}
+
+/**
+ * Check if any sibling parallel slot has a specific (non-default, non-catch-all)
+ * page match. This is used to distinguish between two scenarios where the
+ * children slot uses the built-in default:
+ *
+ * 1. A truly nonexistent route where the only sibling matches are catch-all
+ *    routes (e.g., navigating to /does-not-exist with a @breadcrumb catch-all).
+ *    In this case, the children slot should NOT reuse old content, allowing the
+ *    built-in default's notFound() to trigger a 404.
+ *
+ * 2. A legitimate parallel route navigation where a named slot has a specific
+ *    page (e.g., navigating to /modal/show where @modal has a page at /show).
+ *    In this case, the children slot SHOULD reuse old content so the modal
+ *    appears on top of the existing page.
+ */
+function hasSiblingWithSpecificPage(
+  slots: { [parallelRouteKey: string]: RouteTree },
+  currentKey: string
+): boolean {
+  for (const key in slots) {
+    if (key === currentKey) continue
+
+    const sibling = slots[key]
+    const siblingSegment = sibling.segment
+    // Skip __DEFAULT__ segments (they're not real page matches)
+    if (siblingSegment === DEFAULT_SEGMENT_KEY) continue
+
+    if (typeof siblingSegment === 'string') {
+      // Skip group segments like '(__SLOT__)' - these are synthetic wrappers
+      // for parallel route slots and not real page matches. We need to look
+      // deeper into their children to determine if there's a real match.
+      if (siblingSegment[0] === '(' && siblingSegment.endsWith(')')) {
+        // Recurse into the group's children to check for specific pages
+        if (sibling.slots !== null) {
+          if (hasSiblingWithSpecificPageInSubtree(sibling)) {
+            return true
+          }
+        }
+        continue
+      }
+      // A non-default, non-group string segment is a specific page match
+      return true
+    }
+
+    // Dynamic segment tuples have the form [paramName, paramCacheKey, type, staticSiblings].
+    // Catch-all types: 'c' (catchall), 'oc' (optional-catchall), and their
+    // intercepted variants 'ci(...)' etc.
+    if (Array.isArray(siblingSegment)) {
+      const dynamicType = siblingSegment[2]
+      if (
+        dynamicType === 'c' ||
+        dynamicType === 'oc' ||
+        dynamicType === 'ci(..)(..)' ||
+        dynamicType === 'ci(.)' ||
+        dynamicType === 'ci(..)' ||
+        dynamicType === 'ci(...)'
+      ) {
+        // This sibling matched via a catch-all, which matches any URL.
+        // Don't count it as a specific page match.
+        continue
+      }
+      // A non-catch-all dynamic segment (e.g., [slug]) is a specific match
+      return true
+    }
+
+    // Any other segment type is a specific page match
+    return true
+  }
+  return false
+}
+
+/**
+ * Check if a subtree rooted at a group segment (like `(__SLOT__)`) contains
+ * a specific page match. Traverses the children tree looking for non-default,
+ * non-catch-all segments that indicate a real page match.
+ */
+function hasSiblingWithSpecificPageInSubtree(tree: RouteTree): boolean {
+  const segment = tree.segment
+
+  if (typeof segment === 'string') {
+    if (segment === DEFAULT_SEGMENT_KEY) return false
+    // Group segments need recursive checking
+    if (segment[0] === '(' && segment.endsWith(')')) {
+      if (tree.slots !== null) {
+        for (const key in tree.slots) {
+          if (hasSiblingWithSpecificPageInSubtree(tree.slots[key])) {
+            return true
+          }
+        }
+      }
+      return false
+    }
+    // Non-default, non-group string segment: this is a specific page match
+    return true
+  }
+
+  if (Array.isArray(segment)) {
+    const dynamicType = segment[2]
+    if (
+      dynamicType === 'c' ||
+      dynamicType === 'oc' ||
+      dynamicType === 'ci(..)(..)' ||
+      dynamicType === 'ci(.)' ||
+      dynamicType === 'ci(..)' ||
+      dynamicType === 'ci(...)'
+    ) {
+      return false
+    }
+    return true
+  }
+
+  return true
 }
 
 function reuseActiveSegmentInDefaultSlot(
