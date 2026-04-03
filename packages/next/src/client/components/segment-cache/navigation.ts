@@ -60,6 +60,13 @@ export function navigate(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
 ): AppRouterState | Promise<AppRouterState> {
+  // Clear nextUrl for same-page navigations to avoid re-triggering
+  // interception rewrites. This applies to both link clicks and programmatic
+  // navigations (e.g. router.push, router.replace).
+  if (url.href === currentUrl.href) {
+    nextUrl = null
+  }
+
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
   // This guarantees that segment data requests are at least pending, even
