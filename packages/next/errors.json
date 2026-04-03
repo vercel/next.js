@@ -1148,5 +1148,7 @@
   "1147": "Turbopack database compaction is not supported on this platform",
   "1148": "webToReadable cannot be used in the edge runtime",
   "1149": "Node.js Readable cannot be teed in the edge runtime",
-  "1150": "Node.js Readable cannot be converted to a web stream in the edge runtime"
+  "1150": "Node.js Readable cannot be converted to a web stream in the edge runtime",
+  "1151": "%s is being parsed as a normalized route, but it has a route group segment.",
+  "1152": "%s is being parsed as a normalized route, but it has a parallel route segment."
 }
