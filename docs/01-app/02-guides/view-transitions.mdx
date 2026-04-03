@@ -4,9 +4,7 @@ description: Learn how to use view transitions to communicate meaning during nav
 nav_title: View transitions
 ---
 
-In web apps, route changes replace the entire page at once. One set of elements disappears, another appears, with no visual connection between them. A user selects a photo thumbnail to view it in detail on another page. They are the same image, but nothing on screen communicates that.
-
-Apps that need these transitions typically rely on complex animation libraries that manage mount/unmount lifecycles, track element positions across routes, and coordinate timing manually, to animate how elements enter, exit, and move between states.
+When a user clicks a photo thumbnail and a detail page loads, the thumbnail disappears and a larger version appears somewhere else on screen. Nothing connects the two visually, so the user has to scan the page to confirm they clicked the right thing. Building these transitions typically requires animation libraries that manage mount/unmount lifecycles, track element positions across routes, and coordinate timing manually.
 
 React's `<ViewTransition>` component integrates with the browser's [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API) to handle this declaratively. You name the elements that should persist, and the browser animates between their old and new positions.
 
@@ -50,7 +48,7 @@ import { ViewTransition } from 'react'
 
 ### Step 1: Morph a thumbnail into a hero image
 
-The gallery displays photos in a grid. Clicking a photo opens a detail page with a larger version of the same image. Without transitions, the thumbnail disappears and the hero appears. Nothing connects them visually. The user has to scan the detail page to confirm they clicked the right photo.
+The gallery displays photos in a grid. Clicking a photo opens a detail page with a larger version of the same image. We want the thumbnail to visually transform into the hero image so the user sees continuity instead of a hard cut.
 
 In motion design, when an object persists across a cut, it communicates continuity. The viewer understands they are looking at the same thing, not a replacement. This is the most important transition pattern: **shared element morphing**.
 
@@ -97,7 +95,7 @@ If we click a thumbnail now, the image scales and repositions from its grid cell
 
 #### Customizing the morph animation
 
-To control the morph CSS, add `share="morph"`. This assigns the `morph` class to the view transition, which you can target with CSS pseudo-elements. For example, to soften the morph mid-flight with a [`blur`](https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/blur) keyframe:
+The morph works without any CSS. To customize it, add `share="morph"`. This assigns the `morph` class to the view transition, which you can target with CSS pseudo-elements. For example, to soften the morph mid-flight with a [`blur`](https://developer.mozilla.org/en-US/docs/Web/CSS/filter-function/blur) keyframe:
 
 ```tsx
 <ViewTransition name={`photo-${photo.id}`} share="morph">
@@ -129,7 +127,7 @@ Without a transition, the swap is instant. The skeleton vanishes and the content
 
 In motion design, vertical direction encodes hierarchy. Content sliding up communicates arrival. Content sliding down communicates departure. The pair together creates a handoff: the placeholder yields to the real thing.
 
-Wrap the Suspense fallback in a `ViewTransition` with an exit animation, and the content in a `ViewTransition` with an enter animation:
+Wrap the Suspense fallback in a `ViewTransition` with an exit animation, and the content in a `ViewTransition` with an enter animation. The `default="none"` on the content prevents it from also animating during unrelated transitions, like the shared element morph from Step 1:
 
 ```tsx filename="app/photo/[id]/page.tsx"
 import { Suspense, ViewTransition } from 'react'
@@ -152,8 +150,6 @@ export default async function PhotoPage({ params }) {
   )
 }
 ```
-
-The `default="none"` prop prevents this `ViewTransition` from animating during unrelated transitions, like the shared element morph from Step 1. Without it, every transition on the page would trigger every `ViewTransition`'s animation.
 
 The CSS animations use asymmetric timing. The exit is fast (150ms). The enter is slower (210ms) and delayed until the exit completes:
 
@@ -194,9 +190,7 @@ The CSS animations use asymmetric timing. The exit is fast (150ms). The enter is
 }
 ```
 
-The asymmetry is deliberate. Old content should leave quickly so it does not compete for attention. New content should arrive more gently so the user has time to register it. The `var(--duration-exit)` delay on the enter animation means the new content waits for the old content to finish leaving before it appears.
-
-If we refresh the page, the skeleton slides down and fades out, and a moment later the real content slides up and fades in.
+The `var(--duration-exit)` delay on the enter animation means the new content waits for the old content to finish leaving before it appears. If we navigate to a photo, the skeleton slides down and fades out, then the real content slides up and fades in.
 
 ### Step 3: Add directional motion for navigation
 
@@ -212,7 +206,12 @@ Use the `transitionTypes` prop on `<Link>` to tag forward navigations:
 </Link>
 ```
 
-The same pattern works for any navigation within the app. For example, previous/next arrows on a photo detail page can use `nav-back` and `nav-forward` to animate in the corresponding direction.
+The same pattern works for any navigation. For example, previous/next arrows on the detail page use the same types:
+
+```tsx filename="app/photo/[id]/photo-nav.tsx"
+<Link href={`/photo/${prevId}`} transitionTypes={['nav-back']}>← Previous</Link>
+<Link href={`/photo/${nextId}`} transitionTypes={['nav-forward']}>Next →</Link>
+```
 
 For links that return the user to a previous page, use `nav-back`:
 
@@ -316,7 +315,7 @@ The `display: none` on the old snapshot prevents a flash where both old and new 
 
 If we navigate forward to a photo, content slides left. If we click the "← Gallery" link (tagged with `nav-back`), content slides right. The header stays fixed throughout both transitions.
 
-Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type, so the directional slide does not play. The shared element morph from Step 1 still applies if both pages have matching `name` props.
+Browser-initiated back navigations (the back button or swipe gestures) do not carry a transition type. Since the `enter` and `exit` objects use `default: "none"`, no directional slide plays for these navigations. The shared element morph from Step 1 still applies if both pages have matching `name` props, because shared element transitions use the `share` trigger, which is separate from `enter`/`exit`.
 
 #### Respecting reduced motion
 
@@ -388,6 +387,6 @@ For API details and more patterns:
 
 - [View transition configuration](/docs/app/api-reference/config/next-config-js/viewTransition)
 - [Link `transitionTypes` prop](/docs/app/api-reference/components/link#transitiontypes)
-- [`useRouter`](/docs/app/api-reference/functions/use-router) — also supports `transitionTypes` in `push()` and `replace()`
+- [`useRouter`](/docs/app/api-reference/functions/use-router), which also supports `transitionTypes` in `push()` and `replace()`
 - [React `ViewTransition` component](https://react.dev/reference/react/ViewTransition)
 - [Complete CSS from this guide](https://github.com/vercel-labs/react-view-transitions-demo/blob/main/src/app/globals.css) — all keyframes and view transition rules in one file
