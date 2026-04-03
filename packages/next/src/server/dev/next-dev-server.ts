@@ -659,9 +659,13 @@ export default class DevServer extends Server {
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
+    // Pass denormalized (original) paths as third argument to preserve
+    // route group context for disambiguation when multiple groups
+    // intercept the same path (#67034).
     const rewrites = generateInterceptionRoutesRewrites(
       Object.keys(this.appPathRoutes ?? {}),
-      this.nextConfig.basePath
+      this.nextConfig.basePath,
+      Object.values(this.appPathRoutes ?? {}).flat()
     ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
 
     if (this.nextConfig.output === 'export' && rewrites.length > 0) {

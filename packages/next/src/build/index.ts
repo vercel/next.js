@@ -1372,9 +1372,16 @@ export default async function build(
       // eventually with the development code.
       validateAppPaths(appPaths)
 
-      // Interception routes are modelled as beforeFiles rewrites
+      // Interception routes are modelled as beforeFiles rewrites.
+      // Pass denormalized paths as third argument to preserve route group
+      // context for disambiguation when multiple groups intercept the
+      // same path (#67034).
       rewrites.beforeFiles.push(
-        ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
+        ...generateInterceptionRoutesRewrites(
+          appPaths,
+          config.basePath,
+          denormalizedAppPages
+        )
       )
 
       NextBuildContext.rewrites = rewrites

@@ -978,9 +978,13 @@ async function startWatcher(
         ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
         : undefined
 
+      // Pass denormalized (original) paths as third argument to preserve
+      // route group context for disambiguation when multiple route groups
+      // define intercepting routes for the same path (#67034).
       const interceptionRoutes = generateInterceptionRoutesRewrites(
         Object.keys(appPaths),
-        opts.nextConfig.basePath
+        opts.nextConfig.basePath,
+        Object.values(appPaths).flat()
       ).map((item) =>
         buildCustomRoute(
           'before_files_rewrite',

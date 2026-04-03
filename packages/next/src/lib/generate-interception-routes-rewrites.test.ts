@@ -1,5 +1,6 @@
 import type { Rewrite } from './load-custom-routes'
 import { generateInterceptionRoutesRewrites } from './generate-interception-routes-rewrites'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 /**
  * Helper to create regex matchers from a rewrite object.
@@ -2064,38 +2065,50 @@ describe('generateInterceptionRoutesRewrites', () => {
         // Should generate 3 rewrites, one for each interception route
         expect(rewrites).toHaveLength(3)
 
-        // First rewrite: from /dashboard level
-        const dashboardRewrite = rewrites[0]
+        // Find rewrites by destination (order may vary due to specificity sorting)
+        const dashboardRewrite = rewrites.find(
+          (r) => r.destination === '/dashboard/@modal/(.)settings'
+        )!
+        const profileRewrite = rewrites.find(
+          (r) => r.destination === '/dashboard/profile/@modal/(..)settings'
+        )!
+        const rootRewrite = rewrites.find(
+          (r) => r.destination === '/@global-modal/(...)settings'
+        )!
+
+        expect(dashboardRewrite).toBeDefined()
+        expect(profileRewrite).toBeDefined()
+        expect(rootRewrite).toBeDefined()
+
+        // Dashboard rewrite: from /dashboard level
         expect(dashboardRewrite.source).toBe('/dashboard/settings')
-        expect(dashboardRewrite.destination).toBe(
-          '/dashboard/@modal/(.)settings'
-        )
 
         const { headerRegex: dashboardHeader } =
           getRewriteMatchers(dashboardRewrite)
         expect(dashboardHeader.test('/dashboard')).toBe(true)
         expect(dashboardHeader.test('/dashboard/profile')).toBe(true)
 
-        // Second rewrite: from /dashboard/profile level (one level up)
-        const profileRewrite = rewrites[1]
+        // Profile rewrite: from /dashboard/profile level (one level up)
         expect(profileRewrite.source).toBe('/dashboard/settings')
-        expect(profileRewrite.destination).toBe(
-          '/dashboard/profile/@modal/(..)settings'
-        )
 
         const { headerRegex: profileHeader } =
           getRewriteMatchers(profileRewrite)
         expect(profileHeader.test('/dashboard/profile')).toBe(true)
         expect(profileHeader.test('/dashboard/profile/nested')).toBe(true)
 
-        // Third rewrite: from root level (...)
-        const rootRewrite = rewrites[2]
+        // Root rewrite: from root level (...)
         expect(rootRewrite.source).toBe('/settings')
-        expect(rootRewrite.destination).toBe('/@global-modal/(...)settings')
 
         const { headerRegex: rootHeader } = getRewriteMatchers(rootRewrite)
         expect(rootHeader.test('/')).toBe(true)
         expect(rootHeader.test('/anything')).toBe(true)
+
+        // More specific rewrites should come before less specific ones
+        const dashboardIdx = rewrites.indexOf(dashboardRewrite)
+        const profileIdx = rewrites.indexOf(profileRewrite)
+        const rootIdx = rewrites.indexOf(rootRewrite)
+        expect(profileIdx).toBeLessThan(dashboardIdx)
+        expect(dashboardIdx).toBeLessThan(rootIdx)
       })
 
       it('should handle parallel routes with same target from different positions', () => {
@@ -2123,6 +2136,68 @@ describe('generateInterceptionRoutesRewrites', () => {
 
         expect(header1.source).toBe(header2.source)
         expect(header1.test('/dashboard')).toBe(true)
+      })
+
+      it('should disambiguate identical interception paths in different route groups (#67034)', () => {
+        // Two route groups each defining an intercepting route for the same path.
+        // In the real build/dev server, normalized paths are passed as the first
+        // argument and denormalized paths as the third.
+        const denormalized = [
+          '/(group1)/page',
+          '/(group1)/@modal/default',
+          '/(group1)/@modal/(.)shared/page',
+          '/(group2)/group2/page',
+          '/(group2)/@modal/default',
+          '/(group2)/@modal/(.)shared/page',
+          '/shared/page',
+        ]
+        // Simulate what the build does: normalize and deduplicate
+        const normalized = [
+          ...new Set(denormalized.map((p) => normalizeAppPath(p))),
+        ]
+        const rewrites = generateInterceptionRoutesRewrites(
+          normalized,
+          '',
+          denormalized
+        )
+
+        // Should generate 2 rewrites (one per route group) instead of 1
+        const interceptionRewrites = rewrites.filter(
+          (r) => r.has && r.has.length > 0
+        )
+        expect(interceptionRewrites).toHaveLength(2)
+
+        // Both rewrites target the same normalized path
+        expect(interceptionRewrites[0].source).toBe('/shared')
+        expect(interceptionRewrites[1].source).toBe('/shared')
+
+        // The header regexes should be DIFFERENT to distinguish the groups
+        const matchers = interceptionRewrites.map((r) => getRewriteMatchers(r))
+        expect(matchers[0].headerRegex.source).not.toBe(
+          matchers[1].headerRegex.source
+        )
+
+        // Find the group2-specific rewrite (matches /group2)
+        const group2Idx = matchers.findIndex((m) =>
+          m.headerRegex.test('/group2')
+        )
+        const group1Idx = matchers.findIndex((_, i) => i !== group2Idx)
+
+        const group2Header = matchers[group2Idx].headerRegex
+        const group1Header = matchers[group1Idx].headerRegex
+
+        // Group2's regex should match /group2 (where group2's pages live)
+        expect(group2Header.test('/group2')).toBe(true)
+        expect(group2Header.test('/group2/subpage')).toBe(true)
+
+        // Group2's regex should NOT match / (group1's territory)
+        expect(group2Header.test('/')).toBe(false)
+
+        // Group1's regex should match / (where group1's pages live)
+        expect(group1Header.test('/')).toBe(true)
+
+        // Group2's more specific rewrite should come first (sorted by specificity)
+        expect(group2Idx).toBeLessThan(group1Idx)
       })
     })
 
