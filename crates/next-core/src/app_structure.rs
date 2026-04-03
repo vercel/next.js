@@ -18,7 +18,7 @@ use turbopack_core::issue::{
 use crate::{
     mode::NextMode,
     next_app::{
-        AppPage, AppPath, PageSegment, PageType,
+        AppPage, AppPath, PageSegment, PageType, PathSegment,
         metadata::{
             GlobalMetadataFileMatch, MetadataFileMatch, match_global_metadata_file,
             match_local_metadata_file, normalize_metadata_route,
@@ -1303,6 +1303,30 @@ async fn directory_tree_to_loader_tree_internal(
 
     let mut duplicate = FxHashMap::default();
 
+    // When match_dynamic is true and we're inside a parallel slot subtree,
+    // check if any static subdirectory at the current level directly matches
+    // the next segment of for_app_path. If so, dynamic segment subdirectories
+    // at this level should NOT use dynamic matching, because the static match
+    // should take priority. For example, if @panel has both "settings" and
+    // "[id]" subdirectories, and we're building for /dashboard/settings, the
+    // "settings" directory should be used, not "[id]".
+    let has_static_match_at_this_level = if match_dynamic {
+        let current_app_path = AppPath::from(app_page.clone());
+        if let Some(target_segment) = for_app_path.0.get(current_app_path.0.len()) {
+            if let PathSegment::Static(target_name) = target_segment {
+                directory_tree
+                    .subdirectories
+                    .contains_key(target_name.as_str())
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
 
@@ -1327,7 +1351,17 @@ async fn directory_tree_to_loader_tree_internal(
         // For parallel route slots, use dynamic matching so that a slot with
         // e.g. @parallel/test/[param] can match the static path /test/static.
         // The match_dynamic flag propagates down the entire parallel subtree.
-        let child_match_dynamic = match_dynamic || parallel_route_key.is_some();
+        // However, if a static subdirectory at this level directly matches the
+        // target path, dynamic segment subdirectories should not use dynamic
+        // matching (static routes take priority over dynamic ones).
+        let child_match_dynamic = if has_static_match_at_this_level
+            && is_dynamic_segment(subdir_name)
+            && parallel_route_key.is_none()
+        {
+            false
+        } else {
+            match_dynamic || parallel_route_key.is_some()
+        };
 
         let subtree = Box::pin(directory_tree_to_loader_tree_internal(
             app_dir.clone(),

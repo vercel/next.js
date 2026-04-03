@@ -219,4 +219,48 @@ describe('normalizeCatchallRoutes', () => {
     // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
+
+  // Test to verify normalizeDynamicRoutes doesn't break static-siblings parallel route test
+  it('should not propagate dynamic parallel routes when the slot already has a static match', () => {
+    // Mimics the static-siblings dashboard scenario:
+    // /dashboard/@panel/settings/page.tsx (static)
+    // /dashboard/@panel/[id]/page.tsx (dynamic)
+    const appPaths: Record<string, string[]> = {
+      '/dashboard': ['/dashboard/page'],
+      '/dashboard/settings': ['/dashboard/@panel/settings/page'],
+      '/dashboard/[id]': ['/dashboard/@panel/[id]/page'],
+    }
+
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    normalizeCatchAllRoutes(appPaths)
+
+    // /dashboard/settings should NOT get /dashboard/@panel/[id]/page added
+    // because @panel already has a match (settings)
+    expect(appPaths).toMatchObject(initialAppPaths)
+  })
+
+  // Test for the actual fix: dynamic parallel route should be propagated when no static match exists
+  it('should propagate dynamic parallel routes when the slot has no match', () => {
+    // Mimics the #62656 scenario:
+    // /test/[testParam]/page.tsx (children dynamic)
+    // /test/static/page.tsx (children static)
+    // /@parallel/test/[testParam]/page.tsx (parallel dynamic, no static match)
+    const appPaths: Record<string, string[]> = {
+      '/': ['/page'],
+      '/test/static': ['/test/static/page'],
+      '/test/[testParam]': [
+        '/test/[testParam]/page',
+        '/@parallel/test/[testParam]/page',
+      ],
+    }
+
+    normalizeCatchAllRoutes(appPaths)
+
+    // /test/static SHOULD get /@parallel/test/[testParam]/page added
+    // because @parallel has no match for /test/static
+    expect(appPaths['/test/static']).toContain(
+      '/@parallel/test/[testParam]/page'
+    )
+  })
 })
