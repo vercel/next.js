@@ -18,6 +18,7 @@ use turbo_tasks::{
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
 };
 
+use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
         EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
@@ -757,6 +758,77 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
+    /// Update the task's dirty state to `new_dirtyness`, applying the change to stored fields,
+    /// computing the aggregated propagation update, and firing the `all_clean_event` if the task
+    /// transitioned to clean.
+    ///
+    /// Returns an optional `AggregationUpdateJob` that the caller must run via
+    /// `AggregationUpdateQueue::run` to propagate the change to aggregating ancestors.
+    fn update_dirty_state(
+        &mut self,
+        new_dirtyness: Option<Dirtyness>,
+    ) -> Option<AggregationUpdateJob>
+    where
+        Self: Sized,
+    {
+        let task_id = self.id();
+        let old_dirtyness = self.get_dirty().cloned();
+        let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
+        let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
+            None => (false, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::SessionDependent) => (true, true),
+        };
+        if old_dirtyness != new_dirtyness {
+            if let Some(value) = new_dirtyness {
+                self.set_dirty(value);
+            } else {
+                self.take_dirty();
+            }
+        }
+        if old_current_session_self_clean != new_current_session_self_clean {
+            self.set_current_session_clean(new_current_session_self_clean);
+        }
+        if old_self_dirty == new_self_dirty
+            && old_current_session_self_clean == new_current_session_self_clean
+        {
+            return None;
+        }
+        let dirty_container_count = self
+            .get_aggregated_dirty_container_count()
+            .cloned()
+            .unwrap_or_default();
+        let current_session_clean_container_count = self
+            .get_aggregated_current_session_clean_container_count()
+            .copied()
+            .unwrap_or_default();
+        let result = ComputeDirtyAndCleanUpdate {
+            old_dirty_container_count: dirty_container_count,
+            new_dirty_container_count: dirty_container_count,
+            old_current_session_clean_container_count: current_session_clean_container_count,
+            new_current_session_clean_container_count: current_session_clean_container_count,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
+        }
+        .compute();
+        // Fire the all_clean_event if the task transitioned to clean
+        if result.dirty_count_update - result.current_session_clean_update < 0
+            && let Some(activeness_state) = self.get_activeness_mut()
+        {
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+            if activeness_state.is_empty() {
+                self.take_activeness();
+            }
+        }
+        result
+            .aggregated_update(task_id)
+            .and_then(|aggregated_update| {
+                AggregationUpdateJob::data_update(self, aggregated_update)
+            })
+    }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
             .map(|(task_id, _)| task_id)
@@ -1102,8 +1174,8 @@ impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdate,
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,
