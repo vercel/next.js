@@ -67,6 +67,22 @@ describe('parallel-routes-leaf-segments-no-build-error', () => {
     })
   })
 
+  describe('parallel slot with optional catchall', () => {
+    it('should not require default.tsx when slot contains [[...catchall]]', async () => {
+      const $ = await next.render$('/slot-with-optional-catchall')
+
+      expect($('h2').text()).toBe('Slot With Optional Catchall Page')
+      expect($('.breadcrumbs-content h3').text()).toBe('Breadcrumbs')
+    })
+
+    it('should render the optional catchall slot for nested routes', async () => {
+      const $ = await next.render$('/slot-with-optional-catchall/nested')
+
+      expect($('h2').text()).toBe('Nested Page')
+      expect($('.breadcrumbs-content h3').text()).toBe('Breadcrumbs')
+    })
+  })
+
   describe('no children slot', () => {
     it('should render the no children slot', async () => {
       const $ = await next.render$('/no-children/other')
