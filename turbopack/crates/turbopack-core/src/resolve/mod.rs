@@ -217,24 +217,22 @@ fn build_indexed_primary<V: Eq + std::hash::Hash>(
 ) -> (Box<[(u32, u32)]>, Box<[RequestKey]>, Box<[V]>) {
     let iter = pairs.into_iter();
     let (lower, _) = iter.size_hint();
-    let mut key_dedup: FxIndexMap<RequestKey, u32> =
-        FxIndexMap::with_capacity_and_hasher(lower, Default::default());
-    let mut val_dedup: FxIndexMap<V, u32> =
-        FxIndexMap::with_capacity_and_hasher(lower, Default::default());
+    let mut key_dedup: FxIndexSet<RequestKey> =
+        FxIndexSet::with_capacity_and_hasher(lower, Default::default());
+    let mut val_dedup: FxIndexSet<V> =
+        FxIndexSet::with_capacity_and_hasher(lower, Default::default());
     let mut primary = Vec::with_capacity(lower);
 
     for (key, val) in iter {
-        let next_ki = key_dedup.len() as u32;
-        let ki = *key_dedup.entry(key).or_insert(next_ki);
-        let next_ri = val_dedup.len() as u32;
-        let ri = *val_dedup.entry(val).or_insert(next_ri);
-        primary.push((ki, ri));
+        let (ki, _) = key_dedup.insert_full(key);
+        let (ri, _) = val_dedup.insert_full(val);
+        primary.push((ki.try_into().unwrap(), ri.try_into().unwrap()));
     }
 
     (
         primary.into_boxed_slice(),
-        key_dedup.into_keys().collect(),
-        val_dedup.into_keys().collect(),
+        key_dedup.into_iter().collect(),
+        val_dedup.into_iter().collect(),
     )
 }
 
@@ -252,10 +250,10 @@ pub struct ModuleResolveResult {
 impl ModuleResolveResult {
     pub fn unresolvable() -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: Default::default(),
-            keys: Default::default(),
-            module_results: Default::default(),
-            affecting_sources: Default::default(),
+            primary: Box::new([]),
+            keys: Box::new([]),
+            module_results: Box::new([]),
+            affecting_sources: Box::new([]),
         }
         .resolved_cell()
     }
@@ -272,7 +270,7 @@ impl ModuleResolveResult {
             primary: Box::new([(0, 0)]),
             keys: Box::new([request_key]),
             module_results: Box::new([ModuleResolveResultItem::Module(module)]),
-            affecting_sources: Default::default(),
+            affecting_sources: Box::new([]),
         }
         .resolved_cell()
     }
@@ -285,7 +283,7 @@ impl ModuleResolveResult {
             primary: Box::new([(0, 0)]),
             keys: Box::new([request_key]),
             module_results: Box::new([ModuleResolveResultItem::OutputAsset(output_asset)]),
-            affecting_sources: Default::default(),
+            affecting_sources: Box::new([]),
         }
         .resolved_cell()
     }
@@ -293,17 +291,12 @@ impl ModuleResolveResult {
     pub fn modules(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ResolvedVc<Self> {
-        let (primary, keys, module_results) = build_indexed_primary(
+        Self::from_pairs(
             modules
                 .into_iter()
                 .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
-        );
-        ModuleResolveResult {
-            primary,
-            keys,
-            module_results,
-            affecting_sources: Default::default(),
-        }
+            Box::new([]),
+        )
         .resolved_cell()
     }
 
@@ -311,17 +304,12 @@ impl ModuleResolveResult {
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
-        let (primary, keys, module_results) = build_indexed_primary(
+        Self::from_pairs(
             modules
                 .into_iter()
                 .map(|(k, v)| (k, ModuleResolveResultItem::Module(v))),
-        );
-        ModuleResolveResult {
-            primary,
-            keys,
-            module_results,
-            affecting_sources: affecting_sources.into_boxed_slice(),
-        }
+            affecting_sources.into_boxed_slice(),
+        )
         .resolved_cell()
     }
 
@@ -346,9 +334,12 @@ impl ModuleResolveResult {
     pub fn primary_iter(
         &self,
     ) -> impl Iterator<Item = (&RequestKey, &ModuleResolveResultItem)> + '_ {
-        self.primary
-            .iter()
-            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.module_results[ri as usize]))
+        self.primary.iter().map(|&(ki, ri)| {
+            (
+                &self.keys[usize::try_from(ki).unwrap()],
+                &self.module_results[usize::try_from(ri).unwrap()],
+            )
+        })
     }
 
     /// Number of primary entries.
@@ -363,9 +354,12 @@ impl ModuleResolveResult {
 
     /// First `(key, item)` pair, if any.
     pub fn primary_first(&self) -> Option<(&RequestKey, &ModuleResolveResultItem)> {
-        self.primary
-            .first()
-            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.module_results[ri as usize]))
+        self.primary.first().map(|&(ki, ri)| {
+            (
+                &self.keys[usize::try_from(ki).unwrap()],
+                &self.module_results[usize::try_from(ri).unwrap()],
+            )
+        })
     }
 
     /// Mutate all keys in-place via a mapping function.
@@ -434,8 +428,8 @@ impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
                 .iter()
                 .map(|&(ki, ri)| {
                     (
-                        v.keys[ki as usize].clone(),
-                        v.module_results[ri as usize].clone(),
+                        v.keys[usize::try_from(ki).unwrap()].clone(),
+                        v.module_results[usize::try_from(ri).unwrap()].clone(),
                     )
                 })
                 .collect(),
@@ -446,10 +440,12 @@ impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
 impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
         for &(ki, ri) in other.primary.iter() {
-            let k = &other.keys[ki as usize];
+            let k = &other.keys[usize::try_from(ki).unwrap()];
             if !self.primary.contains_key(k) {
-                self.primary
-                    .insert(k.clone(), other.module_results[ri as usize].clone());
+                self.primary.insert(
+                    k.clone(),
+                    other.module_results[usize::try_from(ri).unwrap()].clone(),
+                );
             }
         }
         let set = self
@@ -736,10 +732,10 @@ impl ValueToString for ResolveResult {
 impl ResolveResult {
     pub fn unresolvable() -> Self {
         ResolveResult {
-            primary: Default::default(),
-            keys: Default::default(),
-            resolve_results: Default::default(),
-            affecting_sources: Default::default(),
+            primary: Box::new([]),
+            keys: Box::new([]),
+            resolve_results: Box::new([]),
+            affecting_sources: Box::new([]),
         }
     }
 
@@ -747,9 +743,9 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         ResolveResult {
-            primary: Default::default(),
-            keys: Default::default(),
-            resolve_results: Default::default(),
+            primary: Box::new([]),
+            keys: Box::new([]),
+            resolve_results: Box::new([]),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
     }
@@ -763,7 +759,7 @@ impl ResolveResult {
             primary: Box::new([(0, 0)]),
             keys: Box::new([request_key]),
             resolve_results: Box::new([result]),
-            affecting_sources: Default::default(),
+            affecting_sources: Box::new([]),
         }
     }
 
@@ -789,7 +785,7 @@ impl ResolveResult {
             primary: Box::new([(0, 0)]),
             keys: Box::new([request_key]),
             resolve_results: Box::new([ResolveResultItem::Source(source)]),
-            affecting_sources: Default::default(),
+            affecting_sources: Box::new([]),
         }
     }
 
@@ -832,9 +828,12 @@ impl ResolveResult {
 impl ResolveResult {
     /// Iterate over `(key, item)` pairs in the primary results.
     pub fn primary_iter(&self) -> impl Iterator<Item = (&RequestKey, &ResolveResultItem)> + '_ {
-        self.primary
-            .iter()
-            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.resolve_results[ri as usize]))
+        self.primary.iter().map(|&(ki, ri)| {
+            (
+                &self.keys[usize::try_from(ki).unwrap()],
+                &self.resolve_results[usize::try_from(ri).unwrap()],
+            )
+        })
     }
 
     /// Number of primary entries.
@@ -849,9 +848,12 @@ impl ResolveResult {
 
     /// First `(key, item)` pair, if any.
     pub fn primary_first(&self) -> Option<(&RequestKey, &ResolveResultItem)> {
-        self.primary
-            .first()
-            .map(|&(ki, ri)| (&self.keys[ki as usize], &self.resolve_results[ri as usize]))
+        self.primary.first().map(|&(ki, ri)| {
+            (
+                &self.keys[usize::try_from(ki).unwrap()],
+                &self.resolve_results[usize::try_from(ri).unwrap()],
+            )
+        })
     }
 
     /// Returns the affecting sources for this result. Will be empty if affecting sources are
@@ -1007,8 +1009,8 @@ impl From<ResolveResult> for ResolveResultBuilder {
                 .iter()
                 .map(|&(ki, ri)| {
                     (
-                        v.keys[ki as usize].clone(),
-                        v.resolve_results[ri as usize].clone(),
+                        v.keys[usize::try_from(ki).unwrap()].clone(),
+                        v.resolve_results[usize::try_from(ri).unwrap()].clone(),
                     )
                 })
                 .collect(),
@@ -1019,10 +1021,12 @@ impl From<ResolveResult> for ResolveResultBuilder {
 impl ResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ResolveResult) {
         for &(ki, ri) in other.primary.iter() {
-            let k = &other.keys[ki as usize];
+            let k = &other.keys[usize::try_from(ki).unwrap()];
             if !self.primary.contains_key(k) {
-                self.primary
-                    .insert(k.clone(), other.resolve_results[ri as usize].clone());
+                self.primary.insert(
+                    k.clone(),
+                    other.resolve_results[usize::try_from(ri).unwrap()].clone(),
+                );
             }
         }
         let set = self
