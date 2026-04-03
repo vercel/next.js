@@ -6,7 +6,7 @@ const logger = require('./util/logger')
 const runConfigs = require('./run')
 const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
-const { mainRepoDir, diffRepoDir } = require('./constants')
+const { mainRepoDir, diffRepoDir, pnpmStoreDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
 const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
   require('./prepare/repo-setup')(actionInfo)
@@ -117,9 +117,10 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
               usePnpm
                 ? // --no-frozen-lockfile is used here to tolerate lockfile
                   // changes from merging latest changes
-                  // --package-import-method=copy avoids EXDEV hardlink failures
-                  // on self-hosted runners where pnpm store/workdirs cross devices.
-                  ` && pnpm install --no-frozen-lockfile --package-import-method=copy`
+                  // --package-import-method=copy avoids hardlink issues on
+                  // self-hosted runners, and the store is colocated with the
+                  // workdir to avoid EXDEV copy failures on overlayfs runners.
+                  ` && pnpm install --no-frozen-lockfile --package-import-method=copy --store-dir=${pnpmStoreDir}`
                 : ' && yarn install --network-timeout 1000000'
             }`,
             { env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' } }
