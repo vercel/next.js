@@ -1326,7 +1326,9 @@ export async function handler(
           // When a request carries dynamic placeholder values (e.g. "[slug]"),
           // defer only the unresolved subset instead of forcing all fallback
           // params to suspend.
-          pageIsDynamic && prerenderInfo?.fallbackRouteParams
+          !routeModule.isDev &&
+          pageIsDynamic &&
+          prerenderInfo?.fallbackRouteParams
             ? getPlaceholderFallbackRouteParams(
                 params as
                   | Record<string, undefined | string | string[]>
