@@ -258,9 +258,6 @@ impl CollectiblesSource for RawVc {
 
 /// Polls a pending [`EventListener`] slot. Returns [`Poll::Pending`] if the event has not yet
 /// fired. On [`Poll::Ready`], clears the slot so it is not polled again.
-///
-/// [`EventListener`] is [`Unpin`], so this uses the safe [`Pin::new`] instead of
-/// [`Pin::new_unchecked`][std::pin::Pin::new_unchecked].
 fn poll_listener(
     listener: &mut Option<EventListener>,
     cx: &mut std::task::Context<'_>,
