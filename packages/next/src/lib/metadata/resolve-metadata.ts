@@ -18,6 +18,7 @@ import type {
   AbsoluteTemplateString,
   IconDescriptor,
   ResolvedIcons,
+  TemplateString,
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
@@ -1135,6 +1136,14 @@ function freezeInDev<T extends object>(obj: T): T {
   return obj
 }
 
+/**
+ * Returns true when the given title value is an object that explicitly defines
+ * a `template` key (i.e. it is a TemplateString, not a plain string).
+ */
+const definesTemplate = (
+  title: string | TemplateString | null | undefined
+): boolean => title != null && typeof title !== 'string' && 'template' in title
+
 export async function accumulateMetadata(
   route: string,
   metadataItems: MetadataItems,
@@ -1213,8 +1222,6 @@ export async function accumulateMetadata(
       // that only set a plain string title must not reset the parent layout's
       // template to null, because sibling parallel-route pages still need that
       // template applied (see #77888).
-      const definesTemplate = (title: Metadata['title'] | undefined): boolean =>
-        title != null && typeof title !== 'string' && 'template' in title
       titleTemplates = {
         title: definesTemplate(metadata?.title)
           ? resolvedMetadata.title?.template || null
