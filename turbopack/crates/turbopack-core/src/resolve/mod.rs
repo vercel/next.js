@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::BTreeMap,
-    fmt::{Display, Formatter, Write},
+    fmt::{Display, Formatter},
     future::Future,
     iter::{empty, once},
 };
@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -106,6 +106,27 @@ pub enum ModuleResolveResultItem {
     /// Resolve the reference to an empty module.
     Empty,
     Custom(u8),
+}
+
+impl ValueToStringRef for ModuleResolveResultItem {
+    async fn to_string_ref(&self) -> Result<RcStr> {
+        Ok(match self {
+            ModuleResolveResultItem::Module(module) => {
+                module.ident().await?.path.to_string_ref().await?
+            }
+            ModuleResolveResultItem::OutputAsset(asset) => {
+                asset.path().await?.to_string_ref().await?
+            }
+            ModuleResolveResultItem::External { name, .. } => name.clone(),
+            ModuleResolveResultItem::Unknown(source) => {
+                source.ident().await?.path.to_string_ref().await?
+            }
+            ModuleResolveResultItem::Ignore => rcstr!("(ignore)"),
+            ModuleResolveResultItem::Error(_) => rcstr!("(error)"),
+            ModuleResolveResultItem::Empty => rcstr!("(empty)"),
+            ModuleResolveResultItem::Custom(n) => format!("(custom {n})").into(),
+        })
+    }
 }
 
 impl ModuleResolveResultItem {
@@ -565,70 +586,6 @@ pub struct ResolveResult {
     /// Affecting sources are other files that influence the resolve result.  For example,
     /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ResolveResult {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut result = String::new();
-        if self.is_unresolvable_ref() {
-            result.push_str("unresolvable");
-        }
-        for (i, (request, item)) in self.primary.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            write!(result, "{request} -> ").unwrap();
-            match item {
-                ResolveResultItem::Source(a) => {
-                    result.push_str(&a.ident().to_string().await?);
-                }
-                ResolveResultItem::External {
-                    name: s,
-                    ty,
-                    traced,
-                    target,
-                } => {
-                    result.push_str("external ");
-                    result.push_str(s);
-                    write!(
-                        result,
-                        " ({ty}, {traced}, {:?})",
-                        if let Some(target) = target {
-                            Some(target.value_to_string().await?)
-                        } else {
-                            None
-                        }
-                    )?;
-                }
-                ResolveResultItem::Ignore => {
-                    result.push_str("ignore");
-                }
-                ResolveResultItem::Empty => {
-                    result.push_str("empty");
-                }
-                ResolveResultItem::Error(_) => {
-                    result.push_str("error");
-                }
-                ResolveResultItem::Custom(_) => {
-                    result.push_str("custom");
-                }
-            }
-            result.push('\n');
-        }
-        if !self.affecting_sources.is_empty() {
-            result.push_str(" (affecting sources: ");
-            for (i, source) in self.affecting_sources.iter().enumerate() {
-                if i > 0 {
-                    result.push_str(", ");
-                }
-                result.push_str(&source.ident().to_string().await?);
-            }
-            result.push(')');
-        }
-        Ok(Vc::cell(result.into()))
-    }
 }
 
 impl ResolveResult {
