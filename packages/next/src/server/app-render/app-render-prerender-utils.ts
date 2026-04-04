@@ -158,10 +158,13 @@ export class ReplayableNodeStream {
     if (process.env.TURBOPACK) {
       ReadableCtor = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else {
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
       ReadableCtor = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
+    } else {
+      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+        .Readable
     }
 
     const bufferedChunks = this._chunks.slice()
