@@ -13,6 +13,7 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
+use tracing::trace_span;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
@@ -45,29 +46,35 @@ pub trait ExecuteContext<'e>: Sized {
     fn prepare_tasks(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+        reason: &'static str,
     );
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     );
     fn for_each_task_meta(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
+            reason,
             func,
         )
     }
     fn for_each_task_all(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
+            reason,
             func,
         )
     }
@@ -199,6 +206,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
+        reason: &'static str,
     ) -> Option<Vec<TaskStorage>> {
         debug_assert!(
             task_ids.len() > 1,
@@ -208,6 +216,13 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             // If we don't need to restore, we return None
             return None;
         }
+        let _span = trace_span!(
+            "restore_task_data_batch",
+            reason,
+            category = ?category,
+            keys = task_ids.len(),
+        )
+        .entered();
         let result = self
             .backend
             .backing_storage
@@ -230,6 +245,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         call_prepared_task_callback_for_transient_tasks: bool,
+        reason: &'static str,
         mut prepared_task_callback: impl FnMut(
             &mut Self,
             TaskId,
@@ -237,6 +253,15 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
+        let span = trace_span!(
+            "prepare_tasks_with_callback",
+            reason,
+            requested_data = tracing::field::Empty,
+            requested_meta = tracing::field::Empty,
+            races_data = tracing::field::Empty,
+            races_meta = tracing::field::Empty,
+        );
+        let _guard = span.enter();
         let mut data_count = 0;
         let mut meta_count = 0;
         let mut all_count = 0;
@@ -267,6 +292,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .collect::<Vec<_>>();
         data_count += all_count;
         meta_count += all_count;
+        span.record("requested_data", data_count);
+        span.record("requested_meta", meta_count);
 
         let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
         let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
@@ -312,6 +339,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 if let Some(data) = self.restore_task_data_batch(
                     &tasks_to_restore_for_data,
                     SpecificTaskDataCategory::Data,
+                    reason,
                 ) {
                     data.into_iter()
                         .zip(tasks_to_restore_for_data_indicies)
@@ -337,6 +365,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 if let Some(data) = self.restore_task_data_batch(
                     &tasks_to_restore_for_meta,
                     SpecificTaskDataCategory::Meta,
+                    reason,
                 ) {
                     data.into_iter()
                         .zip(tasks_to_restore_for_meta_indicies)
@@ -351,6 +380,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             }
         }
 
+        let mut races_data = 0u32;
+        let mut races_meta = 0u32;
         for (task_id, category, storage_for_data, storage_for_meta) in tasks {
             if storage_for_data.is_none() && storage_for_meta.is_none() {
                 continue;
@@ -359,18 +390,24 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
 
             let mut task_type = None;
             let mut task = self.backend.storage.access_mut(task_id);
-            if let Some(storage) = storage_for_data
-                && !task.flags.is_restored(TaskDataCategory::Data)
-            {
-                task.restore_from(storage, TaskDataCategory::Data);
-                task.flags.set_restored(TaskDataCategory::Data);
-                task_type = task.get_persistent_task_type().cloned()
+            if let Some(storage) = storage_for_data {
+                if !task.flags.is_restored(TaskDataCategory::Data) {
+                    task.restore_from(storage, TaskDataCategory::Data);
+                    task.flags.set_restored(TaskDataCategory::Data);
+                    task_type = task.get_persistent_task_type().cloned()
+                } else {
+                    races_data += 1;
+                    span.record("races_data", races_data);
+                }
             }
-            if let Some(storage) = storage_for_meta
-                && !task.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task.restore_from(storage, TaskDataCategory::Meta);
-                task.flags.set_restored(TaskDataCategory::Meta);
+            if let Some(storage) = storage_for_meta {
+                if !task.flags.is_restored(TaskDataCategory::Meta) {
+                    task.restore_from(storage, TaskDataCategory::Meta);
+                    task.flags.set_restored(TaskDataCategory::Meta);
+                } else {
+                    races_meta += 1;
+                    span.record("races_meta", races_meta);
+                }
             }
             self.task_lock_counter.release();
             prepared_task_callback(self, task_id, category, task);
@@ -446,30 +483,41 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn prepare_tasks(&mut self, task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>) {
-        self.prepare_tasks_with_callback(task_ids, false, |_, _, _, _| {});
+    fn prepare_tasks(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+        reason: &'static str,
+    ) {
+        self.prepare_tasks_with_callback(task_ids, false, reason, |_, _, _, _| {});
     }
 
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         let task_lock_counter = self.task_lock_counter.clone();
-        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
-            // prepare_tasks_with_callback releases the counter before calling this callback,
-            // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on Drop.
-            task_lock_counter.acquire();
+        self.prepare_tasks_with_callback(
+            task_ids,
+            true,
+            reason,
+            |this, task_id, _category, task| {
+                // prepare_tasks_with_callback releases the counter before calling this callback,
+                // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on
+                // Drop.
+                task_lock_counter.acquire();
 
-            let guard = TaskGuardImpl {
-                task,
-                task_id,
-                #[cfg(debug_assertions)]
-                category: _category,
-                task_lock_counter: task_lock_counter.clone(),
-            };
-            func(guard, this);
-        });
+                let guard = TaskGuardImpl {
+                    task,
+                    task_id,
+                    #[cfg(debug_assertions)]
+                    category: _category,
+                    task_lock_counter: task_lock_counter.clone(),
+                };
+                func(guard, this);
+            },
+        );
     }
 
     fn task_pair(

@@ -153,6 +153,7 @@ impl UpdateCellOperation {
                     dependent_tasks
                         .keys()
                         .map(|&id| (id, TaskDataCategory::All)),
+                    "invalidate cell dependents",
                 );
 
                 UpdateCellOperation::InvalidateWhenCellDependency {

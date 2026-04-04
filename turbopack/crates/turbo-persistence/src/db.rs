@@ -1573,7 +1573,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database batch read",
-            name = family,
+            name = self.config.family_configs[family].name,
             keys = keys.len(),
             not_found = tracing::field::Empty,
             deleted = tracing::field::Empty,
