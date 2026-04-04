@@ -11,8 +11,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -664,14 +664,14 @@ impl EvaluateContext for WebpackLoaderContext {
                         bail!(
                             "Resolving {} in {} ends up on a different filesystem",
                             request.to_string().await?,
-                            lookup_path.value_to_string().await?
+                            lookup_path.to_string_ref().await?
                         );
                     }
                 } else {
                     bail!(
                         "Unable to resolve {} in {}",
                         request.to_string().await?,
-                        lookup_path.value_to_string().await?
+                        lookup_path.to_string_ref().await?
                     );
                 }
             }
@@ -702,7 +702,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,
-                        lookup_path.value_to_string().await?
+                        lookup_path.to_string_ref().await?
                     );
                 };
 

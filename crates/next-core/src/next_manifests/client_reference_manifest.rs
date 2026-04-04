@@ -7,7 +7,8 @@ use serde::Serialize;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -414,8 +415,7 @@ async fn build_manifest(
                 .source_path()
                 .await?
                 .with_extension("")
-                .value_to_string()
-                .owned()
+                .to_string_ref()
                 .await?;
             let entry_js_files = entry_manifest
                 .entry_js_files

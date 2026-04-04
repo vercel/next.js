@@ -3,7 +3,9 @@ use std::{borrow::Cow, fmt::Display, io::Write};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -270,7 +272,7 @@ impl Module for CachedExternalModule {
             .with_modifier(self.external_type.to_string().into());
 
         if let Some(target) = &self.target {
-            ident = ident.with_modifier(target.value_to_string().owned().await?);
+            ident = ident.with_modifier(target.to_string_ref().await?);
         }
 
         Ok(ident)
