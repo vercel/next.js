@@ -3515,10 +3515,8 @@ export default async function build(
               STATIC_STATUS_PAGES.includes(page) &&
               !usedStaticStatusPages.includes(page)
 
-            // SSG pages and unused static status pages don't get manifest entries
-            if (isSsg || isUnusedStaticStatusPage) return
-
-            const file = normalizePagePath(page)
+            // SSG pages don't get manifest entries
+            if (isSsg) return
 
             if (i18n) {
               // Replace non-locale entry with per-locale entries
@@ -3532,7 +3530,8 @@ export default async function build(
                     : `pages${normalizePagePath(curPath)}.html`
                 pagesManifest[curPath] = relativeDest
               }
-            } else {
+            } else if (!isUnusedStaticStatusPage) {
+              const file = normalizePagePath(page)
               pagesManifest[page] = `pages${file}.html`
             }
           }
