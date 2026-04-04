@@ -190,18 +190,18 @@ After:
 ```jsx filename="app/product/[id]/page.js"
 import { Suspense } from 'react'
 
-async function Product({ params }) {
-  const { id } = await params
-  const product = await db.product.find(id)
-  return <h1>{product.name}</h1>
-}
-
 export default function ProductPage({ params }) {
   return (
     <Suspense fallback={<p>Loading product...</p>}>
       <Product params={params} />
     </Suspense>
   )
+}
+
+async function Product({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <h1>{product.name}</h1>
 }
 ```
 
