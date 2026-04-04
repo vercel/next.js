@@ -14,7 +14,7 @@ use ref_cast::RefCast;
 use regex::Regex;
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
@@ -380,7 +380,7 @@ impl SourceMap {
         ) -> Result<(BytesStr, BytesStr)> {
             Ok(
                 if let Some(path) = origin.parent().try_join(&source_request) {
-                    let path_str = path.value_to_string().await?;
+                    let path_str = path.to_string_ref().await?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
@@ -392,7 +392,7 @@ impl SourceMap {
                     };
                     (source.into(), source_content)
                 } else {
-                    let origin_str = origin.value_to_string().await?;
+                    let origin_str = origin.to_string_ref().await?;
                     static INVALID_REGEX: Lazy<Regex> =
                         Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX

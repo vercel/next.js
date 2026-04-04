@@ -1406,13 +1406,6 @@ pub struct FileSystemPath {
     pub path: RcStr,
 }
 
-impl FileSystemPath {
-    /// Mimics `ValueToString::to_string`.
-    pub fn value_to_string(&self) -> Vc<RcStr> {
-        <FileSystemPath as ValueToString>::to_string(self.clone().cell())
-    }
-}
-
 impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
         turbofmt!("[{}]/{}", self.fs, self.path).await

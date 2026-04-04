@@ -7,8 +7,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -325,7 +325,7 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
         "read app directory tree",
-        name = display(dir.value_to_string().await?)
+        name = display(dir.to_string_ref().await?)
     );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
