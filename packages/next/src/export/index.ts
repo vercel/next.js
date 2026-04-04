@@ -1072,17 +1072,8 @@ async function collectSegmentPathsImpl(
       if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
         return
       }
-      // Use forward slashes regardless of the platform. On Windows,
-      // `path.relative()` returns backslash-separated paths, but
-      // `convertSegmentPathToStaticExportFilename` only replaces forward
-      // slashes. Without this normalization, the backslashes would be treated
-      // as directory separators when the output file is written, producing
-      // nested directories instead of a flat `__next.*.txt` filename.
       results.push(
-        relative(segmentsDirectory, join(directory, segmentFile.name)).replace(
-          /\\/g,
-          '/'
-        )
+        relative(segmentsDirectory, join(directory, segmentFile.name))
       )
     })
   )

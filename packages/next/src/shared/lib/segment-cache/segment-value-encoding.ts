@@ -90,5 +90,8 @@ function encodeToFilesystemAndURLSafeString(value: string) {
 export function convertSegmentPathToStaticExportFilename(
   segmentPath: string
 ): string {
-  return `__next${segmentPath.replace(/\//g, '.')}.txt`
+  // Replace both forward slashes and backslashes with dots. On Windows,
+  // `path.relative()` returns backslash-separated paths, so the segment path
+  // may contain backslashes even though the canonical separator is '/'.
+  return `__next${segmentPath.replace(/[/\\]/g, '.')}.txt`
 }
