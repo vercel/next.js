@@ -588,7 +588,7 @@ pub fn project_new(
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve_strongly_consistent().await
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -2493,6 +2493,74 @@ pub async fn project_write_analyze_data(
 
             // Write the files to disk
             effects.apply().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the module graph for every endpoint without chunking, code gen, or disk emission.
+    // We iterate endpoints rather than calling project.whole_app_module_graphs() because the
+    // latter calls drop_issues() in development mode (to avoid duplicate per-route HMR noise).
+    // Per-endpoint module_graphs() calls are not subject to that suppression, so issues like
+    // missing modules and transform errors are properly collected as collectables here.
+    let endpoint_groups = project.get_all_endpoint_groups(false).await?;
+    endpoint_groups
+        .iter()
+        .map(|(_, endpoint_group)| async move {
+            endpoint_group.module_graphs().as_side_effect().await
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*op.read_strongly_consistent().await?;
             Ok((issues.clone(), diagnostics.clone()))
         })
         .await

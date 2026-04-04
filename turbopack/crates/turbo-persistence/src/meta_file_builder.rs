@@ -7,8 +7,9 @@ use std::{
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use qfilter::Filter;
+use zerocopy::IntoBytes;
 
-use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
+use crate::{meta_file::EntryHeader, static_sorted_file_builder::StaticSortedFileBuilderMeta};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
@@ -64,19 +65,22 @@ impl<'a> MetaFileBuilder<'a> {
 
         let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
-            file.write_u32::<BE>(*sequence_number)?;
-            file.write_u16::<BE>(sst.block_count)?;
-            file.write_u64::<BE>(sst.min_hash)?;
-            file.write_u64::<BE>(sst.max_hash)?;
-            file.write_u64::<BE>(sst.size)?;
-            file.write_u32::<BE>(sst.flags.0)?;
             amqf_offset += sst.amqf.len();
-            file.write_u32::<BE>(amqf_offset as u32)?;
+            let header = EntryHeader::new(
+                *sequence_number,
+                sst.block_count,
+                sst.min_hash,
+                sst.max_hash,
+                sst.size,
+                sst.flags,
+                amqf_offset as u32,
+            );
+            file.write_all(header.as_bytes())?;
         }
         let serialized_used_key_hashes = self
             .used_key_hashes_amqf
             .as_ref()
-            .map(|f| pot::to_vec(f).expect("AMQF serialization failed"));
+            .map(|f| postcard::to_allocvec(f).expect("AMQF serialization failed"));
         amqf_offset += serialized_used_key_hashes
             .as_ref()
             .map(|bytes| bytes.len())
