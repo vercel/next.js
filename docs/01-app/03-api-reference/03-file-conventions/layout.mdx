@@ -695,6 +695,138 @@ export default async function DashboardLayout({ children, params }) {
 }
 ```
 
+### Sharing `params` with child components
+
+Layouts cannot pass data to their `children` directly, but you can use React's [`cache`](https://react.dev/reference/react/cache) function to share the `params` promise with any Server Component in the subtree — without prop drilling.
+
+First, create a helper that stores and retrieves the params promise using `React.cache`:
+
+```ts filename="app/lib/params.ts" switcher
+import { cache } from 'react'
+
+type Params = Record<string, string | string[]>
+
+const getSegmentParams = cache((): { current: Promise<Params> | null } => {
+  return { current: null }
+})
+
+/**
+ * Call in your layout or page to provide params to the subtree.
+ * Pass the params prop directly — do not await it first.
+ */
+export function provideParams(params: Promise<Params>) {
+  getSegmentParams().current = params
+}
+
+/**
+ * Call anywhere in the component tree below a layout or page
+ * that called provideParams().
+ */
+export function getParams(): Promise<Params> {
+  const store = getSegmentParams()
+  if (!store.current) {
+    throw new Error(
+      'getParams() was called but no layout or page has provided params. ' +
+        'Make sure a parent layout calls provideParams(params).'
+    )
+  }
+  return store.current
+}
+```
+
+```js filename="app/lib/params.js" switcher
+import { cache } from 'react'
+
+const getSegmentParams = cache(() => {
+  return { current: null }
+})
+
+/**
+ * Call in your layout or page to provide params to the subtree.
+ * Pass the params prop directly — do not await it first.
+ */
+export function provideParams(params) {
+  getSegmentParams().current = params
+}
+
+/**
+ * Call anywhere in the component tree below a layout or page
+ * that called provideParams().
+ */
+export function getParams() {
+  const store = getSegmentParams()
+  if (!store.current) {
+    throw new Error(
+      'getParams() was called but no layout or page has provided params. ' +
+        'Make sure a parent layout calls provideParams(params).'
+    )
+  }
+  return store.current
+}
+```
+
+Then, call `provideParams` in your layout — passing the `params` prop without awaiting it:
+
+```tsx filename="app/[org]/[repo]/layout.tsx" switcher
+import { provideParams } from '@/app/lib/params'
+
+export default function RepoLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ org: string; repo: string }>
+}) {
+  provideParams(params)
+  return <div>{children}</div>
+}
+```
+
+```jsx filename="app/[org]/[repo]/layout.js" switcher
+import { provideParams } from '@/app/lib/params'
+
+export default function RepoLayout({ children, params }) {
+  provideParams(params)
+  return <div>{children}</div>
+}
+```
+
+Now any Server Component below that layout can call `getParams()` to read the params — without receiving them as a prop:
+
+```tsx filename="app/[org]/[repo]/repo-info.tsx" switcher
+import { getParams } from '@/app/lib/params'
+
+export default async function RepoInfo() {
+  const { org, repo } = await getParams()
+  return (
+    <p>
+      {org}/{repo}
+    </p>
+  )
+}
+```
+
+```jsx filename="app/[org]/[repo]/repo-info.js" switcher
+import { getParams } from '@/app/lib/params'
+
+export default async function RepoInfo() {
+  const { org, repo } = await getParams()
+  return (
+    <p>
+      {org}/{repo}
+    </p>
+  )
+}
+```
+
+This works because `React.cache` creates a memoized function scoped to the current React server render — `provideParams` and `getParams` share the same reference within a single request. Because the pattern forwards the framework-created promise directly (without awaiting it), [lazy resolution](#params-optional) and dynamic tracking behavior are preserved.
+
+> **Good to know:**
+>
+> - Always pass the `params` prop directly to `provideParams`. Do **not** `await` it first — that would eagerly resolve the promise and break the framework's lazy rendering optimizations.
+> - If a deeper layout also calls `provideParams`, child components will see that layout's params (last writer wins).
+> - With [parallel routes](/docs/app/api-reference/file-conventions/parallel-routes), sibling slots that each call `provideParams` can overwrite each other's values. This is the primary reason Next.js doesn't provide a built-in `params()` function like `cookies()` or `headers()` — unlike request-scoped data, params are inherently per-segment, which creates ambiguity with parallel routes.
+
 ### Reading `params` in Client Components
 
 To use `params` in a Client Component (which cannot be `async`), you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
