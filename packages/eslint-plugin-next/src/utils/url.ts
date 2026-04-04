@@ -34,7 +34,7 @@ function parseUrlForPages(
       )
       if (indexPattern.test(dirent.name)) {
         res.push(
-          `${urlprefix}${dirent.name.replace(new RegExp(extPattern), '')}`
+          `${urlprefix}${dirent.name.replace(new RegExp(indexPattern), '')}`
         )
       }
       res.push(`${urlprefix}${dirent.name.replace(new RegExp(extPattern), '')}`)
