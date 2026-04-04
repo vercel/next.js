@@ -1238,8 +1238,13 @@ mod tests {
         },
     };
 
-    type TestBlockCache =
-        Cache<(u32, u16), crate::ArcBytes, BlockWeighter, BuildHasherDefault<FxHasher>>;
+    type TestBlockCache = Cache<
+        (u32, u16),
+        crate::ArcBytes,
+        BlockWeighter,
+        BuildHasherDefault<FxHasher>,
+        crate::static_sorted_file::BlockCacheLifecycle,
+    >;
 
     fn make_cache() -> TestBlockCache {
         TestBlockCache::with(

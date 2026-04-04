@@ -89,6 +89,16 @@ impl ArcBytes {
     pub fn is_mmap_backed(&self) -> bool {
         matches!(self.backing, Backing::Mmap { .. })
     }
+
+    /// Returns `true` if the backing storage is shared (i.e., there are other
+    /// references to the same `Arc` allocation). Mmap-backed bytes are always
+    /// considered unshared since they are cheap to keep and re-create.
+    pub fn is_shared(&self) -> bool {
+        match &self.backing {
+            Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
+            Backing::Mmap { .. } => false,
+        }
+    }
 }
 
 impl SharedBytes for ArcBytes {

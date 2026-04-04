@@ -74,7 +74,8 @@ pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
-    BlockCache, BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+    BlockCache, BlockCacheLifecycle, BlockWeighter, SstLookupResult, StaticSortedFile,
+    StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,
