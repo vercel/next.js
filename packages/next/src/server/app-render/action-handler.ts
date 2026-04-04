@@ -221,9 +221,6 @@ async function createForwardedActionResponse(
   // with the response from the forwarded worker
   forwardedHeaders.set('x-action-forwarded', '1')
 
-  const proto =
-    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
-
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
   const privateOrigin = process.env.__NEXT_PRIVATE_ORIGIN
@@ -375,9 +372,6 @@ async function createRedirectRenderResult(
 
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
-
-    const proto =
-      getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
