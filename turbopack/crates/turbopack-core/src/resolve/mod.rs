@@ -813,9 +813,7 @@ impl ResolveResult {
     }
 
     /// Iterates `(key, value)` pairs. `key` is `None` when keys were not collected.
-    pub fn iter_primary(
-        &self,
-    ) -> impl Iterator<Item = (Option<&RequestKey>, &ResolveResultItem)> {
+    pub fn iter_primary(&self) -> impl Iterator<Item = (Option<&RequestKey>, &ResolveResultItem)> {
         debug_assert!(
             self.primary_keys.is_empty() || self.primary_keys.len() == self.primary_values.len(),
             "primary_keys and primary_values length mismatch"
@@ -1776,8 +1774,7 @@ async fn resolve_raw_inner(
         )
         .await?;
         results.extend(
-            collect_matches(&matches, collect_affecting_sources, collect_request_keys)
-                .await?
+            collect_matches(&matches, collect_affecting_sources, collect_request_keys).await?,
         );
     }
 
@@ -1785,7 +1782,9 @@ async fn resolve_raw_inner(
         let matches =
             read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
 
-        results.extend(collect_matches(&matches, collect_affecting_sources, collect_request_keys).await?);
+        results.extend(
+            collect_matches(&matches, collect_affecting_sources, collect_request_keys).await?,
+        );
     }
 
     Ok(merge_results(results))
