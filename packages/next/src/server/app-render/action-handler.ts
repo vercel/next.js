@@ -226,7 +226,13 @@ async function createForwardedActionResponse(
 
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
-  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${host.value}`
+  const privateOrigin = process.env.__NEXT_PRIVATE_ORIGIN
+
+  if (!privateOrigin) {
+    return RenderResult.fromStatic('{}', JSON_CONTENT_TYPE_HEADER)
+  }
+
+  const origin = privateOrigin
 
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
@@ -375,8 +381,13 @@ async function createRedirectRenderResult(
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
-    const origin =
-      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+    const privateOrigin = process.env.__NEXT_PRIVATE_ORIGIN
+
+    if (!privateOrigin) {
+      return RenderResult.EMPTY
+    }
+
+    const origin = privateOrigin
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
