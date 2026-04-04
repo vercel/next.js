@@ -49,10 +49,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc,
+    UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     take_effects,
     trace::TraceRawVcs,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
@@ -1875,6 +1876,8 @@ pub fn project_hmr_events(
                 let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(chunk_name.clone(), hmr_target, session)
@@ -1894,7 +1897,11 @@ pub fn project_hmr_events(
                         diagnostics,
                         effects,
                     } = &*update;
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
                     effects.apply().await?;
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
