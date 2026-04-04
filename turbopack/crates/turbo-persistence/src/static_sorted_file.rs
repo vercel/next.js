@@ -106,7 +106,7 @@ impl quick_cache::Weighter<(u32, u16), ArcBytes> for BlockWeighter {
 pub struct BlockCacheLifecycle;
 
 impl Lifecycle<(u32, u16), ArcBytes> for BlockCacheLifecycle {
-    type RequestState = Option<((u32, u16), ArcBytes)>;
+    type RequestState = ();
 
     #[inline]
     fn is_pinned(&self, _key: &(u32, u16), val: &ArcBytes) -> bool {
@@ -114,14 +114,10 @@ impl Lifecycle<(u32, u16), ArcBytes> for BlockCacheLifecycle {
     }
 
     #[inline]
-    fn begin_request(&self) -> Self::RequestState {
-        None
-    }
+    fn begin_request(&self) -> Self::RequestState {}
 
     #[inline]
-    fn on_evict(&self, state: &mut Self::RequestState, key: (u32, u16), val: ArcBytes) {
-        *state = Some((key, val));
-    }
+    fn on_evict(&self, _state: &mut Self::RequestState, _key: (u32, u16), _val: ArcBytes) {}
 }
 
 pub type BlockCache = quick_cache::sync::Cache<
