@@ -223,7 +223,6 @@ export class ReplayableNodeStream {
    */
   dispose(): void {
     this._chunks = null
-    this._subscribers.clear()
   }
 }
 

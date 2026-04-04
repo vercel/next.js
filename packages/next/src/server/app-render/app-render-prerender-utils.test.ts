@@ -344,7 +344,7 @@ describe('ReplayableNodeStream', () => {
       )
     })
 
-    it('clears buffer and subscribers', () => {
+    it('clears buffer but keeps subscribers so streams can still end', () => {
       const source = new PassThrough()
       const replayable = new ReplayableNodeStream(source)
 
@@ -356,9 +356,37 @@ describe('ReplayableNodeStream', () => {
       replayable.dispose()
 
       expect((replayable as any)._chunks).toBeNull()
-      expect((replayable as any)._subscribers.size).toBe(0)
+      // Subscribers must NOT be cleared: the replay stream's onEnd subscriber
+      // needs to remain active so the stream receives push(null) when the
+      // source ends, otherwise the consumer never sees EOF.
+      expect((replayable as any)._subscribers.size).toBe(1)
 
       replay.destroy()
+    })
+
+    it('replay stream still ends when source ends after dispose', async () => {
+      const source = new PassThrough()
+      const replayable = new ReplayableNodeStream(source)
+
+      source.write(new Uint8Array([1, 2]))
+
+      const replay = replayable.createReplayStream()
+      replayable.dispose()
+
+      const collectPromise = collectBytes(replay)
+
+      // Let _read() drain buffered chunks before pushing live data.
+      await tick()
+
+      // Source ends after dispose — the replay stream should still close
+      source.write(new Uint8Array([3, 4]))
+      source.end()
+
+      const collected = await collectPromise
+      expect(collected).toEqual([
+        [1, 2],
+        [3, 4],
+      ])
     })
   })
 })
