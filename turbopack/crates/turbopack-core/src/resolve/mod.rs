@@ -371,73 +371,89 @@ impl ModuleResolveResult {
     }
 }
 
+/// Primary storage for a [`ModuleResolveResultBuilder`], encoded as an enum so
+/// that keyed and key-free results are never mixed in the same map (which would
+/// collapse key-free entries onto a shared default key).
+pub enum ModuleResolveResultPrimary {
+    /// All results carry explicit [`RequestKey`]s; deduplication is by key.
+    Keyed(FxIndexMap<RequestKey, ModuleResolveResultItem>),
+    /// No keys were collected; values are kept in insertion order without
+    /// key-based deduplication.
+    KeyFree(Vec<ModuleResolveResultItem>),
+}
+
 pub struct ModuleResolveResultBuilder {
-    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
-    /// Values from key-free results (where `primary_keys` was empty). Kept
-    /// separate so that key-based deduplication in `primary` does not
-    /// incorrectly collapse multiple key-free entries onto the same default
-    /// key.
-    pub key_free_values: Vec<ModuleResolveResultItem>,
+    pub primary: ModuleResolveResultPrimary,
     pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
-        if v.primary.is_empty() {
-            // All values came from key-free results — preserve the "no keys" invariant.
-            ModuleResolveResult {
-                primary_keys: Box::default(),
-                primary_values: v.key_free_values.into_boxed_slice(),
-                affecting_sources: v.affecting_sources.into_boxed_slice(),
+        let (primary_keys, primary_values) = match v.primary {
+            ModuleResolveResultPrimary::Keyed(map) => {
+                let (keys, values): (Vec<_>, Vec<_>) = map.into_iter().unzip();
+                (keys.into_boxed_slice(), values.into_boxed_slice())
             }
-        } else {
-            let (mut keys, mut values): (Vec<_>, Vec<_>) = v.primary.into_iter().unzip();
-            // Append any key-free values with a default key so they are not
-            // silently dropped when mixing keyed and key-free results.
-            for value in v.key_free_values {
-                keys.push(RequestKey::default());
-                values.push(value);
+            ModuleResolveResultPrimary::KeyFree(values) => {
+                (Box::default(), values.into_boxed_slice())
             }
-            ModuleResolveResult {
-                primary_keys: keys.into_boxed_slice(),
-                primary_values: values.into_boxed_slice(),
-                affecting_sources: v.affecting_sources.into_boxed_slice(),
-            }
+        };
+        ModuleResolveResult {
+            primary_keys,
+            primary_values,
+            affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
 }
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
-        if v.primary_keys.is_empty() {
-            // Key-free result: put values into key_free_values to avoid
-            // collapsing them under a shared default key.
-            ModuleResolveResultBuilder {
-                primary: FxIndexMap::default(),
-                key_free_values: v.primary_values.into_vec(),
-                affecting_sources: v.affecting_sources.into_vec(),
-            }
+        let primary = if v.primary_keys.is_empty() {
+            ModuleResolveResultPrimary::KeyFree(v.primary_values.into_vec())
         } else {
-            ModuleResolveResultBuilder {
-                primary: v.primary_keys.into_iter().zip(v.primary_values).collect(),
-                key_free_values: Vec::new(),
-                affecting_sources: v.affecting_sources.into_vec(),
-            }
+            ModuleResolveResultPrimary::Keyed(
+                v.primary_keys.into_iter().zip(v.primary_values).collect(),
+            )
+        };
+        ModuleResolveResultBuilder {
+            primary,
+            affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
-        if other.has_keys() {
-            for (key, value) in other.iter_primary() {
-                let key = key.cloned().unwrap_or_default();
-                if !self.primary.contains_key(&key) {
-                    self.primary.insert(key, value.clone());
+        match &mut self.primary {
+            ModuleResolveResultPrimary::Keyed(map) => {
+                // `other` is either keyed (deduplicate by key) or key-free
+                // (promote to keyed with default key, no dedup within the
+                // key-free batch since each default key overwrites the last —
+                // promote instead by inserting only when the key is absent).
+                for (key, value) in other.iter_primary() {
+                    let key = key.cloned().unwrap_or_default();
+                    if !map.contains_key(&key) {
+                        map.insert(key, value.clone());
+                    }
                 }
             }
-        } else {
-            // Key-free result: append all values without key-based deduplication.
-            self.key_free_values
-                .extend(other.primary_values.iter().cloned());
+            ModuleResolveResultPrimary::KeyFree(values) => {
+                if other.has_keys() {
+                    // Promote self to keyed, then re-merge `other` keyed.
+                    let keyed: FxIndexMap<_, _> = values
+                        .drain(..)
+                        .map(|v| (RequestKey::default(), v))
+                        .collect();
+                    let mut keyed_map = ModuleResolveResultPrimary::Keyed(keyed);
+                    let mut tmp = ModuleResolveResultBuilder {
+                        primary: keyed_map,
+                        affecting_sources: Vec::new(),
+                    };
+                    tmp.merge_alternatives(other);
+                    self.primary = tmp.primary;
+                } else {
+                    // Both key-free: just append, no deduplication.
+                    values.extend(other.primary_values.iter().cloned());
+                }
+            }
         }
         let set = self
             .affecting_sources
@@ -973,73 +989,84 @@ impl ResolveResult {
     }
 }
 
+/// Primary storage for a [`ResolveResultBuilder`], encoded as an enum so that
+/// keyed and key-free results are never mixed in the same map (which would
+/// collapse key-free entries onto a shared default key).
+enum ResolveResultPrimary {
+    /// All results carry explicit [`RequestKey`]s; deduplication is by key.
+    Keyed(FxIndexMap<RequestKey, ResolveResultItem>),
+    /// No keys were collected; values are kept in insertion order without
+    /// key-based deduplication.
+    KeyFree(Vec<ResolveResultItem>),
+}
+
 struct ResolveResultBuilder {
-    primary: FxIndexMap<RequestKey, ResolveResultItem>,
-    /// Values from key-free results (where `primary_keys` was empty). Kept
-    /// separate so that key-based deduplication in `primary` does not
-    /// incorrectly collapse multiple key-free entries onto the same default
-    /// key.
-    key_free_values: Vec<ResolveResultItem>,
+    primary: ResolveResultPrimary,
     affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 impl From<ResolveResultBuilder> for ResolveResult {
     fn from(v: ResolveResultBuilder) -> Self {
-        if v.primary.is_empty() {
-            // All values came from key-free results — preserve the "no keys" invariant.
-            ResolveResult {
-                primary_keys: Box::default(),
-                primary_values: v.key_free_values.into_boxed_slice(),
-                affecting_sources: v.affecting_sources.into_boxed_slice(),
+        let (primary_keys, primary_values) = match v.primary {
+            ResolveResultPrimary::Keyed(map) => {
+                let (keys, values): (Vec<_>, Vec<_>) = map.into_iter().unzip();
+                (keys.into_boxed_slice(), values.into_boxed_slice())
             }
-        } else {
-            let (mut keys, mut values): (Vec<_>, Vec<_>) = v.primary.into_iter().unzip();
-            // Append any key-free values with a default key so they are not
-            // silently dropped when mixing keyed and key-free results.
-            for value in v.key_free_values {
-                keys.push(RequestKey::default());
-                values.push(value);
-            }
-            ResolveResult {
-                primary_keys: keys.into_boxed_slice(),
-                primary_values: values.into_boxed_slice(),
-                affecting_sources: v.affecting_sources.into_boxed_slice(),
-            }
+            ResolveResultPrimary::KeyFree(values) => (Box::default(), values.into_boxed_slice()),
+        };
+        ResolveResult {
+            primary_keys,
+            primary_values,
+            affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
 }
 impl From<ResolveResult> for ResolveResultBuilder {
     fn from(v: ResolveResult) -> Self {
-        if v.primary_keys.is_empty() {
-            // Key-free result: put values into key_free_values to avoid
-            // collapsing them under a shared default key.
-            ResolveResultBuilder {
-                primary: FxIndexMap::default(),
-                key_free_values: v.primary_values.into_vec(),
-                affecting_sources: v.affecting_sources.into_vec(),
-            }
+        let primary = if v.primary_keys.is_empty() {
+            ResolveResultPrimary::KeyFree(v.primary_values.into_vec())
         } else {
-            ResolveResultBuilder {
-                primary: v.primary_keys.into_iter().zip(v.primary_values).collect(),
-                key_free_values: Vec::new(),
-                affecting_sources: v.affecting_sources.into_vec(),
-            }
+            ResolveResultPrimary::Keyed(v.primary_keys.into_iter().zip(v.primary_values).collect())
+        };
+        ResolveResultBuilder {
+            primary,
+            affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ResolveResult) {
-        if other.has_keys() {
-            for (key, value) in other.iter_primary() {
-                let key = key.cloned().unwrap_or_default();
-                if !self.primary.contains_key(&key) {
-                    self.primary.insert(key, value.clone());
+        match &mut self.primary {
+            ResolveResultPrimary::Keyed(map) => {
+                // `other` is either keyed (deduplicate by key) or key-free
+                // (promote to keyed with default key, no dedup within the
+                // key-free batch since each default key overwrites the last —
+                // promote instead by inserting only when the key is absent).
+                for (key, value) in other.iter_primary() {
+                    let key = key.cloned().unwrap_or_default();
+                    if !map.contains_key(&key) {
+                        map.insert(key, value.clone());
+                    }
                 }
             }
-        } else {
-            // Key-free result: append all values without key-based deduplication.
-            self.key_free_values
-                .extend(other.primary_values.iter().cloned());
+            ResolveResultPrimary::KeyFree(values) => {
+                if other.has_keys() {
+                    // Promote self to keyed, then re-merge `other` keyed.
+                    let keyed: FxIndexMap<_, _> = values
+                        .drain(..)
+                        .map(|v| (RequestKey::default(), v))
+                        .collect();
+                    let mut tmp = ResolveResultBuilder {
+                        primary: ResolveResultPrimary::Keyed(keyed),
+                        affecting_sources: Vec::new(),
+                    };
+                    tmp.merge_alternatives(other);
+                    self.primary = tmp.primary;
+                } else {
+                    // Both key-free: just append, no deduplication.
+                    values.extend(other.primary_values.iter().cloned());
+                }
+            }
         }
         let set = self
             .affecting_sources
