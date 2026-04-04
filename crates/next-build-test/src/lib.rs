@@ -41,7 +41,7 @@ pub async fn main_inner(
         .run(async {
             let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
             ProjectContainer::initialize(container_op, options).await?;
-            container_op.resolve_strongly_consistent().await
+            container_op.resolve().strongly_consistent().await
         })
         .await?;
 
@@ -248,7 +248,7 @@ async fn endpoint_write_to_disk_with_effects(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<EndpointOutputPaths>> {
     let op = endpoint_write_to_disk_operation(endpoint);
-    let result = op.resolve_strongly_consistent().await?;
+    let result = op.resolve().strongly_consistent().await?;
     get_effects(op).await?.apply().await?;
     Ok(*result)
 }

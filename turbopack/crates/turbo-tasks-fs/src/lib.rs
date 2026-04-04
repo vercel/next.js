@@ -3162,7 +3162,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
@@ -3269,7 +3270,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;

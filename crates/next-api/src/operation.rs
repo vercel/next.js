@@ -37,7 +37,7 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve_strongly_consistent().await?;
+    let _ = entrypoints.resolve().strongly_consistent().await?;
     entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
     entrypoints.drop_issues();
     let _ = get_effects(entrypoints).await?;

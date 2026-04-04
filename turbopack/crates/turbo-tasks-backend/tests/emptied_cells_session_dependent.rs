@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 async fn test_emptied_cells_session_dependent() {
     run(&REGISTRATION, || async {
         let input_op = get_state_operation();
-        let input_vc = input_op.resolve_strongly_consistent().await?;
+        let input_vc = input_op.resolve().strongly_consistent().await?;
         let input = input_op.read_strongly_consistent().await?;
         input.state.set(0);
 

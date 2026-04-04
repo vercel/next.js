@@ -14,6 +14,8 @@ use std::{
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
+    pin::Pin,
+    task::{Context, Poll},
 };
 
 use anyhow::Result;
@@ -26,19 +28,91 @@ pub use self::{
     cell_mode::{VcCellCompareMode, VcCellKeyedCompareMode, VcCellMode, VcCellNewMode},
     default::ValueDefault,
     local::NonLocalValue,
-    operation::{OperationValue, OperationVc},
+    operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
 use crate::{
-    CellId, RawVc,
+    CellId, RawVc, ResolveRawVcFuture,
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
 };
+
+/// A future returned by [`Vc::resolve`] that resolves a [`Vc<T>`] to a cell.
+///
+/// To opt into strong consistency, use [`OperationVc::resolve`] which returns a
+/// [`ResolveOperationVcFuture`] with a
+/// [`.strongly_consistent()`][ResolveOperationVcFuture::strongly_consistent] method.
+#[must_use]
+pub struct ResolveVcFuture<T>
+where
+    T: ?Sized,
+{
+    pub(crate) inner: ResolveRawVcFuture,
+    pub(crate) _t: PhantomData<T>,
+}
+
+impl<T: ?Sized> Future for ResolveVcFuture<T> {
+    type Output = Result<Vc<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+        // ResolveRawVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner).poll(cx).map(|r| {
+            r.map(|node| Vc {
+                node,
+                _t: PhantomData,
+            })
+        })
+    }
+}
+
+impl<T: ?Sized> Unpin for ResolveVcFuture<T> {}
+
+/// A future returned by [`Vc::to_resolved`] that resolves a [`Vc<T>`] to a [`ResolvedVc<T>`].
+///
+/// Use [`.strongly_consistent()`][Self::strongly_consistent] to opt into strong consistency.
+#[must_use]
+pub struct ToResolvedVcFuture<T>
+where
+    T: ?Sized,
+{
+    inner: ResolveRawVcFuture,
+    _t: PhantomData<T>,
+}
+
+impl<T: ?Sized> ToResolvedVcFuture<T> {
+    /// Make the resolution strongly consistent.
+    pub fn strongly_consistent(mut self) -> Self {
+        self.inner = self.inner.strongly_consistent();
+        self
+    }
+}
+
+impl<T: ?Sized> Future for ToResolvedVcFuture<T> {
+    type Output = Result<ResolvedVc<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+        // ResolveRawVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner).poll(cx).map(|r| {
+            r.map(|node| ResolvedVc {
+                node: Vc {
+                    node,
+                    _t: PhantomData,
+                },
+            })
+        })
+    }
+}
+
+impl<T: ?Sized> Unpin for ToResolvedVcFuture<T> {}
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
@@ -337,16 +411,23 @@ where
         Ok(())
     }
 
+    /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
+    /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
+    pub fn resolve(self) -> ResolveVcFuture<T> {
+        ResolveVcFuture {
+            inner: self.node.resolve(),
+            _t: PhantomData,
+        }
+    }
+
     /// Resolve the reference until it points to a cell directly, and wrap the
     /// result in a [`ResolvedVc`], which statically guarantees that the
     /// [`Vc`] was resolved.
-    pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
-        Ok(ResolvedVc {
-            node: Vc {
-                node: self.node.resolve().await?,
-                _t: PhantomData,
-            },
-        })
+    pub fn to_resolved(self) -> ToResolvedVcFuture<T> {
+        ToResolvedVcFuture {
+            inner: self.node.resolve(),
+            _t: PhantomData,
+        }
     }
 
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
@@ -368,15 +449,6 @@ where
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
         self.node.is_local()
-    }
-
-    /// Do not use this: Use [`OperationVc::resolve_strongly_consistent`] instead.
-    #[cfg(feature = "non_operation_vc_strongly_consistent")]
-    pub async fn resolve_strongly_consistent(self) -> Result<Self> {
-        Ok(Self {
-            node: self.node.resolve_strongly_consistent().await?,
-            _t: PhantomData,
-        })
     }
 }
 

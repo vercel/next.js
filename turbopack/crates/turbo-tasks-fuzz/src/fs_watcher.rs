@@ -103,10 +103,12 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     tt.run_once(async move {
         let invalidations = TransientInstance::new(PathInvalidations::default());
         let project_fs = disk_file_system_operation(RcStr::from(fs_root.to_str().unwrap()))
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?;
         let project_root = disk_file_system_root_operation(project_fs)
-            .resolve_strongly_consistent()
+            .resolve()
+            .strongly_consistent()
             .await?
             .owned()
             .await?;

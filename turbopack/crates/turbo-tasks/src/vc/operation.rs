@@ -1,4 +1,10 @@
-use std::{fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{
+    fmt::Debug,
+    future::Future,
+    hash::Hash,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -10,6 +16,41 @@ use crate::{
     CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskInput, UpcastStrict, Vc, VcValueTrait,
     VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait, trace::TraceRawVcs,
 };
+
+/// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
+/// it to a [`ResolvedVc<T>`].
+///
+/// Use [`.strongly_consistent()`][Self::strongly_consistent] to opt into strong consistency.
+#[must_use]
+pub struct ResolveOperationVcFuture<T>
+where
+    T: ?Sized,
+{
+    inner: super::ResolveVcFuture<T>,
+}
+
+impl<T: ?Sized> ResolveOperationVcFuture<T> {
+    /// Make the resolution strongly consistent.
+    pub fn strongly_consistent(mut self) -> Self {
+        self.inner.inner = self.inner.inner.strongly_consistent();
+        self
+    }
+}
+
+impl<T: ?Sized> Future for ResolveOperationVcFuture<T> {
+    type Output = anyhow::Result<ResolvedVc<T>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // SAFETY: we are not moving self
+        let this = unsafe { self.get_unchecked_mut() };
+        // ResolveVcFuture: Unpin, so Pin::new is safe
+        Pin::new(&mut this.inner)
+            .poll(cx)
+            .map(|r| r.map(|node| ResolvedVc { node }))
+    }
+}
+
+impl<T: ?Sized> Unpin for ResolveOperationVcFuture<T> {}
 
 /// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
 /// represents a specific call (with arguments) to [a task][macro@crate::function].
@@ -106,23 +147,20 @@ impl<T: ?Sized> OperationVc<T> {
         }
     }
 
-    /// [Connects the `OperationVc`][Self::connect] and [resolves][Vc::to_resolved] the reference
-    /// until it points to a cell directly in a [strongly
-    /// consistent][crate::ReadConsistency::Strong] way.
+    /// [Connects the `OperationVc`][Self::connect] and resolves the reference until it points to a
+    /// cell directly.
     ///
     /// Resolving will wait for task execution to be finished, so that the returned [`ResolvedVc`]
     /// points to a cell that stores a value.
     ///
     /// Resolving is necessary to compare identities of [`Vc`]s.
     ///
-    /// This is async and will rethrow any fatal error that happened during task execution.
-    pub async fn resolve_strongly_consistent(self) -> Result<ResolvedVc<T>> {
-        Ok(ResolvedVc {
-            node: Vc {
-                node: self.connect().node.resolve_strongly_consistent().await?,
-                _t: PhantomData,
-            },
-        })
+    /// Use [`.strongly_consistent()`][ResolveOperationVcFuture::strongly_consistent] to opt into
+    /// strong consistency.
+    pub fn resolve(self) -> ResolveOperationVcFuture<T> {
+        ResolveOperationVcFuture {
+            inner: self.connect().resolve(),
+        }
     }
 
     /// [Connects the `OperationVc`][Self::connect] and returns a [strongly

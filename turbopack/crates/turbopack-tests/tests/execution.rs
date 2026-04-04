@@ -612,7 +612,7 @@ async fn snapshot_issues(
     run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
-    let _ = run_result_op.resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve().strongly_consistent().await;
 
     let plain_issues = run_result_op
         .peek_issues()

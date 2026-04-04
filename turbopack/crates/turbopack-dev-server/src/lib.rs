@@ -65,7 +65,7 @@ struct ContentSourceWithIssues {
 async fn get_source_with_issues_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<ContentSourceWithIssues>> {
-    let _ = source_op.resolve_strongly_consistent().await?;
+    let _ = source_op.resolve().strongly_consistent().await?;
     let effects = get_effects(source_op).await?;
     Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
@@ -238,7 +238,7 @@ impl DevServerBuilder {
                                 http::process_request_with_content_source(
                                     // HACK: pass `source` here (instead of `resolved_source`
                                     // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
+                                    // `.resolve().strongly_consistent()` call.
                                     //
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
