@@ -3034,7 +3034,7 @@ impl JsValue {
                     self.update_total_nodes();
                 }
             }
-            JsValue::Logical(_, op, list) => {
+            JsValue::Logical(_, op, list)
                 // Nested logical expressions can be normalized: e. g. `a && (b && c)` => `a &&
                 // b && c`
                 if list.iter().any(|v| {
@@ -3043,7 +3043,7 @@ impl JsValue {
                     } else {
                         false
                     }
-                }) {
+                }) => {
                     // Taking the old list and constructing a new merged list
                     for mut v in take(list).into_iter() {
                         if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
@@ -3058,7 +3058,6 @@ impl JsValue {
                     }
                     self.update_total_nodes();
                 }
-            }
             _ => {}
         }
     }

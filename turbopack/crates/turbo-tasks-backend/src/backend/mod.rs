@@ -363,37 +363,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.dependency_tracking
     }
 
-    /// Sets the initial aggregation number for a newly created task. Root tasks get `u32::MAX`
-    /// to stay at the top. Session-dependent tasks get a high (but not max) aggregation number
-    /// because they change on every session restore, behaving like dirty leaf nodes — keeping
-    /// them near the leaves prevents long dirty-propagation chains through intermediate
-    /// aggregated nodes.
-    fn set_initial_aggregation_number(
-        &self,
-        task_id: TaskId,
-        is_root: bool,
-        is_session_dependent: bool,
-        ctx: &mut impl ExecuteContext<'_>,
-    ) {
-        let base_aggregation_number = if is_root {
-            u32::MAX
-        } else if is_session_dependent && self.should_track_dependencies() {
-            const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
-            SESSION_DEPENDENT_AGGREGATION_NUMBER
-        } else {
-            return;
-        };
-
-        AggregationUpdateQueue::run(
-            AggregationUpdateJob::UpdateAggregationNumber {
-                task_id,
-                base_aggregation_number,
-                distance: None,
-            },
-            ctx,
-        );
-    }
-
     fn should_track_activeness(&self) -> bool {
         self.options.active_tracking
     }
@@ -501,6 +470,21 @@ struct TaskExecutionCompletePrepareResult {
 
 // Operations
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
+    fn connect_child(
+        &self,
+        parent_task: Option<TaskId>,
+        child_task: TaskId,
+        task_type: Option<ArcOrOwned<CachedTaskType>>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        operation::ConnectChildOperation::run(
+            parent_task,
+            child_task,
+            task_type,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
     fn try_read_task_output(
         self: &Arc<Self>,
         task_id: TaskId,
@@ -1529,22 +1513,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         let is_root = task_type.native_fn.is_root;
-        let is_session_dependent = task_type.native_fn.is_session_dependent;
-        // Create a single ExecuteContext for both lookup and connect_child
-        let mut ctx = self.execute_context(turbo_tasks);
+
         // First check if the task exists in the cache which only uses a read lock
         // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
         // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
         if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
-            operation::ConnectChildOperation::run(
+            self.connect_child(
                 parent_task,
                 task_id,
                 Some(ArcOrOwned::Owned(task_type)),
-                ctx,
+                turbo_tasks,
             );
             return task_id;
         }
+
+        // Create a single ExecuteContext for both lookup and connect_child
+        let mut ctx = self.execute_context(turbo_tasks);
 
         let mut is_new = false;
         let (task_id, task_type) = if let Some(task_id) = ctx.task_by_type(&task_type) {
@@ -1588,8 +1573,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             (task_id, task_type)
         };
-        if is_new {
-            self.set_initial_aggregation_number(task_id, is_root, is_session_dependent, &mut ctx);
+        if is_new && is_root {
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
+                },
+                &mut ctx,
+            );
         }
         // Reuse the same ExecuteContext for connect_child
         operation::ConnectChildOperation::run(parent_task, task_id, Some(task_type), ctx);
@@ -1604,7 +1596,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         let is_root = task_type.native_fn.is_root;
-        let is_session_dependent = task_type.native_fn.is_session_dependent;
 
         if let Some(parent_task) = parent_task
             && !parent_task.is_transient()
@@ -1615,17 +1606,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 /* cell_id */ None,
             );
         }
-        let mut ctx = self.execute_context(turbo_tasks);
         // First check if the task exists in the cache which only uses a read lock.
         // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
         // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
         if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
             self.track_cache_hit(&task_type);
-            operation::ConnectChildOperation::run(
+            self.connect_child(
                 parent_task,
                 task_id,
                 Some(ArcOrOwned::Owned(task_type)),
-                ctx,
+                turbo_tasks,
             );
             return task_id;
         }
@@ -1635,11 +1625,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = *e.get();
                 drop(e);
                 self.track_cache_hit(&task_type);
-                operation::ConnectChildOperation::run(
+                self.connect_child(
                     parent_task,
                     task_id,
                     Some(ArcOrOwned::Owned(task_type)),
-                    ctx,
+                    turbo_tasks,
                 );
                 task_id
             }
@@ -1649,18 +1639,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
 
-                self.set_initial_aggregation_number(
-                    task_id,
-                    is_root,
-                    is_session_dependent,
-                    &mut ctx,
-                );
+                if is_root {
+                    let mut ctx = self.execute_context(turbo_tasks);
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                }
 
-                operation::ConnectChildOperation::run(
+                self.connect_child(
                     parent_task,
                     task_id,
                     Some(ArcOrOwned::Arc(task_type)),
-                    ctx,
+                    turbo_tasks,
                 );
 
                 task_id
@@ -1932,6 +1927,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     stale: false,
                     once_task,
                     done_event,
+                    session_dependent: false,
                     marked_as_completed: false,
                     new_children: Default::default(),
                 },
@@ -2160,6 +2156,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
             ref mut new_children,
+            session_dependent,
             once_task: is_once_task,
             ..
         }) = in_progress
@@ -2255,7 +2252,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Task was previously marked as immutable
             if !is_immutable
             // Task is not session dependent (session dependent tasks can change between sessions)
-            && !task.is_session_dependent()
+            && !session_dependent
             // Task has no invalidator
             && !task.invalidator()
             // Task has no dependencies on collectibles
@@ -2605,6 +2602,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             done_event,
             once_task: is_once_task,
             stale,
+            session_dependent,
             marked_as_completed: _,
             new_children,
         }) = in_progress
@@ -2643,8 +2641,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Compute and apply the new dirty state, propagating to aggregating ancestors
-        let session_dependent = task.is_session_dependent();
+        // Compute the new dirty state
         let new_dirtyness = if session_dependent {
             Some(Dirtyness::SessionDependent)
         } else {
@@ -3037,6 +3034,42 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             verification_mode,
             self.execute_context(turbo_tasks),
         );
+    }
+
+    fn mark_own_task_as_session_dependent(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        if !self.should_track_dependencies() {
+            // Without dependency tracking we don't need session dependent tasks
+            return;
+        }
+        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let aggregation_number = get_aggregation_number(&task);
+        if aggregation_number < SESSION_DEPENDENT_AGGREGATION_NUMBER {
+            drop(task);
+            // We want to use a high aggregation number to avoid large aggregation chains for
+            // session dependent tasks (which change on every run)
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
+                    distance: None,
+                },
+                &mut ctx,
+            );
+            task = ctx.task(task_id, TaskDataCategory::Meta);
+        }
+        if let Some(InProgressState::InProgress(box InProgressStateInner {
+            session_dependent,
+            ..
+        })) = task.get_in_progress_mut()
+        {
+            *session_dependent = true;
+        }
     }
 
     fn mark_own_task_as_finished(
@@ -3571,6 +3604,14 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.mark_own_task_as_finished(task_id, turbo_tasks);
+    }
+
+    fn mark_own_task_as_session_dependent(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.mark_own_task_as_session_dependent(task, turbo_tasks);
     }
 
     fn connect_task(
