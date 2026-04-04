@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 describe('swc-auto-polyfill', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'core-js': '3.38.1',
@@ -19,7 +19,7 @@ describe('swc-auto-polyfill', () => {
     })
   })
 
-  if (!isNextDev) {
+  if (!isNextDev && !isNextDeploy) {
     it('should include core-js polyfill in a chunk with user code', async () => {
       const chunksDir = path.join(next.testDir, '.next', 'static', 'chunks')
       const files = fs.readdirSync(chunksDir, { recursive: true }) as string[]

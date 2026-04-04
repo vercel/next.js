@@ -332,8 +332,9 @@ pub async fn get_client_module_options_context(
 
     let source_maps = *next_config.client_source_maps(mode).await?;
 
-    let preset_env_config = match &*next_config.experimental_swc_env_options().await? {
-        Some(opts) => Some(
+    let preset_env_config = (*next_config.experimental_swc_env_options().await?)
+        .as_ref()
+        .map(|opts| {
             PresetEnvConfig {
                 mode: opts.mode.clone(),
                 core_js: opts.core_js.clone(),
@@ -345,10 +346,8 @@ pub async fn get_client_module_options_context(
                 debug: opts.debug,
                 loose: opts.loose,
             }
-            .resolved_cell(),
-        ),
-        None => None,
-    };
+            .resolved_cell()
+        });
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {

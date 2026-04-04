@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 
 describe('swc-auto-polyfill-disabled', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -16,7 +16,7 @@ describe('swc-auto-polyfill-disabled', () => {
     })
   })
 
-  if (!isNextDev) {
+  if (!isNextDev && !isNextDeploy) {
     it('should not include replaceAll polyfill in non-framework chunks', async () => {
       const chunksDir = path.join(next.testDir, '.next', 'static', 'chunks')
       const files = fs.readdirSync(chunksDir, { recursive: true }) as string[]
