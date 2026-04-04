@@ -10,6 +10,44 @@ import {
   getUrlFromAppDirectory,
 } from '../utils/url'
 
+const defaultPageExtensions = ['tsx', 'ts', 'jsx', 'js']
+
+/**
+ * Reads `pageExtensions` from `next.config.js` (or `.mjs`/`.cjs`).
+ * Returns `undefined` if the config doesn't exist or doesn't define `pageExtensions`.
+ */
+function getPageExtensionsFromConfig(rootDir: string): string[] | undefined {
+  const configFiles = [
+    'next.config.js',
+    'next.config.mjs',
+    'next.config.cjs',
+    'next.config.ts',
+  ]
+
+  for (const file of configFiles) {
+    const configPath = path.join(rootDir, file)
+    if (!fs.existsSync(configPath)) {
+      continue
+    }
+
+    try {
+      // Clear require cache to pick up fresh config
+      const resolvedPath = require.resolve(configPath)
+      delete require.cache[resolvedPath]
+
+      const config = require(resolvedPath)
+      const pageExtensions = config?.default?.pageExtensions ?? config?.pageExtensions
+      if (Array.isArray(pageExtensions) && pageExtensions.length > 0) {
+        return pageExtensions
+      }
+    } catch {
+      // If we can't load the config, fall back to defaults
+    }
+  }
+
+  return undefined
+}
+
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
     `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
@@ -74,6 +112,13 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
 
+    // Resolve pageExtensions: from next.config.js or fall back to defaults
+    const pageExtensions =
+      rootDirs
+        .map((dir) => getPageExtensionsFromConfig(dir))
+        .find((exts): exts is string[] => exts !== undefined) ??
+      defaultPageExtensions
+
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
@@ -107,8 +152,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
