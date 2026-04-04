@@ -653,7 +653,7 @@ impl ChunkingContext for BrowserChunkingContext {
             .as_ref()
             .context("Missing content when trying to generate the content hash for static asset")?;
         let short_hash = &hash[..length as usize];
-        let asset_path = match source_path.extension_ref() {
+        let asset_path = match source_path.extension() {
             Some(ext) => format!(
                 "{basename}.{short_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],

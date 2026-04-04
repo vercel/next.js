@@ -92,11 +92,11 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     let mut ext = path.extension();
 
     let name = stem.unwrap_or_default();
-    if ext == "jpg" {
-        ext = "jpeg"
+    if ext == Some("jpg") {
+        ext = Some("jpeg");
     }
 
-    if name == "favicon" && ext == "ico" {
+    if name == "favicon" && ext == Some("ico") {
         return Ok("image/x-icon".to_string());
     }
     if name == "sitemap" {
@@ -109,7 +109,9 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
         return Ok("application/manifest+json".to_string());
     }
 
-    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+    if let Some(ext) = ext
+        && matches!(ext, "png" | "jpeg" | "ico" | "svg")
+    {
         return Ok(mime_guess::from_ext(ext)
             .first_or_octet_stream()
             .to_string());

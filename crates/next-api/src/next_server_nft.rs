@@ -142,7 +142,7 @@ impl Asset for ServerNftJsonAsset {
                 let DirectoryEntry::File(file) = entry else {
                     continue;
                 };
-                if file.extension() == "js" {
+                if file.extension() == Some("js") {
                     server_output_assets.push(
                         base_dir
                             .get_relative_path_to(file)

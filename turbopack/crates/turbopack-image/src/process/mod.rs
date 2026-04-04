@@ -125,7 +125,7 @@ fn result_to_issue<T>(source: ResolvedVc<Box<dyn Source>>, result: Result<T>) ->
 fn load_image(
     path: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: &str,
+    extension: Option<&str>,
 ) -> Option<(ImageBuffer, Option<ImageFormat>)> {
     result_to_issue(path, load_image_internal(path, bytes, extension))
 }
@@ -140,7 +140,7 @@ enum ImageBuffer {
 fn load_image_internal(
     image: ResolvedVc<Box<dyn Source>>,
     bytes: &[u8],
-    extension: &str,
+    extension: Option<&str>,
 ) -> Result<(ImageBuffer, Option<ImageFormat>)> {
     let reader = image::ImageReader::new(Cursor::new(&bytes));
     let mut reader = reader
@@ -148,7 +148,8 @@ fn load_image_internal(
         .context("unable to determine image format from file content")?;
     let mut format = reader.format();
     if format.is_none()
-        && let Some(new_format) = extension_to_image_format(extension)
+        && let Some(ext) = extension
+        && let Some(new_format) = extension_to_image_format(ext)
     {
         format = Some(new_format);
         reader.set_format(new_format);
@@ -350,7 +351,7 @@ pub async fn get_meta_data(
     let path = image.ident().path().await?;
     let extension = path.extension();
 
-    if extension == "svg" {
+    if extension == Some("svg") {
         let content = result_to_issue(
             image,
             std::str::from_utf8(&bytes).context("Input image is not valid utf-8"),

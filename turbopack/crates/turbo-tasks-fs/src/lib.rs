@@ -1490,7 +1490,7 @@ impl FileSystemPath {
 
     /// Returns true if this path has the given extension
     ///
-    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// slightly faster than `self.extension() == Some(extension)` as we can simply match a
     /// suffix
     pub fn has_extension(&self, extension: &str) -> bool {
         debug_assert!(!extension.contains('/') && extension.starts_with('.'));
@@ -1498,7 +1498,7 @@ impl FileSystemPath {
     }
 
     /// Returns the extension (without a leading `.`)
-    pub fn extension_ref(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
     }
@@ -1674,10 +1674,6 @@ impl FileSystemPath {
 impl FileSystemPath {
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
         *self.fs
-    }
-
-    pub fn extension(&self) -> &str {
-        self.extension_ref().unwrap_or_default()
     }
 
     pub fn is_inside(&self, other: &FileSystemPath) -> bool {
