@@ -922,14 +922,23 @@ async function pullFlightData(
     if (dataStream.readableLength > 0 || dataStream.readableEnded) {
       return Promise.resolve()
     }
-    return new Promise<void>((resolve) => {
-      function onDone() {
+    return new Promise<void>((resolve, reject) => {
+      function cleanup() {
         dataStream.removeListener('readable', onDone)
         dataStream.removeListener('end', onDone)
+        dataStream.removeListener('error', onError)
+      }
+      function onDone() {
+        cleanup()
         resolve()
+      }
+      function onError(err: Error) {
+        cleanup()
+        reject(err)
       }
       dataStream.on('readable', onDone)
       dataStream.on('end', onDone)
+      dataStream.on('error', onError)
     })
   }
 
