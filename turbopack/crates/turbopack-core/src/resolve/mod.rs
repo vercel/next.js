@@ -442,7 +442,7 @@ impl ModuleResolveResultBuilder {
                         .drain(..)
                         .map(|v| (RequestKey::default(), v))
                         .collect();
-                    let mut keyed_map = ModuleResolveResultPrimary::Keyed(keyed);
+                    let keyed_map = ModuleResolveResultPrimary::Keyed(keyed);
                     let mut tmp = ModuleResolveResultBuilder {
                         primary: keyed_map,
                         affecting_sources: Vec::new(),
