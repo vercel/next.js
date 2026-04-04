@@ -10,7 +10,7 @@ While some data is inherently only available when a user request is being handle
 
 This usually happens when a component does one of the following without a parent `<Suspense>` boundary:
 
-- Awaiting `params` or `searchParams` in a Page or Layout
+- Awaiting `params` in a Page or Layout, or awaiting `searchParams` in a Page
 - Calling `cookies()`, `headers()`, or `connection()`
 - Fetching data that isn't cached with `"use cache"`
 
@@ -167,7 +167,7 @@ Alternatively you can add a Suspense boundary above the component that is access
 
 ### Params and SearchParams
 
-Layout `params`, and Page `params` and `searchParams` props are promises. If you await them directly in your Page or Layout component without a `<Suspense>` boundary, the entire page is blocked from prerendering. You can fix this by:
+Layout `params` and Page `params` and `searchParams` props are promises. If you await them directly in your Page or Layout component without a `<Suspense>` boundary, the page can be blocked from prerendering. You can fix this by:
 
 - Passing the promise to a child component wrapped in `<Suspense>` and awaiting it there
 - Adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment
