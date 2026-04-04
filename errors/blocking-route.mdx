@@ -181,7 +181,12 @@ Before:
 export default async function ProductPage({ params }) {
   const { id } = await params
   const product = await db.product.find(id)
-  return <h1>{product.name}</h1>
+  return (
+    <div>
+      <Breadcrumbs />
+      <h1>{product.name}</h1>
+    </div>
+  )
 }
 ```
 
@@ -192,18 +197,23 @@ import { Suspense } from 'react'
 
 export default function ProductPage({ params }) {
   return (
-    <Suspense fallback={<p>Loading product...</p>}>
-      <Product params={params} />
-    </Suspense>
+    <div>
+      <Breadcrumbs />
+      <Suspense fallback={<p>Loading product...</p>}>
+        <ProductDetails params={params} />
+      </Suspense>
+    </div>
   )
 }
 
-async function Product({ params }) {
+async function ProductDetails({ params }) {
   const { id } = await params
   const product = await db.product.find(id)
   return <h1>{product.name}</h1>
 }
 ```
+
+If the entire page depends on `params` and there is no static content to show, adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment is a simpler alternative.
 
 The same pattern applies to `searchParams`:
 
