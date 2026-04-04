@@ -294,8 +294,8 @@ async fn resolve_node_gyp_build_files(
                     true,
                 )
                 .await?;
-                if let Some((_, ResolveResultItem::Source(source))) =
-                    resolved_prebuilt_file.primary.first()
+                if let Some(ResolveResultItem::Source(source)) =
+                    resolved_prebuilt_file.primary_values.first()
                 {
                     resolved.insert(format!("build/Release/{name}.node").into(), *source);
                     if collect_affecting_sources {

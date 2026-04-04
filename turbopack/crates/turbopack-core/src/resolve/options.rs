@@ -650,6 +650,10 @@ pub struct ResolveOptions {
     pub loose_errors: bool,
     /// Collect affecting sources for each resolve result.  Useful for tracing.
     pub collect_affecting_sources: bool,
+    /// When true, skip collecting request keys in resolve results. Request keys are needed for
+    /// dynamic pattern mapping and key-rewriting transforms; callers that only need the resolved
+    /// sources/modules (e.g. raw file references) can set this to true to avoid the allocation.
+    pub skip_request_keys: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
 

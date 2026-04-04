@@ -465,17 +465,14 @@ pub async fn type_resolve(
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
-    result.primary = IntoIterator::into_iter(take(&mut result.primary))
-        .map(|(k, v)| {
-            (
-                RequestKey {
-                    request: k.request.clone(),
-                    conditions: k.conditions.extend([(rcstr!("types"), true)]),
-                },
-                v,
-            )
-        })
-        .collect();
+    if result.has_keys() {
+        result.primary_keys = IntoIterator::into_iter(take(&mut result.primary_keys))
+            .map(|k| RequestKey {
+                request: k.request.clone(),
+                conditions: k.conditions.extend([(rcstr!("types"), true)]),
+            })
+            .collect();
+    }
     Ok(result.cell())
 }
 
