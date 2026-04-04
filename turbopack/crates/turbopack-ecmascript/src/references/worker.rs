@@ -19,7 +19,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{
-        ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode,
+        ModuleResolveResult, ModuleResolveResultItem, RequestKey, ResolveErrorMode,
         error::handle_resolve_error, origin::ResolveOrigin, parse::Request, pattern::Pattern,
         resolve_raw, url_resolve,
     },
@@ -173,9 +173,11 @@ impl ModuleReference for WorkerAssetReference {
 
         // Wrap each resolved module in a WorkerLoaderModule
         let result_ref = result.await?;
-        let mut primary = Vec::with_capacity(result_ref.primary.len());
+        let mut primary: Vec<(RequestKey, ModuleResolveResultItem)> =
+            Vec::with_capacity(result_ref.primary_len());
 
-        for (request_key, resolve_item) in result_ref.primary.iter() {
+        for (request_key, resolve_item) in result_ref.iter_primary() {
+            let request_key = request_key.cloned().unwrap_or_default();
             match resolve_item {
                 ModuleResolveResultItem::Module(module) => {
                     let Some(chunkable) =
@@ -238,22 +240,18 @@ impl ModuleReference for WorkerAssetReference {
                             .await?;
 
                     primary.push((
-                        request_key.clone(),
+                        request_key,
                         ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
                     ));
                 }
                 // Pass through other result types (External, Ignore, etc.)
                 _ => {
-                    primary.push((request_key.clone(), resolve_item.clone()));
+                    primary.push((request_key, resolve_item.clone()));
                 }
             }
         }
 
-        Ok(ModuleResolveResult {
-            primary: primary.into_boxed_slice(),
-            affecting_sources: result_ref.affecting_sources.clone(),
-        }
-        .cell())
+        Ok(ModuleResolveResult::from_keyed(primary, result_ref.affecting_sources.clone()).cell())
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

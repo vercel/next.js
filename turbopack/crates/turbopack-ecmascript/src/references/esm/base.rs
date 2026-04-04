@@ -334,8 +334,8 @@ impl ReferencedAsset {
         if result.is_unresolvable() {
             return Ok(ReferencedAsset::Unresolvable);
         }
-        for (_, result) in result.primary.iter() {
-            match result {
+        for item in result.iter_primary_values() {
+            match item {
                 ModuleResolveResultItem::External {
                     name: request, ty, ..
                 } => {
@@ -514,7 +514,8 @@ impl ModuleReference for EsmAssetReference {
                 && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
             {
                 return Ok(ModuleResolveResult {
-                    primary: Box::new([(RequestKey::default(), ModuleResolveResultItem::Ignore)]),
+                    primary_keys: Box::new([RequestKey::default()]),
+                    primary_values: Box::new([ModuleResolveResultItem::Ignore]),
                     affecting_sources: Default::default(),
                 }
                 .cell());

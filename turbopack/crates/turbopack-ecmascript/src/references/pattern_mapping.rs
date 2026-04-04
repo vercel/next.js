@@ -304,7 +304,7 @@ async fn to_single_pattern_mapping(
     origin: Vc<Box<dyn ResolveOrigin>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     resolve_item: &ModuleResolveResultItem,
-    primary: &[(turbopack_core::resolve::RequestKey, ModuleResolveResultItem)],
+    primary_values: &[ModuleResolveResultItem],
     resolve_type: ResolveType,
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
@@ -333,8 +333,8 @@ async fn to_single_pattern_mapping(
             return Box::pin(to_single_pattern_mapping(
                 origin,
                 chunking_context,
-                &primary[*first].1,
-                primary,
+                &primary_values[*first],
+                primary_values,
                 resolve_type,
             ))
             .await;
@@ -409,30 +409,34 @@ impl PatternMapping {
         resolve_type: ResolveType,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
-        match result.primary.len() {
+        match result.primary_len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),
             1 if !request.request_pattern().await?.has_dynamic_parts() => {
-                let resolve_item = &result.primary.first().unwrap().1;
+                let resolve_item = result.primary_values.first().unwrap();
                 let single_pattern_mapping = to_single_pattern_mapping(
                     origin,
                     chunking_context,
                     resolve_item,
-                    &result.primary,
+                    &result.primary_values,
                     resolve_type,
                 )
                 .await?;
                 Ok(PatternMapping::Single(single_pattern_mapping).cell())
             }
             _ => {
-                let primary = &result.primary;
+                debug_assert!(
+                    result.has_keys(),
+                    "PatternMapping::Map requires request keys to be collected"
+                );
+                let primary_values = &result.primary_values;
                 let mut set = HashSet::new();
-                let items: Vec<(RcStr, &ModuleResolveResultItem)> = primary
-                    .iter()
+                let items: Vec<(RcStr, &ModuleResolveResultItem)> = result
+                    .iter_primary()
                     .filter_map(|(k, v)| {
-                        let request = k.request.as_ref()?;
+                        let request = k?.request.as_ref()?;
                         set.insert(request).then(|| (request.clone(), v))
                     })
                     .collect();
@@ -443,7 +447,7 @@ impl PatternMapping {
                             origin,
                             chunking_context,
                             v,
-                            primary,
+                            primary_values,
                             resolve_type,
                         )
                         .await?;

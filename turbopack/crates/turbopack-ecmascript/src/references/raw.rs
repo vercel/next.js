@@ -12,7 +12,7 @@ use turbopack_core::{
     resolve::{
         ModuleResolveResult, RequestKey,
         pattern::{Pattern, PatternMatch, read_matches},
-        resolve_raw,
+        resolve_raw_without_keys,
     },
 };
 
@@ -55,7 +55,7 @@ impl ModuleReference for FileSourceReference {
             pattern = display(self.path.to_string().await?)
         );
         async {
-            let result = resolve_raw(
+            let result = resolve_raw_without_keys(
                 self.context_dir.clone(),
                 *self.path,
                 self.collect_affecting_sources,
