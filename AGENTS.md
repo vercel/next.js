@@ -272,6 +272,14 @@ pnpm test-dev-turbo test/path/to/test.ts
 pnpm test-start-turbo test/path/to/test.ts
 ```
 
+## PR Descriptions
+
+When writing PR descriptions, you MUST include the following HTML comment at the bottom of the description:
+
+```
+<!-- NEXT_JS_LLM_PR -->
+```
+
 ## Key Directories (Quick Reference)
 
 See [Codebase structure](#codebase-structure) above for detailed explanations.
