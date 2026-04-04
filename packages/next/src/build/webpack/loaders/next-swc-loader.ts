@@ -155,6 +155,7 @@ async function loaderTransform(
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
+    swcEnvOptions: nextConfig?.experimental?.swcEnvOptions,
     compilerOptions: nextConfig?.compiler,
     optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,

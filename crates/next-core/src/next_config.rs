@@ -1081,6 +1081,7 @@ pub struct ExperimentalConfig {
     strict_next_head: Option<bool>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
+    swc_env_options: Option<SwcEnvOptions>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -1418,6 +1419,37 @@ pub struct ResolveExtensions(Option<Vec<RcStr>>);
 pub struct SwcPlugins(
     #[bincode(with = "turbo_bincode::serde_self_describing")] Vec<(RcStr, serde_json::Value)>,
 );
+
+/// Options for SWC's preset-env, exposed via `experimental.swcEnvOptions`.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct SwcEnvOptions {
+    pub mode: Option<RcStr>,
+    pub core_js: Option<RcStr>,
+    pub skip: Option<Vec<RcStr>>,
+    pub include: Option<Vec<RcStr>>,
+    pub exclude: Option<Vec<RcStr>>,
+    pub shipped_proposals: Option<bool>,
+    pub force_all_transforms: Option<bool>,
+    pub debug: Option<bool>,
+    pub loose: Option<bool>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSwcEnvOptions(Option<SwcEnvOptions>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
@@ -1852,6 +1884,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn experimental_swc_plugins(&self) -> Vc<SwcPlugins> {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_swc_env_options(&self) -> Vc<OptionSwcEnvOptions> {
+        Vc::cell(self.experimental.swc_env_options.clone())
     }
 
     #[turbo_tasks::function]

@@ -534,6 +534,53 @@ export interface ExperimentalConfig {
   forceSwcTransforms?: boolean
 
   swcPlugins?: Array<[string, Record<string, unknown>]>
+
+  /**
+   * Additional options for SWC's preset-env (`env` configuration).
+   * These are merged into the `env` block that Next.js passes to SWC,
+   * alongside the browserslist-derived `targets`.
+   *
+   * See https://swc.rs/docs/configuration/supported-browsers for full details.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   experimental: {
+   *     swcEnvOptions: {
+   *       mode: 'usage',
+   *       coreJs: '3.38',
+   *     },
+   *   },
+   * }
+   * ```
+   */
+  swcEnvOptions?: {
+    /**
+     * Polyfill injection mode, matching Babel's `useBuiltIns`.
+     * - `'usage'`: Adds specific polyfill imports per file based on actual usage.
+     * - `'entry'`: Replaces a single `import 'core-js'` with only the polyfills
+     *   needed for the target browsers.
+     */
+    mode?: 'usage' | 'entry'
+    /** The core-js version to use (e.g. `'3.38'`). Required when `mode` is set. */
+    coreJs?: string
+    /** Core-js modules or SWC transform passes to skip. */
+    skip?: string[]
+    /** Core-js modules or SWC transform passes to always include. */
+    include?: string[]
+    /** Core-js modules or SWC transform passes to always exclude. */
+    exclude?: string[]
+    /** Enable shipped TC39 proposals. */
+    shippedProposals?: boolean
+    /** Force all transforms regardless of targets. */
+    forceAllTransforms?: boolean
+    /** Enable debug output for preset-env. */
+    debug?: boolean
+    /** Enable loose mode for transforms. */
+    loose?: boolean
+  }
+
   largePageDataBytes?: number
   /**
    * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser

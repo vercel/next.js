@@ -15,6 +15,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
+    transform::PresetEnvConfig,
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -295,6 +296,9 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+
+    /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
+    pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
 
     pub placeholder_for_future_extensions: (),
 }
