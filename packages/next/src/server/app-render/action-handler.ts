@@ -226,7 +226,8 @@ async function createForwardedActionResponse(
 
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
-  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${host.value}`
+  // Prevent SSRF: If __NEXT_PRIVATE_ORIGIN is unset, fallback to localhost to avoid trusting the Host header.
+  const origin = process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://localhost:${process.env.PORT || 3000}`
 
   const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
 
@@ -375,8 +376,9 @@ async function createRedirectRenderResult(
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
+    // Prevent SSRF: If __NEXT_PRIVATE_ORIGIN is unset, fallback to localhost to avoid trusting the Host header.
     const origin =
-      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://localhost:${process.env.PORT || 3000}`
 
     const fetchUrl = new URL(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
