@@ -1818,34 +1818,34 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             _ => {}
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
-                        if named_export.src.is_none() {
-                            for spec in &named_export.specifiers {
-                                match spec {
-                                    ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(orig),
-                                        exported: Some(exported),
-                                        is_type_only: false,
-                                        ..
-                                    }) => {
-                                        // export { foo as bar } or export { foo as "📙" }
-                                        self.export_name_by_local_id
-                                            .insert(orig.to_id(), exported.clone());
-                                    }
-                                    ExportSpecifier::Named(ExportNamedSpecifier {
-                                        orig: ModuleExportName::Ident(orig),
-                                        exported: None,
-                                        is_type_only: false,
-                                        ..
-                                    }) => {
-                                        // export { foo }
-                                        self.export_name_by_local_id.insert(
-                                            orig.to_id(),
-                                            ModuleExportName::Ident(orig.clone()),
-                                        );
-                                    }
-                                    _ => {}
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export))
+                        if named_export.src.is_none() =>
+                    {
+                        for spec in &named_export.specifiers {
+                            match spec {
+                                ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(orig),
+                                    exported: Some(exported),
+                                    is_type_only: false,
+                                    ..
+                                }) => {
+                                    // export { foo as bar } or export { foo as "📙" }
+                                    self.export_name_by_local_id
+                                        .insert(orig.to_id(), exported.clone());
                                 }
+                                ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(orig),
+                                    exported: None,
+                                    is_type_only: false,
+                                    ..
+                                }) => {
+                                    // export { foo }
+                                    self.export_name_by_local_id.insert(
+                                        orig.to_id(),
+                                        ModuleExportName::Ident(orig.clone()),
+                                    );
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -1955,14 +1955,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                         }
                     }
-                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
-                        if !named.type_only {
-                            if let Some(src) = &named.src {
-                                // export { x } from './module'
-                                if in_cache_file {
-                                    // Transform re-exports into imports so we can wrap them with
-                                    // cache runtime wrappers.
-                                    let import_specs: Vec<ImportSpecifier> = named
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) if !named.type_only => {
+                        if let Some(src) = &named.src {
+                            // export { x } from './module'
+                            if in_cache_file {
+                                // Transform re-exports into imports so we can wrap them with
+                                // cache runtime wrappers.
+                                let import_specs: Vec<ImportSpecifier> = named
                                         .specifiers
                                         .iter()
                                         .filter_map(|spec| {
@@ -2002,68 +2001,65 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         })
                                         .collect();
 
-                                    if !import_specs.is_empty() {
-                                        // Add import statement.
-                                        self.extra_items.push(ModuleItem::ModuleDecl(
-                                            ModuleDecl::Import(ImportDecl {
-                                                span: named.span,
-                                                specifiers: import_specs,
-                                                src: src.clone(),
-                                                type_only: false,
-                                                with: named.with.clone(),
-                                                phase: Default::default(),
-                                            }),
-                                        ));
-                                    }
+                                if !import_specs.is_empty() {
+                                    // Add import statement.
+                                    self.extra_items.push(ModuleItem::ModuleDecl(
+                                        ModuleDecl::Import(ImportDecl {
+                                            span: named.span,
+                                            specifiers: import_specs,
+                                            src: src.clone(),
+                                            type_only: false,
+                                            with: named.with.clone(),
+                                            phase: Default::default(),
+                                        }),
+                                    ));
+                                }
 
-                                    // Remove value specifiers from the export statement, keeping
-                                    // only type-only specifiers.
-                                    named.specifiers.retain(|spec| {
-                                        matches!(
-                                            spec,
-                                            ExportSpecifier::Named(ExportNamedSpecifier {
-                                                is_type_only: true,
-                                                ..
-                                            })
-                                        )
-                                    });
+                                // Remove value specifiers from the export statement, keeping
+                                // only type-only specifiers.
+                                named.specifiers.retain(|spec| {
+                                    matches!(
+                                        spec,
+                                        ExportSpecifier::Named(ExportNamedSpecifier {
+                                            is_type_only: true,
+                                            ..
+                                        })
+                                    )
+                                });
 
-                                    // If all specifiers were value specifiers (converted to
-                                    // imports), remove the entire statement.
-                                    if named.specifiers.is_empty() {
-                                        should_remove_statement = true;
-                                    }
-                                } else if named.specifiers.iter().any(|s| match s {
-                                    ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => {
+                                // If all specifiers were value specifiers (converted to
+                                // imports), remove the entire statement.
+                                if named.specifiers.is_empty() {
+                                    should_remove_statement = true;
+                                }
+                            } else if named.specifiers.iter().any(|s| match s {
+                                ExportSpecifier::Namespace(_) | ExportSpecifier::Default(_) => true,
+                                ExportSpecifier::Named(s) => !s.is_type_only,
+                            }) {
+                                disallowed_export_span = named.span;
+                            }
+                        } else {
+                            // For cache files, remove specifiers that need cache runtime
+                            // wrappers. Keep type-only specifiers and value specifiers that
+                            // don't need wrappers (like function declarations).
+                            if in_cache_file {
+                                named.specifiers.retain(|spec| {
+                                    if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                        orig: ModuleExportName::Ident(ident),
+                                        is_type_only: false,
+                                        ..
+                                    }) = spec
+                                    {
+                                        !self
+                                            .local_ids_that_need_cache_runtime_wrapper_if_exported
+                                            .contains(&ident.to_id())
+                                    } else {
                                         true
                                     }
-                                    ExportSpecifier::Named(s) => !s.is_type_only,
-                                }) {
-                                    disallowed_export_span = named.span;
-                                }
-                            } else {
-                                // For cache files, remove specifiers that need cache runtime
-                                // wrappers. Keep type-only specifiers and value specifiers that
-                                // don't need wrappers (like function declarations).
-                                if in_cache_file {
-                                    named.specifiers.retain(|spec| {
-                                        if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                            orig: ModuleExportName::Ident(ident),
-                                            is_type_only: false,
-                                            ..
-                                        }) = spec
-                                        {
-                                            !self
-                                                .local_ids_that_need_cache_runtime_wrapper_if_exported
-                                                .contains(&ident.to_id())
-                                        } else {
-                                            true
-                                        }
-                                    });
+                                });
 
-                                    if named.specifiers.is_empty() {
-                                        should_remove_statement = true;
-                                    }
+                                if named.specifiers.is_empty() {
+                                    should_remove_statement = true;
                                 }
                             }
                         }
@@ -2110,10 +2106,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         span,
                         type_only,
                         ..
-                    })) => {
-                        if !*type_only {
-                            disallowed_export_span = *span;
-                        }
+                    })) if !*type_only => {
+                        disallowed_export_span = *span;
                     }
                     _ => {}
                 }

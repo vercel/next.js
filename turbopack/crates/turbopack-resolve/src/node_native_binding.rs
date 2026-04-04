@@ -315,8 +315,7 @@ async fn resolve_node_gyp_build_files(
                             ))
                         })
                         .try_join()
-                        .await?
-                        .into_iter(),
+                        .await?,
                     merged_affecting_sources,
                 ));
             }

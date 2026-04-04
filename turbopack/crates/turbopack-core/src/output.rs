@@ -142,7 +142,7 @@ impl OutputAssetsWithReferenced {
             self.assets
                 .await?
                 .into_iter()
-                .chain(self.referenced_assets.await?.into_iter())
+                .chain(self.referenced_assets.await?)
                 .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
                 .chain(
                     self.references
@@ -263,7 +263,7 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter())
+        .chain(refs.referenced_assets.await?)
         .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
         .chain(
             refs.references

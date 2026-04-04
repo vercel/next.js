@@ -483,7 +483,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         .0;
 
                     ChunkGroupKey::IsolatedMerged {
-                        parent: ChunkGroupId(*parent as u32),
+                        parent: ChunkGroupId(*parent),
                         merge_tag,
                     }
                 }
@@ -500,7 +500,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         .0;
 
                     ChunkGroupKey::SharedMerged {
-                        parent: ChunkGroupId(*parent as u32),
+                        parent: ChunkGroupId(*parent),
                         merge_tag,
                     }
                 }

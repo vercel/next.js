@@ -196,7 +196,7 @@ impl ChunkGroupResult {
                 self.assets
                     .await?
                     .into_iter()
-                    .chain(self.referenced_assets.await?.into_iter())
+                    .chain(self.referenced_assets.await?)
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(

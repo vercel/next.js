@@ -430,15 +430,14 @@ async fn get_directory_tree_internal(
                     },
                 ));
             }
-            DirectoryEntry::Directory(dir) => {
+            DirectoryEntry::Directory(dir)
                 // appDir ignores paths starting with an underscore
-                if !basename.starts_with('_') {
+                if !basename.starts_with('_') => {
                     let result = get_directory_tree(dir.clone(), page_extensions)
                         .to_resolved()
                         .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
-            }
             // TODO(WEB-952) handle symlinks in app dir
             _ => {}
         }

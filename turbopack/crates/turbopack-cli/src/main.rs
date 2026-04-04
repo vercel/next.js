@@ -1,6 +1,3 @@
-#![feature(future_join)]
-#![feature(min_specialization)]
-
 use std::{cell::RefCell, path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};

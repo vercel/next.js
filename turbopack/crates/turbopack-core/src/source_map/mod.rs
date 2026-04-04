@@ -427,7 +427,7 @@ impl SourceMap {
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
-            for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
+            for (source, source_content) in sources.into_iter().zip(source_contents) {
                 let (source, source_content) =
                     resolve_source(source, source_content, origin.clone()).await?;
                 new_sources.push(source);

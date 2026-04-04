@@ -950,31 +950,29 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
-                    | "experimental_ppr" => {
-                        if self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    | "experimental_ppr"
+                        if self.cache_components_enabled =>
+                    {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
-                    "unstable_instant" => {
-                        if !self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RequiresRouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    "unstable_instant" if !self.cache_components_enabled => {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RequiresRouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
                     _ => (),
                 };

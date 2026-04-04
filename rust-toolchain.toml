@@ -1,6 +1,6 @@
 # if you update this, also update `.devcontainer/rust/devcontainer-feature.json`
 # if you move the file, also update any turbo.json inputs that references it.
 [toolchain]
-channel = "nightly-2026-02-18"
+channel = "nightly-2026-04-02"
 components = ["rustfmt", "clippy", "rust-analyzer"]
 profile = "minimal"

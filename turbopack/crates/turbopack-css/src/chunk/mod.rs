@@ -308,7 +308,7 @@ impl OutputAssetsReference for CssChunk {
                             .copied()
                             .chain(single_css_chunk.iter().copied())
                     })
-                    .chain(source_map.into_iter())
+                    .chain(source_map)
                     .collect(),
             ),
             referenced_assets: ResolvedVc::cell(
