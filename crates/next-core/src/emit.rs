@@ -103,7 +103,7 @@ pub async fn emit_assets(
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
         for next in iter {
-            let ext: RcStr = path.extension().into();
+            let ext: RcStr = path.extension().unwrap_or_default().into();
             if let Some(detail) = assets_diff(*next, *first, ext, node_root.clone())
                 .owned()
                 .await?
@@ -124,7 +124,7 @@ pub async fn emit_assets(
     let (node_result, client_result) = join!(
         node_assets_by_path
             .into_iter()
-            .map(|( path, assets)| {
+            .map(|(path, assets)| {
                 let node_root = node_root.clone();
 
                 async move {
@@ -319,8 +319,7 @@ impl Issue for EmitConflictIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
         StyledString::Text(
-            "Two or more assets with different content were emitted to the same output path"
-                .into(),
+            "Two or more assets with different content were emitted to the same output path".into(),
         )
         .cell()
     }
