@@ -87,12 +87,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         self.db.is_empty()
     }
 
-    type ValueBuffer<'l>
-        = ArcBytes
-    where
-        Self: 'l;
-
-    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>> {
         self.db.get(key_space as usize, &key)
     }
 
@@ -105,11 +100,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         self.db.batch_get_with(key_space as usize, keys, callback)
     }
 
-    fn get_multiple(
-        &self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
+    fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
         self.db.get_multiple(key_space as usize, &key)
     }
 

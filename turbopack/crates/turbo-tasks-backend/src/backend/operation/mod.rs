@@ -182,23 +182,16 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         self.backend.should_restore() && self.backend.local_is_partial
     }
 
-    fn restore_task_data(
+    fn lookup_task_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-    ) -> TaskStorage {
+    ) -> Option<turbo_persistence::ArcBytes> {
         if !self.should_check_backing_storage() {
-            // If we don't need to restore, we can just return an empty storage
-            return TaskStorage::default();
+            return None;
         }
-        let mut storage = TaskStorage::default();
-        let result = self
-            .backend
-            .backing_storage
-            .lookup_data(task_id, category, &mut storage);
-
-        match result {
-            Ok(()) => storage,
+        match self.backend.backing_storage.lookup_data(task_id, category) {
+            Ok(bytes) => bytes,
             Err(e) => {
                 panic!(
                     "Failed to restore task data (corrupted database or bug): {:?}",
@@ -531,28 +524,39 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                     category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
 
                 if needs_data || needs_meta {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    // Drop lock once, do all I/O, then re-acquire once
+                    // Avoid holding the lock too long since this can also affect other tasks.
+                    // Drop lock once, do all I/O (returning raw bytes), then re-acquire once
+                    // and decode directly into the live task — no scratch TaskStorage needed.
                     drop(task);
 
-                    let storage_data = needs_data
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-                    let storage_meta = needs_meta
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+                    let bytes_data = needs_data
+                        .then(|| self.lookup_task_data(task_id, SpecificTaskDataCategory::Data));
+                    let bytes_meta = needs_meta
+                        .then(|| self.lookup_task_data(task_id, SpecificTaskDataCategory::Meta));
 
                     task = self.backend.storage.access_mut(task_id);
 
-                    // Handle race conditions and merge
-                    if let Some(storage) = storage_data
-                        && !task.flags.is_restored(TaskDataCategory::Data)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Data);
+                    // Handle race conditions and decode directly into live storage.
+                    // set_restored is called even when no bytes found (task simply has no
+                    // persisted data for this category).
+                    if needs_data && !task.flags.is_restored(TaskDataCategory::Data) {
+                        if let Some(bytes) = bytes_data.flatten() {
+                            let mut decoder = new_turbo_bincode_decoder(&bytes);
+                            task.decode(SpecificTaskDataCategory::Data, &mut decoder)
+                                .unwrap_or_else(|e| {
+                                    panic!("Failed to decode Data for {task_id:?}: {e:?}")
+                                });
+                        }
                         task.flags.set_restored(TaskDataCategory::Data);
                     }
-                    if let Some(storage) = storage_meta
-                        && !task.flags.is_restored(TaskDataCategory::Meta)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Meta);
+                    if needs_meta && !task.flags.is_restored(TaskDataCategory::Meta) {
+                        if let Some(bytes) = bytes_meta.flatten() {
+                            let mut decoder = new_turbo_bincode_decoder(&bytes);
+                            task.decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                                .unwrap_or_else(|e| {
+                                    panic!("Failed to decode Meta for {task_id:?}: {e:?}")
+                                });
+                        }
                         task.flags.set_restored(TaskDataCategory::Meta);
                     }
                 }
@@ -625,47 +629,69 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             category.includes_meta() && !task2.flags.is_restored(TaskDataCategory::Meta);
 
         if needs_data1 || needs_meta1 || needs_data2 || needs_meta2 {
-            // Avoid holding the lock too long since this can also affect other tasks
-            // Drop locks once, do all I/O, then re-acquire once
+            // Avoid holding the lock too long since this can also affect other tasks.
+            // Drop locks once, do all I/O (returning raw bytes), then re-acquire once
+            // and decode directly into the live tasks — no scratch TaskStorage needed.
             drop(task1);
             drop(task2);
 
-            let storage_data1 = needs_data1
-                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Data));
-            let storage_meta1 = needs_meta1
-                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Meta));
-            let storage_data2 = needs_data2
-                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Data));
-            let storage_meta2 = needs_meta2
-                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
+            let bytes_data1 = needs_data1
+                .then(|| self.lookup_task_data(task_id1, SpecificTaskDataCategory::Data));
+            let bytes_meta1 = needs_meta1
+                .then(|| self.lookup_task_data(task_id1, SpecificTaskDataCategory::Meta));
+            let bytes_data2 = needs_data2
+                .then(|| self.lookup_task_data(task_id2, SpecificTaskDataCategory::Data));
+            let bytes_meta2 = needs_meta2
+                .then(|| self.lookup_task_data(task_id2, SpecificTaskDataCategory::Meta));
 
             let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
             task1 = t1;
             task2 = t2;
 
-            // Merge results, handling race conditions
-            if let Some(storage) = storage_data1
-                && !task1.flags.is_restored(TaskDataCategory::Data)
-            {
-                task1.restore_from(storage, TaskDataCategory::Data);
+            // Decode directly into live storage, handling race conditions.
+            // set_restored is called even when no bytes found.
+            if needs_data1 && !task1.flags.is_restored(TaskDataCategory::Data) {
+                if let Some(bytes) = bytes_data1.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task1
+                        .decode(SpecificTaskDataCategory::Data, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Data for {task_id1:?}: {e:?}")
+                        });
+                }
                 task1.flags.set_restored(TaskDataCategory::Data);
             }
-            if let Some(storage) = storage_meta1
-                && !task1.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task1.restore_from(storage, TaskDataCategory::Meta);
+            if needs_meta1 && !task1.flags.is_restored(TaskDataCategory::Meta) {
+                if let Some(bytes) = bytes_meta1.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task1
+                        .decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Meta for {task_id1:?}: {e:?}")
+                        });
+                }
                 task1.flags.set_restored(TaskDataCategory::Meta);
             }
-            if let Some(storage) = storage_data2
-                && !task2.flags.is_restored(TaskDataCategory::Data)
-            {
-                task2.restore_from(storage, TaskDataCategory::Data);
+            if needs_data2 && !task2.flags.is_restored(TaskDataCategory::Data) {
+                if let Some(bytes) = bytes_data2.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task2
+                        .decode(SpecificTaskDataCategory::Data, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Data for {task_id2:?}: {e:?}")
+                        });
+                }
                 task2.flags.set_restored(TaskDataCategory::Data);
             }
-            if let Some(storage) = storage_meta2
-                && !task2.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task2.restore_from(storage, TaskDataCategory::Meta);
+            if needs_meta2 && !task2.flags.is_restored(TaskDataCategory::Meta) {
+                if let Some(bytes) = bytes_meta2.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task2
+                        .decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Meta for {task_id2:?}: {e:?}")
+                        });
+                }
                 task2.flags.set_restored(TaskDataCategory::Meta);
             }
         }

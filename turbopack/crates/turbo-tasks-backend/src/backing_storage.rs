@@ -4,10 +4,11 @@ use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
+use turbo_persistence::ArcBytes;
 use turbo_tasks::{TaskId, backend::CachedTaskType};
 
 use crate::{
-    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
+    backend::{AnyOperation, SpecificTaskDataCategory},
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -69,14 +70,16 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// The caller must verify each returned TaskId by comparing the stored task type which will
     /// require a second database read
     fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>>;
-    /// Looks up and decodes persisted data for a single task, updating the provided storage with
-    /// data from the database in the given category.
+    /// Looks up raw persisted bytes for a single task.
+    ///
+    /// Returns `None` if the task has no persisted data for the given category.
+    /// The caller is responsible for decoding the returned bytes. The returned
+    /// [`ArcBytes`] is ref-counted and zero-copy when backed by a memory-mapped file.
     fn lookup_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
-    ) -> Result<()>;
+    ) -> Result<Option<ArcBytes>>;
 
     /// Batch lookup raw bytes for multiple tasks, calling
     /// `callback(index, Option<&[u8]>)` for every task in `task_ids` immediately after its
@@ -151,9 +154,8 @@ where
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
-    ) -> Result<()> {
-        either::for_both!(self, this => this.lookup_data(task_id, category, storage))
+    ) -> Result<Option<ArcBytes>> {
+        either::for_both!(self, this => this.lookup_data(task_id, category))
     }
 
     fn batch_lookup_data(

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_persistence::ArcBytes;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -8,12 +9,7 @@ use crate::database::{
 pub struct NoopKvDb;
 
 impl KeyValueDatabase for NoopKvDb {
-    type ValueBuffer<'l>
-        = &'l [u8]
-    where
-        Self: 'l;
-
-    fn get(&self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
+    fn get(&self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<ArcBytes>> {
         Ok(None)
     }
 

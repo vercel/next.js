@@ -1,6 +1,6 @@
 use anyhow::Result;
 use smallvec::SmallVec;
-use turbo_persistence::{FamilyConfig, FamilyKind};
+use turbo_persistence::{ArcBytes, FamilyConfig, FamilyKind};
 
 use crate::database::write_batch::ConcurrentWriteBatch;
 
@@ -57,21 +57,13 @@ pub trait KeyValueDatabase {
         false
     }
 
-    type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
-    where
-        Self: 'l;
-
-    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>>;
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>>;
     /// Looks up a key and returns all matching values.
     ///
     /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
     /// The default implementation returns at most one value (from `get`), but implementations
     /// that support multiple values per key should override this.
-    fn get_multiple(
-        &self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
+    fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
         Ok(self.get(key_space, key)?.into_iter().collect())
     }
 
@@ -89,7 +81,7 @@ pub trait KeyValueDatabase {
     ) -> Result<()> {
         for (index, key) in keys.iter().enumerate() {
             let value = self.get(key_space, key)?;
-            let opt_bytes = value.as_ref().map(std::borrow::Borrow::<[u8]>::borrow);
+            let opt_bytes = value.as_deref();
             callback(index, opt_bytes)?;
         }
         Ok(())
