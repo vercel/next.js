@@ -528,6 +528,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // len is only a snapshot at that time and it can change while we create the filter.
             // So we give it 5% more space to make resizes less likely.
             let initial_capacity = set.len() * 20 / 19;
+            // TODO: Using u64::BITS as fingerprint size is wasteful for a
+            // probabilistic membership filter. A smaller fingerprint (e.g. via
+            // Filter::new with a target fp_rate) would significantly reduce size,
+            // but would make merging slower since mismatched fingerprint sizes
+            // fall back to one-by-one insertion instead of sorted merge.
             let mut amqf =
                 qfilter::Filter::with_fingerprint_size(initial_capacity as u64, u64::BITS as u8)
                     .unwrap();
@@ -987,7 +992,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     // during the merge loop. Empty filters (from commits with no
                     // reads) are discarded.
                     let used_key_hashes: Option<qfilter::Filter> = {
-                        let filters: Vec<qfilter::Filter> = meta_files
+                        let filters: Vec<qfilter::FilterRef<'_>> = meta_files
                             .iter()
                             .filter(|m| m.family() == family)
                             .filter_map(|meta_file| {
@@ -1001,9 +1006,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             None
                         } else if filters.len() == 1 {
                             // Just directly use the single item
-                            filters.into_iter().next()
+                            Some(filters[0].to_owned())
                         } else {
                             let total_len: u64 = filters.iter().map(|f| f.len()).sum();
+                            // Fingerprint size must match the source filters to
+                            // enable the efficient sorted merge path in qfilter.
                             let mut merged =
                                 qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
                                     .expect("Failed to create merged AMQF filter");
