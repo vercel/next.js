@@ -78,13 +78,22 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         storage: &mut TaskStorage,
     ) -> Result<()>;
 
-    /// Batch lookup and decode data for multiple tasks directly into TypedStorage instances.
-    /// Returns a vector of TypedStorage, one for each task_id in the input slice.
+    /// Batch lookup raw bytes for multiple tasks, calling
+    /// `callback(index, Option<&[u8]>)` for every task in `task_ids` immediately after its
+    /// entry is resolved. Index corresponds to the position in `task_ids`. `None` means the key
+    /// was not found in the database (no allocation is made for missing keys).
+    ///
+    /// The caller is responsible for decoding the bytes. The byte slice is only valid for the
+    /// duration of the callback invocation and must not be stored.
+    ///
+    /// This avoids allocating an intermediate `TaskStorage` per entry — callers can decode
+    /// directly into the live in-memory storage, reducing peak memory usage for large batches.
     fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>>;
+        callback: &mut dyn FnMut(usize, Option<&[u8]>),
+    ) -> Result<()>;
 
     fn compact(&self) -> Result<bool> {
         Ok(false)
@@ -151,8 +160,9 @@ where
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
-        either::for_both!(self, this => this.batch_lookup_data(task_ids, category))
+        callback: &mut dyn FnMut(usize, Option<&[u8]>),
+    ) -> Result<()> {
+        either::for_both!(self, this => this.batch_lookup_data(task_ids, category, callback))
     }
 
     fn compact(&self) -> Result<bool> {

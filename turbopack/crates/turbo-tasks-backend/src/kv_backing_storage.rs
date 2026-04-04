@@ -347,32 +347,25 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
+        callback: &mut dyn FnMut(usize, Option<&[u8]>),
+    ) -> Result<()> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-        let bytes = inner
+        inner
             .database
-            .batch_get(category.key_space(), &keys)
+            .batch_get_with(category.key_space(), &keys, |index, opt_bytes| {
+                callback(index, opt_bytes);
+                // `opt_bytes` (and any underlying ArcBytes) is dropped here before the next
+                // iteration, so only one decompressed block is live at a time.
+                Ok(())
+            })
             .with_context(|| {
                 format!(
                     "Looking up typed data for {} tasks from database failed",
                     task_ids.len()
                 )
-            })?;
-        bytes
-            .into_iter()
-            .map(|opt_bytes| {
-                let mut storage = TaskStorage::new();
-                if let Some(bytes) = opt_bytes {
-                    let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
-                    storage
-                        .decode(category, &mut decoder)
-                        .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-                }
-                Ok(storage)
             })
-            .collect::<Result<Vec<_>>>()
     }
 
     fn compact(&self) -> Result<bool> {

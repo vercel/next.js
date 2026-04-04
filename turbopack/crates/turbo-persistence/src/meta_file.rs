@@ -14,10 +14,13 @@ use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    QueryKey,
+    ArcBytes, QueryKey,
+    db::FoundBitset,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
-    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
+    static_sorted_file::{
+        BlockCache, LayeredBlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+    },
 };
 
 bitfield! {
@@ -459,7 +462,7 @@ impl MetaFile {
                 continue;
             }
 
-            let result = entry.sst(self)?.lookup::<K, FIND_ALL>(
+            let result = entry.sst(self)?.lookup::<K, _, _, FIND_ALL>(
                 key_hash,
                 key,
                 key_block_cache,
@@ -498,33 +501,60 @@ impl MetaFile {
         Ok(miss_result)
     }
 
-    pub fn batch_lookup<K: QueryKey>(
+    /// Looks up multiple keys in batch, calling `callback(key_index, Option<&[u8]>)` for each
+    /// found key immediately after resolution. This avoids keeping every decompressed value block
+    /// alive across all SST file iterations.
+    ///
+    /// `cells` is `(hash, key_index)` sorted by hash. `found` is a parallel bitset — bit `i`
+    /// is set once `cells[i]` has been resolved (either by this call or a prior one on the same
+    /// batch). On return, bits are set for every cell resolved by this call.
+    ///
+    /// Returns `true` if all cells are now resolved (caller can stop iterating meta files).
+    /// `read_blob` is called to obtain the bytes for large blob values.
+    pub fn batch_lookup_with<K: QueryKey>(
         &self,
         key_family: u32,
         keys: &[K],
-        cells: &mut [(u64, usize, Option<LookupValue>)],
-        empty_cells: &mut usize,
+        cells: &[(u64, usize)],
+        found: &mut FoundBitset,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
-    ) -> Result<MetaBatchLookupResult> {
+        read_blob: &mut impl FnMut(u32) -> Result<ArcBytes>,
+        callback: &mut impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<(bool, MetaBatchLookupResult)> {
+        debug_assert_eq!(
+            cells.len(),
+            found.len(),
+            "cells and found must have the same length"
+        );
         if key_family != self.family {
             #[cfg(feature = "stats")]
-            return Ok(MetaBatchLookupResult {
-                family_miss: true,
-                ..Default::default()
-            });
+            return Ok((
+                false,
+                MetaBatchLookupResult {
+                    family_miss: true,
+                    ..Default::default()
+                },
+            ));
             #[cfg(not(feature = "stats"))]
-            return Ok(MetaBatchLookupResult {});
+            return Ok((false, MetaBatchLookupResult {}));
         }
         debug_assert!(
-            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            cells.is_sorted_by_key(|(hash, _)| *hash),
             "Cells must be sorted by key hash"
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
+        let mut empty_cells = found.count_unset();
+        // Local single-entry caches layered on top of the global block caches.
+        // Sequential keys in a batch often hit the same key or value block; keeping
+        // the most recently used block locally avoids re-reading it if the global
+        // cache evicts it under concurrent pressure.
+        let mut local_key_cache = LayeredBlockCache::new(key_block_cache);
+        let mut local_value_cache = LayeredBlockCache::new(value_block_cache);
         for entry in self.entries.iter().rev() {
             let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+                .binary_search_by(|(hash, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
                 .err()
                 .unwrap();
             if start_index >= cells.len() {
@@ -535,7 +565,7 @@ impl MetaFile {
                 continue;
             }
             let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+                .binary_search_by(|(hash, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
                 .err()
                 .unwrap()
                 .checked_sub(1);
@@ -553,12 +583,13 @@ impl MetaFile {
                 }
                 continue;
             }
-            for (hash, index, result) in &mut cells[start_index..=end_index] {
+            for (cell_pos, (hash, index)) in cells[start_index..=end_index].iter().enumerate() {
+                let cell_pos = start_index + cell_pos;
                 debug_assert!(
                     *hash >= entry.min_hash && *hash <= entry.max_hash,
                     "Key hash out of range"
                 );
-                if result.is_some() {
+                if found.get(cell_pos) {
                     continue;
                 }
                 if !entry.amqf.contains_fingerprint(*hash) {
@@ -568,11 +599,11 @@ impl MetaFile {
                     }
                     continue;
                 }
-                let sst_result = entry.sst(self)?.lookup::<_, false>(
+                let sst_result = entry.sst(self)?.lookup::<_, _, _, false>(
                     *hash,
                     &keys[*index],
-                    key_block_cache,
-                    value_block_cache,
+                    &mut local_key_cache,
+                    &mut local_value_cache,
                 )?;
                 if let SstLookupResult::Found(mut values) = sst_result {
                     // find_all=false guarantees exactly one result
@@ -580,14 +611,39 @@ impl MetaFile {
                     let Some(value) = values.pop() else {
                         unreachable!()
                     };
-                    *result = Some(value);
-                    *empty_cells -= 1;
+                    // Resolve and callback immediately — the ArcBytes is dropped before the
+                    // next iteration so we never hold more than one decompressed block at a time.
+                    let opt_bytes: Option<&[u8]> = match &value {
+                        LookupValue::Deleted => None,
+                        LookupValue::Slice { value } => Some(value),
+                        LookupValue::Blob { sequence_number } => {
+                            // Blob resolution: read_blob is called inline. The blob ArcBytes
+                            // must outlive the callback call, so we bind it here.
+                            let blob = read_blob(*sequence_number)?;
+                            found.set(cell_pos);
+                            empty_cells -= 1;
+                            #[cfg(feature = "stats")]
+                            {
+                                lookup_result.hits += 1;
+                            }
+                            callback(*index, Some(&*blob))?;
+                            // blob dropped here
+                            if empty_cells == 0 {
+                                return Ok((true, lookup_result));
+                            }
+                            continue;
+                        }
+                    };
+                    found.set(cell_pos);
+                    empty_cells -= 1;
                     #[cfg(feature = "stats")]
                     {
                         lookup_result.hits += 1;
                     }
-                    if *empty_cells == 0 {
-                        return Ok(lookup_result);
+                    callback(*index, opt_bytes)?;
+                    // value (ArcBytes) dropped here
+                    if empty_cells == 0 {
+                        return Ok((true, lookup_result));
                     }
                 } else {
                     #[cfg(feature = "stats")]
@@ -597,6 +653,6 @@ impl MetaFile {
                 }
             }
         }
-        Ok(lookup_result)
+        Ok((false, lookup_result))
     }
 }

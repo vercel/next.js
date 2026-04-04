@@ -75,17 +75,24 @@ pub trait KeyValueDatabase {
         Ok(self.get(key_space, key)?.into_iter().collect())
     }
 
-    fn batch_get(
+    /// Calls `callback(index, Option<&[u8]>)` for each key immediately after it is resolved,
+    /// rather than accumulating all results into a `Vec`. This avoids holding every decompressed
+    /// value simultaneously in memory.
+    ///
+    /// The default implementation falls back to sequential `get` calls. Implementations backed by
+    /// [`TurboPersistence`] override this to use the native streaming path.
+    fn batch_get_with(
         &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
-        let mut results = Vec::with_capacity(keys.len());
-        for key in keys {
+        mut callback: impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<()> {
+        for (index, key) in keys.iter().enumerate() {
             let value = self.get(key_space, key)?;
-            results.push(value);
+            let opt_bytes = value.as_ref().map(std::borrow::Borrow::<[u8]>::borrow);
+            callback(index, opt_bytes)?;
         }
-        Ok(results)
+        Ok(())
     }
 
     type ConcurrentWriteBatch<'l>: ConcurrentWriteBatch<'l>

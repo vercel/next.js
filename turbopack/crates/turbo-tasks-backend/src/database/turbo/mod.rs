@@ -96,12 +96,13 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         self.db.get(key_space as usize, &key)
     }
 
-    fn batch_get(
+    fn batch_get_with(
         &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
-        self.db.batch_get(key_space as usize, keys)
+        callback: impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<()> {
+        self.db.batch_get_with(key_space as usize, keys, callback)
     }
 
     fn get_multiple(
