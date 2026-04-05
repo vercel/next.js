@@ -105,10 +105,7 @@ trait ValueBlockCache<B: SharedBytes> {
     ) -> Result<B>;
 }
 
-/// Lookup-path: concurrent `BlockCache`.
-///
-/// Uncompressed blocks bypass the cache entirely — creating an mmap-backed
-/// `ArcBytes` is cheaper than a cache hash + lookup.
+/// Lookup-path: concurrent `BlockCache`, with uncompressed-bypass optimization.
 impl ValueBlockCache<ArcBytes> for &BlockCache {
     fn get_or_read(
         self,
@@ -116,22 +113,7 @@ impl ValueBlockCache<ArcBytes> for &BlockCache {
         meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<ArcBytes> {
-        // Uncompressed blocks are trivially cheap to construct from the mmap
-        // (just an Arc::clone + pointer), so bypass the cache entirely.
-        if peek_uncompressed_length(mmap, meta, block_index) == 0 {
-            return read_block_generic(mmap, meta, block_index);
-        }
-        Ok(
-            match self.get_value_or_guard(&(meta.sequence_number, block_index), None) {
-                GuardResult::Value(block) => block,
-                GuardResult::Guard(guard) => {
-                    let block: ArcBytes = read_block_generic(mmap, meta, block_index)?;
-                    let _ = guard.insert(block.clone());
-                    block
-                }
-                GuardResult::Timeout => unreachable!(),
-            },
-        )
+        get_or_cache_block(mmap, meta, block_index, self)
     }
 }
 
@@ -452,31 +434,12 @@ impl StaticSortedFile {
     }
 
     /// Gets a key block from the cache or reads it from the file.
-    ///
-    /// Uncompressed blocks are served directly from the mmap (zero-copy) without
-    /// consulting the cache, since creating an mmap-backed `ArcBytes` is cheaper
-    /// than a cache lookup.
     fn get_key_block(
         &self,
         block: u16,
         key_block_cache: &BlockCache,
     ) -> Result<ArcBytes, anyhow::Error> {
-        // Uncompressed blocks are trivially cheap to construct from the mmap
-        // (just an Arc::clone + pointer), so bypass the cache entirely.
-        if peek_uncompressed_length(&self.mmap, &self.meta, block) == 0 {
-            return self.read_block(block);
-        }
-        Ok(
-            match key_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
-                GuardResult::Value(block) => block,
-                GuardResult::Guard(guard) => {
-                    let block = self.read_block(block)?;
-                    let _ = guard.insert(block.clone());
-                    block
-                }
-                GuardResult::Timeout => unreachable!(),
-            },
-        )
+        get_or_cache_block(&self.mmap, &self.meta, block, key_block_cache)
     }
 
     /// Reads a block from the file, decompressing if needed, and verifies its checksum.
@@ -488,18 +451,44 @@ impl StaticSortedFile {
     }
 }
 
-/// Peeks at the `uncompressed_length` header of a block without reading the
-/// rest. Returns `0` when the block is stored uncompressed (mmap-backed),
-/// `>0` when it is LZ4-compressed. Cost: 2–3 mmap word-reads (offset table
-/// entry + header word).
-fn peek_uncompressed_length(mmap: &Mmap, meta: &StaticSortedFileMetaData, block_index: u16) -> u32 {
+/// Returns `true` when the block at `block_index` is stored uncompressed
+/// (mmap-backed), i.e. its `uncompressed_length` header is zero.
+/// Cost: 2–3 mmap word-reads (offset table entry + header word).
+fn is_block_uncompressed(mmap: &Mmap, meta: &StaticSortedFileMetaData, block_index: u16) -> bool {
     let offset = meta.block_offsets_start(mmap.len()) + block_index as usize * 4;
     let block_start = if block_index == 0 {
         0
     } else {
         be::read_u32(&mmap[offset - 4..]) as usize
     };
-    be::read_u32(&mmap[block_start..])
+    be::read_u32(&mmap[block_start..]) == 0
+}
+
+/// Gets a block from the cache, or reads it from the mmap and inserts it.
+///
+/// Uncompressed blocks bypass the cache entirely — creating an mmap-backed
+/// `ArcBytes` is cheaper than a cache hash + lookup, so we peek at the block
+/// header first and short-circuit when the block is uncompressed.
+fn get_or_cache_block(
+    mmap: &Arc<Mmap>,
+    meta: &StaticSortedFileMetaData,
+    block_index: u16,
+    cache: &BlockCache,
+) -> Result<ArcBytes> {
+    if is_block_uncompressed(mmap, meta, block_index) {
+        return read_block_generic(mmap, meta, block_index);
+    }
+    Ok(
+        match cache.get_value_or_guard(&(meta.sequence_number, block_index), None) {
+            GuardResult::Value(block) => block,
+            GuardResult::Guard(guard) => {
+                let block: ArcBytes = read_block_generic(mmap, meta, block_index)?;
+                let _ = guard.insert(block.clone());
+                block
+            }
+            GuardResult::Timeout => unreachable!(),
+        },
+    )
 }
 
 /// Gets the raw block slice directly from a memory-mapped file.
