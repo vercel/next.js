@@ -485,7 +485,8 @@ fn node_file_trace<B: Backend + 'static>(
                     input.clone(),
                     directory.clone(),
                 )
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
                 let duration = before_start.elapsed();
 

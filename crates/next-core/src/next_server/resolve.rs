@@ -171,7 +171,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            Ok(match raw_fs_path.extension_ref() {
+            Ok(match raw_fs_path.extension() {
                 Some("cjs" | "node" | "json") => FileType::CommonJs,
                 Some("mjs") => FileType::EcmaScriptModule,
                 Some("js") => {

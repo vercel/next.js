@@ -54,7 +54,7 @@ impl OutputAssetsReference for BuildManifest {
             .into_iter()
             .flatten()
             .copied()
-            .chain(root_main_files.into_iter())
+            .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
             .collect();
 
@@ -148,7 +148,7 @@ impl Asset for BuildManifest {
             .await?;
 
         let manifest = SerializedBuildManifest {
-            pages: FxIndexMap::from_iter(pages.into_iter()),
+            pages: FxIndexMap::from_iter(pages),
             polyfill_files,
             root_main_files,
             ..Default::default()

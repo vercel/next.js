@@ -2,13 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(io_error_more)]
-#![feature(iter_advance_by)]
 #![feature(min_specialization)]
 // if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
-#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
@@ -66,8 +64,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, Effect, InvalidationReason, Invalidator, NonLocalValue,
     ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
-    debug::ValueDebugFormat, emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak,
-    turbobail, turbofmt,
+    debug::ValueDebugFormat, emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs,
+    turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -752,8 +750,10 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs, session_dependent)]
+    #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
+        mark_session_dependent();
+
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
@@ -778,8 +778,10 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs, session_dependent)]
+    #[turbo_tasks::function(fs)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
+        mark_session_dependent();
+
         // Check if directory itself is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
@@ -866,8 +868,10 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs, session_dependent)]
+    #[turbo_tasks::function(fs)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
+        mark_session_dependent();
+
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
@@ -955,9 +959,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        // You might be tempted to use `session_dependent` here, but `write` purely declares a side
-        // effect and does not need to be reexecuted in the next session. All side effects are
-        // reexecuted in general.
+        // You might be tempted to use `mark_session_dependent` here, but
+        // `write` purely declares a side effect and does not need to be reexecuted in the next
+        // session. All side effects are reexecuted in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -1108,7 +1112,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `session_dependent` here, but we purely declare a side
+        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
@@ -1341,8 +1345,9 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs, session_dependent)]
+    #[turbo_tasks::function(fs)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
+        mark_session_dependent();
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
@@ -1399,13 +1404,6 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
-}
-
-impl FileSystemPath {
-    /// Mimics `ValueToString::to_string`.
-    pub fn value_to_string(&self) -> Vc<RcStr> {
-        <FileSystemPath as ValueToString>::to_string(self.clone().cell())
-    }
 }
 
 impl ValueToStringRef for FileSystemPath {
@@ -1492,7 +1490,7 @@ impl FileSystemPath {
 
     /// Returns true if this path has the given extension
     ///
-    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// slightly faster than `self.extension() == Some(extension)` as we can simply match a
     /// suffix
     pub fn has_extension(&self, extension: &str) -> bool {
         debug_assert!(!extension.contains('/') && extension.starts_with('.'));
@@ -1500,7 +1498,7 @@ impl FileSystemPath {
     }
 
     /// Returns the extension (without a leading `.`)
-    pub fn extension_ref(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
     }
@@ -1676,10 +1674,6 @@ impl FileSystemPath {
 impl FileSystemPath {
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
         *self.fs
-    }
-
-    pub fn extension(&self) -> &str {
-        self.extension_ref().unwrap_or_default()
     }
 
     pub fn is_inside(&self, other: &FileSystemPath) -> bool {
@@ -3168,7 +3162,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
@@ -3275,7 +3270,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;

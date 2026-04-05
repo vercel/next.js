@@ -588,7 +588,7 @@ pub fn project_new(
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve_strongly_consistent().await
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
