@@ -295,11 +295,30 @@ export class AppRouteRouteModule extends RouteModule<
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
-    this._userlandFactory = isLazy ? userland : null
     this._getUserland = getUserland
 
     if (!isLazy) {
+      this._userlandFactory = null
       this._initFromUserland()
+    } else if (nextConfigOutput === 'export') {
+      // For output:export routes, validate constraints eagerly at module load
+      // time so that the error surfaces as a Redbox in dev (module load error)
+      // rather than being silently swallowed as a 500 response at request time.
+      this._userlandFactory = null
+      const result = userland()
+      if (result instanceof Promise) {
+        // Async module (top-level await) — defer via pending promise.
+        this._pendingUserland = result.then((mod) => {
+          this._userland = mod
+          this._pendingUserland = null
+          this._initFromUserland()
+        })
+      } else {
+        this._userland = result
+        this._initFromUserland() // throws for invalid output:export routes
+      }
+    } else {
+      this._userlandFactory = userland
     }
   }
 
