@@ -5,7 +5,6 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  check,
   createNowRouteMatches,
   fetchViaHTTP,
   findPort,
@@ -14,6 +13,7 @@ import {
   renderViaHTTP,
   waitFor,
   withInvocationId,
+  retry,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
 import { ChildProcess } from 'child_process'
@@ -719,12 +719,12 @@ describe('required server files i18n', () => {
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
-    await check(
-      () =>
-        errors.join('').includes('gip hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
+    await retry(
+      () => {
+        expect(errors.join('')).toContain('gip hit an oops')
+      },
+      30000,
+      1000
     )
   })
 
@@ -737,12 +737,12 @@ describe('required server files i18n', () => {
     )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gssp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
+    await retry(
+      () => {
+        expect(errors.join('\n')).toContain('gssp hit an oops')
+      },
+      30000,
+      1000
     )
   })
 
@@ -755,12 +755,12 @@ describe('required server files i18n', () => {
     )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('gsp hit an oops')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
+    await retry(
+      () => {
+        expect(errors.join('\n')).toContain('gsp hit an oops')
+      },
+      30000,
+      1000
     )
   })
 
@@ -774,12 +774,12 @@ describe('required server files i18n', () => {
     )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
-    await check(
-      () =>
-        errors.join('\n').includes('some error from /api/error')
-          ? 'success'
-          : errors.join('\n'),
-      'success'
+    await retry(
+      () => {
+        expect(errors.join('\n')).toContain('some error from /api/error')
+      },
+      30000,
+      1000
     )
   })
 

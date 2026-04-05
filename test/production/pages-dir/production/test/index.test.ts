@@ -6,8 +6,8 @@ import {
   renderViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
-  check,
   fetchViaHTTP,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -80,10 +80,16 @@ describe('Production Usage', () => {
           `/${search || ''}${hash || ''}`
         )
 
-        await check(
-          () =>
-            browser.eval('window.next.router.isReady ? "ready" : "not ready"'),
-          'ready'
+        await retry(
+          async () => {
+            expect(
+              await browser.eval(
+                'window.next.router.isReady ? "ready" : "not ready"'
+              )
+            ).toBe('ready')
+          },
+          30000,
+          1000
         )
         expect(await browser.eval('window.location.pathname')).toBe('/')
         expect(await browser.eval('window.location.hash')).toBe(hash || '')
@@ -1242,9 +1248,14 @@ describe('Production Usage', () => {
       })
     })()`)
 
-      await check(
-        () => browser.eval('document.documentElement.innerHTML'),
-        /page could not be found/
+      await retry(
+        async () => {
+          expect(
+            await browser.eval('document.documentElement.innerHTML')
+          ).toMatch(/page could not be found/)
+        },
+        30000,
+        1000
       )
 
       expect(await browser.eval('window.beforeNav')).toBeFalsy()
@@ -1267,9 +1278,14 @@ describe('Production Usage', () => {
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
-    await check(
-      () => browser.elementByCss('img').getComputedCss('background-image'),
-      'none'
+    await retry(
+      async () => {
+        expect(
+          await browser.elementByCss('img').getComputedCss('background-image')
+        ).toBe('none')
+      },
+      30000,
+      1000
     )
 
     await browser.eval(`(function() {
@@ -1287,12 +1303,16 @@ describe('Production Usage', () => {
 
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
-    await check(
-      () =>
-        browser
-          .elementByCss('#static-image')
-          .getComputedCss('background-image'),
-      'none'
+    await retry(
+      async () => {
+        await expect(
+          browser
+            .elementByCss('#static-image')
+            .getComputedCss('background-image')
+        ).resolves.toBe('none')
+      },
+      30000,
+      1000
     )
 
     for (let i = 0; i < 5; i++) {
