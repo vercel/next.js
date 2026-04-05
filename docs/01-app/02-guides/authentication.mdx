@@ -878,7 +878,7 @@ To create and manage database sessions, you'll need to follow these steps:
 For example:
 
 ```ts filename="app/lib/session.ts" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -913,7 +913,7 @@ export async function createSession(id: number) {
 ```
 
 ```js filename="app/lib/session.js" switcher
-import cookies from 'next/headers'
+import { cookies } from 'next/headers'
 import { db } from '@/app/lib/db'
 import { encrypt } from '@/app/lib/session'
 
@@ -1347,13 +1347,9 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-A [layout](/docs/app/api-reference/file-conventions/layout) often stays on screen while users move between child routes ([Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions)), so it does not re-run the way a page does on every navigation. Use it for shared chrome—nav, headers—not as the only place you trust the session. Keep authorization in your [Data Access Layer (DAL)](#creating-a-data-access-layer-dal) next to the data, and verify again in each page, Server Action, and Route Handler, as in the examples below.
+[Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions) means layout code does not always run again when the user navigates. Put authorization in your [Data Access Layer (DAL)](#creating-a-data-access-layer-dal) and keep checking on each page, Server Action, and Route Handler (see below). Calling `getUser()` from a layout is fine if the DAL does the check.
 
-A layout may still call `getUser()` (or similar) to show an avatar in the nav. That works when `getUser()` itself enforces access inside the [DAL](#creating-a-data-access-layer-dal), so every part of the app that calls it gets the same rules instead of bolting checks onto the layout alone.
-
-A top-level `await` on `cookies()`, session helpers, or other [DAL](#creating-a-data-access-layer-dal) calls in a layout delays streaming for that segment, because the layout cannot finish rendering until those promises resolve. If that work is only for shell UI, prefer nested `<Suspense>` and [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) from the [Streaming](/docs/app/guides/streaming) guide.
-
-The [DAL](#creating-a-data-access-layer-dal) is server-only. Hand session or user fields to [Client Components](/docs/app/getting-started/server-and-client-components) through props from a Server parent when you can; for sharing one cached read with context, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) on [Fetching Data](/docs/app/getting-started/fetching-data). Auth libraries that use providers and client hooks are covered in [Context Providers](#context-providers).
+Top-level `await` on `cookies()` or the DAL in a layout delays streaming; for shell-only work (like a nav), use nested `<Suspense>` as in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down). The DAL is server-only—pass values from Server parents, or use [context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) and [Context Providers](#context-providers) when you need session on the client.
 
 #### Auth checks in page components
 
@@ -1546,7 +1542,7 @@ Using context providers for auth works due to [interleaving](/docs/app/getting-s
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 
-```tsx filename="app/layout.ts" switcher
+```tsx filename="app/layout.tsx" switcher
 import { ContextProvider } from 'auth-lib'
 
 export default function RootLayout({ children }) {
@@ -1560,8 +1556,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
-```tsx filename="app/ui/profile.ts switcher
-'use client';
+```tsx filename="app/ui/profile.tsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 
@@ -1575,8 +1571,8 @@ export default function Profile() {
 }
 ```
 
-```jsx filename="app/ui/profile.js switcher
-'use client';
+```jsx filename="app/ui/profile.jsx" switcher
+'use client'
 
 import { useSession } from "auth-lib";
 
