@@ -170,6 +170,70 @@ export default async function Page() {
 }
 ```
 
+## `generateStaticParams`
+
+**Still supported.** Keep using [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes). With Cache Components, use [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) as the source of truth for validation, Suspense, and unknown params.
+
+If you previously used `return []`, that pattern becomes a [build error](/docs/messages/empty-generate-static-params); apply the fixes described in those docs (at least one sample param, or no `generateStaticParams` plus request-time patterns).
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// Before
+export async function generateStaticParams() {
+  return []
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  return <div>{slug}</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+// Before
+export async function generateStaticParams() {
+  return []
+}
+
+export default async function Page({ params }) {
+  const { slug } = await params
+  return <div>{slug}</div>
+}
+```
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// After - Return at least one param (expand with your real slugs)
+export async function generateStaticParams() {
+  return [{ slug: 'hello-world' }]
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  return <div>{slug}</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+// After - Return at least one param (expand with your real slugs)
+export async function generateStaticParams() {
+  return [{ slug: 'hello-world' }]
+}
+
+export default async function Page({ params }) {
+  const { slug } = await params
+  return <div>{slug}</div>
+}
+```
+
+> **Good to know:** `next build` may show **`◐` (Partial Prerender)** instead of **`○` (Static)** for these routes. That is normal under Cache Components; see [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) (and the [glossary](/docs/app/glossary#partial-prerendering-ppr)).
+
 ## `runtime = 'edge'`
 
 **Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
