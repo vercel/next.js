@@ -4,7 +4,7 @@ nav_title: Migrating to Cache Components
 description: Learn how to migrate from route segment configs to Cache Components in Next.js.
 ---
 
-When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) function is also replaced by `use cache`.
 
 ## `dynamic = "force-dynamic"`
 
@@ -169,6 +169,72 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
+
+## `unstable_cache`
+
+**Replace with `use cache`.** Instead of wrapping a function with `unstable_cache`, add the `use cache` directive at the top of the function. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to control duration and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for on-demand invalidation.
+
+```tsx filename="app/lib/data.ts" switcher
+// Before
+import { unstable_cache } from 'next/cache'
+
+const getCachedUser = unstable_cache(
+  async (id: string) => getUser(id),
+  ['my-app-user'],
+  {
+    revalidate: 3600,
+    tags: ['users'],
+  }
+)
+
+const user = await getCachedUser('user-1')
+```
+
+```jsx filename="app/lib/data.js" switcher
+// Before
+import { unstable_cache } from 'next/cache'
+
+const getCachedUser = unstable_cache(
+  async (id) => getUser(id),
+  ['my-app-user'],
+  {
+    revalidate: 3600,
+    tags: ['users'],
+  }
+)
+
+const user = await getCachedUser('user-1')
+```
+
+```tsx filename="app/lib/data.ts" switcher
+// After - Use 'use cache' with cacheLife and cacheTag
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getCachedUser(id: string) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('users')
+  return getUser(id)
+}
+
+const user = await getCachedUser('user-1')
+```
+
+```jsx filename="app/lib/data.js" switcher
+// After - Use 'use cache' with cacheLife and cacheTag
+import { cacheLife, cacheTag } from 'next/cache'
+
+async function getCachedUser(id) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('users')
+  return getUser(id)
+}
+
+const user = await getCachedUser('user-1')
+```
+
+The `keyParts` array is not needed. `use cache` generates cache keys automatically from the function's arguments and closure variables. Use a [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) like `'hours'` or `'days'` to replace the `revalidate` option, or pass an [inline object](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) for exact seconds.
 
 ## `runtime = 'edge'`
 
