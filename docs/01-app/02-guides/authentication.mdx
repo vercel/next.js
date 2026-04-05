@@ -1351,7 +1351,7 @@ A [layout](/docs/app/api-reference/file-conventions/layout) often stays on scree
 
 A layout may still call `getUser()` (or similar) to show an avatar in the nav. That works when `getUser()` itself enforces access inside the [DAL](#creating-a-data-access-layer-dal), so every part of the app that calls it gets the same rules instead of bolting checks onto the layout alone.
 
-Awaiting `cookies()`, session helpers, or other [DAL](#creating-a-data-access-layer-dal) calls at the top of a layout makes the whole segment wait. If that work is only for shell UI, prefer nested `<Suspense>` and [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) from the [Streaming](/docs/app/guides/streaming) guide.
+A top-level `await` on `cookies()`, session helpers, or other [DAL](#creating-a-data-access-layer-dal) calls in a layout delays streaming for that segment, because the layout cannot finish rendering until those promises resolve. If that work is only for shell UI, prefer nested `<Suspense>` and [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) from the [Streaming](/docs/app/guides/streaming) guide.
 
 The [DAL](#creating-a-data-access-layer-dal) is server-only. Hand session or user fields to [Client Components](/docs/app/getting-started/server-and-client-components) through props from a Server parent when you can; for sharing one cached read with context, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) on [Fetching Data](/docs/app/getting-started/fetching-data). Auth libraries that use providers and client hooks are covered in [Context Providers](#context-providers).
 
