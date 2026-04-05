@@ -42,7 +42,12 @@ export function GoogleAnalytics(props: GAParams) {
           window['${dataLayerName}'] = window['${dataLayerName}'] || [];
           function gtag(){window['${dataLayerName}'].push(arguments);}
           gtag('js', new Date());
-
+          gtag('consent', 'default', {
+            ad_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied',
+            analytics_storage: 'denied',
+          });
           gtag('config', '${gaId}' ${debugMode ? ",{ 'debug_mode': true }" : ''});`,
         }}
         nonce={nonce}
