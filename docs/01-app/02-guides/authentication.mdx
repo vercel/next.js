@@ -1355,7 +1355,55 @@ For example, consider a shared layout that fetches the user data and displays th
 
 This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
 
-A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. If only the shell needs that data (for example a nav), move the `await` into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not blocked. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. If only the shell needs that data (for example a user menu), move the async work into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not blocked:
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { Suspense } from 'react'
+import { getUser } from '@/app/lib/dal'
+
+async function UserNav() {
+  const user = await getUser()
+  return <nav>{user.name}</nav>
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <Suspense fallback={<p>Loading user...</p>}>
+        <UserNav />
+      </Suspense>
+      {children}
+    </div>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.jsx" switcher
+import { Suspense } from 'react'
+import { getUser } from '@/app/lib/dal'
+
+async function UserNav() {
+  const user = await getUser()
+  return <nav>{user.name}</nav>
+}
+
+export default function DashboardLayout({ children }) {
+  return (
+    <div>
+      <Suspense fallback={<p>Loading user...</p>}>
+        <UserNav />
+      </Suspense>
+      {children}
+    </div>
+  )
+}
+```
+
+The layout itself stays synchronous. Only `<UserNav>` suspends while it reads the session, and `{children}` stream immediately. For more on this pattern, see [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
 Client Components cannot import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through context. See [Context Providers](#context-providers) or [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
