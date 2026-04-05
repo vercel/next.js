@@ -1347,13 +1347,11 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), be cautious when doing checks in [Layouts](/docs/app/api-reference/file-conventions/layout) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+With [Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), a [layout](/docs/app/api-reference/file-conventions/layout) is not guaranteed to re-run on every client navigation the way a page does. Session or authorization logic that runs only in the layout can be skipped while the layout stays mounted, which risks showing protected shell UI after sign-out, a role change, or a revoked session. Treat the layout as shell UI, not your only security boundary: keep verification next to the data you read in your [Data Access Layer (DAL)](#creating-a-data-access-layer-dal) (for example `getUser()` authorizing every caller), and still verify on each page or data path. A layout may call those helpers for a nav avatar or menu, but that does not replace per-route checks.
 
-Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
+Layouts also tempt a top-level `await` on `cookies()`, the DAL, or other dynamic APIs, which blocks streaming for the segment. Do not wrap `{children}` in an async layout subtree that awaits verification (for example inside `<Suspense>`) as a substitute for access control—it is easy to confuse with real enforcement, and authorization still belongs in the DAL and in each page, Server Action, or Route Handler. For session-dependent shell UI only (nav, user menu, headers), use [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down): keep the layout synchronous, move the async read into a nested Server Component, and wrap **that** subtree in `<Suspense>` while `{children}` streams alongside it. The [Streaming](/docs/app/guides/streaming) guide shows the same idea with `cookies()` and user menus.
 
-For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your DAL.
-
-This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
+The DAL is server-only; [Client Components](/docs/app/getting-started/server-and-client-components) cannot import it. Read on the server and pass props from a Server parent, use a provider when your auth library expects client hooks ([Context Providers](#context-providers)), or share one server read with many clients via [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
 #### Auth checks in page components
 
