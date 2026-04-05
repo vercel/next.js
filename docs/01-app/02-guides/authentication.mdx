@@ -1355,6 +1355,50 @@ For example, consider a shared layout that fetches the user data and displays th
 
 This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
 
+#### Non-blocking layout checks
+
+If you need to verify the session before rendering `children` without top-level `await` in the layout (which blocks streaming for the segment), keep the default layout synchronous and perform the check in a nested async Server Component wrapped in `<Suspense>`. Call your DAL from that component—for example `await verifySession()` as defined in [Creating a Data Access Layer (DAL)](#creating-a-data-access-layer-dal). This follows the same idea as [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { Suspense } from 'react'
+import { verifySession } from '@/app/lib/dal'
+
+async function AuthGate({ children }: { children: React.ReactNode }) {
+  await verifySession()
+  return children
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <AuthGate>{children}</AuthGate>
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { Suspense } from 'react'
+import { verifySession } from '@/app/lib/dal'
+
+async function AuthGate({ children }) {
+  await verifySession()
+  return children
+}
+
+export default function DashboardLayout({ children }) {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <AuthGate>{children}</AuthGate>
+    </Suspense>
+  )
+}
+```
+
 #### Auth checks in page components
 
 For example, in a dashboard page, you can verify the user session and fetch the user data:
