@@ -23,14 +23,13 @@ const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     /// The type of this effect's value for storage and comparison.
-    /// Must be Eq + Send + Sync + 'static so it can be stored in the state map and compared.
-    type Value: Eq + Send + Sync + 'static;
+    type Value: Clone + Eq + Send + Sync + 'static;
 
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Vec<u8>;
 
-    /// Extract the value part of this effect for storage in the state map.
-    fn value(&self) -> Self::Value;
+    /// Extract the value part of this effect for storage and comparison.
+    fn value(&self) -> &Self::Value;
 
     /// Returns a reference to the state storage.
     fn state_storage(&self) -> &EffectStateStorage;
@@ -86,13 +85,13 @@ where
 
     fn eq_value_dyn(&self, other: &dyn Any) -> bool {
         match other.downcast_ref::<T::Value>() {
-            Some(other_val) => Effect::value(self) == *other_val,
+            Some(other_val) => Effect::value(self) == other_val,
             None => false,
         }
     }
 
     fn value_dyn(&self) -> Box<dyn Any + Send + Sync> {
-        Box::new(Effect::value(self))
+        Box::new(Effect::value(self).clone())
     }
 
     fn state_storage(&self) -> &EffectStateStorage {

@@ -948,8 +948,8 @@ impl FileSystem for DiskFileSystem {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> ReadRef<PersistedFileContent> {
-                self.content.clone()
+            fn value(&self) -> &ReadRef<PersistedFileContent> {
+                &self.content
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1088,8 +1088,8 @@ impl FileSystem for DiskFileSystem {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> ReadRef<LinkContent> {
-                self.content.clone()
+            fn value(&self) -> &ReadRef<LinkContent> {
+                &self.content
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
