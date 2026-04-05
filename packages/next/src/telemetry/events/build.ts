@@ -193,7 +193,7 @@ export type EventBuildFeatureUsage = {
     | 'next/font/google'
     | 'next/font/local'
     | 'experimental/nextScriptWorkers'
-    | 'experimental/cacheComponents'
+    | 'cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
     | 'swcLoader'

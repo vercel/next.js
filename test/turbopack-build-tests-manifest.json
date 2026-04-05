@@ -17694,7 +17694,7 @@
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
       "config telemetry production mode emits telemetry for filesystem cache in dev mode",
-      "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
+      "config telemetry production mode emits telemetry for usage of `cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
       "config telemetry production mode emits telemetry for usage of middleware",
