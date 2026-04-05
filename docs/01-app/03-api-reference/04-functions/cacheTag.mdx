@@ -8,6 +8,7 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/updateTag
     - app/api-reference/functions/cacheLife
 ---
 
@@ -85,6 +86,7 @@ export default async function submit() {
 
 ## Good to know
 
+- **updateTag**: Call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/mutating-data) to expire the tag immediately so the next read fetches fresh data. Use this for **read-your-own-writes** after a mutation instead of the stale-while-revalidate flow shown above with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). See [Differences from `revalidateTag`](/docs/app/api-reference/functions/updateTag#differences-from-revalidatetag).
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
 - **Multiple Tags**: You can assign multiple tags to a single cache entry by passing multiple string values to `cacheTag`.
 
