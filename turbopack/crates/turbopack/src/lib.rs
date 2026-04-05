@@ -1,8 +1,5 @@
-#![feature(box_patterns)]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(map_try_insert)]
-#![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]

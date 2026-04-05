@@ -801,7 +801,7 @@ impl ModuleGraph {
         // all issues such that they aren't emitted multiple times.
         async move {
             let result_op = compute_async_module_info(self.to_resolved().await?);
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }

@@ -88,7 +88,8 @@ pub async fn resolve_source_request(
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
     let mut route_tree = content_source_get_routes_operation(source)
-        .resolve_strongly_consistent()
+        .resolve()
+        .strongly_consistent()
         .await?;
     'routes: loop {
         let mut sources_op = route_tree_get_operation(route_tree, current_asset_path.clone());
@@ -140,7 +141,8 @@ pub async fn resolve_source_request(
                                 request_overwrites.uri = new_uri;
                                 current_asset_path = new_asset_path.into();
                                 route_tree = content_source_get_routes_operation(*source)
-                                    .resolve_strongly_consistent()
+                                    .resolve()
+                                    .strongly_consistent()
                                     .await?;
                                 continue 'routes;
                             }

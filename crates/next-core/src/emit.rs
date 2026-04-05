@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{TryFlatJoinIterExt, Vc};
+use turbo_tasks::{TryFlatJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
     asset::Asset,
@@ -54,7 +54,7 @@ pub async fn emit_assets(
 
             async move {
                 let path = asset.path().owned().await?;
-                let span = tracing::info_span!("emit asset", name = %path.value_to_string().await?);
+                let span = tracing::info_span!("emit asset", name = %path.to_string_ref().await?);
                 async move {
                     Ok(if path.is_inside_ref(&node_root) {
                         Some(emit(*asset).as_side_effect().await?)
