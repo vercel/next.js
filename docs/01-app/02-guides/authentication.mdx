@@ -1347,9 +1347,17 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-A [layout](/docs/app/api-reference/file-conventions/layout) can stay mounted across navigations ([Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions)), so treat it as shell UI: enforce access in your [DAL](#creating-a-data-access-layer-dal) and on each page, Server Action, or Route Handler. For session-dependent nav or menus, use [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) in the [Streaming](/docs/app/guides/streaming) guide—nested `<Suspense>` around the shell, not `{children}` behind verify + `<Suspense>` as a fake gate.
+Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), be cautious when doing checks in [Layouts](/docs/app/api-reference/file-conventions/layout) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
 
-The DAL is server-only. When auth libraries or client fetchers need the session in the browser tree, wire them the same way as [Fetching Data](/docs/app/getting-started/fetching-data): start from a cached server read and share it with clients ([Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache)), then read [Context Providers](#context-providers) for how providers interact with Server Components and client-side fetching.
+Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
+
+For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your DAL.
+
+This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
+
+If the layout reads `cookies()` or the DAL for shell UI (such as a nav), you can avoid blocking the rest of the tree with the pattern in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
+
+To share session or user data with [Client Components](/docs/app/getting-started/server-and-client-components), follow [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) in [Fetching Data](/docs/app/getting-started/fetching-data). For auth providers and client-side fetching, see [Context Providers](#context-providers).
 
 #### Auth checks in page components
 
