@@ -50,7 +50,21 @@ type ModuleFactory = (
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
-  unloadChunk?: (chunkUrl: ChunkUrl) => void
+  /**
+   * Unloads the chunk at the given URL, removing it from the DOM and clearing
+   * its resolver.
+   *
+   * When `isModuleChunk` is `true` and the chunk was already fully resolved
+   * (loaded into the JS runtime), the implementation may choose to preserve
+   * the chunk's Promise and return `false`. In that case the caller must NOT
+   * dispose the chunk's modules — doing so would break Promise identity for
+   * React.lazy and trigger an infinite Suspense remount cycle
+   * (see github.com/vercel/next.js/issues/92372).
+   *
+   * When `isModuleChunk` is `false` (e.g. chunk-list paths) the resolver must
+   * always be deleted so the chunk can be re-subscribed in the future.
+   */
+  unloadChunk?: (chunkUrl: ChunkUrl, isModuleChunk: boolean) => boolean | void
   restart: () => void
 }
 
@@ -349,7 +363,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
           DEV_BACKEND.reloadChunk?.(chunkUrl)
           break
         case 'deleted':
-          DEV_BACKEND.unloadChunk?.(chunkUrl)
+          DEV_BACKEND.unloadChunk?.(chunkUrl, false)
           break
         case 'partial':
           invariant(
@@ -474,7 +488,9 @@ function disposeChunkList(chunkListPath: ChunkListPath): boolean {
   // be reloaded properly in the future.
   const chunkListUrl = getChunkRelativeUrl(chunkListPath)
 
-  DEV_BACKEND.unloadChunk?.(chunkListUrl)
+  // isModuleChunk=false: chunk-list paths must always be cleared so a new
+  // HMR subscription can be established if the chunk list is re-registered.
+  DEV_BACKEND.unloadChunk?.(chunkListUrl, false)
 
   return true
 }
@@ -488,13 +504,39 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
   const chunkUrl = getChunkRelativeUrl(chunkPath)
   // This should happen whether the chunk has any modules in it or not.
   // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
-  DEV_BACKEND.unloadChunk?.(chunkUrl)
+  //
+  // Pass isModuleChunk=true so the backend can preserve already-loaded chunks
+  // to avoid breaking React.lazy's Promise identity (see github.com/vercel/next.js/issues/92372).
+  // When unloadChunk returns false, the chunk was preserved because it was
+  // already loaded. In that case we must NOT dispose its modules, as doing so
+  // would cause React.lazy to create a new module instance on the next render —
+  // leading to an infinite Suspense remount cycle.
+  const chunkPreserved = DEV_BACKEND.unloadChunk?.(chunkUrl, true) === false
 
   const chunkModules = chunkModulesMap.get(chunkPath)
   if (chunkModules == null) {
     return false
   }
-  chunkModules.delete(chunkPath)
+  // Note: chunkModules is a Set<ModuleId>. Do NOT call chunkModules.delete(chunkPath)
+  // here — chunkPath is a ChunkPath, not a ModuleId, so the delete would be a no-op.
+  // The map entry for chunkPath is cleaned up after iteration (see chunkModulesMap.delete below).
+
+  if (chunkPreserved) {
+    // The chunk was already loaded and its resolver was preserved. Skip module
+    // disposal so the existing module instances (and their refs/state) remain
+    // valid. The bookkeeping maps are cleaned up so the chunk can be re-registered
+    // if a genuine HMR update arrives later.
+    for (const moduleId of chunkModules) {
+      const moduleChunks = moduleChunksMap.get(moduleId)!
+      moduleChunks.delete(chunkPath)
+      if (moduleChunks.size === 0) {
+        moduleChunksMap.delete(moduleId)
+        // Keep devModuleCache and availableModules intact — the module is still live.
+      }
+    }
+    chunkModulesMap.delete(chunkPath)
+    return true
+  }
 
   for (const moduleId of chunkModules) {
     const moduleChunks = moduleChunksMap.get(moduleId)!
@@ -507,6 +549,7 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
       availableModules.delete(moduleId)
     }
   }
+  chunkModulesMap.delete(chunkPath)
 
   return true
 }

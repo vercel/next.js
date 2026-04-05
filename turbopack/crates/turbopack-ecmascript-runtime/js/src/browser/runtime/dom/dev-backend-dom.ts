@@ -15,7 +15,22 @@
 let DEV_BACKEND: DevRuntimeBackend
 ;(() => {
   DEV_BACKEND = {
-    unloadChunk(chunkUrl) {
+    unloadChunk(chunkUrl, isModuleChunk) {
+      // When the chunk is a module-containing chunk that was already fully
+      // loaded, preserve the resolver so that React.lazy can continue using
+      // the same Promise object. Discarding the resolver forces React to create
+      // a new thenable, which tears down and re-creates the Suspense boundary —
+      // triggering an infinite remount cycle when many useSyncExternalStore
+      // selectors fire during mount (see github.com/vercel/next.js/issues/92372).
+      if (isModuleChunk) {
+        const resolver = chunkResolvers.get(chunkUrl)
+        if (resolver?.resolved) {
+          // Signal to the caller that the chunk was preserved and its modules
+          // must NOT be disposed.
+          return false
+        }
+      }
+
       deleteResolver(chunkUrl)
 
       // Strip query string so we match links regardless of cache-busting
@@ -45,6 +60,7 @@ let DEV_BACKEND: DevRuntimeBackend
       } else {
         throw new Error(`can't infer type of chunk from URL ${chunkUrl}`)
       }
+      return true
     },
 
     reloadChunk(chunkUrl) {

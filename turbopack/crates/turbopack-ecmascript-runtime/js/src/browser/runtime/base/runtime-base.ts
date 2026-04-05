@@ -84,7 +84,7 @@ interface RuntimeBackend {
 
 interface DevRuntimeBackend {
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
-  unloadChunk?: (chunkUrl: ChunkUrl) => void
+  unloadChunk?: (chunkUrl: ChunkUrl, isModuleChunk: boolean) => boolean | void
   restart: () => void
 }
 
