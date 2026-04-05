@@ -1357,7 +1357,11 @@ This guarantees that wherever `getUser()` is called within your application, the
 
 If the layout reads `cookies()` or the DAL for shell UI (such as a nav), you can avoid blocking the rest of the tree with the pattern in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
 
-To share session or user data with [Client Components](/docs/app/getting-started/server-and-client-components), follow [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) in [Fetching Data](/docs/app/getting-started/fetching-data). For auth providers and client-side fetching, see [Context Providers](#context-providers).
+When a Server Component parent already has the session or user object, pass it into [Client Components](/docs/app/getting-started/server-and-client-components) as props.
+
+To reuse one server read across both Server and Client Components (for example with context), use [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) in [Fetching Data](/docs/app/getting-started/fetching-data).
+
+Auth libraries that rely on providers and client hooks are covered in [Context Providers](#context-providers).
 
 #### Auth checks in page components
 
