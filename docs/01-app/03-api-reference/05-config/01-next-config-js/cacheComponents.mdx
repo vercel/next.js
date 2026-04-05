@@ -29,6 +29,8 @@ When `cacheComponents` is enabled, you can use the following cache functions and
 - The [`cacheLife` function](/docs/app/api-reference/config/next-config-js/cacheLife) with `use cache`
 - The [`cacheTag` function](/docs/app/api-reference/functions/cacheTag)
 
+> **Good to know:** With `cacheComponents` enabled, Next.js uses **Partial Prerendering (PPR)** for the App Router. That replaces the older `experimental.ppr` config and `experimental_ppr` route segment, so `◐ (Partial Prerender)` in `next build` output is expected. Read [How rendering works](/docs/app/getting-started/caching#how-rendering-works) for how the static shell and streaming fit together. If you used experimental PPR on Next.js 15, follow [Partial Prerendering (PPR)](/docs/app/guides/upgrading/version-16#partial-prerendering-ppr) in the Version 16 upgrade guide when you migrate.
+
 ## Navigation with Activity
 
 When `cacheComponents` is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
