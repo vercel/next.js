@@ -1347,21 +1347,13 @@ In the example, we use the `verifySession()` function from our DAL to check for 
 
 ### Layouts and auth checks
 
-Due to [Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions), be cautious when doing checks in [Layouts](/docs/app/api-reference/file-conventions/layout) as these don't re-render on navigation, meaning the user session won't be checked on every route change.
+A [layout](/docs/app/api-reference/file-conventions/layout) often stays on screen while users move between child routes ([Partial Rendering](/docs/app/getting-started/linking-and-navigating#client-side-transitions)), so it does not re-run the way a page does on every navigation. Use it for shared chrome—nav, headers—not as the only place you trust the session. Keep authorization in your [Data Access Layer (DAL)](#creating-a-data-access-layer-dal) next to the data, and verify again in each page, Server Action, and Route Handler, as in the examples below.
 
-Instead, you should do the checks close to your data source or the component that'll be conditionally rendered.
+A layout may still call `getUser()` (or similar) to show an avatar in the nav. That works when `getUser()` itself enforces access inside the [DAL](#creating-a-data-access-layer-dal), so every part of the app that calls it gets the same rules instead of bolting checks onto the layout alone.
 
-For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your DAL.
+Awaiting `cookies()`, session helpers, or other [DAL](#creating-a-data-access-layer-dal) calls at the top of a layout makes the whole segment wait. If that work is only for shell UI, prefer nested `<Suspense>` and [pushing dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) from the [Streaming](/docs/app/guides/streaming) guide.
 
-This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
-
-If the layout reads `cookies()` or the DAL for shell UI (such as a nav), you can avoid blocking the rest of the tree with the pattern in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
-
-When a Server Component parent already has the session or user object, pass it into [Client Components](/docs/app/getting-started/server-and-client-components) as props.
-
-To reuse one server read across both Server and Client Components (for example with context), use [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) in [Fetching Data](/docs/app/getting-started/fetching-data).
-
-Auth libraries that rely on providers and client hooks are covered in [Context Providers](#context-providers).
+The [DAL](#creating-a-data-access-layer-dal) is server-only. Hand session or user fields to [Client Components](/docs/app/getting-started/server-and-client-components) through props from a Server parent when you can; for sharing one cached read with context, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) on [Fetching Data](/docs/app/getting-started/fetching-data). Auth libraries that use providers and client hooks are covered in [Context Providers](#context-providers).
 
 #### Auth checks in page components
 
