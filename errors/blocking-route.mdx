@@ -16,7 +16,7 @@ This usually happens when a component does one of the following without a parent
 
 The fix depends on what data you're accessing and how you want your app to behave — see the examples below.
 
-> **Good to know**: Run `next build --debug-prerender` to get detailed stack traces that point to the exact component causing the error.
+> **Good to know**: In `next dev`, the error overlay usually points at the failing component. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for prerender stack traces that name the exact component.
 
 ## Possible Ways to Fix It
 
