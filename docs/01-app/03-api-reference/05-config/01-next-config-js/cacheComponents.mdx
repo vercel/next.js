@@ -47,9 +47,9 @@ Some UI patterns behave differently when components stay mounted instead of unmo
 
 ## Migrating from experimental flags
 
-The top-level `cacheComponents` option replaces `experimental.useCache` and `experimental.cacheComponents`. If your config uses either experimental flag, move to top-level `cacheComponents: true`.
+If your project still sets `experimental.useCache` or `experimental.cacheComponents`, switch to top-level `cacheComponents: true` instead. Those experimental flags are deprecated and may be removed in a future major release.
 
-Deprecated configuration under `experimental` used either `useCache: true` or `cacheComponents: true`, not both at once:
+Before migrating, your configuration may look like this:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -64,7 +64,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-After migrating:
+After migrating, use top-level `cacheComponents`:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -75,8 +75,6 @@ const nextConfig: NextConfig = {
 
 export default nextConfig
 ```
-
-`experimental.useCache` and `experimental.cacheComponents` are deprecated. Use top-level `cacheComponents` instead; the experimental options may be removed in a future major release.
 
 ## Version History
 
