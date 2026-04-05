@@ -1357,7 +1357,7 @@ This guarantees that wherever `getUser()` is called within your application, the
 
 A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. When that work is only for shell UI (such as a nav), use nested `<Suspense>` as in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
 
-Client Components cannot import the DAL. To give them session or user data, pass from a Server parent, or use [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache); for provider-based auth, see [Context Providers](#context-providers).
+Client Components cannot import the DAL. Pass session or user data from a Server parent when you can, or use providers and client hooks as in [Context Providers](#context-providers).
 
 #### Auth checks in page components
 
