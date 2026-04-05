@@ -1355,9 +1355,9 @@ For example, consider a shared layout that fetches the user data and displays th
 
 This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
 
-A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. If only the shell needs that data (for example a nav), move the `await` into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not blocked—see [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
+A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. If only the shell needs that data (for example a nav), move the `await` into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not blocked. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
-Client Components cannot import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through context—for example [Context Providers](#context-providers) or [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
+Client Components cannot import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through context. See [Context Providers](#context-providers) or [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
 #### Auth checks in page components
 
@@ -1548,7 +1548,7 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 Using context providers for auth works due to [interleaving](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
-This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
+This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider's session data:
 
 ```tsx filename="app/layout.tsx" switcher
 import { ContextProvider } from 'auth-lib'
@@ -1594,7 +1594,7 @@ export default function Profile() {
 }
 ```
 
-If session data is needed in Client Components (e.g. for client-side data fetching), use React’s [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
+If session data is needed in Client Components (e.g. for client-side data fetching), use React's [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to prevent sensitive session data from being exposed to the client.
 
 </AppOnly>
 
