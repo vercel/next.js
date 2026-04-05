@@ -441,14 +441,6 @@ impl StaticSortedFile {
     ) -> Result<ArcBytes, anyhow::Error> {
         get_or_cache_block(&self.mmap, &self.meta, block, key_block_cache)
     }
-
-    /// Reads a block from the file, decompressing if needed, and verifies its checksum.
-    ///
-    /// The checksum is verified on the raw on-disk data **before** decompression, so
-    /// corruption is caught before passing data to LZ4.
-    fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
-        read_block_generic(&self.mmap, &self.meta, block_index)
-    }
 }
 
 /// Returns `true` when the block at `block_index` is stored uncompressed
