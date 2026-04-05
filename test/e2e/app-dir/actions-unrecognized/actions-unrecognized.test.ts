@@ -10,6 +10,7 @@ describe('unrecognized server actions', () => {
 
   let cliOutputPosition: number = 0
   beforeEach(() => {
+    console.log('update file')
     cliOutputPosition = next.cliOutput.length
   })
   const getLogs = () => {
