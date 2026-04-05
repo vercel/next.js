@@ -1355,9 +1355,9 @@ For example, consider a shared layout that fetches the user data and displays th
 
 This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
 
-A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment, and Client Components cannot import the DAL, so you need a deliberate way to get session data to the shell or the client.
+A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. When that work is only for shell UI (such as a nav), use nested `<Suspense>` as in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
 
-If the layout reads `cookies()` or the DAL for shell UI, see [Streaming](/docs/app/guides/streaming#push-dynamic-access-down). For session in Client Components, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) and [Context Providers](#context-providers).
+Client Components cannot import the DAL. To give them session or user data, pass from a Server parent, or use [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache); for provider-based auth, see [Context Providers](#context-providers).
 
 #### Auth checks in page components
 
