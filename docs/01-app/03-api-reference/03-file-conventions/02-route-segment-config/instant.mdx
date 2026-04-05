@@ -51,7 +51,37 @@ export const unstable_instant = {
 }
 ```
 
-- **`'static'`**: Enables validation. Prefetching behavior stays the same (static by default). Components that read cookies or headers are treated as dynamic and must be behind Suspense.
+- **`'static'`**: Enables validation. Prefetching behavior stays the same (static by default). Components that read cookies or headers are treated as dynamic and must be behind Suspense. If a component reads a specific cookie or header, you must also declare it in [`samples`](#samples) so validation knows which values to simulate.
+
+### `samples`
+
+Declares the cookies, headers, params, or search params that a route reads at runtime. Validation uses these values to simulate the request during dev and build.
+
+`samples` is optional when `prefetch` is `'static'` and required when `prefetch` is `'runtime'`. If a component reads a cookie or header that is not listed, the build fails with an error telling you which value to add.
+
+```tsx filename="app/profile/page.tsx" highlight={3-5}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ cookies: [{ name: 'username', value: 'demo' }] }],
+}
+```
+
+```jsx filename="app/profile/page.js" highlight={3-5}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ cookies: [{ name: 'username', value: 'demo' }] }],
+}
+```
+
+To declare a cookie that may be absent, set `value` to `null`:
+
+```tsx
+{
+  cookies: [{ name: 'username', value: null }]
+}
+```
+
+Each entry in the `samples` array is one simulated request. Validation runs for every sample, so you can test multiple scenarios (for example, logged-in and logged-out).
 
 ### Disabling instant
 
@@ -106,16 +136,17 @@ The DevTools use a `next-instant-navigation-testing` cookie to freeze the UI at 
 
 ```tsx
 type RuntimeSample = {
-  cookies?: Array<{ name: string; value: string }>
-  headers?: Array<[string, string]>
+  cookies?: Array<{ name: string; value: string | null }>
+  headers?: Array<[string, string | null]>
   params?: Record<string, string | string[]>
-  searchParams?: Record<string, string | string[]>
+  searchParams?: Record<string, string | string[] | null>
 }
 
 type InstantConfig =
   | false
   | {
       prefetch: 'static'
+      samples?: RuntimeSample[]
       from?: string[]
       unstable_disableValidation?: boolean
     }

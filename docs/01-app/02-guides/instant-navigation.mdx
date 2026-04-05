@@ -270,6 +270,26 @@ Each entry point is validated independently. A Suspense boundary that covers one
 
 </details>
 
+## Routes that read cookies or headers
+
+If a component behind `<Suspense>` reads a cookie or header, validation needs to know which values to simulate. Add a [`samples`](/docs/app/api-reference/file-conventions/route-segment-config/instant#samples) array to `unstable_instant`:
+
+```tsx filename="app/profile/page.tsx" highlight={3-5}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ cookies: [{ name: 'username', value: 'demo' }] }],
+}
+```
+
+```jsx filename="app/profile/page.js" highlight={3-5}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ cookies: [{ name: 'username', value: 'demo' }] }],
+}
+```
+
+Without `samples`, the build fails because validation does not know what value to use for the cookie. See the [`samples` reference](/docs/app/api-reference/file-conventions/route-segment-config/instant#samples) for headers, params, search params, and absent values.
+
 ## Opting out with `instant = false`
 
 Not every layout can be instant. A dashboard layout that reads cookies and fetches user-specific data might be too dynamic for the first entry. You can set `instant = false` on that layout to exempt it from validation:
