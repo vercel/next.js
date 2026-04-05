@@ -1,4 +1,14 @@
-use std::{cmp::Ordering, fs::File, hash::BuildHasherDefault, path::Path, rc::Rc, sync::Arc};
+use std::{
+    cmp::Ordering,
+    fs::File,
+    hash::BuildHasherDefault,
+    path::Path,
+    rc::Rc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering as AtomicOrdering},
+    },
+};
 
 use anyhow::{Context, Result, bail, ensure};
 use memmap2::Mmap;
@@ -77,9 +87,8 @@ pub struct BlockWeighter;
 impl quick_cache::Weighter<(u32, u16), ArcBytes> for BlockWeighter {
     fn weight(&self, _key: &(u32, u16), val: &ArcBytes) -> u64 {
         if val.is_mmap_backed() {
-            // Mmap-backed blocks are cheap (just a pointer + Arc clone), so we
-            // assign a small fixed weight. Caching them avoids re-parsing block
-            // offsets on every lookup.
+            // Mmap-backed blocks bypass the cache (served directly from mmap),
+            // so this branch is a safety net only. Assign a negligible weight.
             64
         } else {
             val.len() as u64 + 8
@@ -105,15 +114,24 @@ trait ValueBlockCache<B: SharedBytes> {
     ) -> Result<B>;
 }
 
-/// Lookup-path: concurrent `BlockCache`, with uncompressed-bypass optimization.
-impl ValueBlockCache<ArcBytes> for &BlockCache {
+/// Bundles the shared block cache with the per-file CRC-verified bitmap,
+/// used on the lookup path.
+#[derive(Clone, Copy)]
+struct ArcBlockCacheReader<'a> {
+    cache: &'a BlockCache,
+    verified_blocks: &'a [AtomicU64],
+}
+
+/// Lookup-path: concurrent `BlockCache` with uncompressed-bypass and
+/// once-per-block CRC verification via `verified_blocks` bitmap.
+impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
     fn get_or_read(
         self,
         mmap: &Arc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<ArcBytes> {
-        get_or_cache_block(mmap, meta, block_index, self)
+        get_or_cache_block(mmap, meta, block_index, self.cache, self.verified_blocks)
     }
 }
 
@@ -159,6 +177,11 @@ pub struct StaticSortedFile {
     /// We store as an Arc so we can hand out references (via ArcBytes) that can outlive this
     /// struct (not that we expect them to outlive it by very much)
     mmap: Arc<Mmap>,
+    /// One bit per block, set when that block's CRC has been verified at least once.
+    /// Uncompressed (mmap-backed) blocks bypass the `BlockCache`, so without this
+    /// bitmap the CRC would be re-computed on every access. `Relaxed` ordering
+    /// suffices: racing first-time verifications are idempotent.
+    verified_blocks: Box<[AtomicU64]>,
 }
 
 impl StaticSortedFile {
@@ -183,9 +206,14 @@ impl StaticSortedFile {
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
         advise_mmap_for_persistence(&mmap)?;
+        let bitmap_words = (meta.block_count as usize).div_ceil(64);
+        let verified_blocks = (0..bitmap_words)
+            .map(|_| AtomicU64::new(0))
+            .collect::<Box<[_]>>();
         Ok(Self {
             meta,
             mmap: Arc::new(mmap),
+            verified_blocks,
         })
     }
 
@@ -208,17 +236,15 @@ impl StaticSortedFile {
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
         let key_block_arc = self.get_key_block(key_block_index, key_block_cache)?;
+        let reader = ArcBlockCacheReader {
+            cache: value_block_cache,
+            verified_blocks: &self.verified_blocks,
+        };
         let block_type = be::read_u8(&key_block_arc);
         match block_type {
             BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                 let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                self.lookup_key_block::<K, FIND_ALL>(
-                    key_block_arc,
-                    key_hash,
-                    key,
-                    has_hash,
-                    value_block_cache,
-                )
+                self.lookup_key_block::<K, FIND_ALL>(key_block_arc, key_hash, key, has_hash, reader)
             }
 
             BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
@@ -228,7 +254,7 @@ impl StaticSortedFile {
                     key_hash,
                     key,
                     has_hash,
-                    value_block_cache,
+                    reader,
                 )
             }
             _ => {
@@ -269,7 +295,7 @@ impl StaticSortedFile {
         key_hash: u64,
         key: &K,
         has_hash: bool,
-        value_block_cache: &BlockCache,
+        reader: ArcBlockCacheReader<'_>,
     ) -> Result<SstLookupResult> {
         let hash_len: u8 = if has_hash { 8 } else { 0 };
         ensure!(block.len() >= 4, "key block too short");
@@ -282,14 +308,9 @@ impl StaticSortedFile {
         let offsets = &data[..entry_count * 4];
         let entries = &data[entry_count * 4..];
 
-        self.lookup_block_inner::<K, FIND_ALL>(
-            &block,
-            entry_count,
-            key_hash,
-            key,
-            value_block_cache,
-            |i| get_key_entry(offsets, entries, entry_count, i, hash_len),
-        )
+        self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
+            get_key_entry(offsets, entries, entry_count, i, hash_len)
+        })
     }
 
     /// Looks up a key in a fixed-size key block.
@@ -302,7 +323,7 @@ impl StaticSortedFile {
         key_hash: u64,
         key: &K,
         has_hash: bool,
-        value_block_cache: &BlockCache,
+        reader: ArcBlockCacheReader<'_>,
     ) -> Result<SstLookupResult> {
         let hash_len: u8 = if has_hash { 8 } else { 0 };
         ensure!(block.len() >= 6, "fixed key block too short");
@@ -317,18 +338,11 @@ impl StaticSortedFile {
             "fixed key block for {entry_count} entries must is the wrong size"
         );
 
-        self.lookup_block_inner::<K, FIND_ALL>(
-            &block,
-            entry_count,
-            key_hash,
-            key,
-            value_block_cache,
-            |i| {
-                Ok(get_fixed_key_entry(
-                    entries, i, hash_len, key_size, value_type, stride,
-                ))
-            },
-        )
+        self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
+            Ok(get_fixed_key_entry(
+                entries, i, hash_len, key_size, value_type, stride,
+            ))
+        })
     }
 
     /// Shared binary search + collection logic for both key block variants.
@@ -341,7 +355,7 @@ impl StaticSortedFile {
         entry_count: usize,
         key_hash: u64,
         key: &K,
-        value_block_cache: &BlockCache,
+        reader: ArcBlockCacheReader<'_>,
         get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'a>>,
     ) -> Result<SstLookupResult> {
         let mut l = 0;
@@ -364,7 +378,7 @@ impl StaticSortedFile {
                     if !FIND_ALL {
                         // SingleValue mode: each key has exactly one entry
                         // this is enforced when writing
-                        let result = self.handle_key_match(ty, val, block, value_block_cache)?;
+                        let result = self.handle_key_match(ty, val, block, reader)?;
                         return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                     }
                     // FIND_ALL (MultiValue) mode: collect all values for this key.
@@ -383,7 +397,7 @@ impl StaticSortedFile {
                         if !entry_matches_key(hash, entry_key, key_hash, key) {
                             break;
                         }
-                        results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
+                        results.push(self.handle_key_match(ty, val, block, reader)?);
                     }
                     // Technically we could `.reverse()` the items collected by the backwards
                     // scan, but the only ordering constraint we need to maintain for single
@@ -393,7 +407,7 @@ impl StaticSortedFile {
                     // their order.
 
                     // Add the entry at `m`
-                    results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
+                    results.push(self.handle_key_match(ty, val, block, reader)?);
                     for i in (m + 1)..r {
                         let GetKeyEntryResult {
                             hash,
@@ -404,7 +418,7 @@ impl StaticSortedFile {
                         if !entry_matches_key(hash, entry_key, key_hash, key) {
                             break;
                         }
-                        results.push(self.handle_key_match(ty, val, block, value_block_cache)?);
+                        results.push(self.handle_key_match(ty, val, block, reader)?);
                     }
                     return Ok(SstLookupResult::Found(results));
                 }
@@ -421,16 +435,9 @@ impl StaticSortedFile {
         ty: u8,
         val: &[u8],
         key_block_arc: &ArcBytes,
-        value_block_cache: &BlockCache,
+        reader: ArcBlockCacheReader<'_>,
     ) -> Result<LookupValue> {
-        handle_key_match_generic(
-            &self.mmap,
-            &self.meta,
-            ty,
-            val,
-            key_block_arc,
-            value_block_cache,
-        )
+        handle_key_match_generic(&self.mmap, &self.meta, ty, val, key_block_arc, reader)
     }
 
     /// Gets a key block from the cache or reads it from the file.
@@ -439,42 +446,64 @@ impl StaticSortedFile {
         block: u16,
         key_block_cache: &BlockCache,
     ) -> Result<ArcBytes, anyhow::Error> {
-        get_or_cache_block(&self.mmap, &self.meta, block, key_block_cache)
+        get_or_cache_block(
+            &self.mmap,
+            &self.meta,
+            block,
+            key_block_cache,
+            &self.verified_blocks,
+        )
     }
-}
-
-/// Returns `true` when the block at `block_index` is stored uncompressed
-/// (mmap-backed), i.e. its `uncompressed_length` header is zero.
-/// Cost: 2–3 mmap word-reads (offset table entry + header word).
-fn is_block_uncompressed(mmap: &Mmap, meta: &StaticSortedFileMetaData, block_index: u16) -> bool {
-    let offset = meta.block_offsets_start(mmap.len()) + block_index as usize * 4;
-    let block_start = if block_index == 0 {
-        0
-    } else {
-        be::read_u32(&mmap[offset - 4..]) as usize
-    };
-    be::read_u32(&mmap[block_start..]) == 0
 }
 
 /// Gets a block from the cache, or reads it from the mmap and inserts it.
 ///
-/// Uncompressed blocks bypass the cache entirely — creating an mmap-backed
-/// `ArcBytes` is cheaper than a cache hash + lookup, so we peek at the block
-/// header first and short-circuit when the block is uncompressed.
+/// Reads the block header exactly once via `get_raw_block_slice` (which
+/// includes all `strict_checks` bounds guards). Uncompressed blocks bypass
+/// the cache — an mmap-backed `ArcBytes` is cheaper than a cache lookup.
+/// Their CRC is verified at most once per file open, tracked by
+/// `verified_blocks`. Compressed blocks are looked up in `cache`; on a
+/// miss they are decompressed, CRC-verified, and inserted.
 fn get_or_cache_block(
     mmap: &Arc<Mmap>,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
     cache: &BlockCache,
+    verified_blocks: &[AtomicU64],
 ) -> Result<ArcBytes> {
-    if is_block_uncompressed(mmap, meta, block_index) {
-        return read_block_generic(mmap, meta, block_index);
+    let (uncompressed_length, checksum, block_data) = get_raw_block_slice(mmap, meta, block_index)
+        .with_context(|| {
+            format!(
+                "Failed to read raw block {} from {:08}.sst",
+                block_index, meta.sequence_number
+            )
+        })?;
+
+    if uncompressed_length == 0 {
+        // Uncompressed: serve directly from mmap. Verify CRC only once per file open.
+        let word_idx = block_index as usize / 64;
+        let bit = 1u64 << (block_index as usize % 64);
+        if verified_blocks[word_idx].load(AtomicOrdering::Relaxed) & bit == 0 {
+            verify_checksum(meta, block_data, checksum, block_index)?;
+            verified_blocks[word_idx].fetch_or(bit, AtomicOrdering::Relaxed);
+        }
+        // SAFETY: block_data points into the mmap backing `mmap`.
+        return Ok(unsafe { ArcBytes::from_mmap(mmap, block_data) });
     }
+
+    // Compressed: check cache; decompress and insert on miss.
     Ok(
         match cache.get_value_or_guard(&(meta.sequence_number, block_index), None) {
             GuardResult::Value(block) => block,
             GuardResult::Guard(guard) => {
-                let block: ArcBytes = read_block_generic(mmap, meta, block_index)?;
+                verify_checksum(meta, block_data, checksum, block_index)?;
+                let block = ArcBytes::from_decompressed(uncompressed_length, block_data)
+                    .with_context(|| {
+                        format!(
+                            "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                            block_index, meta.sequence_number, uncompressed_length
+                        )
+                    })?;
                 let _ = guard.insert(block.clone());
                 block
             }
