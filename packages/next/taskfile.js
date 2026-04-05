@@ -44,6 +44,12 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // Stub so `dist/docs/AGENTS.md` exists when agents glob under the doc tree.
+  const bundledDocsAgentsSource = join(__dirname, 'dist-docs-AGENTS.md')
+  const bundledDocsAgentsDest = join(__dirname, 'dist/docs/AGENTS.md')
+  await fs.mkdir(dirname(bundledDocsAgentsDest), { recursive: true })
+  await fs.copyFile(bundledDocsAgentsSource, bundledDocsAgentsDest)
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
