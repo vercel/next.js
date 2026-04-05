@@ -144,15 +144,7 @@ These tests are part of the e2e test suite and run against real Vercel deploymen
 #### Triggering Deploy Tests on PRs
 
 Deploy tests run automatically on `canary` but are not triggered by default on every PR.
-To trigger deploy tests on a PR, modify (or "touch") one of the test files in the deploy test suite.
-This will cause CI to run the deploy tests for that specific test file.
-
-For example, if you're fixing an edge runtime issue, you might touch a relevant test file:
-
-```sh
-# Make a small change (e.g., add a newline) to trigger deploy tests
-echo "" >> test/e2e/app-dir/actions-unrecognized/actions-unrecognized.test.ts
-```
+Test files that are modified or created in your PR will have their deploy tests run in CI.
 
 Alternatively, you can manually trigger the deploy test workflow via the
 [GitHub Actions UI](https://github.com/vercel/next.js/actions/workflows/test_e2e_deploy_release.yml)
