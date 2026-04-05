@@ -1179,11 +1179,17 @@ browserContextPrototype.q = exportUrl;
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
- */ function getChunkRelativeUrl(chunkPath) {
-    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
-    return `${basePath}${chunkPath.split('/').map(function(p) {
+ */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
+    // A chunkPath may already contain a query string (e.g. `?dpl=xxx`) when it
+    // has been produced by `__turbopack_export_url__` which appends ASSET_SUFFIX
+    // at module-export time. Splitting the query out avoids double-encoding the
+    // `?` character and appending ASSET_SUFFIX a second time.
+    var qi = chunkPath.indexOf('?');
+    var pathPart = qi !== -1 ? chunkPath.slice(0, qi) : chunkPath;
+    var querySuffix = qi !== -1 ? chunkPath.slice(qi) : ASSET_SUFFIX;
+    return `${basePath}${pathPart.split('/').map(function(p) {
         return encodeURIComponent(p);
-    }).join('/')}${ASSET_SUFFIX}`;
+    }).join('/')}${querySuffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
