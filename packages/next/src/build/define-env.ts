@@ -400,7 +400,7 @@ export function getDefineEnv({
   if (isNodeServer || isEdgeServer) {
     const userDefinesServer = config.compiler?.defineServer ?? {}
     for (const key in userDefinesServer) {
-      if (defineEnv.hasOwnProperty(key)) {
+      if (defineEnv.hasOwnProperty(key) && !userDefines.hasOwnProperty(key)) {
         throw new Error(
           `The \`compiler.defineServer\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured.`
         )

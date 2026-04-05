@@ -14,21 +14,17 @@ describe('compiler.define', () => {
 
     it('should render the magic variable on server side', async () => {
       expect(loadedText).toContain('Server value: foobar')
-      expect(loadedText).toContain('Client value: foobar')
     })
 
     it('should render the magic variable on client side', async () => {
-      expect(loadedText).toContain('Server value: foobar')
       expect(loadedText).toContain('Client value: foobar')
     })
 
     it('should render the magic expression on server side', async () => {
       expect(loadedText).toContain('Server expr: barbaz')
-      expect(loadedText).toContain('Client expr: barbaz')
     })
 
     it('should render the magic expression on client side', async () => {
-      expect(loadedText).toContain('Server expr: barbaz')
       expect(loadedText).toContain('Client expr: barbaz')
     })
   })
@@ -54,6 +50,14 @@ describe('compiler.define', () => {
 
     it('should not render the inlined expression on client side', async () => {
       expect(loadedText).toContain('Client expr: not set')
+    })
+
+    it('should render the inlined client flag on server side', async () => {
+      expect(loadedText).toContain('Server flag: false')
+    })
+
+    it('should render the inlined client flag on client side', async () => {
+      expect(loadedText).toContain('Client flag: true')
     })
   })
 })

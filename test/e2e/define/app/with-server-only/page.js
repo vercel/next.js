@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { ClientValue, ClientExpr } from './client-component'
+import { ClientValue, ClientExpr, ClientFlag } from './client-component'
 
 export default function Page() {
   return (
@@ -21,6 +21,13 @@ export default function Page() {
       </li>
       <li>
         Client expr: <ClientExpr />
+      </li>
+      <li>
+        Server flag:{' '}
+        {typeof IS_CLIENT === 'boolean' ? String(IS_CLIENT) : 'not set'}
+      </li>
+      <li>
+        Client flag: <ClientFlag />
       </li>
     </ul>
   )
