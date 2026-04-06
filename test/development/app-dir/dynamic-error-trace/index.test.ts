@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
   if (skipped) return
 

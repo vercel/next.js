@@ -7,7 +7,6 @@ import { nextTestSetup } from 'e2e-utils'
   () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'compilation-errors-app'),
-      skipDeployment: true,
     })
 
     if (skipped) {

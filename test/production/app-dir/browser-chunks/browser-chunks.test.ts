@@ -24,7 +24,6 @@ async function readFilesRecursive(
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   let sources: string[] = []

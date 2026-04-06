@@ -3,8 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('turbopack-import-assertions-use', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    // This test is Turbopack-only; turbopackUse is not supported in webpack
-    skipDeployment: true,
   })
 
   if (!isTurbopack) {

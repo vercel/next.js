@@ -5,7 +5,6 @@ describe('debug-build-paths', () => {
   describe('default fixture', () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/default'),
-      skipDeployment: true,
       skipStart: true,
     })
 
@@ -283,7 +282,6 @@ describe('debug-build-paths', () => {
   describe('with-compile-error fixture', () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/with-compile-error'),
-      skipDeployment: true,
       skipStart: true,
     })
 

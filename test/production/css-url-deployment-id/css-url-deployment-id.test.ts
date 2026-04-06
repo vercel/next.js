@@ -3,7 +3,6 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 describe('css-url-deployment-id', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: { sass: '1.54.0' },
     env: {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,

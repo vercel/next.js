@@ -5,8 +5,6 @@ import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/fl
 describe('route-handler-manifest-size', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
-    // This test is specifically for webpack behavior
-    skipDeployment: true,
   })
 
   if (skipped) return
