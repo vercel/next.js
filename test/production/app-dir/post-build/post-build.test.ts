@@ -12,7 +12,6 @@ describe('post-build', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_USE_POST_BUILD: '1',
     },

@@ -60,7 +60,6 @@ describe('Production browser sourcemaps', () => {
         nextConfig: {
           productionBrowserSourceMaps,
         },
-        skipDeployment: true,
       })
 
       if (skipped) {
