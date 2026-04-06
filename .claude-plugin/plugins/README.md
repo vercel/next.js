@@ -24,6 +24,7 @@ The Next.js repository serves as a Claude Code plugin marketplace. Team members 
 | Plugin | Description |
 |--------|-------------|
 | `cache-components` | Expert guidance for Cache Components and PPR |
+| `next-dev` | **Experimental.** Real-time Turbopack compilation feedback for agents (requires unreleased MCP tools) |
 
 ## For Team Members
 

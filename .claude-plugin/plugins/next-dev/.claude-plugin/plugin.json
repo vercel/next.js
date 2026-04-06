@@ -1,0 +1,21 @@
+{
+  "name": "next-dev",
+  "version": "0.1.0",
+  "description": "Experimental: Real-time Turbopack compilation feedback for agents editing Next.js code. Pauses compilation during edits, batches a single compile at turn-end, blocks on errors. Requires a Next.js dev server with the pause_compilation/compile_and_resume/get_compilation_issues MCP tools (Turbopack only).",
+  "author": {
+    "name": "Next.js Team",
+    "url": "https://nextjs.org"
+  },
+  "homepage": "https://github.com/vercel/next.js/tree/canary/.claude-plugin/plugins/next-dev",
+  "repository": "https://github.com/vercel/next.js",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "turbopack",
+    "dev-server",
+    "mcp",
+    "agents",
+    "compilation",
+    "experimental"
+  ]
+}

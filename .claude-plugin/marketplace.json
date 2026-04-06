@@ -13,6 +13,15 @@
       "author": {
         "name": "Next.js Team"
       }
+    },
+    {
+      "name": "next-dev",
+      "source": "./plugins/next-dev",
+      "description": "Experimental: real-time Turbopack compilation feedback for agents. Pauses compilation during edits, batches one compile at turn-end, blocks on errors. Requires unreleased MCP tools (pause_compilation/compile_and_resume/get_compilation_issues).",
+      "version": "0.1.0",
+      "author": {
+        "name": "Next.js Team"
+      }
     }
   ]
 }
