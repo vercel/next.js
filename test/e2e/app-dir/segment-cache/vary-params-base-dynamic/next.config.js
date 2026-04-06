@@ -3,6 +3,13 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  cacheLife: {
+    expireNow: {
+      stale: 0,
+      revalidate: 0,
+      expire: 0,
+    },
+  },
   experimental: {
     optimisticRouting: true,
     varyParams: true,
