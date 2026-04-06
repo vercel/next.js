@@ -1,0 +1,22 @@
+[package]
+name = "turbo-rcstr-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.9"
+turbo-rcstr = { path = ".." }
+
+[[bin]]
+name = "fuzz_rcstr"
+path = "fuzz_targets/fuzz_rcstr.rs"
+test = false
+doc = false
+bench = false
+
+[lints]
+workspace = true

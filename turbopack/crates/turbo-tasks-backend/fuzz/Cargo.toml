@@ -15,10 +15,15 @@ bincode = { workspace = true }
 libfuzzer-sys = "0.4.9"
 once_cell = { workspace = true }
 serde = { workspace = true }
+smallvec = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+turbo-bincode = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
+parking_lot = { workspace = true }
+rustc-hash = { workspace = true }
+turbo-rcstr = { workspace = true }
 
 [[bin]]
 name = "fuzz_graph"
@@ -34,6 +39,12 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "fuzz_data_types"
+path = "fuzz_targets/fuzz_data_types.rs"
+test = false
+doc = false
+bench = false
 
 [lints]
 workspace = true

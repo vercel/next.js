@@ -1,0 +1,26 @@
+[package]
+name = "turbo-bincode-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4.9"
+bincode = { workspace = true }
+either = { workspace = true }
+mime = { workspace = true }
+smallvec = { workspace = true }
+turbo-bincode = { path = ".." }
+
+[[bin]]
+name = "fuzz_bincode_codecs"
+path = "fuzz_targets/fuzz_bincode_codecs.rs"
+test = false
+doc = false
+bench = false
+
+[lints]
+workspace = true
