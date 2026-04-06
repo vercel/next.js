@@ -302,7 +302,13 @@ fn compute_blur_data_internal(
     let small_image = image.resize(options.size, options.size, FilterType::Triangle);
     let width = small_image.width();
     let height = small_image.height();
-    let (data, mime) = encode_image(small_image, format, options.quality)?;
+    // Prefer WebP for smaller blur placeholders when available
+    let blur_format = if cfg!(feature = "webp") {
+        ImageFormat::WebP
+    } else {
+        format
+    };
+    let (data, mime) = encode_image(small_image, blur_format, options.quality)?;
     let data_url = format!(
         "data:{mime};base64,{}",
         Base64Display::new(&data, &STANDARD)

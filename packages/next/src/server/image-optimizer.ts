@@ -1142,9 +1142,13 @@ export async function imageOptimizer(
   }
 
   try {
+    const isBlur =
+      opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY
+    // Use webp placeholder since its fewer bytes and faster to encode
+    const blurContentType = isBlur ? WEBP : contentType
     let optimizedBuffer = await optimizeImage({
       buffer: upstreamBuffer,
-      contentType,
+      contentType: blurContentType,
       quality,
       width,
       concurrency: nextConfig.experimental.imgOptConcurrency,
@@ -1152,7 +1156,7 @@ export async function imageOptimizer(
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
-    if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+    if (isBlur) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
       // because it can delay starting the dev server. Instead, `next-image-loader.js`
       // will inline a special url to lazily generate the blur placeholder at request time.
@@ -1160,7 +1164,7 @@ export async function imageOptimizer(
       const blurOpts = {
         blurWidth: meta.width,
         blurHeight: meta.height,
-        blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
+        blurDataURL: `data:${blurContentType};base64,${optimizedBuffer.toString(
           'base64'
         )}`,
       }

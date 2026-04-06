@@ -34,7 +34,7 @@ describe('Image Component assetPrefix Tests', () => {
             `document.getElementById('${id}').style['background-image']`
           )
           if (process.env.IS_TURBOPACK_TEST) {
-            expect(bgImage).toContain('data:image/jpeg;')
+            expect(bgImage).toContain('data:image/webp;')
           } else {
             expect(bgImage).toMatch(
               /\/_next\/image\?url=https%3A%2F%2Fexample.com%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
