@@ -54,6 +54,12 @@ In the [cache handler API](/docs/app/api-reference/config/next-config-js/cacheHa
 
 ## Multi-Instance Considerations
 
+> ⚠️ **Important:** In multi-instance or serverless environments (such as deployments on Vercel), revalidation is instance-local by default.
+>
+> Calling `revalidateTag()` or `revalidatePath()` only invalidates the cache on the instance handling the request. Other instances may continue serving stale content until they receive the invalidation event through a shared cache or coordination mechanism.
+>
+> To ensure consistent revalidation across instances, you should configure a shared cache handler (for example, using Redis or another external store).
+
 When running multiple Next.js instances behind a load balancer, revalidation events are local by default. Calling `revalidateTag()` on instance A only invalidates the cache on that instance. Other instances continue serving the stale content until they learn about the invalidation.
 
 The cache handler API provides two hooks for distributed coordination:
