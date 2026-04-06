@@ -2,13 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(io_error_more)]
-#![feature(iter_advance_by)]
 #![feature(min_specialization)]
 // if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
-#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
@@ -1408,13 +1406,6 @@ pub struct FileSystemPath {
     pub path: RcStr,
 }
 
-impl FileSystemPath {
-    /// Mimics `ValueToString::to_string`.
-    pub fn value_to_string(&self) -> Vc<RcStr> {
-        <FileSystemPath as ValueToString>::to_string(self.clone().cell())
-    }
-}
-
 impl ValueToStringRef for FileSystemPath {
     async fn to_string_ref(&self) -> Result<RcStr> {
         turbofmt!("[{}]/{}", self.fs, self.path).await
@@ -1499,7 +1490,7 @@ impl FileSystemPath {
 
     /// Returns true if this path has the given extension
     ///
-    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// slightly faster than `self.extension() == Some(extension)` as we can simply match a
     /// suffix
     pub fn has_extension(&self, extension: &str) -> bool {
         debug_assert!(!extension.contains('/') && extension.starts_with('.'));
@@ -1507,7 +1498,7 @@ impl FileSystemPath {
     }
 
     /// Returns the extension (without a leading `.`)
-    pub fn extension_ref(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
     }
@@ -1683,10 +1674,6 @@ impl FileSystemPath {
 impl FileSystemPath {
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
         *self.fs
-    }
-
-    pub fn extension(&self) -> &str {
-        self.extension_ref().unwrap_or_default()
     }
 
     pub fn is_inside(&self, other: &FileSystemPath) -> bool {
@@ -2416,13 +2403,20 @@ impl FileContent {
         Ok(Vc::cell(hash_xxh3_hash64(self)))
     }
 
-    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` if the file does not exist.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
         match self {
             FileContent::Content(file) => Ok(Vc::cell(Some(
-                deterministic_hash(file.content().content_hash(), algorithm).into(),
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
             ))),
             FileContent::NotFound => Ok(Vc::cell(None)),
         }
@@ -3168,7 +3162,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
@@ -3275,7 +3270,8 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;

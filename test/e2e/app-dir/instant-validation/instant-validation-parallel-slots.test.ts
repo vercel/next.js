@@ -493,5 +493,167 @@ describe('instant validation - parallel slot configs', () => {
         }
       })
     })
+
+    describe('conditional slot rendering', () => {
+      it('valid - both slots render, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-both/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - only configured children slot renders, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('valid - only configured children slot renders, breadcrumbs blocked', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-children/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(href)
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('errors when both slots render and breadcrumbs calls cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+                 "stack": [
+                   "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked/page.tsx (1:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1078",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "environmentLabel": "Server",
+             "label": "Blocking Route",
+             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
+           > 3 |   await cookies()
+               |                ^",
+             "stack": [
+               "BreadcrumbsPage app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               at div (<anonymous>)
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+               at a (<anonymous>)
+           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('errors when configured children slot is hidden, no cookies', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx (1:33)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('errors when configured children slot is hidden, breadcrumbs blocked', async () => {
+        const href =
+          '/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked'
+        if (isNextDev) {
+          const browser = await navigateTo(href)
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = { prefetch: 'static' }
+               |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked/page.tsx (1:33)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(href)
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked".
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+    })
   })
 })

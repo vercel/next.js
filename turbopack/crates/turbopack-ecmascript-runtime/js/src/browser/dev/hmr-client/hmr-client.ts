@@ -237,6 +237,11 @@ function mergeChunkUpdates(
     return undefined
   }
 
+  if (updateB.type === 'total') {
+    // A total update replaces the entire chunk, so it supersedes any prior update.
+    return updateB
+  }
+
   if (updateA.type === 'partial') {
     invariant(updateA.instruction, 'Partial updates are unsupported')
   }

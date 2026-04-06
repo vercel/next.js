@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   experimental: {
     cachedNavigations: true,
     exposeTestingApiInProductionBuild: true,
+    instantNavigationDevToolsToggle: true,
+    optimisticRouting: true,
+    useOffline: true,
+    varyParams: true,
   },
 }
 

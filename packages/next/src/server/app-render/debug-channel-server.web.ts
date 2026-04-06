@@ -3,20 +3,20 @@
  * Loaded by debug-channel-server.ts.
  */
 
-// Types defined inline for now; will move to debug-channel-server.node.ts later.
+import type { AnyStream } from './app-render-prerender-utils'
+
 export type DebugChannelPair = {
   serverSide: DebugChannelServer
   clientSide: DebugChannelClient
 }
 
-export type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
+// Opaque: PassThrough on node, { writable: WritableStream } on web.
+// Each React render API handles its own variant.
+
+export type DebugChannelServer = any
 
 type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
+  readable: AnyStream
 }
 
 export function createDebugChannel(): DebugChannelPair | undefined {
@@ -51,16 +51,4 @@ export function createWebDebugChannel(): DebugChannelPair {
     },
     clientSide: { readable: clientSideReadable },
   }
-}
-
-/**
- * toNodeDebugChannel is a no-op stub on the web path.
- * It should never be called in edge/web builds.
- */
-export function toNodeDebugChannel(
-  _webDebugChannel: DebugChannelServer
-): never {
-  throw new Error(
-    'toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase'
-  )
 }

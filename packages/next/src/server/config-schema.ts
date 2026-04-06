@@ -188,6 +188,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
@@ -221,6 +222,7 @@ export const experimentalSchema = {
   cachedNavigations: z.boolean().optional(),
   partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
+  useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -298,6 +300,19 @@ export const experimentalSchema = {
     // The specific swc plugin's option is unknown, use z.any() here
     .array(z.tuple([z.string(), z.record(z.string(), z.any())]))
     .optional(),
+  swcEnvOptions: z
+    .object({
+      mode: z.enum(['usage', 'entry']).optional(),
+      coreJs: z.string().optional(),
+      skip: z.array(z.string()).optional(),
+      include: z.array(z.string()).optional(),
+      exclude: z.array(z.string()).optional(),
+      shippedProposals: z.boolean().optional(),
+      forceAllTransforms: z.boolean().optional(),
+      debug: z.boolean().optional(),
+      loose: z.boolean().optional(),
+    })
+    .optional(),
   swcTraceProfiling: z.boolean().optional(),
   // NonNullable<webpack.Configuration['experiments']>['buildHttp']
   urlImports: z.any().optional(),
@@ -355,6 +370,7 @@ export const experimentalSchema = {
   turbopackUseBuiltinSass: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
   strictRouteTypes: z.boolean().optional(),

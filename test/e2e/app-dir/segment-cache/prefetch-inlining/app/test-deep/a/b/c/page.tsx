@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>Deep page</p>
+  return <p id="page-deep">Deep page</p>
 }
