@@ -9,6 +9,7 @@
   "homepage": "https://nextjs.org",
   "types": "index.d.ts",
   "files": [
+    "AGENTS.md",
     "dist",
     "app.js",
     "app.d.ts",
