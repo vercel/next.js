@@ -96,19 +96,30 @@ pub type BlockCache =
 /// blocks). Generic over the byte type so it works for both the lookup path
 /// (`ArcBytes` with `BlockCache`) and the iteration path (`RcBytes` with a
 /// single-entry `Option` cache).
-trait ValueBlockCache<B: SharedBytes> {
+pub trait ValueBlockCache<B: SharedBytes> {
     fn get_or_read(
-        self,
+        &mut self,
         mmap: &B::MmapHandle,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
     ) -> Result<B>;
 }
 
+impl<B: SharedBytes, V: ValueBlockCache<B>> ValueBlockCache<B> for &mut V {
+    fn get_or_read(
+        &mut self,
+        mmap: &B::MmapHandle,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<B> {
+        (**self).get_or_read(mmap, meta, block_index)
+    }
+}
+
 /// Lookup-path: concurrent `BlockCache`.
 impl ValueBlockCache<ArcBytes> for &BlockCache {
     fn get_or_read(
-        self,
+        &mut self,
         mmap: &Arc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
@@ -130,7 +141,7 @@ impl ValueBlockCache<ArcBytes> for &BlockCache {
 /// Iteration-path: lightweight single-entry cache for sequential reads.
 impl ValueBlockCache<RcBytes> for &mut Option<(u16, RcBytes)> {
     fn get_or_read(
-        self,
+        &mut self,
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
@@ -141,7 +152,52 @@ impl ValueBlockCache<RcBytes> for &mut Option<(u16, RcBytes)> {
             return Ok(block.clone());
         }
         let block: RcBytes = read_block_generic(mmap, meta, block_index)?;
-        *self = Some((block_index, block.clone()));
+        **self = Some((block_index, block.clone()));
+        Ok(block)
+    }
+}
+
+/// Batch-lookup-path: layered cache that checks a local single-entry cache first, then
+/// falls back to the global `BlockCache`. Used in `batch_lookup_with` to prevent
+/// concurrent eviction of just-read blocks between consecutive key lookups in a batch.
+/// Sequential keys in the same batch often hit the same key or value block, so keeping
+/// the most recently read block locally avoids redundant decompression.
+pub struct LayeredBlockCache<'a> {
+    /// `(sequence_number, block_index)` — must include sequence number since the same block
+    /// index can refer to different data in different SST files.
+    local: Option<((u32, u16), ArcBytes)>,
+    global: &'a BlockCache,
+}
+
+impl<'a> LayeredBlockCache<'a> {
+    pub fn new(global: &'a BlockCache) -> Self {
+        Self {
+            local: None,
+            global,
+        }
+    }
+}
+
+impl ValueBlockCache<ArcBytes> for &mut LayeredBlockCache<'_> {
+    fn get_or_read(
+        &mut self,
+        mmap: &Arc<Mmap>,
+        meta: &StaticSortedFileMetaData,
+        block_index: u16,
+    ) -> Result<ArcBytes> {
+        let key = (meta.sequence_number, block_index);
+        if let Some((cached_key, block)) = self.local.as_ref()
+            && *cached_key == key
+        {
+            return Ok(block.clone());
+        }
+        let block = <&BlockCache as ValueBlockCache<ArcBytes>>::get_or_read(
+            &mut self.global,
+            mmap,
+            meta,
+            block_index,
+        )?;
+        self.local = Some((key, block.clone()));
         Ok(block)
     }
 }
@@ -204,41 +260,46 @@ impl StaticSortedFile {
     /// If `FIND_ALL` is false, returns after finding the first match.
     /// If `FIND_ALL` is true, returns all entries with the same key (useful for
     /// keyspaces where keys are hashes and collisions are possible).
-    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
+    pub fn lookup<
+        K: QueryKey,
+        KC: ValueBlockCache<ArcBytes>,
+        VC: ValueBlockCache<ArcBytes>,
+        const FIND_ALL: bool,
+    >(
         &self,
         key_hash: u64,
         key: &K,
-        key_block_cache: &BlockCache,
-        value_block_cache: &BlockCache,
+        mut key_block_cache: KC,
+        mut value_block_cache: VC,
     ) -> Result<SstLookupResult> {
         // There is exactly one index block per file (always the last block).
         // Read it first, then dispatch directly to the key block it points to.
         let index_block_index = self.meta.block_count - 1;
-        let index_block = self.get_key_block(index_block_index, key_block_cache)?;
+        let index_block = self.get_key_block(index_block_index, &mut key_block_cache)?;
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
-        let key_block_arc = self.get_key_block(key_block_index, key_block_cache)?;
+        let key_block_arc = self.get_key_block(key_block_index, &mut key_block_cache)?;
         let block_type = be::read_u8(&key_block_arc);
         match block_type {
             BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
                 let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                self.lookup_key_block::<K, FIND_ALL>(
+                self.lookup_key_block::<K, _, FIND_ALL>(
                     key_block_arc,
                     key_hash,
                     key,
                     has_hash,
-                    value_block_cache,
+                    &mut value_block_cache,
                 )
             }
 
             BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
                 let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
-                self.lookup_fixed_key_block::<K, FIND_ALL>(
+                self.lookup_fixed_key_block::<K, _, FIND_ALL>(
                     key_block_arc,
                     key_hash,
                     key,
                     has_hash,
-                    value_block_cache,
+                    &mut value_block_cache,
                 )
             }
             _ => {
@@ -273,13 +334,13 @@ impl StaticSortedFile {
     ///
     /// If `FIND_ALL` is false, returns after finding the first match.
     /// If `FIND_ALL` is true, collects all entries with the same key.
-    fn lookup_key_block<K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_key_block<K: QueryKey, VC: ValueBlockCache<ArcBytes>, const FIND_ALL: bool>(
         &self,
         block: ArcBytes,
         key_hash: u64,
         key: &K,
         has_hash: bool,
-        value_block_cache: &BlockCache,
+        value_block_cache: &mut VC,
     ) -> Result<SstLookupResult> {
         let hash_len: u8 = if has_hash { 8 } else { 0 };
         ensure!(block.len() >= 4, "key block too short");
@@ -292,7 +353,7 @@ impl StaticSortedFile {
         let offsets = &data[..entry_count * 4];
         let entries = &data[entry_count * 4..];
 
-        self.lookup_block_inner::<K, FIND_ALL>(
+        self.lookup_block_inner::<K, VC, FIND_ALL>(
             &block,
             entry_count,
             key_hash,
@@ -306,13 +367,13 @@ impl StaticSortedFile {
     ///
     /// Fixed-size key blocks store entries at predictable offsets (no offset table),
     /// enabling direct indexing during binary search.
-    fn lookup_fixed_key_block<K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_fixed_key_block<K: QueryKey, VC: ValueBlockCache<ArcBytes>, const FIND_ALL: bool>(
         &self,
         block: ArcBytes,
         key_hash: u64,
         key: &K,
         has_hash: bool,
-        value_block_cache: &BlockCache,
+        value_block_cache: &mut VC,
     ) -> Result<SstLookupResult> {
         let hash_len: u8 = if has_hash { 8 } else { 0 };
         ensure!(block.len() >= 6, "fixed key block too short");
@@ -327,7 +388,7 @@ impl StaticSortedFile {
             "fixed key block for {entry_count} entries must is the wrong size"
         );
 
-        self.lookup_block_inner::<K, FIND_ALL>(
+        self.lookup_block_inner::<K, VC, FIND_ALL>(
             &block,
             entry_count,
             key_hash,
@@ -345,13 +406,13 @@ impl StaticSortedFile {
     ///
     /// The `get_entry` closure abstracts over the difference between variable-size
     /// key blocks (offset table lookup) and fixed-size key blocks (stride-based indexing).
-    fn lookup_block_inner<'a, K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_block_inner<'a, K: QueryKey, VC: ValueBlockCache<ArcBytes>, const FIND_ALL: bool>(
         &self,
         block: &ArcBytes,
         entry_count: usize,
         key_hash: u64,
         key: &K,
-        value_block_cache: &BlockCache,
+        value_block_cache: &mut VC,
         get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'a>>,
     ) -> Result<SstLookupResult> {
         let mut l = 0;
@@ -426,12 +487,12 @@ impl StaticSortedFile {
     }
 
     /// Handles a key match by looking up the value.
-    fn handle_key_match(
+    fn handle_key_match<VC: ValueBlockCache<ArcBytes>>(
         &self,
         ty: u8,
         val: &[u8],
         key_block_arc: &ArcBytes,
-        value_block_cache: &BlockCache,
+        value_block_cache: &mut VC,
     ) -> Result<LookupValue> {
         handle_key_match_generic(
             &self.mmap,
@@ -444,30 +505,12 @@ impl StaticSortedFile {
     }
 
     /// Gets a key block from the cache or reads it from the file.
-    fn get_key_block(
+    fn get_key_block<KC: ValueBlockCache<ArcBytes>>(
         &self,
         block: u16,
-        key_block_cache: &BlockCache,
+        key_block_cache: &mut KC,
     ) -> Result<ArcBytes, anyhow::Error> {
-        Ok(
-            match key_block_cache.get_value_or_guard(&(self.meta.sequence_number, block), None) {
-                GuardResult::Value(block) => block,
-                GuardResult::Guard(guard) => {
-                    let block = self.read_block(block)?;
-                    let _ = guard.insert(block.clone());
-                    block
-                }
-                GuardResult::Timeout => unreachable!(),
-            },
-        )
-    }
-
-    /// Reads a block from the file, decompressing if needed, and verifies its checksum.
-    ///
-    /// The checksum is verified on the raw on-disk data **before** decompression, so
-    /// corruption is caught before passing data to LZ4.
-    fn read_block(&self, block_index: u16) -> Result<ArcBytes> {
-        read_block_generic(&self.mmap, &self.meta, block_index)
+        key_block_cache.get_or_read(&self.mmap, &self.meta, block)
     }
 }
 
@@ -605,7 +648,7 @@ fn handle_key_match_generic<B: SharedBytes>(
     ty: u8,
     val: &[u8],
     key_block: &B,
-    reader: impl ValueBlockCache<B>,
+    mut reader: impl ValueBlockCache<B>,
 ) -> Result<LookupValue<B>> {
     Ok(match ty {
         KEY_BLOCK_ENTRY_TYPE_SMALL => {

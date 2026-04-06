@@ -1381,7 +1381,7 @@ mod tests {
         kc: &TestBlockCache,
         vc: &TestBlockCache,
     ) -> Result<()> {
-        let result = sst.lookup::<_, false>(entry.hash, &entry.key, kc, vc)?;
+        let result = sst.lookup::<_, _, _, false>(entry.hash, &entry.key, kc, vc)?;
         match (&entry.value_kind, result) {
             (_, SstLookupResult::Found(values))
                 if values.len() == 1 && matches!(values[0], LookupValue::Slice { .. }) =>
@@ -1690,8 +1690,8 @@ mod tests {
         let vc = make_cache();
 
         for entry in &entries {
-            let r1 = sst1.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
-            let r2 = sst2.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
+            let r1 = sst1.lookup::<_, _, _, false>(entry.hash, &entry.key, &kc, &vc)?;
+            let r2 = sst2.lookup::<_, _, _, false>(entry.hash, &entry.key, &kc, &vc)?;
             match (&r1, &r2) {
                 (SstLookupResult::Found(v1), SstLookupResult::Found(v2))
                     if v1.len() == 1 && v2.len() == 1 =>
@@ -1816,7 +1816,7 @@ mod tests {
         let sst = open_sst(dir, seq, meta).unwrap();
         let kc = make_cache();
         let vc = make_cache();
-        match sst.lookup::<_, false>(entries[0].hash, &entries[0].key, &kc, &vc) {
+        match sst.lookup::<_, _, _, false>(entries[0].hash, &entries[0].key, &kc, &vc) {
             Err(err) => {
                 let msg = format!("{err}");
                 assert!(

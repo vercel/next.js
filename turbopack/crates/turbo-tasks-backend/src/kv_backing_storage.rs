@@ -7,7 +7,8 @@ use std::{
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
-use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
+use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
+use turbo_persistence::ArcBytes;
 use turbo_tasks::{
     TaskId,
     backend::CachedTaskType,
@@ -18,7 +19,7 @@ use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
+    backend::{AnyOperation, SpecificTaskDataCategory},
     backing_storage::{BackingStorage, BackingStorageSealed, SnapshotItem},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -45,11 +46,6 @@ impl AsRef<[u8]> for IntKey {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }
-}
-
-fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
-    let n = u32::from_le_bytes(bytes.borrow().try_into()?);
-    Ok(n)
 }
 
 // We want to invalidate the cache on panic for most users, but this is a band-aid to underlying
@@ -187,7 +183,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
     fn get_infra_u32(&self, key: u32) -> Result<Option<u32>> {
         self.database
             .get(KeySpace::Infra, IntKey::new(key).as_ref())?
-            .map(as_u32)
+            .map(|b| Ok(u32::from_le_bytes((*b).try_into()?)))
             .transpose()
     }
 }
@@ -212,16 +208,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     }
 
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
-        fn get(database: &impl KeyValueDatabase) -> Result<Vec<AnyOperation>> {
-            let Some(operations) =
-                database.get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
-            else {
-                return Ok(Vec::new());
-            };
-            let operations = turbo_bincode_decode(operations.borrow())?;
-            Ok(operations)
-        }
-        get(&self.inner.database).context("Unable to read uncompleted operations from database")
+        self.inner
+            .database
+            .get(KeySpace::Infra, IntKey::new(META_KEY_OPERATIONS).as_ref())?
+            .map(|b| turbo_bincode_decode(&b))
+            .transpose()
+            .map(Option::unwrap_or_default)
+            .context("Unable to read uncompleted operations from database")
     }
 
     fn save_snapshot<I>(
@@ -298,14 +291,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     }
 
     fn lookup_task_candidates(&self, task_type: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>> {
-        let inner = &*self.inner;
-        if inner.database.is_empty() {
+        if self.inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization
             // to avoid computing the hash.
             return Ok(SmallVec::new());
         }
         let hash = compute_task_type_hash(task_type);
-        let buffers = inner
+        let buffers = self
+            .inner
             .database
             .get_multiple(KeySpace::TaskCache, &hash.to_le_bytes())
             .with_context(|| {
@@ -314,7 +307,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         let mut task_ids = SmallVec::with_capacity(buffers.len());
         for bytes in buffers {
-            let bytes = bytes.borrow().try_into()?;
+            let bytes = (*bytes).try_into()?;
             let id = TaskId::try_from(u32::from_le_bytes(bytes)).unwrap();
             task_ids.push(id);
         }
@@ -325,54 +318,35 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
-    ) -> Result<()> {
-        let inner = &*self.inner;
-        let Some(bytes) = inner
+    ) -> Result<Option<ArcBytes>> {
+        self.inner
             .database
             .get(category.key_space(), IntKey::new(*task_id).as_ref())
-            .with_context(|| {
-                format!("Looking up task storage for {task_id} from database failed")
-            })?
-        else {
-            return Ok(());
-        };
-        let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
-        storage
-            .decode(category, &mut decoder)
-            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))
+            .with_context(|| format!("Looking up task storage for {task_id} from database failed"))
     }
 
     fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
-        let inner = &*self.inner;
+        callback: &mut dyn FnMut(usize, Option<&[u8]>),
+    ) -> Result<()> {
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
-        let bytes = inner
+        self.inner
             .database
-            .batch_get(category.key_space(), &keys)
+            .batch_get_with(category.key_space(), &keys, |index, opt_bytes| {
+                callback(index, opt_bytes);
+                // `opt_bytes` (and any underlying ArcBytes) is dropped here before the next
+                // iteration, so only one decompressed block is live at a time.
+                Ok(())
+            })
             .with_context(|| {
                 format!(
                     "Looking up typed data for {} tasks from database failed",
                     task_ids.len()
                 )
-            })?;
-        bytes
-            .into_iter()
-            .map(|opt_bytes| {
-                let mut storage = TaskStorage::new();
-                if let Some(bytes) = opt_bytes {
-                    let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
-                    storage
-                        .decode(category, &mut decoder)
-                        .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-                }
-                Ok(storage)
             })
-            .collect::<Result<Vec<_>>>()
     }
 
     fn compact(&self) -> Result<bool> {
