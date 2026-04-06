@@ -261,7 +261,8 @@ import {
 } from './instant-validation/instant-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
-  createDebugChannel,
+  createWebDebugChannel,
+  createNodeDebugChannel,
   type DebugChannelPair,
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
@@ -843,7 +844,7 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  const debugChannel = setReactDebugChannel && createDebugChannel()
+  const debugChannel = setReactDebugChannel && createWebDebugChannel()
 
   if (debugChannel) {
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
@@ -1309,7 +1310,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('bypass', htmlRequestId)
     }
 
-    debugChannel = setReactDebugChannel && createDebugChannel()
+    debugChannel = setReactDebugChannel && createWebDebugChannel()
 
     stream = await stagedRenderToReadableStreamWithoutCachesInDev(
       ctx,
@@ -3173,7 +3174,7 @@ async function renderToStream(
           // We're either bypassing caches or we can't restart the render.
           // Do a dynamic render, but with (basic) environment labels.
 
-          debugChannel = setReactDebugChannel && createDebugChannel()
+          debugChannel = setReactDebugChannel && createWebDebugChannel()
 
           const serverStream =
             await stagedRenderToReadableStreamWithoutCachesInDev(
@@ -3339,7 +3340,7 @@ async function renderToStream(
               { is404: res.statusCode === 404 }
             )
 
-          const debugChannel = setReactDebugChannel && createDebugChannel()
+          const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
           if (debugChannel) {
             const [readableSsr, readableBrowser] = teeStream(
@@ -3381,7 +3382,7 @@ async function renderToStream(
               { is404: res.statusCode === 404 }
             )
 
-          const debugChannel = setReactDebugChannel && createDebugChannel()
+          const debugChannel = setReactDebugChannel && createWebDebugChannel()
 
           if (debugChannel) {
             const [readableSsr, readableBrowser] = teeStream(
@@ -3944,7 +3945,7 @@ async function renderWithRestartOnCacheMissInDev(
   )
   requestStore.cacheSignal = cacheSignal
 
-  let debugChannel = setReactDebugChannel && createDebugChannel()
+  let debugChannel = setReactDebugChannel && createWebDebugChannel()
   const { clientModules } = getClientReferenceManifest()
 
   // Note: The stage controller starts out in the `Before` stage,
@@ -4112,7 +4113,7 @@ async function renderWithRestartOnCacheMissInDev(
 
   // The initial render already wrote to its debug channel.
   // We're not using it, so we need to create a new one.
-  debugChannel = setReactDebugChannel && createDebugChannel()
+  debugChannel = setReactDebugChannel && createWebDebugChannel()
 
   // Note: The stage controller starts out in the `Before` stage,
   // where sync IO does not cause aborts, so it's okay if it happens before render.
