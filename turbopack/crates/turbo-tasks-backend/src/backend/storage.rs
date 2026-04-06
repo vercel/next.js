@@ -71,7 +71,8 @@ pub struct Storage {
     /// modifications (promoted from `modified_during_snapshot`). Used to skip unmodified shards
     /// in `take_snapshot`, avoiding unnecessary iteration and enabling early returns
     ///
-    /// Indexed by `map.determine_shard(map.hash_usize(&key))`.
+    /// Indexed by `map.determine_shard(map.hash_usize(&key))` and guaranteed by construction so
+    /// that  `shard_modified_counts.len()==map.shards().len()`
     ///
     /// Should only be modified while holding the corresponding dashmap shard lock.
     shard_modified_counts: Box<[AtomicU64]>,
@@ -199,7 +200,7 @@ impl Storage {
                 for bucket in unsafe { shard_guard.iter() } {
                     // Safety: the guard guarantees that the bucket is not removed and the ptr
                     // is valid.
-                    let (key, shared_value) = unsafe { bucket.as_mut() };
+                    let (key, shared_value) = unsafe { bucket.as_ref() };
                     let flags = &shared_value.get().flags;
                     // Only check modified flags here — transient tasks never have
                     // modified flags set (track_modification guards against it), so
@@ -243,6 +244,7 @@ impl Storage {
             }
 
             Some(SnapshotShard {
+                shard_idx,
                 direct_snapshots,
                 modified,
                 storage: self,
@@ -544,6 +546,7 @@ impl Drop for SnapshotGuard<'_> {
 }
 
 pub struct SnapshotShard<'l, P> {
+    shard_idx: usize,
     direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: Vec<TaskId>,
     storage: &'l Storage,
@@ -603,8 +606,8 @@ where
             } else {
                 // Error path: encoding failed. Re-mark dirty for next cycle.
                 std::hint::cold_path();
-                let shard_idx = self.shard.storage.shard_index(&task_id);
-                self.shard.storage.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
+                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
+                    .fetch_add(1, Ordering::Relaxed);
                 self.shard
                     .storage
                     .promote_during_snapshot_flags(&task_id, &mut inner);
@@ -624,8 +627,8 @@ where
                 }
                 // Error path: encoding failed. Re-mark dirty for next cycle.
                 std::hint::cold_path();
-                let shard_idx = self.shard.storage.shard_index(&task_id);
-                self.shard.storage.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
+                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
+                    .fetch_add(1, Ordering::Relaxed);
             } else {
                 // Task was modified again during snapshot mode. A snapshot copy was
                 // created in track_modification_internal. Use that for encoding.

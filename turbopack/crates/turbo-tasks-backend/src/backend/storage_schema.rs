@@ -546,7 +546,6 @@ impl TaskStorage {
         // Mark as fully restored since transient tasks don't need restoration from disk,
         // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
-        self.flags.set_new_task(true);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
         self.aggregation_number = AggregationNumber {
