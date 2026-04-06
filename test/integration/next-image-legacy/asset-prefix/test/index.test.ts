@@ -66,7 +66,7 @@ describe('Image Component assetPrefix Tests', () => {
           const bgImage = await browser.eval(
             `document.getElementById('${id}').style['background-image']`
           )
-          expect(bgImage).toMatch('data:image/jpeg;base64')
+          expect(bgImage).toMatch('data:image/webp;base64')
         } finally {
           if (browser) {
             await browser.close()
