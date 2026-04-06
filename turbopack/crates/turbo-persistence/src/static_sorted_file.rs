@@ -88,7 +88,11 @@ impl quick_cache::Weighter<(u32, u16), ArcBytes> for BlockWeighter {
     fn weight(&self, _key: &(u32, u16), val: &ArcBytes) -> u64 {
         if val.is_mmap_backed() {
             // Mmap-backed blocks bypass the cache (served directly from mmap),
-            // so this branch is a safety net only. Assign a negligible weight.
+            // so this branch should never be reached.
+            debug_assert!(
+                !val.is_mmap_backed(),
+                "mmap-backed block should not be inserted into BlockCache"
+            );
             64
         } else {
             val.len() as u64 + 8
@@ -206,7 +210,7 @@ impl StaticSortedFile {
             let _ = mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
         }
         advise_mmap_for_persistence(&mmap)?;
-        let bitmap_words = (meta.block_count as usize).div_ceil(64);
+        let bitmap_words = (meta.block_count as usize).div_ceil(u64::BITS as usize);
         let verified_blocks = (0..bitmap_words)
             .map(|_| AtomicU64::new(0))
             .collect::<Box<[_]>>();
@@ -481,12 +485,7 @@ fn get_or_cache_block(
 
     if uncompressed_length == 0 {
         // Uncompressed: serve directly from mmap. Verify CRC only once per file open.
-        let word_idx = block_index as usize / 64;
-        let bit = 1u64 << (block_index as usize % 64);
-        if verified_blocks[word_idx].load(AtomicOrdering::Relaxed) & bit == 0 {
-            verify_checksum(meta, block_data, checksum, block_index)?;
-            verified_blocks[word_idx].fetch_or(bit, AtomicOrdering::Relaxed);
-        }
+        verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
         // SAFETY: block_data points into the mmap backing `mmap`.
         return Ok(unsafe { ArcBytes::from_mmap(mmap, block_data) });
     }
@@ -496,7 +495,9 @@ fn get_or_cache_block(
         match cache.get_value_or_guard(&(meta.sequence_number, block_index), None) {
             GuardResult::Value(block) => block,
             GuardResult::Guard(guard) => {
-                verify_checksum(meta, block_data, checksum, block_index)?;
+                // A cached block may have been evicted, so re-reading still
+                // benefits from the bitmap to skip redundant CRC verification.
+                verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
                 let block = ArcBytes::from_decompressed(uncompressed_length, block_data)
                     .with_context(|| {
                         format!(
@@ -590,6 +591,26 @@ fn verify_checksum(
             actual
         );
     }
+    Ok(())
+}
+
+/// Verifies a block's CRC at most once per file open, using the `verified_blocks`
+/// bitmap to skip redundant checks. Racing first-time verifications are harmless
+/// (CRC check is deterministic and idempotent).
+fn verify_checksum_once(
+    meta: &StaticSortedFileMetaData,
+    data: &[u8],
+    expected: u32,
+    block_index: u16,
+    verified_blocks: &[AtomicU64],
+) -> Result<()> {
+    let word_idx = block_index as usize / u64::BITS as usize;
+    let bit = 1u64 << (block_index as usize % u64::BITS as usize);
+    if verified_blocks[word_idx].load(AtomicOrdering::Relaxed) & bit != 0 {
+        return Ok(());
+    }
+    verify_checksum(meta, data, expected, block_index)?;
+    verified_blocks[word_idx].fetch_or(bit, AtomicOrdering::Relaxed);
     Ok(())
 }
 
