@@ -3,7 +3,7 @@ import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
 import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 
@@ -119,7 +119,7 @@ export function getFallbackRouteParams(
   page: string,
   routeModule: AppPageRouteModule
 ) {
-  const route = parseAppRoute(page, true)
+  const route = parseNormalizedAppRoute(page)
 
   // Extract the pathname-contributing segments from the loader tree. This
   // mirrors the logic in buildAppStaticPaths where we determine which segments
