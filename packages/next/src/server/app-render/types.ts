@@ -172,6 +172,12 @@ export interface RenderOptsPartial {
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * When true, JS chunks are emitted as ES modules and the bootstrap script
+     * must be loaded with `<script type="module">` instead of `<script>`.
+     */
+    turbopackBrowserEsmChunks: boolean
   }
   postponed?: string
 

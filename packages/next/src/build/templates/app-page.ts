@@ -898,6 +898,8 @@ export async function handler(
             maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
               nextConfig.experimental.maxPostponedStateSize
             ),
+            turbopackBrowserEsmChunks:
+              nextConfig.experimental.turbopackBrowserEsmChunks ?? false,
           },
 
           waitUntil: ctx.waitUntil,

@@ -581,6 +581,8 @@ export default abstract class Server<
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
+        turbopackBrowserEsmChunks:
+          this.nextConfig.experimental.turbopackBrowserEsmChunks ?? false,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
