@@ -236,10 +236,22 @@ impl StaticSortedFile {
         // There is exactly one index block per file (always the last block).
         // Read it first, then dispatch directly to the key block it points to.
         let index_block_index = self.meta.block_count - 1;
-        let index_block = self.get_key_block(index_block_index, key_block_cache)?;
+        let index_block = get_or_cache_block(
+            &self.mmap,
+            &self.meta,
+            index_block_index,
+            key_block_cache,
+            &self.verified_blocks,
+        )?;
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
-        let key_block_arc = self.get_key_block(key_block_index, key_block_cache)?;
+        let key_block_arc = get_or_cache_block(
+            &self.mmap,
+            &self.meta,
+            key_block_index,
+            key_block_cache,
+            &self.verified_blocks,
+        )?;
         let reader = ArcBlockCacheReader {
             cache: value_block_cache,
             verified_blocks: &self.verified_blocks,
@@ -443,21 +455,6 @@ impl StaticSortedFile {
     ) -> Result<LookupValue> {
         handle_key_match_generic(&self.mmap, &self.meta, ty, val, key_block_arc, reader)
     }
-
-    /// Gets a key block from the cache or reads it from the file.
-    fn get_key_block(
-        &self,
-        block: u16,
-        key_block_cache: &BlockCache,
-    ) -> Result<ArcBytes, anyhow::Error> {
-        get_or_cache_block(
-            &self.mmap,
-            &self.meta,
-            block,
-            key_block_cache,
-            &self.verified_blocks,
-        )
-    }
 }
 
 /// Gets a block from the cache, or reads it from the mmap and inserts it.
@@ -594,9 +591,12 @@ fn verify_checksum(
     Ok(())
 }
 
-/// Verifies a block's CRC at most once per file open, using the `verified_blocks`
-/// bitmap to skip redundant checks. Racing first-time verifications are harmless
-/// (CRC check is deterministic and idempotent).
+/// Verifies a block's CRC using the `verified_blocks` bitmap to avoid redundant
+/// work. In practice each block is verified once, but concurrent first-time
+/// accesses may race and verify the same block more than once — this is harmless
+/// since the check is deterministic and idempotent. Verification failures are
+/// *not* recorded in the bitmap, so a corrupted block will be re-checked (and
+/// fail again) on every access.
 fn verify_checksum_once(
     meta: &StaticSortedFileMetaData,
     data: &[u8],
