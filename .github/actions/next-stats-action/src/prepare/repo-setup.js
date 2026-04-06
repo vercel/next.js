@@ -245,38 +245,28 @@ module.exports = (actionInfo) => {
                       }
                     }
 
-                    const options = {
-                      cwd: pkgPath,
-                      env: {
-                        ...process.env,
-                        COREPACK_ENABLE_STRICT: '0',
-                      },
-                    }
-                    let execResult
-                    try {
-                      execResult = await handlePackageSpan
-                        .traceChild('pnpm-pack-try-1')
-                        .traceAsyncFn(() => execa('pnpm', ['pack'], options))
-                    } catch {
-                      execResult = await handlePackageSpan
-                        .traceChild('pnpm-pack-try-2')
-                        .traceAsyncFn(() => execa('pnpm', ['pack'], options))
-                    }
-                    const { stdout } = execResult
+                    const pnpmPackExeca = () =>
+                      execa('pnpm', ['pack', '--out', packedPkgPath], {
+                        cwd: pkgPath,
+                        env: {
+                          ...process.env,
+                          COREPACK_ENABLE_STRICT: '0',
+                        },
+                      })
 
-                    const packedFileName = stdout.trim()
+                    try {
+                      await handlePackageSpan
+                        .traceChild('pnpm-pack-try-1')
+                        .traceAsyncFn(pnpmPackExeca)
+                    } catch {
+                      await handlePackageSpan
+                        .traceChild('pnpm-pack-try-2')
+                        .traceAsyncFn(pnpmPackExeca)
+                    }
 
                     await handlePackageSpan
-                      .traceChild('rename-packed-tar-and-cleanup')
-                      .traceAsyncFn(() =>
-                        Promise.all([
-                          fs.promises.rename(
-                            path.join(pkgPath, packedFileName),
-                            packedPkgPath
-                          ),
-                          cleanup?.(),
-                        ])
-                      )
+                      .traceChild('cleanup')
+                      .traceAsyncFn(() => cleanup?.())
                   })
               }
             )
