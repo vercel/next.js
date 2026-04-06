@@ -10,15 +10,16 @@ declare global {
   var __turbopack_module_cache__: Record<ModuleId, any>
   var __turbopack_runtime_modules__: Set<ModuleId>
   /**
-   * Shared registry of per-runtime server HMR apply functions.
-   * Each Turbopack server runtime instance (one per chunking context) registers
-   * its own handler here. The first runtime to register in each generation also
-   * installs a multicast dispatcher as globalThis.__turbopack_server_hmr_apply__
-   * so all runtimes receive HMR updates.
-   * Reset to [] by the hot-reloader on full cache reset.
+   * Shared registry of per-runtime server HMR handler entries, keyed by the
+   * runtime file's __filename. Map.set() naturally replaces stale entries when
+   * a runtime file is re-evaluated. Reset to undefined by the hot-reloader on
+   * full cache reset.
    */
+  // NodeJsHmrPayload is only in scope inside the concatenated runtime chunk, not
+  // in this .d.ts file, so the handler parameter must use any here.
+
   var __turbopack_server_hmr_handlers__:
-    | Array<(update: any) => boolean>
+    | Map<string, { handler: (update: any) => boolean; chunkPrefix: string }>
     | undefined
 }
 
