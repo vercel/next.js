@@ -49,24 +49,6 @@
         "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
       ]
     },
-    "test/e2e/app-dir/actions/app-action.test.ts": {
-      "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
-        "app-dir action handling fetch actions should handle revalidateTag",
-        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
-        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
-      ]
-    },
-    "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
-      "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
-        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
-        "app-dir action handling fetch actions should handle revalidateTag",
-        "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
-        "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation"
-      ]
-    },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",
