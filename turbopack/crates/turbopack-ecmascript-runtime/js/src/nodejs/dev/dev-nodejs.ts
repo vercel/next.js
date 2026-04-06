@@ -58,7 +58,13 @@ if (_handlers.length === 0) {
     update: NodeJsHmrPayload
   ): boolean => {
     const fns = globalThis.__turbopack_server_hmr_handlers__
-    if (!fns || fns.length === 0) return false
+    // We intentionally multicast to all registered runtimes rather than
+    // stopping on the first that accepts. Multiple runtimes may need to apply
+    // the same update (e.g. pages SSR and metadata-route runtimes are separate
+    // instances with independent module factories). Each handler closes over its
+    // own runtime-local moduleFactories, so a module only applies in a runtime
+    // that actually owns it — there is no cross-runtime contamination and no
+    // need to filter by asset prefix.
     let applied = false
     for (const fn of fns) {
       try {
