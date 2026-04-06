@@ -813,58 +813,25 @@ export async function resolveRoutes(
   }
 
   // Check dynamic routes
-  for (const route of routes.dynamicRoutes) {
-    const match = matchDynamicRoute(currentUrl.pathname, route)
-
-    if (match.matched) {
-      // Check has/missing conditions
-      const hasResult = checkHasConditions(
-        route.has,
-        currentUrl,
-        currentRequestHeaders
-      )
-      const missingMatched = checkMissingConditions(
-        route.missing,
-        currentUrl,
-        currentRequestHeaders
-      )
-
-      if (hasResult.matched && missingMatched) {
-        const replacedDestination = route.destination
-          ? replaceDestination(
-              route.destination,
-              match.regexMatches || null,
-              hasResult.captures
-            )
-          : undefined
-        // Check if the destination pathname (template path) is in the provided pathnames list
-        // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = replacedDestination
-          ? replacedDestination.split('?')[0]
-          : currentUrl.pathname
-        matchedPath = matchesPathname(pathnameToCheck, pathnames)
-        if (matchedPath) {
-          const resolvedUrl = replacedDestination
-            ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
-            : currentUrl
-          const finalHeaders = applyOnMatchHeaders(
-            routes.onMatch,
-            resolvedUrl,
-            currentRequestHeaders,
-            currentResponseHeaders
-          )
-          return withResolvedInvocationTarget({
-            result: {
-              routeMatches: match.params,
-              resolvedHeaders: finalHeaders,
-              status: currentStatus,
-            },
-            url: resolvedUrl,
-            resolvedPathname: matchedPath,
-            invocationPathname: currentUrl.pathname,
-          })
-        }
+  {
+    const dynamicResult = checkDynamicRoutes(
+      routes.dynamicRoutes,
+      currentUrl,
+      pathnames,
+      currentRequestHeaders,
+      currentResponseHeaders,
+      routes.onMatch,
+      basePath,
+      buildId,
+      shouldNormalizeNextData,
+      isDataUrl
+    )
+    if (dynamicResult.matched && dynamicResult.result) {
+      // Reset URL to the denormalized version if it matched
+      if (dynamicResult.resetUrl) {
+        currentUrl = dynamicResult.resetUrl
       }
+      return { ...dynamicResult.result, status: currentStatus }
     }
   }
 
