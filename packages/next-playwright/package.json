@@ -27,6 +27,8 @@
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
+    "@types/minimatch": "6.0.0",
+    "@types/node": "20.17.6",
     "typescript": "5.9.2"
   }
 }
