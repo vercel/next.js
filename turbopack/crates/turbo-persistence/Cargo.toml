@@ -14,7 +14,6 @@ verbose_log = []
 
 [dependencies]
 anyhow = { workspace = true }
-bincode = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
 crc32fast = { workspace = true }
@@ -25,15 +24,15 @@ lzzzz = { workspace = true }
 memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
-pot = "3.0.0"
 # See https://github.com/vercel/next.js/issues/91708 for why we need the legacy_x86_64_support feature
-qfilter = { version = "0.3.0-alpha.2", features = ["serde", "legacy_x86_64_support"] }
+qfilter = { version = "0.3.0-alpha.3", features = ["serde", "legacy_x86_64_support"] }
+postcard = { workspace = true, features = ["alloc", "use-std"] }
+zerocopy = { version = "0.8", features = ["derive"] }
 quick_cache = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }
-turbo-bincode= { workspace = true }
 xxhash-rust = { workspace = true }
 
 [dev-dependencies]

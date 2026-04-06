@@ -1,6 +1,5 @@
 #![feature(once_cell_try)]
 #![feature(sync_unsafe_cell)]
-#![feature(iter_collect_into)]
 
 mod arc_bytes;
 pub(crate) mod be;

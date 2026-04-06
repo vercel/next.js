@@ -215,7 +215,6 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let content_type = get_content_type(path.clone()).await?;
 
@@ -250,7 +249,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -270,7 +269,6 @@ async fn dynamic_sitemap_route_with_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -340,7 +338,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 return params
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -360,7 +358,6 @@ async fn dynamic_sitemap_route_without_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -391,7 +388,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -423,7 +420,6 @@ async fn dynamic_image_route_with_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -478,7 +474,7 @@ async fn dynamic_image_route_with_metadata_source(
                 return staticParams
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);
@@ -495,7 +491,6 @@ async fn dynamic_image_route_without_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -512,7 +507,7 @@ async fn dynamic_image_route_without_metadata_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);

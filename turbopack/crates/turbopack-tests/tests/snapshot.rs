@@ -224,7 +224,12 @@ async fn run(resource: PathBuf) -> Result<()> {
         #[turbo_tasks::function(operation)]
         async fn inner_operation(resource: RcStr) -> Result<Vc<()>> {
             let out_op = run_test_operation(resource);
-            let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
+            let out_vc = out_op
+                .resolve()
+                .strongly_consistent()
+                .await?
+                .owned()
+                .await?;
 
             let plain_issues = out_op
                 .peek_issues()
@@ -239,7 +244,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
         #[turbo_tasks::function(operation)]
         async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
-            let _ = op.resolve_strongly_consistent().await?;
+            let _ = op.resolve().strongly_consistent().await?;
             Ok(get_effects(op).await?.cell())
         }
 

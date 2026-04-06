@@ -161,13 +161,11 @@ impl NextSegmentConfig {
             name: &str,
         ) -> Result<()> {
             match (a.as_ref(), b) {
-                (Some(a), Some(b)) => {
-                    if *a != *b {
-                        bail!(
-                            "Sibling segment configs have conflicting values for {}",
-                            name
-                        )
-                    }
+                (Some(a), Some(b)) if *a != *b => {
+                    bail!(
+                        "Sibling segment configs have conflicting values for {}",
+                        name
+                    )
                 }
                 (None, Some(b)) => {
                     *a = Some(b.clone());

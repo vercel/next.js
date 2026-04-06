@@ -26,6 +26,9 @@ enum Backing {
 #[derive(Clone)]
 pub struct ArcBytes {
     data: *const [u8],
+    // Safety: Backing should come last so that it is dropped after the data pointer so we don't
+    // create a dangling pointer.  This isn't really a problem since it is technically ok to have
+    // dangling _pointers_.
     backing: Backing,
 }
 

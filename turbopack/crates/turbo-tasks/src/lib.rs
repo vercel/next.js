@@ -1,12 +1,10 @@
 #![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
@@ -93,18 +91,18 @@ pub use crate::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
+        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::State,
+    state::{State, TransientState},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
@@ -114,8 +112,9 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
+        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
+        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
         VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
         VcValueType, VcValueTypeCast,
     },
