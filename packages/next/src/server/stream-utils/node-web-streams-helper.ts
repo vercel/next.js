@@ -135,20 +135,26 @@ export async function webstreamToUint8Array(
 function webToReadable(
   stream: ReadableStream<Uint8Array> | import('node:stream').Readable
 ): import('node:stream').Readable {
-  let Readable: typeof import('node:stream').Readable
-  if (process.env.TURBOPACK) {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
-    Readable = (
-      __non_webpack_require__('node:stream') as typeof import('node:stream')
-    ).Readable
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('webToReadable cannot be used in the edge runtime')
   } else {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+    if (stream instanceof Readable) {
+      return stream
+    }
+    return Readable.fromWeb(stream as import('stream/web').ReadableStream)
   }
-  if (stream instanceof Readable) {
-    return stream
-  }
-  return Readable.fromWeb(stream as import('stream/web').ReadableStream)
 }
 
 export async function nodestreamToUint8Array(
@@ -162,20 +168,29 @@ export async function nodestreamToUint8Array(
 }
 
 export async function streamToUint8Array(stream: AnyStream) {
-  let Readable: typeof import('node:stream').Readable
-  if (process.env.TURBOPACK) {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
-    Readable = (
-      __non_webpack_require__('node:stream') as typeof import('node:stream')
-    ).Readable
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Edge runtime always uses web streams
+    return webstreamToUint8Array(stream as ReadableStream<Uint8Array>)
   } else {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    if (stream instanceof Readable) {
+      return nodestreamToUint8Array(stream)
+    }
+
+    return webstreamToUint8Array(stream)
   }
-  if (stream instanceof Readable) {
-    return nodestreamToUint8Array(stream)
-  }
-  return webstreamToUint8Array(stream)
 }
 
 export async function streamToBuffer(

@@ -30,21 +30,29 @@ export class ReactServerResult {
       return tee[1]
     }
 
-    let Readable: typeof import('node:stream').Readable
-    if (process.env.TURBOPACK) {
-      Readable = (require('node:stream') as typeof import('node:stream'))
-        .Readable
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError(
+        'Node.js Readable cannot be teed in the edge runtime'
+      )
     } else {
-      Readable = (
-        __non_webpack_require__('node:stream') as typeof import('node:stream')
-      ).Readable
+      let Readable: typeof import('node:stream').Readable
+      if (process.env.TURBOPACK) {
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      } else {
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      }
+      const webStream = Readable.toWeb(
+        this._stream
+      ) as ReadableStream<Uint8Array>
+      const tee = webStream.tee()
+      this._stream = Readable.fromWeb(
+        tee[0] as import('stream/web').ReadableStream
+      )
+      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
     }
-    const webStream = Readable.toWeb(this._stream) as ReadableStream<Uint8Array>
-    const tee = webStream.tee()
-    this._stream = Readable.fromWeb(
-      tee[0] as import('stream/web').ReadableStream
-    )
-    return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
   }
 
   consume(): AnyStream {
