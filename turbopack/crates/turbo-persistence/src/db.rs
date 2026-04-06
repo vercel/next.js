@@ -135,7 +135,7 @@ impl FoundBitset {
         self.words[wi] |= 1 << bi;
     }
 
-    /// Returns the number of bits that are set (i.e. not yet found).
+    /// Returns the number of bits that are set.
     pub(crate) fn count_ones(&self) -> usize {
         self.words.iter().map(|w| w.count_ones()).sum::<u32>() as usize
     }
