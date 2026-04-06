@@ -18,7 +18,7 @@ pub mod mmap_helper;
 mod parallel_scheduler;
 mod rc_bytes;
 mod shared_bytes;
-mod sst_filter;
+pub mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;
 mod value_block_count_tracker;
