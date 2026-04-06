@@ -1,4 +1,6 @@
 use anyhow::Result;
+use smallvec::SmallVec;
+use turbo_persistence::ArcBytes;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -8,13 +10,22 @@ use crate::database::{
 pub struct NoopKvDb;
 
 impl KeyValueDatabase for NoopKvDb {
-    type ValueBuffer<'l>
-        = &'l [u8]
-    where
-        Self: 'l;
-
-    fn get(&self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>> {
+    fn get(&self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<ArcBytes>> {
         Ok(None)
+    }
+    fn get_multiple(&self, _key_space: KeySpace, _key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>> {
+        Ok(SmallVec::new())
+    }
+    fn batch_get_with(
+        &self,
+        _key_space: KeySpace,
+        keys: &[&[u8]],
+        mut callback: impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<()> {
+        for (index, _key) in keys.iter().enumerate() {
+            callback(index, None)?;
+        }
+        Ok(())
     }
 
     type ConcurrentWriteBatch<'l>

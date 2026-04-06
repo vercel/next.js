@@ -14,6 +14,7 @@ use std::{
 
 use bincode::{Decode, Encode};
 use tracing::trace_span;
+use turbo_bincode::new_turbo_bincode_decoder;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
@@ -30,6 +31,11 @@ use crate::{
     backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
+
+struct TaskRestoreEntry {
+    task_id: TaskId,
+    category: TaskDataCategory,
+}
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
@@ -176,58 +182,20 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         self.backend.should_restore() && self.backend.local_is_partial
     }
 
-    fn restore_task_data(
+    fn lookup_task_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-    ) -> TaskStorage {
+    ) -> Option<turbo_persistence::ArcBytes> {
         if !self.should_check_backing_storage() {
-            // If we don't need to restore, we can just return an empty storage
-            return TaskStorage::default();
+            return None;
         }
-        let mut storage = TaskStorage::default();
-        let result = self
-            .backend
-            .backing_storage
-            .lookup_data(task_id, category, &mut storage);
-
-        match result {
-            Ok(()) => storage,
+        match self.backend.backing_storage.lookup_data(task_id, category) {
+            Ok(bytes) => bytes,
             Err(e) => {
                 panic!(
                     "Failed to restore task data (corrupted database or bug): {:?}",
                     e.context(format!("{category:?} for {task_id})"))
-                )
-            }
-        }
-    }
-
-    fn restore_task_data_batch(
-        &self,
-        task_ids: &[TaskId],
-        category: SpecificTaskDataCategory,
-    ) -> Option<Vec<TaskStorage>> {
-        debug_assert!(
-            task_ids.len() > 1,
-            "Use restore_task_data_typed for single task"
-        );
-        if !self.should_check_backing_storage() {
-            // If we don't need to restore, we return None
-            return None;
-        }
-        let result = self
-            .backend
-            .backing_storage
-            .batch_lookup_data(task_ids, category);
-        match result {
-            Ok(result) => Some(result),
-            Err(e) => {
-                panic!(
-                    "Failed to restore task data (corrupted database or bug): {:?}",
-                    e.context(format!(
-                        "{category:?} for batch of {} tasks",
-                        task_ids.len()
-                    ))
                 )
             }
         }
@@ -255,7 +223,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         let mut data_count = 0;
         let mut meta_count = 0;
         let mut all_count = 0;
-        let mut tasks = task_ids
+        let tasks = task_ids
             .into_iter()
             .filter(|&(id, category)| {
                 if id.is_transient() {
@@ -278,18 +246,22 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 TaskDataCategory::Meta => meta_count += 1,
                 TaskDataCategory::All => all_count += 1,
             })
-            .map(|(id, category)| (id, category, None, None))
+            .map(|(id, category)| TaskRestoreEntry {
+                task_id: id,
+                category,
+            })
             .collect::<Vec<_>>();
         data_count += all_count;
         meta_count += all_count;
         span.record("requested_data", data_count);
         span.record("requested_meta", meta_count);
 
-        let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
-        let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
-        let mut tasks_to_restore_for_meta = Vec::with_capacity(meta_count);
-        let mut tasks_to_restore_for_meta_indicies = Vec::with_capacity(meta_count);
-        for (i, &(task_id, category, _, _)) in tasks.iter().enumerate() {
+        let mut tasks_to_restore_for_data: Vec<TaskId> = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_data_indices: Vec<usize> = Vec::with_capacity(data_count);
+        let mut tasks_to_restore_for_meta: Vec<TaskId> = Vec::with_capacity(meta_count);
+        let mut tasks_to_restore_for_meta_indices: Vec<usize> = Vec::with_capacity(meta_count);
+        for (i, entry) in tasks.iter().enumerate() {
+            let (task_id, category) = (entry.task_id, entry.category);
             self.task_lock_counter.acquire();
 
             let task = self.backend.storage.access_mut(task_id);
@@ -298,14 +270,14 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 && !task.flags.is_restored(TaskDataCategory::Data)
             {
                 tasks_to_restore_for_data.push(task_id);
-                tasks_to_restore_for_data_indicies.push(i);
+                tasks_to_restore_for_data_indices.push(i);
                 ready = false;
             }
             if matches!(category, TaskDataCategory::Meta | TaskDataCategory::All)
                 && !task.flags.is_restored(TaskDataCategory::Meta)
             {
                 tasks_to_restore_for_meta.push(task_id);
-                tasks_to_restore_for_meta_indicies.push(i);
+                tasks_to_restore_for_meta_indices.push(i);
                 ready = false;
             }
             self.task_lock_counter.release();
@@ -317,83 +289,141 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             return;
         }
 
-        match tasks_to_restore_for_data.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_data[0];
-                let data = self.restore_task_data(task_id, SpecificTaskDataCategory::Data);
-                let idx = tasks_to_restore_for_data_indicies[0];
-                tasks[idx].2 = Some(data);
-            }
-            _ => {
-                if let Some(data) = self.restore_task_data_batch(
-                    &tasks_to_restore_for_data,
-                    SpecificTaskDataCategory::Data,
-                ) {
-                    data.into_iter()
-                        .zip(tasks_to_restore_for_data_indicies)
-                        .for_each(|(item, idx)| {
-                            tasks[idx].2 = Some(item);
-                        });
-                } else {
-                    for idx in tasks_to_restore_for_data_indicies {
-                        tasks[idx].2 = Some(TaskStorage::default());
-                    }
-                }
-            }
-        }
-        match tasks_to_restore_for_meta.len() {
-            0 => {}
-            1 => {
-                let task_id = tasks_to_restore_for_meta[0];
-                let data = self.restore_task_data(task_id, SpecificTaskDataCategory::Meta);
-                let idx = tasks_to_restore_for_meta_indicies[0];
-                tasks[idx].3 = Some(data);
-            }
-            _ => {
-                if let Some(data) = self.restore_task_data_batch(
-                    &tasks_to_restore_for_meta,
-                    SpecificTaskDataCategory::Meta,
-                ) {
-                    data.into_iter()
-                        .zip(tasks_to_restore_for_meta_indicies)
-                        .for_each(|(item, idx)| {
-                            tasks[idx].3 = Some(item);
-                        });
-                } else {
-                    for idx in tasks_to_restore_for_meta_indicies {
-                        tasks[idx].3 = Some(TaskStorage::new());
-                    }
-                }
-            }
+        // Restore data and meta batches.
+        // Each decoded TaskStorage is written into backend.storage immediately inside the
+        // batch_lookup_data callback, and prepared_task_callback is called as soon as
+        // task.flags.is_restored(entry.category) becomes true (i.e. all required categories
+        // for that entry are satisfied). The guard is passed directly to the callback while
+        // still held — no second pass needed.
+        self.restore_batch(
+            &tasks,
+            &tasks_to_restore_for_data,
+            &tasks_to_restore_for_data_indices,
+            SpecificTaskDataCategory::Data,
+            &mut prepared_task_callback,
+        );
+        self.restore_batch(
+            &tasks,
+            &tasks_to_restore_for_meta,
+            &tasks_to_restore_for_meta_indices,
+            SpecificTaskDataCategory::Meta,
+            &mut prepared_task_callback,
+        );
+    }
+
+    /// Decodes a batch of task data from backing storage, writing each `TaskStorage` immediately
+    /// into `backend.storage` as it arrives so it can be freed before the next one is decoded.
+    ///
+    /// After the database read completes, calls `prepared_task_callback` for each entry whose
+    /// `task.flags.is_restored(entry.category)` is now true — i.e. all required categories are
+    /// satisfied. For `All`-category entries this fires in the meta batch (after both categories).
+    fn restore_batch(
+        &mut self,
+        tasks: &[TaskRestoreEntry],
+        task_ids: &[TaskId],
+        task_indices: &[usize],
+        category: SpecificTaskDataCategory,
+        prepared_task_callback: &mut impl FnMut(
+            &mut Self,
+            TaskId,
+            TaskDataCategory,
+            StorageWriteGuard<'e>,
+        ),
+    ) {
+        if task_ids.is_empty() {
+            return;
         }
 
-        for (task_id, category, storage_for_data, storage_for_meta) in tasks {
-            if storage_for_data.is_none() && storage_for_meta.is_none() {
-                continue;
-            }
-            self.task_lock_counter.acquire();
-
+        // Shared per-task logic: decode `opt_bytes` into the live task (if not already restored),
+        // set the restored flag, and fire `prepared_task_callback` when `entry.category` is fully
+        // satisfied.
+        let process_task = |this: &mut Self,
+                            entry: &TaskRestoreEntry,
+                            opt_bytes: Option<&[u8]>,
+                            prepared_task_callback: &mut dyn FnMut(
+            &mut Self,
+            TaskId,
+            TaskDataCategory,
+            StorageWriteGuard<'e>,
+        )| {
+            this.task_lock_counter.acquire();
+            let mut task = this.backend.storage.access_mut(entry.task_id);
+            let task_data_category = match category {
+                SpecificTaskDataCategory::Data => TaskDataCategory::Data,
+                SpecificTaskDataCategory::Meta => TaskDataCategory::Meta,
+            };
             let mut task_type = None;
-            let mut task = self.backend.storage.access_mut(task_id);
-            if let Some(storage) = storage_for_data
-                && !task.flags.is_restored(TaskDataCategory::Data)
-            {
-                task.restore_from(storage, TaskDataCategory::Data);
-                task.flags.set_restored(TaskDataCategory::Data);
-                task_type = task.get_persistent_task_type().cloned()
+            if !task.flags.is_restored(task_data_category) {
+                if let Some(bytes) = opt_bytes {
+                    let mut decoder = new_turbo_bincode_decoder(bytes);
+                    task.decode(category, &mut decoder).unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to decode {category:?} for {:?}: {e:?}",
+                            entry.task_id
+                        )
+                    });
+                }
+                // the else branch is simple, there was no backing data so mark as restored so we
+                // don't try again
+                task.flags.set_restored(task_data_category);
+                // Cache the task type mapping after restoring data (only data has task type).
+                if category == SpecificTaskDataCategory::Data {
+                    task_type = task.get_persistent_task_type().cloned();
+                }
             }
-            if let Some(storage) = storage_for_meta
-                && !task.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task.restore_from(storage, TaskDataCategory::Meta);
-                task.flags.set_restored(TaskDataCategory::Meta);
+            if task.flags.is_restored(entry.category) {
+                this.task_lock_counter.release();
+                prepared_task_callback(this, entry.task_id, entry.category, task);
+            } else {
+                drop(task);
+                this.task_lock_counter.release();
             }
-            self.task_lock_counter.release();
-            prepared_task_callback(self, task_id, category, task);
             if let Some(task_type) = task_type {
-                // Insert into the task cache to avoid future lookups
-                self.backend.task_cache.entry(task_type).or_insert(task_id);
+                this.backend
+                    .task_cache
+                    .entry(task_type)
+                    .or_insert(entry.task_id);
+            }
+        };
+
+        if self.backend.should_restore() && self.backend.local_is_partial {
+            if task_ids.len() == 1 {
+                // Avoid batch_lookup_data overhead for the single-key case.
+                let entry = &tasks[task_indices[0]];
+                let opt_bytes = self
+                    .backend
+                    .backing_storage
+                    .lookup_data(entry.task_id, category)
+                    .unwrap_or_else(|e| {
+                        panic!(
+                            "Failed to restore task data (corrupted database or bug): {:?}",
+                            e.context(format!("{category:?} for {:?}", entry.task_id))
+                        )
+                    });
+                process_task(self, entry, opt_bytes.as_deref(), prepared_task_callback);
+            } else {
+                let result = self.backend.backing_storage.batch_lookup_data(
+                    task_ids,
+                    category,
+                    &mut |index, opt_bytes| {
+                        let entry = &tasks[task_indices[index]];
+                        process_task(self, entry, opt_bytes, prepared_task_callback);
+                    },
+                );
+                if let Err(e) = result {
+                    panic!(
+                        "Failed to restore task data (corrupted database or bug): {:?}",
+                        e.context(format!(
+                            "{category:?} for batch of {} tasks",
+                            task_ids.len()
+                        ))
+                    )
+                }
+            }
+        } else {
+            // No backing storage — restore all tasks with empty data.
+            for &task_index in task_indices {
+                process_task(self, &tasks[task_index], None, prepared_task_callback);
             }
         }
     }
@@ -427,28 +457,39 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                     category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
 
                 if needs_data || needs_meta {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    // Drop lock once, do all I/O, then re-acquire once
+                    // Avoid holding the lock too long since this can also affect other tasks.
+                    // Drop lock once, do all I/O (returning raw bytes), then re-acquire once
+                    // and decode directly into the live task — no scratch TaskStorage needed.
                     drop(task);
 
-                    let storage_data = needs_data
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-                    let storage_meta = needs_meta
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+                    let bytes_data = needs_data
+                        .then(|| self.lookup_task_data(task_id, SpecificTaskDataCategory::Data));
+                    let bytes_meta = needs_meta
+                        .then(|| self.lookup_task_data(task_id, SpecificTaskDataCategory::Meta));
 
                     task = self.backend.storage.access_mut(task_id);
 
-                    // Handle race conditions and merge
-                    if let Some(storage) = storage_data
-                        && !task.flags.is_restored(TaskDataCategory::Data)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Data);
+                    // Handle race conditions and decode directly into live storage.
+                    // set_restored is called even when no bytes found (task simply has no
+                    // persisted data for this category).
+                    if needs_data && !task.flags.is_restored(TaskDataCategory::Data) {
+                        if let Some(bytes) = bytes_data.flatten() {
+                            let mut decoder = new_turbo_bincode_decoder(&bytes);
+                            task.decode(SpecificTaskDataCategory::Data, &mut decoder)
+                                .unwrap_or_else(|e| {
+                                    panic!("Failed to decode Data for {task_id:?}: {e:?}")
+                                });
+                        }
                         task.flags.set_restored(TaskDataCategory::Data);
                     }
-                    if let Some(storage) = storage_meta
-                        && !task.flags.is_restored(TaskDataCategory::Meta)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Meta);
+                    if needs_meta && !task.flags.is_restored(TaskDataCategory::Meta) {
+                        if let Some(bytes) = bytes_meta.flatten() {
+                            let mut decoder = new_turbo_bincode_decoder(&bytes);
+                            task.decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                                .unwrap_or_else(|e| {
+                                    panic!("Failed to decode Meta for {task_id:?}: {e:?}")
+                                });
+                        }
                         task.flags.set_restored(TaskDataCategory::Meta);
                     }
                 }
@@ -521,47 +562,69 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             category.includes_meta() && !task2.flags.is_restored(TaskDataCategory::Meta);
 
         if needs_data1 || needs_meta1 || needs_data2 || needs_meta2 {
-            // Avoid holding the lock too long since this can also affect other tasks
-            // Drop locks once, do all I/O, then re-acquire once
+            // Avoid holding the lock too long since this can also affect other tasks.
+            // Drop locks once, do all I/O (returning raw bytes), then re-acquire once
+            // and decode directly into the live tasks — no scratch TaskStorage needed.
             drop(task1);
             drop(task2);
 
-            let storage_data1 = needs_data1
-                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Data));
-            let storage_meta1 = needs_meta1
-                .then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Meta));
-            let storage_data2 = needs_data2
-                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Data));
-            let storage_meta2 = needs_meta2
-                .then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
+            let bytes_data1 = needs_data1
+                .then(|| self.lookup_task_data(task_id1, SpecificTaskDataCategory::Data));
+            let bytes_meta1 = needs_meta1
+                .then(|| self.lookup_task_data(task_id1, SpecificTaskDataCategory::Meta));
+            let bytes_data2 = needs_data2
+                .then(|| self.lookup_task_data(task_id2, SpecificTaskDataCategory::Data));
+            let bytes_meta2 = needs_meta2
+                .then(|| self.lookup_task_data(task_id2, SpecificTaskDataCategory::Meta));
 
             let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
             task1 = t1;
             task2 = t2;
 
-            // Merge results, handling race conditions
-            if let Some(storage) = storage_data1
-                && !task1.flags.is_restored(TaskDataCategory::Data)
-            {
-                task1.restore_from(storage, TaskDataCategory::Data);
+            // Decode directly into live storage, handling race conditions.
+            // set_restored is called even when no bytes found.
+            if needs_data1 && !task1.flags.is_restored(TaskDataCategory::Data) {
+                if let Some(bytes) = bytes_data1.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task1
+                        .decode(SpecificTaskDataCategory::Data, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Data for {task_id1:?}: {e:?}")
+                        });
+                }
                 task1.flags.set_restored(TaskDataCategory::Data);
             }
-            if let Some(storage) = storage_meta1
-                && !task1.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task1.restore_from(storage, TaskDataCategory::Meta);
+            if needs_meta1 && !task1.flags.is_restored(TaskDataCategory::Meta) {
+                if let Some(bytes) = bytes_meta1.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task1
+                        .decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Meta for {task_id1:?}: {e:?}")
+                        });
+                }
                 task1.flags.set_restored(TaskDataCategory::Meta);
             }
-            if let Some(storage) = storage_data2
-                && !task2.flags.is_restored(TaskDataCategory::Data)
-            {
-                task2.restore_from(storage, TaskDataCategory::Data);
+            if needs_data2 && !task2.flags.is_restored(TaskDataCategory::Data) {
+                if let Some(bytes) = bytes_data2.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task2
+                        .decode(SpecificTaskDataCategory::Data, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Data for {task_id2:?}: {e:?}")
+                        });
+                }
                 task2.flags.set_restored(TaskDataCategory::Data);
             }
-            if let Some(storage) = storage_meta2
-                && !task2.flags.is_restored(TaskDataCategory::Meta)
-            {
-                task2.restore_from(storage, TaskDataCategory::Meta);
+            if needs_meta2 && !task2.flags.is_restored(TaskDataCategory::Meta) {
+                if let Some(bytes) = bytes_meta2.flatten() {
+                    let mut decoder = new_turbo_bincode_decoder(&bytes);
+                    task2
+                        .decode(SpecificTaskDataCategory::Meta, &mut decoder)
+                        .unwrap_or_else(|e| {
+                            panic!("Failed to decode Meta for {task_id2:?}: {e:?}")
+                        });
+                }
                 task2.flags.set_restored(TaskDataCategory::Meta);
             }
         }

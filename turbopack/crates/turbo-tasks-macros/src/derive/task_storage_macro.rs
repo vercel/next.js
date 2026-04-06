@@ -662,18 +662,6 @@ fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> V
         .collect()
 }
 
-/// Generate inline field restore assignments: `self.field = source.field;`
-fn gen_restore_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
-    fields
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                self.#field_name = source.#field_name;
-            }
-        })
-        .collect()
-}
-
 /// Generate lazy field match arms with a custom body that also receives the index.
 /// `LazyField::Variant(data) => { <body> }`
 ///
@@ -3080,14 +3068,6 @@ fn gen_clone_lazy_arms_for_category(
     })
 }
 
-/// Generate restore inline statements for a category.
-fn gen_restore_inline_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_restore_inline_fields(grouped_fields.persistent_inline(category))
-}
-
 /// Generate snapshot clone and restore methods for TaskStorage.
 ///
 /// Generates:
@@ -3098,55 +3078,11 @@ fn gen_restore_inline_for_category(
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
 /// - `restore_all_from(&mut self, source)` - Restore all fields from source
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
-    let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
-    let has_any_flags = has_meta_flags || has_data_flags;
-
     // Generate field operations by category
     let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
     let clone_data_inline = gen_clone_inline_for_category(grouped_fields, Category::Data);
     let clone_meta_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Meta);
     let clone_data_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Data);
-
-    let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
-    let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
-
-    let clone_all_flags = if has_any_flags {
-        quote! {
-            // Clone all persisted flags
-            snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    // Generate flags handling for restore - per category
-    let restore_meta_flags = if has_meta_flags {
-        quote! {
-            // Restore persisted meta flags (preserve other flags)
-            self.flags.set_persisted_meta_bits(source.flags.persisted_meta_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    let restore_data_flags = if has_data_flags {
-        quote! {
-            // Restore persisted data flags (preserve other flags)
-            self.flags.set_persisted_data_bits(source.flags.persisted_data_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    let restore_all_flags = if has_any_flags {
-        quote! {
-            // Restore all persisted flags (preserve transient flags)
-            self.flags.set_persisted_bits(source.flags.persisted_bits());
-        }
-    } else {
-        quote! {}
-    };
 
     quote! {
         #[automatically_derived]
@@ -3161,7 +3097,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Clone inline data fields
                 #(#clone_data_inline)*
 
-                #clone_all_flags
+                // Clone all persisted flags
+                snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
 
                 // Pre-allocate lazy vec (upper bound - some may be transient and skipped)
                 snapshot.lazy.reserve(self.lazy.len());
@@ -3179,103 +3116,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 snapshot
             }
 
-            /// Restore persisted data from a decoded TaskStorage.
-            ///
-            /// This is used during restore operations to copy decoded persisted data
-            /// into the task's existing storage. It preserves transient state (flags,
-            /// transient fields) while restoring the persisted data.
-            ///
-            /// # Invariant
-            ///
-            /// This method assumes the target does NOT already have the persistent fields
-            /// being restored. This is guaranteed by the restore protocol which only calls
-            /// this once per category when the task is first accessed. Debug assertions
-            /// verify this invariant.
-            ///
-            /// The `category` parameter specifies which category of data to restore:
-            /// - `Meta`: Restore meta fields (aggregation_number, output, upper, dirty, etc.)
-            /// - `Data`: Restore data fields (output_dependent, dependencies, cell_data, etc.)
-            /// - `All`: Restore both meta and data fields
-            pub fn restore_from(
-                &mut self,
-                source: TaskStorage,
-                category: crate::backend::TaskDataCategory,
-            ) {
-                match category {
-                    crate::backend::TaskDataCategory::Meta => self.restore_meta_from(source),
-                    crate::backend::TaskDataCategory::Data => self.restore_data_from(source),
-                    crate::backend::TaskDataCategory::All => self.restore_all_from(source),
-                }
-            }
-
-            /// Restore meta category fields from source.
-            ///
-            /// Debug assertions verify that the target doesn't already have the lazy fields
-            /// being restored.
-            fn restore_meta_from(&mut self, source: TaskStorage) {
-                // Debug assertion: verify target doesn't already have persistent meta lazy fields
-                debug_assert!(
-                    !self.lazy.iter().any(|f| f.is_persistent() && f.is_meta()),
-                    "restore_meta_from called on storage that already has persistent meta lazy fields"
-                );
-
-                // Inline meta fields - direct assignment
-                #(#restore_meta_inline)*
-
-                #restore_meta_flags
-
-                // Extend lazy vec with persistent meta fields from source
-                self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| f.is_persistent() && f.is_meta())
-                );
-            }
-
-            /// Restore data category fields from source.
-            ///
-            /// Debug assertions verify that the target doesn't already have the lazy fields
-            /// being restored.
-            fn restore_data_from(&mut self, source: TaskStorage) {
-                // Debug assertion: verify target doesn't already have persistent data lazy fields
-                debug_assert!(
-                    !self.lazy.iter().any(|f| f.is_persistent() && f.is_data()),
-                    "restore_data_from called on storage that already has persistent data lazy fields"
-                );
-
-                // Inline data fields - direct assignment
-                #(#restore_data_inline)*
-
-                #restore_data_flags
-
-                // Extend lazy vec with persistent data fields from source
-                self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| f.is_persistent() && f.is_data())
-                );
-            }
-
-            /// Restore all fields from source (both meta and data).
-            ///
-            /// Debug assertions verify that the target doesn't already have the lazy fields
-            /// being restored.
-            fn restore_all_from(&mut self, source: TaskStorage) {
-                // Debug assertion: verify target doesn't already have any persistent lazy fields
-                debug_assert!(
-                    !self.lazy.iter().any(|f| f.is_persistent()),
-                    "restore_all_from called on storage that already has persistent lazy fields"
-                );
-
-                // Inline meta fields - direct assignment
-                #(#restore_meta_inline)*
-
-                // Inline data fields - direct assignment
-                #(#restore_data_inline)*
-
-                #restore_all_flags
-
-                // Extend lazy vec with all persistent fields from source
-                self.lazy.extend(
-                    source.lazy.into_iter().filter(|f| f.is_persistent())
-                );
-            }
         }
     }
 }

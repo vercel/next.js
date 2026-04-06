@@ -1,6 +1,6 @@
 use anyhow::Result;
 use smallvec::SmallVec;
-use turbo_persistence::{FamilyConfig, FamilyKind};
+use turbo_persistence::{ArcBytes, FamilyConfig, FamilyKind};
 
 use crate::database::write_batch::ConcurrentWriteBatch;
 
@@ -57,36 +57,26 @@ pub trait KeyValueDatabase {
         false
     }
 
-    type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
-    where
-        Self: 'l;
-
-    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'_>>>;
+    fn get(&self, key_space: KeySpace, key: &[u8]) -> Result<Option<ArcBytes>>;
     /// Looks up a key and returns all matching values.
     ///
     /// Useful for keyspaces where keys are hashes and collisions are possible (e.g., TaskCache).
     /// The default implementation returns at most one value (from `get`), but implementations
     /// that support multiple values per key should override this.
-    fn get_multiple(
-        &self,
-        key_space: KeySpace,
-        key: &[u8],
-    ) -> Result<SmallVec<[Self::ValueBuffer<'_>; 1]>> {
-        Ok(self.get(key_space, key)?.into_iter().collect())
-    }
+    fn get_multiple(&self, key_space: KeySpace, key: &[u8]) -> Result<SmallVec<[ArcBytes; 1]>>;
 
-    fn batch_get(
+    /// Calls `callback(index, Option<&[u8]>)` for each key immediately after it is resolved,
+    /// rather than accumulating all results into a `Vec`. This avoids holding every decompressed
+    /// value simultaneously in memory.
+    ///
+    /// The default implementation falls back to sequential `get` calls. Implementations backed by
+    /// [`TurboPersistence`] override this to use the native streaming path.
+    fn batch_get_with(
         &self,
         key_space: KeySpace,
         keys: &[&[u8]],
-    ) -> Result<Vec<Option<Self::ValueBuffer<'_>>>> {
-        let mut results = Vec::with_capacity(keys.len());
-        for key in keys {
-            let value = self.get(key_space, key)?;
-            results.push(value);
-        }
-        Ok(results)
-    }
+        callback: impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<()>;
 
     type ConcurrentWriteBatch<'l>: ConcurrentWriteBatch<'l>
     where

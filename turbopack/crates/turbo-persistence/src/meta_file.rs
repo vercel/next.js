@@ -14,7 +14,8 @@ use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    QueryKey,
+    ArcBytes, QueryKey,
+    db::FoundBitset,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -498,33 +499,44 @@ impl MetaFile {
         Ok(miss_result)
     }
 
-    pub fn batch_lookup<K: QueryKey>(
+    pub fn batch_lookup_with<K: QueryKey>(
         &self,
         key_family: u32,
         keys: &[K],
-        cells: &mut [(u64, usize, Option<LookupValue>)],
-        empty_cells: &mut usize,
+        cells: &[(u64, usize)],
+        found: &mut FoundBitset,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
-    ) -> Result<MetaBatchLookupResult> {
+        read_blob: &mut impl FnMut(u32) -> Result<ArcBytes>,
+        callback: &mut impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<(bool, MetaBatchLookupResult)> {
+        debug_assert_eq!(
+            cells.len(),
+            found.len(),
+            "cells and found must have the same length"
+        );
         if key_family != self.family {
             #[cfg(feature = "stats")]
-            return Ok(MetaBatchLookupResult {
-                family_miss: true,
-                ..Default::default()
-            });
+            return Ok((
+                false,
+                MetaBatchLookupResult {
+                    family_miss: true,
+                    ..Default::default()
+                },
+            ));
             #[cfg(not(feature = "stats"))]
-            return Ok(MetaBatchLookupResult {});
+            return Ok((false, MetaBatchLookupResult {}));
         }
         debug_assert!(
-            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            cells.is_sorted_by_key(|(hash, _)| *hash),
             "Cells must be sorted by key hash"
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
+        let mut empty_cells = found.len() - found.count_ones();
         for entry in self.entries.iter().rev() {
-            let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
+            let mut start_index = cells
+                .binary_search_by(|(hash, _)| hash.cmp(&entry.min_hash).then(Ordering::Greater))
                 .err()
                 .unwrap();
             if start_index >= cells.len() {
@@ -534,11 +546,23 @@ impl MetaFile {
                 }
                 continue;
             }
-            let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
+            // Advance to the first not found cell.
+            while start_index < cells.len() && found.get(cells[start_index].1) {
+                start_index += 1;
+            }
+            if start_index >= cells.len() {
+                #[cfg(feature = "stats")]
+                {
+                    lookup_result.range_misses += 1;
+                }
+                continue;
+            }
+            let end_index = cells[start_index..]
+                .binary_search_by(|(hash, _)| hash.cmp(&entry.max_hash).then(Ordering::Less))
                 .err()
                 .unwrap()
-                .checked_sub(1);
+                .checked_sub(1)
+                .map(|i| i + start_index);
             let Some(end_index) = end_index else {
                 #[cfg(feature = "stats")]
                 {
@@ -553,12 +577,13 @@ impl MetaFile {
                 }
                 continue;
             }
-            for (hash, index, result) in &mut cells[start_index..=end_index] {
+            for (hash, index) in cells[start_index..=end_index].iter() {
                 debug_assert!(
                     *hash >= entry.min_hash && *hash <= entry.max_hash,
                     "Key hash out of range"
                 );
-                if result.is_some() {
+                if found.get(*index) {
+                    // we already found this key in a different meta-file
                     continue;
                 }
                 if !entry.amqf.contains_fingerprint(*hash) {
@@ -580,14 +605,27 @@ impl MetaFile {
                     let Some(value) = values.pop() else {
                         unreachable!()
                     };
-                    *result = Some(value);
-                    *empty_cells -= 1;
+                    // Resolve and callback immediately — the ArcBytes/blob is dropped before
+                    // the next iteration so we never hold more than one decompressed block at a
+                    // time.
+                    let blob;
+                    let opt_bytes: Option<&[u8]> = match &value {
+                        LookupValue::Deleted => None,
+                        LookupValue::Slice { value } => Some(value),
+                        LookupValue::Blob { sequence_number } => {
+                            blob = read_blob(*sequence_number)?;
+                            Some(&*blob)
+                        }
+                    };
+                    found.set(*index);
+                    empty_cells -= 1;
                     #[cfg(feature = "stats")]
                     {
                         lookup_result.hits += 1;
                     }
-                    if *empty_cells == 0 {
-                        return Ok(lookup_result);
+                    callback(*index, opt_bytes)?;
+                    if empty_cells == 0 {
+                        return Ok((true, lookup_result));
                     }
                 } else {
                     #[cfg(feature = "stats")]
@@ -597,6 +635,6 @@ impl MetaFile {
                 }
             }
         }
-        Ok(lookup_result)
+        Ok((false, lookup_result))
     }
 }

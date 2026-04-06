@@ -106,6 +106,45 @@ struct TrackedStats {
     miss_global: std::sync::atomic::AtomicU64,
 }
 
+/// A compact bitset for tracking which batch-lookup cells have been resolved.
+///
+/// Uses `u64` words (1 bit per cell) rather than `Vec<bool>` (1 byte per cell) for an 8x
+/// reduction in memory and better cache behaviour on large batches.
+pub struct FoundBitset {
+    words: Box<[u64]>,
+    len: usize,
+}
+
+impl FoundBitset {
+    pub(crate) fn new(len: usize) -> Self {
+        let words = vec![0u64; len.div_ceil(64)].into_boxed_slice();
+        Self { words, len }
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, index: usize) -> bool {
+        debug_assert!(index < self.len);
+        (self.words[index / 64] >> (index % 64)) & 1 == 1
+    }
+
+    #[inline]
+    pub(crate) fn set(&mut self, index: usize) {
+        debug_assert!(index < self.len);
+        let wi = index / 64;
+        let bi = index % 64;
+        self.words[wi] |= 1 << bi;
+    }
+
+    /// Returns the number of bits that are set (i.e. not yet found).
+    pub(crate) fn count_ones(&self) -> usize {
+        self.words.iter().map(|w| w.count_ones()).sum::<u32>() as usize
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+}
+
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
 pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
@@ -1603,11 +1642,36 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(output)
     }
 
+    /// Looks up multiple keys in batch and collects results into a `Vec`.
+    ///
+    /// For large batches where memory pressure matters, prefer
+    /// [`batch_get_with`][Self::batch_get_with] which calls a callback per entry without
+    /// accumulating all decoded bytes simultaneously.
     pub fn batch_get<K: QueryKey>(
         &self,
         family: usize,
         keys: &[K],
     ) -> Result<Vec<Option<ArcBytes>>> {
+        let mut results = vec![None; keys.len()];
+        self.batch_get_with(family, keys, |index, opt_bytes| {
+            results[index] = opt_bytes.map(|b| ArcBytes::from(b.to_vec().into_boxed_slice()));
+            Ok(())
+        })?;
+        Ok(results)
+    }
+
+    /// Looks up multiple keys in batch, calling `callback(index, Option<&[u8]>)` for each entry
+    /// immediately after it is resolved rather than accumulating all results into a `Vec`.
+    ///
+    /// This keeps at most one decompressed value block live at a time, significantly reducing
+    /// peak memory when the batch is large. The callback receives the 0-based key index and the
+    /// value bytes (`None` for not-found or deleted). Callback errors propagate immediately.
+    pub fn batch_get_with<K: QueryKey>(
+        &self,
+        family: usize,
+        keys: &[K],
+        mut callback: impl FnMut(usize, Option<&[u8]>) -> Result<()>,
+    ) -> Result<()> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -1622,22 +1686,38 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             result_size = tracing::field::Empty
         )
         .entered();
-        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
-        let mut empty_cells = keys.len();
+        let mut cells: Vec<(u64, usize)> = Vec::with_capacity(keys.len());
         for (index, key) in keys.iter().enumerate() {
             let hash = hash_key(key);
-            cells.push((hash, index, None));
+            cells.push((hash, index));
         }
-        cells.sort_by_key(|(hash, _, _)| *hash);
+        cells.sort_unstable_by_key(|(hash, _)| *hash);
+        let mut found = FoundBitset::new(cells.len());
         let inner = self.inner.read();
+        let mut not_found = 0;
+        let mut deleted = 0;
+        let mut result_size = 0;
+        let mut read_blob = |seq| self.read_blob(seq);
+        // Wrap the callback to track stats (deleted/result_size) for found keys.
+        // not_found is tracked separately in the post-loop over cells.
+        let mut stats_callback = |index: usize, opt_bytes: Option<&[u8]>| -> Result<()> {
+            if let Some(bytes) = opt_bytes {
+                result_size += bytes.len();
+            } else {
+                deleted += 1;
+            }
+            callback(index, opt_bytes)
+        };
         for meta in inner.meta_files.iter().rev() {
-            let _result = meta.batch_lookup(
+            let (all_found, _result) = meta.batch_lookup_with(
                 family as u32,
                 keys,
-                &mut cells,
-                &mut empty_cells,
+                &cells,
+                &mut found,
                 &self.key_block_cache,
                 &self.value_block_cache,
+                &mut read_blob,
+                &mut stats_callback,
             )?;
 
             #[cfg(feature = "stats")]
@@ -1669,49 +1749,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
             }
 
-            if empty_cells == 0 {
+            if all_found {
                 break;
             }
         }
-        let mut deleted = 0;
-        let mut not_found = 0;
-        let mut result_size = 0;
-        let mut results = vec![None; keys.len()];
-        for (hash, index, result) in cells {
-            if let Some(result) = result {
+        // Record accessed hashes for found keys, and fire callback for not-found keys.
+        for (hash, index) in cells.into_iter() {
+            if found.get(index) {
                 inner.accessed_key_hashes[family].insert(hash);
-                let result = match result {
-                    LookupValue::Deleted => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
-                        deleted += 1;
-                        None
-                    }
-                    LookupValue::Slice { value } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
-                        result_size += value.len();
-                        Some(value)
-                    }
-                    LookupValue::Blob { sequence_number } => {
-                        #[cfg(feature = "stats")]
-                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                        let blob = self.read_blob(sequence_number)?;
-                        result_size += blob.len();
-                        Some(blob)
-                    }
-                };
-                results[index] = result;
             } else {
                 #[cfg(feature = "stats")]
                 self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
                 not_found += 1;
+                callback(index, None)?;
             }
         }
         span.record("not_found", not_found);
         span.record("deleted", deleted);
         span.record("result_size", result_size);
-        Ok(results)
+        Ok(())
     }
 
     /// Returns database statistics.
