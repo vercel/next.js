@@ -333,6 +333,10 @@ export interface Project {
 
   invalidateFileSystemCache(): Promise<void>
 
+  pauseCompilation(): void
+
+  compileAndResume(): Promise<void>
+
   shutdown(): Promise<void>
 
   onExit(): Promise<void>

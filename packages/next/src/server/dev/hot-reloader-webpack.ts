@@ -1699,6 +1699,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+              pauseCompilation: () => {},
+              compileAndResume: async () => {},
             }),
           ]
         : [])

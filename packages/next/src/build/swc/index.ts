@@ -843,6 +843,14 @@ function bindingToApi(
       return binding.projectInvalidateFileSystemCache(this._nativeProject)
     }
 
+    pauseCompilation(): void {
+      binding.projectPauseCompilation(this._nativeProject)
+    }
+
+    compileAndResume(): Promise<void> {
+      return binding.projectCompileAndResume(this._nativeProject)
+    }
+
     shutdown(): Promise<void> {
       return binding.projectShutdown(this._nativeProject)
     }

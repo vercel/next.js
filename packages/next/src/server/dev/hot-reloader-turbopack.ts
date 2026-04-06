@@ -1050,6 +1050,12 @@ export async function createHotReloaderTurbopack(
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             getTurbopackProject: () => project,
+            pauseCompilation: () => {
+              project.pauseCompilation()
+            },
+            compileAndResume: async () => {
+              await project.compileAndResume()
+            },
           }),
         ]
       : []),

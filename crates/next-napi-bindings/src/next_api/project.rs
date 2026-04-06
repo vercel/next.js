@@ -2134,6 +2134,31 @@ pub fn project_update_info_subscribe(
     Ok(())
 }
 
+/// Pause compilation. Task scheduling is deferred — file changes still mark
+/// tasks dirty, but no recomputation happens until `project_compile_and_resume`
+/// is called.
+#[napi]
+pub fn project_pause_compilation(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    project.turbopack_ctx.turbo_tasks().pause_compilation();
+    Ok(())
+}
+
+/// Compile all deferred tasks in one batch, wait for the compilation cycle to
+/// finish, then resume normal scheduling.
+#[napi]
+pub async fn project_compile_and_resume(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<()> {
+    project
+        .turbopack_ctx
+        .turbo_tasks()
+        .compile_and_resume()
+        .await;
+    Ok(())
+}
+
 /// Subscribes to all compilation events that are not cached like timing and progress information.
 #[napi]
 pub fn project_compilation_events_subscribe(

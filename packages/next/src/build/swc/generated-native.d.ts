@@ -345,6 +345,21 @@ export declare function projectInvalidateFileSystemCache(project: {
   __napiType: 'Project'
 }): Promise<void>
 /**
+ * Pause compilation. Task scheduling is deferred — file changes still mark
+ * tasks dirty, but no recomputation happens until `projectCompileAndResume`
+ * is called.
+ */
+export declare function projectPauseCompilation(project: {
+  __napiType: 'Project'
+}): void
+/**
+ * Compile all deferred tasks in one batch, wait for the compilation cycle to
+ * finish, then resume normal scheduling.
+ */
+export declare function projectCompileAndResume(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
  *
  * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this

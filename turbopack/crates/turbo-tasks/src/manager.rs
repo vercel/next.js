@@ -498,6 +498,11 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_background_done: Event,
     program_start: Instant,
     compilation_events: CompilationEventQueue,
+    /// When true, `schedule()` buffers tasks instead of executing them.
+    /// Calling `compile_and_resume()` drains the buffer and runs one
+    /// compilation cycle from the final file-system state.
+    compilation_paused: AtomicBool,
+    compilation_deferred: Mutex<Vec<(TaskId, TaskPriority)>>,
 }
 
 type LocalTaskTracker = Option<
@@ -664,6 +669,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
             }),
             program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
+            compilation_paused: AtomicBool::new(false),
+            compilation_deferred: Mutex::new(Vec::new()),
         });
         this.backend.startup(&*this);
         this
@@ -863,6 +870,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     #[track_caller]
     pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+        if self.compilation_paused.load(Ordering::Acquire) {
+            self.compilation_deferred
+                .lock()
+                .unwrap()
+                .push((task_id, priority));
+            return;
+        }
+
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
@@ -1099,6 +1114,53 @@ impl<B: Backend + 'static> TurboTasks<B> {
         {
             listener.await;
         }
+    }
+
+    /// Pause compilation. Task scheduling is deferred — file changes still
+    /// mark tasks dirty, but no recomputation happens until
+    /// [`Self::compile_and_resume`] is called.
+    pub fn pause_compilation(&self) {
+        self.compilation_paused.store(true, Ordering::Release);
+    }
+
+    /// Compile all deferred tasks in one batch, wait for the compilation
+    /// cycle to finish, then resume normal scheduling.
+    pub async fn compile_and_resume(&self) {
+        if !self.compilation_paused.swap(false, Ordering::AcqRel) {
+            return;
+        }
+
+        let deferred: Vec<(TaskId, TaskPriority)> = {
+            let mut buf = self.compilation_deferred.lock().unwrap();
+            take(&mut *buf)
+        };
+
+        if deferred.is_empty() {
+            return;
+        }
+
+        // Listen for the foreground-done event before scheduling, so we
+        // don't miss the signal if tasks complete very quickly.
+        let listener = self
+            .event_foreground_done
+            .listen_with_note(|| || "compile_and_resume".to_string());
+
+        // Schedule all deferred tasks
+        for (task_id, priority) in deferred {
+            self.begin_foreground_job();
+            self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
+            self.priority_runner.schedule(
+                &self.pin(),
+                ScheduledTask::Task {
+                    task_id,
+                    span: Span::current(),
+                },
+                priority,
+            );
+        }
+
+        // Wait for the compilation cycle to finish
+        listener.await;
     }
 
     pub async fn stop_and_wait(&self) {

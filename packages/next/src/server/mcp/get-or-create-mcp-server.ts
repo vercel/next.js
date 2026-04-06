@@ -6,6 +6,10 @@ import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
+import {
+  registerPauseCompilationTool,
+  registerCompileAndResumeTool,
+} from './tools/manual-compile'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
 import type { Project } from '../../build/swc/types'
@@ -20,6 +24,8 @@ export interface McpServerOptions {
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
   getTurbopackProject?: () => Project | undefined
+  pauseCompilation: () => void
+  compileAndResume: () => Promise<void>
 }
 
 let mcpServer: McpServer | undefined
@@ -61,6 +67,9 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
   }
+
+  registerPauseCompilationTool(mcpServer, options.pauseCompilation)
+  registerCompileAndResumeTool(mcpServer, options.compileAndResume)
 
   return mcpServer
 }

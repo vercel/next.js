@@ -260,6 +260,8 @@ export type McpToolName =
   | 'mcp/get_routes'
   | 'mcp/get_server_action_by_id'
   | 'mcp/get_compilation_issues'
+  | 'mcp/pause_compilation'
+  | 'mcp/compile_and_resume'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName
