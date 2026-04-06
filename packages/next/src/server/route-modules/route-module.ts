@@ -682,7 +682,7 @@ export abstract class RouteModule<
     if (!parsedUrl) {
       return
     }
-    let isNextDataRequest = Boolean(req.headers['x-nextjs-data'])
+    let isNextDataRequest = false
 
     if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
       isNextDataRequest = true
