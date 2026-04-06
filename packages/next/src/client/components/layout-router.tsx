@@ -207,8 +207,10 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
 
-        // If the element's top edge is already in the viewport, exit early.
-        if (topOfElementInViewport(domNode, viewportHeight)) {
+        // Force scroll to the top in old handler.
+        const scrollY = window.scrollY
+
+        if (scrollY === 0) {
           return
         }
 
@@ -316,8 +318,10 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(instance, viewportHeight)) {
+          // Force scroll to the top in new handler.
+          const scrollY = window.scrollY
+
+          if (scrollY === 0) {
             return
           }
 
