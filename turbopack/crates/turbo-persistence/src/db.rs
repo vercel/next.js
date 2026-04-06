@@ -1072,7 +1072,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         .collect::<Vec<_>>();
 
                     // Merge SST files
-                    let span = tracing::trace_span!("merge files");
+                    let span = tracing::trace_span!(
+                        "merge files",
+                        family = self.config.family_configs[family as usize].name
+                    );
                     enum PartialMergeResult<'l> {
                         Merged {
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
@@ -1445,7 +1448,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database read",
-            name = family,
+            name = self.config.family_configs[family].name,
             result_size = tracing::field::Empty
         )
         .entered();
@@ -1475,7 +1478,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database read multiple",
-            name = family,
+            name = self.config.family_configs[family].name,
             result_count = tracing::field::Empty,
             result_size = tracing::field::Empty
         )
@@ -1612,7 +1615,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         let span = tracing::trace_span!(
             "database batch read",
-            name = family,
+            name = self.config.family_configs[family].name,
             keys = keys.len(),
             not_found = tracing::field::Empty,
             deleted = tracing::field::Empty,
