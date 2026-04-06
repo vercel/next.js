@@ -207,10 +207,17 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
 
-        // Force scroll to the top in old handler.
-        const scrollY = window.scrollY
+        // Conditional scroll reset sticky header
+        const rect = domNode.getBoundingClientRect()
 
-        if (scrollY === 0) {
+        const elementsAtTop = document.elementsFromPoint(0, 0)
+
+        const isCoveredBySticky = elementsAtTop.some((el) => {
+          const style = window.getComputedStyle(el)
+          return style.position === 'fixed' || style.position === 'sticky'
+        })
+
+        if (rect.top >= 0 && rect.top <= viewportHeight && !isCoveredBySticky) {
           return
         }
 
@@ -318,10 +325,28 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
-          // Force scroll to the top in new handler.
-          const scrollY = window.scrollY
+          // Conditional scroll reset sticky header
+          const rect =
+            instance instanceof HTMLElement
+              ? instance.getBoundingClientRect()
+              : instance.getClientRects()[0]
 
-          if (scrollY === 0) {
+          if (!rect) return
+
+          // Detect fixed/sticky element at the top
+          const elementsAtTop = document.elementsFromPoint(0, 0)
+
+          const isCoveredBySticky = elementsAtTop.some((el) => {
+            const style = window.getComputedStyle(el)
+            return style.position === 'fixed' || style.position === 'sticky'
+          })
+
+          // If element is visible AND NOT covered → skip scroll
+          if (
+            rect.top >= 0 &&
+            rect.top <= viewportHeight &&
+            !isCoveredBySticky
+          ) {
             return
           }
 
