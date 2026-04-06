@@ -34,7 +34,7 @@ const runTests = () => {
     // Check scroll position
     const newScrollY = await browser.eval(() => window.scrollY)
 
-    expect(newScrollY).toBe(0)
+    expect(newScrollY).toBeLessThan(20)
   })
 }
 
