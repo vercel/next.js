@@ -178,7 +178,7 @@ export default async function Page() {
 // Before
 import { unstable_cache } from 'next/cache'
 
-const getCachedUser = unstable_cache(
+export const getCachedUser = unstable_cache(
   async (id: string) => getUser(id),
   ['my-app-user'],
   {
@@ -186,15 +186,13 @@ const getCachedUser = unstable_cache(
     tags: ['users'],
   }
 )
-
-const user = await getCachedUser('user-1')
 ```
 
 ```jsx filename="app/lib/data.js" switcher
 // Before
 import { unstable_cache } from 'next/cache'
 
-const getCachedUser = unstable_cache(
+export const getCachedUser = unstable_cache(
   async (id) => getUser(id),
   ['my-app-user'],
   {
@@ -202,36 +200,30 @@ const getCachedUser = unstable_cache(
     tags: ['users'],
   }
 )
-
-const user = await getCachedUser('user-1')
 ```
 
 ```tsx filename="app/lib/data.ts" switcher
 // After - Use 'use cache' with cacheLife and cacheTag
 import { cacheLife, cacheTag } from 'next/cache'
 
-async function getCachedUser(id: string) {
+export async function getCachedUser(id: string) {
   'use cache'
   cacheLife('hours')
   cacheTag('users')
   return getUser(id)
 }
-
-const user = await getCachedUser('user-1')
 ```
 
 ```jsx filename="app/lib/data.js" switcher
 // After - Use 'use cache' with cacheLife and cacheTag
 import { cacheLife, cacheTag } from 'next/cache'
 
-async function getCachedUser(id) {
+export async function getCachedUser(id) {
   'use cache'
   cacheLife('hours')
   cacheTag('users')
   return getUser(id)
 }
-
-const user = await getCachedUser('user-1')
 ```
 
 The `keyParts` array is not needed. `use cache` generates cache keys automatically from the function's arguments and closure variables. Use a [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) like `'hours'` or `'days'` to replace the `revalidate` option, or pass an [inline object](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) for exact seconds.
