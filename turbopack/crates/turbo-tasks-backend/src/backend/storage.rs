@@ -1,3 +1,10 @@
+//! In-memory task storage with snapshot support.
+//!
+//! [`Storage`] is a concurrent map from [`TaskId`] to [`TaskStorage`] that supports atomic
+//! snapshots for persistence. During normal operation, mutations are tracked via modified flags.
+//! When a snapshot is requested, accessed items create copy-on-write snapshots so the persistence
+//! layer can serialize a consistent view while mutations continue.
+
 use std::{
     cell::Cell,
     hash::Hash,
@@ -20,6 +27,9 @@ use crate::{
     },
 };
 
+/// Selects which categories of task data to load or operate on.
+///
+/// `Meta` and `Data` correspond to the two persistent storage categories. `All` loads both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TaskDataCategory {
     Meta,
@@ -45,6 +55,7 @@ impl TaskDataCategory {
     }
 }
 
+/// A non-composite task data category (either `Meta` or `Data`, but not `All`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SpecificTaskDataCategory {
     Meta,
@@ -76,6 +87,10 @@ enum ModifiedState {
     Snapshot(Option<Box<TaskStorage>>),
 }
 
+/// Concurrent in-memory store for task data with copy-on-write snapshot support.
+///
+/// Uses sharded `FxDashMap` for lock-free concurrent reads and fine-grained write locking.
+/// Tracks which tasks have been modified since the last snapshot via a separate `modified` map.
 pub struct Storage {
     snapshot_mode: AtomicBool,
     modified: FxDashMap<TaskId, ModifiedState>,
@@ -289,6 +304,9 @@ impl Storage {
     }
 }
 
+/// A write guard for a single task's storage entry.
+///
+/// Tracks modifications for snapshot persistence. Derefs to [`TaskStorage`] for direct access.
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
     inner: RefMut<'a, TaskId, Box<TaskStorage>>,
@@ -459,6 +477,10 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
+/// An iterator over modified tasks in a single shard during snapshot processing.
+///
+/// Yields serialized task data for each modified task. Holds a reference to the snapshot guard
+/// to keep snapshot mode active until all shards have been processed.
 pub struct SnapshotShard<'l, P> {
     direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
     modified: SmallVec<[TaskId; 4]>,

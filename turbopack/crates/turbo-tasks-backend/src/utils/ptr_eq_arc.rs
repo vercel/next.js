@@ -4,6 +4,9 @@ use std::{
     sync::Arc,
 };
 
+/// An `Arc<T>` wrapper that uses pointer equality for `Eq`/`Hash` instead of value equality.
+///
+/// Useful for identity-based deduplication (e.g., tracking in-progress operations by pointer).
 pub struct PtrEqArc<T>(Arc<T>);
 
 impl<T> PtrEqArc<T> {

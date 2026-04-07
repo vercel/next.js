@@ -1,3 +1,28 @@
+//! The execution and persistence backend for `turbo-tasks`.
+//!
+//! This crate provides [`TurboTasksBackend`], the primary implementation of the `Backend` trait
+//! from `turbo-tasks`. It manages task scheduling, dependency tracking, invalidation propagation,
+//! and persistent caching of computation results for Turbopack's incremental computation framework.
+//!
+//! # Getting started
+//!
+//! Create a backend by combining [`BackendOptions`] with a [`BackingStorage`] implementation:
+//!
+//! - [`turbo_backing_storage`] — High-performance storage using `turbo-persistence` (recommended)
+//! - [`lmdb_backing_storage`] — LMDB-based storage for debugging (requires `lmdb` feature)
+//! - [`noop_backing_storage`] — In-memory only, no persistence (for tests)
+//! - [`default_backing_storage`] — Picks the best available implementation
+//!
+//! # Architecture
+//!
+//! The backend uses snapshot-based persistence: modifications accumulate in memory during normal
+//! operation, then are batch-written to disk when the system is idle. Operations are resumable
+//! (serializable as enums) and can suspend at safe points during snapshots.
+//!
+//! Tasks form an aggregation tree for efficient dirty-state propagation. Each task's state is
+//! stored in a generated `TaskStorage` struct with fields organized into meta (persisted, rarely
+//! changed), data (persisted, frequently changed), and transient (memory-only) categories.
+
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(box_patterns)]
 

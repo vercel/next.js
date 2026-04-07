@@ -1,3 +1,17 @@
+//! Aggregation tree update algorithm.
+//!
+//! Tasks form a hierarchical aggregation tree where dirty/clean state and collectible counts
+//! propagate upward through aggregated counters. This module implements the incremental update
+//! algorithm that maintains these aggregated values as the task graph changes.
+//!
+//! The aggregation number determines a node's role:
+//! - Leaf nodes (`< LEAF_NUMBER`): Tracked individually by parent aggregation nodes.
+//! - Aggregating nodes (`>= LEAF_NUMBER`): Aggregate dirty counts from their subgraph.
+//! - Root nodes (`u32::MAX`): Represent the top of the aggregation tree.
+//!
+//! Updates are processed through an [`AggregationUpdateQueue`] that batches and deduplicates
+//! jobs for efficient graph traversal.
+
 use std::{
     cmp::max,
     collections::{VecDeque, hash_map::Entry as HashMapEntry},
@@ -94,6 +108,7 @@ pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
         .unwrap_or_default()
 }
 
+/// Input for computing how a task's dirty/clean state change affects aggregated counters.
 #[derive(Debug)]
 pub struct ComputeDirtyAndCleanUpdate {
     pub old_dirty_container_count: i32,
@@ -106,6 +121,7 @@ pub struct ComputeDirtyAndCleanUpdate {
     pub new_current_session_self_clean: bool,
 }
 
+/// The computed delta to propagate upward through the aggregation tree.
 pub struct ComputeDirtyAndCleanUpdateResult {
     pub dirty_count_update: i32,
     pub current_session_clean_update: i32,
@@ -167,6 +183,7 @@ impl ComputeDirtyAndCleanUpdateResult {
     }
 }
 
+/// Job: notify upper nodes that an inner node has gained new followers.
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersHasNewFollowersJob {
     #[bincode(with = "turbo_bincode::smallvec")]
@@ -181,6 +198,7 @@ impl From<InnerOfUppersHasNewFollowersJob> for AggregationUpdateJob {
     }
 }
 
+/// Job: notify upper nodes that an inner node has lost followers.
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct InnerOfUppersLostFollowersJob {
     #[bincode(with = "turbo_bincode::smallvec")]
@@ -195,6 +213,7 @@ impl From<InnerOfUppersLostFollowersJob> for AggregationUpdateJob {
     }
 }
 
+/// Job: propagate an aggregated data update to the given upper nodes.
 #[derive(Encode, Decode, Clone, Debug)]
 pub struct AggregatedDataUpdateJob {
     pub upper_ids: TaskIdVec,
@@ -322,6 +341,10 @@ impl AggregationUpdateJob {
     }
 }
 
+/// A value that is session-dependent: it is not serialized across restarts.
+///
+/// On deserialization, the value is reset to `T::default()`. This is used for counters
+/// that track per-session state (e.g., "clean in current session" counts).
 #[derive(Default, Encode, Decode, Clone, Copy, Debug)]
 #[bincode(decode_bounds = "T: Default", borrow_decode_bounds = "T: Default")]
 pub struct SessionDependent<T> {

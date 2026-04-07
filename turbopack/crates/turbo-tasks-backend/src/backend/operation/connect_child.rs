@@ -1,3 +1,9 @@
+//! Connecting a single child task to a parent in the task graph.
+//!
+//! [`ConnectChildOperation`] establishes a parent-child relationship between tasks,
+//! updating the aggregation tree to incorporate the child's data into the parent's
+//! aggregated state.
+
 use std::sync::Arc;
 
 use bincode::{Decode, Encode};
@@ -16,6 +22,9 @@ use crate::{
     utils::arc_or_owned::ArcOrOwned,
 };
 
+/// Resumable operation that connects a child task to a parent.
+///
+/// Progress states: `UpdateAggregation` -> `Done`.
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum ConnectChildOperation {

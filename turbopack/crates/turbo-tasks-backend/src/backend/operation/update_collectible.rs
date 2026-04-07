@@ -1,3 +1,9 @@
+//! Collectible resource tracking updates.
+//!
+//! [`UpdateCollectibleOperation`] updates the reference count of a collectible resource
+//! emitted by a task and propagates the change through the aggregation tree so that
+//! collectible readers can observe the updated counts.
+
 use std::cmp::min;
 
 use smallvec::SmallVec;
@@ -15,6 +21,7 @@ use crate::{
     data::CollectibleRef,
 };
 
+/// Updates a collectible's reference count on a task and propagates through aggregation.
 pub struct UpdateCollectibleOperation;
 
 impl UpdateCollectibleOperation {

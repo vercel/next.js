@@ -1,3 +1,10 @@
+//! Core data types for task state representation.
+//!
+//! This module defines the fundamental types used to represent task state in the backend:
+//! cell references, collectible references, output values, task execution state, and
+//! aggregation metadata. Types are either persistent (serializable via `Encode`/`Decode`)
+//! or transient (memory-only, using the `transient_traits!` macro for placeholder impls).
+
 use std::{
     fmt::{self, Debug, Display},
     pin::Pin,
@@ -38,6 +45,7 @@ macro_rules! transient_traits {
     };
 }
 
+/// A reference to a specific cell within a task.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CellRef {
     pub task: TaskId,
@@ -51,6 +59,7 @@ impl CellRef {
     }
 }
 
+/// A reference to a collectible resource (a typed cell emitted by a task).
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
@@ -64,6 +73,7 @@ impl CollectibleRef {
     }
 }
 
+/// A reference to all collectibles of a specific trait type within a task's subgraph.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
@@ -77,6 +87,7 @@ impl CollectiblesRef {
     }
 }
 
+/// The result of a task execution: a cell reference, a forwarded output, or an error.
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
@@ -98,6 +109,10 @@ impl OutputValue {
     }
 }
 
+/// Tracks whether a task's subgraph is "active" (i.e., should be kept up-to-date).
+///
+/// A task is active when any of: it is a root/once task, its `active_counter` is positive
+/// (incremented by dependents), or `active_until_clean` is set (caching activeness while dirty).
 #[derive(Debug)]
 pub struct ActivenessState {
     /// When this counter is > 0, the task is active.
@@ -212,12 +227,18 @@ impl Display for TransientTask {
 
 transient_traits!(TransientTask);
 
+/// Whether a task needs re-execution.
+///
+/// `Dirty(priority)` means the task is unconditionally dirty and should be scheduled.
+/// `SessionDependent` means the task was clean in a previous session but may be dirty in
+/// the current one (needs evaluation at scheduling time).
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
     Dirty(TaskPriority),
     SessionDependent,
 }
 
+/// The type of root task that makes a task unconditionally active.
 #[derive(Debug, Clone, Copy)]
 pub enum RootType {
     RootTask,
@@ -233,6 +254,7 @@ impl Display for RootType {
     }
 }
 
+/// Detailed state for a task that is currently executing.
 #[derive(Debug)]
 pub struct InProgressStateInner {
     pub stale: bool,
@@ -250,6 +272,7 @@ pub struct InProgressStateInner {
     pub new_children: FxHashSet<TaskId>,
 }
 
+/// The execution lifecycle state of a task.
 #[derive(Debug)]
 pub enum InProgressState {
     Scheduled {
@@ -265,6 +288,8 @@ pub enum InProgressState {
 
 transient_traits!(InProgressState);
 
+/// State for a cell that is being computed. Holds an event to notify readers when the cell
+/// content becomes available.
 #[derive(Debug)]
 pub struct InProgressCellState {
     pub event: Event,
@@ -282,6 +307,10 @@ impl InProgressCellState {
     }
 }
 
+/// A task's position in the aggregation tree hierarchy.
+///
+/// `base` is set explicitly (e.g., root tasks get `u32::MAX`). `distance` is computed from
+/// the number of children. `effective = max(base, distance)` determines the actual behavior.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,

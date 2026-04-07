@@ -1,3 +1,8 @@
+//! Batch connecting multiple children to a parent task.
+//!
+//! [`connect_children`] adds a set of new child tasks to a parent, updating the aggregation
+//! tree in bulk. For large batches, work is parallelized across worker threads.
+
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
@@ -12,6 +17,7 @@ use crate::backend::operation::{
     get_uppers, is_aggregating_node,
 };
 
+/// Connects a set of new children to a parent task, updating the aggregation tree in bulk.
 pub fn connect_children(
     ctx: &mut impl ExecuteContext<'_>,
     parent_task_id: TaskId,

@@ -3,6 +3,8 @@ use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHasher;
 
+/// A sharded data structure that distributes items across multiple mutex-protected slots
+/// to reduce lock contention in concurrent access patterns.
 pub struct Sharded<T, H = BuildHasherDefault<FxHasher>> {
     data: Box<[Mutex<T>]>,
     hasher: H,

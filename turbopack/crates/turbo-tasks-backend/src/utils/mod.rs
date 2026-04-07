@@ -1,3 +1,5 @@
+//! Utility data structures and helpers used throughout the backend.
+
 pub mod arc_or_owned;
 pub mod chunked_vec;
 pub mod dash_map_drop_contents;

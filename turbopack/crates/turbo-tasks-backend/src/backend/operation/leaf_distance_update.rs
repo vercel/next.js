@@ -1,3 +1,9 @@
+//! Leaf distance recomputation for task scheduling priority.
+//!
+//! The leaf distance is a monotonically increasing metric representing how far a task is from
+//! leaf nodes in the dependency graph. Tasks closer to leaves are prioritized for scheduling.
+//! Updates use a buffer zone to avoid frequent propagation of small distance changes.
+
 use std::{
     cmp::Reverse,
     collections::{BinaryHeap, hash_map::Entry},

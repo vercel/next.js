@@ -1,3 +1,8 @@
+//! Cell content updates and dependent invalidation.
+//!
+//! [`UpdateCellOperation`] handles writing new content to a task's cell, comparing the new
+//! value against the old one, and invalidating dependent tasks when the content has changed.
+
 use std::mem::take;
 
 use bincode::{Decode, Encode};
@@ -23,6 +28,7 @@ use crate::{
     data::CellRef,
 };
 
+/// Resumable operation that updates a cell's content and invalidates dependents.
 #[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {

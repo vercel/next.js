@@ -1,3 +1,13 @@
+//! Resumable task graph operations.
+//!
+//! All mutations to the task graph go through operations defined in this module. Operations
+//! implement [`Encode`]/[`Decode`] so they can be serialized mid-execution at snapshot suspension
+//! points and resumed after a restart. Each operation is an enum whose variants represent
+//! progress states (e.g., `MakeDirty` -> `AggregationUpdate` -> `Done`).
+//!
+//! The [`ExecuteContext`] trait provides task locking, storage access, and suspension-point
+//! coordination. [`TaskGuard`] provides safe access to a single task's storage fields.
+
 mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
@@ -30,10 +40,18 @@ use crate::{
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
+/// A resumable, serializable task graph operation.
+///
+/// Operations encode their progress state via `Encode`/`Decode`, allowing them to be
+/// suspended at snapshot boundaries and resumed later (or after a restart).
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
     fn execute(self, ctx: &mut impl ExecuteContext<'_>);
 }
 
+/// Execution environment for operations.
+///
+/// Provides task locking, batch prefetching from backing storage, scheduling, and
+/// snapshot suspension points. Operations interact with task data exclusively through this trait.
 pub trait ExecuteContext<'e>: Sized {
     type TaskGuardImpl: TaskGuard + 'e;
     fn child_context<'l, 'r>(&'r self) -> impl ChildExecuteContext<'l> + use<'e, 'l, Self>
@@ -95,6 +113,7 @@ pub trait ExecuteContext<'e>: Sized {
     fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId>;
 }
 
+/// A lightweight context factory for creating child [`ExecuteContext`]s on worker threads.
 pub trait ChildExecuteContext<'e>: Send + Sized {
     fn create(self) -> impl ExecuteContext<'e>;
 }
@@ -145,6 +164,10 @@ impl TaskLockCounter {
     }
 }
 
+/// Concrete [`ExecuteContext`] implementation backed by [`TurboTasksBackendInner`].
+///
+/// Manages a read transaction for lazy restoration from backing storage, and holds an
+/// operation guard that participates in snapshot coordination.
 pub struct ExecuteContextImpl<'e, B: BackingStorage> {
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -641,6 +664,7 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
     }
 }
 
+/// Borrowed reference to a task's type (cached function or transient root/once task).
 pub enum TaskTypeRef<'l> {
     Cached(&'l Arc<CachedTaskType>),
     Transient(&'l Arc<TransientTask>),
@@ -664,6 +688,7 @@ impl Display for TaskTypeRef<'_> {
     }
 }
 
+/// Owned variant of [`TaskTypeRef`].
 pub enum TaskType {
     Cached(Arc<CachedTaskType>),
     Transient(Arc<TransientTask>),
@@ -678,6 +703,10 @@ impl Display for TaskType {
     }
 }
 
+/// Safe access to a single task's storage fields within an operation.
+///
+/// Provides methods for reading and writing task state (activeness, in-progress status,
+/// scheduling) while holding the appropriate storage lock.
 pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn id(&self) -> TaskId;
 
@@ -975,6 +1004,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
 }
 
+/// Concrete [`TaskGuard`] implementation holding a [`StorageWriteGuard`].
 pub struct TaskGuardImpl<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
@@ -1131,6 +1161,11 @@ macro_rules! impl_operation {
     };
 }
 
+/// Type-erased operation enum encompassing all operation types.
+///
+/// Used for serializing in-progress operations during snapshots and restoring them on startup.
+/// Operations that were interrupted mid-execution are stored as `AnyOperation` in the backing
+/// storage and replayed on the next session.
 #[derive(Encode, Decode, Clone)]
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
