@@ -1696,38 +1696,38 @@ function __turbopack_server_hmr_apply__(update) {
         return false;
     }
 }
-// Turbopack may produce multiple server runtime instances in the same Node.js
-// process (e.g. one under server/chunks/ssr/ for pages and one under
-// server/chunks/ for metadata routes). Each runtime runs this file exactly
-// once (Node.js require cache per absolute path), so each produces its own
-// __turbopack_server_hmr_apply__ closure that binds to its own moduleFactories
-// and devModuleCache.
-//
-// To ensure all runtime instances receive HMR updates, we maintain a shared
-// registry array on globalThis. The first runtime to register in each
-// "generation" (i.e. after the hot-reloader resets the array to []) also
-// installs a multicast dispatcher as the authoritative
-// globalThis.__turbopack_server_hmr_apply__. Every runtime (including the
-// first) pushes its own per-runtime handler into the registry.
-//
-// The hot-reloader resets __turbopack_server_hmr_handlers__ to [] on full
-// cache reset so stale handlers from evicted chunks don't accumulate.
-const _handlers = globalThis.__turbopack_server_hmr_handlers__ ?? [];
-if (_handlers.length === 0) {
-    // First registration in this generation: install the multicast dispatcher.
+// Turbopack produces one server runtime per chunking context (e.g.
+// server/chunks/ssr/ for pages, server/chunks/ for route handlers), each with
+// its own moduleFactories. We keep a globalThis Map from __filename to handler
+// so updates are routed only to runtimes whose chunkPrefix matches the update's
+// chunk paths, skipping unnecessary eval() calls. Map.set() naturally replaces
+// stale entries when a runtime file is re-evaluated after require.cache eviction.
+const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+if (handlers.size === 0) {
+    // First registration in this generation: install the routing dispatcher.
     globalThis.__turbopack_server_hmr_apply__ = (update)=>{
-        const fns = globalThis.__turbopack_server_hmr_handlers__;
-        // We intentionally multicast to all registered runtimes rather than
-        // stopping on the first that accepts. Multiple runtimes may need to apply
-        // the same update (e.g. pages SSR and metadata-route runtimes are separate
-        // instances with independent module factories). Each handler closes over its
-        // own runtime-local moduleFactories, so a module only applies in a runtime
-        // that actually owns it — there is no cross-runtime contamination and no
-        // need to filter by asset prefix.
+        const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        const toCall = [];
+        if (updateChunkPaths.length === 0) {
+            for (const entry of registry.values())toCall.push(entry);
+        } else {
+            const seen = new Set();
+            for (const chunkPath of updateChunkPaths){
+                const dir = path.dirname(chunkPath);
+                for (const [key, entry] of registry){
+                    if (dir === entry.chunkPrefix && !seen.has(key)) {
+                        seen.add(key);
+                        toCall.push(entry);
+                    }
+                }
+            }
+        }
         let applied = false;
-        for (const fn of fns){
+        for (const { handler } of toCall){
             try {
-                if (fn(update)) applied = true;
+                if (handler(update)) applied = true;
             } catch (err) {
                 console.error('[Server HMR] Handler error:', err);
             }
@@ -1735,8 +1735,11 @@ if (_handlers.length === 0) {
         return applied;
     };
 }
-globalThis.__turbopack_server_hmr_handlers__ = _handlers;
-_handlers.push(__turbopack_server_hmr_apply__);
+globalThis.__turbopack_server_hmr_handlers__ = handlers;
+handlers.set(__filename, {
+    handler: __turbopack_server_hmr_apply__,
+    chunkPrefix
+});
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map

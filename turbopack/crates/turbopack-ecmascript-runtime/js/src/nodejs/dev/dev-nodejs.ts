@@ -60,14 +60,17 @@ if (handlers.size === 0) {
       globalThis.__turbopack_server_hmr_handlers__ ?? new Map()
     const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {})
 
-    const toCall = new Set<HmrHandlerEntry>()
+    const toCall: HmrHandlerEntry[] = []
     if (updateChunkPaths.length === 0) {
-      for (const entry of registry.values()) toCall.add(entry)
+      for (const entry of registry.values()) toCall.push(entry)
     } else {
+      const seen = new Set<string>()
       for (const chunkPath of updateChunkPaths) {
-        for (const entry of registry.values()) {
-          if (chunkPath.startsWith(`${entry.chunkPrefix}/`)) {
-            toCall.add(entry)
+        const dir = path.dirname(chunkPath)
+        for (const [key, entry] of registry) {
+          if (dir === entry.chunkPrefix && !seen.has(key)) {
+            seen.add(key)
+            toCall.push(entry)
           }
         }
       }
