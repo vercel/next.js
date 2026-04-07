@@ -3,6 +3,8 @@ packages:
 injectWorkspacePackages: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
+  - react
+  - react-dom
   - '@next/*'
   - 'next'
   - '@turbo/*'
