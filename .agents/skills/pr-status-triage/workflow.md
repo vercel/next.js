@@ -39,6 +39,12 @@ After addressing a review comment (e.g., making the requested code change), or w
    node scripts/pr-status.js resolve-thread <threadNodeId>
    ```
 
+Or do both in one step:
+
+```bash
+node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> "Done -- <description of changes>"
+```
+
 The ready-to-use commands with the correct thread IDs are at the bottom of each `thread-N.md` file in `scripts/pr-status/`.
 
 **Important:** Always reply with a description of the actions taken before resolving. This gives the reviewer context about what changed.
