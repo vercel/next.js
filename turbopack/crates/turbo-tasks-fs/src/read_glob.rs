@@ -232,7 +232,7 @@ pub mod tests {
     };
 
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{Completion, OperationVc, ReadRef, Vc, apply_effects};
+    use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc, take_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
@@ -486,10 +486,9 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    async fn apply_effects_operation(op: OperationVc<()>) -> anyhow::Result<()> {
-        op.read_strongly_consistent().await?;
-        apply_effects(op).await?;
-        Ok(())
+    async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+        let _ = op.resolve().strongly_consistent().await?;
+        Ok(take_effects(op).await?.cell())
     }
 
     #[turbo_tasks::function(operation)]
@@ -559,8 +558,10 @@ pub mod tests {
                 .await?;
 
             // Delete a file that we shouldn't be tracking
-            apply_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?))
+            extract_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
@@ -569,8 +570,10 @@ pub mod tests {
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            apply_effects_operation(delete(root.join("dir/foo")?))
+            extract_effects_operation(delete(root.join("dir/foo")?))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
@@ -580,8 +583,10 @@ pub mod tests {
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Modify a symlink target file
-            apply_effects_operation(write(root.join("link_target.js")?, rcstr!("new_contents")))
+            extract_effects_operation(write(root.join("link_target.js")?, rcstr!("new_contents")))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
             let read_dir3 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()

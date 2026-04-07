@@ -8,7 +8,7 @@ const PROGRESS_INTERVAL: Duration = Duration::from_secs(1);
 use clap::Args;
 use rand::{RngExt, SeedableRng};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, apply_effects};
+use turbo_tasks::{Effects, OperationVc, ResolvedVc, TryJoinIterExt, Vc, take_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
@@ -28,6 +28,12 @@ pub struct SymlinkStress {
     /// How long to run the stress test for.
     #[arg(long, default_value_t = 5)]
     duration_secs: u64,
+}
+
+#[turbo_tasks::function(operation)]
+async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
@@ -76,10 +82,15 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
 
         println!("creating {symlink_count} initial symlinks...");
 
-        let initial_op =
-            create_initial_symlinks_operation(symlinks_path.clone(), symlink_count, initial_target);
-        initial_op.read_strongly_consistent().await?;
-        apply_effects(initial_op).await?;
+        extract_effects_operation(create_initial_symlinks_operation(
+            symlinks_path.clone(),
+            symlink_count,
+            initial_target,
+        ))
+        .read_strongly_consistent()
+        .await?
+        .apply()
+        .await?;
 
         println!(
             "starting stress test with parallelism={} for {}s...",
@@ -109,9 +120,14 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
                 .collect();
 
             // Execute writes in parallel via turbo-tasks
-            let write_op = write_symlinks_batch_operation(symlinks_path.clone(), updates);
-            write_op.read_strongly_consistent().await?;
-            apply_effects(write_op).await?;
+            extract_effects_operation(write_symlinks_batch_operation(
+                symlinks_path.clone(),
+                updates,
+            ))
+            .read_strongly_consistent()
+            .await?
+            .apply()
+            .await?;
 
             total_writes += parallelism as u64;
 

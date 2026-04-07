@@ -14,8 +14,8 @@ use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
+    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -213,28 +213,51 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-        let result = emit_op.read_strongly_consistent().owned().await?;
-        apply_effects(emit_op).await?;
-
-        Ok(result)
-    })
-    .await
-}
-
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(
-    resource: RcStr,
-    snapshot_mode: IssueSnapshotMode,
-) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource).to_resolved().await?;
-    let run_result_op = run_test_operation(prepared_test);
-    if snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(*prepared_test, run_result_op).await?;
+    #[turbo_tasks::value(serialization = "none")]
+    struct JsResultWithEffects {
+        result: ReadRef<JsResult>,
+        effects: Effects,
     }
 
-    Ok(*run_result_op.connect().await?.js_result)
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResult>> {
+        let prepared_test = prepare_test(resource).to_resolved().await?;
+        let run_result_op = run_test_operation(prepared_test);
+        if snapshot_mode == IssueSnapshotMode::Snapshots {
+            snapshot_issues(*prepared_test, run_result_op).await?;
+        }
+
+        let result = (*run_result_op.connect().await?.js_result.await?).clone();
+
+        Ok(result.cell())
+    }
+
+    /// Wrapper operation that collects all effects (including snapshot issue file writes) from
+    /// [`run_inner_operation`].
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation_with_effects(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResultWithEffects>> {
+        let op = run_inner_operation(resource, snapshot_mode);
+        let result = op.connect().await?.clone();
+        let effects = take_effects(op).await?;
+        Ok(JsResultWithEffects { result, effects }.cell())
+    }
+
+    tt.run_once(async move {
+        let result_with_effects =
+            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
+                .read_strongly_consistent()
+                .await?;
+        result_with_effects.effects.apply().await?;
+
+        Ok((*result_with_effects.result).clone())
+    })
+    .await
 }
 
 #[derive(

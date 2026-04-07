@@ -15,7 +15,8 @@ use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TransientInstance, Vc, apply_effects, trace::TraceRawVcs,
+    Effects, NonLocalValue, OperationVc, ResolvedVc, TransientInstance, Vc, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
@@ -88,6 +89,12 @@ impl SymlinkMode {
 #[derive(Default, NonLocalValue, TraceRawVcs)]
 struct PathInvalidations(#[turbo_tasks(trace_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
 
+#[turbo_tasks::function(operation)]
+async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
+}
+
 pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
     std::fs::create_dir(&args.fs_root)?;
     let fs_root = args.fs_root.canonicalize()?;
@@ -135,7 +142,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         let symlink_is_directory =
             symlink_mode.map(|m| m.to_link_type().contains(LinkType::DIRECTORY));
 
-        let initial_op = read_or_write_all_paths_operation(
+        let effects = extract_effects_operation(read_or_write_all_paths_operation(
             invalidations.clone(),
             project_root.clone(),
             args.depth,
@@ -143,10 +150,11 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             symlink_count,
             symlink_is_directory,
             track_writes,
-        );
-        initial_op.read_strongly_consistent().await?;
+        ))
+        .read_strongly_consistent()
+        .await?;
         if track_writes {
-            apply_effects(initial_op).await?;
+            effects.apply().await?;
             let (total, mismatched) = verify_written_files(
                 &fs_root,
                 args.depth,
@@ -220,7 +228,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
             // there's no way to know when we've received all the pending events from the operating
             // system, so just sleep and pray
             sleep(Duration::from_millis(args.notify_timeout_ms)).await;
-            let read_or_write_op = read_or_write_all_paths_operation(
+            let effects = extract_effects_operation(read_or_write_all_paths_operation(
                 invalidations.clone(),
                 project_root.clone(),
                 args.depth,
@@ -228,15 +236,16 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 symlink_count,
                 symlink_is_directory,
                 track_writes,
-            );
-            read_or_write_op.read_strongly_consistent().await?;
+            ))
+            .read_strongly_consistent()
+            .await?;
             let symlink_info = if args.symlinks.is_some() {
                 " and symlinks"
             } else {
                 ""
             };
             if track_writes {
-                apply_effects(read_or_write_op).await?;
+                effects.apply().await?;
                 let (total, mismatched) = verify_written_files(
                     &fs_root,
                     args.depth,

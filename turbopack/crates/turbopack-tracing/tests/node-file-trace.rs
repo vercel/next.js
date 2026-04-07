@@ -28,7 +28,8 @@ use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
+    Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -345,12 +346,18 @@ fn bench_against_node_nft_inner(input: CaseInput) {
     });
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct NodeFileTraceResult {
+    rebased: ResolvedVc<RebasedAsset>,
+    effects: Effects,
+}
+
 #[turbo_tasks::function(operation)]
 async fn node_file_trace_operation(
     package_root: RcStr,
     input: RcStr,
     directory: RcStr,
-) -> Result<Vc<RebasedAsset>> {
+) -> Result<Vc<NodeFileTraceResult>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
         package_root.clone(),
@@ -426,9 +433,9 @@ async fn node_file_trace_operation(
 
     let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
-    apply_effects(emit_op).await?;
+    let effects = take_effects(emit_op).await?;
 
-    Ok(*rebased)
+    Ok(NodeFileTraceResult { rebased, effects }.cell())
 }
 
 fn node_file_trace<B: Backend + 'static>(
@@ -480,14 +487,15 @@ fn node_file_trace<B: Backend + 'static>(
             let directory = directory.clone();
             let task = async move {
                 let before_start = Instant::now();
-                let rebased = node_file_trace_operation(
+                let trace_result = node_file_trace_operation(
                     package_root.clone(),
                     input.clone(),
                     directory.clone(),
                 )
-                .resolve()
-                .strongly_consistent()
+                .read_strongly_consistent()
                 .await?;
+                trace_result.effects.apply().await?;
+                let rebased = trace_result.rebased;
                 let duration = before_start.elapsed();
 
                 print_graph_operation(ResolvedVc::upcast(rebased))

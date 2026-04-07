@@ -3,13 +3,11 @@ use std::{
     error::Error as StdError,
     future::Future,
     mem::replace,
-    panic,
     pin::Pin,
     sync::Arc,
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,6 +18,7 @@ use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     emit,
     event::{Event, EventListener},
+    manager::{debug_assert_in_top_level_task, debug_assert_not_in_top_level_task},
     spawn,
     trace::TraceRawVcs,
 };
@@ -179,7 +178,8 @@ impl EffectInstance {
 #[turbo_tasks::value_impl]
 impl EffectCollectible for EffectInstance {}
 
-/// Emits an effect to be applied. The effect is executed once `apply_effects` is called.
+/// Emits an effect to be applied. The effect is executed once [`Effects::apply`] is called (see
+/// [`take_effects`]).
 ///
 /// The effect will only executed once. The effect is executed outside of the current task
 /// and can't read any Vcs. These need to be read before. ReadRefs can be passed into the effect.
@@ -193,75 +193,67 @@ pub fn emit_effect(effect: impl Effect) {
     ));
 }
 
-/// Applies all effects that have been emitted by an operations.
+/// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
 ///
-/// Usually it's important that effects are strongly consistent, so one want to use `apply_effects`
-/// only on operations that have been strongly consistently read before.
+/// Collectibles are read from `ResolvedVc`s, so this function, and the return value of this
+/// function should be applied with [`Effect::apply`].
 ///
-/// The order of execution is not defined and effects are executed in parallel.
-///
-/// `apply_effects` must only be used in a "once" task. When used in a "root" task, a
-/// combination of `get_effects` and `Effects::apply` must be used.
-///
-/// # Example
-///
-/// ```rust
-/// let operation = some_turbo_tasks_function(args);
-/// let result = operation.strongly_consistent().await?;
-/// apply_effects(operation).await?;
-/// ```
-pub async fn apply_effects(source: impl CollectiblesSource) -> Result<()> {
-    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>> = source.take_collectibles();
-    if effects.is_empty() {
-        return Ok(());
-    }
-    let span = tracing::info_span!("apply effects", count = effects.len());
-    APPLY_EFFECTS_CONTEXT
-        .scope(Default::default(), async move {
-            // Limit the concurrency of effects
-            futures::stream::iter(effects)
-                .map(Ok)
-                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
-                    let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect)
-                    else {
-                        panic!("Effect must only be implemented by EffectInstance");
-                    };
-                    effect.await?.apply().await
-                })
-                .await
-        })
-        .instrument(span)
-        .await
-}
-
-/// Capture effects from an turbo-tasks operation. Since this captures collectibles it might
-/// invalidate the current task when effects are changing or even temporary change.
-///
-/// Therefore it's important to wrap this in a strongly consistent read before applying the effects
-/// with `Effects::apply`.
+/// It's important to wrap calls to this function in an [operation with a strongly consistent
+/// read][crate::OperationVc::read_strongly_consistent] before applying the effects outside of the
+/// operation at the top-level (e.g. in a `run_once` closure) with [`Effects::apply`].
 ///
 /// # Example
 ///
 /// ```rust
-/// async fn some_turbo_tasks_function_with_effects(args: Args) -> Result<ResultWithEffects> {
-///     let operation = some_turbo_tasks_function(args);
-///     let result = operation.strongly_consistent().await?;
-///     let effects = get_effects(operation).await?;
-///     Ok(ResultWithEffects { result, effects })
+/// # #![feature(arbitrary_self_types_pointers)]
+/// #
+/// # use anyhow::Result;
+/// # use turbo_tasks::{Effects, ReadRef, Vc, run_once, take_effects};
+/// #
+/// # async fn _wrapper() -> Result<()> {
+/// # type Example = ();
+/// # type Args = ();
+/// # let args = ();
+/// # #[turbo_tasks::function(operation)]
+/// # fn some_turbo_tasks_operation(_args: Args) {}
+/// #
+/// #[turbo_tasks::value(serialization = "none")]
+/// struct OutputWithEffects {
+///     output: ReadRef<Example>,
+///     effects: Effects,
 /// }
 ///
-/// let result_with_effects = some_turbo_tasks_function_with_effects(args).strongly_consistent().await?;
+/// // ensure the return value and the collectibles match by using a single operation for both
+/// #[turbo_tasks::function(operation)]
+/// async fn some_turbo_tasks_operation_with_effects(args: Args) -> Result<Vc<OutputWithEffects>> {
+///     let operation = some_turbo_tasks_operation(args);
+///     // we must first read the operation to populate the collectibles
+///     let output = operation.connect().await?;
+///     // read the effects from the collectibles
+///     let effects = take_effects(operation).await?;
+///     Ok(OutputWithEffects { output, effects }.cell())
+/// }
+///
+/// // every operation must be read with strong consistency at the top-level
+/// let result_with_effects = some_turbo_tasks_operation_with_effects(args)
+///     .read_strongly_consistent()
+///     .await?;
+///
+/// // apply the effects once outside of a turbo_tasks::function at the top-level (e.g. `run_once`)
 /// result_with_effects.effects.apply().await?;
+/// # Ok(())
+/// # }
 /// ```
-pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
-    let effects: AutoSet<ResolvedVc<Box<dyn EffectCollectible>>> = source.take_collectibles();
-    let effects = effects
+pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
+    debug_assert_not_in_top_level_task("take_effects");
+    let effects = source
+        .take_collectibles::<Box<dyn EffectCollectible>>()
         .into_iter()
-        .map(|effect| async move {
+        .map(|effect| {
             if let Some(effect) = ResolvedVc::try_downcast_type::<EffectInstance>(effect) {
-                Ok(effect.await?)
+                effect
             } else {
-                panic!("Effect must only be implemented by EffectInstance");
+                unreachable!("EffectCollectible must only be implemented by EffectInstance");
             }
         })
         .try_join()
@@ -299,12 +291,27 @@ impl Eq for Effects {}
 
 impl Effects {
     /// Applies all effects that have been captured by this struct.
+    ///
+    /// The order of execution is not defined and effects are executed in parallel.
+    ///
+    /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]), after
+    /// [`take_effects`] is called from an [operation read with strong
+    /// consistency][crate::OperationVc::read_strongly_consistent].
+    ///
+    /// See [`take_effects`] for example usage.
     pub async fn apply(&self) -> Result<()> {
+        debug_assert_in_top_level_task(
+            "Effects::apply must be called from a top-level task to avoid unintended \
+             re-executions due to eventual consistency",
+        );
         let span = tracing::info_span!("apply effects", count = self.effects.len());
+        if self.effects.is_empty() {
+            return Ok(());
+        }
         APPLY_EFFECTS_CONTEXT
             .scope(Default::default(), async move {
                 // Limit the concurrency of effects
-                futures::stream::iter(self.effects.iter())
+                futures::stream::iter(&self.effects)
                     .map(Ok)
                     .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |effect| {
                         effect.apply().await
@@ -381,17 +388,22 @@ impl ApplyEffectsContext {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CollectiblesSource, apply_effects, get_effects};
+    use crate::{CollectiblesSource, Effects, take_effects};
 
     #[test]
     #[allow(dead_code)]
     fn is_sync_and_send() {
         fn assert_sync<T: Sync + Send>(_: T) {}
-        fn check_apply_effects<T: CollectiblesSource + Send + Sync>(t: T) {
-            assert_sync(apply_effects(t));
+        fn check_effects_apply() {
+            assert_sync(
+                Effects {
+                    effects: Vec::new(),
+                }
+                .apply(),
+            );
         }
-        fn check_get_effects<T: CollectiblesSource + Send + Sync>(t: T) {
-            assert_sync(get_effects(t));
+        fn check_take_effects<T: CollectiblesSource + Send + Sync>(t: T) {
+            assert_sync(take_effects(t));
         }
     }
 }

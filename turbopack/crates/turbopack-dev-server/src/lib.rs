@@ -30,8 +30,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, get_effects,
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
+    take_effects, trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
@@ -66,7 +66,7 @@ async fn get_source_with_issues_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<ContentSourceWithIssues>> {
     let _ = source_op.resolve().strongly_consistent().await?;
-    let effects = get_effects(source_op).await?;
+    let effects = take_effects(source_op).await?;
     Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
 

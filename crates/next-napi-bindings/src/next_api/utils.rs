@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, get_effects,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, take_effects,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -486,7 +486,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
     let diagnostics = get_diagnostics(source_op).await?;
-    let effects = Arc::new(get_effects(source_op).await?);
+    let effects = Arc::new(take_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None

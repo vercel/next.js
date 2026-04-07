@@ -12,7 +12,9 @@ use next_api::{
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
+use turbo_tasks::{
+    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, take_effects,
+};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -186,21 +188,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            endpoint_write_to_disk_with_effects(*html_endpoint).await?;
+                            endpoint_write_to_disk_with_apply(html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint_write_to_disk_with_effects(*endpoint).await?;
+                            endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                endpoint_write_to_disk_with_effects(*route.html_endpoint).await?;
+                                endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint_write_to_disk_with_effects(*endpoint).await?;
+                            endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
@@ -243,21 +245,43 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
-#[turbo_tasks::function]
-async fn endpoint_write_to_disk_with_effects(
+async fn endpoint_write_to_disk_with_apply(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
-) -> Result<Vc<EndpointOutputPaths>> {
-    let op = endpoint_write_to_disk_operation(endpoint);
-    let result = op.resolve().strongly_consistent().await?;
-    get_effects(op).await?.apply().await?;
-    Ok(*result)
-}
+) -> Result<ReadRef<EndpointOutputPaths>> {
+    #[turbo_tasks::function(operation)]
+    fn inner_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutputPaths> {
+        // we must wrap this in an operation so we can get the Effects collectibles
+        endpoint_write_to_disk(*endpoint)
+    }
 
-#[turbo_tasks::function(operation)]
-pub fn endpoint_write_to_disk_operation(
-    endpoint: ResolvedVc<Box<dyn Endpoint>>,
-) -> Vc<EndpointOutputPaths> {
-    endpoint_write_to_disk(*endpoint)
+    #[turbo_tasks::value(serialization = "none")]
+    struct WithEffects {
+        output_paths: ReadRef<EndpointOutputPaths>,
+        effects: Effects,
+    }
+
+    #[turbo_tasks::function(operation)]
+    pub async fn inner_operation_with_effects(
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Result<Vc<WithEffects>> {
+        let op = inner_operation(endpoint);
+        let output_paths = op.read_strongly_consistent().await?;
+        let effects = take_effects(op).await?;
+        Ok(WithEffects {
+            output_paths,
+            effects,
+        }
+        .cell())
+    }
+
+    let op = inner_operation_with_effects(endpoint);
+    let WithEffects {
+        output_paths,
+        effects,
+    } = &*op.read_strongly_consistent().await?;
+    effects.apply().await?;
+
+    Ok(output_paths.clone())
 }
 
 async fn hmr(
