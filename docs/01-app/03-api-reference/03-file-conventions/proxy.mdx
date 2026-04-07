@@ -201,11 +201,7 @@ To produce a response from Proxy, you can:
 
 ## Execution order
 
-Proxy will be invoked for **every route in your project**. Given this, it's crucial to use [matchers](#matcher) to precisely target or exclude specific routes.
-
-> **Good to know**: Without a configured `matcher`, Proxy runs on **every request**, including `_next/static` (CSS/JS bundles), `_next/image` (image optimizations), and files served from the `public/` folder (like `favicon.ico`). If your Proxy performs redirects or access control without excluding these paths, static assets may fail to load. See [Negative matching](#negative-matching) for an example of how to exclude them.
-
-The following is the execution order:
+Proxy will be invoked for **every route in your project**. Given this, it's crucial to use [matchers](#matcher) to precisely target or exclude specific routes. The following is the execution order:
 
 1. `headers` from `next.config.js`
 2. `redirects` from `next.config.js`
