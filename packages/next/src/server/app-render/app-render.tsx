@@ -42,7 +42,8 @@ import {
   continueFizzStream,
   continueDynamicPrerender,
   continueStaticPrerender,
-  continueDynamicHTMLResume,
+  continueDynamicHTMLResumeNode,
+  continueDynamicHTMLResumeWeb,
   continueStaticFallbackPrerender,
   streamToBuffer,
   streamToString,
@@ -3783,7 +3784,7 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createWebInlinedDataStream(
+            const inlinedDataStream = createNodeInlinedDataStream(
               reactServerResult.tee(),
               nonce,
               formState
@@ -3834,10 +3835,10 @@ async function renderToStream(
               if (renderSpan.isRecording()) renderSpan.end()
             })
 
-            return await continueDynamicHTMLResume(htmlStream, {
+            return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createWebInlinedDataStream(
+              inlinedDataStream: createNodeInlinedDataStream(
                 reactServerResult.consume(),
                 nonce,
                 formState
@@ -3973,7 +3974,7 @@ async function renderToStream(
               if (renderSpan.isRecording()) renderSpan.end()
             })
 
-            return await continueDynamicHTMLResume(htmlStream, {
+            return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
               inlinedDataStream: createWebInlinedDataStream(
