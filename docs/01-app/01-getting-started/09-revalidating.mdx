@@ -192,3 +192,5 @@ See the [`revalidatePath` API reference](/docs/app/api-reference/functions/reval
 Cache data that doesn't depend on [runtime data](/docs/app/getting-started/caching#working-with-runtime-apis) and that you're OK serving from cache for a period of time. Use `use cache` with `cacheLife` to describe that behavior.
 
 For content management systems with update mechanisms, use tags with longer cache durations and rely on `revalidateTag` to refresh content when it actually changes, rather than expiring the cache preemptively.
+
+> **Good to know:** In serverless environments, in-memory cache entries may not persist across revalidations. See [runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for details.

@@ -201,8 +201,10 @@ Runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance). Build-time caching works normally.                              |
+| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally.      |
 | **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+
+For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
