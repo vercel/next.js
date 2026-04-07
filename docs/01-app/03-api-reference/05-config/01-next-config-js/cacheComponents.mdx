@@ -43,7 +43,7 @@ Some UI patterns behave differently when components stay mounted instead of unmo
 
 ## Migrating from experimental flags
 
-If your project uses `experimental.useCache` or `experimental.dynamicIO`, replace them with top-level `cacheComponents: true`. The experimental flags are still supported for backwards compatibility, but `cacheComponents` is the preferred option.
+If your project uses `experimental.useCache` or `experimental.dynamicIO`, replace them with top-level `cacheComponents: true`. These experimental flags are removed in Next.js 16.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
