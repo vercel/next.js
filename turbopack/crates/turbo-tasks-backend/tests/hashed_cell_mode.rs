@@ -70,7 +70,7 @@ async fn consume_hashed(input: ResolvedVc<Step>) -> Result<Vc<ConsumeResult>> {
 async fn test_hashed_cell_mode_change_triggers_invalidation() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();
-        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
         state.set(42);
 
@@ -101,7 +101,7 @@ async fn test_hashed_cell_mode_change_triggers_invalidation() {
 async fn test_hashed_cell_mode_equal_value_no_invalidation() {
     run(&REGISTRATION, || async {
         let state_op = create_state_operation();
-        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
         state.set(42);
 
