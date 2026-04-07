@@ -496,11 +496,13 @@ export async function handler(
     req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
   const segmentPrefetchHeader =
     getRequestMeta(req, 'segmentPrefetchRSCRequest') ??
-    (typeof rawSegmentPrefetchHeader === 'string'
-      ? rawSegmentPrefetchHeader
-      : Array.isArray(rawSegmentPrefetchHeader)
-        ? rawSegmentPrefetchHeader[0]
-        : undefined)
+    (isPrefetchRSCRequest
+      ? typeof rawSegmentPrefetchHeader === 'string'
+        ? rawSegmentPrefetchHeader
+        : Array.isArray(rawSegmentPrefetchHeader)
+          ? rawSegmentPrefetchHeader[0]
+          : undefined
+      : undefined)
 
   // TODO: investigate existing bug with shouldServeStreamingMetadata always
   // being true for a revalidate due to modifying the base-server this.renderOpts

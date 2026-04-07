@@ -90,6 +90,41 @@ describe('normalizeNextData - beforeMiddleware', () => {
   })
 })
 
+describe('normalizeNextData - middleware matchers', () => {
+  it('should match middleware against normalized pathname for data URLs', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/_next/data/BUILD_ID/blog/post.json'),
+      basePath: '',
+      pathnames: ['/_next/data/BUILD_ID/blog/post.json'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/blog/post$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+        shouldNormalizeNextData: true,
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+    expect(middlewareMock.mock.calls[0][0].url.pathname).toBe(
+      '/_next/data/BUILD_ID/blog/post.json'
+    )
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/blog/post.json')
+  })
+})
+
 describe('normalizeNextData - pathname checking', () => {
   it('should denormalize before checking pathnames after beforeFiles', async () => {
     const params = createBaseParams({

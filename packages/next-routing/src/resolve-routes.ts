@@ -730,9 +730,15 @@ export async function resolveRoutes(
 
   currentUrl = beforeMiddlewareResult.url
 
+  let middlewareInvocationUrl = currentUrl
+
   // Denormalize before invoking middleware if this was originally a data URL
   if (isDataUrl && shouldNormalizeNextData) {
-    currentUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
+    middlewareInvocationUrl = denormalizeNextDataUrl(
+      currentUrl,
+      basePath,
+      buildId
+    )
   }
 
   const shouldInvokeMiddleware = shouldInvokeMiddlewareForRequest(
@@ -745,7 +751,7 @@ export async function resolveRoutes(
   if (shouldInvokeMiddleware) {
     // Invoke middleware
     const middlewareResult = await invokeMiddleware({
-      url: currentUrl,
+      url: middlewareInvocationUrl,
       headers: currentRequestHeaders,
       requestBody,
     })
