@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
     ValueTypeId,
-    backend::{CachedTaskType, TransientTaskType},
+    backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
@@ -187,6 +187,11 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     stateful: bool,
 
+    /// Whether this task is new and needs its type persisted to the task cache.
+    /// Set when task is created, cleared after persisting.
+    #[field(storage = "flag", category = "transient")]
+    pub new_task: bool,
+
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
     // =========================================================================
@@ -274,6 +279,16 @@ struct TaskStorageSchema {
     /// Transient cell data (not serializable).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     transient_cell_data: AutoMap<CellId, SharedReference>,
+
+    /// Hash of transient cell data, persisted for hash-based change detection when
+    /// transient data has been evicted from memory.
+    ///
+    /// Stored as `[u8; 16]` (little-endian bytes of a u128) rather than `u128` to keep
+    /// the 1-byte alignment out of the `AutoMap` and therefore out of the `LazyField`
+    /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
+    /// alignment requirement.
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
+    cell_data_hash: AutoMap<CellId, CellHash>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
@@ -538,7 +553,8 @@ impl TaskStorage {
         task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
-        // Mark as fully restored since transient tasks don't need restoration from disk
+        // Mark as fully restored since transient tasks don't need restoration from disk,
+        // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.

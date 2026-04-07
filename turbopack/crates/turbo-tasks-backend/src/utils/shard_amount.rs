@@ -11,7 +11,9 @@ use std::thread::available_parallelism;
 /// The returned number is always a power of two as this is often required
 /// by sharded data structures. The maximum shard amount is capped at 1 << 16 (65536).
 pub fn compute_shard_amount(num_workers: Option<usize>, small_preallocation: bool) -> usize {
-    let num_workers = num_workers.unwrap_or_else(|| available_parallelism().map_or(4, |v| v.get()));
+    let num_workers = num_workers
+        .unwrap_or_else(|| available_parallelism().map_or(4, |v| v.get()))
+        .max(4);
 
     // Once can compute the probability of a shard collision (which leads to false sharing) using
     // the birthday paradox formula.  It's notable that the probability of collisions increases
