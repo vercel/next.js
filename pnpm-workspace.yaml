@@ -29,3 +29,11 @@ ignoredBuiltDependencies:
   - ssh2
   - unrs-resolver
   - wasm-pack
+minimumReleaseAge: 2880 # 48 hrs
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - 'next'
+  - '@turbo/*'
+  - 'turbo'
+  - '@vercel/*'
+  - '@workflow/*'
