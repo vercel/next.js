@@ -846,42 +846,77 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  const debugChannel = setReactDebugChannel && createWebDebugChannel()
+  if (process.env.__NEXT_USE_NODE_STREAMS) {
+    const debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
-  if (debugChannel) {
-    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
-  }
-
-  const { clientModules } = getClientReferenceManifest()
-
-  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
-  // which contains the subset React.
-  const rscPayload = await workUnitAsyncStorage.run(
-    requestStore,
-    generateDynamicRSCPayload,
-    ctx,
-    options
-  )
-
-  const flightStream = workUnitAsyncStorage.run(
-    requestStore,
-    renderToWebFlightStream,
-    ctx.componentMod,
-    rscPayload,
-    clientModules,
-    {
-      onError,
-      temporaryReferences: options?.temporaryReferences,
-      filterStackFrame,
-      debugChannel: debugChannel?.serverSide,
+    if (debugChannel) {
+      setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
     }
-  )
 
-  return new FlightRenderResult(
-    flightStream,
-    { fetchMetrics: workStore.fetchMetrics },
-    options?.waitUntil
-  )
+    const { clientModules } = getClientReferenceManifest()
+
+    const rscPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      generateDynamicRSCPayload,
+      ctx,
+      options
+    )
+
+    const flightStream = workUnitAsyncStorage.run(
+      requestStore,
+      renderToNodeFlightStream,
+      ctx.componentMod,
+      rscPayload,
+      clientModules,
+      {
+        onError,
+        temporaryReferences: options?.temporaryReferences,
+        filterStackFrame,
+        debugChannel: debugChannel?.serverSide,
+      }
+    )
+
+    return new FlightRenderResult(
+      flightStream,
+      { fetchMetrics: workStore.fetchMetrics },
+      options?.waitUntil
+    )
+  } else {
+    const debugChannel = setReactDebugChannel && createWebDebugChannel()
+
+    if (debugChannel) {
+      setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+    }
+
+    const { clientModules } = getClientReferenceManifest()
+
+    const rscPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      generateDynamicRSCPayload,
+      ctx,
+      options
+    )
+
+    const flightStream = workUnitAsyncStorage.run(
+      requestStore,
+      renderToWebFlightStream,
+      ctx.componentMod,
+      rscPayload,
+      clientModules,
+      {
+        onError,
+        temporaryReferences: options?.temporaryReferences,
+        filterStackFrame,
+        debugChannel: debugChannel?.serverSide,
+      }
+    )
+
+    return new FlightRenderResult(
+      flightStream,
+      { fetchMetrics: workStore.fetchMetrics },
+      options?.waitUntil
+    )
+  }
 }
 
 /**
