@@ -89,6 +89,17 @@ impl ArcBytes {
     pub fn is_mmap_backed(&self) -> bool {
         matches!(self.backing, Backing::Mmap { .. })
     }
+
+    /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
+    /// are other `Arc` clones referencing the same data outside the cache).
+    /// Always returns `false` for mmap-backed bytes, since the mmap `Arc` is
+    /// shared across all slices from the same file and is not a useful signal.
+    pub fn is_shared_arc(&self) -> bool {
+        match &self.backing {
+            Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
+            Backing::Mmap { .. } => false,
+        }
+    }
 }
 
 impl SharedBytes for ArcBytes {
