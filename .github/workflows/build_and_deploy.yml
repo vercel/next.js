@@ -19,7 +19,7 @@ concurrency:
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.8.11
+  TURBO_VERSION: 2.9.4
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'

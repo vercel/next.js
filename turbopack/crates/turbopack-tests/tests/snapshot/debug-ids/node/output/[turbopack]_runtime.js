@@ -1696,7 +1696,44 @@ function __turbopack_server_hmr_apply__(update) {
         return false;
     }
 }
-globalThis.__turbopack_server_hmr_apply__ = __turbopack_server_hmr_apply__;
+const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
+if (handlers.size === 0) {
+    // First registration in this generation: install the routing dispatcher.
+    globalThis.__turbopack_server_hmr_apply__ = (update)=>{
+        const registry = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
+        const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {});
+        const toCall = [];
+        if (updateChunkPaths.length === 0) {
+            for (const entry of registry.values())toCall.push(entry);
+        } else {
+            const seen = new Set();
+            for (const chunkPath of updateChunkPaths){
+                const dir = path.dirname(chunkPath);
+                for (const [key, entry] of registry){
+                    if (dir === entry.chunkPrefix && !seen.has(key)) {
+                        seen.add(key);
+                        toCall.push(entry);
+                    }
+                }
+            }
+        }
+        let applied = false;
+        for (const { handler } of toCall){
+            try {
+                if (handler(update)) applied = true;
+            } catch (err) {
+                console.error('[Server HMR] Handler error:', err);
+            }
+        }
+        return applied;
+    };
+}
+globalThis.__turbopack_server_hmr_handlers__ = handlers;
+handlers.set(__filename, {
+    handler: __turbopack_server_hmr_apply__,
+    chunkPrefix
+});
 
 
 //# sourceMappingURL=%5Bturbopack%5D_runtime.js.map

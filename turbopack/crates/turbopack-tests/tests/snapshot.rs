@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, get_effects, turbofmt};
+use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -245,7 +245,7 @@ async fn run(resource: PathBuf) -> Result<()> {
         #[turbo_tasks::function(operation)]
         async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
             let _ = op.resolve().strongly_consistent().await?;
-            Ok(get_effects(op).await?.cell())
+            Ok(take_effects(op).await?.cell())
         }
 
         extract_effects(inner_operation(resource.to_str().unwrap().into()))
