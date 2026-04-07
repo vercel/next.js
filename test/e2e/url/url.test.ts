@@ -37,15 +37,16 @@ describe(`Handle new URL asset references`, () => {
     'Hello ' + Array(count).fill(clientUrl).join('+')
 
   beforeAll(() => {
-    let expectedToken
+    let expectedToken: string | undefined
     if (isNextDev || !isTurbopack) {
       expectedToken = undefined
     } else {
       expectedToken = next.assetToken
     }
-    clientUrl = isTurbopack
-      ? `/_next/immutable/media/vercel.HASH.png`
-      : `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
+    clientUrl =
+      isTurbopack && !isNextDev
+        ? `/_next/immutable/media/vercel.HASH.png`
+        : `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
   })
 
   it('should respond on middleware api', async () => {

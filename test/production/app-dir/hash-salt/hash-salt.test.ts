@@ -13,7 +13,9 @@ describe('NEXT_HASH_SALT', () => {
     await next.clean()
     await next.build({ env: { NEXT_HASH_SALT: salt } })
     const files = await listClientChunks(join(next.testDir, next.distDir))
-    const chunks = files.filter((f) => f.endsWith('.js'))
+    const chunks = files.filter(
+      (f) => f.includes('/chunks/') && f.endsWith('.js')
+    )
     const images = files.filter((f) => f.endsWith('.png'))
     const css = files.filter((f) => f.endsWith('.css'))
     return { chunks, images, css }
@@ -89,7 +91,7 @@ describe('experimental.outputHashSalt', () => {
     await next.build({ env })
     const chunks = (
       await listClientChunks(join(next.testDir, next.distDir))
-    ).filter((f) => f.endsWith('.js'))
+    ).filter((f) => f.includes('/chunks/') && f.endsWith('.js'))
     return chunks
   }
 
