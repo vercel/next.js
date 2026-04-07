@@ -4425,6 +4425,7 @@ dependencies = [
  "either",
  "futures",
  "indexmap 2.13.0",
+ "libc",
  "next-core",
  "regex",
  "roaring",
