@@ -1982,6 +1982,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn client_static_folder_name(&self) -> Vc<RcStr> {
+        Vc::cell(
+            if self.experimental.supports_immutable_assets == Some(true) {
+                // Ends up as `_next/immutable`
+                rcstr!("immutable")
+            } else {
+                rcstr!("static")
+            },
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
     }
