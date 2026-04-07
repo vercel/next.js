@@ -172,16 +172,12 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn should_check_backing_storage(&self) -> bool {
-        self.backend.should_restore()
-    }
-
     fn restore_task_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
     ) -> anyhow::Result<TaskStorage> {
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             // If we don't need to restore, we can just return an empty storage
             return Ok(TaskStorage::default());
         }
@@ -199,7 +195,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         category: SpecificTaskDataCategory,
     ) -> anyhow::Result<Option<Vec<TaskStorage>>> {
         debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             // If we don't need to restore, we return None
             return Ok(None);
         }
@@ -275,7 +271,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
     ) {
         // Fast path: no backing storage to restore from — mark all tasks as restored
         // and invoke callbacks directly, skipping the I/O pipeline.
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             for (task_id, category) in task_ids {
                 self.task_lock_counter.acquire();
                 let mut task = self.backend.storage.access_mut(task_id);
@@ -415,7 +411,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                         }
                     }
                     Ok(None) => {
-                        // should_check_backing_storage() was false; treat as empty
+                        // should_restore() was false; treat as empty
                         for &idx in &tasks_to_restore_for_data_indices {
                             tasks[idx].data_restore_result = Some(Ok(TaskStorage::default()));
                         }
@@ -453,7 +449,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                         }
                     }
                     Ok(None) => {
-                        // should_check_backing_storage() was false; treat as empty
+                        // should_restore() was false; treat as empty
                         for &idx in &tasks_to_restore_for_meta_indices {
                             tasks[idx].meta_restore_result = Some(Ok(TaskStorage::default()));
                         }
@@ -989,7 +985,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 
     fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             return None;
         }
 
