@@ -37,6 +37,8 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+App Router uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React changes, and newer features, such as `ViewTransitions`. You do not need to install `react@canary` yourself.
+
 > [!NOTE]
 > The View Transitions API is supported in all major browsers, though some animations may behave differently in Safari. Without browser support, your application works normally, the transitions simply do not animate.
 
@@ -45,9 +47,6 @@ Then import the `ViewTransition` component from React:
 ```tsx
 import { ViewTransition } from 'react'
 ```
-
-> [!NOTE]
-> Next.js bundles its own React canary build internally. The `import { ViewTransition } from 'react'` statement works because the Next.js bundler rewrites it to use this internal copy. You do not need to install `react@canary` yourself.
 
 `<ViewTransition>` animations are activated by [Transitions](https://react.dev/reference/react/useTransition), [`<Suspense>`](https://react.dev/reference/react/Suspense), and [`useDeferredValue`](https://react.dev/reference/react/useDeferredValue). Regular `setState` calls do not trigger them. In Next.js, route navigations are transitions, so `<ViewTransition>` animations activate automatically during navigation.
 
