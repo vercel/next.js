@@ -2,6 +2,9 @@
   "$schema": "https://turborepo.org/schema.json",
   "globalEnv": ["CI", "NEXT_CI_RUNNER"],
   "globalPassThroughEnv": ["RUSTC_WRAPPER", "SCCACHE_*"],
+  "futureFlags": {
+    "incrementalTasks": true
+  },
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

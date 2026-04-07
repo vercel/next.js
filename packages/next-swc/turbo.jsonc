@@ -30,31 +30,115 @@
         "native/index.d.ts",
         "../../packages/next/src/build/swc/generated-native.d.ts",
       ],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-native": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-native-release": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-native-release-with-assertions": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-native-no-plugin": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-native-no-plugin-release": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "build-wasm": {
       "dependsOn": ["rust-fingerprint"],
@@ -82,6 +166,20 @@
     "rust-check-clippy": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "rust-check-doc": {
       "dependsOn": ["rust-fingerprint"],
@@ -95,10 +193,38 @@
     "rust-check-napi": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
     "test-cargo-unit": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
+      "incremental": [
+        {
+          "inputs": [
+            "../../Cargo.lock",
+            "../../.cargo/**",
+            "../../rust-toolchain.toml",
+          ],
+          "outputs": [
+            "../../target/**/deps/**",
+            "../../target/**/.fingerprint/**",
+            "../../target/**/build/**",
+          ],
+        },
+      ],
     },
   },
 }
