@@ -3,7 +3,7 @@ title: cacheComponents
 description: Learn how to enable the cacheComponents flag in Next.js.
 ---
 
-Cache Components is the default caching model in Next.js. When enabled, data fetching is dynamic by default and you opt specific pages, components, or functions into caching with [`use cache`](/docs/app/api-reference/directives/use-cache).
+Cache Components enables component and function-level caching using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive. Data fetching is dynamic by default, and you choose what to cache at the page, component, or function level. Next.js prerenders a static HTML shell that is served immediately while dynamic content streams in when ready, letting you mix static and dynamic content within a single route.
 
 ## Usage
 
