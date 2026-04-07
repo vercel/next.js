@@ -371,14 +371,6 @@ impl Storage {
         )
     }
 
-    /// Returns a read-only (shared) guard for `key`, or `None` if the task has no entry yet.
-    ///
-    /// Acquires a shared shard lock, allowing multiple concurrent readers on the same shard
-    /// (unlike `access_mut` which acquires an exclusive write lock).
-    pub fn access_read(&self, key: TaskId) -> Option<StorageReadGuard<'_>> {
-        self.map.get(&key).map(|inner| StorageReadGuard { inner })
-    }
-
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
         drop_contents(&self.snapshots);
@@ -487,23 +479,6 @@ impl Deref for StorageWriteGuard<'_> {
 impl DerefMut for StorageWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
-    }
-}
-
-/// A read-only guard for a task's storage entry.
-///
-/// Holds a shared (read) lock on the DashMap shard — multiple threads may hold
-/// `StorageReadGuard`s for tasks in the same shard concurrently, unlike
-/// `StorageWriteGuard` which holds an exclusive write lock.
-pub struct StorageReadGuard<'a> {
-    inner: dashmap::mapref::one::Ref<'a, TaskId, Box<TaskStorage>>,
-}
-
-impl Deref for StorageReadGuard<'_> {
-    type Target = TaskStorage;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
     }
 }
 

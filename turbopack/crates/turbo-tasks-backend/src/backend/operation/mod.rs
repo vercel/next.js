@@ -217,55 +217,42 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
     /// Precondition: the caller must have observed `is_restoring()` == true for
     /// `task_id`+`category` and must have dropped the task lock before calling this.
     ///
-    /// Uses a shared (read) lock while polling so multiple waiting threads don't
-    /// contend on the same shard.
-    ///
-    /// Returns a `StorageWriteGuard` (acquired once after the restore completes) when
-    /// successful, or `Err` if the restoring thread failed (restoring was cleared without
-    /// setting restored).
+    /// Returns the `StorageWriteGuard` acquired at the end of the wait when successful,
+    /// or `Err` if the restoring thread failed (restoring was cleared without setting restored).
     fn wait_for_restoring_task(
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<StorageWriteGuard<'e>> {
-        // Fast path: check without registering a listener first.
-        // By the time Phase 3 runs, batch I/O from Phase 1b has elapsed and the other
-        // thread has likely already finished restoring.
+        // Fast path: acquire the write guard and check flags directly.
+        // By the time this is called, some I/O has elapsed and the other thread has
+        // likely already finished restoring.
         {
-            let task = self
-                .backend
-                .storage
-                .access_read(task_id)
-                .expect("task entry must exist when waiting for restore");
+            let task = self.backend.storage.access_mut(task_id);
             let is_restoring = task.flags.is_restoring(category);
             let is_restored = task.flags.is_restored(category);
-            drop(task);
-
             if is_restored {
-                return Ok(self.backend.storage.access_mut(task_id));
+                return Ok(task);
             }
             if !is_restoring {
                 bail!("restoring failed");
             }
+            // Still restoring — drop the write guard before waiting.
+            drop(task);
         }
 
         // Slow path: register a listener and wait until the other thread signals completion.
         loop {
-            // Register a listener BEFORE re-checking the bits (avoids a lost-wakeup race).
+            // Register a listener BEFORE re-acquiring the lock (avoids a lost-wakeup race).
             let listener = self.backend.storage.restored.listen();
 
-            let task = self
-                .backend
-                .storage
-                .access_read(task_id)
-                .expect("task entry must exist when waiting for restore");
+            let task = self.backend.storage.access_mut(task_id);
             let is_restoring = task.flags.is_restoring(category);
             let is_restored = task.flags.is_restored(category);
-            drop(task);
 
             if is_restored {
-                // The restoring thread finished successfully; acquire a write guard and return.
-                return Ok(self.backend.storage.access_mut(task_id));
+                // The restoring thread finished successfully; return the write guard directly.
+                return Ok(task);
             }
             if !is_restoring {
                 // The restoring bit was cleared without setting the restored bit.
@@ -273,7 +260,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                 bail!("restoring failed");
             }
 
-            // Still restoring; block until notified, then loop to re-check.
+            // Still restoring; drop the lock and block until notified, then loop to re-check.
+            drop(task);
             listener.wait();
         }
     }
@@ -850,7 +838,17 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             drop(task1);
             drop(task2);
 
-            // Wait for categories claimed by another thread.
+            // Perform I/O for categories we claimed (overlaps with the other thread's restore).
+            let storage_data1 =
+                do_data1.then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Data));
+            let storage_meta1 =
+                do_meta1.then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Meta));
+            let storage_data2 =
+                do_data2.then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Data));
+            let storage_meta2 =
+                do_meta2.then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
+
+            // Wait for categories claimed by another thread (after our I/O, so they can overlap).
             let wait_category1 = match (data1_restoring, meta1_restoring) {
                 (true, true) => Some(TaskDataCategory::All),
                 (true, false) => Some(TaskDataCategory::Data),
@@ -870,16 +868,6 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             if let Some(cat) = wait_category2 {
                 drop(self.wait_for_restore_or_panic(task_id2, cat));
             }
-
-            // Perform I/O for categories we claimed.
-            let storage_data1 =
-                do_data1.then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Data));
-            let storage_meta1 =
-                do_meta1.then(|| self.restore_task_data(task_id1, SpecificTaskDataCategory::Meta));
-            let storage_data2 =
-                do_data2.then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Data));
-            let storage_meta2 =
-                do_meta2.then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
 
             let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
             task1 = t1;
