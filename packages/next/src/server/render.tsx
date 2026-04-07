@@ -1413,8 +1413,15 @@ export async function renderToHTMLImpl(
 
     let styles
     if (hasDocumentGetInitialProps) {
-      styles = docProps.styles
-      head = docProps.head
+      styles = docProps?.styles
+      head = docProps?.head
+      if (!styles && documentInitialPropsRes !== null) {
+        // Custom _document.getInitialProps called ctx.renderPage() directly
+        // without Document.getInitialProps, so styled-jsx styles were not
+        // collected. Collect them from the registry populated during renderPage.
+        styles = jsxStyleRegistry.styles()
+        jsxStyleRegistry.flush()
+      }
     } else {
       styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
