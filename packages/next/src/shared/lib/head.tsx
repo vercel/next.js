@@ -140,6 +140,10 @@ function reduceComponents(
           warnOnce(
             `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
           )
+        } else if (c.type === 'html') {
+          warnOnce(
+            `Do not add <html> tags using next/head. This tag is not valid in the head and may cause unexpected behavior. Use the lang attribute on <html> in your _document.js or _app.js instead. \nSee more info here: https://nextjs.org/docs/advanced-features/custom-document`
+          )
         }
       }
       return React.cloneElement(c, { key })
