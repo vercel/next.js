@@ -924,8 +924,9 @@ function registerChunk(registration) {
  * It will be appended to the base runtime code.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
-// In dev mode, addModuleToChunk is defined by dev-base.ts (concatenated into
-// the same IIFE). Declare it optional so the typeof check works in production.
+// In dev mode, addModuleToChunk and registerChunkList are defined by
+// dev-base.ts (concatenated into the same IIFE). Declare them optional so the
+// typeof checks work in production builds where dev-base.ts is absent.
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers.
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
@@ -1033,13 +1034,27 @@ let BACKEND;
             }
         } else if (isJs(chunkUrl)) {
             // Use dynamic import() to load JS chunks as ES modules.
-            // The chunk exports `default` as CompressedModuleFactories (offset=0).
-            import(/* turbopackIgnore: true */ chunkUrl).then(({ default: factories })=>{
-                const chunkPath = getPathFromScript(chunkUrl);
-                installCompressedModuleFactories(factories, /* offset= */ 0, moduleFactories, // Pass the addModuleToChunk callback for HMR tracking in dev mode.
-                // In production, addModuleToChunk is not defined (dev-base.ts is not
-                // concatenated), so the typeof check makes this safe.
-                typeof addModuleToChunk !== 'undefined' ? (id)=>addModuleToChunk(id, chunkPath) : undefined);
+            import(/* turbopackIgnore: true */ chunkUrl).then(({ default: data })=>{
+                if (data && data.chunkList) {
+                    // Chunk list: the default export is { chunkList: { chunks, source } }.
+                    // In dev mode, register it for HMR tracking. In production the
+                    // registerChunkList function doesn't exist — just resolve.
+                    if (typeof registerChunkList === 'function') {
+                        const chunkPath = getPathFromScript(chunkUrl);
+                        registerChunkList({
+                            script: chunkPath,
+                            chunks: data.chunkList.chunks,
+                            source: data.chunkList.source
+                        });
+                    }
+                } else {
+                    // Module factories: the default export is CompressedModuleFactories.
+                    const chunkPath = getPathFromScript(chunkUrl);
+                    installCompressedModuleFactories(data, /* offset= */ 0, moduleFactories, // Pass the addModuleToChunk callback for HMR tracking in dev mode.
+                    // In production, addModuleToChunk is not defined (dev-base.ts is not
+                    // concatenated), so the typeof check makes this safe.
+                    typeof addModuleToChunk !== 'undefined' ? (id)=>addModuleToChunk(id, chunkPath) : undefined);
+                }
                 resolver.resolve();
             }).catch((err)=>resolver.reject(err));
         } else {

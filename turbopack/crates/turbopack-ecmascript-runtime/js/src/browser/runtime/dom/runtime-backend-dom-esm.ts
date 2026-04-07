@@ -15,12 +15,14 @@
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 
-// In dev mode, addModuleToChunk is defined by dev-base.ts (concatenated into
-// the same IIFE). Declare it optional so the typeof check works in production.
+// In dev mode, addModuleToChunk and registerChunkList are defined by
+// dev-base.ts (concatenated into the same IIFE). Declare them optional so the
+// typeof checks work in production builds where dev-base.ts is absent.
 declare function addModuleToChunk(
   moduleId: ModuleId,
   chunkPath: ChunkPath
 ): void
+declare function registerChunkList(chunkList: ChunkList): void
 
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers.
@@ -178,21 +180,35 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       }
     } else if (isJs(chunkUrl)) {
       // Use dynamic import() to load JS chunks as ES modules.
-      // The chunk exports `default` as CompressedModuleFactories (offset=0).
       import(/* turbopackIgnore: true */ chunkUrl)
-        .then(({ default: factories }) => {
-          const chunkPath = getPathFromScript(chunkUrl as ChunkPath)
-          installCompressedModuleFactories(
-            factories as CompressedModuleFactories,
-            /* offset= */ 0,
-            moduleFactories,
-            // Pass the addModuleToChunk callback for HMR tracking in dev mode.
-            // In production, addModuleToChunk is not defined (dev-base.ts is not
-            // concatenated), so the typeof check makes this safe.
-            typeof addModuleToChunk !== 'undefined'
-              ? (id: ModuleId) => addModuleToChunk(id, chunkPath)
-              : undefined
-          )
+        .then(({ default: data }) => {
+          if (data && data.chunkList) {
+            // Chunk list: the default export is { chunkList: { chunks, source } }.
+            // In dev mode, register it for HMR tracking. In production the
+            // registerChunkList function doesn't exist — just resolve.
+            if (typeof registerChunkList === 'function') {
+              const chunkPath = getPathFromScript(chunkUrl as ChunkPath)
+              registerChunkList({
+                script: chunkPath,
+                chunks: data.chunkList.chunks,
+                source: data.chunkList.source,
+              })
+            }
+          } else {
+            // Module factories: the default export is CompressedModuleFactories.
+            const chunkPath = getPathFromScript(chunkUrl as ChunkPath)
+            installCompressedModuleFactories(
+              data as CompressedModuleFactories,
+              /* offset= */ 0,
+              moduleFactories,
+              // Pass the addModuleToChunk callback for HMR tracking in dev mode.
+              // In production, addModuleToChunk is not defined (dev-base.ts is not
+              // concatenated), so the typeof check makes this safe.
+              typeof addModuleToChunk !== 'undefined'
+                ? (id: ModuleId) => addModuleToChunk(id, chunkPath)
+                : undefined
+            )
+          }
           resolver.resolve()
         })
         .catch((err: Error) => resolver.reject(err))

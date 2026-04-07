@@ -151,41 +151,48 @@ impl EcmascriptDevChunkListContent {
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        let script_or_path = match &this.current_chunk_method {
-            CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
-            CurrentChunkMethodWithData::DocumentCurrentScript => {
-                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
-            }
-        };
-
         let mut code = CodeBuilder::default();
 
         if this.esm_chunks {
-            // In ESM mode, chunks are loaded via import() which reads the default
-            // export. Emit an empty factories list so the runtime can handle this
-            // chunk without errors.
-            write!(code, "export default [];\n")?;
+            // In ESM mode, export the chunk list data as the default export.
+            // The ESM runtime backend detects this (via the `chunkList` property)
+            // and calls registerChunkList instead of installCompressedModuleFactories.
+            // This avoids relying on globalThis for chunk list registration.
+            writedoc!(
+                code,
+                r#"
+                    export default {{ chunkList: {{ chunks: {chunks}, source: {source} }} }};
+                "#,
+                chunks = StringifyJs(&chunks),
+                source = StringifyJs(&this.source),
+            )?;
+        } else {
+            let script_or_path = match &this.current_chunk_method {
+                CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
+                CurrentChunkMethodWithData::DocumentCurrentScript => {
+                    Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+                }
+            };
+            // When loaded, JS chunks must register themselves with the `TURBOPACK` global
+            // variable. Similarly, we register the chunk list with the
+            // `{chunk_loading_global}_CHUNK_LISTS` global variable.
+            let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
+            writedoc!(
+                code,
+                // `||=` would be better but we need to be es2020 compatible
+                //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+                r#"
+                    (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
+                        script: {script_or_path},
+                        chunks: {chunks},
+                        source: {source}
+                    }});
+                "#,
+                chunk_lists_global = StringifyJs(&chunk_lists_global),
+                chunks = StringifyJs(&chunks),
+                source = StringifyJs(&this.source),
+            )?;
         }
-
-        // When loaded, JS chunks must register themselves with the `TURBOPACK` global
-        // variable. Similarly, we register the chunk list with the
-        // `{chunk_loading_global}_CHUNK_LISTS` global variable.
-        let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
-        writedoc!(
-            code,
-            // `||=` would be better but we need to be es2020 compatible
-            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"
-                (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
-                    script: {script_or_path},
-                    chunks: {chunks},
-                    source: {source}
-                }});
-            "#,
-            chunk_lists_global = StringifyJs(&chunk_lists_global),
-            chunks = StringifyJs(&chunks),
-            source = StringifyJs(&this.source),
-        )?;
 
         Ok(Code::cell(code.build()))
     }
