@@ -610,8 +610,9 @@ async function exportPage(
   if (process.send) {
     process.send([3, { type: 'activity' }])
   } else {
-     
-    (require('worker_threads') as typeof import('worker_threads')).parentPort?.postMessage([3, { type: 'activity' }])
+    ;(
+      require('worker_threads') as typeof import('worker_threads')
+    ).parentPort?.postMessage([3, { type: 'activity' }])
   }
 
   // Otherwise we can return the result.
