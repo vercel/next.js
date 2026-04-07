@@ -1208,25 +1208,22 @@ The following options have been removed from [`devIndicators`](/docs/app/api-ref
 
 The indicator itself remains available.
 
-### `experimental.dynamicIO`
+### `experimental.dynamicIO` and `experimental.useCache`
 
-The `experimental.dynamicIO` flag has been renamed to `cacheComponents`:
-
-Update your Next config file, by removing the `dynamicIO` flag.
+The `experimental.dynamicIO` and `experimental.useCache` flags are replaced by top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
 
 ```js filename="next.config.js"
-// Next.js 15 - experimental.dynamicIO is now removed
+// Before
 module.exports = {
   experimental: {
     dynamicIO: true,
+    // or: useCache: true,
   },
 }
 ```
 
-Add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag set to true.
-
 ```js filename="next.config.js"
-// Next.js 16 - use cacheComponents instead
+// After
 module.exports = {
   cacheComponents: true,
 }

@@ -3,11 +3,7 @@ title: cacheComponents
 description: Learn how to enable the cacheComponents flag in Next.js.
 ---
 
-The `cacheComponents` flag is a feature in Next.js that causes data fetching operations in the App Router to be excluded from prerenders unless they are explicitly cached. This can be useful for optimizing the performance of uncached data fetching in Server Components.
-
-It is useful if your application requires fresh data fetching during runtime rather than serving from a prerendered cache.
-
-It is expected to be used in conjunction with [`use cache`](/docs/app/api-reference/directives/use-cache) so that your data fetching happens at runtime by default unless you define specific parts of your application to be cached with `use cache` at the page, function, or component level.
+Cache Components is the default caching model in Next.js. When enabled, data fetching is dynamic by default and you opt specific pages, components, or functions into caching with [`use cache`](/docs/app/api-reference/directives/use-cache).
 
 ## Usage
 
@@ -47,29 +43,19 @@ Some UI patterns behave differently when components stay mounted instead of unmo
 
 ## Migrating from experimental flags
 
-If your project still sets `experimental.useCache` or `experimental.cacheComponents`, switch to top-level `cacheComponents: true` instead. Those experimental flags are deprecated and may be removed in a future major release.
-
-Before migrating, your configuration may look like this:
+If your project uses `experimental.useCache` or `experimental.dynamicIO`, replace them with top-level `cacheComponents: true`. The experimental flags are still supported for backwards compatibility, but `cacheComponents` is the preferred option.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    useCache: true,
-    // or: cacheComponents: true,
-  },
-}
+  // Before
+  // experimental: {
+  //   useCache: true,
+  //   dynamicIO: true,
+  // },
 
-export default nextConfig
-```
-
-After migrating, use top-level `cacheComponents`:
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
+  // After
   cacheComponents: true,
 }
 
