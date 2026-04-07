@@ -1385,28 +1385,21 @@ export async function renderToHTMLImpl(
       | {}
       | Awaited<ReturnType<typeof loadDocumentInitialProps>>
 
-    const [rawStyledJsxInsertedHTML, content] = await Promise.all([
-      renderToString(styledJsxInsertedHTML()),
-      (async () => {
-        if (hasDocumentGetInitialProps) {
-          documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-          if (documentInitialPropsRes === null) return null
-          const { docProps } = documentInitialPropsRes as any
-          return docProps.html
-        } else {
-          documentInitialPropsRes = {}
-          const stream = await renderShell(App, Component)
-          await stream.allReady
-          return streamToString(stream)
-        }
-      })(),
-    ])
-
-    if (content === null) {
-      return null
+    let content: string | null
+    if (hasDocumentGetInitialProps) {
+      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+      if (documentInitialPropsRes === null) {
+        content = null
+      } else {
+        const { docProps } = documentInitialPropsRes as any
+        content = docProps.html
+      }
+    } else {
+      documentInitialPropsRes = {}
+      const stream = await renderShell(App, Component)
+      await stream.allReady
+      content = await streamToString(stream)
     }
-
-    const contentHTML = rawStyledJsxInsertedHTML + content
 
     // @ts-ignore: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
@@ -1426,6 +1419,17 @@ export async function renderToHTMLImpl(
       styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
     }
+
+    // Registry is now flushed; rawStyledJsxInsertedHTML will be empty.
+    const rawStyledJsxInsertedHTML = await renderToString(
+      styledJsxInsertedHTML()
+    )
+
+    if (content === null) {
+      return null
+    }
+
+    const contentHTML = rawStyledJsxInsertedHTML + content
 
     return {
       contentHTML,

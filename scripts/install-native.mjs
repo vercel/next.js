@@ -65,6 +65,7 @@ import fsp from 'fs/promises'
       `next@${nextVersion}`,
       '--lockfile=false',
       '--ignore-workspace',
+      '--ignore-scripts',
     ]
     if (preferOffline) {
       args.push('--prefer-offline')
