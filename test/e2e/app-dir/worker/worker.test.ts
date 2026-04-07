@@ -127,11 +127,14 @@ describe('app dir - workers', () => {
 
     await browser.elementByCss('button').click()
 
-    await retry(async () =>
-      expect(await browser.elementByCss('#worker-state').text()).toBe(
-        'shared-worker.ts:worker-dep:2'
-      )
-    )
+    await retry(async () => {
+      const text = await browser.elementByCss('#worker-state').text()
+      // Log the state for debugging CI failures
+      if (text !== 'default' && text !== 'shared-worker.ts:worker-dep:2') {
+        console.log('Unexpected worker state:', text)
+      }
+      expect(text).toBe('shared-worker.ts:worker-dep:2')
+    })
   })
 
   it('should support loading PNG files in web workers', async () => {
