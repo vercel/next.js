@@ -4,6 +4,7 @@ const __turbopack_params__ = {"otherChunks":["output/1do3_crates_turbopack-tests
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+var RUNTIME_URL = import.meta.url;
 var ASSET_SUFFIX = "";
 var WORKER_FORWARDED_GLOBALS = [];
 /**
@@ -758,6 +759,10 @@ browserContextPrototype.q = exportUrl;
     return new WorkerConstructor(url, workerOptions);
 }
 browserContextPrototype.b = createWorker;
+function getRuntimeUrl() {
+    return RUNTIME_URL;
+}
+browserContextPrototype.B = getRuntimeUrl;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -923,8 +928,10 @@ function registerChunk(registration) {
 // the same IIFE). Declare it optional so the typeof check works in production.
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers.
-    // In ESM chunks, use import.meta.url to read the suffix from this file's URL.
-    return (self.TURBOPACK_ASSET_SUFFIX ?? new URL(import.meta.url).search) || '';
+    if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
+    // RUNTIME_URL is set by the runtime epilogue (import.meta.url in ESM mode).
+    const qi = RUNTIME_URL.indexOf('?');
+    return qi >= 0 ? RUNTIME_URL.slice(qi) : '';
 }
 let BACKEND;
 /**

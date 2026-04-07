@@ -12,9 +12,9 @@
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
   if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
-  const src = document?.currentScript?.getAttribute?.('src') ?? ''
-  const qi = src.indexOf('?')
-  return qi >= 0 ? src.slice(qi) : ''
+  // RUNTIME_URL is set by the runtime epilogue (document.currentScript.src in classic mode).
+  const qi = RUNTIME_URL.indexOf('?')
+  return qi >= 0 ? RUNTIME_URL.slice(qi) : ''
 }
 
 type ChunkResolver = {

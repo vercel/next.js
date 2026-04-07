@@ -23,6 +23,9 @@ declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
+// Set by the runtime epilogue to the URL of the evaluate chunk. In ESM mode
+// this is `import.meta.url`, in classic mode `document.currentScript.src`.
+declare var RUNTIME_URL: string
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
@@ -331,6 +334,11 @@ function createWorker(
   return new WorkerConstructor(url, workerOptions)
 }
 browserContextPrototype.b = createWorker
+
+function getRuntimeUrl(): string {
+  return RUNTIME_URL
+}
+browserContextPrototype.B = getRuntimeUrl
 
 /**
  * Instantiates a runtime module.

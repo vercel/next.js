@@ -10,6 +10,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+var RUNTIME_URL = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : "";
 var ASSET_SUFFIX = "";
 var WORKER_FORWARDED_GLOBALS = [];
 /**
@@ -1281,6 +1282,10 @@ browserContextPrototype.q = exportUrl;
     return new WorkerConstructor(url, workerOptions);
 }
 browserContextPrototype.b = createWorker;
+function getRuntimeUrl() {
+    return RUNTIME_URL;
+}
+browserContextPrototype.B = getRuntimeUrl;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1567,13 +1572,11 @@ function _ts_generator(thisArg, body) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
-    var _ref;
-    var _document_currentScript_getAttribute, _document_currentScript, _document;
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
-    var qi = src.indexOf('?');
-    return qi >= 0 ? src.slice(qi) : '';
+    // RUNTIME_URL is set by the runtime epilogue (document.currentScript.src in classic mode).
+    var qi = RUNTIME_URL.indexOf('?');
+    return qi >= 0 ? RUNTIME_URL.slice(qi) : '';
 }
 var BACKEND;
 /**

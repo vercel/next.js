@@ -45,6 +45,8 @@ pub(super) struct EcmascriptDevChunkListContent {
     source: EcmascriptDevChunkListSource,
     /// The global variable name used for chunk loading (derived from chunkLoadingGlobal config).
     chunk_loading_global: RcStr,
+    /// Whether chunks are emitted as ES modules.
+    esm_chunks: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -75,6 +77,7 @@ impl EcmascriptDevChunkListContent {
             .chunk_loading_global()
             .await?)
             .clone();
+        let esm_chunks = *chunk_list_ref.chunking_context.esm_chunks().await?;
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
             chunks_contents: chunk_list_ref
@@ -96,6 +99,7 @@ impl EcmascriptDevChunkListContent {
                 .collect(),
             source: chunk_list_ref.source,
             chunk_loading_global,
+            esm_chunks,
         }
         .cell())
     }
@@ -155,6 +159,13 @@ impl EcmascriptDevChunkListContent {
         };
 
         let mut code = CodeBuilder::default();
+
+        if this.esm_chunks {
+            // In ESM mode, chunks are loaded via import() which reads the default
+            // export. Emit an empty factories list so the runtime can handle this
+            // chunk without errors.
+            write!(code, "export default [];\n")?;
+        }
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the

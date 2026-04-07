@@ -24,8 +24,10 @@ declare function addModuleToChunk(
 
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers.
-  // In ESM chunks, use import.meta.url to read the suffix from this file's URL.
-  return (self.TURBOPACK_ASSET_SUFFIX ?? new URL(import.meta.url).search) || ''
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  // RUNTIME_URL is set by the runtime epilogue (import.meta.url in ESM mode).
+  const qi = RUNTIME_URL.indexOf('?')
+  return qi >= 0 ? RUNTIME_URL.slice(qi) : ''
 }
 
 type ChunkResolver = {

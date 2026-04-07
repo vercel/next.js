@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="d9ea8b99-c5f8-0f24-077d-a982ea9f84f9")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="96069202-5c35-d4fb-392a-fb8a4691db7b")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -11,6 +11,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+var RUNTIME_URL = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : "";
 var ASSET_SUFFIX = "";
 var WORKER_FORWARDED_GLOBALS = [];
 /**
@@ -765,6 +766,10 @@ browserContextPrototype.q = exportUrl;
     return new WorkerConstructor(url, workerOptions);
 }
 browserContextPrototype.b = createWorker;
+function getRuntimeUrl() {
+    return RUNTIME_URL;
+}
+browserContextPrototype.B = getRuntimeUrl;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1963,9 +1968,9 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    const src = document?.currentScript?.getAttribute?.('src') ?? '';
-    const qi = src.indexOf('?');
-    return qi >= 0 ? src.slice(qi) : '';
+    // RUNTIME_URL is set by the runtime epilogue (document.currentScript.src in classic mode).
+    const qi = RUNTIME_URL.indexOf('?');
+    return qi >= 0 ? RUNTIME_URL.slice(qi) : '';
 }
 let BACKEND;
 /**
@@ -2238,5 +2243,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=d9ea8b99-c5f8-0f24-077d-a982ea9f84f9
+//# debugId=96069202-5c35-d4fb-392a-fb8a4691db7b
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

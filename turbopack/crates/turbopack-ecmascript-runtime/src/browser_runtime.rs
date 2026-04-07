@@ -134,6 +134,26 @@ pub async fn get_browser_runtime_code(
         StringifyJs(chunk_base_path),
     )?;
 
+    // RUNTIME_URL must be set before ASSET_SUFFIX because getAssetSuffixFromScriptSrc()
+    // reads it. In ESM mode we use import.meta.url (only valid at module top-level, but
+    // the whole evaluate chunk is an ES module so the IIFE inherits that scope). In classic
+    // mode we read document.currentScript.src.
+    if esm_chunks {
+        writedoc!(
+            code,
+            r#"
+                var RUNTIME_URL = import.meta.url;
+            "#
+        )?;
+    } else {
+        writedoc!(
+            code,
+            r#"
+                var RUNTIME_URL = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : "";
+            "#
+        )?;
+    }
+
     match &*asset_suffix {
         AssetSuffix::None => {
             writedoc!(
