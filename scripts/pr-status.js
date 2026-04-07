@@ -1066,6 +1066,11 @@ function generateThreadMd(thread, index) {
         '```',
         `node scripts/pr-status.js resolve-thread ${thread.id}`,
         '```',
+        '',
+        'Reply and resolve in one step:',
+        '```',
+        `node scripts/pr-status.js reply-and-resolve-thread ${thread.id} "Your reply here"`,
+        '```',
         ''
       )
     }
@@ -1522,6 +1527,20 @@ async function main() {
       )
       process.exit(1)
     }
+    resolveThread(threadId)
+    return
+  }
+
+  if (subcommand === 'reply-and-resolve-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
     resolveThread(threadId)
     return
   }
