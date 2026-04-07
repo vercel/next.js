@@ -84,7 +84,7 @@ jobs:
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         uses: actions/upload-artifact@v4
         with:
-          name: pr-stats-${{ matrix.bundler }}
+          name: pr-stats-${{ matrix.bundler }}-${{ github.run_id }}-${{ github.job }}
           path: pr-stats-${{ matrix.bundler }}.json
           retention-days: 1
 
