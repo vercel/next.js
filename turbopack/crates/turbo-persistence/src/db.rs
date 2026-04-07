@@ -568,7 +568,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         CommitOptions {
             mut new_meta_files,
             new_sst_files,
-            mut new_blob_files,
+            new_blob_files,
             mut sst_seq_numbers_to_delete,
             mut blob_seq_numbers_to_delete,
             sequence_number: mut seq,
@@ -580,28 +580,67 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
 
         let sync_span = tracing::trace_span!("sync new files").entered();
-        let mut new_meta_files = self
+
+        enum SyncItem {
+            Meta(u32, File),
+            Sst(File),
+            Blob(u32, File),
+        }
+        enum SyncResult {
+            Meta(MetaFile),
+            Sst,
+            Blob(u32, File),
+        }
+
+        let mut sync_items: Vec<SyncItem> =
+            Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
+        for (seq, file) in new_meta_files {
+            sync_items.push(SyncItem::Meta(seq, file));
+        }
+        for (_, file) in new_sst_files {
+            sync_items.push(SyncItem::Sst(file));
+        }
+        for (seq, file) in new_blob_files {
+            sync_items.push(SyncItem::Blob(seq, file));
+        }
+
+        let results: Vec<SyncResult> = self
             .parallel_scheduler
-            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
-                file.sync_all()?;
-                let meta_file = MetaFile::open(&self.path, seq)?;
-                Ok(meta_file)
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
+                SyncItem::Meta(seq, file) => {
+                    file.sync_data()?;
+                    let meta_file = MetaFile::open(&self.path, seq)?;
+                    Ok(SyncResult::Meta(meta_file))
+                }
+                SyncItem::Sst(file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Sst)
+                }
+                SyncItem::Blob(seq, file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Blob(seq, file))
+                }
             })?;
+
+        let mut new_meta_files: Vec<MetaFile> = Vec::new();
+        let mut new_blob_files: Vec<(u32, File)> = Vec::new();
+        for result in results {
+            match result {
+                SyncResult::Meta(mf) => new_meta_files.push(mf),
+                SyncResult::Sst => {}
+                SyncResult::Blob(seq, file) => new_blob_files.push((seq, file)),
+            }
+        }
 
         let mut sst_filter = SstFilter::new();
         for meta_file in new_meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
         }
 
-        self.parallel_scheduler.block_in_place(|| {
-            for (_, file) in new_sst_files.iter() {
-                file.sync_all()?;
-            }
-            for (_, file) in new_blob_files.iter() {
-                file.sync_all()?;
-            }
-            anyhow::Ok(())
-        })?;
+        // Sync the directory to ensure the new directory entries (file name → inode mappings)
+        // are durable before we update CURRENT. Without this, a crash could leave CURRENT pointing
+        // to files whose directory entries were lost even though their data was flushed.
+        File::open(&self.path)?.sync_data()?;
         drop(sync_span);
 
         let new_meta_info = new_meta_files
@@ -679,7 +718,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
                 let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
                 file.write_all(&buf)?;
-                file.sync_all()?;
+                file.sync_data()?;
             }
 
             let mut current_file = OpenOptions::new()
@@ -688,7 +727,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 .read(false)
                 .open(self.path.join("CURRENT"))?;
             current_file.write_u32::<BE>(seq)?;
-            current_file.sync_all()?;
+            current_file.sync_data()?;
 
             for seq in sst_seq_numbers_to_delete.iter() {
                 fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;

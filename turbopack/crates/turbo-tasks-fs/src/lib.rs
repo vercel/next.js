@@ -1490,7 +1490,7 @@ impl FileSystemPath {
 
     /// Returns true if this path has the given extension
     ///
-    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// slightly faster than `self.extension() == Some(extension)` as we can simply match a
     /// suffix
     pub fn has_extension(&self, extension: &str) -> bool {
         debug_assert!(!extension.contains('/') && extension.starts_with('.'));
@@ -1498,7 +1498,7 @@ impl FileSystemPath {
     }
 
     /// Returns the extension (without a leading `.`)
-    pub fn extension_ref(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
     }
@@ -1674,10 +1674,6 @@ impl FileSystemPath {
 impl FileSystemPath {
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
         *self.fs
-    }
-
-    pub fn extension(&self) -> &str {
-        self.extension_ref().unwrap_or_default()
     }
 
     pub fn is_inside(&self, other: &FileSystemPath) -> bool {
@@ -2893,9 +2889,16 @@ impl From<anyhow::Error> for AnyhowWrapper {
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
+    use turbo_tasks::{Effects, OperationVc, Vc, take_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
+
+    #[turbo_tasks::function(operation)]
+    async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+        let _ = op.resolve().strongly_consistent().await?;
+        Ok(take_effects(op).await?.cell())
+    }
 
     #[test]
     fn test_get_relative_path_to() {
@@ -3093,9 +3096,10 @@ mod tests {
 
         use rand::{RngExt, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{OperationVc, ResolvedVc, Vc, apply_effects};
+        use turbo_tasks::{ResolvedVc, Vc};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
+        use super::extract_effects_operation;
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
         #[turbo_tasks::function(operation)]
@@ -3135,13 +3139,6 @@ mod tests {
             Ok(())
         }
 
-        #[turbo_tasks::function(operation)]
-        async fn apply_effects_operation(op: OperationVc<()>) -> anyhow::Result<()> {
-            op.read_strongly_consistent().await?;
-            apply_effects(op).await?;
-            Ok(())
-        }
-
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_write_link() {
             let scratch = tempfile::tempdir().unwrap();
@@ -3166,16 +3163,19 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
 
-                apply_effects_operation(test_write_link_effect_operation(
+                extract_effects_operation(test_write_link_effect_operation(
                     fs,
                     root_path.clone(),
                     rcstr!("subdir-a"),
                 ))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
@@ -3185,12 +3185,14 @@ mod tests {
                 );
 
                 // Write the same links again but with different targets
-                apply_effects_operation(test_write_link_effect_operation(
+                extract_effects_operation(test_write_link_effect_operation(
                     fs,
                     root_path,
                     rcstr!("subdir-b"),
                 ))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
@@ -3273,19 +3275,22 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
                 let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;
 
                 let initial_updates: Vec<(usize, usize)> =
                     (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
-                apply_effects_operation(write_symlink_stress_batch(
+                extract_effects_operation(write_symlink_stress_batch(
                     fs,
                     symlinks_dir.clone(),
                     initial_updates,
                 ))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
                 let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
@@ -3298,12 +3303,14 @@ mod tests {
                         })
                         .collect();
 
-                    apply_effects_operation(write_symlink_stress_batch(
+                    extract_effects_operation(write_symlink_stress_batch(
                         fs,
                         symlinks_dir.clone(),
                         updates,
                     ))
                     .read_strongly_consistent()
+                    .await?
+                    .apply()
                     .await?;
                 }
 
@@ -3320,12 +3327,13 @@ mod tests {
     #[cfg(test)]
     mod denied_path_tests {
         use std::{
-            fs::{File, create_dir_all},
+            fs::{File, create_dir_all, read_to_string},
             io::Write,
+            path::Path,
         };
 
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::apply_effects;
+        use turbo_tasks::{Effects, Vc, take_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
@@ -3561,50 +3569,63 @@ mod tests {
             .unwrap();
         }
 
-        #[turbo_tasks::function(operation)]
-        async fn write_file(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
-            path.write(
-                FileContent::Content(TurboFile::from_bytes(contents.to_string().into_bytes()))
-                    .cell(),
-            )
-            .await?;
-            Ok(())
-        }
-
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
             #[turbo_tasks::function(operation)]
-            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+            async fn write_file_operation(
+                path: FileSystemPath,
+                contents: RcStr,
+            ) -> anyhow::Result<()> {
+                path.write(
+                    FileContent::Content(TurboFile::from_bytes(contents.to_string().into_bytes()))
+                        .cell(),
+                )
+                .await?;
+                Ok(())
+            }
+
+            /// Writes the allowed file and captures effects to be applied at
+            /// the top level.
+            #[turbo_tasks::function(operation)]
+            async fn write_allowed_file_operation(
+                root: RcStr,
+                denied_path: RcStr,
+                file_path: RcStr,
+                contents: RcStr,
+            ) -> anyhow::Result<Vc<Effects>> {
+                let fs =
+                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let root_path = fs.root().await?;
+                let allowed_file = root_path.join(&file_path)?;
+                let write_op = write_file_operation(allowed_file, contents);
+                write_op.read_strongly_consistent().await?;
+                Ok(take_effects(write_op).await?.cell())
+            }
+
+            #[turbo_tasks::function(operation)]
+            async fn test_denied_writes_operation(
+                root: RcStr,
+                denied_path: RcStr,
+                denied_file: RcStr,
+                nested_denied_file: RcStr,
+            ) -> anyhow::Result<()> {
                 let fs =
                     DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
                 let root_path = fs.root().await?;
 
-                // Test 1: Writing to allowed directory should work
-                let allowed_file = root_path.join("allowed_dir/new_file.txt")?;
-                let write_result = write_file(allowed_file.clone(), rcstr!("test content"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
-
-                // Verify it was written
-                let read_content = allowed_file.read().await?;
-                assert!(
-                    matches!(&*read_content, FileContent::Content(_)),
-                    "allowed file write should succeed"
-                );
-
-                // Test 2: Writing to denied directory should fail
-                let denied_file = root_path.join("denied_dir/forbidden.txt")?;
-                let write_result = write_file(denied_file, rcstr!("forbidden"));
-                let result = write_result.read_strongly_consistent().await;
+                let path = root_path.join(&denied_file)?;
+                let result = write_file_operation(path, rcstr!("forbidden"))
+                    .read_strongly_consistent()
+                    .await;
                 assert!(
                     result.is_err(),
                     "writing to denied path should return an error"
                 );
 
-                // Test 3: Writing to nested denied path should fail
-                let nested_denied = root_path.join("denied_dir/nested/file.txt")?;
-                let write_result = write_file(nested_denied, rcstr!("nested"));
-                let result = write_result.read_strongly_consistent().await;
+                let path = root_path.join(&nested_denied_file)?;
+                let result = write_file_operation(path, rcstr!("nested"))
+                    .read_strongly_consistent()
+                    .await;
                 assert!(
                     result.is_err(),
                     "writing to nested denied path should return an error"
@@ -3619,9 +3640,33 @@ mod tests {
                 noop_backing_storage(),
             ));
             tt.run_once(async {
-                test_operation(root, denied_path)
-                    .read_strongly_consistent()
-                    .await?;
+                const ALLOWED_FILE: &str = "allowed_dir/new_file.txt";
+                const TEST_CONTENT: &str = "test content";
+
+                // Test 1: Writing to allowed directory should work
+                let effects = write_allowed_file_operation(
+                    root.clone(),
+                    denied_path.clone(),
+                    RcStr::from(ALLOWED_FILE),
+                    RcStr::from(TEST_CONTENT),
+                )
+                .read_strongly_consistent()
+                .await?;
+                effects.apply().await?;
+
+                // Verify the file was written to disk
+                let content = read_to_string(Path::new(root.as_str()).join(ALLOWED_FILE))?;
+                assert_eq!(content, TEST_CONTENT, "allowed file write should succeed");
+
+                // Tests 2 & 3: Writing to denied paths should fail
+                test_denied_writes_operation(
+                    root,
+                    denied_path,
+                    RcStr::from("denied_dir/forbidden.txt"),
+                    RcStr::from("denied_dir/nested/file.txt"),
+                )
+                .read_strongly_consistent()
+                .await?;
 
                 anyhow::Ok(())
             })

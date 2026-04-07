@@ -506,8 +506,9 @@ pub struct StreamingSstWriter<E: Entry> {
     // Reusable buffer for building key blocks
     key_buffer: Vec<u8>,
 
-    // AMQF filter (built incrementally). Wrapped in Option for the same reason as `file`.
-    filter: Option<qfilter::Filter>,
+    // Collected key hashes truncated to u32 for deferred AMQF construction via sorted Builder
+    // in close(). Fingerprint size is always <32 bits, so the lower 32 bits suffice.
+    collected_fingerprints: Vec<u32>,
 
     // Index block data: (first_hash, block_index) for each key block written
     key_block_boundaries: Vec<(u64, u16)>,
@@ -536,13 +537,9 @@ pub struct StreamingSstWriter<E: Entry> {
 impl<E: Entry> StreamingSstWriter<E> {
     /// Creates a new streaming SST writer.
     ///
-    /// `max_entry_count` is used to size the AMQF filter. It must be an upper bound on the number
-    /// of entries that will be added; the filter is not resizable. A slightly oversized value only
-    /// improves the false-positive rate.
+    /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
     pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
         let file = BufWriter::new(File::create(file)?);
-        let filter = qfilter::Filter::new(max_entry_count.max(1), AMQF_FALSE_POSITIVE_RATE)
-            .expect("Filter can't be constructed");
 
         // Estimate number of key blocks based on max entry count.
         // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
@@ -569,7 +566,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE,
             ),
             key_buffer: Vec::with_capacity(MAX_KEY_BLOCK_SIZE),
-            filter: Some(filter),
+            collected_fingerprints: Vec::with_capacity(max_entry_count as usize),
             key_block_boundaries: Vec::with_capacity(estimated_key_blocks),
             min_hash: u64::MAX,
             max_hash: 0,
@@ -627,12 +624,8 @@ impl<E: Entry> StreamingSstWriter<E> {
         self.max_hash = key_hash;
         self.entry_count += 1;
 
-        // Insert into AMQF
-        self.filter
-            .as_mut()
-            .unwrap()
-            .insert_fingerprint(false, key_hash)
-            .expect("AMQF insert failed");
+        // Collect hash for deferred AMQF construction in close()
+        self.collected_fingerprints.push(key_hash as u32);
 
         // Track key size for fullness and block capacity
         self.total_key_size += key_len;
@@ -950,10 +943,24 @@ impl<E: Entry> StreamingSstWriter<E> {
             .try_into()
             .expect("Block count overflow");
 
-        // Shrink the AMQF filter to the actual entry count. The filter was created with
-        // `max_entry_count` which may be larger than the number of entries actually added.
-        let mut filter = self.filter.take().unwrap();
-        filter.shrink_to_fit();
+        // Build AMQF from collected hashes using sorted Builder insertion.
+        // Hashes are already sorted by key_hash (SST invariant), but fingerprints
+        // (truncated hashes) may not be sorted, so we sort by `fingerprint & mask`.
+        let actual_count = self.collected_fingerprints.len() as u64;
+        let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
+            .expect("Filter can't be constructed");
+        let fp_size = builder.fingerprint_size();
+        assert!(fp_size < 32, "fp_size {fp_size} exceeds u32");
+        let fp_mask = (1u32 << fp_size) - 1;
+        // Mask in-place to fingerprint size and sort.
+        self.collected_fingerprints
+            .sort_unstable_by_key(|&h| h & fp_mask);
+        for &h in &self.collected_fingerprints {
+            builder
+                .insert_fingerprint(false, h as u64)
+                .expect("AMQF insert failed");
+        }
+        let filter = builder.into_filter();
 
         // Serialize AMQF using postcard for zero-copy deserialization via FilterRef
         let amqf = postcard::to_allocvec(&filter).expect("AMQF serialization failed");

@@ -684,6 +684,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             TransientTaskType::Root(Box::new(move || {
                 let functor = functor.clone();
                 Box::pin(async move {
+                    mark_top_level_task();
                     let raw_vc = functor().await?.node;
                     raw_vc.to_non_local().await
                 })
@@ -709,6 +710,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     {
         let id = self.backend.create_transient_task(
             TransientTaskType::Once(Box::pin(async move {
+                mark_top_level_task();
                 let raw_vc = future.await?.node;
                 raw_vc.to_non_local().await
             })),
@@ -1240,7 +1242,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                let finihed_state = this.finish_current_task_state();
+                                let finished_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                                 this.backend.task_execution_completed(
@@ -1248,8 +1250,8 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     result,
                                     &cell_counters,
                                     #[cfg(feature = "verify_determinism")]
-                                    finihed_state.stateful,
-                                    finihed_state.has_invalidator,
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
                                     &*this,
                                 )
                             }
@@ -1730,8 +1732,24 @@ pub(crate) fn current_task(from: &str) -> TaskId {
     }
 }
 
+/// Panics if we're not in a top-level task (e.g. [`run_once`]). Some function calls should only
+/// happen in a top-level task (e.g. [`Effects::apply`][crate::Effects::apply]).
 #[track_caller]
-fn debug_assert_not_in_top_level_task(operation: &str) {
+pub(crate) fn debug_assert_in_top_level_task(message: &str) {
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
+    let in_top_level = CURRENT_TASK_STATE
+        .try_with(|ts| ts.read().unwrap().in_top_level_task)
+        .unwrap_or(true);
+    if !in_top_level {
+        panic!("{message}");
+    }
+}
+
+#[track_caller]
+pub(crate) fn debug_assert_not_in_top_level_task(operation: &str) {
     if !cfg!(debug_assertions) {
         return;
     }

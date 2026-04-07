@@ -173,14 +173,17 @@ export function isInterceptionAppRoute(
   )
 }
 
-export function parseAppRoute(
+// Bitmask for which non-URL segment types to allow during parsing.
+// By default, route groups and parallel routes are rejected because
+// they should have been stripped by normalizeAppPath. These flags
+// let callers opt in to allowing specific types.
+const OnlyRoutableSegments = /*   */ 0b00
+const AllowParallelSegments = /*  */ 0b01
+const AllowGroupSegments = /*     */ 0b10
+
+function parseAppRouteImpl(
   pathname: string,
-  normalized: true
-): NormalizedAppRoute
-export function parseAppRoute(pathname: string, normalized: false): AppRoute
-export function parseAppRoute(
-  pathname: string,
-  normalized: boolean
+  allowedTypes: number
 ): AppRoute | NormalizedAppRoute {
   const pathnameSegments = pathname.split('/').filter(Boolean)
 
@@ -202,12 +205,20 @@ export function parseAppRoute(
     }
 
     if (
-      normalized &&
-      (appSegment.type === 'route-group' ||
-        appSegment.type === 'parallel-route')
+      appSegment.type === 'route-group' &&
+      !(allowedTypes & AllowGroupSegments)
     ) {
       throw new InvariantError(
-        `${pathname} is being parsed as a normalized route, but it has a route group or parallel route segment.`
+        `${pathname} is being parsed as a normalized route, but it has a route group segment.`
+      )
+    }
+
+    if (
+      appSegment.type === 'parallel-route' &&
+      !(allowedTypes & AllowParallelSegments)
+    ) {
+      throw new InvariantError(
+        `${pathname} is being parsed as a normalized route, but it has a parallel route segment.`
       )
     }
 
@@ -219,12 +230,8 @@ export function parseAppRoute(
         throw new Error(`Invalid interception route: ${pathname}`)
       }
 
-      interceptingRoute = normalized
-        ? parseAppRoute(parts[0], true)
-        : parseAppRoute(parts[0], false)
-      interceptedRoute = normalized
-        ? parseAppRoute(parts[1], true)
-        : parseAppRoute(parts[1], false)
+      interceptingRoute = parseAppRouteImpl(parts[0], allowedTypes)
+      interceptedRoute = parseAppRouteImpl(parts[1], allowedTypes)
       interceptionMarker = appSegment.interceptionMarker
     }
   }
@@ -234,7 +241,7 @@ export function parseAppRoute(
   )
 
   return {
-    normalized,
+    normalized: allowedTypes === OnlyRoutableSegments,
     pathname,
     segments,
     dynamicSegments,
@@ -242,4 +249,22 @@ export function parseAppRoute(
     interceptingRoute,
     interceptedRoute,
   }
+}
+
+/**
+ * Parse an app route that has been fully normalized (no @slot or ()
+ * group segments). Throws if either is present.
+ */
+export function parseNormalizedAppRoute(pathname: string): NormalizedAppRoute {
+  return parseAppRouteImpl(pathname, OnlyRoutableSegments) as NormalizedAppRoute
+}
+
+/**
+ * Parse an app route that may contain @slot segments but not ()
+ * group segments. Slot segments are preserved as parallel-route
+ * type segments so callers can distinguish routes in different
+ * parallel slots.
+ */
+export function parseAppRouteWithSlots(pathname: string): AppRoute {
+  return parseAppRouteImpl(pathname, AllowParallelSegments) as AppRoute
 }
