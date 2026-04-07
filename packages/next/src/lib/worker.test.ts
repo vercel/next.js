@@ -562,7 +562,7 @@ describe('lib/worker timeout and activity', () => {
     expect(latestPoolOptions?.timeout).toBe(5000)
   })
 
-  it('passes onActivity callback to WorkerPool', () => {
+  it('does not forward onActivity to WorkerPool (activity is driven by onCustomMessage)', () => {
     const onActivity = jest.fn()
 
     const { Worker } = require('./worker') as typeof import('./worker')
@@ -572,9 +572,13 @@ describe('lib/worker timeout and activity', () => {
       onActivity,
     })
 
-    // The pool receives an onActivity callback that delegates to the user's callback
-    expect(latestPoolOptions?.onActivity).toBeDefined()
-    latestPoolOptions.onActivity()
+    // onActivity is NOT forwarded as a pool.onActivity option; it is only
+    // triggered via onCustomMessage({type:'activity'}) so that progress
+    // updates don't race with console.error output from the worker.
+    expect(latestPoolOptions?.onActivity).toBeUndefined()
+
+    // Verify the custom-message path still fires it
+    latestPoolOptions.onCustomMessage({ type: 'activity' })
     expect(onActivity).toHaveBeenCalledTimes(1)
 
     worker.shutdownNow()
@@ -591,12 +595,12 @@ describe('lib/worker timeout and activity', () => {
       onActivity: onActivity1,
     })
 
-    // Pool's onActivity delegates to the current callback
-    latestPoolOptions.onActivity()
+    // Activity is triggered via onCustomMessage, not pool.onActivity
+    latestPoolOptions.onCustomMessage({ type: 'activity' })
     expect(onActivity1).toHaveBeenCalledTimes(1)
 
     worker.setOnActivity(onActivity2)
-    latestPoolOptions.onActivity()
+    latestPoolOptions.onCustomMessage({ type: 'activity' })
     expect(onActivity2).toHaveBeenCalledTimes(1)
     // onActivity1 should not have been called again
     expect(onActivity1).toHaveBeenCalledTimes(1)
