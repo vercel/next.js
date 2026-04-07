@@ -3087,121 +3087,244 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
-        // MARK: webstreams dev CacheComponents RSC
-        let debugChannel: DebugChannelPair | undefined
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
+          // MARK: nodeStreams dev CacheComponents RSC
+          let debugChannel: DebugChannelPair | undefined
 
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        const getPayload = async (requestStore: RequestStore) => {
-          const payload: InitialRSCPayload & RSCPayloadDevProperties =
-            await workUnitAsyncStorage.run(
-              requestStore,
-              getRSCPayload,
-              tree,
-              ctx,
-              { is404: res.statusCode === 404 }
-            )
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+          const getPayload = async (requestStore: RequestStore) => {
+            const payload: InitialRSCPayload & RSCPayloadDevProperties =
+              await workUnitAsyncStorage.run(
+                requestStore,
+                getRSCPayload,
+                tree,
+                ctx,
+                { is404: res.statusCode === 404 }
+              )
 
-          if (isBypassingCachesInDev(requestStore)) {
-            // Mark the RSC payload to indicate that caches were bypassed in dev.
-            // This lets the client know not to cache anything based on this render.
-            if (renderOpts.setCacheStatus) {
-              // we know this is available  when cacheComponents is enabled, but typeguard to be safe
-              renderOpts.setCacheStatus('bypass', htmlRequestId)
+            if (isBypassingCachesInDev(requestStore)) {
+              // Mark the RSC payload to indicate that caches were bypassed in dev.
+              // This lets the client know not to cache anything based on this render.
+              if (renderOpts.setCacheStatus) {
+                // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+                renderOpts.setCacheStatus('bypass', htmlRequestId)
+              }
+              payload._bypassCachesInDev = createElement(
+                WarnForBypassCachesInDev,
+                {
+                  route: workStore.route,
+                }
+              )
             }
-            payload._bypassCachesInDev = createElement(
-              WarnForBypassCachesInDev,
-              {
-                route: workStore.route,
-              }
-            )
+
+            return payload
           }
 
-          return payload
-        }
-
-        if (
-          // We only do this flow if we can safely recreate the store from scratch
-          // (which is not the case for renders after an action)
-          createRequestStore &&
-          // We only do this flow if we're not bypassing caches in dev using
-          // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-          !isBypassingCachesInDev(requestStore)
-        ) {
-          const {
-            stream: serverStream,
-            accumulatedChunksPromise,
-            syncInterruptReason,
-            startTime,
-            staticStageEndTime,
-            runtimeStageEndTime,
-            debugChannel: returnedDebugChannel,
-            requestStore: finalRequestStore,
-          } = await renderWithRestartOnCacheMissInDev(
-            ctx,
-            requestStore,
-            createRequestStore,
-            getPayload,
-            serverComponentsErrorHandler
-          )
-
-          let validationDebugChannelClient: AnyStream | undefined = undefined
-          if (returnedDebugChannel) {
-            const [t1, t2] = teeStream(returnedDebugChannel.clientSide.readable)
-            returnedDebugChannel.clientSide.readable = t1
-            validationDebugChannelClient = t2
-          }
-
-          consoleAsyncStorage.run(
-            { dim: true },
-            spawnStaticShellValidationInDev,
-            accumulatedChunksPromise,
-            syncInterruptReason,
-            startTime,
-            staticStageEndTime,
-            runtimeStageEndTime,
-            ctx,
-            finalRequestStore,
-            fallbackParams,
-            validationDebugChannelClient
-          )
-
-          reactServerResult = new ReactServerResult(serverStream)
-          requestStore = finalRequestStore
-          debugChannel = returnedDebugChannel
-        } else {
-          logValidationSkipped(ctx)
-
-          // We're either bypassing caches or we can't restart the render.
-          // Do a dynamic render, but with (basic) environment labels.
-
-          debugChannel = setReactDebugChannel && createWebDebugChannel()
-
-          const serverStream =
-            await stagedRenderToReadableStreamWithoutCachesInDev(
+          if (
+            // We only do this flow if we can safely recreate the store from scratch
+            // (which is not the case for renders after an action)
+            createRequestStore &&
+            // We only do this flow if we're not bypassing caches in dev using
+            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
+            !isBypassingCachesInDev(requestStore)
+          ) {
+            const {
+              stream: serverStream,
+              accumulatedChunksPromise,
+              syncInterruptReason,
+              startTime,
+              staticStageEndTime,
+              runtimeStageEndTime,
+              debugChannel: returnedDebugChannel,
+              requestStore: finalRequestStore,
+            } = await renderWithRestartOnCacheMissInDev(
               ctx,
               requestStore,
+              createRequestStore,
               getPayload,
-              {
-                onError: serverComponentsErrorHandler,
-                filterStackFrame,
-                debugChannel: debugChannel?.serverSide,
-              }
+              serverComponentsErrorHandler
             )
-          reactServerResult = new ReactServerResult(serverStream)
-        }
 
-        if (debugChannel && setReactDebugChannel) {
-          const [readableSsr, readableBrowser] = teeStream(
-            debugChannel.clientSide.readable
-          )
+            let validationDebugChannelClient: AnyStream | undefined = undefined
+            if (returnedDebugChannel) {
+              const [t1, t2] = teeStream(
+                returnedDebugChannel.clientSide.readable
+              )
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = t2
+            }
 
-          reactDebugStream = readableSsr
+            consoleAsyncStorage.run(
+              { dim: true },
+              spawnStaticShellValidationInDev,
+              accumulatedChunksPromise,
+              syncInterruptReason,
+              startTime,
+              staticStageEndTime,
+              runtimeStageEndTime,
+              ctx,
+              finalRequestStore,
+              fallbackParams,
+              validationDebugChannelClient
+            )
 
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
-          )
+            reactServerResult = new ReactServerResult(serverStream)
+            requestStore = finalRequestStore
+            debugChannel = returnedDebugChannel
+          } else {
+            logValidationSkipped(ctx)
+
+            // We're either bypassing caches or we can't restart the render.
+            // Do a dynamic render, but with (basic) environment labels.
+
+            debugChannel = setReactDebugChannel && createWebDebugChannel()
+
+            const serverStream =
+              await stagedRenderToReadableStreamWithoutCachesInDev(
+                ctx,
+                requestStore,
+                getPayload,
+                {
+                  onError: serverComponentsErrorHandler,
+                  filterStackFrame,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
+            reactServerResult = new ReactServerResult(serverStream)
+          }
+
+          if (debugChannel && setReactDebugChannel) {
+            const [readableSsr, readableBrowser] = teeStream(
+              debugChannel.clientSide.readable
+            )
+
+            reactDebugStream = readableSsr
+
+            setReactDebugChannel(
+              { readable: readableBrowser },
+              htmlRequestId,
+              requestId
+            )
+          }
+        } else {
+          // MARK: webstreams dev CacheComponents RSC
+          let debugChannel: DebugChannelPair | undefined
+
+          // eslint-disable-next-line @typescript-eslint/no-shadow
+          const getPayload = async (requestStore: RequestStore) => {
+            const payload: InitialRSCPayload & RSCPayloadDevProperties =
+              await workUnitAsyncStorage.run(
+                requestStore,
+                getRSCPayload,
+                tree,
+                ctx,
+                { is404: res.statusCode === 404 }
+              )
+
+            if (isBypassingCachesInDev(requestStore)) {
+              // Mark the RSC payload to indicate that caches were bypassed in dev.
+              // This lets the client know not to cache anything based on this render.
+              if (renderOpts.setCacheStatus) {
+                // we know this is available  when cacheComponents is enabled, but typeguard to be safe
+                renderOpts.setCacheStatus('bypass', htmlRequestId)
+              }
+              payload._bypassCachesInDev = createElement(
+                WarnForBypassCachesInDev,
+                {
+                  route: workStore.route,
+                }
+              )
+            }
+
+            return payload
+          }
+
+          if (
+            // We only do this flow if we can safely recreate the store from scratch
+            // (which is not the case for renders after an action)
+            createRequestStore &&
+            // We only do this flow if we're not bypassing caches in dev using
+            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
+            !isBypassingCachesInDev(requestStore)
+          ) {
+            const {
+              stream: serverStream,
+              accumulatedChunksPromise,
+              syncInterruptReason,
+              startTime,
+              staticStageEndTime,
+              runtimeStageEndTime,
+              debugChannel: returnedDebugChannel,
+              requestStore: finalRequestStore,
+            } = await renderWithRestartOnCacheMissInDev(
+              ctx,
+              requestStore,
+              createRequestStore,
+              getPayload,
+              serverComponentsErrorHandler
+            )
+
+            let validationDebugChannelClient: AnyStream | undefined = undefined
+            if (returnedDebugChannel) {
+              const [t1, t2] = teeStream(
+                returnedDebugChannel.clientSide.readable
+              )
+              returnedDebugChannel.clientSide.readable = t1
+              validationDebugChannelClient = t2
+            }
+
+            consoleAsyncStorage.run(
+              { dim: true },
+              spawnStaticShellValidationInDev,
+              accumulatedChunksPromise,
+              syncInterruptReason,
+              startTime,
+              staticStageEndTime,
+              runtimeStageEndTime,
+              ctx,
+              finalRequestStore,
+              fallbackParams,
+              validationDebugChannelClient
+            )
+
+            reactServerResult = new ReactServerResult(serverStream)
+            requestStore = finalRequestStore
+            debugChannel = returnedDebugChannel
+          } else {
+            logValidationSkipped(ctx)
+
+            // We're either bypassing caches or we can't restart the render.
+            // Do a dynamic render, but with (basic) environment labels.
+
+            debugChannel = setReactDebugChannel && createWebDebugChannel()
+
+            const serverStream =
+              await stagedRenderToReadableStreamWithoutCachesInDev(
+                ctx,
+                requestStore,
+                getPayload,
+                {
+                  onError: serverComponentsErrorHandler,
+                  filterStackFrame,
+                  debugChannel: debugChannel?.serverSide,
+                }
+              )
+            reactServerResult = new ReactServerResult(serverStream)
+          }
+
+          if (debugChannel && setReactDebugChannel) {
+            const [readableSsr, readableBrowser] = teeStream(
+              debugChannel.clientSide.readable
+            )
+
+            reactDebugStream = readableSsr
+
+            setReactDebugChannel(
+              { readable: readableBrowser },
+              htmlRequestId,
+              requestId
+            )
+          }
         }
       } else if (cacheComponents && cachedNavigations) {
         // MARK: webstreams cacheComponents RSC
