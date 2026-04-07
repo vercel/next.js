@@ -1052,7 +1052,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_prefix(Some(asset_prefix))
+    .asset_prefix_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),
         UrlBehavior {
