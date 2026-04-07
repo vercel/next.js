@@ -23,11 +23,9 @@ const runDev = async (config: any, shouldWaitForReady = true) => {
   const port = await findPort()
   const obj = { port, stdout: '', stderr: '' }
   app = await launchApp(appDir, port, {
-    stdout: false,
     onStdout(msg: string) {
       obj.stdout += msg || ''
     },
-    stderr: false,
     onStderr(msg: string) {
       obj.stderr += msg || ''
     },
