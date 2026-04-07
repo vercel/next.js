@@ -147,9 +147,33 @@ type OpenGraphVideoEpisode = OpenGraphMetadata & {
 }
 type OpenGraphVideoTVShow = OpenGraphMetadata & {
   type: 'video.tv_show'
+  actors?:
+    | null
+    | string
+    | URL
+    | OGActor
+    | Array<string | URL | OGActor>
+    | undefined
+  directors?: null | string | URL | Array<string | URL> | undefined
+  writers?: null | string | URL | Array<string | URL> | undefined
+  duration?: null | number | undefined
+  releaseDate?: null | string | undefined // datetime
+  tags?: null | string | Array<string> | undefined
 }
 type OpenGraphVideoOther = OpenGraphMetadata & {
   type: 'video.other'
+  actors?:
+    | null
+    | string
+    | URL
+    | OGActor
+    | Array<string | URL | OGActor>
+    | undefined
+  directors?: null | string | URL | Array<string | URL> | undefined
+  writers?: null | string | URL | Array<string | URL> | undefined
+  duration?: null | number | undefined
+  releaseDate?: null | string | undefined // datetime
+  tags?: null | string | Array<string> | undefined
 }
 
 type OGImage = string | OGImageDescriptor | URL
@@ -276,9 +300,21 @@ type ResolvedOpenGraphVideoEpisode = ResolvedOpenGraphMetadata & {
 }
 type ResolvedOpenGraphVideoTVShow = ResolvedOpenGraphMetadata & {
   type: 'video.tv_show'
+  actors?: Array<string | URL | OGActor> | undefined
+  directors?: Array<string | URL> | undefined
+  writers?: Array<string | URL> | undefined
+  duration?: number | undefined
+  releaseDate?: string | undefined // datetime
+  tags?: Array<string> | undefined
 }
 type ResolvedOpenGraphVideoOther = ResolvedOpenGraphMetadata & {
   type: 'video.other'
+  actors?: Array<string | URL | OGActor> | undefined
+  directors?: Array<string | URL> | undefined
+  writers?: Array<string | URL> | undefined
+  duration?: number | undefined
+  releaseDate?: string | undefined // datetime
+  tags?: Array<string> | undefined
 }
 
 type OGSong = {

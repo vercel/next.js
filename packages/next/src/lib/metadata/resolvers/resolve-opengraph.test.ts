@@ -84,4 +84,76 @@ describe('resolveOpenGraph', () => {
       url: null,
     })
   })
+
+  it('should resolve video.tv_show with video-specific fields', async () => {
+    const pathname = Promise.resolve('')
+    expect(
+      await resolveOpenGraph(
+        {
+          type: 'video.tv_show',
+          title: 'My TV Show',
+          actors: [{ url: 'https://example.com/actor', role: 'Lead' }],
+          directors: ['https://example.com/director'],
+          writers: ['https://example.com/writer'],
+          duration: 3600,
+          releaseDate: '2024-01-01',
+          tags: ['drama', 'comedy'],
+        },
+        null,
+        pathname,
+        {
+          trailingSlash: false,
+          isStaticMetadataRouteFile: false,
+        },
+        ''
+      )
+    ).toEqual({
+      type: 'video.tv_show',
+      title: { absolute: 'My TV Show', template: null },
+      actors: [{ url: 'https://example.com/actor', role: 'Lead' }],
+      directors: ['https://example.com/director'],
+      writers: ['https://example.com/writer'],
+      duration: 3600,
+      releaseDate: '2024-01-01',
+      tags: ['drama', 'comedy'],
+      images: undefined,
+      url: null,
+    })
+  })
+
+  it('should resolve video.other with video-specific fields', async () => {
+    const pathname = Promise.resolve('')
+    expect(
+      await resolveOpenGraph(
+        {
+          type: 'video.other',
+          title: 'My Other Video',
+          actors: 'https://example.com/actor',
+          directors: ['https://example.com/director'],
+          writers: null,
+          duration: 120,
+          releaseDate: '2024-06-15',
+          tags: ['short'],
+        },
+        null,
+        pathname,
+        {
+          trailingSlash: false,
+          isStaticMetadataRouteFile: false,
+        },
+        ''
+      )
+    ).toEqual({
+      type: 'video.other',
+      title: { absolute: 'My Other Video', template: null },
+      actors: ['https://example.com/actor'],
+      directors: ['https://example.com/director'],
+      writers: null,
+      duration: 120,
+      releaseDate: '2024-06-15',
+      tags: ['short'],
+      images: undefined,
+      url: null,
+    })
+  })
 })
