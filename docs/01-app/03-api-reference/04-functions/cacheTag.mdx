@@ -60,7 +60,12 @@ export async function getData() {
 }
 ```
 
-You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/mutating-data):
+You can then purge the cache on-demand from a [Server Action](/docs/app/getting-started/mutating-data) or [route handler](/docs/app/api-reference/file-conventions/route):
+
+- Use [`updateTag`](/docs/app/api-reference/functions/updateTag) inside a Server Action for immediate expiry so the next read fetches fresh data (read-your-own-writes).
+- Use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when a stale-while-revalidate delay is acceptable, or when invalidating from a route handler.
+
+The example below uses `revalidateTag`:
 
 ```tsx filename="app/action.ts" switcher
 'use server'
@@ -86,7 +91,6 @@ export default async function submit() {
 
 ## Good to know
 
-- **updateTag**: Call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a [Server Action](/docs/app/getting-started/mutating-data) to expire the cached entries for this tag immediately so the next read fetches fresh data. Use this for **read-your-own-writes** after a mutation instead of the stale-while-revalidate flow shown above with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag). See [Differences from `revalidateTag`](/docs/app/api-reference/functions/updateTag#differences-from-revalidatetag).
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
 - **Multiple Tags**: You can assign multiple tags to a single cache entry by passing multiple string values to `cacheTag`.
 
