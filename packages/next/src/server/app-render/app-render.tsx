@@ -3425,7 +3425,6 @@ async function renderToStream(
           // rendering so the RSC payload includes the static stage byte length
           // (`l` field), enabling the client to cache the static subset during
           // hydration.
-          const { renderToReadableStream } = ctx.componentMod
 
           const selectStaleTime = createSelectStaleTime(experimental)
           const staleTimeIterable = new StaleTimeIterable()
@@ -3510,18 +3509,21 @@ async function renderToStream(
 
               const stream = workUnitAsyncStorage.run(
                 requestStore,
-                renderToReadableStream,
+                renderToNodeFlightStream,
+                ctx.componentMod,
                 RSCPayload,
                 clientModules,
                 {
                   onError: serverComponentsErrorHandler,
                   filterStackFrame,
                 }
-              )
+              ) as Readable
 
-              const [dynamicStream, staticStream] = stream.tee()
+              const replayable = new ReplayableNodeStream(stream)
+              const dynamicStream = replayable.createReplayStream()
+              const staticStream = replayable.createReplayStream()
 
-              countStaticStageBytes(staticStream, stageController).then(
+              countStaticStageBytesNode(staticStream, stageController).then(
                 resolveStaticStageByteLength!
               )
 
@@ -4976,6 +4978,38 @@ async function countStaticStageBytes(
     } else {
       reader.cancel()
       break
+    }
+  }
+
+  return byteLength
+}
+
+async function countStaticStageBytesNode(
+  stream: Readable,
+  stageController: StagedRenderingController
+): Promise<number> {
+  let byteLength = 0
+  let cancelled = false
+
+  stageController.onStage(RenderStage.EarlyRuntime, () => {
+    cancelled = true
+    stream.destroy()
+  })
+
+  try {
+    for await (const value of stream) {
+      if (cancelled) break
+      if (stageController.currentStage <= RenderStage.Static) {
+        byteLength += (value as Uint8Array).byteLength
+      } else {
+        cancelled = true
+        stream.destroy()
+        break
+      }
+    }
+  } catch (err) {
+    if (!cancelled) {
+      throw err
     }
   }
 
