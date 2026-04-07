@@ -1240,7 +1240,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                let finihed_state = this.finish_current_task_state();
+                                let finished_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                                 this.backend.task_execution_completed(
@@ -1248,8 +1248,8 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     result,
                                     &cell_counters,
                                     #[cfg(feature = "verify_determinism")]
-                                    finihed_state.stateful,
-                                    finihed_state.has_invalidator,
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
                                     &*this,
                                 )
                             }

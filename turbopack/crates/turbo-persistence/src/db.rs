@@ -592,9 +592,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             Blob(u32, File),
         }
 
-        let mut sync_items: Vec<SyncItem> = Vec::with_capacity(
-            new_meta_files.len() + new_sst_files.len() + new_blob_files.len(),
-        );
+        let mut sync_items: Vec<SyncItem> =
+            Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
         for (seq, file) in new_meta_files {
             sync_items.push(SyncItem::Meta(seq, file));
         }
