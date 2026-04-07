@@ -34,6 +34,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
+    error::Error as StdError,
     fmt::{self, Debug, Formatter},
     fs::FileType,
     future::Future,
@@ -942,6 +943,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         impl Effect for WriteEffect {
+            type Error = AnyhowWrapper;
             type Value = ReadRef<PersistedFileContent>;
 
             fn key(&self) -> Vec<u8> {
@@ -956,7 +958,13 @@ impl FileSystem for DiskFileSystem {
                 &self.inner.effect_state_storage
             }
 
-            async fn apply(&self) -> Result<()> {
+            async fn apply(&self) -> Result<(), AnyhowWrapper> {
+                self.apply_inner().await.map_err(AnyhowWrapper::from)
+            }
+        }
+
+        impl WriteEffect {
+            async fn apply_inner(&self) -> anyhow::Result<()> {
                 let full_path = validate_path_length(&self.full_path)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
@@ -1082,6 +1090,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         impl Effect for WriteLinkEffect {
+            type Error = AnyhowWrapper;
             type Value = ReadRef<LinkContent>;
 
             fn key(&self) -> Vec<u8> {
@@ -1096,7 +1105,13 @@ impl FileSystem for DiskFileSystem {
                 &self.inner.effect_state_storage
             }
 
-            async fn apply(&self) -> Result<()> {
+            async fn apply(&self) -> Result<(), AnyhowWrapper> {
+                self.apply_inner().await.map_err(AnyhowWrapper::from)
+            }
+        }
+
+        impl WriteLinkEffect {
+            async fn apply_inner(&self) -> anyhow::Result<()> {
                 let full_path = validate_path_length(&self.full_path)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
@@ -1256,7 +1271,7 @@ impl FileSystem for DiskFileSystem {
                             .with_context(err_context)?;
                     }
                     OsSpecificLinkContent::Invalid => {
-                        return Err(anyhow!("invalid symlink target: {full_path:?}"));
+                        bail!("invalid symlink target: {full_path:?}");
                     }
                     OsSpecificLinkContent::NotFound => {
                         retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
@@ -2815,6 +2830,35 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
+}
+
+/// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in [`Effect::apply`].
+// TODO(bgw): use a structured error type instead of anyhow for write/write_link
+#[derive(TraceRawVcs, NonLocalValue)]
+pub(crate) struct AnyhowWrapper(anyhow::Error);
+
+impl fmt::Display for AnyhowWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Debug for AnyhowWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl StdError for AnyhowWrapper {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
+
+impl From<anyhow::Error> for AnyhowWrapper {
+    fn from(err: anyhow::Error) -> Self {
+        AnyhowWrapper(err)
+    }
 }
 
 #[cfg(test)]

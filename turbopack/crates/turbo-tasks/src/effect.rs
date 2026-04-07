@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    error::Error as StdError,
     future::Future,
     pin::Pin,
     sync::{Arc, OnceLock},
@@ -11,6 +12,7 @@ use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
+use turbo_dyn_eq_hash::DynPartialEq;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
@@ -22,8 +24,24 @@ use crate::{
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
 pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
+    /// The error type that an effect can return. We use `dyn std::error::Error` (instead of
+    /// [`anyhow::Error`] or [`SharedError`]) to encourage use of structured error types that can
+    /// potentially be transformed into `Issue`s.
+    ///
+    /// We can't require that the returned error implements `Issue`:
+    /// - `Issue` uses `FileSystemPath`
+    /// - `turbo-tasks-fs` returns effect errors that should be transformed into `Issue`s.
+    /// - It logically doesn't make sense to define `Issue` in `turbo-tasks-fs`, `Issue` can't be
+    ///   defined in a base crate either because it would form a circular crate dependency.
+    ///
+    /// So instead, we leave it up to the caller to figure out how to downcast these errors
+    /// themselves.
+    ///
+    /// [`SharedError`]: crate::util::SharedError
+    type Error: EffectError;
+
     /// The type of this effect's value for storage and comparison.
-    type Value: Clone + Eq + Send + Sync + 'static;
+    type Value: Clone + DynPartialEq + Eq + Send + Sync + 'static;
 
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Vec<u8>;
@@ -35,8 +53,24 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     fn state_storage(&self) -> &EffectStateStorage;
 
     /// Perform the side effect (write file, create symlink, etc.).
-    fn apply(&self) -> impl Future<Output = Result<()>> + Send;
+    fn apply(&self) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
+
+/// The error type that an effect can return. We use `dyn std::error::Error` (instead of
+/// [`anyhow::Error`] or [`SharedError`]) to encourage use of structured error types that can
+/// potentially be transformed into `Issue`s.
+///
+/// We can't require that the returned error implements `Issue`:
+/// - `Issue` uses `FileSystemPath`
+/// - `turbo-tasks-fs` returns effect errors that should be transformed into `Issue`s.
+/// - It logically doesn't make sense to define `Issue` in `turbo-tasks-fs`, `Issue` can't be
+///   defined in a base crate either because it would form a circular crate dependency.
+///
+/// So instead, we leave it up to the caller to figure out how to downcast these errors themselves.
+///
+/// [`SharedError`]: crate::util::SharedError
+pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
+impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
 
 /// Per-key entry in the effect state storage.
 ///
@@ -69,6 +103,7 @@ pub struct EffectStateStorage {
 // that the dynosaur crate uses: https://github.com/spastorino/dynosaur
 trait DynEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     fn key(&self) -> Vec<u8>;
+    /// Compare `self`'s value against a stored `Box<dyn Any>`, using [`DynPartialEq`].
     fn eq_value_dyn(&self, other: &dyn Any) -> bool;
     fn value_dyn(&self) -> Box<dyn Any + Send + Sync>;
     fn state_storage(&self) -> &EffectStateStorage;
@@ -84,10 +119,7 @@ where
     }
 
     fn eq_value_dyn(&self, other: &dyn Any) -> bool {
-        match other.downcast_ref::<T::Value>() {
-            Some(other_val) => Effect::value(self) == other_val,
-            None => false,
-        }
+        DynPartialEq::dyn_partial_eq(Effect::value(self), other)
     }
 
     fn value_dyn(&self) -> Box<dyn Any + Send + Sync> {
@@ -99,7 +131,7 @@ where
     }
 
     fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a> {
-        Box::pin(Effect::apply(self))
+        Box::pin(async move { Effect::apply(self).await.map_err(anyhow::Error::from) })
     }
 }
 
@@ -216,8 +248,10 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
 }
 
 /// Cached result of grouping effects by key and dedup/conflict detection.
-/// Each entry is (index into `effects`, cached key bytes).
-type UniqueEffectIndices = Result<Vec<(usize, Vec<u8>)>, String>;
+/// Each entry is (index into `effects`, Arc to per-key state entry).
+/// The `Arc<EffectStateEntry>` is resolved once and cached to avoid DashMap lookups on
+/// subsequent `apply()` calls.
+type UniqueEffectIndices = Result<Vec<(usize, Arc<EffectStateEntry>)>, String>;
 
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
@@ -226,9 +260,10 @@ type UniqueEffectIndices = Result<Vec<(usize, Vec<u8>)>, String>;
 pub struct Effects {
     #[turbo_tasks(debug_ignore)]
     effects: Vec<ReadRef<EffectInstance>>,
-    /// Cached (index, key) pairs after grouping by key and dedup/conflict detection.
+    /// Cached (index, state_entry) pairs after grouping by key and dedup/conflict detection.
     /// Computed once on first `apply()` call; reused on subsequent calls to avoid repeated
-    /// HashMap allocation and key() Vec<u8> allocations. `Err` means a conflict was detected.
+    /// HashMap allocation, key() Vec<u8> allocations, and DashMap lookups.
+    /// `Err` means a conflict was detected.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     unique_indices: OnceLock<UniqueEffectIndices>,
 }
@@ -275,7 +310,9 @@ impl Effects {
         let span = tracing::info_span!("apply effects", count = self.effects.len());
 
         async {
-            // Compute unique (index, key) pairs once; reuse on later calls.
+            // Compute unique (index, state_entry) pairs once; reuse on later calls.
+            // The Arc<EffectStateEntry> is resolved from the DashMap on first call and cached
+            // here, so subsequent apply() calls bypass the DashMap lookup entirely.
             let unique_indices = self.unique_indices.get_or_init(|| {
                 let mut by_key: rustc_hash::FxHashMap<Vec<u8>, Vec<usize>> =
                     rustc_hash::FxHashMap::default();
@@ -297,7 +334,15 @@ impl Effects {
                             }
                         }
                     }
-                    indices.push((group[0], key));
+                    let idx = group[0];
+                    let state_storage = self.effects[idx].inner.state_storage();
+                    // Look up or create the per-key state entry and cache the Arc directly.
+                    let entry = state_storage
+                        .effect_state
+                        .entry(key)
+                        .or_insert_with(|| Arc::new(EffectStateEntry::default()))
+                        .clone();
+                    indices.push((idx, entry));
                 }
                 Ok(indices)
             });
@@ -306,61 +351,47 @@ impl Effects {
                 Err(msg) => bail!("{msg}"),
             };
 
-            // Apply effects using cached (index, key) pairs.
+            // Apply effects using cached (index, state_entry) pairs.
+            // Hot path: no DashMap lookup — Arc<EffectStateEntry> is cached in unique_indices.
             futures::stream::iter(unique_indices.iter())
                 .map(Ok::<_, anyhow::Error>)
-                .try_for_each_concurrent(
-                    APPLY_EFFECTS_CONCURRENCY_LIMIT,
-                    async |&(idx, ref key)| {
-                        let effect: &dyn DynEffect = &*self.effects[idx].inner;
-                        let state_storage = effect.state_storage();
+                .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |(idx, entry)| {
+                    let effect: &dyn DynEffect = &*self.effects[*idx].inner;
 
-                        // Get per-key entry, avoiding key clone when already present
-                        let entry = if let Some(existing) = state_storage.effect_state.get(key) {
-                            existing.clone()
-                        } else {
-                            state_storage
-                                .effect_state
-                                .entry(key.clone())
-                                .or_insert_with(|| Arc::new(EffectStateEntry::default()))
-                                .clone()
-                        };
-
-                        // Fast path: check if the stored value already matches (sync, no await)
+                    // Fast path: check if the stored value already matches (sync, no await)
+                    {
+                        let stored = entry.last_applied.lock();
+                        if let Some(stored_val) = stored.as_ref()
+                            && effect.eq_value_dyn(&**stored_val)
                         {
-                            let stored = entry.last_applied.lock();
-                            if let Some(stored_val) = stored.as_ref()
-                                && effect.eq_value_dyn(&**stored_val)
-                            {
-                                return Ok(());
-                            }
+                            return Ok(());
                         }
+                    }
 
-                        // Slow path: acquire the write lock and re-check before writing
-                        let _write_guard = entry.write_lock.lock().await;
+                    // Slow path: acquire the write lock and re-check before writing
+                    let _write_guard = entry.write_lock.lock().await;
 
+                    {
+                        let stored = entry.last_applied.lock();
+                        if let Some(stored_val) = stored.as_ref()
+                            && effect.eq_value_dyn(&**stored_val)
                         {
-                            let stored = entry.last_applied.lock();
-                            if let Some(stored_val) = stored.as_ref()
-                                && effect.eq_value_dyn(&**stored_val)
-                            {
-                                return Ok(());
-                            }
+                            return Ok(());
                         }
+                    }
 
-                        // Clear stored value so concurrent fast-path checks won't
-                        // match against the stale value while we're writing.
-                        *entry.last_applied.lock() = None;
+                    // Clear stored value so concurrent fast-path checks won't
+                    // match against the stale value while we're writing.
+                    *entry.last_applied.lock() = None;
 
-                        // Apply the effect
-                        effect.dyn_apply().await?;
+                    // Apply the effect
+                    effect.dyn_apply().await?;
 
-                        // Store the new value (sync)
-                        *entry.last_applied.lock() = Some(effect.value_dyn());
+                    // Store the new value (sync)
+                    *entry.last_applied.lock() = Some(effect.value_dyn());
 
-                        Ok(())
-                    },
-                )
+                    Ok(())
+                })
                 .await?;
 
             Ok::<(), anyhow::Error>(())
