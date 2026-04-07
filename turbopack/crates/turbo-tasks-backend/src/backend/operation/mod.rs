@@ -228,8 +228,30 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<StorageWriteGuard<'e>> {
+        // Fast path: check without registering a listener first.
+        // By the time Phase 3 runs, batch I/O from Phase 1b has elapsed and the other
+        // thread has likely already finished restoring.
+        {
+            let task = self
+                .backend
+                .storage
+                .access_read(task_id)
+                .expect("task entry must exist when waiting for restore");
+            let is_restoring = task.flags.is_restoring(category);
+            let is_restored = task.flags.is_restored(category);
+            drop(task);
+
+            if is_restored {
+                return Ok(self.backend.storage.access_mut(task_id));
+            }
+            if !is_restoring {
+                bail!("restoring failed");
+            }
+        }
+
+        // Slow path: register a listener and wait until the other thread signals completion.
         loop {
-            // Register a listener BEFORE checking the bits (avoids a lost-wakeup race).
+            // Register a listener BEFORE re-checking the bits (avoids a lost-wakeup race).
             let listener = self.backend.storage.restored.listen();
 
             let task = self
