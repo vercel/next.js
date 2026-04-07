@@ -684,20 +684,8 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                 }
 
                 if do_data || do_meta || data_restoring || meta_restoring {
-                    // Drop lock while doing I/O or waiting.
+                    // Drop lock while doing I/O (our I/O can overlap with the other thread).
                     drop(task);
-
-                    // Wait for categories claimed by another thread.
-                    let wait_category = match (data_restoring, meta_restoring) {
-                        (true, true) => Some(TaskDataCategory::All),
-                        (true, false) => Some(TaskDataCategory::Data),
-                        (false, true) => Some(TaskDataCategory::Meta),
-                        (false, false) => None,
-                    };
-                    if let Some(cat) = wait_category {
-                        // Returns a write guard; drop it since we re-acquire below.
-                        drop(self.wait_for_restore_or_panic(task_id, cat));
-                    }
 
                     // Perform I/O for categories we claimed.
                     let storage_data = do_data
@@ -705,7 +693,19 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                     let storage_meta = do_meta
                         .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
 
-                    task = self.backend.storage.access_mut(task_id);
+                    // Wait for categories claimed by another thread (after our I/O).
+                    // Reuse the returned write guard to avoid a second lock acquisition.
+                    let wait_category = match (data_restoring, meta_restoring) {
+                        (true, true) => Some(TaskDataCategory::All),
+                        (true, false) => Some(TaskDataCategory::Data),
+                        (false, true) => Some(TaskDataCategory::Meta),
+                        (false, false) => None,
+                    };
+                    task = if let Some(cat) = wait_category {
+                        self.wait_for_restore_or_panic(task_id, cat)
+                    } else {
+                        self.backend.storage.access_mut(task_id)
+                    };
 
                     // Apply results and clear restoring bits.
                     if let Some(result) = storage_data
