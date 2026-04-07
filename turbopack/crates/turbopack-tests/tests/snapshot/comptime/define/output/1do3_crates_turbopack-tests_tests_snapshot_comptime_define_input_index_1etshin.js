@@ -50,13 +50,26 @@ console.log(("TURBOPACK compile-time value", {
     "test": ("TURBOPACK compile-time value", true)
 }));
 console.log(("TURBOPACK compile-time value", "value"));
-console.log(("TURBOPACK compile-time value", "development"));
+console.log(("TURBOPACK compile-time value", {
+    "TURBOPACK": ("TURBOPACK compile-time value", "1"),
+    "NODE_ENV": ("TURBOPACK compile-time value", "development")
+}).NODE_ENV);
+console.log(("TURBOPACK compile-time value", {
+    "TURBOPACK": ("TURBOPACK compile-time value", "1"),
+    "NODE_ENV": ("TURBOPACK compile-time value", "development")
+}).CI);
 if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 ("TURBOPACK compile-time falsy", 0) ? "TURBOPACK unreachable" : console.log('development');
 // TODO short-circuit is not implemented yet
-("TURBOPACK compile-time value", "development") != 'production' && console.log('development');
-("TURBOPACK compile-time value", "development") == 'production' && console.log('production');
+("TURBOPACK compile-time value", {
+    "TURBOPACK": ("TURBOPACK compile-time value", "1"),
+    "NODE_ENV": ("TURBOPACK compile-time value", "development")
+}).NODE_ENV != 'production' && console.log('development');
+("TURBOPACK compile-time value", {
+    "TURBOPACK": ("TURBOPACK compile-time value", "1"),
+    "NODE_ENV": ("TURBOPACK compile-time value", "development")
+}).NODE_ENV == 'production' && console.log('production');
 console.log(("TURBOPACK compile-time value", "/ROOT/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input"));
 // Test that WARNED_VALUE triggers a warning but still gets replaced
 console.log(("TURBOPACK compile-time value", "replacement"));

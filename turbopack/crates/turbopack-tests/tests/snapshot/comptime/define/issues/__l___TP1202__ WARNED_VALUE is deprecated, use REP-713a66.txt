@@ -1,0 +1,13 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js:67:12  TP1202 WARNED_VALUE is deprecated, use REPLACEMENT_VALUE instead
+  
+      63 | 
+      64 | console.log(__dirname)
+      65 | 
+      66 | // Test that WARNED_VALUE triggers a warning but still gets replaced
+         +             v----------v
+      67 + console.log(WARNED_VALUE)
+         +             ^----------^
+      68 | if (WARNED_VALUE === 'replacement') {
+      69 |   console.log('warning replacement works')
+      70 | }
+      71 |
