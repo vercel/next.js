@@ -8,7 +8,6 @@ const strictRouteTypes =
 describe('types-gen-nounuselocal', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
