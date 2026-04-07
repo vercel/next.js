@@ -263,6 +263,11 @@ import 'server-only'
 
 This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
 
+> **Good to know:**
+>
+> - In Next.js, installing `server-only` is optional. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
+> - Read more in the [server-only](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning).
+
 ## Mutating Data
 
 Next.js handles mutations with [Server Actions](https://react.dev/reference/rsc/server-functions).
