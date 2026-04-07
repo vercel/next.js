@@ -67,3 +67,9 @@ impl SstFilter {
         !used && !meta.has_active_entries()
     }
 }
+
+impl Default for SstFilter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
