@@ -3080,7 +3080,6 @@ async function renderToStream(
     const { clientModules } = getClientReferenceManifest()
 
     try {
-      // MARK: dev CacheComponents RSC
       if (
         process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
@@ -3088,6 +3087,7 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
+        // MARK: webstreams dev CacheComponents RSC
         let debugChannel: DebugChannelPair | undefined
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -3204,7 +3204,7 @@ async function renderToStream(
           )
         }
       } else if (cacheComponents && cachedNavigations) {
-        // MARK: cacheComponents RSC
+        // MARK: webstreams cacheComponents RSC
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the static stage byte length
         // (`l` field), enabling the client to cache the static subset during
