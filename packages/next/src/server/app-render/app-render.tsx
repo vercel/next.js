@@ -1090,7 +1090,7 @@ type RenderToReadableStreamServerOptions = NonNullable<
   >[2]
 >
 
-async function stagedRenderToReadableStreamWithoutCachesInDev(
+async function stagedRenderWithoutCachesInDevWeb(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
@@ -1145,6 +1145,76 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
       return workUnitAsyncStorage.run(
         requestStore,
         renderToWebFlightStream,
+        ctx.componentMod,
+        rscPayload,
+        clientModules,
+        {
+          ...options,
+          environmentName,
+        }
+      )
+    },
+    () => {
+      stageController.advanceStage(RenderStage.Dynamic)
+    }
+  )
+}
+
+async function stagedRenderWithoutCachesInDevNode(
+  ctx: AppRenderContext,
+  requestStore: RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
+) {
+  // We're rendering while bypassing caches,
+  // so we have no hope of showing a useful runtime stage.
+  // But we still want things like `params` to show up in devtools correctly,
+  // which relies on mechanisms we've set up for staged rendering,
+  // so we do a 2-task version (Static -> Dynamic) instead.
+
+  // We aren't filling caches so we don't need to abort this render, it'll
+  // stream in a single pass
+  const stageController = new StagedRenderingController(
+    null, // no aborting
+    null, // no abandoning
+    false // do not track sync IO (we don't have reliable stages)
+  )
+
+  const environmentName = () => {
+    const currentStage = stageController.currentStage
+    switch (currentStage) {
+      case RenderStage.Before:
+      case RenderStage.EarlyStatic:
+      case RenderStage.Static:
+        return 'Prerender'
+      case RenderStage.EarlyRuntime:
+      case RenderStage.Runtime:
+      case RenderStage.Dynamic:
+      case RenderStage.Abandoned:
+        return 'Server'
+      default:
+        currentStage satisfies never
+        throw new InvariantError(`Invalid render stage: ${currentStage}`)
+    }
+  }
+
+  requestStore.stagedRendering = stageController
+  requestStore.asyncApiPromises = createAsyncApiPromises(
+    stageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
+
+  const { clientModules } = getClientReferenceManifest()
+  const rscPayload = await getPayload(requestStore)
+
+  return await runInSequentialTasks(
+    () => {
+      stageController.advanceStage(RenderStage.Static)
+      return workUnitAsyncStorage.run(
+        requestStore,
+        renderToNodeFlightStream,
         ctx.componentMod,
         rscPayload,
         clientModules,
@@ -1267,13 +1337,21 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       runtimeStageEndTime,
       debugChannel: returnedDebugChannel,
       requestStore: finalRequestStore,
-    } = await renderWithRestartOnCacheMissInDev(
-      ctx,
-      initialRequestStore,
-      createRequestStore,
-      getPayload,
-      onError
-    )
+    } = await (process.env.__NEXT_USE_NODE_STREAMS
+      ? renderWithRestartOnCacheMissInDevNode(
+          ctx,
+          initialRequestStore,
+          createRequestStore,
+          getPayload,
+          onError
+        )
+      : renderWithRestartOnCacheMissInDevWeb(
+          ctx,
+          initialRequestStore,
+          createRequestStore,
+          getPayload,
+          onError
+        ))
 
     if (shouldValidate) {
       let validationDebugChannelClient: AnyStream | undefined = undefined
@@ -1310,18 +1388,33 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('bypass', htmlRequestId)
     }
 
-    debugChannel = setReactDebugChannel && createWebDebugChannel()
+    if (process.env.__NEXT_USE_NODE_STREAMS) {
+      debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
-    stream = await stagedRenderToReadableStreamWithoutCachesInDev(
-      ctx,
-      initialRequestStore,
-      getPayload,
-      {
-        onError: onError,
-        filterStackFrame,
-        debugChannel: debugChannel?.serverSide,
-      }
-    )
+      stream = await stagedRenderWithoutCachesInDevNode(
+        ctx,
+        initialRequestStore,
+        getPayload,
+        {
+          onError: onError,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+        }
+      )
+    } else {
+      debugChannel = setReactDebugChannel && createWebDebugChannel()
+
+      stream = await stagedRenderWithoutCachesInDevWeb(
+        ctx,
+        initialRequestStore,
+        getPayload,
+        {
+          onError: onError,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+        }
+      )
+    }
   }
 
   if (debugChannel && setReactDebugChannel) {
@@ -3137,7 +3230,7 @@ async function renderToStream(
               runtimeStageEndTime,
               debugChannel: returnedDebugChannel,
               requestStore: finalRequestStore,
-            } = await renderWithRestartOnCacheMissInDev(
+            } = await renderWithRestartOnCacheMissInDevNode(
               ctx,
               requestStore,
               createRequestStore,
@@ -3177,19 +3270,18 @@ async function renderToStream(
             // We're either bypassing caches or we can't restart the render.
             // Do a dynamic render, but with (basic) environment labels.
 
-            debugChannel = setReactDebugChannel && createWebDebugChannel()
+            debugChannel = setReactDebugChannel && createNodeDebugChannel()
 
-            const serverStream =
-              await stagedRenderToReadableStreamWithoutCachesInDev(
-                ctx,
-                requestStore,
-                getPayload,
-                {
-                  onError: serverComponentsErrorHandler,
-                  filterStackFrame,
-                  debugChannel: debugChannel?.serverSide,
-                }
-              )
+            const serverStream = await stagedRenderWithoutCachesInDevNode(
+              ctx,
+              requestStore,
+              getPayload,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
             reactServerResult = new ReactServerResult(serverStream)
           }
 
@@ -3256,7 +3348,7 @@ async function renderToStream(
               runtimeStageEndTime,
               debugChannel: returnedDebugChannel,
               requestStore: finalRequestStore,
-            } = await renderWithRestartOnCacheMissInDev(
+            } = await renderWithRestartOnCacheMissInDevWeb(
               ctx,
               requestStore,
               createRequestStore,
@@ -3298,17 +3390,16 @@ async function renderToStream(
 
             debugChannel = setReactDebugChannel && createWebDebugChannel()
 
-            const serverStream =
-              await stagedRenderToReadableStreamWithoutCachesInDev(
-                ctx,
-                requestStore,
-                getPayload,
-                {
-                  onError: serverComponentsErrorHandler,
-                  filterStackFrame,
-                  debugChannel: debugChannel?.serverSide,
-                }
-              )
+            const serverStream = await stagedRenderWithoutCachesInDevWeb(
+              ctx,
+              requestStore,
+              getPayload,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
             reactServerResult = new ReactServerResult(serverStream)
           }
 
@@ -3992,7 +4083,7 @@ async function renderToStream(
   /* eslint-enable @next/internal/no-ambiguous-jsx */
 }
 
-async function renderWithRestartOnCacheMissInDev(
+async function renderWithRestartOnCacheMissInDevWeb(
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: () => RequestStore,
@@ -4251,6 +4342,321 @@ async function renderWithRestartOnCacheMissInDev(
         workUnitAsyncStorage.run(
           requestStore,
           renderToWebFlightStream,
+          ComponentMod,
+          finalRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+          }
+        )
+      )
+
+      return {
+        stream: streamPair[0],
+        accumulatedChunksPromise: accumulateStreamChunks(
+          streamPair[1],
+          finalStageController,
+          null
+        ),
+      }
+    },
+    () => {
+      // Static stage
+      finalStageController.advanceStage(RenderStage.Static)
+    },
+    () => {
+      // EarlyRuntime stage
+      finalStageController.advanceStage(RenderStage.EarlyRuntime)
+    },
+    () => {
+      // Runtime stage
+      finalStageController.advanceStage(RenderStage.Runtime)
+    },
+    () => {
+      // Dynamic stage
+      finalStageController.advanceStage(RenderStage.Dynamic)
+    }
+  )
+
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
+    setCacheStatus('filled', htmlRequestId)
+  }
+
+  return {
+    stream: finalStreamResult.stream,
+    accumulatedChunksPromise: finalStreamResult.accumulatedChunksPromise,
+    syncInterruptReason: finalStageController.getSyncInterruptReason(),
+    startTime,
+    staticStageEndTime: finalStageController.getStaticStageEndTime(),
+    runtimeStageEndTime: finalStageController.getRuntimeStageEndTime(),
+    debugChannel,
+    requestStore,
+  }
+}
+
+async function renderWithRestartOnCacheMissInDevNode(
+  ctx: AppRenderContext,
+  initialRequestStore: RequestStore,
+  createRequestStore: () => RequestStore,
+  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  onError: (error: unknown) => void
+) {
+  const { htmlRequestId, renderOpts } = ctx
+
+  const { ComponentMod, setCacheStatus, setReactDebugChannel } = renderOpts
+
+  let startTime = -Infinity
+
+  // If the render is restarted, we'll recreate a fresh request store
+  let requestStore: RequestStore = initialRequestStore
+
+  const environmentName = () => {
+    const currentStage = requestStore.stagedRendering!.currentStage
+    switch (currentStage) {
+      case RenderStage.Before:
+      case RenderStage.EarlyStatic:
+      case RenderStage.Static:
+        return 'Prerender'
+      case RenderStage.EarlyRuntime:
+        return 'Prefetch'
+      case RenderStage.Runtime:
+        return 'Prefetchable'
+      case RenderStage.Dynamic:
+      case RenderStage.Abandoned:
+        return 'Server'
+      default:
+        currentStage satisfies never
+        throw new InvariantError(`Invalid render stage: ${currentStage}`)
+    }
+  }
+
+  //===============================================
+  // Initial render
+  //===============================================
+
+  // Try to render the page and see if there's any cache misses.
+  // If there are, wait for caches to finish and restart the render.
+
+  // This render might end up being used as a prospective render (if there's cache misses),
+  // so we need to set it up for filling caches.
+  const cacheSignal = new CacheSignal()
+
+  // If we encounter async modules that delay rendering, we'll also need to restart.
+  // TODO(restart-on-cache-miss): technically, we only need to wait for pending *server* modules here,
+  // but `trackPendingModules` doesn't distinguish between client and server.
+  trackPendingModules(cacheSignal)
+
+  const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
+  const initialReactController = new AbortController()
+  const initialDataController = new AbortController() // Controls hanging promises we create
+  const initialAbandonController = new AbortController() // Controls whether this render is abandoned
+  const initialStageController = new StagedRenderingController(
+    initialDataController.signal,
+    initialAbandonController,
+    true // track sync IO
+  )
+
+  requestStore.prerenderResumeDataCache = prerenderResumeDataCache
+  // `getRenderResumeDataCache` will fall back to using `prerenderResumeDataCache` as `renderResumeDataCache`,
+  // so not having a resume data cache won't break any expectations in case we don't need to restart.
+  requestStore.renderResumeDataCache = null
+  requestStore.stagedRendering = initialStageController
+  requestStore.asyncApiPromises = createAsyncApiPromises(
+    initialStageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
+  requestStore.cacheSignal = cacheSignal
+
+  let debugChannel = setReactDebugChannel && createNodeDebugChannel()
+  const { clientModules } = getClientReferenceManifest()
+
+  // Note: The stage controller starts out in the `Before` stage,
+  // where sync IO does not cause aborts, so it's okay if it happens before render.
+  const initialRscPayload = await getPayload(requestStore)
+
+  const initialStreamResult = await runInSequentialTasks(
+    () => {
+      initialStageController.advanceStage(RenderStage.EarlyStatic)
+      startTime = performance.now() + performance.timeOrigin
+
+      const streamPair = teeStream(
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToNodeFlightStream,
+          ComponentMod,
+          initialRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            signal: initialReactController.signal,
+          }
+        )
+      )
+
+      // If we abort the render, we want to reject the stage-dependent promises as well.
+      // Note that we want to install this listener after the render is started
+      // so that it runs after react is finished running its abort code.
+      initialReactController.signal.addEventListener(
+        'abort',
+        () => {
+          const { reason } = initialReactController.signal
+          initialDataController.abort(reason)
+        },
+        { once: true }
+      )
+
+      const stream = streamPair[0]
+      const accumulatedChunksPromise = accumulateStreamChunks(
+        streamPair[1],
+        initialStageController,
+        initialDataController.signal
+      )
+
+      initialDataController.signal.addEventListener(
+        'abort',
+        () => {
+          accumulatedChunksPromise.catch(() => {})
+          if (stream instanceof ReadableStream) {
+            stream.cancel()
+          } else {
+            stream.destroy()
+          }
+        },
+        { once: true }
+      )
+
+      return {
+        stream,
+        accumulatedChunksPromise,
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.Static)
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.EarlyRuntime)
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.Runtime)
+      }
+    },
+    () => {
+      if (initialAbandonController.signal.aborted === true) {
+        return
+      } else if (cacheSignal.hasPendingReads()) {
+        initialAbandonController.abort()
+      } else {
+        initialStageController.advanceStage(RenderStage.Dynamic)
+      }
+    }
+  )
+
+  if (initialStageController.currentStage !== RenderStage.Abandoned) {
+    // No cache misses. We can use the result as-is.
+    return {
+      stream: initialStreamResult.stream,
+      accumulatedChunksPromise: initialStreamResult.accumulatedChunksPromise,
+      syncInterruptReason: initialStageController.getSyncInterruptReason(),
+      startTime,
+      staticStageEndTime: initialStageController.getStaticStageEndTime(),
+      runtimeStageEndTime: initialStageController.getRuntimeStageEndTime(),
+      debugChannel,
+      requestStore,
+    }
+  }
+
+  if (process.env.__NEXT_DEV_SERVER && setCacheStatus) {
+    setCacheStatus('filling', htmlRequestId)
+  }
+
+  // Cache miss. We will use the initial render to fill caches, and discard its result.
+  // Then, we can render again with warm caches.
+
+  // TODO(restart-on-cache-miss):
+  // This might end up waiting for more caches than strictly necessary,
+  // because we can't abort the render yet, and we'll let runtime/dynamic APIs resolve.
+  // Ideally we'd only wait for caches that are needed in the static stage.
+  // This will be optimized in the future by not allowing runtime/dynamic APIs to resolve.
+
+  await cacheSignal.cacheReady()
+  initialReactController.abort()
+
+  //===============================================
+  // Final render (restarted)
+  //===============================================
+
+  // The initial render acted as a prospective render to warm the caches.
+  requestStore = createRequestStore()
+
+  // We are going to render this pass all the way through because we've already
+  // filled any caches so we won't be aborting this time.
+  const abortSignal = null
+  const finalStageController = new StagedRenderingController(
+    abortSignal,
+    null, // no abandoning
+    true // track sync IO
+  )
+
+  // We've filled the caches, so now we can render as usual,
+  // without any cache-filling mechanics.
+  requestStore.prerenderResumeDataCache = null
+  requestStore.renderResumeDataCache = createRenderResumeDataCache(
+    prerenderResumeDataCache
+  )
+  requestStore.stagedRendering = finalStageController
+  requestStore.cacheSignal = null
+  requestStore.asyncApiPromises = createAsyncApiPromises(
+    finalStageController,
+    requestStore.cookies,
+    requestStore.mutableCookies,
+    requestStore.headers
+  )
+
+  // The initial render already wrote to its debug channel.
+  // We're not using it, so we need to create a new one.
+  debugChannel = setReactDebugChannel && createNodeDebugChannel()
+
+  // Note: The stage controller starts out in the `Before` stage,
+  // where sync IO does not cause aborts, so it's okay if it happens before render.
+  const finalRscPayload = await getPayload(requestStore)
+
+  const finalStreamResult = await runInSequentialTasks(
+    () => {
+      finalStageController.advanceStage(RenderStage.EarlyStatic)
+      startTime = performance.now() + performance.timeOrigin
+
+      const streamPair = teeStream(
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToNodeFlightStream,
           ComponentMod,
           finalRscPayload,
           clientModules,
