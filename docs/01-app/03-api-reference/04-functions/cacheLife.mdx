@@ -37,13 +37,12 @@ const nextConfig = {
 export default nextConfig
 ```
 
-`cacheLife` requires the `use cache` directive, which must be placed at the file level or at the top of an async function or component.
+`cacheLife` itself must be called inside an async function or component, it cannot be used at module scope. Calling it at the top level of a file will throw an error.
 
 > **Good to know**:
 >
-> - `cacheLife` must not run at module scope. Calling it at the top level of a file (outside any function) throws an error, even when the file has `'use cache'` at file level.
 > - Call `cacheLife` inside the async function or component whose output is cached.
-> - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example
+> - Only one `cacheLife` call should execute per function invocation. You can call `cacheLife` in different control flow branches, but ensure only one executes per run. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example.
 
 ### Using preset profiles
 
