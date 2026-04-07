@@ -9717,6 +9717,7 @@ dependencies = [
  "bincode 2.0.1",
  "data-encoding",
  "sha2",
+ "smallvec",
  "turbo-tasks-macros",
  "xxhash-rust",
 ]

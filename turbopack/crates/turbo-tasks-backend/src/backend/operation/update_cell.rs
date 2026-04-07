@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskId, TypedSharedReference,
-    backend::{CellContent, VerificationMode},
+    backend::{CellContent, CellHash, VerificationMode},
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -56,10 +56,17 @@ impl UpdateCellOperation {
         content: CellContent,
         is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        content_hash: Option<CellHash>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        // content_hash is only meaningful for transient (non-serializable) cells
+        debug_assert!(
+            !is_serializable_cell_content || content_hash.is_none(),
+            "content_hash must be None for serializable cell content"
+        );
+
         let content = if let CellContent(Some(new_content)) = content {
             Some(new_content.into_typed(cell.type_id))
         } else {
@@ -107,27 +114,46 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
+            // For transient cells without available content, use hash-based comparison to
+            // detect whether the value actually changed—avoiding unnecessary invalidation.
+            let skip_invalidation = !is_serializable_cell_content && {
+                let has_old_content = task.has_cell_data(false, cell);
+                if !has_old_content {
+                    match (content_hash, task.get_cell_data_hash(&cell)) {
+                        (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            };
+
             #[cfg(feature = "trace_task_dirty")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
                 Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
-            let tasks_with_keys =
-                task.iter_cell_dependents()
-                    .filter_map(|(dependent_cell, key, task)| {
-                        (dependent_cell == cell
-                            && key.is_none_or(|key_hash| {
-                                updated_key_hashes_set
-                                    .as_ref()
-                                    .is_none_or(|set| set.contains(&key_hash))
-                            }))
-                        .then_some((task, key))
-                    });
+            // Collect dependent tasks only when not skipping invalidation.
+            // The iterator borrows from `task`, so it must be scoped to drop before
+            // we mutably borrow `task` again in the fast path.
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
-            for (task, key) in tasks_with_keys {
-                dependent_tasks.entry(task).or_default().push(key);
+            if !skip_invalidation {
+                let tasks_with_keys =
+                    task.iter_cell_dependents()
+                        .filter_map(|(dependent_cell, key, task)| {
+                            (dependent_cell == cell
+                                && key.is_none_or(|key_hash| {
+                                    updated_key_hashes_set
+                                        .as_ref()
+                                        .is_none_or(|set| set.contains(&key_hash))
+                                }))
+                            .then_some((task, key))
+                        });
+                for (task, key) in tasks_with_keys {
+                    dependent_tasks.entry(task).or_default().push(key);
+                }
             }
 
             if !dependent_tasks.is_empty() {
@@ -145,6 +171,9 @@ impl UpdateCellOperation {
                 // readers will wait for it to be set via InProgressCell.
 
                 let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
+
+                // Update cell_data_hash before dropping the task lock
+                update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
 
                 drop(task);
                 drop(old_content);
@@ -181,6 +210,9 @@ impl UpdateCellOperation {
             task.remove_cell_data(is_serializable_cell_content, cell)
         };
 
+        // Update cell_data_hash for non-serializable cells.
+        update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
+
         let in_progress_cell = task.remove_in_progress_cells(&cell);
 
         drop(task);
@@ -203,6 +235,26 @@ impl UpdateCellOperation {
             } => *is_serializable_cell_content,
             UpdateCellOperation::AggregationUpdate { .. } => true,
             UpdateCellOperation::Done => true,
+        }
+    }
+}
+
+/// Updates the stored cell_data_hash for a non-serializable cell.
+/// Skips the update if the hash hasn't changed to avoid unnecessary writes.
+fn update_cell_data_hash(
+    task: &mut impl TaskGuard,
+    cell: &CellId,
+    is_serializable_cell_content: bool,
+    content_hash: Option<CellHash>,
+) {
+    if !is_serializable_cell_content {
+        let old_hash = task.get_cell_data_hash(cell).copied();
+        if old_hash != content_hash {
+            if let Some(hash) = content_hash {
+                task.insert_cell_data_hash(*cell, hash);
+            } else {
+                task.remove_cell_data_hash(cell);
+            }
         }
     }
 }
