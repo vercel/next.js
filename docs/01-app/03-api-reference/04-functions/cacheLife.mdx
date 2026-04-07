@@ -37,7 +37,11 @@ const nextConfig = {
 export default nextConfig
 ```
 
-`cacheLife` itself must be called inside an async function or component, it cannot be used at module scope. Calling it at the top level of a file will throw an error.
+`cacheLife` can only be used within a cache directive scope.
+
+Add a cache directive (for example, `use cache`) at the file level or at the top of an async function or component.
+
+`cacheLife` cannot be used at module scope. Calling it at the top level of a file will throw an error.
 
 > **Good to know**:
 >
