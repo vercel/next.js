@@ -3419,129 +3419,259 @@ async function renderToStream(
           }
         }
       } else if (cacheComponents && cachedNavigations) {
-        // MARK: webstreams cacheComponents RSC
-        // Production Cache Components + Cached Navigations: use staged
-        // rendering so the RSC payload includes the static stage byte length
-        // (`l` field), enabling the client to cache the static subset during
-        // hydration.
-        const { renderToReadableStream } = ctx.componentMod
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
+          // MARK: nodeStreams cacheComponents RSC
+          // Production Cache Components + Cached Navigations: use staged
+          // rendering so the RSC payload includes the static stage byte length
+          // (`l` field), enabling the client to cache the static subset during
+          // hydration.
+          const { renderToReadableStream } = ctx.componentMod
 
-        const selectStaleTime = createSelectStaleTime(experimental)
-        const staleTimeIterable = new StaleTimeIterable()
+          const selectStaleTime = createSelectStaleTime(experimental)
+          const staleTimeIterable = new StaleTimeIterable()
 
-        // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-        // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-        // we should change this to track sync IO, log an error and advance to dynamic.
-        const shouldTrackSyncIO = false
-        const stageController = new StagedRenderingController(
-          null, // no aborting
-          null, // no abandoning
-          shouldTrackSyncIO
-        )
+          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+          // we should change this to track sync IO, log an error and advance to dynamic.
+          const shouldTrackSyncIO = false
+          const stageController = new StagedRenderingController(
+            null, // no aborting
+            null, // no abandoning
+            shouldTrackSyncIO
+          )
 
-        requestStore.stale = INFINITE_CACHE
-        requestStore.stagedRendering = stageController
-        requestStore.varyParamsAccumulator =
-          createResponseVaryParamsAccumulator()
+          requestStore.stale = INFINITE_CACHE
+          requestStore.stagedRendering = stageController
+          requestStore.varyParamsAccumulator =
+            createResponseVaryParamsAccumulator()
 
-        trackStaleTime(
-          requestStore as { stale: number },
-          staleTimeIterable,
-          selectStaleTime
-        )
-
-        let resolveStaticStageByteLength: (count: number) => void
-        const staticStageByteLengthPromise = new Promise<number>((resolve) => {
-          resolveStaticStageByteLength = resolve
-        })
-
-        // If the route has runtime prefetching enabled, spawn a runtime
-        // prerender after the resume render fills caches. The result is
-        // embedded in the initial RSC payload so the client can cache
-        // runtime-prefetchable content during hydration.
-        const hasRuntimePrefetch =
-          await anySegmentHasRuntimePrefetchEnabled(tree)
-
-        let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
-
-        if (hasRuntimePrefetch) {
-          const prerenderResumeDataCache = createPrerenderResumeDataCache()
-          requestStore.prerenderResumeDataCache = prerenderResumeDataCache
-
-          const cacheSignal = new CacheSignal()
-          trackPendingModules(cacheSignal)
-          requestStore.cacheSignal = cacheSignal
-
-          const runtimePrefetchTransform = new TransformStream<Uint8Array>()
-          runtimePrefetchStream = runtimePrefetchTransform.readable
-
-          void cacheSignal
-            .cacheReady()
-            .then(() =>
-              spawnRuntimePrefetchWithFilledCaches(
-                runtimePrefetchTransform.writable,
-                ctx,
-                prerenderResumeDataCache,
-                requestStore,
-                serverComponentsErrorHandler
-              )
-            )
-        }
-
-        const RSCPayload = await workUnitAsyncStorage.run(
-          requestStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          {
-            is404: res.statusCode === 404,
+          trackStaleTime(
+            requestStore as { stale: number },
             staleTimeIterable,
-            staticStageByteLengthPromise,
-            runtimePrefetchStream,
-          }
-        )
+            selectStaleTime
+          )
 
-        const flightStream = await runInSequentialTasks(
-          () => {
-            stageController.advanceStage(RenderStage.Static)
-
-            const stream = workUnitAsyncStorage.run(
-              requestStore,
-              renderToReadableStream,
-              RSCPayload,
-              clientModules,
-              {
-                onError: serverComponentsErrorHandler,
-                filterStackFrame,
-              }
-            )
-
-            const [dynamicStream, staticStream] = stream.tee()
-
-            countStaticStageBytes(staticStream, stageController).then(
-              resolveStaticStageByteLength!
-            )
-
-            return dynamicStream
-          },
-          () => {
-            // This is a separate task that doesn't advance a stage. It forces
-            // draining the microtask queue so that the stale time iterable and
-            // vary params accumulators are closed before we advance to the
-            // dynamic stage.
-            void finishStaleTimeTracking(staleTimeIterable)
-            if (requestStore.varyParamsAccumulator) {
-              void finishAccumulatingVaryParams(
-                requestStore.varyParamsAccumulator
-              )
+          let resolveStaticStageByteLength: (count: number) => void
+          const staticStageByteLengthPromise = new Promise<number>(
+            (resolve) => {
+              resolveStaticStageByteLength = resolve
             }
-          },
-          () => {
-            stageController.advanceStage(RenderStage.Dynamic)
-          }
-        )
+          )
 
-        reactServerResult = new ReactServerResult(flightStream)
+          // If the route has runtime prefetching enabled, spawn a runtime
+          // prerender after the resume render fills caches. The result is
+          // embedded in the initial RSC payload so the client can cache
+          // runtime-prefetchable content during hydration.
+          const hasRuntimePrefetch =
+            await anySegmentHasRuntimePrefetchEnabled(tree)
+
+          let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+
+          if (hasRuntimePrefetch) {
+            const prerenderResumeDataCache = createPrerenderResumeDataCache()
+            requestStore.prerenderResumeDataCache = prerenderResumeDataCache
+
+            const cacheSignal = new CacheSignal()
+            trackPendingModules(cacheSignal)
+            requestStore.cacheSignal = cacheSignal
+
+            const runtimePrefetchTransform = new TransformStream<Uint8Array>()
+            runtimePrefetchStream = runtimePrefetchTransform.readable
+
+            void cacheSignal
+              .cacheReady()
+              .then(() =>
+                spawnRuntimePrefetchWithFilledCaches(
+                  runtimePrefetchTransform.writable,
+                  ctx,
+                  prerenderResumeDataCache,
+                  requestStore,
+                  serverComponentsErrorHandler
+                )
+              )
+          }
+
+          const RSCPayload = await workUnitAsyncStorage.run(
+            requestStore,
+            getRSCPayload,
+            tree,
+            ctx,
+            {
+              is404: res.statusCode === 404,
+              staleTimeIterable,
+              staticStageByteLengthPromise,
+              runtimePrefetchStream,
+            }
+          )
+
+          const flightStream = await runInSequentialTasks(
+            () => {
+              stageController.advanceStage(RenderStage.Static)
+
+              const stream = workUnitAsyncStorage.run(
+                requestStore,
+                renderToReadableStream,
+                RSCPayload,
+                clientModules,
+                {
+                  onError: serverComponentsErrorHandler,
+                  filterStackFrame,
+                }
+              )
+
+              const [dynamicStream, staticStream] = stream.tee()
+
+              countStaticStageBytes(staticStream, stageController).then(
+                resolveStaticStageByteLength!
+              )
+
+              return dynamicStream
+            },
+            () => {
+              // This is a separate task that doesn't advance a stage. It forces
+              // draining the microtask queue so that the stale time iterable and
+              // vary params accumulators are closed before we advance to the
+              // dynamic stage.
+              void finishStaleTimeTracking(staleTimeIterable)
+              if (requestStore.varyParamsAccumulator) {
+                void finishAccumulatingVaryParams(
+                  requestStore.varyParamsAccumulator
+                )
+              }
+            },
+            () => {
+              stageController.advanceStage(RenderStage.Dynamic)
+            }
+          )
+
+          reactServerResult = new ReactServerResult(flightStream)
+        } else {
+          // MARK: webstreams cacheComponents RSC
+          // Production Cache Components + Cached Navigations: use staged
+          // rendering so the RSC payload includes the static stage byte length
+          // (`l` field), enabling the client to cache the static subset during
+          // hydration.
+          const { renderToReadableStream } = ctx.componentMod
+
+          const selectStaleTime = createSelectStaleTime(experimental)
+          const staleTimeIterable = new StaleTimeIterable()
+
+          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
+          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
+          // we should change this to track sync IO, log an error and advance to dynamic.
+          const shouldTrackSyncIO = false
+          const stageController = new StagedRenderingController(
+            null, // no aborting
+            null, // no abandoning
+            shouldTrackSyncIO
+          )
+
+          requestStore.stale = INFINITE_CACHE
+          requestStore.stagedRendering = stageController
+          requestStore.varyParamsAccumulator =
+            createResponseVaryParamsAccumulator()
+
+          trackStaleTime(
+            requestStore as { stale: number },
+            staleTimeIterable,
+            selectStaleTime
+          )
+
+          let resolveStaticStageByteLength: (count: number) => void
+          const staticStageByteLengthPromise = new Promise<number>(
+            (resolve) => {
+              resolveStaticStageByteLength = resolve
+            }
+          )
+
+          // If the route has runtime prefetching enabled, spawn a runtime
+          // prerender after the resume render fills caches. The result is
+          // embedded in the initial RSC payload so the client can cache
+          // runtime-prefetchable content during hydration.
+          const hasRuntimePrefetch =
+            await anySegmentHasRuntimePrefetchEnabled(tree)
+
+          let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
+
+          if (hasRuntimePrefetch) {
+            const prerenderResumeDataCache = createPrerenderResumeDataCache()
+            requestStore.prerenderResumeDataCache = prerenderResumeDataCache
+
+            const cacheSignal = new CacheSignal()
+            trackPendingModules(cacheSignal)
+            requestStore.cacheSignal = cacheSignal
+
+            const runtimePrefetchTransform = new TransformStream<Uint8Array>()
+            runtimePrefetchStream = runtimePrefetchTransform.readable
+
+            void cacheSignal
+              .cacheReady()
+              .then(() =>
+                spawnRuntimePrefetchWithFilledCaches(
+                  runtimePrefetchTransform.writable,
+                  ctx,
+                  prerenderResumeDataCache,
+                  requestStore,
+                  serverComponentsErrorHandler
+                )
+              )
+          }
+
+          const RSCPayload = await workUnitAsyncStorage.run(
+            requestStore,
+            getRSCPayload,
+            tree,
+            ctx,
+            {
+              is404: res.statusCode === 404,
+              staleTimeIterable,
+              staticStageByteLengthPromise,
+              runtimePrefetchStream,
+            }
+          )
+
+          const flightStream = await runInSequentialTasks(
+            () => {
+              stageController.advanceStage(RenderStage.Static)
+
+              const stream = workUnitAsyncStorage.run(
+                requestStore,
+                renderToReadableStream,
+                RSCPayload,
+                clientModules,
+                {
+                  onError: serverComponentsErrorHandler,
+                  filterStackFrame,
+                }
+              )
+
+              const [dynamicStream, staticStream] = stream.tee()
+
+              countStaticStageBytes(staticStream, stageController).then(
+                resolveStaticStageByteLength!
+              )
+
+              return dynamicStream
+            },
+            () => {
+              // This is a separate task that doesn't advance a stage. It forces
+              // draining the microtask queue so that the stale time iterable and
+              // vary params accumulators are closed before we advance to the
+              // dynamic stage.
+              void finishStaleTimeTracking(staleTimeIterable)
+              if (requestStore.varyParamsAccumulator) {
+                void finishAccumulatingVaryParams(
+                  requestStore.varyParamsAccumulator
+                )
+              }
+            },
+            () => {
+              stageController.advanceStage(RenderStage.Dynamic)
+            }
+          )
+
+          reactServerResult = new ReactServerResult(flightStream)
+        }
       } else {
         // MARK: nodeStreams RSC
         if (process.env.__NEXT_USE_NODE_STREAMS) {
