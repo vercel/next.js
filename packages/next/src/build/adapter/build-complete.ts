@@ -275,8 +275,17 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
     /**
@@ -370,6 +379,12 @@ export interface NextAdapter {
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      /**
+       * middlewareMatchers are the middleware matcher definitions emitted by
+       * Next.js for this build and can be used to decide whether middleware
+       * should be invoked for a given request.
+       */
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>
@@ -1638,16 +1653,8 @@ export async function handleBuildComplete({
           typeof fallback === 'string' &&
           Boolean(meta.postponed)
 
-        // Today, consumers of this build output can only upgrade a fallback shell
-        // when all remaining route params become concrete in the upgraded entry.
-        // They cannot yet represent intermediate shells like `/[foo]/[bar] -> /foo/[bar]`,
-        // because we do not emit which fallback params should remain deferred after
-        // the upgrade. Until that contract exists, only emit `partialFallback` for
-        // the conservative case where the upgraded entry can become fully concrete.
         const canEmitPartialFallback =
-          partialFallback &&
-          fallbackRootParams?.length === 0 &&
-          allowQuery.length === remainingPrerenderableParams?.length
+          partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -2150,6 +2157,13 @@ export async function handleBuildComplete({
       await adapterMod.onBuildComplete({
         routing: {
           beforeMiddleware: [...headers, ...redirects],
+          middlewareMatchers:
+            outputs.middleware?.config.matchers?.map((matcher) => ({
+              source: matcher.source,
+              sourceRegex: matcher.sourceRegex,
+              has: matcher.has,
+              missing: matcher.missing,
+            })) ?? [],
           beforeFiles: rewrites.beforeFiles,
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,

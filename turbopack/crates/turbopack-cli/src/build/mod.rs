@@ -10,7 +10,10 @@ use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
+    take_effects,
+};
 use turbo_tasks_backend::{
     BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
     TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
@@ -144,7 +147,7 @@ impl TurbopackBuildBuilder {
     pub async fn build(self) -> Result<()> {
         self.turbo_tasks
             .run_once(async move {
-                let build_result_op = build_internal(
+                let wrapper_op = extract_effects_operation(build_internal(
                     self.project_dir.clone(),
                     self.root_dir,
                     self.entry_requests.clone(),
@@ -153,12 +156,12 @@ impl TurbopackBuildBuilder {
                     self.minify_type,
                     self.target,
                     self.scope_hoist,
-                );
+                ));
 
-                // Await the result to propagate any errors.
-                build_result_op.read_strongly_consistent().await?;
+                // Await the result to propagate any errors and capture effects.
+                let effects = wrapper_op.read_strongly_consistent().await?;
 
-                apply_effects(build_result_op).await?;
+                effects.apply().await?;
 
                 let issue_reporter: Vc<Box<dyn IssueReporter>> =
                     Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
@@ -169,19 +172,18 @@ impl TurbopackBuildBuilder {
                         log_level: self.log_level,
                     })));
 
-                handle_issues(
-                    build_result_op,
-                    issue_reporter,
-                    IssueSeverity::Error,
-                    None,
-                    None,
-                )
-                .await?;
+                handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
 
                 Ok(())
             })
             .await
     }
+}
+
+#[turbo_tasks::function(operation)]
+async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 #[turbo_tasks::function(operation)]

@@ -2518,7 +2518,41 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-
+        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
+            let args = linked_args().await?;
+            if !args.is_empty() {
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("fs.readdir({args}) is very dynamic{hints}"),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference(
+                    DirAssetReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(pat),
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("fs.readdir({args}) is not statically analyze-able{hints}"),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
+            )
+        }
         WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
             let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args().await?;
@@ -2562,7 +2596,6 @@ where
             );
             return Ok(());
         }
-
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
             let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files

@@ -49,9 +49,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, get_effects,
+    UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
+    take_effects,
     trace::TraceRawVcs,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
@@ -214,6 +216,11 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -264,6 +271,9 @@ pub struct NapiPartialProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
+
+    /// An optional salt to mix into chunk and asset content hashes.
+    pub hash_salt: Option<RcStr>,
 }
 
 #[napi(object)]
@@ -324,6 +334,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
+            hash_salt,
         } = val;
         ProjectOptions {
             root_path,
@@ -348,6 +359,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
+            hash_salt,
         }
     }
 }
@@ -368,6 +380,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            hash_salt,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -384,6 +397,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             debug_build_paths: None,
+            hash_salt,
         }
     }
 }
@@ -576,7 +590,7 @@ pub fn project_new(
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve_strongly_consistent().await
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -1828,7 +1842,7 @@ async fn hmr_update_with_issues_operation(
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1862,6 +1876,8 @@ pub fn project_hmr_events(
                 let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(chunk_name.clone(), hmr_target, session)
@@ -1881,7 +1897,11 @@ pub fn project_hmr_events(
                         diagnostics,
                         effects,
                     } = &*update;
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
                     effects.apply().await?;
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1963,7 +1983,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
-    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
@@ -2481,6 +2501,74 @@ pub async fn project_write_analyze_data(
 
             // Write the files to disk
             effects.apply().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the module graph for every endpoint without chunking, code gen, or disk emission.
+    // We iterate endpoints rather than calling project.whole_app_module_graphs() because the
+    // latter calls drop_issues() in development mode (to avoid duplicate per-route HMR noise).
+    // Per-endpoint module_graphs() calls are not subject to that suppression, so issues like
+    // missing modules and transform errors are properly collected as collectables here.
+    let endpoint_groups = project.get_all_endpoint_groups(false).await?;
+    endpoint_groups
+        .iter()
+        .map(|(_, endpoint_group)| async move {
+            endpoint_group.module_graphs().as_side_effect().await
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*op.read_strongly_consistent().await?;
             Ok((issues.clone(), diagnostics.clone()))
         })
         .await

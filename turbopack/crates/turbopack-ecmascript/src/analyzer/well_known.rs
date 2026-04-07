@@ -732,6 +732,9 @@ fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                     word.into(),
                 ));
             }
+            (.., "readdir" | "readdirSync") => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadDir);
+            }
             (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
                 return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises);
             }

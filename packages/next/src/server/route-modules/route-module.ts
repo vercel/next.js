@@ -108,10 +108,13 @@ export abstract class RouteModule<
 > {
   /**
    * The userland module. This is the module that is exported from the user's
-   * code. This is marked as readonly to ensure that the module is not mutated
-   * because the module (when compiled) only provides getters.
+   * code. Exposed as a getter so subclasses can override with lazy loading.
    */
-  public readonly userland: Readonly<U>
+  protected _userland: Readonly<U>
+
+  get userland(): Readonly<U> {
+    return this._userland
+  }
 
   /**
    * The definition of the route.
@@ -135,7 +138,7 @@ export abstract class RouteModule<
     distDir,
     relativeProjectDir,
   }: RouteModuleOptions<D, U>) {
-    this.userland = userland
+    this._userland = userland
     this.definition = definition
     this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
@@ -915,6 +918,26 @@ export abstract class RouteModule<
             params = Object.assign({}, paramsMatch)
           }
         }
+      }
+
+      // When partial nxtP* params are provided (e.g. background
+      // revalidation for intermediate PPR shells), both
+      // normalizeDynamicRouteParams calls above fail because not all
+      // route params are present. Merge the normalized query params
+      // (from nxtP*) into the current params to override placeholders
+      // with concrete values.
+      if (
+        params &&
+        routeParamKeys.size > 0 &&
+        !paramsResult.hasValidParams &&
+        !queryResult.hasValidParams
+      ) {
+        for (const key of routeParamKeys) {
+          if (query[key] !== undefined) {
+            params[key] = query[key]
+          }
+        }
+        addRequestMeta(req, 'resolvedRouteParamKeys', routeParamKeys)
       }
     }
 

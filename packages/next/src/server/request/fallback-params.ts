@@ -3,8 +3,9 @@ import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
 import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
+import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 
 export type OpaqueFallbackRouteParamValue = [
   /**
@@ -74,6 +75,37 @@ export function createOpaqueFallbackRouteParams(
   return keys
 }
 
+export function buildDynamicSegmentPlaceholder(
+  param: Pick<FallbackRouteParam, 'paramName' | 'paramType'>
+): string {
+  const { repeat, optional } = getParamProperties(param.paramType)
+
+  if (optional) {
+    return `[[...${param.paramName}]]`
+  }
+
+  if (repeat) {
+    return `[...${param.paramName}]`
+  }
+
+  return `[${param.paramName}]`
+}
+
+export function getPlaceholderFallbackRouteParams(
+  params: Record<string, undefined | string | string[]> | undefined,
+  fallbackRouteParams: readonly FallbackRouteParam[]
+): FallbackRouteParam[] {
+  return fallbackRouteParams.filter((param) => {
+    const placeholder = buildDynamicSegmentPlaceholder(param)
+    const value = params?.[param.paramName]
+
+    return (
+      value === placeholder ||
+      (Array.isArray(value) && value.length === 1 && value[0] === placeholder)
+    )
+  })
+}
+
 /**
  * Gets the fallback route params for a given page. This is an expensive
  * operation because it requires parsing the loader tree to extract the fallback
@@ -87,7 +119,7 @@ export function getFallbackRouteParams(
   page: string,
   routeModule: AppPageRouteModule
 ) {
-  const route = parseAppRoute(page, true)
+  const route = parseNormalizedAppRoute(page)
 
   // Extract the pathname-contributing segments from the loader tree. This
   // mirrors the logic in buildAppStaticPaths where we determine which segments

@@ -1,7 +1,4 @@
 #![feature(min_specialization)]
-#![feature(box_patterns)]
-#![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 

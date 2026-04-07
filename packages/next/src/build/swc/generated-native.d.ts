@@ -258,6 +258,12 @@ export interface NapiProjectOptions {
   nextVersion: RcStr
   /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /**
+   * A salt to mix into chunk and asset content hashes, allowing users to
+   * force new filenames without changing file content. Empty string means
+   * no salt.
+   */
+  hashSalt: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -302,6 +308,8 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
+  /** An optional salt to mix into chunk and asset content hashes. */
+  hashSalt?: RcStr
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
@@ -483,6 +491,9 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectGetAllCompilationIssues(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 /**
  * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
  *
