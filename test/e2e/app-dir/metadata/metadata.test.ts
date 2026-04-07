@@ -401,6 +401,37 @@ describe('app dir - metadata', () => {
       })
     })
 
+    it('should support opengraph with video.tv_show type', async () => {
+      const browser = await next.browser('/opengraph/video-tv-show')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'property', 'content', {
+        'og:type': 'video.tv_show',
+        'og:title': 'My TV Show',
+        'video:actor': ['https://example.com/actor1', 'https://example.com/actor2'],
+        'video:actor:role': 'Lead',
+        'video:director': 'https://example.com/director1',
+        'video:writer': 'https://example.com/writer1',
+        'video:duration': '3600',
+        'video:release_date': '2024-01-01T00:00:00.000Z',
+        'video:tag': ['drama', 'comedy'],
+      })
+    })
+
+    it('should support opengraph with video.other type', async () => {
+      const browser = await next.browser('/opengraph/video-other')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'property', 'content', {
+        'og:type': 'video.other',
+        'og:title': 'My Other Video',
+        'video:actor': 'https://example.com/actor1',
+        'video:director': 'https://example.com/director1',
+        'video:writer': 'https://example.com/writer1',
+        'video:duration': '120',
+        'video:release_date': '2024-06-15T00:00:00.000Z',
+        'video:tag': 'short-film',
+      })
+    })
+
     it('should pick up opengraph-image and twitter-image as static metadata files', async () => {
       const $ = await next.render$('/opengraph/static')
 
