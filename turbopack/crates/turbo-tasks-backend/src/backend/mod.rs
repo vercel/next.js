@@ -1035,7 +1035,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
-            return Some((start, false));
+            return Ok((start, false));
         }
 
         #[cfg(feature = "print_cache_item_size")]
