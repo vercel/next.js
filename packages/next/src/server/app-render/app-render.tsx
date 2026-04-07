@@ -3080,7 +3080,7 @@ async function renderToStream(
     const { clientModules } = getClientReferenceManifest()
 
     try {
-      // MARK: devCacheComponents RSC
+      // MARK: dev CacheComponents RSC
       if (
         process.env.__NEXT_DEV_SERVER &&
         // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
