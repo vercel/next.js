@@ -86,7 +86,7 @@ const runTests = () => {
     const $ = cheerio.load(html)
     if (process.env.IS_TURBOPACK_TEST) {
       expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
-        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAYAAAA870V8AAAARUlEQVR42l3MoQ0AQQhE0XG7xWwIJSBIKBRJOZRBEXOWnPjimQ8AXC3ce+nuPOcQEcHuppkRVcWZYWYSIkJV5XvvN9j4AFZHJTnjDHb/AAAAAElFTkSuQmCC")"`
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/webp;base64,UklGRlAAAABXRUJQVlA4TEQAAAAvAsABEM1VICICHggACQAAAICAAwAEAAAAMAgKAAAAFAAAABAIBAAAAAAAAACwBQAAAAAAEQAAIiJhoRyu62Sh+V/DAA==")"`
       )
     } else {
       expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
