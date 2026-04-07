@@ -1505,6 +1505,29 @@ impl Project {
         })
     }
 
+    /// Computes the whole app module graph without dropping issues.
+    /// Use this when you need to collect issues from the whole app module graph computation
+    /// (e.g. for the `get_compilation_issues` MCP tool).
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graphs_without_dropping_issues(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = module_graphs_op.connect();
+
+        // At this point all modules have been computed and we can get rid of the node.js
+        // process pools
+        let execution_context = self.execution_context().await?;
+        let node_backend = execution_context.node_backend.into_trait_ref().await?;
+        if *self.is_watch_enabled().await? {
+            node_backend.scale_down()?;
+        } else {
+            node_backend.scale_zero()?;
+        }
+
+        Ok(module_graphs_vc)
+    }
+
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
@@ -1513,7 +1536,7 @@ impl Project {
         let module_graphs_vc = if self.next_mode().await?.is_production() {
             module_graphs_op.connect()
         } else {
-            // In development mode, we need to to take and drop the issues, otherwise every
+            // In development mode, we need to take and drop the issues, otherwise every
             // route will report all issues.
             let vc = module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.drop_issues();
