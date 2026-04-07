@@ -128,6 +128,12 @@ import {
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import {
+  emitHmrBuilding,
+  emitHmrBuilt,
+  recordChangedEntry,
+} from './hmr-cycle-emitter'
+import { getDevEventsMiddleware } from './dev-events-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
@@ -761,6 +767,8 @@ export async function createHotReloaderTurbopack(
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
+    recordChangedEntry(id)
+
     for (const client of [
       ...clientsWithoutHtmlRequestId,
       ...clientsByHtmlRequestId.values(),
@@ -1037,6 +1045,7 @@ export async function createHotReloaderTurbopack(
       },
     }),
     getAttachNodejsDebuggerMiddleware(),
+    getDevEventsMiddleware(),
     ...(nextConfig.experimental.mcpServer
       ? [
           getMcpMiddleware({
@@ -1751,6 +1760,7 @@ export async function createHotReloaderTurbopack(
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
       switch (updateMessage.updateType) {
         case 'start': {
+          emitHmrBuilding()
           hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           // Mark that HMR has started and we need to call the callback after it settles
           // This ensures onBeforeDeferredEntries will be called again during HMR
@@ -1815,6 +1825,15 @@ export async function createHotReloaderTurbopack(
               warnings: [],
             })
           }
+
+          emitHmrBuilt(
+            {
+              hash: String(hmrHash),
+              errors: [...errors.values()],
+              warnings: [],
+            },
+            updateMessage.value.duration
+          )
 
           if (hmrEventHappened) {
             const time = updateMessage.value.duration
