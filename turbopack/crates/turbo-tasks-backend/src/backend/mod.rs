@@ -1915,7 +1915,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let once_task = matches!(task_type, TaskType::Transient(ref tt) if matches!(&**tt, TransientTask::Once(_)));
             if let Some(tasks) = task.prefetch() {
                 drop(task);
-                ctx.prepare_tasks(tasks);
+                ctx.prepare_tasks(tasks, "prefetch");
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
             let in_progress = task.take_in_progress()?;
@@ -2402,6 +2402,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 output_dependent_tasks
                     .iter()
                     .map(|&id| (id, TaskDataCategory::All)),
+                "invalidate output dependents",
             );
         }
 
@@ -2494,20 +2495,24 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         debug_assert!(!new_children.is_empty());
 
         let mut queue = AggregationUpdateQueue::new();
-        ctx.for_each_task_all(new_children.iter().copied(), |child_task, ctx| {
-            if !child_task.has_output() {
-                let child_id = child_task.id();
-                make_task_dirty_internal(
-                    child_task,
-                    child_id,
-                    false,
-                    #[cfg(feature = "trace_task_dirty")]
-                    TaskDirtyCause::InitialDirty,
-                    &mut queue,
-                    ctx,
-                );
-            }
-        });
+        ctx.for_each_task_all(
+            new_children.iter().copied(),
+            "unfinished children dirty",
+            |child_task, ctx| {
+                if !child_task.has_output() {
+                    let child_id = child_task.id();
+                    make_task_dirty_internal(
+                        child_task,
+                        child_id,
+                        false,
+                        #[cfg(feature = "trace_task_dirty")]
+                        TaskDirtyCause::InitialDirty,
+                        &mut queue,
+                        ctx,
+                    );
+                }
+            },
+        );
 
         queue.execute(ctx);
     }

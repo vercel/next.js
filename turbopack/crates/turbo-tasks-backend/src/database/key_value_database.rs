@@ -27,13 +27,24 @@ impl KeySpace {
         }
     }
 
+    const fn name(&self) -> &'static str {
+        match self {
+            KeySpace::Infra => "Infra",
+            KeySpace::TaskMeta => "TaskMeta",
+            KeySpace::TaskData => "TaskData",
+            KeySpace::TaskCache => "TaskCache",
+        }
+    }
+
     /// Returns the persistence configuration for this keyspace.
     pub const fn family_config(&self) -> FamilyConfig {
         match self {
             KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+                name: self.name(),
                 kind: FamilyKind::SingleValue,
             },
             KeySpace::TaskCache => FamilyConfig {
+                name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
             },

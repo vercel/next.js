@@ -49,6 +49,7 @@ pub enum FamilyKind {
 /// Configuration for a single family to describe how the data is stored.
 #[derive(Clone, Copy, Debug)]
 pub struct FamilyConfig {
+    pub name: &'static str,
     pub kind: FamilyKind,
 }
 
@@ -65,6 +66,7 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
     fn default() -> Self {
         Self {
             family_configs: [FamilyConfig {
+                name: "unknown",
                 kind: FamilyKind::SingleValue,
             }; FAMILIES],
         }

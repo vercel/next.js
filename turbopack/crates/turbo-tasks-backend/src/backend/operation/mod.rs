@@ -13,6 +13,7 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
+use tracing::trace_span;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
@@ -44,30 +45,36 @@ pub trait ExecuteContext<'e>: Sized {
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
         &mut self,
-        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
     );
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     );
     fn for_each_task_meta(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
+            reason,
             func,
         )
     }
     fn for_each_task_all(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
+            reason,
             func,
         )
     }
@@ -224,6 +231,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         call_prepared_task_callback_for_transient_tasks: bool,
+        reason: &'static str,
         mut prepared_task_callback: impl FnMut(
             &mut Self,
             TaskId,
@@ -231,6 +239,13 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
+        let span = trace_span!(
+            "prepare_tasks_with_callback",
+            reason,
+            requested_data = tracing::field::Empty,
+            requested_meta = tracing::field::Empty,
+        );
+        let _guard = span.enter();
         let mut data_count = 0;
         let mut meta_count = 0;
         let mut all_count = 0;
@@ -258,6 +273,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .collect::<Vec<_>>();
         data_count += all_count;
         meta_count += all_count;
+        span.record("requested_data", data_count);
+        span.record("requested_meta", meta_count);
 
         let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
         let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
@@ -440,30 +457,41 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn prepare_tasks(&mut self, task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>) {
-        self.prepare_tasks_with_callback(task_ids, false, |_, _, _, _| {});
+    fn prepare_tasks(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
+    ) {
+        self.prepare_tasks_with_callback(task_ids, false, reason, |_, _, _, _| {});
     }
 
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         let task_lock_counter = self.task_lock_counter.clone();
-        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
-            // prepare_tasks_with_callback releases the counter before calling this callback,
-            // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on Drop.
-            task_lock_counter.acquire();
+        self.prepare_tasks_with_callback(
+            task_ids,
+            true,
+            reason,
+            |this, task_id, _category, task| {
+                // prepare_tasks_with_callback releases the counter before calling this callback,
+                // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on
+                // Drop.
+                task_lock_counter.acquire();
 
-            let guard = TaskGuardImpl {
-                task,
-                task_id,
-                #[cfg(debug_assertions)]
-                category: _category,
-                task_lock_counter: task_lock_counter.clone(),
-            };
-            func(guard, this);
-        });
+                let guard = TaskGuardImpl {
+                    task,
+                    task_id,
+                    #[cfg(debug_assertions)]
+                    category: _category,
+                    task_lock_counter: task_lock_counter.clone(),
+                };
+                func(guard, this);
+            },
+        );
     }
 
     fn task_pair(

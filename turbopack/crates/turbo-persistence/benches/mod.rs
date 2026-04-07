@@ -576,6 +576,7 @@ fn prefill_multi_value_database(
 ) -> Result<Vec<Box<[u8]>>> {
     let db_config = TpDbConfig {
         family_configs: [FamilyConfig {
+            name: "test",
             kind: FamilyKind::MultiValue,
         }],
     };
@@ -648,6 +649,7 @@ fn setup_prefilled_multi_value_db(
 fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
     let db_config = TpDbConfig {
         family_configs: [FamilyConfig {
+            name: "test",
             kind: FamilyKind::MultiValue,
         }],
     };
@@ -914,6 +916,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                     |(tempdir, keys, random_data)| {
                         let db_config = TpDbConfig {
                             family_configs: [FamilyConfig {
+                                name: "test",
                                 kind: FamilyKind::MultiValue,
                             }],
                         };

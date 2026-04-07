@@ -1256,10 +1256,14 @@ impl AggregationUpdateQueue {
             self.find_and_schedule_dirty(jobs, ctx);
             false
         } else if !self.scheduled_tasks.is_empty() {
-            ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
-                let parent_priority = self.scheduled_tasks[&task.id()];
-                ctx.schedule_task(task, parent_priority);
-            });
+            ctx.for_each_task_all(
+                self.scheduled_tasks.keys().copied(),
+                "schedule tasks",
+                |task, ctx| {
+                    let parent_priority = self.scheduled_tasks[&task.id()];
+                    ctx.schedule_task(task, parent_priority);
+                },
+            );
             self.scheduled_tasks.clear();
             false
         } else {
@@ -1444,18 +1448,22 @@ impl AggregationUpdateQueue {
             .map(|job| (job.task_id, job.span.clone()))
             .collect();
         // For performance reasons this should stay `Meta` and not `All`
-        ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
-            let task_id = task.id();
-            // Enter the enqueue-time span and create a per-task child span with the
-            // task description. Both guards must live until the end of the closure.
-            #[cfg(feature = "trace_find_and_schedule")]
-            let _trace = (
-                spans.remove(&task_id).flatten().map(|s| s.entered()),
-                trace_span!("find and schedule", %task_id, name = task.get_task_description())
-                    .entered(),
-            );
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
-        });
+        ctx.for_each_task_meta(
+            jobs.into_iter().map(|job| job.task_id),
+            "find and schedule dirty",
+            |task, ctx| {
+                let task_id = task.id();
+                // Enter the enqueue-time span and create a per-task child span with the
+                // task description. Both guards must live until the end of the closure.
+                #[cfg(feature = "trace_find_and_schedule")]
+                let _trace = (
+                    spans.remove(&task_id).flatten().map(|s| s.entered()),
+                    trace_span!("find and schedule", %task_id, name = task.get_task_description())
+                        .entered(),
+                );
+                self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            },
+        );
     }
 
     fn find_and_schedule_dirty_internal(
@@ -1507,21 +1515,25 @@ impl AggregationUpdateQueue {
         update: AggregatedDataUpdate,
     ) {
         // For performance reasons this should stay `Meta` and not `All`
-        ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
-            let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
-            if !diff.is_empty() {
-                let upper_ids = get_uppers(&upper);
-                if !upper_ids.is_empty() {
-                    self.push(
-                        AggregatedDataUpdateJob {
-                            upper_ids,
-                            update: diff,
-                        }
-                        .into(),
-                    );
+        ctx.for_each_task_meta(
+            upper_ids.iter().copied(),
+            "aggregated data update",
+            |mut upper, ctx| {
+                let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
+                if !diff.is_empty() {
+                    let upper_ids = get_uppers(&upper);
+                    if !upper_ids.is_empty() {
+                        self.push(
+                            AggregatedDataUpdateJob {
+                                upper_ids,
+                                update: diff,
+                            }
+                            .into(),
+                        );
+                    }
                 }
-            }
-        });
+            },
+        );
     }
 
     fn inner_of_uppers_lost_follower(
@@ -1574,20 +1586,24 @@ impl AggregationUpdateQueue {
                 if !data.is_empty() {
                     // remove data from upper
                     // For performance reasons this should stay `Meta` and not `All`
-                    ctx.for_each_task_meta(removed_uppers.iter().copied(), |mut upper, ctx| {
-                        // STEP 6
-                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
-                        if !diff.is_empty() {
-                            let upper_ids = get_uppers(&upper);
-                            self.push(
-                                AggregatedDataUpdateJob {
-                                    upper_ids,
-                                    update: diff,
-                                }
-                                .into(),
-                            )
-                        }
-                    });
+                    ctx.for_each_task_meta(
+                        removed_uppers.iter().copied(),
+                        "remove data from uppers",
+                        |mut upper, ctx| {
+                            // STEP 6
+                            let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                            if !diff.is_empty() {
+                                let upper_ids = get_uppers(&upper);
+                                self.push(
+                                    AggregatedDataUpdateJob {
+                                        upper_ids,
+                                        update: diff,
+                                    }
+                                    .into(),
+                                )
+                            }
+                        },
+                    );
                 }
                 // STEP 7
                 if !followers.is_empty() {
@@ -2061,6 +2077,7 @@ impl AggregationUpdateQueue {
                         upper_ids_with_min_aggregation_number
                             .iter()
                             .map(|(entry, _)| entry.task_id()),
+                        "add data to uppers",
                         |mut upper, ctx| {
                             // STEP 6d
                             if has_data {

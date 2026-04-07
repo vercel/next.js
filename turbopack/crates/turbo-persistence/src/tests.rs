@@ -1521,6 +1521,7 @@ fn compaction_multi_value_preserves_different_values() -> Result<()> {
 fn multi_value_config() -> DbConfig<1> {
     let mut config = DbConfig::<1>::default();
     config.family_configs[0] = FamilyConfig {
+        name: "test",
         kind: FamilyKind::MultiValue,
     };
     config
@@ -2097,6 +2098,7 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
 
     let config = DbConfig {
         family_configs: [FamilyConfig {
+            name: "test",
             kind: FamilyKind::MultiValue,
         }],
     };
