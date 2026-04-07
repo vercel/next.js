@@ -2732,6 +2732,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     removed_cell_data.push(data);
                 }
             }
+            // Remove cell_data_hash entries for cells that no longer exist
+            let to_remove_hash: Vec<_> = task
+                .iter_cell_data_hash()
+                .filter_map(|(cell, _)| {
+                    cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index)
+                        .then_some(*cell)
+                })
+                .collect();
+            for cell in to_remove_hash {
+                task.remove_cell_data_hash(&cell);
+            }
         }
 
         // Clean up task storage after execution:

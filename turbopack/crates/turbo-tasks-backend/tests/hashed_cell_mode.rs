@@ -2,12 +2,16 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
+
+static EXECUTION_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// A value type using `serialization = "hash"` mode.
 /// Only `value` participates in DeterministicHash/Eq; `noise` does not.
@@ -51,7 +55,7 @@ fn create_state_operation() -> Vc<Step> {
 #[turbo_tasks::function(operation)]
 async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
     let value = *input.await?.get();
-    let noise = rand::random::<u64>();
+    let noise = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed) as u64;
     Ok(HashedValue { value, noise }.cell())
 }
 
@@ -61,7 +65,7 @@ async fn consume_hashed(input: ResolvedVc<Step>) -> Result<Vc<ConsumeResult>> {
     let hashed = produce_hashed(input).connect();
     let v = hashed.await?;
     let value = v.value;
-    let random = rand::random::<u32>();
+    let random = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed);
     Ok(ConsumeResult { value, random }.cell())
 }
 
