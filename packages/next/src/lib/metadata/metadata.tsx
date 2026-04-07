@@ -1488,10 +1488,156 @@ function createMetadataElements(
           tags.push(
             <meta key={i++} property="og:type" content="video.tv_show" />
           )
+          if (og.actors) {
+            for (const actor of og.actors) {
+              if (typeof actor === 'string') {
+                tags.push(
+                  <meta key={i++} property="video:actor" content={actor} />
+                )
+              } else {
+                if (actor.url) {
+                  tags.push(
+                    <meta
+                      key={i++}
+                      property="video:actor"
+                      content={String(actor.url)}
+                    />
+                  )
+                }
+                if (actor.role) {
+                  tags.push(
+                    <meta
+                      key={i++}
+                      property="video:actor:role"
+                      content={actor.role}
+                    />
+                  )
+                }
+              }
+            }
+          }
+          if (og.directors) {
+            for (const director of og.directors) {
+              tags.push(
+                <meta
+                  key={i++}
+                  property="video:director"
+                  content={String(director)}
+                />
+              )
+            }
+          }
+          if (og.writers) {
+            for (const writer of og.writers) {
+              tags.push(
+                <meta
+                  key={i++}
+                  property="video:writer"
+                  content={String(writer)}
+                />
+              )
+            }
+          }
+          if (og.duration != null) {
+            tags.push(
+              <meta
+                key={i++}
+                property="video:duration"
+                content={String(og.duration)}
+              />
+            )
+          }
+          if (og.releaseDate) {
+            tags.push(
+              <meta
+                key={i++}
+                property="video:release_date"
+                content={og.releaseDate}
+              />
+            )
+          }
+          if (og.tags) {
+            for (const tag of og.tags) {
+              tags.push(<meta key={i++} property="video:tag" content={tag} />)
+            }
+          }
           break
 
         case 'video.other':
           tags.push(<meta key={i++} property="og:type" content="video.other" />)
+          if (og.actors) {
+            for (const actor of og.actors) {
+              if (typeof actor === 'string') {
+                tags.push(
+                  <meta key={i++} property="video:actor" content={actor} />
+                )
+              } else {
+                if (actor.url) {
+                  tags.push(
+                    <meta
+                      key={i++}
+                      property="video:actor"
+                      content={String(actor.url)}
+                    />
+                  )
+                }
+                if (actor.role) {
+                  tags.push(
+                    <meta
+                      key={i++}
+                      property="video:actor:role"
+                      content={actor.role}
+                    />
+                  )
+                }
+              }
+            }
+          }
+          if (og.directors) {
+            for (const director of og.directors) {
+              tags.push(
+                <meta
+                  key={i++}
+                  property="video:director"
+                  content={String(director)}
+                />
+              )
+            }
+          }
+          if (og.writers) {
+            for (const writer of og.writers) {
+              tags.push(
+                <meta
+                  key={i++}
+                  property="video:writer"
+                  content={String(writer)}
+                />
+              )
+            }
+          }
+          if (og.duration != null) {
+            tags.push(
+              <meta
+                key={i++}
+                property="video:duration"
+                content={String(og.duration)}
+              />
+            )
+          }
+          if (og.releaseDate) {
+            tags.push(
+              <meta
+                key={i++}
+                property="video:release_date"
+                content={og.releaseDate}
+              />
+            )
+          }
+          if (og.tags) {
+            for (const tag of og.tags) {
+              tags.push(<meta key={i++} property="video:tag" content={tag} />)
+            }
+          }
           break
 
         default:
