@@ -221,7 +221,7 @@ async fn create_daemon_project(
         .run(async move {
             let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
             ProjectContainer::initialize(container_op, options).await?;
-            container_op.resolve_strongly_consistent().await
+            container_op.resolve().strongly_consistent().await
         })
         .await
         .context("Failed to create ProjectContainer")?;
