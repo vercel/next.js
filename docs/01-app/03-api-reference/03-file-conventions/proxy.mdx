@@ -70,7 +70,9 @@ Optionally, a config object can be exported alongside the Proxy function. This o
 
 ### Matcher
 
-The `matcher` option allows you to target specific paths for the Proxy to run on. You can specify these paths in several ways:
+The `matcher` option allows you to target specific paths for the Proxy to run on. Without a `matcher`, Proxy runs on **every request**, including requests for static files (`_next/static`), image optimizations (`_next/image`), and assets in the `public/` folder. This means auth logic or redirects can unintentionally block CSS, JS, or images from loading. Use `matcher` to specify which paths the Proxy should run on, or use a [negative match pattern](#negative-matching) to exclude these paths.
+
+You can specify paths in several ways:
 
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Proxy to both `/about` and `/contact`.
