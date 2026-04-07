@@ -1167,6 +1167,78 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
+  test-node-streams-cache-components-dev:
+    name: test node streams cache components dev
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native',
+        'build-next',
+        'fetch-test-timings',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export __NEXT_USE_NODE_STREAMS=true
+        export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_TEST_MODE=dev
+        export IS_WEBPACK_TEST=1
+
+        node run-tests.js \
+          --timings \
+          --require-timings \
+          -g ${{ matrix.group }} \
+          --type development
+      testTimingsArtifact: 'test-timings'
+      stepName: 'test-node-streams-cache-components-dev-${{ matrix.group }}'
+    secrets: inherit
+
+  test-node-streams-cache-components-prod:
+    name: test node streams cache components prod
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native',
+        'build-next',
+        'fetch-test-timings',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export __NEXT_USE_NODE_STREAMS=true
+        export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_TEST_MODE=start
+        export IS_WEBPACK_TEST=1
+
+        node run-tests.js \
+          --timings \
+          --require-timings \
+          -g ${{ matrix.group }} \
+          --type production
+      testTimingsArtifact: 'test-timings'
+      stepName: 'test-node-streams-cache-components-prod-${{ matrix.group }}'
+    secrets: inherit
+
   test-node-streams-dev:
     name: test node streams dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
@@ -1239,6 +1311,8 @@ jobs:
         'test-cache-components-dev',
         'test-cache-components-prod',
         'test-cache-components-integration',
+        'test-node-streams-cache-components-dev',
+        'test-node-streams-cache-components-prod',
         'test-node-streams-dev',
         'test-node-streams-prod',
         'test-cargo-unit',
