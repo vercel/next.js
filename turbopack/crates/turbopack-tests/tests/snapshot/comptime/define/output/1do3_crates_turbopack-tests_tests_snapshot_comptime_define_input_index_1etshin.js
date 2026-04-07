@@ -51,6 +51,7 @@ console.log(("TURBOPACK compile-time value", {
 }));
 console.log(("TURBOPACK compile-time value", "value"));
 console.log(("TURBOPACK compile-time value", "development"));
+console.log(("TURBOPACK compile-time value", true));
 if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 ;
 ("TURBOPACK compile-time falsy", 0) ? "TURBOPACK unreachable" : console.log('development');

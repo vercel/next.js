@@ -418,8 +418,25 @@ impl FreeVarReferences {
 
     #[turbo_tasks::function]
     pub fn members(&self) -> Vc<FreeVarReferencesMembers> {
+        fn collect_value_members(value: &CompileTimeDefineValue, members: &mut FxHashSet<RcStr>) {
+            match value {
+                CompileTimeDefineValue::Object(parts) => {
+                    for (key, value) in parts {
+                        members.insert(key.clone());
+                        collect_value_members(value, members);
+                    }
+                }
+                CompileTimeDefineValue::Array(items) => {
+                    for item in items {
+                        collect_value_members(item, members);
+                    }
+                }
+                _ => {}
+            }
+        }
+
         let mut members = FxHashSet::default();
-        for (key, _) in self.0.iter() {
+        for (key, value) in self.0.iter() {
             if let Some(name) = key
                 .iter()
                 .rfind(|segment| {
@@ -434,6 +451,18 @@ impl FreeVarReferences {
                 })
             {
                 members.insert(name.clone());
+            }
+
+            match value {
+                FreeVarReference::Value(value) => collect_value_members(value, &mut members),
+                FreeVarReference::ReportUsage {
+                    inner: Some(inner), ..
+                } => {
+                    if let FreeVarReference::Value(value) = inner.as_ref() {
+                        collect_value_members(value, &mut members)
+                    }
+                }
+                _ => {}
             }
         }
         Vc::cell(members)

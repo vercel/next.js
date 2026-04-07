@@ -47,6 +47,7 @@ var p = process
 console.log(A.VERY.LONG.DEFINED.VALUE)
 console.log(DEFINED_VALUE)
 console.log(p.env.NODE_ENV)
+console.log(p.env.CI)
 
 if (p.env.NODE_ENV === 'production') {
   console.log('production')

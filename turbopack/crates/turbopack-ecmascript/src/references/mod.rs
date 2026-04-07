@@ -71,8 +71,8 @@ use turbopack_core::{
     chunk::ChunkingType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
-        DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
-        InputRelativeConstant,
+        DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference, FreeVarReferences,
+        FreeVarReferencesMembers, InputRelativeConstant,
     },
     environment::Rendering,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
@@ -3204,6 +3204,13 @@ async fn handle_member(
                     return Ok(());
                 }
             }
+
+            if let Some(value) =
+                resolve_compile_time_member_value(obj, prop, &state.compile_time_info_ref).await?
+            {
+                analysis.add_code_gen(ConstantValueCodeGen::new(value, ast_path.to_vec().into()));
+                return Ok(());
+            }
         }
 
         if is_prop_cache
@@ -3646,10 +3653,11 @@ async fn value_visitor_inner(
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
-    if let Some((name, _)) = v.get_definable_name(Some(var_graph))
-        && let Some(value) = compile_time_info_ref.defines.get(&name).await?
-    {
-        return Ok(((&*value).try_into()?, true));
+    if let Some((name, _)) = v.get_definable_name(Some(var_graph)) {
+        if let Some(value) = resolve_compile_time_define_value(&name, compile_time_info_ref).await?
+        {
+            return Ok(((&value).try_into()?, true));
+        }
     }
     let value = match v {
         JsValue::Call(
@@ -3795,6 +3803,271 @@ async fn value_visitor_inner(
         }
     };
     Ok((value, true))
+}
+
+async fn resolve_compile_time_define_value(
+    name: &DefinableNameSegmentRefs<'_>,
+    compile_time_info_ref: &CompileTimeInfo,
+) -> Result<Option<CompileTimeDefineValue>> {
+    let defines = compile_time_info_ref.defines.owned().await?;
+    if let Some(value) = defines.get(name) {
+        let Some(name_key) = segments_from_refs(&name.0) else {
+            return Ok(Some(value.clone()));
+        };
+
+        return Ok(Some(merge_object_define_children(
+            &name_key,
+            value.clone(),
+            &defines,
+        )));
+    }
+
+    let mut best_match = None;
+    for (key, value) in defines.iter() {
+        if key.len() >= name.0.len()
+            || !segments_match_refs(key, &name.0[..key.len()])
+            || !matches!(value, CompileTimeDefineValue::Object(..))
+        {
+            continue;
+        }
+
+        if best_match.is_none_or(
+            |(best_key, _): (&Vec<DefinableNameSegment>, &CompileTimeDefineValue)| {
+                key.len() > best_key.len()
+            },
+        ) {
+            best_match = Some((key, value));
+        }
+    }
+
+    let Some((key, value)) = best_match else {
+        return Ok(None);
+    };
+
+    let merged_value = merge_object_define_children(key.as_slice(), value.clone(), &defines);
+    Ok(resolve_object_define_member(
+        &merged_value,
+        &name.0[key.len()..],
+    ))
+}
+
+fn merge_object_define_children(
+    parent_key: &[DefinableNameSegment],
+    value: CompileTimeDefineValue,
+    defines: &FxIndexMap<Vec<DefinableNameSegment>, CompileTimeDefineValue>,
+) -> CompileTimeDefineValue {
+    let mut value = value;
+
+    let CompileTimeDefineValue::Object(parts) = &mut value else {
+        return value;
+    };
+
+    for (key, child_value) in defines.iter() {
+        let Some(path) = child_define_path(parent_key, key) else {
+            continue;
+        };
+        insert_object_define_value(parts, &path, child_value.clone());
+    }
+
+    value
+}
+
+fn segments_from_refs(refs: &[DefinableNameSegmentRef<'_>]) -> Option<Vec<DefinableNameSegment>> {
+    refs.iter()
+        .map(|segment| match segment {
+            DefinableNameSegmentRef::Name(name) => Some(DefinableNameSegment::Name((*name).into())),
+            DefinableNameSegmentRef::Call(name) => Some(DefinableNameSegment::Call((*name).into())),
+            DefinableNameSegmentRef::TypeOf => Some(DefinableNameSegment::TypeOf),
+        })
+        .collect()
+}
+
+fn child_define_path(
+    parent_key: &[DefinableNameSegment],
+    key: &[DefinableNameSegment],
+) -> Option<Vec<RcStr>> {
+    if key.len() <= 1 || parent_key.len() >= key.len() || !segments_are_prefix(parent_key, key) {
+        return None;
+    }
+
+    key[parent_key.len()..]
+        .iter()
+        .map(|segment| match segment {
+            DefinableNameSegment::Name(name) => Some(name.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn segments_are_prefix(prefix: &[DefinableNameSegment], full: &[DefinableNameSegment]) -> bool {
+    prefix.len() <= full.len()
+        && prefix
+            .iter()
+            .zip(full.iter())
+            .all(|(left, right)| match (left, right) {
+                (DefinableNameSegment::Name(a), DefinableNameSegment::Name(b))
+                | (DefinableNameSegment::Call(a), DefinableNameSegment::Call(b)) => a == b,
+                (DefinableNameSegment::TypeOf, DefinableNameSegment::TypeOf) => true,
+                _ => false,
+            })
+}
+
+fn segments_match_refs(
+    left: &[DefinableNameSegment],
+    right: &[DefinableNameSegmentRef<'_>],
+) -> bool {
+    left.len() == right.len()
+        && left
+            .iter()
+            .zip(right.iter())
+            .all(|(left, right)| match (left, right) {
+                (DefinableNameSegment::Name(a), DefinableNameSegmentRef::Name(b))
+                | (DefinableNameSegment::Call(a), DefinableNameSegmentRef::Call(b)) => {
+                    a.as_str() == *b
+                }
+                (DefinableNameSegment::TypeOf, DefinableNameSegmentRef::TypeOf) => true,
+                _ => false,
+            })
+}
+
+fn insert_object_define_value(
+    parts: &mut Vec<(RcStr, CompileTimeDefineValue)>,
+    path: &[RcStr],
+    value: CompileTimeDefineValue,
+) {
+    let Some((head, tail)) = path.split_first() else {
+        return;
+    };
+
+    let existing = parts.iter_mut().find(|(key, _)| key == head);
+    if tail.is_empty() {
+        if let Some((_, existing_value)) = existing {
+            *existing_value = value;
+        } else {
+            parts.push((head.clone(), value));
+        }
+        return;
+    }
+
+    let next_parts = if let Some((_, existing_value)) = existing {
+        match existing_value {
+            CompileTimeDefineValue::Object(parts) => parts,
+            other => {
+                *other = CompileTimeDefineValue::Object(Vec::new());
+                let CompileTimeDefineValue::Object(parts) = other else {
+                    unreachable!();
+                };
+                parts
+            }
+        }
+    } else {
+        parts.push((head.clone(), CompileTimeDefineValue::Object(Vec::new())));
+        let Some((_, CompileTimeDefineValue::Object(parts))) = parts.last_mut() else {
+            unreachable!();
+        };
+        parts
+    };
+
+    insert_object_define_value(next_parts, tail, value);
+}
+
+fn resolve_object_define_member(
+    value: &CompileTimeDefineValue,
+    path: &[DefinableNameSegmentRef<'_>],
+) -> Option<CompileTimeDefineValue> {
+    if path.is_empty() {
+        return Some(value.clone());
+    }
+
+    let CompileTimeDefineValue::Object(parts) = value else {
+        return None;
+    };
+
+    let DefinableNameSegmentRef::Name(prop) = path[0] else {
+        return None;
+    };
+
+    let next_value = parts
+        .iter()
+        .find_map(|(key, value)| (key.as_str() == prop).then_some(value))
+        .cloned()
+        .unwrap_or(CompileTimeDefineValue::Undefined);
+
+    resolve_object_define_member(&next_value, &path[1..]).or(Some(next_value))
+}
+
+async fn resolve_compile_time_member_value(
+    obj: &JsValue,
+    prop: &str,
+    compile_time_info_ref: &CompileTimeInfo,
+) -> Result<Option<CompileTimeDefineValue>> {
+    let Some(obj_value) = compile_time_define_value_from_js_value(obj) else {
+        return Ok(None);
+    };
+
+    if let Some(value) = resolve_object_define_member_by_name(&obj_value, prop)
+        && !matches!(value, CompileTimeDefineValue::Undefined)
+    {
+        return Ok(Some(value));
+    }
+
+    let defines = compile_time_info_ref.defines.owned().await?;
+    for (key, value) in defines.iter() {
+        if !matches!(value, CompileTimeDefineValue::Object(..)) {
+            continue;
+        }
+
+        let merged_value = merge_object_define_children(key, value.clone(), &defines);
+        if (&obj_value == value || obj_value == merged_value)
+            && let Some(value) = resolve_object_define_member_by_name(&merged_value, prop)
+        {
+            return Ok(Some(value));
+        }
+    }
+
+    Ok(resolve_object_define_member_by_name(&obj_value, prop))
+}
+
+fn resolve_object_define_member_by_name(
+    value: &CompileTimeDefineValue,
+    prop: &str,
+) -> Option<CompileTimeDefineValue> {
+    let CompileTimeDefineValue::Object(parts) = value else {
+        return None;
+    };
+
+    for (key, value) in parts.iter().rev() {
+        if key.as_str() == prop {
+            return Some(value.clone());
+        }
+    }
+
+    Some(CompileTimeDefineValue::Undefined)
+}
+
+fn compile_time_define_value_from_js_value(value: &JsValue) -> Option<CompileTimeDefineValue> {
+    match value {
+        JsValue::Constant(value) => value.try_into().ok(),
+        JsValue::Array { items, .. } => Some(CompileTimeDefineValue::Array(
+            items
+                .iter()
+                .map(compile_time_define_value_from_js_value)
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        JsValue::Object { parts, .. } => Some(CompileTimeDefineValue::Object(
+            parts
+                .iter()
+                .map(|part| match part {
+                    ObjectPart::KeyValue(key, value) => Some((
+                        key.as_str()?.into(),
+                        compile_time_define_value_from_js_value(value)?,
+                    )),
+                    ObjectPart::Spread(_) => None,
+                })
+                .collect::<Option<Vec<_>>>()?,
+        )),
+        _ => None,
+    }
 }
 
 async fn require_resolve_visitor(
