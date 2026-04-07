@@ -7,6 +7,7 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU32, Ordering},
+    time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, bail};
@@ -115,6 +116,23 @@ enum ActiveWriteState {
     Error,
 }
 
+/// A batch of superseded files whose deletion is deferred.
+///
+/// After a commit, the old `.sst`, `.meta`, and `.blob` files cannot be deleted
+/// immediately because concurrent readers may still have them memory-mapped.
+/// Instead we record them here and delete them once enough time has passed
+/// (currently 60 s) or on shutdown.
+struct DeferredDeletion {
+    /// When the commit that superseded these files completed.
+    committed_at: Instant,
+    /// Sequence numbers of `.sst` files to delete.
+    sst: Vec<u32>,
+    /// Sequence numbers of `.meta` files to delete.
+    meta: Vec<u32>,
+    /// Sequence numbers of `.blob` files to delete.
+    blob: Vec<u32>,
+}
+
 /// RAII guard for an active write operation.
 ///
 /// When dropped without [`WriteOperationGuard::success`] being called first, the guard rolls back
@@ -212,6 +230,9 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// Tracks whether a write operation is in progress or has permanently failed.
     /// `None` = idle, `Some(Active)` = in progress, `Some(Error)` = permanently disabled.
     active_write_operation: Mutex<Option<ActiveWriteState>>,
+    /// Superseded files whose deletion is deferred until readers have finished.
+    /// Protected by `active_write_operation` (only mutated inside a write operation).
+    deferred_deletions: Mutex<Vec<DeferredDeletion>>,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -285,6 +306,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }),
             is_empty: AtomicBool::new(true),
             active_write_operation: Mutex::new(None),
+            deferred_deletions: Mutex::new(Vec::new()),
             key_block_cache: BlockCache::with(
                 KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
                 KEY_BLOCK_CACHE_SIZE,
@@ -887,25 +909,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // future readers (including after a crash/restart via
             // `load_directory`). Everything below is best-effort cleanup:
             //
-            // • Deleting superseded .sst/.meta/.blob files frees disk space
-            //   but is not required for correctness — `load_directory` will
-            //   finish the cleanup on the next open using the .del file.
-            //
             // • Writing the LOG is purely informational.
+            //
+            // • Superseded files are NOT deleted here. Concurrent readers may
+            //   still have them memory-mapped. Instead they are enqueued in
+            //   `deferred_deletions` (see Phase C) and deleted later — either
+            //   at the start of the next commit (after a grace period) or on
+            //   shutdown.
             //
             // Errors here must NOT propagate, because the WriteOperationGuard
             // would then run its rollback and delete the *newly committed*
             // files, corrupting the database.
-
-            for seq in sst_seq_numbers_to_delete.iter() {
-                let _ = fs::remove_file(self.path.join(format!("{seq:08}.sst")));
-            }
-            for seq in meta_seq_numbers_to_delete.iter() {
-                let _ = fs::remove_file(self.path.join(format!("{seq:08}.meta")));
-            }
-            for seq in blob_seq_numbers_to_delete.iter() {
-                let _ = fs::remove_file(self.path.join(format!("{seq:08}.blob")));
-            }
 
             let _: Result<(), _> = (|| {
                 let mut log = self.open_log()?;
@@ -992,6 +1006,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.is_empty
                 .store(inner.meta_files.is_empty(), Ordering::Relaxed);
         }
+
+        // Enqueue superseded files for deferred deletion. Concurrent readers may
+        // still have these files memory-mapped, so we wait at least 60 s before
+        // actually removing them (see `delete_deferred_files`).
+        if !sst_seq_numbers_to_delete.is_empty()
+            || !meta_seq_numbers_to_delete.is_empty()
+            || !blob_seq_numbers_to_delete.is_empty()
+        {
+            self.deferred_deletions.lock().push(DeferredDeletion {
+                committed_at: Instant::now(),
+                sst: sst_seq_numbers_to_delete,
+                meta: meta_seq_numbers_to_delete,
+                blob: blob_seq_numbers_to_delete,
+            });
+        }
+
+        // Delete deferred files from previous commits that have aged past the
+        // grace period.
+        self.delete_deferred_files(Self::DEFERRED_DELETION_GRACE_PERIOD);
 
         // Best-effort verbose log of the new database state after Phase C.
         #[cfg(feature = "verbose_log")]
@@ -1952,10 +1985,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
+    /// Deletes all deferred files unconditionally (readers are gone at shutdown).
     pub fn shutdown(&self) -> Result<()> {
         #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
+        self.delete_deferred_files(Duration::ZERO);
         Ok(())
+    }
+
+    /// Minimum age before deferred files are eligible for deletion.
+    /// Readers that started before the commit may still be accessing these files
+    /// via memory-mapped I/O.
+    const DEFERRED_DELETION_GRACE_PERIOD: Duration = Duration::from_secs(60);
+
+    /// Deletes deferred files whose commit timestamp is older than `min_age`.
+    /// Best-effort: errors from individual `remove_file` calls are ignored
+    /// because `load_directory` will finish the cleanup on next open via `.del`.
+    fn delete_deferred_files(&self, min_age: Duration) {
+        let mut deferred = self.deferred_deletions.lock();
+        deferred.retain(|batch| {
+            if batch.committed_at.elapsed() < min_age {
+                return true; // keep — not old enough
+            }
+            for seq in &batch.sst {
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.sst")));
+            }
+            for seq in &batch.meta {
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.meta")));
+            }
+            for seq in &batch.blob {
+                let _ = fs::remove_file(self.path.join(format!("{seq:08}.blob")));
+            }
+            false // remove from list
+        });
     }
 }
 
