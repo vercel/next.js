@@ -2,7 +2,6 @@ import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,
   type AppRouteRouteModuleOptions,
-  type AppRouteUserlandModule,
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
@@ -36,7 +35,6 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
-import * as userland from 'VAR_USERLAND'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -59,15 +57,24 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // The static import is used for initialization (methods, dynamic, etc.).
-  userland: userland as AppRouteUserlandModule,
-  // In Turbopack dev mode, also provide a getter that calls require() on every
-  // request. This re-reads from devModuleCache so HMR updates are picked up,
-  // and the async wrapper unwraps async-module Promises (ESM-only
-  // serverExternalPackages) automatically.
+  // Always use a lazy require factory so that:
+  // - In dev: devRequestTimingInternalsEnd is set before userland executes,
+  //   correctly attributing module load time to application-code rather than
+  //   framework internals.
+  // - In all modes: async modules (route files with top-level await) are
+  //   handled correctly — require() returns a Promise for such modules, which
+  //   ensureUserland() awaits before the first request is handled. Eagerly
+  //   calling require() would pass that Promise directly to the constructor
+  //   and break _initFromUserland().
+  userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
+  // In Turbopack dev mode, also provide a synchronous per-request getter so
+  // server HMR updates are picked up without re-executing the entry chunk.
+  // Using require() (synchronous) avoids adding async overhead that would be
+  // incorrectly attributed to application-code time in devRequestTiming.
   ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
     ? {
-        getUserland: () => import('VAR_USERLAND'),
+        getUserland: () =>
+          require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
       }
     : {}),
 })
