@@ -32,7 +32,10 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage } from 'http'
-import { normalizeAppPageRequestUrl } from './normalize-request-url'
+import {
+  applyAppPageRscRequestMetaFromHeaders,
+  normalizeAppPageRequestUrl,
+} from './normalize-request-url'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -139,11 +142,13 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'
-      addRequestMeta(req, 'isRSCRequest', true)
     } else {
       super.normalizeUrl(req, parsedUrl)
     }
 
+    // Minimal adapters can bypass base-server request normalization and invoke
+    // route modules directly, so derive RSC/prefetch metadata from headers.
+    applyAppPageRscRequestMetaFromHeaders(req)
     normalizeAppPageRequestUrl(req, parsedUrl.pathname || '/')
   }
 

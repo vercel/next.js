@@ -379,6 +379,12 @@ export interface NextAdapter {
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      /**
+       * middlewareMatchers are the middleware matcher definitions emitted by
+       * Next.js for this build and can be used to decide whether middleware
+       * should be invoked for a given request.
+       */
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>
@@ -2151,6 +2157,13 @@ export async function handleBuildComplete({
       await adapterMod.onBuildComplete({
         routing: {
           beforeMiddleware: [...headers, ...redirects],
+          middlewareMatchers:
+            outputs.middleware?.config.matchers?.map((matcher) => ({
+              source: matcher.source,
+              sourceRegex: matcher.sourceRegex,
+              has: matcher.has,
+              missing: matcher.missing,
+            })) ?? [],
           beforeFiles: rewrites.beforeFiles,
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,
