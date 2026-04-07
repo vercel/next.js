@@ -181,24 +181,24 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     } else if (isJs(chunkUrl)) {
       // Use dynamic import() to load JS chunks as ES modules.
       import(/* turbopackIgnore: true */ chunkUrl)
-        .then(({ default: data }) => {
-          if (data && data.chunkList) {
-            // Chunk list: the default export is { chunkList: { chunks, source } }.
+        .then(({ default: factories, chunkList }) => {
+          if (chunkList) {
+            // Chunk list: has a named `chunkList` export with { chunks, source }.
             // In dev mode, register it for HMR tracking. In production the
             // registerChunkList function doesn't exist — just resolve.
             if (typeof registerChunkList === 'function') {
               const chunkPath = getPathFromScript(chunkUrl as ChunkPath)
               registerChunkList({
                 script: chunkPath,
-                chunks: data.chunkList.chunks,
-                source: data.chunkList.source,
+                chunks: chunkList.chunks,
+                source: chunkList.source,
               })
             }
-          } else {
+          } else if (factories) {
             // Module factories: the default export is CompressedModuleFactories.
             const chunkPath = getPathFromScript(chunkUrl as ChunkPath)
             installCompressedModuleFactories(
-              data as CompressedModuleFactories,
+              factories as CompressedModuleFactories,
               /* offset= */ 0,
               moduleFactories,
               // Pass the addModuleToChunk callback for HMR tracking in dev mode.

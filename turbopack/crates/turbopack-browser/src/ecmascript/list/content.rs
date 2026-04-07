@@ -154,14 +154,14 @@ impl EcmascriptDevChunkListContent {
         let mut code = CodeBuilder::default();
 
         if this.esm_chunks {
-            // In ESM mode, export the chunk list data as the default export.
-            // The ESM runtime backend detects this (via the `chunkList` property)
+            // In ESM mode, export the chunk list data as a named export.
+            // The ESM runtime backend detects this (via the `chunkList` export)
             // and calls registerChunkList instead of installCompressedModuleFactories.
             // This avoids relying on globalThis for chunk list registration.
             writedoc!(
                 code,
                 r#"
-                    export default {{ chunkList: {{ chunks: {chunks}, source: {source} }} }};
+                    export const chunkList = {{ chunks: {chunks}, source: {source} }};
                 "#,
                 chunks = StringifyJs(&chunks),
                 source = StringifyJs(&this.source),
