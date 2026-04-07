@@ -192,6 +192,7 @@ import {
   createReactServerPrerenderResult,
   type ReactServerPrerenderResult,
   ReactServerResult,
+  ReplayableNodeStream,
   createReactServerPrerenderResultFromRender,
 } from './app-render-prerender-utils'
 import {
@@ -4486,23 +4487,22 @@ async function renderWithRestartOnCacheMissInDevNode(
       initialStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = teeStream(
-        workUnitAsyncStorage.run(
-          requestStore,
-          renderToNodeFlightStream,
-          ComponentMod,
-          initialRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-            signal: initialReactController.signal,
-          }
-        )
-      )
+      const sourceStream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToNodeFlightStream,
+        ComponentMod,
+        initialRscPayload,
+        clientModules,
+        {
+          onError,
+          environmentName,
+          startTime,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+          signal: initialReactController.signal,
+        }
+      ) as Readable
+      const replayable = new ReplayableNodeStream(sourceStream)
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
@@ -4516,9 +4516,9 @@ async function renderWithRestartOnCacheMissInDevNode(
         { once: true }
       )
 
-      const stream = streamPair[0]
+      const stream = replayable.createReplayStream()
       const accumulatedChunksPromise = accumulateStreamChunks(
-        streamPair[1],
+        replayable.createReplayStream(),
         initialStageController,
         initialDataController.signal
       )
@@ -4527,11 +4527,7 @@ async function renderWithRestartOnCacheMissInDevNode(
         'abort',
         () => {
           accumulatedChunksPromise.catch(() => {})
-          if (stream instanceof ReadableStream) {
-            stream.cancel()
-          } else {
-            stream.destroy()
-          }
+          stream.destroy()
         },
         { once: true }
       )
@@ -4653,27 +4649,26 @@ async function renderWithRestartOnCacheMissInDevNode(
       finalStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = teeStream(
-        workUnitAsyncStorage.run(
-          requestStore,
-          renderToNodeFlightStream,
-          ComponentMod,
-          finalRscPayload,
-          clientModules,
-          {
-            onError,
-            environmentName,
-            startTime,
-            filterStackFrame,
-            debugChannel: debugChannel?.serverSide,
-          }
-        )
-      )
+      const finalSourceStream = workUnitAsyncStorage.run(
+        requestStore,
+        renderToNodeFlightStream,
+        ComponentMod,
+        finalRscPayload,
+        clientModules,
+        {
+          onError,
+          environmentName,
+          startTime,
+          filterStackFrame,
+          debugChannel: debugChannel?.serverSide,
+        }
+      ) as Readable
+      const finalReplayable = new ReplayableNodeStream(finalSourceStream)
 
       return {
-        stream: streamPair[0],
+        stream: finalReplayable.createReplayStream(),
         accumulatedChunksPromise: accumulateStreamChunks(
-          streamPair[1],
+          finalReplayable.createReplayStream(),
           finalStageController,
           null
         ),
