@@ -636,10 +636,13 @@ fn apply_restore_result(
     let task_category = TaskDataCategory::from(category);
     match result {
         Ok(storage) => {
-            debug_assert!(
-                !task.flags.is_restored(task_category),
-                "apply_restore_result called for already-restored {task_category:?}"
-            );
+            if task.flags.is_restored(task_category) {
+                // Already restored by another path (e.g., initialize_new_task racing
+                // with our I/O). Just clear the restoring bit so waiting threads
+                // unblock; our result is redundant.
+                task.flags.set_restoring(task_category, false);
+                return None;
+            }
             task.restore_from(storage, task_category);
             task.flags.set_restored(task_category);
             task.flags.set_restoring(task_category, false);
