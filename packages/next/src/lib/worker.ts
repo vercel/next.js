@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'child_process'
+import type { Worker as WorkerThread } from 'worker_threads'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
 import {
@@ -193,6 +194,36 @@ export class Worker {
               typeof data === 'object' &&
               'type' in data &&
               data.type === 'activity'
+            ) {
+              onActivityImpl()
+            }
+          })
+        }
+      } else {
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
+          _worker?: WorkerThread
+        }[]) {
+          worker._worker?.on('exit', (code) => {
+            if (code && code !== 0 && this._worker) {
+              logger.error(
+                `Next.js build worker exited with code: ${code} and signal: null`
+              )
+
+              // if a worker thread doesn't exit gracefully, bubble up the exit code to the parent process
+              process.exit(code ?? 1)
+            }
+          })
+
+          // if a worker thread emits a custom message (type 3 = PARENT_MESSAGE_CUSTOM),
+          // track activity so the parent process can keep track of progress
+          worker._worker?.on('message', ([type, data]: [number, unknown]) => {
+            if (
+              type === 3 && // PARENT_MESSAGE_CUSTOM
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              (data as any).type === 'activity'
             ) {
               onActivityImpl()
             }

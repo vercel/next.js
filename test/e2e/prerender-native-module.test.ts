@@ -17,6 +17,14 @@ describe('prerender native module', () => {
         'data.sqlite': new FileRef(
           path.join(__dirname, 'prerender-native-module/data.sqlite')
         ),
+        'next.config.js': `
+          module.exports = {
+            experimental: {
+              // sqlite3 native addon is not thread-safe and crashes in worker_threads
+              workerThreads: false,
+            },
+          }
+        `,
       },
       dependencies: {
         sqlite: '4.0.22',

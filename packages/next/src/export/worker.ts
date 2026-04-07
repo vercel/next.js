@@ -605,8 +605,14 @@ async function exportPage(
     return { error: true, duration: Date.now() - start }
   }
 
-  // Notify the parent process that we processed a page (used by the progress activity indicator)
-  process.send?.([3, { type: 'activity' }])
+  // Notify the parent process that we processed a page (used by the progress activity indicator).
+  // In child process mode, use IPC (process.send). In worker thread mode, use parentPort.
+  if (process.send) {
+    process.send([3, { type: 'activity' }])
+  } else {
+     
+    (require('worker_threads') as typeof import('worker_threads')).parentPort?.postMessage([3, { type: 'activity' }])
+  }
 
   // Otherwise we can return the result.
   return {
