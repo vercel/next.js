@@ -1696,12 +1696,6 @@ function __turbopack_server_hmr_apply__(update) {
         return false;
     }
 }
-// Turbopack produces one server runtime per chunking context (e.g.
-// server/chunks/ssr/ for pages, server/chunks/ for route handlers), each with
-// its own moduleFactories. We keep a globalThis Map from __filename to handler
-// so updates are routed only to runtimes whose chunkPrefix matches the update's
-// chunk paths, skipping unnecessary eval() calls. Map.set() naturally replaces
-// stale entries when a runtime file is re-evaluated after require.cache eviction.
 const handlers = globalThis.__turbopack_server_hmr_handlers__ ?? new Map();
 const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename));
 if (handlers.size === 0) {
