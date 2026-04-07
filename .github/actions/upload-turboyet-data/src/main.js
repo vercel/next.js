@@ -1,7 +1,7 @@
 const fs = require('fs/promises')
 const path = require('path')
 
-const { createClient } = require('@vercel/kv')
+const { Redis } = require('@upstash/redis')
 
 async function collectExamplesResult(manifestFile) {
   const file = path.join(process.cwd(), manifestFile)
@@ -210,7 +210,7 @@ async function collectAndUpload(
 
 async function main() {
   try {
-    const kv = createClient({
+    const kv = new Redis({
       url: process.env.TURBOYET_KV_REST_API_URL,
       token: process.env.TURBOYET_KV_REST_API_TOKEN,
     })

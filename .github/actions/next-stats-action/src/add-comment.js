@@ -6,7 +6,7 @@ const logger = require('./util/logger')
 const prettyBytes = require('pretty-bytes')
 const { benchTitle } = require('./constants')
 
-// Try to load Vercel KV - may not be available in all environments
+// Try to load Upstash Redis - may not be available in all environments
 let kv = null
 async function getKV() {
   if (kv) return kv
@@ -14,14 +14,14 @@ async function getKV() {
     return null
   }
   try {
-    const { createClient } = require('@vercel/kv')
-    kv = createClient({
+    const { Redis } = require('@upstash/redis')
+    kv = new Redis({
       url: process.env.KV_REST_API_URL,
       token: process.env.KV_REST_API_TOKEN,
     })
     return kv
   } catch (e) {
-    logger.error('Failed to initialize Vercel KV:', e)
+    logger.error('Failed to initialize Upstash Redis:', e)
     return null
   }
 }

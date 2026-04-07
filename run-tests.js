@@ -4,7 +4,7 @@ const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
 const fsp = require('fs/promises')
-const { createClient } = require('@vercel/kv')
+const { Redis } = require('@upstash/redis')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -62,7 +62,7 @@ const KV_TIMINGS_KEY = 'test-timings'
 
 const kvClient =
   process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-    ? createClient({
+    ? new Redis({
         url: process.env.KV_REST_API_URL,
         token: process.env.KV_REST_API_TOKEN,
       })

@@ -1,6 +1,8 @@
 "use server";
 
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
+
+const kv = Redis.fromEnv();
 import { revalidatePath } from "next/cache";
 import { Feature } from "./types";
 

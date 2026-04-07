@@ -6,7 +6,7 @@
     "build": "ncc build src/main.js -o dist --source-map"
   },
   "dependencies": {
-    "@vercel/kv": "^0.2.3"
+    "@upstash/redis": "^1.37.0"
   },
   "devDependencies": {
     "@vercel/ncc": "^0.36.0"

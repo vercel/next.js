@@ -92,17 +92,19 @@ if (withHistory) {
   process.env.KV_REST_API_URL = 'mock://kv'
   process.env.KV_REST_API_TOKEN = 'mock-token'
 
-  // Patch the require to intercept @vercel/kv
+  // Patch the require to intercept @upstash/redis
   const Module = require('module')
   const originalRequire = Module.prototype.require
   Module.prototype.require = function (id) {
-    if (id === '@vercel/kv') {
+    if (id === '@upstash/redis') {
       return {
-        createClient: () => ({
-          lrange: async () => mockHistory,
-          rpush: async () => {},
-          ltrim: async () => {},
-        }),
+        Redis: class MockRedis {
+          constructor() {
+            this.lrange = async () => mockHistory
+            this.rpush = async () => {}
+            this.ltrim = async () => {}
+          }
+        },
       }
     }
     return originalRequire.apply(this, arguments)
