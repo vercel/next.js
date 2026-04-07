@@ -157,6 +157,43 @@ describe('server-hmr', () => {
   })
 
   describe('metadata route hmr', () => {
+    itTurbopackDev(
+      'does not prevent page hmr when metadata route has been loaded',
+      async () => {
+        // Load the manifest route first. This causes the manifest runtime to
+        // register its __turbopack_server_hmr_apply__ on globalThis, which
+        // would overwrite the page's handler if the multi-cast registry is
+        // broken.
+        await next.fetch('/manifest.webmanifest')
+
+        const browser = await next.browser('/module-preservation')
+
+        // Patch the page to a known unique string regardless of prior test state
+        await next.patchFile('app/module-preservation/page.tsx', (content) =>
+          content.replace(/<p id="greeting">.*?<\/p>/, () => {
+            return '<p id="greeting">metadata-hmr-test-initial</p>'
+          })
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('metadata-hmr-test-initial')
+        })
+
+        await next.patchFile('app/module-preservation/page.tsx', (content) =>
+          content.replace(
+            'metadata-hmr-test-initial',
+            'metadata-hmr-test-updated'
+          )
+        )
+
+        await retry(async () => {
+          const text = await browser.elementByCss('#greeting').text()
+          expect(text).toBe('metadata-hmr-test-updated')
+        })
+      }
+    )
+
     it('reflects manifest.ts changes on fetch/refresh', async () => {
       const initial = await next
         .fetch('/manifest.webmanifest')
