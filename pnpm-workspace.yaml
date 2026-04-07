@@ -7,3 +7,5 @@ packages:
   - 'turbopack/crates/turbopack-tests/tests/execution'
   - 'turbopack/packages/*'
 updateNotifier: false
+publicHoistPattern:
+  - '*eslint*'
