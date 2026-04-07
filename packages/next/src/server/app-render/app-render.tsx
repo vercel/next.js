@@ -4075,6 +4075,7 @@ async function renderToStream(
         throw err
       }
 
+      // MARK: errorRecovery classification
       let errorType: MetadataErrorType | 'redirect' | undefined
 
       if (isHTTPAccessFallbackError(err)) {
@@ -4104,6 +4105,7 @@ async function renderToStream(
         metadata.statusCode = res.statusCode
       }
 
+      // MARK: errorRecovery RSC
       const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
         buildManifest,
         assetPrefix,
@@ -4150,6 +4152,7 @@ async function renderToStream(
         throw setupErr
       }
 
+      // MARK: errorRecovery HTML
       try {
         const generateStaticHTML =
           supportsDynamicResponse !== true || !!shouldWaitOnAllReady
