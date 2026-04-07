@@ -2036,11 +2036,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn runtime_server_deployment_id_available(&self) -> Vc<bool> {
+    pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
+        let needs_dpl_id = self
+            .experimental
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
+
         Vc::cell(
-            self.experimental
-                .runtime_server_deployment_id
-                .unwrap_or(false),
+            needs_dpl_id
+                && self
+                    .experimental
+                    .runtime_server_deployment_id
+                    .unwrap_or(false),
         )
     }
 
