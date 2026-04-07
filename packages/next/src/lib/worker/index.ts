@@ -221,9 +221,6 @@ export class Worker {
       enableWorkerThreads: enableWorkerThreads ?? false,
       maxBootingWorkers,
       timeout,
-      onActivity: () => {
-        this._onActivity?.()
-      },
       forkOptions: {
         env: workerEnv,
         execArgv: [
