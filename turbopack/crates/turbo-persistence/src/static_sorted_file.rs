@@ -110,7 +110,7 @@ impl Lifecycle<(u32, u16), ArcBytes> for BlockCacheLifecycle {
 
     #[inline]
     fn is_pinned(&self, _key: &(u32, u16), val: &ArcBytes) -> bool {
-        val.is_shared()
+        val.is_shared_arc()
     }
 
     #[inline]
