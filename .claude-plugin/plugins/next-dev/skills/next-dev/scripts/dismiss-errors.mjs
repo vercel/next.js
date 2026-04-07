@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * Classifies compilation errors as actionable or non-actionable and dismisses
- * the non-actionable ones. Dismissed errors are filtered from future checks
+ * Escape hatch: dismisses every currently-reported compilation error so the
+ * stop hook stops blocking. Dismissed errors are filtered from future checks
  * (stop hook + get-errors) for the rest of the session.
  *
- * Heuristics for non-actionable:
- * - File is in node_modules/ (third-party dependency, agent can't fix)
- * - Error references turbopack/empty.js (bundler stub for server-only modules)
+ * Use this when the agent can't fix the reported errors (third-party code,
+ * bundler stubs, false positives) and you'd rather move on than fight them.
  *
  * Usage: node dismiss-errors.mjs [port]
  *   --reset   Clear all dismissals
@@ -47,27 +46,6 @@ function issueKey(issue) {
   const line = issue.source?.range?.start?.line ?? '?'
   const col = issue.source?.range?.start?.column ?? '?'
   return `${severity}|${file}|${title}|${line}:${col}`
-}
-
-/**
- * Classify an issue as non-actionable if the agent can't fix it.
- */
-function isNonActionable(issue) {
-  const file = issue.filePath || ''
-  const description = issue.description || ''
-  const detail = issue.detail || ''
-  const title = issue.title || ''
-  const text = `${title} ${description} ${detail}`
-
-  // Third-party dependency — agent can't edit node_modules
-  if (file.includes('/node_modules/')) return 'node_modules'
-
-  // Turbopack empty module stub — bundler replaces server-only modules with
-  // an empty shim in client bundles, causing "export not found" errors.
-  // Not a real code issue; the source file is correct.
-  if (text.includes('turbopack/empty.js')) return 'turbopack-stub'
-
-  return null
 }
 
 async function mcpCall(port, id, method, params) {
@@ -145,7 +123,7 @@ try {
   const allIssues = result.issues || []
 
   if (allIssues.length === 0) {
-    console.log('No compilation errors to classify.')
+    console.log('No compilation errors to dismiss.')
     process.exit(0)
   }
 
@@ -158,67 +136,19 @@ try {
   }
   const dismissedSet = new Set(existingKeys)
 
-  const actionable = []
-  const dismissed = []
-
   for (const issue of allIssues) {
-    const reason = isNonActionable(issue)
-    if (reason) {
-      dismissed.push({ issue, reason })
-      dismissedSet.add(issueKey(issue))
-    } else {
-      actionable.push(issue)
-    }
+    dismissedSet.add(issueKey(issue))
   }
 
-  // Write merged dismissals
-  if (dismissedSet.size > 0) {
-    writeFileSync(
-      dismissedFile,
-      JSON.stringify({ keys: [...dismissedSet] }),
-      'utf8'
-    )
-  }
+  writeFileSync(
+    dismissedFile,
+    JSON.stringify({ keys: [...dismissedSet] }),
+    'utf8'
+  )
 
-  // Report dismissed
-  if (dismissed.length > 0) {
-    const byReason = {}
-    for (const { reason } of dismissed) {
-      byReason[reason] = (byReason[reason] || 0) + 1
-    }
-    const summary = Object.entries(byReason)
-      .map(([reason, count]) => `${count} ${reason}`)
-      .join(', ')
-    console.log(
-      `Dismissed ${dismissed.length} non-actionable error(s): ${summary}.`
-    )
-  }
-
-  // Report actionable
-  if (actionable.length === 0) {
-    console.log('No actionable errors remain.')
-    process.exit(0)
-  }
-
-  console.log(`\n${actionable.length} actionable error(s):\n`)
-
-  for (const issue of actionable) {
-    const severity = issue.severity || 'error'
-    const file = issue.filePath || 'unknown'
-    const title = issue.title || 'Unknown error'
-
-    let line = `[${severity}] ${file}: ${title}`
-    if (issue.description) line += ` — ${issue.description}`
-    if (issue.source?.range) {
-      const r = issue.source.range
-      line += ` (line ${r.start?.line ?? '?'}:${r.start?.column ?? '?'})`
-    }
-    console.log(line)
-
-    if (issue.detail) console.log(issue.detail.trim())
-    if (issue.codeFrame) console.log(issue.codeFrame)
-    console.log()
-  }
+  console.log(
+    `Dismissed ${allIssues.length} error(s). They will be hidden from future checks this session. Run with --reset to clear.`
+  )
 } catch (err) {
   console.error(`Cannot reach dev server on port ${port}: ${err.message}`)
   process.exit(1)

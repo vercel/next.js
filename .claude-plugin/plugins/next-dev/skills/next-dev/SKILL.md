@@ -2,17 +2,6 @@
 name: next-dev
 description: "Connect to Next.js dev server for real-time compilation feedback on every edit"
 argument-hint: "[port]"
-hooks:
-  UserPromptSubmit:
-    - hooks:
-        - type: command
-          command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/enter-manual-compile.mjs"'
-          timeout: 10
-  Stop:
-    - hooks:
-        - type: command
-          command: 'node "${CLAUDE_PLUGIN_ROOT}/hooks/stop-compile-check.mjs"'
-          timeout: 120
 ---
 
 # Next Dev
@@ -24,7 +13,7 @@ Connects to the Next.js dev server MCP endpoint for compilation feedback.
 ## Setup
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/activate.mjs" $ARGUMENTS
+node "${CLAUDE_SKILL_DIR}/scripts/activate.mjs" $ARGUMENTS
 ```
 
 If it fails (non-zero exit), tell the user the error from stderr and offer to retry. Do not edit files until activation succeeds.
@@ -35,23 +24,23 @@ If it fails (non-zero exit), tell the user the error from stderr and offer to re
 
 ## How it works
 
-Two hooks run while this skill is active:
+Activation writes the port number to `.claude/port`. Two plugin-level hooks gate on that file, so they no-op until `/next-dev` runs and silently re-engage on every session afterwards (no `/reload-plugins` needed):
 
 - **UserPromptSubmit**: Checks the dev server is reachable, then pauses compilation for the turn. If the server is down, silently skips — you lose feedback for that turn but aren't blocked.
 - **Stop**: Compiles all pending changes in one batch and exits manual mode (normal HMR resumes). **Blocks you from finishing if there are compilation errors.** Fix them before trying again.
 
-## Noisy / non-actionable errors
+## Escape hatch: dismissing errors
 
-If the stop hook blocks you with errors that aren't yours (node_modules, Turbopack stubs, etc.), dismiss them:
+If the stop hook blocks you with errors you can't fix (third-party code, bundler stubs, false positives) and you'd rather move on, dismiss everything currently reported:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/dismiss-errors.mjs"
+node "${CLAUDE_SKILL_DIR}/scripts/dismiss-errors.mjs"
 ```
 
-Hides non-actionable errors from all future checks for the rest of the session. Dismissals reset on next activation. To clear manually:
+Hides every currently-reported error from future checks for the rest of the session. New errors from later edits will still surface. To clear manually:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/dismiss-errors.mjs" --reset
+node "${CLAUDE_SKILL_DIR}/scripts/dismiss-errors.mjs" --reset
 ```
 
 ## On-demand error check
@@ -59,7 +48,7 @@ node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/dismiss-errors.mjs" --reset
 Check compilation errors mid-task without waiting for the stop hook:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/get-errors.mjs"
+node "${CLAUDE_SKILL_DIR}/scripts/get-errors.mjs"
 ```
 
 Compiles pending changes and returns current errors (respects dismissals).

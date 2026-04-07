@@ -65,20 +65,20 @@ If activation fails, the port file is deleted and the hooks become silent no-ops
 
 ## Architecture
 
-Two skill-scoped hooks fire while the skill is active:
+Hooks are declared at **plugin level** in `hooks/hooks.json`, not in the SKILL.md frontmatter. Skill-scoped hooks are not currently supported by Claude Code (see [anthropics/claude-code#17688](https://github.com/anthropics/claude-code/issues/17688)). To get the same effect, both hooks gate on `.claude/port` and silently no-op when it's missing — so they only do real work after `/next-dev` activation has written the port file.
 
 - **`UserPromptSubmit`** → `hooks/enter-manual-compile.mjs`
   Pings the dev server, then calls `pause_compilation`. Silent no-op if the port file is missing or the server is unreachable.
 
 - **`Stop`** → `hooks/stop-compile-check.mjs`
-  Calls `compile_and_resume` (drains pending tasks in one batch), then `get_compilation_issues`. If issues are found, returns `decision: block` with the formatted errors. If `stop_hook_active` is `true`, exits 0 unconditionally to avoid infinite loops.
+  Calls `compile_and_resume` (drains pending tasks in one batch), then `get_compilation_issues`. If issues are found, returns `decision: block` with the formatted errors. The hook does not short-circuit on `stop_hook_active`: if the agent can't fix an issue, it can dismiss everything currently reported via `dismiss-errors.mjs` and stop cleanly — the block message itself surfaces that command.
 
 State files are project-local (`$CLAUDE_PROJECT_DIR/.claude/`):
 
-- `.claude/port` — dev server port; existence is the activation flag
-- `.claude/dismissed-issues.json` — issue keys the agent has dismissed as non-actionable
+- `.claude/port` — dev server port; existence is the activation flag and the gate for plugin hooks
+- `.claude/dismissed-issues.json` — issue keys the agent has dismissed
 
-Hook scripts are plugin-local (`${CLAUDE_PLUGIN_ROOT}/hooks/`).
+Hook scripts live under `${CLAUDE_PLUGIN_ROOT}/hooks/` (referenced from `hooks/hooks.json`). Skill scripts live under `${CLAUDE_SKILL_DIR}/scripts/` (referenced from the skill body and from commands the hooks tell the agent to run).
 
 ## Files
 
@@ -105,7 +105,7 @@ Hook scripts are plugin-local (`${CLAUDE_PLUGIN_ROOT}/hooks/`).
 Large projects often have compilation errors the agent can't fix — `node_modules` resolving server-only builtins (`child_process`, `dns`, `net`, `tls`) in client context, Turbopack empty-module stubs, etc. The agent can dismiss these:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/next-dev/scripts/dismiss-errors.mjs"
+node "${CLAUDE_SKILL_DIR}/scripts/dismiss-errors.mjs"
 ```
 
 Dismissals are keyed by `severity|filePath|title|startLine:startCol` (matches the server-side dedup key) and persist in `.claude/dismissed-issues.json` for the rest of the session. Activation clears them on the next session.

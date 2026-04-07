@@ -6,7 +6,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd()
+// CLAUDE_PROJECT_DIR is guaranteed to be set in hook subprocesses.
+// https://code.claude.com/docs/en/hooks#reference-scripts-by-path
+const projectDir = process.env.CLAUDE_PROJECT_DIR
 const dismissedFile = join(projectDir, '.claude', 'dismissed-issues.json')
 
 export function getPort() {

@@ -90,11 +90,20 @@ try {
   const listBody = parseSSE(await listRes.text())
   const tools = listBody?.result?.tools?.map((t) => t.name) || []
 
-  if (!tools.includes('get_compilation_issues')) {
+  const required = [
+    'get_compilation_issues',
+    'pause_compilation',
+    'compile_and_resume',
+  ]
+  const missing = required.filter((t) => !tools.includes(t))
+
+  if (missing.length > 0) {
     fail(
-      `MCP endpoint is reachable but missing "get_compilation_issues" tool.\n` +
+      `MCP endpoint is reachable but missing required tools: ${missing.join(', ')}.\n` +
         `Available tools: ${tools.join(', ')}\n` +
-        `This requires Turbopack. Start the dev server with: pnpm dev --turbopack`
+        `This skill requires a recent Next.js version that exposes these MCP tools, ` +
+        `running with Turbopack (the default in recent Next.js). Upgrade to the ` +
+        `latest Next.js and start the dev server with: pnpm dev`
     )
   }
 
@@ -146,6 +155,6 @@ try {
   }
   fail(
     `Cannot reach MCP endpoint at ${url}: ${err.message}\n` +
-      `Make sure the dev server is running: pnpm dev --turbopack -p ${port}`
+      `Make sure the dev server is running: pnpm dev -p ${port}`
   )
 }
