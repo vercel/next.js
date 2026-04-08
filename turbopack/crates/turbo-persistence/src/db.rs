@@ -110,7 +110,8 @@ struct TrackedStats {
 /// State of the active write slot.
 enum ActiveWriteState {
     /// A write operation or compaction is in progress.
-    Active,
+    /// The string is a human-readable name used in error messages.
+    Active(&'static str),
     /// A previous write or compaction failed and recovery also failed.
     /// No further writes are possible.
     Error,
@@ -573,16 +574,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Acquires the write-operation slot, returning an RAII guard that rolls back and releases it
     /// on drop. Only one write operation (write batch or compaction) is allowed at a time.
-    fn acquire_write_operation(&self) -> Result<WriteOperationGuard<'_>> {
+    /// `name` is a short human-readable label used in error messages (e.g. `"write batch"`).
+    fn acquire_write_operation(&self, name: &'static str) -> Result<WriteOperationGuard<'_>> {
         if self.read_only {
             bail!("Cannot perform write operations on a read-only database");
         }
         let mut slot = self.active_write_operation.lock();
         match &*slot {
-            Some(ActiveWriteState::Active) => {
+            Some(ActiveWriteState::Active(active_name)) => {
                 bail!(
-                    "Another write batch or compaction is already active (only a single write \
-                     operation is allowed at a time)"
+                    "Another {active_name} is already active (only a single write operation is \
+                     allowed at a time)"
                 );
             }
             Some(ActiveWriteState::Error) => {
@@ -593,7 +595,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             None => {}
         }
-        *slot = Some(ActiveWriteState::Active);
+        *slot = Some(ActiveWriteState::Active(name));
         drop(slot); // release before acquiring inner read lock
         let seq_before = self.inner.read().current_sequence_number;
         Ok(WriteOperationGuard {
@@ -609,7 +611,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
     /// This data will only become visible after the WriteBatch is committed.
     pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
-        let guard = self.acquire_write_operation()?;
+        let guard = self.acquire_write_operation("write batch")?;
         // seq_before is already the current sequence number, no second read needed.
         let current = guard.seq_before;
         Ok(WriteBatch::new(
@@ -1082,7 +1084,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
     pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
-        let mut guard = self.acquire_write_operation()?;
+        let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
         // are not used during compaction (we iterate uncached), and any cached

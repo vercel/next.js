@@ -120,8 +120,8 @@ pub trait KeyValueDatabase {
         Ok(())
     }
 
-    /// Returns true if a write operation or compaction is currently active. This can happen if a
-    /// previous write or compaction failed and recovery also failed, permanently disabling writes.
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
     fn has_unrecoverable_write_error(&self) -> bool {
         false
     }
