@@ -1,4 +1,5 @@
 {
+  "name": "next-stats-action",
   "private": true,
   "main": "src/index.js",
   "dependencies": {
