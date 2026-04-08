@@ -18,7 +18,7 @@ describe('standalone mode and optimizeCss', () => {
       `,
     },
     dependencies: {
-      beasties: '0.4.1',
+      beasties: '0.4.2',
     },
     nextConfig: {
       experimental: {

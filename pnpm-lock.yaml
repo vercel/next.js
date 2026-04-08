@@ -250,8 +250,8 @@ importers:
         specifier: 0.0.0-experimental-1371fcb-20260227
         version: 0.0.0-experimental-1371fcb-20260227
       beasties:
-        specifier: 0.4.1
-        version: 0.4.1
+        specifier: 0.4.2
+        version: 0.4.2
       browserslist:
         specifier: 4.28.1
         version: 4.28.1
@@ -8053,8 +8053,8 @@ packages:
   bcrypt-pbkdf@1.0.2:
     resolution: {integrity: sha512-qeFIXtP4MSoi6NLqO12WfqARWWuCKi2Rn/9hJLEmtB5yTNr9DqFWkJRCf2qShWzPeAMRnOgCrq0sg/KLv5ES9w==}
 
-  beasties@0.4.1:
-    resolution: {integrity: sha512-2Imdcw3LznDuxAbJM26RHniOLAzE6WgrK8OuvVXCQtNBS8rsnD9zsSEa3fHl4hHpUY7BYTlrpvtPVbvu9G6neg==}
+  beasties@0.4.2:
+    resolution: {integrity: sha512-NvcGjG/7AVUAfRbvrJmHunDQS9uHnE6Q/7AkaPr8oKE8HjOlpjRG5075z/th2Tmlezk3VlaaS8+X9I1RwHJMQw==}
     engines: {node: '>=18.0.0'}
 
   before-after-hook@1.4.0:
@@ -9814,9 +9814,6 @@ packages:
   domelementtype@1.3.1:
     resolution: {integrity: sha512-BSKB+TSpMpFI/HOxCNr1O8aMOTZ8hT3pM3GQ0w/mWRmkhEDSFJkkyzz4XQsBV44BChwGkrDfMyjVD0eA2aFV3w==}
 
-  domelementtype@2.2.0:
-    resolution: {integrity: sha512-DtBMo82pv1dFtUmHyr48beiuq792Sxohr+8Hm9zoxklYPfa6n0Z3Byjj2IV7bmr2IyqClnqEQhfgHJJ5QF0R5A==}
-
   domelementtype@2.3.0:
     resolution: {integrity: sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==}
 
@@ -9854,9 +9851,6 @@ packages:
 
   domutils@1.7.0:
     resolution: {integrity: sha512-Lgd2XcJ/NjEw+7tFvfKxOzCYKZsdct5lczQ2ZaQY8Djz7pfAD3Gbp8ySJWtreII/vDlMVmxwa6pHmdxIYgttDg==}
-
-  domutils@2.6.0:
-    resolution: {integrity: sha512-y0BezHuy4MDYxh6OvolXYsH+1EMGmFbwv5FKW7ovwMG6zTPWqNPq3WF9ayZssFq+UlKdffGLbOEaghNdaOm1WA==}
 
   domutils@2.8.0:
     resolution: {integrity: sha512-w96Cjofp72M5IIhpjgobBimYEfoPjx1Vx0BSX9P30WBdZW2WIKU0T1Bd0kz2eNZ9ikjKgHbEyKx8BB6H1L3h3A==}
@@ -25894,7 +25888,7 @@ snapshots:
     dependencies:
       tweetnacl: 0.14.5
 
-  beasties@0.4.1:
+  beasties@0.4.2:
     dependencies:
       css-select: 6.0.0
       css-what: 7.0.0
@@ -26398,9 +26392,9 @@ snapshots:
     dependencies:
       css-select: 4.3.0
       css-what: 5.0.0
-      domelementtype: 2.2.0
+      domelementtype: 2.3.0
       domhandler: 4.3.1
-      domutils: 2.6.0
+      domutils: 2.8.0
 
   cheerio@0.19.0:
     dependencies:
@@ -27905,7 +27899,7 @@ snapshots:
 
   dom-serializer@1.3.1:
     dependencies:
-      domelementtype: 2.2.0
+      domelementtype: 2.3.0
       domhandler: 4.3.1
       entities: 2.0.0
 
@@ -27920,8 +27914,6 @@ snapshots:
   domain-browser@4.19.0: {}
 
   domelementtype@1.3.1: {}
-
-  domelementtype@2.2.0: {}
 
   domelementtype@2.3.0: {}
 
@@ -27939,7 +27931,7 @@ snapshots:
 
   domhandler@4.2.0:
     dependencies:
-      domelementtype: 2.2.0
+      domelementtype: 2.3.0
 
   domhandler@4.3.1:
     dependencies:
@@ -27964,12 +27956,6 @@ snapshots:
     dependencies:
       dom-serializer: 0.2.2
       domelementtype: 1.3.1
-
-  domutils@2.6.0:
-    dependencies:
-      dom-serializer: 1.3.1
-      domelementtype: 2.3.0
-      domhandler: 4.3.1
 
   domutils@2.8.0:
     dependencies:
@@ -30557,9 +30543,9 @@ snapshots:
 
   htmlparser2@6.1.0:
     dependencies:
-      domelementtype: 2.2.0
+      domelementtype: 2.3.0
       domhandler: 4.3.1
-      domutils: 2.6.0
+      domutils: 2.8.0
       entities: 2.0.0
 
   http-cache-semantics@4.1.0: {}

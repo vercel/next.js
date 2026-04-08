@@ -16,7 +16,7 @@ async function postProcessHTML(
           const Beasties = require('beasties') as typeof import('beasties')
           // @ts-expect-error -- interopRequireDefault
           const cssOptimizer = new Beasties({
-            /* beasties options v0.4.1 {@link https://github.com/danielroe/beasties#usage} */
+            /* beasties options v0.4.2 {@link https://github.com/danielroe/beasties#usage} */
             reduceInlineStyles: false,
             path: renderOpts.distDir,
             publicPath: `${renderOpts.assetPrefix}/_next/`,

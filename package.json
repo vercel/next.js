@@ -192,7 +192,7 @@
     "cors": "2.8.5",
     "coveralls": "3.0.3",
     "create-next-app": "workspace:*",
-    "beasties": "0.4.1",
+    "beasties": "0.4.2",
     "cross-env": "6.0.3",
     "cross-spawn": "6.0.5",
     "dd-trace": "4.12.0",
