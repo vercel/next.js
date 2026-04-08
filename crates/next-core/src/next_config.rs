@@ -1985,8 +1985,8 @@ impl NextConfig {
     pub fn client_static_folder_name(&self) -> Vc<RcStr> {
         Vc::cell(
             if self.experimental.supports_immutable_assets == Some(true) {
-                // Ends up as `_next/immutable`
-                rcstr!("immutable")
+                // Ends up as `_next/static/immutable`
+                rcstr!("static/immutable")
             } else {
                 rcstr!("static")
             },
