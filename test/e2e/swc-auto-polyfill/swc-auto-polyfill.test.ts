@@ -19,8 +19,16 @@ describe('swc-auto-polyfill', () => {
     })
   })
 
+  it('should render the server page correctly with swcEnvOptions enabled', async () => {
+    const browser = await next.browser('/server')
+    await retry(async () => {
+      const text = await browser.elementByCss('#server-result').text()
+      expect(text).toBe('x_y_z')
+    })
+  })
+
   if (!isNextDev && !isNextDeploy) {
-    it('should include core-js polyfill in a chunk with user code', async () => {
+    it('should include core-js polyfill in a client chunk with user code', async () => {
       const jsFiles = (
         await listClientChunks(path.join(next.testDir, next.distDir))
       ).filter((f) => f.endsWith('.js'))

@@ -87,17 +87,33 @@ describe('swcEnvOptions', () => {
     expect(options.jsc.target).toBe('es5')
   })
 
-  it('should not affect server-side compilation', () => {
+  it('should apply swcEnvOptions to server-side compilation', () => {
     const options = getLoaderSWCOptions({
       ...baseArgs,
       isServer: true,
       supportedBrowsers: ['chrome 80'],
       swcEnvOptions: { mode: 'usage', coreJs: '3.38' },
     })
-    // Server targets node, not browsers
-    expect(options.env.targets).toEqual({
-      node: process.versions.node,
+    // Server targets node, with swcEnvOptions applied
+    expect(options.env).toEqual({
+      targets: {
+        node: process.versions.node,
+      },
+      mode: 'usage',
+      coreJs: '3.38',
     })
-    expect(options.env.mode).toBeUndefined()
+  })
+
+  it('should keep default server env when swcEnvOptions is not set', () => {
+    const options = getLoaderSWCOptions({
+      ...baseArgs,
+      isServer: true,
+      supportedBrowsers: ['chrome 80'],
+    })
+    expect(options.env).toEqual({
+      targets: {
+        node: process.versions.node,
+      },
+    })
   })
 })
