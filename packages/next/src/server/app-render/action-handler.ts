@@ -1183,12 +1183,26 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      // if it's a fetch action, we'll set the status code for logging/debugging purposes
-      // but we won't set a Location header, as the redirect will be handled by the client router
-      res.statusCode = RedirectStatusCode.SeeOther
-      metadata.statusCode = RedirectStatusCode.SeeOther
-
       if (isFetchAction) {
+        const appRelativeRedirectUrl = getAppRelativeRedirectUrl(
+          ctx.renderOpts.basePath,
+          host,
+          redirectUrl,
+          requestStore.url.pathname
+        )
+
+        // For internal redirects, set 303 for logging/debugging purposes.
+        // For external redirects, we must NOT set a 303 status code because
+        // the browser's fetch() API may interpret it as a redirect response
+        // and interfere with the custom x-action-redirect header mechanism,
+        // causing the action to resolve with `undefined` instead of properly
+        // rejecting with a redirect error on the client.
+        // See: https://github.com/vercel/next.js/issues/73536
+        if (appRelativeRedirectUrl) {
+          res.statusCode = RedirectStatusCode.SeeOther
+          metadata.statusCode = RedirectStatusCode.SeeOther
+        }
+
         return {
           type: 'done',
           result: await createRedirectRenderResult(
@@ -1204,7 +1218,9 @@ export async function handleAction({
         }
       }
 
-      // For an MPA action, the redirect doesn't need a body, just a Location header.
+      // For an MPA action, use a standard HTTP redirect with a Location header.
+      res.statusCode = RedirectStatusCode.SeeOther
+      metadata.statusCode = RedirectStatusCode.SeeOther
       res.setHeader('Location', redirectUrl)
       return {
         type: 'done',

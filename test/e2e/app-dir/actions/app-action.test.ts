@@ -1201,6 +1201,22 @@ describe('app-dir action handling', () => {
       })
     })
 
+    it('should not return undefined when server action redirects to external URL', async () => {
+      // Regression test for https://github.com/vercel/next.js/issues/73536
+      // Server actions that redirect to external URLs should throw a redirect
+      // error, not resolve with `undefined`.
+      const browser = await next.browser('/client/redirect-external-return')
+
+      await browser.elementByCss('#redirect-external-check').click()
+
+      await retry(async () => {
+        const result = await browser.elementByCss('#action-result').text()
+        // The action should throw (caught by try/catch), not resolve with undefined.
+        // If it resolves, result would be "resolved:undefined".
+        expect(result).toBe('thrown')
+      })
+    })
+
     it('should allow cookie and header async storages', async () => {
       const browser = await next.browser('/client/edge')
 
