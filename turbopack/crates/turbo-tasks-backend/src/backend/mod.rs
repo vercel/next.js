@@ -2770,7 +2770,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     /// unrecoverable write error. The caller is responsible for returning from the background job.
     fn log_unrecoverable_persist_error() {
         eprintln!(
-            "Persisting is permanently disabled due to an unrecoverable error. Stopping the \
+            "Persisting is disabled for this session due to an unrecoverable error. Stopping the \
              background persisting process."
         );
     }
