@@ -239,6 +239,16 @@ This prevents the tainted objects or values from being passed to the client. How
 
 To prevent server-only code from being executed on the client, you can mark a module with the [`server-only`](https://www.npmjs.com/package/server-only) package:
 
+```ts filename="lib/data.ts"
+import 'server-only'
+
+//...
+```
+
+This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
+
+Next.js handles `server-only` imports internally. The contents of these packages from NPM are not used. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
+
 ```bash package="npm"
 npm install server-only
 ```
@@ -255,13 +265,7 @@ pnpm add server-only
 bun add server-only
 ```
 
-```ts filename="lib/data.ts"
-import 'server-only'
-
-//...
-```
-
-This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
+Read more about `server-only` in the [preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) section.
 
 ## Mutating Data
 
