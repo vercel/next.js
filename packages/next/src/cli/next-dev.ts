@@ -33,6 +33,8 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
+import crypto from 'node:crypto'
+import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { trace, initializeTraceState, exportTraceState } from '../trace'
@@ -67,8 +69,39 @@ let distDir: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
+let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
+  'rage-restart': false,
+  'missing-next-dir': false,
+}
 const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
+
+// If the user restarts the dev server within this window we count it as a "rage restart".
+const RAGE_RESTART_THRESHOLD_MS = 120_000
+
+function getDevStateFilePath(projectDir: string): string {
+  const hash = crypto
+    .createHash('sha256')
+    .update(projectDir)
+    .digest('hex')
+    .slice(0, 16)
+  return path.join(os.tmpdir(), 'next-dev-state', `${hash}.json`)
+}
+
+function writeDevState(): void {
+  if (!traceUploadUrl || !dir) return
+  try {
+    const stateFilePath = getDevStateFilePath(dir)
+    const state = {
+      stopTime: Date.now(),
+      distDirPath: path.join(dir, distDir ?? '.next'),
+    }
+    fs.mkdirSync(path.dirname(stateFilePath), { recursive: true })
+    fs.writeFileSync(stateFilePath, JSON.stringify(state))
+  } catch {
+    // Best effort — don't interfere with shutdown
+  }
+}
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -151,6 +184,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     })
   }
 
+  writeDevState()
+
   // Save CPU profile if it was enabled (before exiting)
   saveCpuProfile()
 
@@ -165,7 +200,14 @@ process.on('SIGINT', () => handleSessionStop('SIGINT'))
 process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 // exit event must be synchronous
-process.on('exit', () => child?.kill('SIGKILL'))
+process.on('exit', () => {
+  child?.kill('SIGKILL')
+  // Catch aggressive kills (e.g. OOM, unhandled exception) that bypass handleSessionStop.
+  // SIGKILL of the parent cannot be caught; for all other exits this ensures state is written.
+  if (!sessionStopHandled) {
+    writeDevState()
+  }
+})
 
 const nextDev = async (
   options: NextDevOptions,
@@ -245,6 +287,35 @@ const nextDev = async (
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
   ) {
     traceUploadUrl = options.experimentalUploadTrace
+  }
+
+  if (traceUploadUrl) {
+    let isRageRestart = false
+    let distDirCleared = false
+    try {
+      const stateFilePath = getDevStateFilePath(dir)
+      if (fs.existsSync(stateFilePath)) {
+        const state = JSON.parse(fs.readFileSync(stateFilePath, 'utf8')) as {
+          stopTime?: number
+          distDirPath?: string
+        }
+        if (
+          state.stopTime &&
+          Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
+        ) {
+          isRageRestart = true
+        }
+        if (state.distDirPath && !fs.existsSync(state.distDirPath)) {
+          distDirCleared = true
+        }
+      }
+    } catch {
+      // Best effort — don't affect startup
+    }
+    devSpanAttrs = {
+      'rage-restart': isRageRestart,
+      'missing-next-dir': distDirCleared,
+    }
   }
 
   const enabledFeatures = Object.fromEntries(
@@ -331,6 +402,7 @@ const nextDev = async (
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
+          NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
