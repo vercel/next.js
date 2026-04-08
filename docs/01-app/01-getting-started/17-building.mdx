@@ -112,7 +112,7 @@ This delays the entire page from rendering, resulting in a slow user experience.
 
 This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
-For example, `await params` in a Page without `generateStaticParams` blocks the entire page from prerendering, because the param values are not known at build time:
+For example, `await params` in a Page without `generateStaticParams` triggers this error because the param values are not known at build time:
 
 ```tsx filename="app/products/[id]/page.tsx"
 export default async function Page({ params }) {
@@ -122,7 +122,7 @@ export default async function Page({ params }) {
 }
 ```
 
-To fix this, move the data access into a child component wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense):
+The simplest fix is wrapping the dynamic content in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
 ```tsx filename="app/products/[id]/page.tsx"
 import { Suspense } from 'react'
@@ -142,13 +142,9 @@ async function ProductContent({ params }) {
 }
 ```
 
-The `<Suspense>` fallback is prerendered into the static shell. The content streams in at request time. If we run `next build` again, the error is gone and the route shows as `◐` (Partial Prerender).
+The fallback is prerendered into the static shell. The content streams in at request time. The route now shows as `◐` (Partial Prerender).
 
-Other ways to resolve this error:
-
-- **Cache the component** with [`'use cache'`](/docs/app/api-reference/directives/use-cache) so its output can be prerendered.
-- **Add [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)** to provide sample params at build time. Routes with known params can be fully prerendered.
-- **Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading)** file to create a route-level Suspense boundary.
+Other fixes include caching the component with [`'use cache'`](/docs/app/api-reference/directives/use-cache), adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known params, or adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file.
 
 #### Getting detailed stack traces
 
