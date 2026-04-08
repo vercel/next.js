@@ -1,3 +1,4 @@
 {
-  "minify": true
+  "minify": true,
+  "scopeHoisting": false
 }
