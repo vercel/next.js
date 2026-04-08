@@ -15,7 +15,7 @@ import {
   type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { warnIfMissingAgentRules } from '../server/lib/app-info-log'
+import { getAgentRulesDevError } from '../server/lib/app-info-log'
 import { getProjectDir } from '../lib/get-project-dir'
 import path from 'path'
 import { traceGlobals } from '../trace/shared'
@@ -57,6 +57,7 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
+  skipAgentRuleCheck?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -184,13 +185,20 @@ const nextDev = async (
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  // Print an error-level notice at the very top of dev startup when an AI
-  // coding agent is driving and the Next.js agent rules aren't installed.
-  // Non-fatal — the dev server still starts — but agents parsing output
-  // scan stderr for errors first, so this is the most visible placement.
-  // The check itself is cheap (two small sync file reads) so it doesn't
-  // slow down startup in the common case.
-  warnIfMissingAgentRules(dir)
+  // Hard-fail dev startup when an AI coding agent is driving the command
+  // and the Next.js agent rules aren't installed. The first failure shows
+  // only the install command; a marker file under `.next/dev/` is used so
+  // that the second consecutive failure additionally mentions the hidden
+  // `--skip-agent-rule-check` escape hatch as a last resort. The check is
+  // cheap (two small sync file reads + env-var lookups) and runs before
+  // the worker fork, so we don't waste startup on an invocation we're
+  // about to abort.
+  const agentRulesError = getAgentRulesDevError(dir, {
+    skip: !!options.skipAgentRuleCheck,
+  })
+  if (agentRulesError !== null) {
+    printAndExit(agentRulesError)
+  }
 
   if (options.experimentalCpuProf) {
     Log.info(

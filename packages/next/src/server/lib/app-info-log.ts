@@ -149,24 +149,12 @@ function baseAgentRulesMessage(): string {
 }
 
 /**
- * Emit an error-level message when the Next.js agent rules are missing and
- * an AI coding agent is driving `next dev` or `next build`. Non-fatal — the
- * dev server and build still run, so CI pipelines and interactive workflows
- * aren't broken.
- *
- * Implementation notes:
- *
- *   - We use `Log.error` (red ⨯ prefix on `console.error` / stderr) rather
- *     than `Log.warn` because agents parsing command output latch onto
- *     ERROR-level lines far more reliably than yellow warnings.
- *   - The message body is deliberately worded to tell agents to stop and
- *     ask the user for permission, rather than auto-running the codemod.
- *     See `baseAgentRulesMessage`.
- *   - Cheap enough to call unconditionally at startup: two small sync file
- *     reads (`AGENTS.md` + `CLAUDE.md`) and one env var check. No config
- *     load, no workspace walk, no dynamic imports.
- *   - Gated on `detectAgent()` so humans running the dev server or build in
- *     a normal terminal never see it.
+ * Emit an error-level message at the end of `next build` when the agent
+ * rules are missing and an AI coding agent is driving the build. Non-fatal —
+ * the build still completes, so CI pipelines aren't broken. We use
+ * `Log.error` (red ⨯ prefix on stderr) rather than `Log.warn` because
+ * agents parsing build output latch onto ERROR-level lines far more
+ * reliably than yellow warnings. Humans never see this.
  */
 export function warnIfMissingAgentRules(dir: string): void {
   if (detectAgent() === null) {
@@ -176,6 +164,83 @@ export function warnIfMissingAgentRules(dir: string): void {
     return
   }
   Log.error(baseAgentRulesMessage())
+}
+
+/**
+ * Relative path (from the project root) of the marker file we use to track
+ * whether the dev-side agent-rules gate has already fired once in this
+ * project. We co-locate it under `.next/dev/` because `.next/` is already
+ * gitignored and `.next/dev/` is where other dev-only state lives.
+ */
+const AGENT_RULES_GATE_STATE_FILE = path.join(
+  '.next',
+  'dev',
+  'agent-rules-gate-fired'
+)
+
+function hasGateFiredBefore(dir: string): boolean {
+  return fs.existsSync(path.join(dir, AGENT_RULES_GATE_STATE_FILE))
+}
+
+function markGateFired(dir: string): void {
+  const filePath = path.join(dir, AGENT_RULES_GATE_STATE_FILE)
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true })
+    fs.writeFileSync(filePath, '', 'utf-8')
+  } catch {
+    // Best-effort: if we can't write the marker (read-only fs, permissions,
+    // etc.) the gate still works — we just won't remember across runs, so
+    // the bypass hint stays hidden indefinitely.
+  }
+}
+
+function clearGateState(dir: string): void {
+  try {
+    fs.unlinkSync(path.join(dir, AGENT_RULES_GATE_STATE_FILE))
+  } catch {
+    // File may not exist or be writable — either way, nothing to do.
+  }
+}
+
+/**
+ * Returns an error message when `next dev` should be blocked because the
+ * Next.js agent rules aren't installed, or `null` when the caller should
+ * proceed as normal. Gated on `detectAgent()` so humans never trip it.
+ *
+ * The first time the gate fires, the message contains ONLY the install
+ * command — no escape hatch — so agents are pushed toward running the
+ * codemod. The `--skip-agent-rule-check` hint only appears on the second
+ * and subsequent consecutive failures, under the assumption that the first
+ * error wasn't enough to unblock the caller and they may now need a real
+ * escape hatch. The state is tracked via a marker file under `.next/dev/`
+ * and cleared the moment the rules are successfully installed.
+ *
+ * Unlike the build-side warning, this path exits the dev server so agents
+ * can't accidentally develop against a project that isn't scaffolded with
+ * the bundled-docs instructions.
+ */
+export function getAgentRulesDevError(
+  dir: string,
+  { skip }: { skip: boolean }
+): string | null {
+  if (skip) return null
+  if (detectAgent() === null) return null
+  if (hasAgentRulesInstalled(dir)) {
+    // Rules were (re-)installed: reset the counter so a future regression
+    // starts clean with the no-bypass message.
+    clearGateState(dir)
+    return null
+  }
+
+  const isRepeat = hasGateFiredBefore(dir)
+  markGateFired(dir)
+
+  if (isRepeat) {
+    const escape = cyan('--skip-agent-rule-check')
+    return `${baseAgentRulesMessage()} If you've already tried the codemod and it won't work in this environment, you can pass ${escape} to \`next dev\` as a last resort.`
+  }
+
+  return baseAgentRulesMessage()
 }
 
 function tryReadFile(filePath: string): string | null {
