@@ -36,6 +36,7 @@ export type NextBuildOptions = {
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+  process.title = `next-build (v${process.env.__NEXT_VERSION})`
   process.on('SIGTERM', () => {
     saveCpuProfile()
     process.exit(143)

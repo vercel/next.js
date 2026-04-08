@@ -1,5 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
+    collections::HashMap,
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
@@ -7,24 +8,27 @@ use std::{
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use bincode::{
     Decode, Encode,
-    de::Decoder,
+    de::{Decoder, read::Reader},
     enc::Encoder,
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
 use bytes_str::BytesStr;
 use debug_unreachable::debug_unreachable;
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use shrink_to_fit::ShrinkToFit;
+use smallvec::SmallVec;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, hash_bytes, new_atom},
+    dynamic::{deref_from, hash_bytes, new_atom, new_atom_from_prehashed, new_static_atom},
     tagged_value::TaggedValue,
 };
 
@@ -158,6 +162,32 @@ impl RcStr {
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
         RcStr::from(Cow::Owned(f(self.into_owned())))
+    }
+
+    /// Create an RcStr from a deserialized string, checking the static constant
+    /// table first. If the string matches an `rcstr!` constant, returns a
+    /// zero-cost static copy instead of allocating a new Arc.
+    ///
+    /// Accepts `&str` so that borrow-decode paths can avoid heap allocation
+    /// entirely for inline strings (≤6 bytes) and static table hits.
+    fn from_deserialized(s: &str) -> Self {
+        let len = s.len();
+        if len >= tagged_value::MAX_INLINE_LEN {
+            let hash = hash_bytes(s.as_bytes());
+            // Check the static table
+            if let Some(entries) = STATIC_TABLE.get(&hash)
+                && let Some(static_phs) = entries.iter().find(|phs| phs.value.as_str() == s)
+            {
+                new_static_atom(static_phs)
+            } else {
+                new_atom_from_prehashed(PrehashedString {
+                    hash,
+                    value: dynamic::Payload::String(s.into()),
+                })
+            }
+        } else {
+            inline_atom(s).unwrap()
+        }
     }
 }
 
@@ -377,8 +407,25 @@ impl Serialize for RcStr {
 
 impl<'de> Deserialize<'de> for RcStr {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        Ok(RcStr::from(s))
+        struct RcStrVisitor;
+
+        impl serde::de::Visitor<'_> for RcStrVisitor {
+            type Value = RcStr;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<RcStr, E> {
+                Ok(RcStr::from_deserialized(v))
+            }
+
+            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<RcStr, E> {
+                Ok(RcStr::from_deserialized(&v))
+            }
+        }
+
+        deserializer.deserialize_str(RcStrVisitor)
     }
 }
 
@@ -390,7 +437,29 @@ impl Encode for RcStr {
 
 impl<Context> Decode<Context> for RcStr {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(RcStr::from(String::decode(decoder)?))
+        // Decode the length prefix
+        let len = u64::decode(decoder)?;
+        let len: usize = len
+            .try_into()
+            .map_err(|_| DecodeError::OutsideUsizeRange(len))?;
+
+        if unty::type_equal::<D::R, turbo_bincode::TurboBincodeReader>() {
+            // We know the reader is a TurboBincodeReader backed by &[u8], so peek_read
+            // returning None means data corruption (not enough bytes), not "unsupported".
+            let bytes = decoder
+                .reader()
+                .peek_read(len)
+                .ok_or(DecodeError::UnexpectedEnd { additional: len })?;
+            let s = core::str::from_utf8(bytes).map_err(|inner| DecodeError::Utf8 { inner })?;
+            let rcstr = RcStr::from_deserialized(s);
+            decoder.reader().consume(len);
+            Ok(rcstr)
+        } else {
+            unreachable!(
+                "RcStr::decode expected TurboBincodeReader, but was called with a {} reader",
+                std::any::type_name::<D::R>(),
+            )
+        }
     }
 }
 
@@ -433,8 +502,46 @@ pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString 
     }
 }
 
+// Re-export inventory so the rcstr! macro can reference it via $crate::inventory
+#[doc(hidden)]
+pub use inventory;
+
+/// Wrapper for collecting `rcstr!` static constants via `inventory`.
+#[doc(hidden)]
+pub struct StaticRcStr(pub &'static PrehashedString);
+
+inventory::collect!(StaticRcStr);
+
+/// Read-only lookup table mapping precomputed hash -> static PrehashedString.
+/// Built once on first access from all `rcstr!` constants collected by `inventory`.
+///
+/// Multiple `rcstr!` calls with the same string content will each submit to
+/// inventory, but we deduplicate by content here so only one entry per unique
+/// string is stored.
+static STATIC_TABLE: LazyLock<
+    HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher>,
+> = LazyLock::new(|| {
+    let mut map: HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher> =
+        HashMap::with_hasher(FxBuildHasher);
+    for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
+        let entries = map.entry(phs.hash).or_default();
+        // Deduplicate: skip if an entry with the same string content exists
+        // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
+        // on pointer equality.
+        if !entries
+            .iter()
+            .any(|e| e.value.as_str() == phs.value.as_str())
+        {
+            entries.push(phs);
+        }
+    }
+    map.shrink_to_fit(); // this map will never change again
+    map
+});
+
 /// Create an rcstr from a string literal.
-/// allocates the RcStr inline when possible otherwise uses a `LazyLock` to manage the allocation.
+/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In either
+/// case this is a compile time constant
 #[macro_export]
 macro_rules! rcstr {
     ($s:expr) => {{
@@ -447,6 +554,8 @@ macro_rules! rcstr {
                 // Allocate static storage for the PrehashedString
                 static RCSTR_STORAGE: $crate::PrehashedString =
                     $crate::make_const_prehashed_string($s);
+                // Register with inventory so deserialization can find this static
+                $crate::inventory::submit!($crate::StaticRcStr(&RCSTR_STORAGE));
                 // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
                 // should be fast enough to do every time.
                 $crate::from_static(&RCSTR_STORAGE)
@@ -623,5 +732,34 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_bincode_roundtrip() {
+        use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
+
+        // Test inline string
+        let short = RcStr::from("hi");
+        let encoded = turbo_bincode_encode(&short).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded, short);
+        assert_eq!(decoded.tag(), INLINE_TAG);
+
+        // Test dynamic string (no static match)
+        let long = RcStr::from("bincode_roundtrip: no matching rcstr constant");
+        let encoded = turbo_bincode_encode(&long).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded, long);
+        assert_eq!(decoded.tag(), DYNAMIC_TAG);
+
+        // Test static dedup via decode
+        const STATIC_STR: &str = "bincode_roundtrip: a static constant for testing";
+        let _register = rcstr!(STATIC_STR);
+        let original = RcStr::from(STATIC_STR); // DYNAMIC since from() doesn't check
+        let encoded = turbo_bincode_encode(&original).unwrap();
+        let decoded: RcStr = turbo_bincode_decode(&encoded).unwrap();
+        assert_eq!(decoded.as_str(), STATIC_STR);
+        // Decoded via peek_read path should find the static constant
+        assert_eq!(decoded.tag(), STATIC_TAG);
     }
 }
