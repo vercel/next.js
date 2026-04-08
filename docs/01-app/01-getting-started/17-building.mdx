@@ -110,12 +110,7 @@ Uncached data, `params`, `searchParams`, or `connection()` was accessed outside 
 This delays the entire page from rendering, resulting in a slow user experience.
 ```
 
-This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. Common triggers:
-
-- Awaiting [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly in a Page or Layout
-- Calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)
-- Calling [`connection()`](/docs/app/api-reference/functions/connection)
-- Fetching data that isn't cached with [`'use cache'`](/docs/app/api-reference/directives/use-cache)
+This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
 For example, `await params` directly in a Page blocks the entire page from prerendering:
 
@@ -154,8 +149,6 @@ Other ways to resolve this error:
 - **Cache the component** with [`'use cache'`](/docs/app/api-reference/directives/use-cache) so its output can be prerendered.
 - **Add [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)** to provide sample params at build time. Routes with known params can be fully prerendered.
 - **Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading)** file to create a route-level Suspense boundary.
-
-See the [blocking-route error reference](/docs/messages/blocking-route) for more details.
 
 #### Getting detailed stack traces
 
