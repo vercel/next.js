@@ -62,7 +62,7 @@ export async function getData() {
 
 You can then purge the cache on-demand from a [Server Action](/docs/app/getting-started/mutating-data) or [route handler](/docs/app/api-reference/file-conventions/route):
 
-- Use [`updateTag`](/docs/app/api-reference/functions/updateTag) inside a Server Action for immediate expiry so the next read fetches fresh data (read-your-own-writes).
+- Use [`updateTag`](/docs/app/api-reference/functions/updateTag) inside a Server Action for read-your-own-writes scenarios, where a user makes a change and the next read should fetch fresh data immediately.
 - Use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when a stale-while-revalidate delay is acceptable, or when invalidating from a route handler.
 
 The example below uses `revalidateTag`:
