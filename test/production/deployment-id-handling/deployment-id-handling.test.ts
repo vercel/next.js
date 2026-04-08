@@ -86,10 +86,7 @@ describe.each([
           beforePageLoad(page) {
             page.on('request', async (req) => {
               // TODO this currently exclude _next/image
-              if (
-                req.url().includes('/_next/static') ||
-                req.url().includes('/_next/static/immutable')
-              ) {
+              if (req.url().includes('/_next/static')) {
                 clientRequests.push(req.url())
               }
             })
@@ -98,10 +95,7 @@ describe.each([
 
         const dynamicImportRequests = []
         browser.on('request', (req) => {
-          if (
-            req.url().includes('/_next/static') ||
-            req.url().includes('/_next/static/immutable')
-          ) {
+          if (req.url().includes('/_next/static')) {
             dynamicImportRequests.push(req.url())
           }
         })
@@ -197,8 +191,7 @@ describe.each([
 
         const immutableAssets = outputs.staticFiles.filter(
           (a) =>
-            (a.pathname.startsWith('/_next/static/') ||
-              a.pathname.startsWith('/_next/static/immutable/')) &&
+            a.pathname.startsWith('/_next/static/') &&
             !(
               a.pathname.endsWith('/_buildManifest.js') ||
               a.pathname.endsWith('/_clientMiddlewareManifest.js') ||
