@@ -72,7 +72,7 @@ async function runWithRetry(command, maxAttempts) {
 
 ;(async function () {
   const target = process.argv[process.argv.length - 1]
-  const turboCommand = `pnpm dlx turbo@${process.env.TURBO_VERSION || 'latest'}`
+  const turboCommand = `pnpm exec turbo`
 
   // First, do a dry run to check cache status
   const { code, signal, output } = await runCommand(
