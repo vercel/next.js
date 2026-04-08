@@ -192,7 +192,7 @@ jobs:
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit --remote-cache-timeout 60 --log-order stream
+      afterBuild: pnpm exec turbo run test-cargo-unit --remote-cache-timeout 60 --log-order stream
       stepName: 'test-cargo-unit'
     secrets: inherit
 
@@ -214,7 +214,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check
+      afterBuild: pnpm exec turbo run rust-check
       stepName: 'rust-check'
     secrets: inherit
 
@@ -602,7 +602,7 @@ jobs:
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         node ./scripts/normalize-version-bump.js
-        pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs
+        pnpm exec turbo run build-wasm -- --target nodejs
         git checkout .
 
         export NEXT_TEST_MODE=start
@@ -630,7 +630,7 @@ jobs:
       skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-wasip1-threads
-        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
+        pnpm exec turbo run build-native-wasi
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 

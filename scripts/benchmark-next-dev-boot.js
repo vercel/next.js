@@ -202,7 +202,7 @@ function setBundled(useBundled) {
     fs.writeFileSync(cliSource, newContent)
     // Rebuild CLI
     console.log(`Rebuilding CLI (${useBundled ? 'bundled' : 'unbundled'})...`)
-    execSync('npx taskr cli', { cwd: nextDir, stdio: 'ignore' })
+    execSync('pnpm exec taskr cli', { cwd: nextDir, stdio: 'ignore' })
   }
 }
 

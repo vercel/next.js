@@ -51,7 +51,7 @@ const env = {
 }
 
 try {
-  execSync('npx taskr next_bundle_dev_server', {
+  execSync('pnpm exec taskr next_bundle_dev_server', {
     cwd: nextDir,
     stdio: verbose ? 'inherit' : 'pipe',
     env,
