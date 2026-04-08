@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
 use swc_core::{
     common::{Span, Spanned},
@@ -9,20 +8,30 @@ use swc_core::{
     quote,
 };
 
-/// Only apply to page/layout segment files.
-static PAGE_OR_LAYOUT_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"[\\/](page|layout|default)\.(ts|js)x?$").unwrap());
+fn build_page_extensions_regex(page_extensions: &[String]) -> String {
+    if page_extensions.is_empty() {
+        "(ts|js)x?".to_string()
+    } else {
+        let escaped: Vec<String> = page_extensions
+            .iter()
+            .map(|ext| regex::escape(ext))
+            .collect();
+        format!("({})", escaped.join("|"))
+    }
+}
 
-pub fn debug_instant_stack(filepath: String) -> impl Pass {
+pub fn debug_instant_stack(filepath: String, page_extensions: Vec<String>) -> impl Pass {
     visit_mut_pass(DebugInstantStack {
         filepath,
         instant_export_span: None,
+        page_extensions,
     })
 }
 
 struct DebugInstantStack {
     filepath: String,
     instant_export_span: Option<Span>,
+    page_extensions: Vec<String>,
 }
 
 /// Given an export specifier, returns `Some((exported_name, local_name))` if
@@ -73,7 +82,10 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
 
 impl VisitMut for DebugInstantStack {
     fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
-        if !PAGE_OR_LAYOUT_RE.is_match(&self.filepath) {
+        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
+        let page_or_layout_re =
+            Regex::new(&format!(r"[\\/](page|layout|default)\.{ext_pattern}$")).unwrap();
+        if !page_or_layout_re.is_match(&self.filepath) {
             return;
         }
 

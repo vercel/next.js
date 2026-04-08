@@ -1207,7 +1207,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1225,7 +1225,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1246,7 +1246,7 @@ describe('Cache Components Errors', () => {
                      at a (app/sync-cookies/page.tsx:18:36)
                      at b (<anonymous>)
                    16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
                    19 |
@@ -1541,7 +1541,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1559,7 +1559,7 @@ describe('Cache Components Errors', () => {
                  TypeError: <module-function>().get is not a function
                      at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1580,7 +1580,7 @@ describe('Cache Components Errors', () => {
                      at a (app/sync-headers/page.tsx:18:40)
                      at b (<anonymous>)
                    16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
                    19 |   return (
@@ -1930,7 +1930,7 @@ describe('Cache Components Errors', () => {
                "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
              To fix this:
 
@@ -2515,7 +2515,7 @@ describe('Cache Components Errors', () => {
                  "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
                To fix this:
 
@@ -2650,7 +2650,7 @@ describe('Cache Components Errors', () => {
                  "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
                To fix this:
 
@@ -2890,7 +2890,7 @@ describe('Cache Components Errors', () => {
                  "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
                To fix this:
 
@@ -3025,7 +3025,7 @@ describe('Cache Components Errors', () => {
                  "code": "E1083",
                  "description": "Runtime data was accessed outside of <Suspense>
 
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
                To fix this:
 
@@ -3266,7 +3266,7 @@ describe('Cache Components Errors', () => {
                "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
              To fix this:
 
@@ -3807,7 +3807,7 @@ describe('Cache Components Errors', () => {
                "code": "E1083",
                "description": "Runtime data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
              To fix this:
 

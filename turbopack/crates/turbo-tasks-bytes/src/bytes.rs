@@ -48,9 +48,10 @@ impl Deref for Bytes {
     }
 }
 
-/// Types that implement From<X> for Bytes {}
-/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without
-/// running afoul of the `From<X> for X` base case, causing conflicting impls.
+/// Types that `impl From<CustomType> for Bytes {}`
+///
+/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without running afoul of the
+/// `From<X> for X` base case, causing conflicting impls.
 pub trait IntoBytes: Into<CBytes> {}
 impl IntoBytes for &'static [u8] {}
 impl IntoBytes for &'static str {}

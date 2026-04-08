@@ -11,7 +11,10 @@ use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
-    asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    asset::Asset,
+    reference_type::{ReferenceType, ReferenceTypeCondition},
+    source::Source,
+    virtual_source::VirtualSource,
 };
 
 #[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
@@ -21,7 +24,7 @@ pub enum RuleCondition {
     Not(Box<RuleCondition>),
     True,
     False,
-    ReferenceType(ReferenceType),
+    ReferenceType(ReferenceTypeCondition),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
@@ -500,7 +503,7 @@ pub mod tests {
                 .await?;
 
         {
-            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
                 condition
                     .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)

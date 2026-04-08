@@ -144,7 +144,11 @@ impl PostCssTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(
+        &self,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
@@ -152,6 +156,7 @@ impl SourceTransform for PostCssTransform {
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                asset_context,
                 source_map: self.source_maps,
             }
             .cell(),
@@ -166,6 +171,7 @@ struct PostCssTransformedAsset {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source_map: bool,
 }
 
@@ -174,6 +180,12 @@ impl Source for PostCssTransformedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
     }
 }
 
@@ -285,6 +297,11 @@ impl JsonSource {
 #[turbo_tasks::value_impl]
 impl Source for JsonSource {
     #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("JSON content of {}", self.path).into())
+    }
+
+    #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
@@ -323,7 +340,7 @@ impl Asset for JsonSource {
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+            _ => bail!("Invalid file type {:?}", file_type),
         }
     }
 }
@@ -461,6 +478,7 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
+            node_backend,
         } = &*self.execution_context.await?;
 
         // For this postcss transform, there is no guarantee that looking up for the
@@ -508,9 +526,10 @@ impl PostCssTransformedAsset {
         let postcss_executor =
             postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
 
-        let entries = get_evaluate_entries(postcss_executor, *evaluate_context, None)
-            .to_resolved()
-            .await?;
+        let entries =
+            get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
+                .to_resolved()
+                .await?;
 
         let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
             entries.graph_entries().to_resolved().await?,
@@ -537,10 +556,13 @@ impl PostCssTransformedAsset {
             entries,
             cwd: project_path.clone(),
             env: *env,
+            node_backend: *node_backend,
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
+            evaluate_context: self.evaluate_context,
             module_graph,
             resolve_options_context: None,
+            asset_context: self.asset_context,
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),

@@ -339,6 +339,7 @@ pub async fn get_server_compile_time_info(
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -358,6 +359,7 @@ pub async fn get_server_compile_time_info(
             .to_resolved()
             .await?,
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }
@@ -569,6 +571,7 @@ pub async fn get_server_module_options_context(
         css: CssOptionsContext {
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
+            lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -1001,6 +1004,7 @@ pub struct ServerChunkingContextOptions {
     pub client_root: FileSystemPath,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1026,6 +1030,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         client_root,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1069,6 +1074,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
@@ -1124,6 +1130,7 @@ pub async fn get_server_chunking_context(
         client_root,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1167,6 +1174,7 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 

@@ -86,6 +86,7 @@ export async function handler(
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
@@ -137,18 +138,21 @@ export async function handler(
             return
           }
 
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const name = `${method} ${route}`
+          const route = rootSpanAttributes.get('next.route') || srcPage
+          const name = `${method} ${route}`
 
-            span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            span.updateName(name)
-          } else {
-            span.updateName(`${method} ${srcPage}`)
+          span.setAttributes({
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
+          })
+          span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
           }
         })
 
@@ -157,6 +161,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await invokeRouteModule(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       await tracer.withPropagatedContext(
         req.headers,
         () =>

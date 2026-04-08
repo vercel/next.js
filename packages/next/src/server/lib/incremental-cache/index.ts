@@ -570,6 +570,7 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     let entry: IncrementalResponseCacheEntry | null = null
+    const { isFallback } = ctx
     const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
@@ -621,6 +622,7 @@ export class IncrementalCache implements IncrementalCacheType {
         cacheControl,
         revalidateAfter,
         value: cacheData.value,
+        isFallback,
       }
     }
 
@@ -638,6 +640,7 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         cacheControl,
         revalidateAfter,
+        isFallback,
       }
       this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }

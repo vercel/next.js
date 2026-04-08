@@ -21,7 +21,6 @@ import {
   ACTION_DEVTOOLS_SCALE,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
-  ACTION_CACHE_ONLY_TOGGLE,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
 import { LoadingIcon } from '../icons/loading-icon'
@@ -29,6 +28,7 @@ import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/de
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
+import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
 
 const MenuPanel = () => {
@@ -107,27 +107,14 @@ const MenuPanel = () => {
         },
         isAppRouter &&
           !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
-            title:
-              'When enabled, navigations show only the cached/prefetched state.',
-            label: 'Instant Navigation Mode',
-            value: state.cacheOnly ? 'On' : 'Off',
+            title: 'Test instant navigation behavior.',
+            label: 'Instant Navs',
+            value: <ChevronRight />,
             onClick: () => {
-              if (state.cacheOnly) {
-                // Turn off: delete cookie and reload to get dynamic data
-                document.cookie =
-                  'next-instant-navigation-testing=; path=/; max-age=0'
-                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
-                window.location.reload()
-              } else {
-                // Turn on: set cookie to lock dynamic requests
-                document.cookie = 'next-instant-navigation-testing=1; path=/'
-                dispatch({ type: ACTION_CACHE_ONLY_TOGGLE })
-                setPanel(null)
-                setSelectedIndex(-1)
-              }
+              setPanel('instant-navs')
             },
             attributes: {
-              'data-cache-only': true,
+              'data-instant-nav': true,
             },
           },
         isAppRouter && {
@@ -266,6 +253,24 @@ export const PanelRouter = () => {
             header={<DevToolsHeader title="Route Info" />}
           >
             <PageSegmentTree page={state.page} />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && !!process.env.__NEXT_INSTANT_NAV_TOGGLE && (
+        <PanelRoute name="instant-navs">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'fixed',
+              height: 300 / state.scale,
+              width: 480 / state.scale,
+            }}
+            header={<DevToolsHeader title="Instant Navs" />}
+          >
+            <InstantNavsPanel />
           </DynamicPanel>
         </PanelRoute>
       )}

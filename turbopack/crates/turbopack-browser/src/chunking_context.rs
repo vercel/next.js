@@ -1,20 +1,16 @@
 use anyhow::{Context, Result, bail};
-use bincode::{Decode, Encode};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, HashAlgorithm};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType,
+        UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -52,31 +48,6 @@ pub enum CurrentChunkMethod {
 
 pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
     "typeof document === \"object\" ? document.currentScript : undefined";
-
-#[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
-pub enum ContentHashing {
-    /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
-    /// Benefit: No hash manifest needed.
-    /// Downside: Causes cascading hash invalidation.
-    Direct {
-        /// The length of the content hash in hex chars. Anything lower than 8 is not recommended
-        /// due to the high risk of collisions.
-        length: u8,
-    },
-}
 
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
@@ -226,8 +197,13 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn use_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
-        self.chunking_context.content_hashing = Some(content_hashing);
+    pub fn chunk_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.chunk_content_hashing = Some(content_hashing);
+        self
+    }
+
+    pub fn asset_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.asset_content_hashing = content_hashing;
         self
     }
 
@@ -240,6 +216,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn chunk_loading_global(mut self, chunk_loading_global: RcStr) -> Self {
         self.chunking_context.chunk_loading_global = Some(chunk_loading_global);
+        self
+    }
+
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
         self
     }
 
@@ -314,8 +295,10 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
-    /// Whether content hashing is enabled.
-    content_hashing: Option<ContentHashing>,
+    /// Whether content hashing is enabled for chunk filenames.
+    chunk_content_hashing: Option<ContentHashing>,
+    /// Content hashing for asset filenames.
+    asset_content_hashing: ContentHashing,
     /// Whether to generate source maps
     source_maps_type: SourceMapsType,
     /// Method to use when figuring out the current chunk src
@@ -337,6 +320,8 @@ pub struct BrowserChunkingContext {
     /// The global variable name used for chunk loading.
     /// Default: "TURBOPACK"
     chunk_loading_global: Option<RcStr>,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl BrowserChunkingContext {
@@ -377,7 +362,8 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
-                content_hashing: None,
+                chunk_content_hashing: None,
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
@@ -388,6 +374,7 @@ impl BrowserChunkingContext {
                 should_use_absolute_url_references: false,
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -446,11 +433,17 @@ impl BrowserChunkingContext {
         )
     }
 }
+
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn current_chunk_method(&self) -> Vc<CurrentChunkMethod> {
         self.current_chunk_method.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn hash_salt(&self) -> Vc<RcStr> {
+        *self.hash_salt
     }
 
     /// Returns the kind of runtime to include in output chunks.
@@ -496,7 +489,7 @@ impl BrowserChunkingContext {
         ChunkPathInfo {
             root_path: self.root_path.clone(),
             chunk_root_path: self.chunk_root_path.clone(),
-            content_hashing: self.content_hashing,
+            chunk_content_hashing: self.chunk_content_hashing,
         }
         .cell()
     }
@@ -563,10 +556,10 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         let ChunkPathInfo {
             chunk_root_path,
-            content_hashing,
+            chunk_content_hashing,
             root_path,
         } = &*self.chunk_path_info().await?;
-        let name = match *content_hashing {
+        let name = match *chunk_content_hashing {
             None => {
                 ident
                     .output_name(root_path.clone(), prefix, extension)
@@ -579,14 +572,13 @@ impl ChunkingContext for BrowserChunkingContext {
                 };
                 let hash = asset
                     .content()
-                    .content_hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
                     .await?;
                 let hash = hash.as_ref().context(
                     "chunk_path requires an asset with file content when content hashing is \
                      enabled",
                 )?;
-                let length = length as usize;
-                let hash = &hash[0..length];
+                let hash = &hash[..length as usize];
                 if let Some(prefix) = prefix {
                     format!("{prefix}-{hash}{extension}").into()
                 } else {
@@ -645,30 +637,34 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
-        content_hash: Vc<RcStr>,
+        self: Vc<Self>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = content_hash.await?;
-        let asset_path = match source_path.extension_ref() {
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
+        let hash = content
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .await?;
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
+        let asset_path = match source_path.extension() {
             Some(ext) => format!(
-                "{basename}.{content_hash}.{ext}",
+                "{basename}.{short_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
             ),
-            None => format!(
-                "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
-            ),
+            None => format!("{basename}.{short_hash}"),
         };
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }
@@ -684,11 +680,6 @@ impl ChunkingContext for BrowserChunkingContext {
                 static_suffix: ResolvedVc::cell(None),
             })
             .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_hot_module_replacement)
     }
 
     #[turbo_tasks::function]
@@ -885,7 +876,7 @@ impl ChunkingContext for BrowserChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         _path: FileSystemPath,
-        _evaluatable_assets: Vc<EvaluatableAssets>,
+        _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _extra_referenced_assets: Vc<OutputAssets>,
@@ -981,5 +972,5 @@ impl ChunkingContext for BrowserChunkingContext {
 struct ChunkPathInfo {
     root_path: FileSystemPath,
     chunk_root_path: FileSystemPath,
-    content_hashing: Option<ContentHashing>,
+    chunk_content_hashing: Option<ContentHashing>,
 }

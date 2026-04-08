@@ -9,6 +9,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use either::Either;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
@@ -27,6 +28,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
+    TotalOrderF64,
 };
 
 use self::imports::ImportAnnotations;
@@ -57,43 +59,20 @@ impl Default for ObjectPart {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ConstantNumber(pub f64);
-
-fn integer_decode(val: f64) -> (u64, i16, i8) {
-    let bits: u64 = val.to_bits();
-    let sign: i8 = if bits >> 63 == 0 { 1 } else { -1 };
-    let mut exponent: i16 = ((bits >> 52) & 0x7ff) as i16;
-    let mantissa = if exponent == 0 {
-        (bits & 0xfffffffffffff) << 1
-    } else {
-        (bits & 0xfffffffffffff) | 0x10000000000000
-    };
-
-    exponent -= 1023 + 52;
-    (mantissa, exponent, sign)
-}
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ConstantNumber(pub TotalOrderF64);
 
 impl ConstantNumber {
     pub fn as_u32_index(&self) -> Option<usize> {
-        let index: u32 = self.0 as u32;
-        (index as f64 == self.0).then_some(index as usize)
+        let index: u32 = *self.0 as u32;
+        (index as f64 == *self.0).then_some(index as usize)
     }
 }
-
-impl Hash for ConstantNumber {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        integer_decode(self.0).hash(state);
+impl From<f64> for ConstantNumber {
+    fn from(value: f64) -> Self {
+        ConstantNumber(value.into())
     }
 }
-
-impl PartialEq for ConstantNumber {
-    fn eq(&self, other: &Self) -> bool {
-        integer_decode(self.0) == integer_decode(other.0)
-    }
-}
-
-impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
@@ -206,7 +185,7 @@ impl ConstantValue {
             Self::Undefined | Self::False | Self::Null => false,
             Self::True | Self::Regex(..) => true,
             Self::Str(s) => !s.is_empty(),
-            Self::Num(ConstantNumber(n)) => *n != 0.0,
+            Self::Num(ConstantNumber(n)) => **n != 0.0,
             Self::BigInt(n) => !n.is_zero(),
         }
     }
@@ -264,7 +243,7 @@ impl From<Lit> for ConstantValue {
                 }
             }
             Lit::Null(_) => ConstantValue::Null,
-            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
+            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value.into())),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
@@ -290,7 +269,7 @@ impl Display for ConstantValue {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
     pub module: Wtf8Atom,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<Arc<ImportAnnotations>>,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -400,9 +379,10 @@ impl Display for LogicalProperty {
 }
 
 /// TODO: Use `Arc`
+///
 /// There are 4 kinds of values: Leaves, Nested, Operations, and Placeholders
-/// (see [JsValueMetaKind] for details). Values are processed in two phases:
-/// - Analyze phase: We convert AST into [JsValue]s. We don't have contextual information so we need
+/// (see `JsValueMetaKind` for details). Values are processed in two phases:
+/// - Analyze phase: We convert AST into `JsValue`s. We don't have contextual information so we need
 ///   to insert placeholders to represent that.
 /// - Link phase: We try to reduce a value to a constant value. The link phase has 5 substeps that
 ///   are executed on each node in the graph depth-first. When a value is modified, we need to visit
@@ -553,7 +533,7 @@ impl From<Box<BigInt>> for JsValue {
 
 impl From<f64> for JsValue {
     fn from(v: f64) -> Self {
-        ConstantValue::Num(ConstantNumber(v)).into()
+        ConstantValue::Num(ConstantNumber(v.into())).into()
     }
 }
 
@@ -585,13 +565,16 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
     type Error = anyhow::Error;
 
     fn try_from(value: &CompileTimeDefineValue) -> Result<Self> {
-        match value {
-            CompileTimeDefineValue::Null => Ok(JsValue::Constant(ConstantValue::Null)),
-            CompileTimeDefineValue::Bool(b) => Ok(JsValue::Constant((*b).into())),
-            CompileTimeDefineValue::Number(n) => Ok(JsValue::Constant(ConstantValue::Num(
-                ConstantNumber(n.as_str().parse::<f64>()?),
-            ))),
-            CompileTimeDefineValue::String(s) => Ok(JsValue::Constant(s.as_str().into())),
+        Ok(JsValue::Constant(match value {
+            CompileTimeDefineValue::Undefined => ConstantValue::Undefined,
+            CompileTimeDefineValue::Null => ConstantValue::Null,
+            CompileTimeDefineValue::Bool(b) => (*b).into(),
+            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(*n)),
+            CompileTimeDefineValue::BigInt(n) => ConstantValue::BigInt(n.clone()),
+            CompileTimeDefineValue::String(s) => s.as_str().into(),
+            CompileTimeDefineValue::Regex(pattern, flags) => {
+                ConstantValue::Regex(Box::new((pattern.as_str().into(), flags.as_str().into())))
+            }
             CompileTimeDefineValue::Array(a) => {
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
@@ -599,7 +582,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                     mutable: false,
                 };
                 js_value.update_total_nodes();
-                Ok(js_value)
+                return Ok(js_value);
             }
             CompileTimeDefineValue::Object(m) => {
                 let mut js_value = JsValue::Object {
@@ -616,11 +599,32 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                     mutable: false,
                 };
                 js_value.update_total_nodes();
-                Ok(js_value)
+                return Ok(js_value);
             }
-            CompileTimeDefineValue::Undefined => Ok(JsValue::Constant(ConstantValue::Undefined)),
-            CompileTimeDefineValue::Evaluate(s) => EvalContext::eval_single_expr_lit(s.clone()),
-        }
+            CompileTimeDefineValue::Evaluate(s) => {
+                return EvalContext::eval_single_expr_lit(s);
+            }
+        }))
+    }
+}
+
+impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &ConstantValue) -> Result<Self> {
+        Ok(match value {
+            ConstantValue::Undefined => CompileTimeDefineValue::Undefined,
+            ConstantValue::Null => CompileTimeDefineValue::Null,
+            ConstantValue::True => CompileTimeDefineValue::Bool(true),
+            ConstantValue::False => CompileTimeDefineValue::Bool(false),
+            ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0),
+            ConstantValue::Str(s) => CompileTimeDefineValue::String(s.as_rcstr()),
+            ConstantValue::BigInt(n) => CompileTimeDefineValue::BigInt(n.clone()),
+            ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
+                RcStr::from(regex.0.as_str()),
+                RcStr::from(regex.1.as_str()),
+            ),
+        })
     }
 }
 
@@ -797,7 +801,16 @@ impl Display for JsValue {
                 module: name,
                 annotations,
             }) => {
-                write!(f, "Module({}, {annotations})", name.to_string_lossy())
+                write!(
+                    f,
+                    "Module({}, {})",
+                    name.to_string_lossy(),
+                    if let Some(annotations) = annotations {
+                        Either::Left(annotations)
+                    } else {
+                        Either::Right("{}")
+                    }
+                )
             }
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
@@ -1616,7 +1629,15 @@ impl JsValue {
                 module: name,
                 annotations,
             }) => {
-                format!("module<{}, {annotations}>", name.to_string_lossy())
+                format!(
+                    "module<{}, {}>",
+                    name.to_string_lossy(),
+                    if let Some(annotations) = annotations {
+                        Either::Left(annotations)
+                    } else {
+                        Either::Right("{}")
+                    }
+                )
             }
             JsValue::Unknown {
                 original_value: inner,
@@ -1739,6 +1760,10 @@ impl JsValue {
                         "import.meta",
                         "The import.meta object"
                     ),
+                    WellKnownObjectKind::ModuleHot => (
+                        "module.hot",
+                        "The module.hot HMR API"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -1783,6 +1808,10 @@ impl JsValue {
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
                     WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::RequireFrom(rel) => (
+                        format!("createRequire('{rel}')"),
+                        "The return value of Node.js module.createRequire: https://nodejs.org/api/module.html#modulecreaterequirefilename"
+                    ),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -1792,6 +1821,10 @@ impl JsValue {
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
+                    ),
+                    WellKnownFunctionKind::FsReadDir => (
+                        "fs.readdir".to_string(),
+                        "The Node.js fs.readdir method: https://nodejs.org/api/fs.html",
                     ),
                     WellKnownFunctionKind::PathToFileUrl => (
                         "url.pathToFileURL".to_string(),
@@ -1876,6 +1909,14 @@ impl JsValue {
                     WellKnownFunctionKind::URLConstructor => (
                       "URL".to_string(),
                       "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
+                    ),
+                    WellKnownFunctionKind::ModuleHotAccept => (
+                      "module.hot.accept".to_string(),
+                      "The module.hot.accept HMR API: https://webpack.js.org/api/hot-module-replacement/#accept"
+                    ),
+                    WellKnownFunctionKind::ModuleHotDecline => (
+                      "module.hot.decline".to_string(),
+                      "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
                     ),
                 };
                 if depth > 0 {
@@ -2993,7 +3034,7 @@ impl JsValue {
                     self.update_total_nodes();
                 }
             }
-            JsValue::Logical(_, op, list) => {
+            JsValue::Logical(_, op, list)
                 // Nested logical expressions can be normalized: e. g. `a && (b && c)` => `a &&
                 // b && c`
                 if list.iter().any(|v| {
@@ -3002,7 +3043,7 @@ impl JsValue {
                     } else {
                         false
                     }
-                }) {
+                }) => {
                     // Taking the old list and constructing a new merged list
                     for mut v in take(list).into_iter() {
                         if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
@@ -3017,7 +3058,6 @@ impl JsValue {
                     }
                     self.update_total_nodes();
                 }
-            }
             _ => {}
         }
     }
@@ -3326,6 +3366,8 @@ pub enum WellKnownObjectKind {
     ImportMeta,
     /// An iterator object, used to model generator return values.
     Generator,
+    /// The `module.hot` object providing HMR API.
+    ModuleHot,
 }
 
 impl WellKnownObjectKind {
@@ -3442,6 +3484,8 @@ pub enum WellKnownFunctionKind {
     PathResolve(Box<JsValue>),
     Import,
     Require,
+    /// `0` is the path to resolve from (relative to the current module).
+    RequireFrom(Box<ConstantString>),
     RequireResolve,
     RequireContext,
     RequireContextRequire(RequireContextValue),
@@ -3449,6 +3493,7 @@ pub enum WellKnownFunctionKind {
     RequireContextRequireResolve(RequireContextValue),
     Define,
     FsReadMethod(Atom),
+    FsReadDir,
     PathToFileUrl,
     CreateRequire,
     ChildProcessSpawnMethod(Atom),
@@ -3471,6 +3516,10 @@ pub enum WellKnownFunctionKind {
     // The worker_threads Worker class
     NodeWorkerConstructor,
     URLConstructor,
+    /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
+    ModuleHotAccept,
+    /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
+    ModuleHotDecline,
 }
 
 impl WellKnownFunctionKind {
@@ -3507,9 +3556,7 @@ pub mod test_utils {
     };
     use crate::{
         analyzer::{
-            RequireContextValue,
-            builtin::replace_builtin,
-            imports::{ImportAnnotations, ImportAttributes},
+            RequireContextValue, builtin::replace_builtin, imports::ImportAttributes,
             parse_require_context,
         },
         utils::module_value_to_well_known_object,
@@ -3537,7 +3584,7 @@ pub mod test_utils {
                 JsValue::Constant(ConstantValue::Str(v)) => {
                     JsValue::promise(JsValue::Module(ModuleValue {
                         module: v.as_atom().into_owned().into(),
-                        annotations: ImportAnnotations::default(),
+                        annotations: None,
                     }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),

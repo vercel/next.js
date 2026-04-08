@@ -573,13 +573,18 @@ export default abstract class Server<
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        prefetchInlining:
+          this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        cachedNavigations:
+          this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
         typeof this.nextConfig.logging === 'object' &&
@@ -874,6 +879,13 @@ export default abstract class Server<
     const tracer = getTracer()
 
     return tracer.withPropagatedContext(req.headers, () => {
+      // Capture the parent span before creating the handleRequest span.
+      // When deployed with an adapter, the platform's runtime may create its
+      // own OTEL HTTP server span before Next.js runs. We propagate http.route
+      // to this parent span so APM tools (e.g. Datadog) can derive the
+      // resource name correctly.
+      const parentSpan = tracer.getActiveScopeSpan()
+
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
@@ -932,6 +944,14 @@ export default abstract class Server<
                 'next.span_name': name,
               })
               span.updateName(name)
+
+              // Propagate http.route to the parent span if one exists and
+              // is different from the handleRequest span. This ensures APM
+              // tools that read attributes from the outermost span (e.g.
+              // a platform-created HTTP span) can derive the resource name.
+              if (parentSpan && parentSpan !== span) {
+                parentSpan.setAttribute('http.route', route)
+              }
             } else {
               span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
@@ -1783,12 +1803,7 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          this.nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         cacheControl = undefined
       }
 

@@ -123,6 +123,39 @@ export class NextDeployInstance extends NextInstance {
     return logsRes.stdout + logsRes.stderr
   }
 
+  private async cleanupUsingCustomScript(): Promise<void> {
+    const cleanupScriptPath = process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH!
+
+    require('console').log(
+      `Running cleanup using custom script: ${cleanupScriptPath}`
+    )
+
+    const scriptEnv = {
+      ...process.env,
+      NEXT_TEST_DIR: this.testDir,
+      NEXT_TEST_DEPLOY_URL: this._url,
+      ...this.env,
+    }
+
+    const cleanupChild = execa(cleanupScriptPath, [], {
+      cwd: this.testDir,
+      env: scriptEnv,
+      reject: false,
+      stderr: 'inherit',
+    })
+
+    cleanupChild.stdout?.pipe(process.stdout)
+    cleanupChild.stderr?.pipe(process.stderr)
+
+    const { exitCode } = await cleanupChild
+
+    if (exitCode !== 0) {
+      throw new Error(
+        `Custom cleanup script failed with exit code: ${exitCode}`
+      )
+    }
+  }
+
   private parseIdsFromCliOuput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
@@ -144,7 +177,8 @@ export class NextDeployInstance extends NextInstance {
         `Failed to get immutableAssetToken from logs ${this._cliOutput}`
       )
     }
-    this._immutableAssetToken = immutableAssetToken
+    this._immutableAssetToken =
+      immutableAssetToken === 'undefined' ? undefined : immutableAssetToken
 
     require('console').log(
       `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
@@ -321,6 +355,11 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
+      )
+    }
     if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
@@ -437,6 +476,18 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async destroy() {
+    // Run custom cleanup script if provided
+    const customCleanupScriptPath =
+      process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
+    if (customCleanupScriptPath) {
+      await this.cleanupUsingCustomScript().catch((err) => {
+        require('console').error(
+          'Error running custom cleanup script, continuing with destroy:',
+          err
+        )
+      })
+    }
+
     // If configured, we should remove the proxy address from the hosts file.
     if (this._writtenHostsLine) {
       const trimmed = this._writtenHostsLine.trim()

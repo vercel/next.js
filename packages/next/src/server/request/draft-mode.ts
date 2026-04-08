@@ -70,6 +70,10 @@ export function draftMode(): Promise<DraftMode> {
         `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
       )
     }
+    case 'generate-static-params':
+      throw new Error(
+        `Route ${workStore.route} used \`${callingExpression}()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+      )
 
     default:
       return workUnitStore satisfies never
@@ -247,6 +251,10 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
           break
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`${expression}\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+          )
         default:
           workUnitStore satisfies never
       }

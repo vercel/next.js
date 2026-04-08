@@ -8,10 +8,14 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
+use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, get_effects,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, take_effects,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -95,6 +99,12 @@ pub fn root_task_dispose(
     Ok(())
 }
 
+/// [Peeks] at the [`Issue`] held by the given source and returns it as a [`PlainDiagnostic`].
+/// It does not [consume] any [`Issue`]s held by the source.
+///
+/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
+/// [`Issue`]: turbopack_core::issue::Issue
+/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
     filter: Vc<IssueFilter>,
@@ -104,10 +114,11 @@ pub async fn get_issues<T: Send>(
     ))
 }
 
-/// Reads the [turbopack_core::diagnostics::Diagnostic] held
-/// by the given source and returns it as a
-/// [turbopack_core::diagnostics::PlainDiagnostic]. It does
-/// not consume any Diagnostics held by the source.
+/// [Peeks] at the [`Diagnostic`]s held by the given source and returns it as a [`PlainDiagnostic`].
+/// It does not [consume] any [`Diagnostic`]s held by the source.
+///
+/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
+/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_diagnostics<T: Send>(
     source: OperationVc<T>,
 ) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
@@ -124,17 +135,117 @@ pub async fn get_diagnostics<T: Send>(
     Ok(Arc::new(diags))
 }
 
+/// Returns true if the file path refers to a Next.js/React internal file whose
+/// source code frames would be unhelpful (e.g. large bundled vendored files).
+///
+/// Mirrors the JS `isInternal()` check from
+/// `packages/next/src/shared/lib/is-internal.ts`.
+fn is_internal(file_path: &str) -> bool {
+    // Uses [/\\] so both Unix and Windows separators are matched without
+    // needing to normalize the path
+    static RE: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r"(?x)
+            # React vendored in Next.js dist/compiled (reactVendoredRe)
+            [/\\]next[/\\]dist[/\\]compiled[/\\](?:react|react-dom|react-server-dom-webpack|react-server-dom-turbopack|scheduler)[/\\]
+            # React in node_modules (reactNodeModulesRe)
+            | node_modules[/\\](?:react|react-dom|scheduler)[/\\]
+            # Next.js internals (nextInternalsRe)
+            | node_modules[/\\]next[/\\]
+            | [/\\]\.next[/\\]static[/\\]chunks[/\\]webpack\.js$
+            | edge-runtime-webpack\.js$
+            | webpack-runtime\.js$
+            ",
+        )
+        .expect("is_internal regex must compile")
+    });
+
+    RE.is_match(file_path)
+}
+
+/// Renders a code frame for a source location, if available.
+///
+/// This avoids transferring the full source file content across the NAPI
+/// boundary just to call back into Rust for code frame rendering.
+///
+/// Because this accesses the terminal size, this function call should not be cached (e.g. in
+/// turbo-tasks).
+fn render_source_code_frame(source: &PlainIssueSource, file_path: &str) -> Result<Option<String>> {
+    let Some((start, end)) = source.range else {
+        return Ok(None);
+    };
+
+    if is_internal(file_path) {
+        return Ok(None);
+    }
+
+    let content = match &*source.asset.content {
+        FileContent::Content(c) => {
+            let Ok(content) = c.content().to_str() else {
+                return Ok(None);
+            };
+            content
+        }
+        FileContent::NotFound => return Ok(None),
+    };
+
+    // SourcePos is 0-indexed; Location is 1-indexed
+    let location = CodeFrameLocation {
+        start: Location {
+            line: (start.line + 1) as usize,
+            column: Some((start.column + 1) as usize),
+        },
+        end: Some(Location {
+            line: (end.line + 1) as usize,
+            column: Some((end.column + 1) as usize),
+        }),
+    };
+
+    render_code_frame(
+        &content,
+        &location,
+        &CodeFrameOptions {
+            color: true,
+            highlight_code: true,
+            max_width: terminal_size::terminal_size()
+                .map(|(w, _)| w.0 as usize)
+                .unwrap_or(100),
+            ..Default::default()
+        },
+    )
+}
+
+/// Renders a code frame for the issue's primary source location.
+fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
+    let Some(source) = issue.source.as_ref() else {
+        return Ok(None);
+    };
+    render_source_code_frame(source, &issue.file_path)
+}
+
 #[napi(object)]
 pub struct NapiIssue {
     pub severity: String,
     pub stage: String,
-    pub file_path: String,
+    pub file_path: RcStr,
     pub title: serde_json::Value,
     pub description: Option<serde_json::Value>,
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
-    pub documentation_link: String,
+    pub additional_sources: Vec<NapiAdditionalIssueSource>,
+    pub documentation_link: RcStr,
     pub import_traces: serde_json::Value,
+    /// Pre-rendered code frame for the issue's source location, if available.
+    /// Rendered in Rust to avoid transferring full source file content to JS.
+    pub code_frame: Option<String>,
+}
+
+#[napi(object)]
+pub struct NapiAdditionalIssueSource {
+    pub description: RcStr,
+    pub source: NapiIssueSource,
+    /// Pre-rendered code frame for this additional source location, if available.
+    pub code_frame: Option<String>,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -145,16 +256,27 @@ impl From<&PlainIssue> for NapiIssue {
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             stage: issue.stage.to_string(),
-            file_path: issue.file_path.to_string(),
+            file_path: issue.file_path.clone(),
             detail: issue
                 .detail
                 .as_ref()
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
-            documentation_link: issue.documentation_link.to_string(),
+            documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_ref().map(|source| source.into()),
+            additional_sources: issue
+                .additional_sources
+                .iter()
+                .map(|s| NapiAdditionalIssueSource {
+                    description: s.description.clone(),
+                    code_frame: render_source_code_frame(&s.source, &s.source.asset.file_path)
+                        .unwrap_or_default(),
+                    source: (&s.source).into(),
+                })
+                .collect(),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
+            code_frame: render_issue_code_frame(issue).unwrap_or_default(),
         }
     }
 }
@@ -232,21 +354,15 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 
 #[napi(object)]
 pub struct NapiSource {
-    pub ident: String,
-    pub content: Option<String>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
 }
 
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
-            ident: source.ident.to_string(),
-            content: match &*source.content {
-                FileContent::Content(content) => match content.content().to_str() {
-                    Ok(str) => Some(str.into_owned()),
-                    Err(_) => None,
-                },
-                FileContent::NotFound => None,
-            },
+            ident: (*source.ident).clone(),
+            file_path: (*source.file_path).clone(),
         }
     }
 }
@@ -268,21 +384,21 @@ impl From<SourcePos> for NapiSourcePos {
 
 #[napi(object)]
 pub struct NapiDiagnostic {
-    pub category: String,
-    pub name: String,
+    pub category: RcStr,
+    pub name: RcStr,
     #[napi(ts_type = "Record<string, string>")]
-    pub payload: FxHashMap<String, String>,
+    pub payload: FxHashMap<RcStr, RcStr>,
 }
 
 impl NapiDiagnostic {
     pub fn from(diagnostic: &PlainDiagnostic) -> Self {
         Self {
-            category: diagnostic.category.to_string(),
-            name: diagnostic.name.to_string(),
+            category: diagnostic.category.clone(),
+            name: diagnostic.name.clone(),
             payload: diagnostic
                 .payload
                 .iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect(),
         }
     }
@@ -370,7 +486,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
     let diagnostics = get_diagnostics(source_op).await?;
-    let effects = Arc::new(get_effects(source_op).await?);
+    let effects = Arc::new(take_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None

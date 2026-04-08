@@ -65,7 +65,7 @@ import loadJsConfig, {
 } from './load-jsconfig'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
-import { getSupportedBrowsers } from './utils'
+import { getSupportedBrowsers } from './get-supported-browsers'
 import { MemoryWithGcCachePlugin } from './webpack/plugins/memory-with-gc-cache-plugin'
 import { getBabelConfigFile } from './get-babel-config-file'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -1345,6 +1345,9 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
+      // Webpack requires hashSalt to be a non-empty string; omit it entirely
+      // when no salt is configured.
+      ...(config.hashSalt ? { hashSalt: config.hashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1796,6 +1799,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
+                  hashSalt: config.hashSalt,
                 },
               },
             ]

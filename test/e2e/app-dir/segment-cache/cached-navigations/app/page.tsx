@@ -28,6 +28,11 @@ export default function Home() {
             Go to page with fallback params
           </Link>
         </li>
+        <li>
+          <Link href="/runtime-prefetchable" prefetch={false}>
+            Go to runtime-prefetchable page
+          </Link>
+        </li>
       </ul>
     </main>
   )

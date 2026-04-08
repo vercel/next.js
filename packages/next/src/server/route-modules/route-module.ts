@@ -65,7 +65,7 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -108,10 +108,13 @@ export abstract class RouteModule<
 > {
   /**
    * The userland module. This is the module that is exported from the user's
-   * code. This is marked as readonly to ensure that the module is not mutated
-   * because the module (when compiled) only provides getters.
+   * code. Exposed as a getter so subclasses can override with lazy loading.
    */
-  public readonly userland: Readonly<U>
+  protected _userland: Readonly<U>
+
+  get userland(): Readonly<U> {
+    return this._userland
+  }
 
   /**
    * The definition of the route.
@@ -135,11 +138,30 @@ export abstract class RouteModule<
     distDir,
     relativeProjectDir,
   }: RouteModuleOptions<D, U>) {
-    this.userland = userland
+    this._userland = userland
     this.definition = definition
     this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
+  }
+
+  private getRouterServerContext(
+    req: NextIncomingMessage
+  ): RouterServerContext[string] | undefined {
+    const hostname = getRequestMeta(req, 'hostname')
+    const revalidate = getRequestMeta(req, 'revalidate')
+    const render404 = getRequestMeta(req, 'render404')
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
+    return {
+      ...routerServerContext,
+      ...(hostname !== undefined ? { hostname } : {}),
+      ...(revalidate !== undefined ? { revalidate } : {}),
+      ...(render404 !== undefined ? { render404 } : {}),
+    }
   }
 
   public normalizeUrl(
@@ -529,10 +551,7 @@ export abstract class RouteModule<
     let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
       | RequiredServerFilesManifest
       | undefined
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -636,11 +655,8 @@ export abstract class RouteModule<
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
 
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -902,6 +918,26 @@ export abstract class RouteModule<
             params = Object.assign({}, paramsMatch)
           }
         }
+      }
+
+      // When partial nxtP* params are provided (e.g. background
+      // revalidation for intermediate PPR shells), both
+      // normalizeDynamicRouteParams calls above fail because not all
+      // route params are present. Merge the normalized query params
+      // (from nxtP*) into the current params to override placeholders
+      // with concrete values.
+      if (
+        params &&
+        routeParamKeys.size > 0 &&
+        !paramsResult.hasValidParams &&
+        !queryResult.hasValidParams
+      ) {
+        for (const key of routeParamKeys) {
+          if (query[key] !== undefined) {
+            params[key] = query[key]
+          }
+        }
+        addRequestMeta(req, 'resolvedRouteParamKeys', routeParamKeys)
       }
     }
 

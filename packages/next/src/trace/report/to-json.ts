@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
+import type { Reporter } from './types'
 
 // Batch events as zipkin allows for multiple events to be sent in one go
 export function batcher(reportEvents: (evts: TraceEvent[]) => Promise<void>) {
@@ -30,9 +31,6 @@ export function batcher(reportEvents: (evts: TraceEvent[]) => Promise<void>) {
     },
   }
 }
-
-let writeStream: RotatingWriteStream
-let batch: ReturnType<typeof batcher> | undefined
 
 const writeStreamOptions = {
   flags: 'a',
@@ -97,49 +95,69 @@ class RotatingWriteStream {
   }
 }
 
-function reportToJson(event: TraceEvent) {
-  const distDir = traceGlobals.get('distDir')
-  const phase = traceGlobals.get('phase')
-  if (!distDir || !phase) {
-    return
-  }
+export function createJsonReporter(options: {
+  filename: string
+  sizeLimit: number | ((phase: string) => number)
+  filter?: (event: TraceEvent) => boolean
+}): Reporter {
+  let writeStream: RotatingWriteStream
+  let batch: ReturnType<typeof batcher> | undefined
 
-  if (!batch) {
-    batch = batcher(async (events: TraceEvent[]) => {
-      if (!writeStream) {
-        await fs.promises.mkdir(distDir, { recursive: true })
-        const file = path.join(distDir, 'trace')
-        writeStream = new RotatingWriteStream(
-          file,
-          // Development is limited to 50MB, production is unlimited
-          phase === PHASE_DEVELOPMENT_SERVER ? 52428800 : Infinity
-        )
-      }
-      const eventsJson = JSON.stringify(events)
-      try {
-        await writeStream.write(eventsJson + '\n')
-      } catch (err) {
-        console.log(err)
-      }
+  function report(event: TraceEvent) {
+    if (options.filter && !options.filter(event)) {
+      return
+    }
+
+    const distDir = traceGlobals.get('distDir')
+    const phase = traceGlobals.get('phase')
+    if (!distDir || !phase) {
+      return
+    }
+
+    if (!batch) {
+      batch = batcher(async (events: TraceEvent[]) => {
+        if (!writeStream) {
+          await fs.promises.mkdir(distDir, { recursive: true })
+          const file = path.join(distDir, options.filename)
+          const limit =
+            typeof options.sizeLimit === 'function'
+              ? options.sizeLimit(phase)
+              : options.sizeLimit
+          writeStream = new RotatingWriteStream(file, limit)
+        }
+        const eventsJson = JSON.stringify(events)
+        try {
+          await writeStream.write(eventsJson + '\n')
+        } catch (err) {
+          console.log(err)
+        }
+      })
+    }
+
+    batch.report({
+      ...event,
+      traceId,
     })
   }
 
-  batch.report({
-    ...event,
-    traceId,
-  })
+  return {
+    flushAll: (opts?: { end: boolean }) =>
+      batch
+        ? batch.flushAll().then(() => {
+            const phase = traceGlobals.get('phase')
+            // Only end writeStream when manually flushing in production
+            if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
+              return writeStream.end()
+            }
+          })
+        : undefined,
+    report,
+  }
 }
 
-export default {
-  flushAll: (opts?: { end: boolean }) =>
-    batch
-      ? batch.flushAll().then(() => {
-          const phase = traceGlobals.get('phase')
-          // Only end writeStream when manually flushing in production
-          if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
-            return writeStream.end()
-          }
-        })
-      : undefined,
-  report: reportToJson,
-}
+export default createJsonReporter({
+  filename: 'trace',
+  sizeLimit: (phase) =>
+    // Development is limited to 50MB, production is unlimited
+    phase === PHASE_DEVELOPMENT_SERVER ? 52428800 : Infinity,
+})

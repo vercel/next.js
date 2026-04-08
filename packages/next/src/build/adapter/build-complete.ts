@@ -37,6 +37,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
 
@@ -88,6 +89,26 @@ interface SharedRouteFields {
    * to filePath on disk
    */
   wasmAssets?: Record<string, string>
+
+  /**
+   * edgeRuntime contains canonical entry metadata for invoking
+   * this output in an edge runtime.
+   */
+  edgeRuntime?: {
+    /**
+     * modulePath is the canonical module path that registers this
+     * output in the edge runtime.
+     */
+    modulePath: string
+    /**
+     * entryKey is the canonical key used for the global edge entry registry.
+     */
+    entryKey: string
+    /**
+     * handlerExport is the export name to invoke on the edge entry.
+     */
+    handlerExport: string
+  }
 
   /**
    * config related to the route
@@ -234,6 +255,11 @@ export interface AdapterOutput {
        * renderingMode signals PPR or not for a prerender
        */
       renderingMode?: RenderingMode
+      /**
+       * partialFallback signals this prerender serves a partial fallback shell
+       * and should be upgraded to a full route in the background.
+       */
+      partialFallback?: boolean
 
       /**
        * bypassToken is the generated token that signals a prerender cache
@@ -249,8 +275,17 @@ export interface AdapterOutput {
    * that does not use ISR
    */
   STATIC_FILE: {
+    /**
+     * Unique identifier for this static file output
+     */
     id: string
+    /**
+     * Absolute filesystem path to the built file
+     */
     filePath: string
+    /**
+     * The routable URL pathname for this static file
+     */
     pathname: string
     type: AdapterOutputType.STATIC_FILE
     /**
@@ -335,11 +370,21 @@ export interface NextAdapter {
     config: NextConfigComplete,
     ctx: {
       phase: PHASE_TYPE
+      /**
+       * nextVersion is the current version of Next.js being used
+       */
+      nextVersion: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      /**
+       * middlewareMatchers are the middleware matcher definitions emitted by
+       * Next.js for this build and can be used to decide whether middleware
+       * should be invoked for a given request.
+       */
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>
@@ -700,6 +745,11 @@ export async function handleBuildComplete({
           : route === '/index'
             ? '/'
             : route
+        const edgeEntrypointRelativePath = page.entrypoint
+        const edgeEntrypointPath = path.join(
+          distDir,
+          edgeEntrypointRelativePath
+        )
 
         const output: Omit<AdapterOutput[typeof type], 'type'> & {
           type: any
@@ -709,19 +759,12 @@ export async function handleBuildComplete({
           runtime: 'edge',
           sourcePage: route,
           pathname,
-          filePath: path.join(
-            distDir,
-            page.files.find(
-              (item) =>
-                item.startsWith('server/app') || item.startsWith('server/pages')
-            ) ||
-              // TODO: turbopack build doesn't name the main entry chunk
-              // identifiably so we don't know which to mark here but
-              // technically edge needs all chunks to load always so
-              // should this field even be provided?
-              page.files[0] ||
-              ''
-          ),
+          filePath: edgeEntrypointPath,
+          edgeRuntime: {
+            modulePath: edgeEntrypointPath,
+            entryKey: `middleware_${page.name}`,
+            handlerExport: 'handler',
+          },
           assets: {},
           wasmAssets: {},
           config: {
@@ -1042,8 +1085,26 @@ export async function handleBuildComplete({
           }
           const normalizedPage = normalizeAppPath(page)
 
-          // Skip static metadata routes - they will be output as static files
-          if (isStaticMetadataFile(normalizedPage)) {
+          // Skip static metadata routes only when they are prerendered.
+          // Dynamic metadata routes (e.g. robots/sitemap using connection())
+          // should remain app routes in adapter outputs.
+          const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const isPrerenderedMetadataRoute =
+            prerenderManifest.routes[normalizedPage] ||
+            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            config.i18n?.locales?.some((locale) => {
+              const localePathname = path.posix.join(
+                '/',
+                locale,
+                normalizedPage.slice(1)
+              )
+              return (
+                prerenderManifest.routes[localePathname] ||
+                prerenderManifest.dynamicRoutes[localePathname]
+              )
+            })
+
+          if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1201,6 +1262,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
+                partialFallback: undefined,
               },
 
               fallback: {
@@ -1563,6 +1625,7 @@ export async function handleBuildComplete({
           fallbackStatus,
           fallbackSourceRoute,
           fallbackRootParams,
+          remainingPrerenderableParams,
           allowHeader,
           dataRoute,
           renderingMode,
@@ -1574,11 +1637,24 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
-        const allowQuery = Object.values(
+        const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
-        )
+        const allowQuery = Object.values(routeKeys)
+        const partialFallbacksEnabled =
+          config.experimental.partialFallbacks === true
+        const partialFallback =
+          partialFallbacksEnabled &&
+          isAppPage &&
+          remainingPrerenderableParams !== undefined &&
+          remainingPrerenderableParams.length > 0 &&
+          renderingMode === RenderingMode.PARTIALLY_STATIC &&
+          typeof fallback === 'string' &&
+          Boolean(meta.postponed)
+
+        const canEmitPartialFallback =
+          partialFallback && fallbackRootParams?.length === 0
         let htmlAllowQuery = allowQuery
 
         // We only want to vary on the shell contents if there is a fallback
@@ -1586,14 +1662,29 @@ export async function handleBuildComplete({
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
             htmlAllowQuery = fallbackRootParams as string[]
-          } // We additionally vary based on if there's a postponed prerender
+          }
+
+          // We additionally vary based on if there's a postponed prerender
           // because if there isn't, then that means that we generated an
           // empty shell, and producing an empty RSC shell would be a waste.
           // If there is a postponed prerender, then the RSC shell would be
           // non-empty, and it would be valuable to also generate an empty
           // RSC shell.
           else if (meta.postponed) {
-            htmlAllowQuery = []
+            // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
+            // For opt-in partial fallbacks in cache components, keep only the
+            // params that can still complete this shell.
+            const remainingPrerenderableQueryKeys = new Set(
+              (remainingPrerenderableParams ?? []).map(
+                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              )
+            )
+            htmlAllowQuery =
+              canEmitPartialFallback && routesManifest.rsc.clientParamParsing
+                ? Object.values(routeKeys).filter((routeKey) =>
+                    remainingPrerenderableQueryKeys.has(routeKey)
+                  )
+                : []
           }
         }
 
@@ -1638,6 +1729,7 @@ export async function handleBuildComplete({
             allowQuery: htmlAllowQuery,
             allowHeader,
             renderingMode,
+            partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage ? experimentalBypassFor : undefined,
             bypassToken: prerenderManifest.preview.previewModeId,
           },
@@ -1716,6 +1808,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 allowQuery: dataAllowQuery,
+                partialFallback: undefined,
               },
             })
           } else if (dataRoute) {
@@ -1724,6 +1817,10 @@ export async function handleBuildComplete({
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
+              config: {
+                ...initialOutput.config,
+                partialFallback: undefined,
+              },
             })
           }
           prerenderGroupId += 1
@@ -1783,6 +1880,10 @@ export async function handleBuildComplete({
                 pathname: dataPathname,
                 // data route doesn't have skeleton fallback
                 fallback: undefined,
+                config: {
+                  ...initialOutput.config,
+                  partialFallback: undefined,
+                },
                 groupId: prerenderGroupId,
               })
             }
@@ -1864,8 +1965,6 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const { hasFallbackRootParams } = route
-
       const sourceRegex = routeRegex.namedRegex.replace(
         '^',
         `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
@@ -1879,23 +1978,11 @@ export async function handleBuildComplete({
         ) + getDestinationQuery(route.routeKeys)
 
       if (appPageKeys && appPageKeys.length > 0) {
-        // If we have fallback root params (implying we've already
-        // emitted a rewrite for the /_tree request), or if the route
-        // has PPR enabled and client param parsing is enabled, then
-        // we don't need to include any other suffixes.
-        const shouldSkipSuffixes = hasFallbackRootParams
-
         dynamicRoutes.push({
           source: route.page + '.rsc',
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            // Now than the upstream issues has been resolved, we can safely
-            // add the suffix back, this resolves a bug related to segment
-            // rewrites not capturing the correct suffix values when
-            // enabled.
-            shouldSkipSuffixes
-              ? '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
-              : '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
           ),
           destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
           has:
@@ -2070,6 +2157,13 @@ export async function handleBuildComplete({
       await adapterMod.onBuildComplete({
         routing: {
           beforeMiddleware: [...headers, ...redirects],
+          middlewareMatchers:
+            outputs.middleware?.config.matchers?.map((matcher) => ({
+              source: matcher.source,
+              sourceRegex: matcher.sourceRegex,
+              has: matcher.has,
+              missing: matcher.missing,
+            })) ?? [],
           beforeFiles: rewrites.beforeFiles,
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,

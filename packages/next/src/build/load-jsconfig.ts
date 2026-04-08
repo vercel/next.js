@@ -6,6 +6,7 @@ import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfi
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
 import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
+import { codeFrameColumns } from '../shared/lib/errors/code-frame'
 
 let TSCONFIG_WARNED = false
 
@@ -23,19 +24,21 @@ export function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
-    const { codeFrameColumns } =
-      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {
         start: {
-          line: (err as Error & { lineNumber?: number }).lineNumber || 0,
-          column: (err as Error & { columnNumber?: number }).columnNumber || 0,
+          line: (err as Error & { lineNumber?: number }).lineNumber || 1,
+          column:
+            (err as Error & { columnNumber?: number }).columnNumber ||
+            undefined,
         },
       },
-      { message: err.message, highlightCode: true }
+      { message: err.message, color: true }
     )
-    throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
+    throw new Error(
+      `Failed to parse "${filePath}":\n${codeFrame ?? err.message}`
+    )
   }
 }
 

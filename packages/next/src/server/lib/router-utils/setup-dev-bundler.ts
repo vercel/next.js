@@ -89,12 +89,16 @@ import {
   writeValidatorFile,
 } from './route-types-utils'
 import { writeCacheLifeTypes } from './cache-life-type-utils'
+import { writeRootParamsTypes } from './root-params-type-utils'
 import {
   addSlotIfNew,
   type RouteInfo,
   type SlotInfo,
 } from '../../../build/file-classifier'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  compareAppPaths,
+} from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
@@ -114,7 +118,7 @@ export type SetupOpts = {
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 export interface DevRoutesManifest {
@@ -161,6 +165,9 @@ async function verifyTypeScript(opts: SetupOpts) {
     hasPagesDir: !!opts.pagesDir,
     appDir: opts.appDir,
     pagesDir: opts.pagesDir,
+    rootParams:
+      !!opts.nextConfig.experimental.rootParams ||
+      !!opts.nextConfig.cacheComponents,
   })
 
   if (verifyResult.version) {
@@ -238,7 +245,7 @@ async function startWatcher(
           distDir,
           resetFetch,
           lockfile,
-          opts.experimentalServerFastRefresh
+          opts.serverFastRefresh
         )
       })()
     : await (async () => {
@@ -286,6 +293,7 @@ async function startWatcher(
       appRouteHandlers: new Set(),
       pageApiRoutes: new Set(),
       filePathToRoute: new Map(),
+      rootParams: new Map(),
     },
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
@@ -951,7 +959,7 @@ async function startWatcher(
 
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
-        Object.entries(appPaths).map(([k, v]) => [k, v.sort()])
+        Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
       )
       await propagateServerField(
         opts,
@@ -1188,6 +1196,12 @@ async function startWatcher(
           // Generate cache-life types if cacheLife config exists
           const cacheLifeFilePath = path.join(distTypesDir, 'cache-life.d.ts')
           writeCacheLifeTypes(opts.nextConfig.cacheLife, cacheLifeFilePath)
+
+          await writeRootParamsTypes(
+            routeTypesManifest,
+            path.join(distTypesDir, 'root-params.d.ts'),
+            opts.nextConfig
+          )
         }
 
         if (!resolved) {
@@ -1293,6 +1307,12 @@ export async function setupDevBundler(opts: SetupOpts) {
     .relative(opts.dir, opts.pagesDir || opts.appDir || '')
     .startsWith('src')
   await installBindings(opts.nextConfig.experimental?.useWasmBinary)
+
+  // Set up code frame renderer for error formatting
+  const { installCodeFrameSupport } =
+    require('../install-code-frame') as typeof import('../install-code-frame')
+  installCodeFrameSupport()
+
   const result = await startWatcher({
     ...opts,
     isSrcDir,

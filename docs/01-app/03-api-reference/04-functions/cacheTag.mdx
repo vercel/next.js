@@ -59,7 +59,7 @@ export async function getData() {
 }
 ```
 
-You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/updating-data):
+You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/mutating-data):
 
 ```tsx filename="app/action.ts" switcher
 'use server'
@@ -68,7 +68,7 @@ import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  revalidateTag('my-data', 'max')
 }
 ```
 
@@ -79,7 +79,7 @@ import { revalidateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  revalidateTag('my-data', 'max')
 }
 ```
 
@@ -183,7 +183,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```
 
@@ -194,6 +194,6 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```

@@ -196,7 +196,7 @@ export const getHandler = ({
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
-          if (nextConfig.experimental.adapterPath) {
+          if (nextConfig.adapterPath) {
             return await render404()
           }
           throw new NoFallbackError()
@@ -224,6 +224,9 @@ export const getHandler = ({
 
     const tracer = getTracer()
     const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
 
     try {
       const method = req.method || 'GET'
@@ -236,6 +239,7 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
+      let parentSpan: Span | undefined
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -412,18 +416,22 @@ export const getHandler = ({
                     return
                   }
 
-                  const route = rootSpanAttributes.get('next.route')
-                  if (route) {
-                    const name = `${method} ${route}`
+                  const route = rootSpanAttributes.get('next.route') || srcPage
+                  const name = `${method} ${route}`
 
-                    span.setAttributes({
-                      'next.route': route,
-                      'http.route': route,
-                      'next.span_name': name,
-                    })
-                    span.updateName(name)
-                  } else {
-                    span.updateName(`${method} ${srcPage}`)
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
+
+                  // Propagate http.route to the parent span if one exists
+                  // (e.g. a platform-created HTTP span in adapter
+                  // deployments).
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                    parentSpan.updateName(name)
                   }
                 })
             } catch (err: unknown) {
@@ -517,16 +525,13 @@ export const getHandler = ({
             return {
               value: {
                 kind: CachedRouteKind.PAGES,
-                html: new RenderResult(
-                  Buffer.from(previousCacheEntry.value.html),
-                  {
-                    contentType: HTML_CONTENT_TYPE_HEADER,
-                    metadata: {
-                      statusCode: previousCacheEntry.value.status,
-                      headers: previousCacheEntry.value.headers,
-                    },
-                  }
-                ),
+                html: new RenderResult(previousCacheEntry.value.html, {
+                  contentType: HTML_CONTENT_TYPE_HEADER,
+                  metadata: {
+                    statusCode: previousCacheEntry.value.status,
+                    headers: previousCacheEntry.value.headers,
+                  },
+                }),
                 pageData: {},
                 status: previousCacheEntry.value.status,
                 headers: previousCacheEntry.value.headers,
@@ -697,12 +702,7 @@ export const getHandler = ({
 
         // In dev, we should not cache pages for any reason.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            nextConfig.experimental.devCacheControlNoCache
-              ? 'no-cache, must-revalidate'
-              : 'no-store, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         }
 
         // Draft mode should never be cached
@@ -736,13 +736,10 @@ export const getHandler = ({
           // anymore
           result:
             isNextDataRequest && !isErrorPage && !is500Page
-              ? new RenderResult(
-                  Buffer.from(JSON.stringify(result.value.pageData)),
-                  {
-                    contentType: JSON_CONTENT_TYPE_HEADER,
-                    metadata: result.value.html.metadata,
-                  }
-                )
+              ? new RenderResult(JSON.stringify(result.value.pageData), {
+                  contentType: JSON_CONTENT_TYPE_HEADER,
+                  metadata: result.value.html.metadata,
+                })
               : result.value.html,
           generateEtags: nextConfig.generateEtags,
           poweredByHeader: nextConfig.poweredByHeader,
@@ -752,22 +749,27 @@ export const getHandler = ({
 
       // TODO: activeSpan code path is for when wrapped by
       // next-server can be removed when this is no longer used
-      if (activeSpan) {
-        await handleResponse()
+      if (isWrappedByNextServer && activeSpan) {
+        await handleResponse(activeSpan)
       } else {
-        await tracer.withPropagatedContext(req.headers, () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
+        parentSpan = tracer.getActiveScopeSpan()
+        await tracer.withPropagatedContext(
+          req.headers,
+          () =>
+            tracer.trace(
+              BaseServerSpan.handleRequest,
+              {
+                spanName: `${method} ${srcPage}`,
+                kind: SpanKind.SERVER,
+                attributes: {
+                  'http.method': method,
+                  'http.target': req.url,
+                },
               },
-            },
-            handleResponse
-          )
+              handleResponse
+            ),
+          undefined,
+          !isWrappedByNextServer
         )
       }
     } catch (err) {

@@ -159,7 +159,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering) {
+  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -178,7 +178,9 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? normalizeURL.toString()
+      : stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,

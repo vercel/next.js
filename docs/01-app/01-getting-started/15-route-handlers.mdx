@@ -48,7 +48,7 @@ In addition to supporting the native [Request](https://developer.mozilla.org/doc
 
 ### Caching
 
-Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use a [route config option](/docs/app/guides/caching-without-cache-components#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
 ```ts filename="app/items/route.ts" switcher
 export const dynamic = 'force-static'
@@ -86,9 +86,9 @@ export async function GET() {
 
 #### With Cache Components
 
-When [Cache Components](/docs/app/getting-started/cache-components) is enabled, `GET` Route Handlers follow the same model as normal UI routes in your application. They run at request time by default, can be prerendered when they don't access dynamic or runtime data, and you can use `use cache` to include dynamic data in the static response.
+When [Cache Components](/docs/app/getting-started/caching) is enabled, `GET` Route Handlers follow the same model as normal UI routes in your application. They run at request time by default, can be prerendered when they don't access uncached or runtime data, and you can use `use cache` to include uncached data in the static response.
 
-**Static example** - doesn't access dynamic or runtime data, so it will be prerendered at build time:
+**Static example** - doesn't access uncached or runtime data, so it will be prerendered at build time:
 
 ```tsx filename="app/api/project-info/route.ts"
 export async function GET() {
@@ -123,7 +123,7 @@ export async function GET() {
 
 > **Good to know**: Prerendering stops if the `GET` handler accesses network requests, database queries, async file system operations, request object properties (like `req.url`, `request.headers`, `request.cookies`, `request.body`), runtime APIs like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`connection()`](/docs/app/api-reference/functions/connection), or non-deterministic operations.
 
-**Cached example** - accesses dynamic data (database query) but caches it with `use cache`, allowing it to be included in the prerendered response:
+**Cached example** - accesses uncached data (database query) but caches it with `use cache`, allowing it to be included in the prerendered response:
 
 ```tsx filename="app/api/products/route.ts"
 import { cacheLife } from 'next/cache'
@@ -145,7 +145,7 @@ async function getProducts() {
 
 ### Special Route Handlers
 
-Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use Dynamic APIs or dynamic config options.
+Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use Request-time APIs or dynamic config options.
 
 ### Route Resolution
 

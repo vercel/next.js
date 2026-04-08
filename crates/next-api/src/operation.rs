@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, Vc, debug::ValueDebugFormat, get_effects, trace::TraceRawVcs,
+    TaskInput, Vc, debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
 };
 use turbopack_core::{diagnostics::Diagnostic, issue::CollectibleIssuesExt};
 
@@ -37,10 +37,10 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve_strongly_consistent().await?;
+    let _ = entrypoints.resolve().strongly_consistent().await?;
     entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
     entrypoints.drop_issues();
-    let _ = get_effects(entrypoints).await?;
+    let _ = take_effects(entrypoints).await?;
     Ok(entrypoints.connect())
 }
 

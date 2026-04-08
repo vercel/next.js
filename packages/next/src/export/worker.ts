@@ -11,6 +11,8 @@ import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
+import { installBindings } from '../build/swc/install-bindings'
+import { installCodeFrameSupport } from '../server/lib/install-code-frame'
 
 process.env.NEXT_IS_EXPORT_WORKER = 'true'
 
@@ -80,6 +82,7 @@ async function exportPageImpl(
     disableOptimizedLoading,
     debugOutput = false,
     enableExperimentalReact,
+    enableNodeStreams,
     trailingSlash,
     sriEnabled,
     renderOpts: commonRenderOpts,
@@ -92,6 +95,9 @@ async function exportPageImpl(
 
   if (enableExperimentalReact) {
     process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
+  }
+  if (enableNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = 'true'
   }
 
   const {
@@ -114,6 +120,9 @@ async function exportPageImpl(
     // Configure the rendering of the page to allow that an empty static shell
     // is generated while rendering using PPR and Cache Components.
     _allowEmptyStaticShell: allowEmptyStaticShell = false,
+
+    // When true, attempt to run build-time instant validation for this export path.
+    _runInstantValidation: runInstantValidation = false,
 
     // Pull the original query out.
     query: originalQuery = {},
@@ -267,6 +276,7 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    runInstantValidation,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -336,6 +346,11 @@ async function exportPageImpl(
 export async function exportPages(
   input: ExportPagesInput
 ): Promise<ExportPagesResult> {
+  // Load native bindings in the worker process so that code frame rendering
+  // (which uses the native codeFrameColumns function) works during prerendering.
+  await installBindings()
+  installCodeFrameSupport()
+
   const {
     exportPaths,
     dir,
@@ -421,6 +436,7 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            enableNodeStreams: !!nextConfig.experimental.useNodeStreams,
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
             deploymentId: input.deploymentId,

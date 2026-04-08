@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -84,7 +84,7 @@ pub enum ResolveErrorMode {
 /// Type alias for a resolved after-resolve plugin paired with its condition.
 type AfterResolvePluginWithCondition = (
     ResolvedVc<Box<dyn AfterResolvePlugin>>,
-    Vc<AfterResolvePluginCondition>,
+    ResolvedVc<AfterResolvePluginCondition>,
 );
 
 #[turbo_tasks::value(shared)]
@@ -596,7 +596,7 @@ impl ValueToString for ResolveResult {
                         result,
                         " ({ty}, {traced}, {:?})",
                         if let Some(target) = target {
-                            Some(target.value_to_string().await?)
+                            Some(target.to_string_ref().await?)
                         } else {
                             None
                         }
@@ -1169,7 +1169,7 @@ async fn realpath(
     }
     match &result.path_result {
         Ok(path) => Ok(path.clone()),
-        Err(e) => bail!(e.as_error_message(fs_path, &result)),
+        Err(e) => bail!(e.as_error_message(fs_path, &result).await?),
     }
 }
 
@@ -1224,7 +1224,7 @@ enum ImportsFieldResult {
 async fn imports_field(lookup_path: FileSystemPath) -> Result<Vc<ImportsFieldResult>> {
     // We don't need to collect affecting sources here because we don't use them
     let package_json_context =
-        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
+        find_context_file(lookup_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context else {
         return Ok(ImportsFieldResult::None.cell());
     };
@@ -1375,7 +1375,7 @@ async fn find_package(
         if let Some(name) = basepath.get_path_to(package_dir) {
             Ok(name.into())
         } else {
-            bail!("Package directory {package_dir} is not inside the lookup path {basepath}");
+            bail!("Package directory {package_dir} is not inside the lookup path {basepath}",);
         }
     }
 
@@ -1531,7 +1531,7 @@ pub async fn resolve_raw(
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(e) => bail!(e.as_error_message(path, result)),
+            Err(e) => bail!(e.as_error_message(path, result).await?),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
@@ -1593,22 +1593,14 @@ pub async fn resolve_raw(
             path,
         )
         .await?;
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     {
         let matches =
             read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
 
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     Ok(merge_results(results))
@@ -1632,7 +1624,7 @@ pub async fn resolve_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty,
         reference_type = display(&reference_type),
     );
@@ -1664,8 +1656,8 @@ pub async fn resolve_inline(
         let raw_result = match before_plugins_result {
             Some(result) => result,
             None => {
-                resolve_internal(lookup_path.clone(), request, options)
-                    .resolve()
+                *resolve_internal(lookup_path.clone(), request, options)
+                    .to_resolved()
                     .await?
             }
         };
@@ -1700,28 +1692,28 @@ pub async fn url_resolve(
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
-    {
-        let result = resolve(
-            origin_path_parent,
-            reference_type.clone(),
-            request,
-            resolve_options,
-        );
-        if resolve_options.await?.collect_affecting_sources {
-            result.with_affecting_sources(
-                rel_result
-                    .await?
-                    .get_affecting_sources()
-                    .map(|src| *src)
-                    .collect(),
-            )
+    let result =
+        if *rel_result.is_unresolvable().await? && *rel_request.to_resolved().await? != request {
+            let result = resolve(
+                origin_path_parent,
+                reference_type.clone(),
+                request,
+                resolve_options,
+            );
+            if resolve_options.await?.collect_affecting_sources {
+                result.with_affecting_sources(
+                    rel_result
+                        .await?
+                        .get_affecting_sources()
+                        .map(|src| *src)
+                        .collect(),
+                )
+            } else {
+                result
+            }
         } else {
-            result
-        }
-    } else {
-        rel_result
-    };
+            rel_result
+        };
     let result = origin
         .asset_context()
         .process_resolve_result(result, reference_type.clone());
@@ -1747,7 +1739,7 @@ async fn get_matching_before_resolve_plugins(
 ) -> Result<Vc<MatchingBeforeResolvePlugins>> {
     let mut matching_plugins = Vec::new();
     for &plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().resolve().await?;
+        let condition = plugin.before_resolve_condition().to_resolved().await?;
         if *condition.matches(request).await? {
             matching_plugins.push(plugin);
         }
@@ -1788,7 +1780,7 @@ async fn handle_after_resolve_plugins(
     let resolved_conditions = options_value
         .after_resolve_plugins
         .iter()
-        .map(async |p| Ok((*p, p.after_resolve_condition().resolve().await?)))
+        .map(async |p| Ok((*p, p.after_resolve_condition().to_resolved().await?)))
         .try_join()
         .await?;
 
@@ -1881,7 +1873,7 @@ async fn resolve_internal_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "internal resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty
     );
     if !span.is_disabled() {
@@ -1957,7 +1949,7 @@ async fn resolve_internal_inline(
                     lookup_path.clone(),
                     rcstr!(""),
                     *force_in_lookup_dir,
-                    Pattern::new(path.clone()).resolve().await?,
+                    *Pattern::new(path.clone()).to_resolved().await?,
                 )
                 .await?;
 
@@ -2249,7 +2241,7 @@ async fn resolve_into_folder(
 
                         // main field will always resolve not fully specified
                         let options = if options_value.fully_specified {
-                            options.with_fully_specified(false).resolve().await?
+                            *options.with_fully_specified(false).to_resolved().await?
                         } else {
                             options
                         };
@@ -2560,7 +2552,7 @@ async fn resolve_relative_request(
         lookup_path.clone(),
         rcstr!(""),
         force_in_lookup_dir,
-        Pattern::new(new_path.clone()).resolve().await?,
+        *Pattern::new(new_path.clone()).to_resolved().await?,
     )
     .await?;
 
@@ -2634,7 +2626,7 @@ async fn apply_in_package(
 
         let FindContextFileResult::Found(package_json_path, refs) = &*find_context_file(
             lookup_path.clone(),
-            package_json().resolve().await?,
+            *package_json().to_resolved().await?,
             options_value.collect_affecting_sources,
         )
         .await?
@@ -2738,7 +2730,7 @@ async fn find_self_reference(
     lookup_path: FileSystemPath,
 ) -> Result<Vc<FindSelfReferencePackageResult>> {
     let package_json_context =
-        find_context_file(lookup_path, package_json().resolve().await?, false).await?;
+        find_context_file(lookup_path, *package_json().to_resolved().await?, false).await?;
     if let FindContextFileResult::Found(package_json_path, _refs) = &*package_json_context {
         let read =
             read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?;
@@ -2808,7 +2800,7 @@ async fn resolve_module_request(
     let result = find_package(
         lookup_path.clone(),
         module.clone(),
-        resolve_modules_options(options).resolve().await?,
+        *resolve_modules_options(options).to_resolved().await?,
         options_value.collect_affecting_sources,
     )
     .await?;
@@ -2969,21 +2961,27 @@ async fn resolve_import_map_result(
     Ok(match result {
         ImportMapResult::Result(result) => Some(ResolveResultOrCell::Cell(**result)),
         ImportMapResult::Alias(request, alias_lookup_path) => {
-            let request = **request;
-            let lookup_path = match alias_lookup_path {
-                Some(path) => path.clone(),
-                None => lookup_path,
+            let request_vc: Vc<Request> = **request;
+            // Only add query if the aliased request doesn't already have one
+            let request = if request_vc.query().await?.is_empty() && !query.is_empty() {
+                request_vc.with_query(query.clone())
+            } else {
+                request_vc
             };
-            // We must avoid cycles during resolving
-            if request == original_request && lookup_path == original_lookup_path {
+            let lookup_path = alias_lookup_path.clone().unwrap_or(lookup_path);
+
+            // Compare request patterns to avoid cycles (ignoring query differences)
+            let request_pattern = request.request_pattern();
+            let original_pattern = original_request.request_pattern();
+
+            if *request_pattern.await? == *original_pattern.await?
+                && lookup_path == original_lookup_path
+            {
                 None
             } else {
-                let result = resolve_internal(lookup_path, request, options);
                 Some(ResolveResultOrCell::Cell(
-                    result.with_replaced_request_key_pattern(
-                        request.request_pattern(),
-                        original_request.request_pattern(),
-                    ),
+                    resolve_internal(lookup_path, request, options)
+                        .with_replaced_request_key_pattern(request_pattern, original_pattern),
                 ))
             }
         }
@@ -3009,7 +3007,7 @@ async fn resolve_import_map_result(
             let request = Request::parse_string(name.clone());
 
             // We must avoid cycles during resolving
-            if request.resolve().await? == original_request
+            if *request.to_resolved().await? == original_request
                 && *alias_lookup_path == original_lookup_path
             {
                 None
@@ -3121,7 +3119,7 @@ async fn resolved(
     let result = &*fs_path.realpath_with_links().await?;
     let path = match &result.path_result {
         Ok(path) => path,
-        Err(e) => bail!(e.as_error_message(&fs_path, result)),
+        Err(e) => bail!(e.as_error_message(&fs_path, result).await?),
     };
 
     let path_ref = path.clone();
@@ -3228,11 +3226,11 @@ async fn handle_exports_imports_field(
     } in results
     {
         if let Some(result_path) = result_path.with_normalized_path() {
-            let request = Request::parse(Pattern::Concatenation(vec![
+            let request = *Request::parse(Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./")),
                 result_path.clone(),
             ]))
-            .resolve()
+            .to_resolved()
             .await?;
 
             let resolve_result = Box::pin(resolve_internal_inline(
@@ -3463,6 +3461,7 @@ mod tests {
             pattern: rcstr!("./foo.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.js", "foo.ts")],
         })
         .await;
@@ -3475,6 +3474,7 @@ mod tests {
             pattern: rcstr!("./foo").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo", "foo.ts")],
         })
         .await;
@@ -3487,6 +3487,7 @@ mod tests {
             pattern: rcstr!("./posts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./posts", "posts.ts")],
         })
         .await;
@@ -3499,6 +3500,7 @@ mod tests {
             pattern: rcstr!("./bar.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./bar.js", "bar.js")],
         })
         .await;
@@ -3511,6 +3513,7 @@ mod tests {
             pattern: rcstr!("./foo.ts").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./foo.ts", "foo.ts")],
         })
         .await;
@@ -3524,6 +3527,7 @@ mod tests {
             pattern: rcstr!("./client#frag").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3537,6 +3541,7 @@ mod tests {
             pattern: rcstr!("./client#component.js").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             // Whether or not this request key is correct somewhat ambiguous.  It depends on whether
             // or not we consider this fragment to be part of the request pattern
             expected: vec![("./client", "client#component.ts")],
@@ -3552,6 +3557,7 @@ mod tests {
             pattern: rcstr!("./page#section").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./page", "page#section.ts")],
         })
         .await;
@@ -3564,6 +3570,7 @@ mod tests {
             pattern: rcstr!("./client?q=s").into(),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![("./client", "client.ts")],
         })
         .await;
@@ -3584,6 +3591,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/foo.js", "src/foo.ts"),
                 ("./src/bar.js", "src/bar.js"),
@@ -3605,6 +3613,7 @@ mod tests {
             ]),
             enable_typescript_with_output_extension: true,
             fully_specified: false,
+            custom_extensions: None,
             expected: vec![
                 ("./src/bar.js", "src/bar.js"),
                 ("./src/bar", "src/bar.js"),
@@ -3621,12 +3630,61 @@ mod tests {
         .await;
     }
 
+    /// Test that custom `resolveExtensions` ordering is respected:
+    /// `.web.tsx` appears before `.tsx` in the list, so it must win when both exist.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_web_before_default() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.web.tsx", "Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.web.tsx")],
+        })
+        .await;
+    }
+
+    /// Test that when `.web.tsx` doesn't exist, resolution falls back to `.tsx`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_custom_extensions_fallback_when_web_missing() {
+        resolve_relative_request_test(TestParams {
+            files: vec!["Component.tsx"],
+            pattern: rcstr!("./Component").into(),
+            enable_typescript_with_output_extension: false,
+            fully_specified: false,
+            custom_extensions: Some(vec![
+                rcstr!(".web.tsx"),
+                rcstr!(".web.ts"),
+                rcstr!(".web.jsx"),
+                rcstr!(".web.js"),
+                rcstr!(".tsx"),
+                rcstr!(".ts"),
+                rcstr!(".jsx"),
+                rcstr!(".js"),
+            ]),
+            expected: vec![("./Component", "Component.tsx")],
+        })
+        .await;
+    }
+
     /// Parameters for resolve_relative_request_test
     struct TestParams<'a> {
         files: Vec<&'a str>,
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
+        /// Custom extensions list; when `None`, uses the default `[".ts", ".js", ".json"]`
+        custom_extensions: Option<Vec<RcStr>>,
         expected: Vec<(&'a str, &'a str)>,
     }
 
@@ -3637,6 +3695,7 @@ mod tests {
             pattern,
             enable_typescript_with_output_extension,
             fully_specified,
+            custom_extensions,
             expected,
         }: TestParams<'_>,
     ) {
@@ -3667,6 +3726,8 @@ mod tests {
             noop_backing_storage(),
         ));
 
+        let custom_extensions_owned = custom_extensions;
+
         tt.run_once(async move {
             #[turbo_tasks::value(transparent)]
             struct ResolveRelativeRequestOutput(Vec<(String, String)>);
@@ -3677,6 +3738,7 @@ mod tests {
                 pattern: Pattern,
                 enable_typescript_with_output_extension: bool,
                 fully_specified: bool,
+                custom_extensions: Option<Vec<RcStr>>,
             ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
                 let fs = DiskFileSystem::new(rcstr!("temp"), path);
                 let lookup_path = fs.root().owned().await?;
@@ -3686,6 +3748,7 @@ mod tests {
                     pattern,
                     enable_typescript_with_output_extension,
                     fully_specified,
+                    custom_extensions,
                 )
                 .await?;
 
@@ -3713,6 +3776,7 @@ mod tests {
                 pattern,
                 enable_typescript_with_output_extension,
                 fully_specified,
+                custom_extensions_owned,
             )
             .read_strongly_consistent()
             .await?;
@@ -3731,12 +3795,15 @@ mod tests {
         pattern: Pattern,
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
+        custom_extensions: Option<Vec<RcStr>>,
     ) -> anyhow::Result<Vc<ResolveResult>> {
         let request = Request::parse(pattern.clone());
 
+        let extensions = custom_extensions
+            .unwrap_or_else(|| vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")]);
         let mut options_value = node_esm_resolve_options(lookup_path.clone())
             .with_fully_specified(fully_specified)
-            .with_extensions(vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")])
+            .with_extensions(extensions)
             .owned()
             .await?;
         options_value.enable_typescript_with_output_extension =

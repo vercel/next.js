@@ -336,8 +336,8 @@ describe(`Terminal Logging (${bundlerName})`, () => {
 
          ...
            <RenderFromTemplateContext>
-             <ScrollAndMaybeFocusHandler segmentPath={[...]}>
-               <${innerScrollAndMaybeFocusHandlerName} segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ScrollAndMaybeFocusHandler cacheNode={{rsc:{...}, ...}}>
+               <${innerScrollAndMaybeFocusHandlerName} focusAndScrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                    <LoadingBoundary name="hydration-..." loading={null}>
                      <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>

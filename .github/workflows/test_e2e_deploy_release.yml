@@ -27,6 +27,10 @@ on:
         description: Custom deploy logs script path (NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH)
         default: ''
         type: string
+      cleanupScriptPath:
+        description: Custom cleanup script path (NEXT_TEST_CLEANUP_SCRIPT_PATH)
+        default: ''
+        type: string
 
 env:
   DD_ENV: 'ci'
@@ -76,6 +80,31 @@ jobs:
         name: Extract `next` version
         run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
 
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Fetch test timings
+        run: node run-tests.js --timings --write-timings -g 1/1
+        continue-on-error: true
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+
+      - name: Ensure test timings file exists
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "No timings fetched, creating empty timings file"
+            echo '{}' > test-timings.json
+          fi
+
+      - name: Upload test timings
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-timings
+          path: test-timings.json
+          retention-days: 1
+          if-no-files-found: error
+
   test-deploy-webpack:
     name: Run Deploy Tests (Webpack)
     needs: setup
@@ -97,7 +126,9 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-webpack-${{ matrix.group }}'
@@ -140,7 +171,9 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-turbopack-${{ matrix.group }}'
@@ -182,10 +215,12 @@ jobs:
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ github.event.inputs.nextVersion || needs.setup.outputs.next-version || 'canary' }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
-        node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+      testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
       stepName: 'test-deploy-deploy-${{ matrix.group }}'
+      testReportsArtifactPrefix: 'adapter-test-reports'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
       overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
@@ -211,6 +246,62 @@ jobs:
             DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
 
+  upload-adapter-test-results:
+    name: Upload adapter test results
+    needs: [test-deploy-adapter]
+    if: >-
+      ${{
+        always() &&
+        github.event.inputs.deployScriptPath == '' &&
+        github.repository_owner == 'vercel' &&
+        !startsWith(
+          github.event.inputs.nextVersion || github.event.release.tag_name || 'canary',
+          'http'
+        )
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.9.0
+          check-latest: true
+
+      - name: Download adapter test result artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: adapter-test-reports-*
+          path: adapter-test-results
+          merge-multiple: true
+
+      - name: Upload adapter test results
+        run: |
+          if [ -z "${ADAPTER_TEST_RESULTS_SECRET:-}" ]; then
+            echo "ADAPTER_TEST_RESULTS_SECRET is not configured, skipping upload"
+            exit 0
+          fi
+
+          if [ ! -d adapter-test-results ]; then
+            echo "No adapter test artifact directory found, skipping upload"
+            exit 0
+          fi
+
+          if ! find adapter-test-results -type f -name '*.results.json' | grep -q .; then
+            echo "No adapter .results.json files found, skipping upload"
+            exit 0
+          fi
+
+          node scripts/upload-adapter-test-results.mjs \
+            --results-root adapter-test-results \
+            --provider vercel \
+            --commit-sha "${{ github.sha }}"
+        env:
+          ADAPTER_TEST_RESULTS_SECRET: ${{ secrets.ADAPTER_TEST_RESULTS_SECRET }}
+
   create-draft-prs:
     name: Immediately open draft prs
     needs: setup
@@ -227,6 +318,9 @@ jobs:
     steps:
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure actually blocks subsequent steps
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7
@@ -298,6 +392,9 @@ jobs:
     steps:
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure actually blocks subsequent steps
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
       - uses: actions/github-script@v7

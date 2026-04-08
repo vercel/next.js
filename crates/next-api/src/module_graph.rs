@@ -25,7 +25,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
-use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_css::{CssModule, EcmascriptCssModule};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -76,7 +76,7 @@ impl NextDynamicGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -274,7 +274,7 @@ impl ServerActionsGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -452,7 +452,7 @@ impl ClientReferencesGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -766,11 +766,6 @@ impl Issue for CssGlobalImportIssue {
     // TODO(PACK-4879): compute the source information by following the module references
 }
 
-type FxModuleNameMap = FxIndexMap<ResolvedVc<Box<dyn Module>>, RcStr>;
-
-#[turbo_tasks::value(transparent)]
-struct ModuleNameMap(#[bincode(with = "turbo_bincode::indexmap")] pub FxModuleNameMap);
-
 #[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
 #[turbo_tasks::function]
 async fn validate_pages_css_imports_individual(
@@ -814,16 +809,15 @@ async fn validate_pages_css_imports_individual(
 
             // If the module being imported isn't a global css module, there is nothing to
             // validate.
-            let module_is_global_css =
-                ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+            let module_is_global_css = ResolvedVc::try_downcast_type::<CssModule>(module).is_some();
 
             if !module_is_global_css {
                 return Ok(GraphTraversalAction::Continue);
             }
 
             let parent_is_css_module =
-                ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module).is_some()
-                    || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
+                ResolvedVc::try_downcast_type::<EcmascriptCssModule>(parent_module).is_some()
+                    || ResolvedVc::try_downcast_type::<CssModule>(parent_module).is_some();
 
             // We also always allow .module css/scss/sass files to import global css files as
             // well.
@@ -846,9 +840,12 @@ async fn validate_pages_css_imports_individual(
     candidates
         .into_iter()
         .map(async |issue| {
+            let path = issue.module.ident().path().await?;
             // We allow imports of global CSS files which are inside of `node_modules`.
+            // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
+            // are mostly tooling-generated and co-located with the importing components
             Ok(
-                if !issue.module.ident().path().await?.is_in_node_modules() {
+                if !path.is_in_node_modules() && !path.file_name().starts_with("data:") {
                     Some(issue)
                 } else {
                     None
@@ -868,8 +865,9 @@ async fn validate_pages_css_imports_individual(
 /// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
 /// rules:
 /// * The import is made from a `node_modules` package
+/// * The imported CSS is a `data:` URL module
 /// * The import is made from a `.module.css` file
-/// * The import is made from the `pages/_app.js`, or equivalent file.
+/// * The import is made from the `pages/_app.js`, or equivalent file
 #[turbo_tasks::function]
 pub async fn validate_pages_css_imports(
     graph: Vc<ModuleGraph>,

@@ -5,14 +5,15 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, mark_session_dependent,
+    mark_top_level_task, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -28,20 +29,24 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{
+        GraphEntries, ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     source::Source,
     virtual_source::VirtualSource,
 };
 
-#[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-use crate::process_pool::ChildProcessPool;
-#[cfg(feature = "worker_pool")]
-use crate::worker_pool::WorkerThreadPool;
 use crate::{
-    AssetsForSourceMapping, embed_js::embed_file_path, emit, emit_package_json,
-    format::FormattingMode, internal_assets_for_source_mapping, pool_stats::PoolStatsSnapshot,
+    AssetsForSourceMapping,
+    backend::{CreatePoolOptions, NodeBackend},
+    embed_js::embed_file_path,
+    emit, emit_package_json,
+    format::FormattingMode,
+    internal_assets_for_source_mapping,
+    pool_stats::PoolStatsSnapshot,
     source_map::StructuredError,
 };
 
@@ -98,7 +103,6 @@ impl EvaluatePool {
         self.pool.stats()
     }
 
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
     pub fn pre_warm(&self) {
         self.pool.pre_warm()
     }
@@ -108,15 +112,19 @@ impl EvaluatePool {
 pub trait EvaluateOperation: Send + Sync {
     async fn operation(&self) -> Result<Box<dyn Operation>>;
     fn stats(&self) -> PoolStatsSnapshot;
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+    /// Eagerly spawn a Node.js worker so it's ready when the first [`Self::operation`] is called.
+    /// The worker should go into the idle queue.
+    ///
+    /// If a worker request comes in while this is still initializing, it should wait on the bootup
+    /// semaphore and will resume when the worker is ready.
     fn pre_warm(&self);
 }
 
 #[async_trait::async_trait]
 pub trait Operation: Send {
-    async fn recv(&mut self) -> Result<Vec<u8>>;
+    async fn recv(&mut self) -> Result<Bytes>;
 
-    async fn send(&mut self, data: Vec<u8>) -> Result<()>;
+    async fn send(&mut self, data: Bytes) -> Result<()>;
 
     async fn wait_or_kill(&mut self) -> Result<ExitStatus>;
 
@@ -154,7 +162,7 @@ async fn emit_evaluate_pool_assets_operation(
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        Vc::cell(entries.clone()),
+        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),
@@ -179,19 +187,29 @@ async fn emit_evaluate_pool_assets_operation(
 #[turbo_tasks::value(serialization = "none")]
 struct EmittedEvaluatePoolAssetsWithEffects {
     assets: ReadRef<EmittedEvaluatePoolAssets>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation)]
-async fn emit_evaluate_pool_assets_with_effects_operation(
+async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+) -> Result<Vc<EmittedEvaluatePoolAssets>> {
+    mark_session_dependent();
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    let assets = operation.read_strongly_consistent().await?;
-    let effects = Arc::new(get_effects(operation).await?);
-    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
+    let assets = operation.resolve().strongly_consistent().await?;
+    let effects = Arc::new(take_effects(operation).await?);
+
+    // HACK: `Effects::apply` normally panics if not called at the top-level. We want to apply most
+    // effects outside of turbo-task functions to avoid re-executing effects during invalidations.
+    //
+    // That's not possible here because we lazily create the pool, so instead, use
+    // `mark_top_level_task` to avoid the debug assertion. The consequence is that these effects
+    // might get evaluated more than once if this function is invalidated.
+    mark_top_level_task();
+    effects.apply().await?;
+
+    Ok(*assets)
 }
 
 #[derive(
@@ -209,23 +227,21 @@ pub async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
     additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
-    let operation =
-        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
-    let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
-        &*operation.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    let assets = assets_op.read_strongly_consistent().await?;
 
     let EmittedEvaluatePoolAssets {
         bootstrap,
         output_root,
         entrypoint,
-    } = &**assets;
+    } = &*assets;
 
     let (Some(cwd), Some(entrypoint)) = (
         to_sys_path(cwd.clone()).await?,
@@ -253,31 +269,19 @@ pub async fn get_evaluate_pool(
         }
     };
 
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    #[allow(unused_variables)]
-    let pool = ChildProcessPool::create(
-        cwd.clone(),
-        entrypoint.clone(),
-        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-        assets_for_source_mapping,
-        output_root.clone(),
-        chunking_context.root_path().owned().await?,
-        available_parallelism().map_or(1, |v| v.get()),
-        debug,
-    );
-    #[cfg(feature = "worker_pool")]
-    let pool = WorkerThreadPool::create(
-        cwd,
-        entrypoint,
-        env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-        assets_for_source_mapping,
-        output_root.clone(),
-        chunking_context.root_path().owned().await?,
-        available_parallelism().map_or(1, |v| v.get()),
-        debug,
-    )
-    .await;
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
+    let node_backend = node_backend.into_trait_ref().await?;
+    let pool = node_backend
+        .create_pool(CreatePoolOptions {
+            cwd,
+            entrypoint,
+            env: env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+            assets_for_source_mapping,
+            assets_root: output_root.clone(),
+            project_dir: chunking_context.root_path().owned().await?,
+            concurrency: available_parallelism().map_or(1, |v| v.get()),
+            debug,
+        })
+        .await?;
     pool.pre_warm();
     additional_invalidation.await?;
     Ok(pool.cell())
@@ -378,11 +382,11 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
         || async {
             let mut operation = pool.operation().await?;
             operation
-                .send(serde_json::to_vec(
+                .send(Bytes::from(serde_json::to_vec(
                     &EvalJavaScriptOutgoingMessage::Evaluate {
                         args: args.iter().map(|v| &**v).collect(),
                     },
-                )?)
+                )?))
                 .await?;
             Ok(operation)
         },
@@ -430,13 +434,11 @@ impl EvaluateEntries {
 pub async fn get_evaluate_entries(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EvaluateEntries>> {
-    let runtime_module_path = if cfg!(all(feature = "process_pool", not(feature = "worker_pool"))) {
-        rcstr!("child_process/evaluate.ts")
-    } else {
-        rcstr!("worker_thread/evaluate.ts")
-    };
+    let node_backend = node_backend.into_trait_ref().await?;
+    let runtime_module_path = node_backend.runtime_module_path();
 
     let runtime_asset = asset_context
         .process(
@@ -471,12 +473,7 @@ pub async fn get_evaluate_entries(
 
     let runtime_entries = {
         let mut entries = vec![];
-        let global_module_path =
-            if cfg!(all(feature = "process_pool", not(feature = "worker_pool"))) {
-                rcstr!("child_process/globals.ts")
-            } else {
-                rcstr!("worker_thread/globals.ts")
-            };
+        let global_module_path = node_backend.globals_module_path();
 
         let globals_module = asset_context
             .process(
@@ -521,6 +518,7 @@ pub async fn evaluate(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
@@ -532,6 +530,7 @@ pub async fn evaluate(
         entries,
         cwd,
         env,
+        node_backend,
         context_source_for_issue,
         chunking_context,
         module_graph,
@@ -576,24 +575,24 @@ async fn pull_operation<T: EvaluateContext>(
                 {
                     Ok(response) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: None,
                                     data: Some(serde_json::to_value(response)?),
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                     Err(e) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: Some(PrettyPrintError(&e).to_string()),
                                     data: None,
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                 }
@@ -606,6 +605,7 @@ struct BasicEvaluateContext {
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
@@ -625,6 +625,7 @@ impl EvaluateContext for BasicEvaluateContext {
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -729,27 +730,5 @@ impl Issue for EvaluationIssue {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
         Vc::cell(Some(self.source))
-    }
-}
-
-pub fn scale_down() {
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    {
-        ChildProcessPool::scale_down();
-    }
-    #[cfg(feature = "worker_pool")]
-    {
-        WorkerThreadPool::scale_down();
-    }
-}
-
-pub fn scale_zero() {
-    #[cfg(all(feature = "process_pool", not(feature = "worker_pool")))]
-    {
-        ChildProcessPool::scale_zero();
-    }
-    #[cfg(feature = "worker_pool")]
-    {
-        WorkerThreadPool::scale_zero();
     }
 }

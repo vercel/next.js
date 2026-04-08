@@ -82,7 +82,10 @@ import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-de
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
-import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRoute,
+  isMetadataRouteFile,
+} from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
@@ -100,7 +103,8 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
+import { getSupportedBrowsers } from '../../build/get-supported-browsers'
+import { printBuildErrors } from '../../build/print-build-errors'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -308,7 +312,7 @@ export async function createHotReloaderTurbopack(
   distDir: string,
   resetFetch: () => void,
   lockfile: Lockfile | undefined,
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
@@ -412,6 +416,8 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
+      serverHmr: serverFastRefresh,
+      hashSalt: opts.nextConfig.hashSalt,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -423,11 +429,19 @@ export async function createHotReloaderTurbopack(
       'StartupCacheInvalidationEvent',
       'TimingEvent',
       'SlowFilesystemEvent',
+      'TraceEvent',
     ],
+    parentSpan: hotReloaderSpan,
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
+
+  // Set up code frame renderer using native bindings
+  const { installCodeFrameSupport } =
+    require('../lib/install-code-frame') as typeof import('../lib/install-code-frame')
+  installCodeFrameSupport()
+
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     await project.onExit()
@@ -592,30 +606,38 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType } = splitEntryKey(key)
-    // Server HMR only applies to App Router.
-    // Pages Router uses Node's require(), root entries (middleware/instrumentation)
-    // use the edge runtime.
-    const usesServerHmr =
-      experimentalServerFastRefresh &&
-      entryType === 'app' &&
-      writtenEndpoint.type !== 'edge'
+    const { type: entryType, page: entryPage } = splitEntryKey(key)
 
+    // Server HMR applies to App Router entries built with the Turbopack Node.js
+    // runtime: app pages and regular route handlers. Edge routes, Pages Router
+    // pages, middleware/instrumentation, and metadata routes (manifest.ts,
+    // robots.ts, sitemap.ts, icon.tsx, etc.) are excluded. Metadata routes are
+    // excluded because they serve HTTP responses directly and must re-execute
+    // on every request to pick up file changes; the in-place module update
+    // model of Server HMR does not apply to them.
+    const usesServerHmr =
+      serverFastRefresh &&
+      entryType === 'app' &&
+      writtenEndpoint.type !== 'edge' &&
+      !isMetadataRoute(entryPage)
+
+    const filesToDelete: string[] = []
     for (const file of serverPaths) {
       clearModuleContext(file)
 
       const relativePath = relative(distDir, file)
       if (
-        // For Pages Router, edge routes, middleware, and manifest files
-        // (e.g., *_client-reference-manifest.js): clear the sharedCache in
-        // evalManifest(), Node.js require.cache, and edge runtime module contexts.
+        // For Pages Router, edge routes, middleware, and manifest files:
+        // clear the sharedCache in evalManifest(), Node.js require.cache,
+        // and edge runtime module contexts.
         force ||
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
       ) {
-        deleteCache(file)
+        filesToDelete.push(file)
       }
     }
+    deleteCache(filesToDelete)
 
     // Reset the fetch patch so patchFetch() can re-wrap on the next request.
     if (serverPaths.length > 0) {
@@ -1027,6 +1049,7 @@ export async function createHotReloaderTurbopack(
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            getTurbopackProject: () => project,
           }),
         ]
       : []),
@@ -1819,18 +1842,24 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
-  if (experimentalServerFastRefresh) {
+  if (serverFastRefresh) {
     serverHmrSubscriptions = setupServerHmr(project, {
       clear: async () => {
         // Clear Node's require cache of all Turbopack-built modules
-        for (const chunkPath of serverHmrSubscriptions?.keys() ?? []) {
-          deleteCache(join(distDir, chunkPath))
-        }
+        const chunkPaths = [...(serverHmrSubscriptions?.keys() ?? [])].map(
+          (chunkPath) => join(distDir, chunkPath)
+        )
+        deleteCache(chunkPaths)
 
         // Clear Turbopack's runtime caches
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
+
+        // Reset the server HMR handler registry. All server runtime chunks are
+        // cleared from require.cache above; when they're next required they'll
+        // re-register into this Map and reinstall the routing dispatcher.
+        ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
 
         // Clear all edge contexts
         await clearAllModuleContexts()

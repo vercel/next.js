@@ -9,7 +9,7 @@ use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType},
     environment::ChunkLoading,
     issue::IssueSource,
     reference::ModuleReference,
@@ -85,7 +85,7 @@ impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         esm_resolve(
-            self.get_origin().resolve().await?,
+            *self.get_origin().to_resolved().await?,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,
@@ -94,18 +94,15 @@ impl ModuleReference for EsmAsyncAssetReference {
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Async)
     }
 
-    #[turbo_tasks::function]
-    fn binding_usage(&self) -> Vc<BindingUsage> {
+    fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: Default::default(),
             export: self.export_usage.clone(),
         }
-        .cell()
     }
 }
 

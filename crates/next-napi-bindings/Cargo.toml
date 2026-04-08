@@ -5,7 +5,7 @@ version = "0.0.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
 # Instead of enabling all the plugin-related functionality by default, make it
@@ -65,6 +65,7 @@ futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = { workspace = true }
+next-code-frame = { workspace = true  }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 rand = { workspace = true }
@@ -72,6 +73,7 @@ rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
 supports-hyperlinks = "3.1.0"
+terminal_size = { workspace = true }
 terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -79,6 +81,7 @@ tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+regex = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base",
@@ -104,13 +107,14 @@ swc_core = { workspace = true, features = [
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
+lightningcss = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-unix-path = { workspace = true }
-next-api = { workspace = true }
+next-api = { workspace = true, features = ["worker_pool"] }
 next-build = { workspace = true }
 next-core = { workspace = true }
 

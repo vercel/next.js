@@ -142,6 +142,8 @@ async fn test_trait_methods() {
 async fn test_trait_methods_operation() -> Result<Vc<()>> {
     assert_eq!(*Value::static_trait_method().await?, 42);
     assert_eq!(*Value::async_static_trait_method().await?, 42);
+    assert_eq!(*Value::default_static_trait_method().await?, 42);
+    assert_eq!(*Value::default_async_static_trait_method().await?, 42);
 
     let value = Value(43).cell();
     assert_eq!(*value.trait_method().await?, 43);

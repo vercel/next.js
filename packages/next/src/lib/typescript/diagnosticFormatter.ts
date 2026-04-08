@@ -1,3 +1,4 @@
+import { codeFrameColumns } from '../../shared/lib/errors/code-frame'
 import { bold, cyan, red, yellow } from '../picocolors'
 import path from 'path'
 
@@ -352,8 +353,6 @@ export function getFormattedDiagnostic(
   message += reason + '\n'
 
   if (!isLayoutOrPageError && diagnostic.file) {
-    const { codeFrameColumns } =
-      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
     const pos = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start!)
     const line = pos.line + 1
     const character = pos.character + 1
@@ -374,15 +373,16 @@ export function getFormattedDiagnostic(
       '\n' +
       message
 
-    message +=
-      '\n' +
-      codeFrameColumns(
-        diagnostic.file.getFullText(diagnostic.file.getSourceFile()),
-        {
-          start: { line: line, column: character },
-        },
-        { forceColor: true }
-      )
+    const codeFrame = codeFrameColumns(
+      diagnostic.file.getFullText(diagnostic.file.getSourceFile()),
+      {
+        start: { line: line, column: character },
+      },
+      { color: true }
+    )
+    if (codeFrame) {
+      message += '\n' + codeFrame
+    }
   } else if (isLayoutOrPageError && appPath) {
     message = cyan(appPath) + '\n' + message
   }

@@ -75,6 +75,7 @@ function getBaseSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -97,6 +98,7 @@ function getBaseSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -220,6 +222,7 @@ function getBaseSWCOptions({
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
             taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -394,6 +397,7 @@ export function getLoaderSWCOptions({
   optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
+  swcEnvOptions,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
@@ -407,6 +411,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -422,6 +427,7 @@ export function getLoaderSWCOptions({
     NextConfig['experimental']
   >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
+  swcEnvOptions?: ExperimentalConfig['swcEnvOptions']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[] | undefined
@@ -435,6 +441,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -457,6 +464,7 @@ export function getLoaderSWCOptions({
     useCacheEnabled,
     taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -533,6 +541,7 @@ export function getLoaderSWCOptions({
         ? {
             env: {
               targets: supportedBrowsers,
+              ...swcEnvOptions,
             },
           }
         : {}),

@@ -351,6 +351,19 @@ impl ModulesDataBuilder {
     }
 }
 
+/// Merges two sets of output assets into one. Used to combine per-route output
+/// assets with shared assets (e.g. `_app`, `_document`) at report generation time.
+#[turbo_tasks::function]
+pub async fn combine_output_assets(
+    primary: Vc<OutputAssets>,
+    extra: Vc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
+    let mut combined: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
+        primary.await?.iter().copied().collect();
+    combined.extend(extra.await?.iter().copied());
+    Ok(Vc::cell(combined))
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);

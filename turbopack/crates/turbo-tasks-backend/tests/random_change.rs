@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::{Result, bail};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 async fn test_random_change() {
     run_once(&REGISTRATION, || async {
         let state_op = make_state_operation();
-        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
 
         let mut rng = StdRng::from_seed(Default::default());

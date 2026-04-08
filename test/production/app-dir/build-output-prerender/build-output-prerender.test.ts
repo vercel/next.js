@@ -21,21 +21,24 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           }
         } else {
@@ -115,6 +118,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
@@ -127,6 +131,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
@@ -139,6 +144,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
@@ -265,21 +271,24 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
-               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+               ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           }
         } else {
@@ -325,6 +334,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
@@ -337,6 +347,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
@@ -349,6 +360,7 @@ describe('build-output-prerender', () => {
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ✓ appNewScrollHandler (enabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
+               ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"

@@ -6,6 +6,7 @@ describe('node-worker-threads', () => {
     skipDeployment: true,
     dependencies: {
       pino: '9.6.0',
+      jspdf: '4.2.1',
     },
   })
 
@@ -58,6 +59,17 @@ describe('node-worker-threads', () => {
     expect(data.turbopackKeys).toEqual([])
   })
 
+  it('should handle jsPDF which uses Worker with eval: true (issue #91642)', async () => {
+    // jsPDF internally creates Worker threads with { eval: true }, passing
+    // inline JS code instead of a file path. Turbopack should not try to
+    // resolve the first argument as a module reference in this case.
+    const res = await next.fetch('/api/jspdf-test')
+    const data = await res.json()
+    expect(res.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.size).toBeGreaterThan(0)
+  })
+
   it('should handle PNG file import in worker', async () => {
     // Test that static assets (like PNG images) can be imported and used in workers
     // The server worker returns the PNG URL, then we fetch it from the client
@@ -72,7 +84,7 @@ describe('node-worker-threads', () => {
 
     const url = new URL(data.pngInfo.url, 'http://localhost')
     expect(url.pathname).toMatch(
-      /\/_next\/static.*\/test-image\.[a-f0-9]+\.png/
+      /\/_next\/static.*\/test-image\.[0-9a-z_-]+\.png/
     )
     if (!isNextDev) {
       expect(next.assetToken).toMatch(/.+/)

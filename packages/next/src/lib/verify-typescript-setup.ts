@@ -67,6 +67,7 @@ export async function verifyAndRunTypeScript({
   appDir,
   pagesDir,
   debugBuildPaths,
+  rootParams,
 }: {
   dir: string
   distDir: string
@@ -81,6 +82,7 @@ export async function verifyAndRunTypeScript({
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
+  rootParams?: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
@@ -131,6 +133,7 @@ export async function verifyAndRunTypeScript({
           hasAppDir,
           strictRouteTypes,
           typedRoutes,
+          rootParams: !!rootParams,
         })
 
         return { version: null }
@@ -214,12 +217,17 @@ export async function verifyAndRunTypeScript({
       hasAppDir,
       strictRouteTypes,
       typedRoutes,
+      rootParams: !!rootParams,
     })
 
     let result
     if (shouldRunTypeCheck) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
+      // Install native bindings so that code frame rendering works in the worker
+      const { installBindings } =
+        require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
+      await installBindings()
 
       const tsPath = deps.resolved.get('typescript')!
       const typescript = (await Promise.resolve(

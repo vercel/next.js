@@ -14,7 +14,9 @@ use next_core::{
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
-    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_config::{
+        ModuleIds as ModuleIdStrategyConfig, NextConfig, TurbopackPluginRuntimeStrategy,
+    },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
@@ -31,8 +33,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
-    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
+    Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
+    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -79,7 +81,11 @@ use turbopack_core::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
 };
+#[cfg(feature = "process_pool")]
+use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
+#[cfg(feature = "worker_pool")]
+use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
@@ -361,6 +367,14 @@ pub struct ProjectOptions {
 
     /// The version of Next.js that is running.
     pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    pub server_hmr: bool,
+
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 #[derive(Default)]
@@ -411,6 +425,9 @@ pub struct PartialProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
+
+    /// An optional salt to mix into chunk and asset content hashes.
+    pub hash_salt: Option<RcStr>,
 }
 
 #[derive(
@@ -577,6 +594,13 @@ impl ProjectContainer {
             "initialize project",
             project_name = %this.name,
             version = options.next_version.as_str(),
+            node_version = options.current_node_js_version.as_str(),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            cpu_cores = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(0),
+            dev = options.dev,
             env_diff = Empty
         );
         let span_clone = span.clone();
@@ -598,7 +622,8 @@ impl ProjectContainer {
                 container.connect().project()
             }
             let project = project_from_container_operation(this_op)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -662,6 +687,7 @@ impl ProjectContainer {
                 no_mangling,
                 write_routes_hashes_manifest,
                 debug_build_paths,
+                hash_salt,
             } = options;
 
             let mut new_options = this
@@ -712,12 +738,16 @@ impl ProjectContainer {
             if let Some(debug_build_paths) = debug_build_paths {
                 new_options.debug_build_paths = Some(debug_build_paths);
             }
+            if let Some(hash_salt) = hash_salt {
+                new_options.hash_salt = hash_salt;
+            }
 
             // TODO: Handle mode switch, should prevent mode being switched.
             let watch = new_options.watch;
 
             let project = project_operation(self)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let prev_project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -735,7 +765,8 @@ impl ProjectContainer {
             }
             this.options_state.set(Some(new_options));
             let project = project_operation(self)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -791,6 +822,8 @@ impl ProjectContainer {
         let debug_build_paths;
         let deferred_entries;
         let is_persistent_caching_enabled;
+        let server_hmr;
+        let hash_salt;
         {
             let options = self.options_state.get();
             let options = options
@@ -818,6 +851,8 @@ impl ProjectContainer {
             debug_build_paths = options.debug_build_paths.clone();
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
+            server_hmr = options.server_hmr;
+            hash_salt = options.hash_salt.clone();
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -847,6 +882,8 @@ impl ProjectContainer {
             debug_build_paths,
             deferred_entries,
             is_persistent_caching_enabled,
+            server_hmr,
+            hash_salt,
         }
         .cell())
     }
@@ -857,7 +894,7 @@ impl ProjectContainer {
         self.project().entrypoints()
     }
 
-    /// See [Project::hmr_chunk_names].
+    /// See [`Project::hmr_chunk_names`].
     #[turbo_tasks::function]
     pub fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Vc<Vec<RcStr>> {
         self.project().hmr_chunk_names(target)
@@ -947,6 +984,13 @@ pub struct Project {
 
     /// Whether to enable persistent caching
     is_persistent_caching_enabled: bool,
+
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    server_hmr: bool,
+
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    hash_salt: RcStr,
 }
 
 #[turbo_tasks::value]
@@ -1207,16 +1251,24 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.env.read(rcstr!("TURBOPACK_STATS")).await?.is_some(),
-        ))
+    pub(crate) fn hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash_salt.clone())
     }
 
     #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root().owned().await?;
         let next_mode = self.next_mode().await?;
+        let strategy = *self
+            .next_config()
+            .turbopack_plugin_runtime_strategy()
+            .await?;
+        let node_backend = match strategy {
+            #[cfg(feature = "worker_pool")]
+            TurbopackPluginRuntimeStrategy::WorkerThreads => worker_threads_backend(),
+            #[cfg(feature = "process_pool")]
+            TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
+        };
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
@@ -1237,16 +1289,19 @@ impl Project {
             self.project_path().owned().await?,
             node_execution_chunking_context,
             self.env(),
+            node_backend,
         ))
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
-        get_client_compile_time_info(
+    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
+        let next_mode = self.mode.await?;
+        Ok(get_client_compile_time_info(
             self.browserslist_query.clone(),
             self.define_env.client(),
             self.next_config.report_system_env_inlining(),
-        )
+            next_mode.is_development(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1457,34 +1512,36 @@ impl Project {
         })
     }
 
+    /// Computes the whole app module graph without dropping issues.
+    ///
+    /// Use this instead of [`whole_app_module_graphs`] when you need to collect issues from the
+    /// computation (e.g. for the `get_compilation_issues` MCP tool).
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graphs_without_dropping_issues(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = module_graphs_op.connect();
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
+    }
+
+    /// Computes the whole app module graph, dropping issues in development mode so that
+    /// individual routes don't each report every issue from the shared graph.
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        async move {
-            let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = if self.next_mode().await?.is_production() {
-                module_graphs_op.connect()
-            } else {
-                // In development mode, we need to to take and drop the issues, otherwise every
-                // route will report all issues.
-                let vc = module_graphs_op.resolve_strongly_consistent().await?;
-                module_graphs_op.drop_issues();
-                *vc
-            };
-
-            // At this point all modules have been computed and we can get rid of the node.js
-            // process pools
-            if *self.is_watch_enabled().await? {
-                turbopack_node::evaluate::scale_down();
-            } else {
-                turbopack_node::evaluate::scale_zero();
-            }
-
-            Ok(module_graphs_vc)
-        }
-        .instrument(tracing::info_span!("module graph for app"))
-        .await
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = if self.next_mode().await?.is_production() {
+            module_graphs_op.connect()
+        } else {
+            let vc = module_graphs_op.resolve().strongly_consistent().await?;
+            module_graphs_op.drop_issues();
+            *vc
+        };
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
     }
 
     #[turbo_tasks::function]
@@ -1496,6 +1553,7 @@ impl Project {
             this.define_env.nodejs(),
             self.current_node_js_version(),
             this.next_config.report_system_env_inlining(),
+            this.server_hmr,
         ))
     }
 
@@ -1547,6 +1605,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
+            hash_salt: self.hash_salt().to_resolved().await?,
         }))
     }
 
@@ -1576,6 +1635,7 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
+            hash_salt: self.hash_salt().to_resolved().await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1609,6 +1669,7 @@ impl Project {
             client_root: self.client_relative_path().owned().await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
+            hash_salt: self.hash_salt().to_resolved().await?,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -2234,43 +2295,40 @@ impl Project {
         }
     }
 
-    /// Get HMR version for the specified target.
-    #[turbo_tasks::function]
-    async fn hmr_version(
-        self: Vc<Self>,
-        chunk_name: RcStr,
-        target: HmrTarget,
-    ) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(chunk_name, target).await?;
-        if let Some(content) = &*content {
-            Ok(content.version())
-        } else {
-            Ok(Vc::upcast(NotFoundVersion::new()))
-        }
-    }
-
     /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         chunk_name: RcStr,
         target: HmrTarget,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
-        let version = self.hmr_version(chunk_name, target);
-
         // The session argument is important to avoid caching this function between
         // sessions.
         let _ = session;
+
+        #[turbo_tasks::function(operation)]
+        async fn hmr_version_operation(
+            this: ResolvedVc<Project>,
+            chunk_name: RcStr,
+            target: HmrTarget,
+        ) -> Result<Vc<Box<dyn Version>>> {
+            let content = this.hmr_content(chunk_name, target).await?;
+            if let Some(content) = &*content {
+                Ok(content.version())
+            } else {
+                Ok(Vc::upcast(NotFoundVersion::new()))
+            }
+        }
+        let version_op = hmr_version_operation(self, chunk_name, target);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
         let state = VersionState::new(
-            version
-                .into_trait_ref()
-                .strongly_consistent()
+            version_op
+                .read_trait_strongly_consistent()
                 .untracked()
                 .await?,
         )
@@ -2297,8 +2355,9 @@ impl Project {
     }
 
     /// Gets a list of all HMR chunk names that can be subscribed to for the
-    /// specified target. This is only needed for testing purposes and isn't
-    /// used in real apps.
+    /// specified target. Used by the dev server to set up server-side HMR
+    /// subscriptions for all Node.js App Router entries (pages and route
+    /// handlers).
     #[turbo_tasks::function]
     pub async fn hmr_chunk_names(self: Vc<Self>, target: HmrTarget) -> Result<Vc<Vec<RcStr>>> {
         if let Some(map) = self.await?.versioned_content_map {
@@ -2407,73 +2466,107 @@ impl Project {
     }
 }
 
+/// Scales down or shuts down the Node.js process pool after module graph computation.
+async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
+    let execution_context = project.execution_context().await?;
+    let node_backend = execution_context.node_backend.into_trait_ref().await?;
+    if *project.is_watch_enabled().await? {
+        node_backend.scale_down()?;
+    } else {
+        node_backend.scale_zero()?;
+    }
+    Ok(())
+}
+
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
 #[turbo_tasks::function(operation, root)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
-    let next_mode = project.next_mode();
-    let next_mode_ref = next_mode.await?;
-    let should_trace = next_mode_ref.is_production();
-    let should_read_binding_usage = next_mode_ref.is_production();
-    let base_single_module_graph = SingleModuleGraph::new_with_entries(
-        project.get_all_entries().to_resolved().await?,
-        should_trace,
-        should_read_binding_usage,
-    );
-    let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
+    let span = tracing::info_span!("whole app module graph", modules = Empty);
+    let span_clone = span.clone();
+    async move {
+        let next_mode = project.next_mode();
+        let next_mode_ref = next_mode.await?;
+        let should_trace = next_mode_ref.is_production();
+        let should_read_binding_usage = next_mode_ref.is_production();
+        let base_single_module_graph = SingleModuleGraph::new_with_entries(
+            project.get_all_entries().to_resolved().await?,
+            should_trace,
+            should_read_binding_usage,
+        );
+        let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
-    let base = ModuleGraph::from_single_graph(base_single_module_graph);
+        let base = ModuleGraph::from_single_graph(base_single_module_graph);
 
-    let turbopack_remove_unused_imports = *project
-        .next_config()
-        .turbopack_remove_unused_imports(next_mode)
-        .await?;
+        let turbopack_remove_unused_imports = *project
+            .next_config()
+            .turbopack_remove_unused_imports(next_mode)
+            .await?;
 
-    let base = if turbopack_remove_unused_imports {
-        // TODO suboptimal that we do compute_binding_usage_info twice (once for the base graph
-        // and later for the full graph)
-        let binding_usage_info = compute_binding_usage_info(base, true);
-        ModuleGraph::from_single_graph_without_unused_references(
-            base_single_module_graph,
+        let base = if turbopack_remove_unused_imports {
+            // TODO suboptimal that we do compute_binding_usage_info twice (once for the base
+            // graph and later for the full graph)
+            let binding_usage_info = compute_binding_usage_info(base, true);
+            ModuleGraph::from_single_graph_without_unused_references(
+                base_single_module_graph,
+                binding_usage_info,
+            )
+        } else {
+            base
+        };
+
+        let additional_entries = project
+            .get_all_additional_entries(base.connect())
+            .to_resolved()
+            .await?;
+
+        let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+            additional_entries,
+            base_visited_modules,
+            should_trace,
+            should_read_binding_usage,
+        );
+
+        if !span.is_disabled() {
+            let base_module_count = base_single_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .owned()
+                .await?;
+            let additional_module_count = additional_module_graph
+                .connect()
+                .module_count()
+                .untracked()
+                .owned()
+                .await?;
+            span.record("modules", base_module_count + additional_module_count);
+        }
+
+        let graphs = vec![base_single_module_graph, additional_module_graph];
+
+        let (full, binding_usage_info) = if turbopack_remove_unused_imports {
+            let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+            let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
+            (
+                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info),
+                Some(binding_usage_info),
+            )
+        } else {
+            (ModuleGraph::from_graphs(graphs), None)
+        };
+
+        Ok(BaseAndFullModuleGraph {
+            base: base.connect().to_resolved().await?,
+            full: full.connect().to_resolved().await?,
             binding_usage_info,
-        )
-    } else {
-        base
-    };
-
-    let additional_entries = project
-        .get_all_additional_entries(base.connect())
-        .to_resolved()
-        .await?;
-
-    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries,
-        base_visited_modules,
-        should_trace,
-        should_read_binding_usage,
-    );
-
-    let graphs = vec![base_single_module_graph, additional_module_graph];
-
-    let (full, binding_usage_info) = if turbopack_remove_unused_imports {
-        let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
-        let binding_usage_info = compute_binding_usage_info(full_with_unused_references, true);
-        (
-            ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info),
-            Some(binding_usage_info),
-        )
-    } else {
-        (ModuleGraph::from_graphs(graphs), None)
-    };
-
-    Ok(BaseAndFullModuleGraph {
-        base: base.connect().to_resolved().await?,
-        full: full.connect().to_resolved().await?,
-        binding_usage_info,
+        }
+        .cell())
     }
-    .cell())
+    .instrument(span_clone)
+    .await
 }
 
 #[turbo_tasks::value(shared)]

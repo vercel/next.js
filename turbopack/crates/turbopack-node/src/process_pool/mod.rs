@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use bytes::Bytes;
 use futures::join;
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
@@ -24,13 +25,14 @@ use tokio::{
     sync::Semaphore,
     time::{sleep, timeout},
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{
     AssetsForSourceMapping,
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
@@ -415,7 +417,7 @@ impl NodeJsPoolProcess {
         Ok(process)
     }
 
-    async fn recv(&mut self) -> Result<Vec<u8>> {
+    async fn recv(&mut self) -> Result<Bytes> {
         let connection = &mut self.connection;
         async fn with_timeout<T, E: Into<anyhow::Error>>(
             debug: bool,
@@ -447,20 +449,19 @@ impl NodeJsPoolProcess {
             with_timeout(debug, true, connection.read_exact(&mut packet_data))
                 .await
                 .context("reading packet data")?;
-            Ok::<_, anyhow::Error>(packet_data)
+            Ok::<_, anyhow::Error>(packet_data.into())
         };
         let (result, stdout, stderr) = join!(
             recv_future,
             self.stdout_handler.handle_operation(),
             self.stderr_handler.handle_operation(),
         );
-        let result = result?;
+        let result: Bytes = result?;
         stdout.context("unable to handle stdout from the Node.js process in a structured way")?;
         stderr.context("unable to handle stderr from the Node.js process in a structured way")?;
         Ok(result)
     }
-
-    async fn send(&mut self, packet_data: Vec<u8>) -> Result<()> {
+    async fn send(&mut self, packet_data: Bytes) -> Result<()> {
         self.connection
             .write_u32(
                 packet_data
@@ -522,15 +523,14 @@ impl ProcessArgs {
     }
 }
 
-/// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
-/// [env].
+/// A pool of Node.js workers operating on an `entrypoint` with specific `cwd` and `env`.
 ///
-/// The pool will spawn processes when needed and reuses old ones. It will never
-/// spawn more then a certain number of concurrent processes. This is specified
-/// with the `concurrency` argument in the constructor.
+/// The pool will spawn processes when needed and reuses old ones. It will never spawn more then a
+/// certain number of concurrent processes. This is specified with the `concurrency` argument in the
+/// constructor.
 ///
-/// The worker will *not* use the env of the parent process by default. All env
-/// vars need to be provided to make the execution as pure as possible.
+/// The worker will *not* use the `env` of the parent process by default. All environment variables
+/// need to be provided to make the execution as pure as possible.
 #[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
 pub struct ChildProcessPool {
     cwd: PathBuf,
@@ -594,6 +594,56 @@ impl ChildProcessPool {
             assets_root,
             project_dir,
         )
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub(crate) struct ChildProcessesBackend;
+
+#[turbo_tasks::value_impl]
+impl NodeBackend for ChildProcessesBackend {
+    fn runtime_module_path(&self) -> RcStr {
+        rcstr!("child_process/evaluate.ts")
+    }
+
+    fn globals_module_path(&self) -> RcStr {
+        rcstr!("child_process/globals.ts")
+    }
+
+    fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        Box::pin(async move {
+            let CreatePoolOptions {
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            } = options;
+
+            Ok(ChildProcessPool::create(
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            ))
+        })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        ChildProcessPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        ChildProcessPool::scale_zero();
+        Ok(())
     }
 }
 
@@ -748,16 +798,16 @@ pub struct ChildProcessOperation {
 
 #[async_trait::async_trait]
 impl Operation for ChildProcessOperation {
-    async fn recv(&mut self) -> Result<Vec<u8>> {
-        let vec = self
+    async fn recv(&mut self) -> Result<Bytes> {
+        let bytes = self
             .with_process(|process| async move {
                 process.recv().await.context("failed to receive message")
             })
             .await?;
-        Ok(vec)
+        Ok(bytes)
     }
 
-    async fn send(&mut self, message: Vec<u8>) -> Result<()> {
+    async fn send(&mut self, message: Bytes) -> Result<()> {
         self.with_process(|process| async move {
             timeout(Duration::from_secs(30), process.send(message))
                 .await

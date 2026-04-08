@@ -7,9 +7,6 @@ use crate::{
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
 
-#[turbo_tasks::value(transparent)]
-pub struct ModulesSet(FxHashSet<ResolvedVc<Box<dyn Module>>>);
-
 /// This lists all the modules that are async (self or transitively because they reference another
 /// module in this list).
 #[turbo_tasks::value(transparent, cell = "keyed")]

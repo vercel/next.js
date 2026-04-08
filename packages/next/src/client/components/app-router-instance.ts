@@ -9,10 +9,11 @@ import {
   type NavigateAction,
   ACTION_HMR_REFRESH,
   PrefetchKind,
+  ScrollBehavior,
   type AppHistoryState,
 } from './router-reducer/router-reducer-types'
 import { reducer } from './router-reducer/router-reducer'
-import { startTransition } from 'react'
+import { addTransitionType, startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import {
   FetchStrategy,
@@ -277,11 +278,19 @@ function getProfilingHookForOnNavigationStart() {
 export function dispatchNavigateAction(
   href: string,
   navigateType: NavigateAction['navigateType'],
-  shouldScroll: boolean,
-  linkInstanceRef: LinkInstance | null
+  scrollBehavior: ScrollBehavior,
+  linkInstanceRef: LinkInstance | null,
+  transitionTypes: string[] | undefined
 ): void {
   // TODO: This stuff could just go into the reducer. Leaving as-is for now
   // since we're about to rewrite all the router reducer stuff anyway.
+
+  if (transitionTypes) {
+    for (const type of transitionTypes) {
+      addTransitionType(type)
+    }
+  }
+
   const url = new URL(addBasePath(href), location.href)
   if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
     window.next.__pendingUrl = url
@@ -299,7 +308,7 @@ export function dispatchNavigateAction(
     url,
     isExternalUrl: isExternalURL(url),
     locationSearch: location.search,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
   })
 }
@@ -348,7 +357,10 @@ function gesturePush(href: string, options?: NavigateOptions): void {
 
     // Fork the router state for the duration of the gesture transition.
     const currentUrl = new URL(state.canonicalUrl, location.href)
-    const shouldScroll = options?.scroll ?? true
+    const scrollBehavior =
+      options?.scroll === false
+        ? ScrollBehavior.NoScroll
+        : ScrollBehavior.Default
     // This is a special freshness policy that prevents dynamic requests from
     // being spawned. During the gesture, we should only show the cached
     // prefetched UI, not dynamic data.
@@ -365,7 +377,7 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       state.tree,
       state.nextUrl,
       freshnessPolicy,
-      shouldScroll,
+      scrollBehavior,
       'push'
     )
     dispatchGestureState(forkedGestureState)
@@ -431,7 +443,15 @@ export const publicAppRouterInstance: AppRouterInstance = {
       )
     }
     startTransition(() => {
-      dispatchNavigateAction(href, 'replace', options?.scroll ?? true, null)
+      dispatchNavigateAction(
+        href,
+        'replace',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes
+      )
     })
   },
   push: (href: string, options?: NavigateOptions) => {
@@ -441,7 +461,15 @@ export const publicAppRouterInstance: AppRouterInstance = {
       )
     }
     startTransition(() => {
-      dispatchNavigateAction(href, 'push', options?.scroll ?? true, null)
+      dispatchNavigateAction(
+        href,
+        'push',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes
+      )
     })
   },
   refresh: () => {

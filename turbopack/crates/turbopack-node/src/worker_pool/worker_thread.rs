@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, sync::Arc};
 
+use bytes::Bytes;
 use napi::{
     Env,
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -79,7 +80,7 @@ pub async fn create_worker(options: Arc<WorkerOptions>) -> anyhow::Result<u32> {
             ThreadsafeFunctionCallMode::NonBlocking,
         );
     } else {
-        return Err(anyhow::anyhow!("Worker creator not registered"));
+        anyhow::bail!("Worker creator not registered");
     }
 
     let worker_id = rx.await?;
@@ -152,7 +153,7 @@ impl From<NapiTaskMessage> for TaskMessage {
         let NapiTaskMessage { task_id, data } = message;
         TaskMessage {
             task_id,
-            data: data.into(),
+            data: Bytes::from_owner(data),
         }
     }
 }
@@ -166,7 +167,7 @@ pub async fn recv_task_message_in_worker(worker_id: u32) -> napi::Result<NapiTas
         .await?;
     Ok(NapiTaskMessage {
         task_id,
-        data: message.into(),
+        data: Vec::from(message).into(),
     })
 }
 

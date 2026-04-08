@@ -49,7 +49,24 @@ export type CacheNode = {
   head: HeadData
 
   slots: Record<string, CacheNode> | null
+
+  /**
+   * A shared mutable ref that tracks whether this segment should be scrolled
+   * to. All new segments created during a single navigation share the same
+   * ref. When any segment's scroll handler fires, it sets `current` to
+   * `false` so no other segment scrolls for the same navigation.
+   *
+   * `null` means this segment is not a scroll target (e.g., a reused shared
+   * layout segment).
+   */
+  scrollRef: ScrollRef | null
 }
+
+/**
+ * A mutable ref shared across all new segments created during a single
+ * navigation. Used to ensure that only one segment scrolls per navigation.
+ */
+export type ScrollRef = { current: boolean }
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -166,7 +183,45 @@ export const enum PrefetchHint {
   SubtreeHasLoadingBoundary = 0b01000,
   // This segment is the root layout of the application.
   IsRootLayout = 0b10000,
+  // This segment's response includes its parent's data inlined into it.
+  // Set at build time by the segment size measurement pass.
+  ParentInlinedIntoSelf = 0b100000,
+  // This segment's data is inlined into one of its children — don't fetch
+  // it separately. Set at build time by the segment size measurement pass.
+  InlinedIntoChild = 0b1000000,
+  // On a __PAGE__: this page's response includes the head (metadata/viewport)
+  // at the end of its SegmentPrefetch[] array.
+  HeadInlinedIntoSelf = 0b10000000,
+  // On the root hint node: the head was NOT inlined into any page — fetch
+  // it separately. Absence of this bit means the head is bundled into a page.
+  HeadOutlined = 0b100000000,
+  // The inlining hints in this tree may be stale because the tree was
+  // generated before collectPrefetchHints ran (e.g. the initial RSC payload
+  // for a fully static page at build time). When writing this tree into the
+  // cache, the route entry should be immediately expired so it gets
+  // re-fetched with correct hints. Only set during build-time prerendering,
+  // never at runtime.
+  InliningHintsStale = 0b1000000000,
+  // This segment has unstable_instant = false, opting out of all
+  // prefetching entirely (neither static nor runtime).
+  PrefetchDisabled = 0b10000000000,
+  // This segment or one of its descendants has runtime prefetch enabled
+  // (HasRuntimePrefetch). Propagates upward so the root reflects the
+  // entire subtree.
+  SubtreeHasRuntimePrefetch = 0b100000000000,
 }
+
+/**
+ * Bitmask for checking whether a segment's static prefetch is skipped. Matches
+ * if EITHER bit is set — i.e. the segment uses runtime prefetching
+ * (HasRuntimePrefetch) OR prefetching is disabled entirely (PrefetchDisabled,
+ * e.g. unstable_instant = false). The segment participates in the bundle chain
+ * but with null data.
+ *
+ * Usage: `(hints & StaticPrefetchDisabled) !== 0`
+ */
+export const StaticPrefetchDisabled =
+  PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
 
 /**
  * Individual Flight response path
@@ -239,6 +294,23 @@ export type FlightDataPath =
  */
 export type FlightData = Array<FlightDataPath> | string
 
+/**
+ * Per-route prefetch hints computed at build time. Mirrors the shape of the
+ * loader tree so hints can be traversed in parallel during router state
+ * creation. Each node stores a bitmask of PrefetchHint flags
+ * (ParentInlinedIntoSelf, InlinedIntoChild) computed by the segment size
+ * measurement pass.
+ *
+ * Persisted to prefetch-hints.json as Record<string, PrefetchHints> (keyed
+ * by route pattern) and loaded at server startup.
+ */
+export type PrefetchHints = {
+  /** Bitmask of PrefetchHint flags for this segment. */
+  hints: number
+  /** Child hint nodes, keyed by parallel route key. */
+  slots: Record<string, PrefetchHints> | null
+}
+
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
@@ -262,6 +334,20 @@ export type InitialRSCPayload = {
    * headVaryParams - vary params for the head (metadata) of the response.
    */
   h: VaryParamsThenable | null
+  /** staleTime in seconds - Only present when Cache Components is enabled. */
+  s?: AsyncIterable<number>
+  /** staticStageByteLength - Resolves when the static stage ends. */
+  l?: Promise<number>
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -282,6 +368,16 @@ export type NavigationFlightResponse = {
   l?: Promise<number>
   /** headVaryParams */
   h: VaryParamsThenable | null
+  /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
+  p?: ReadableStream<Uint8Array>
+  /**
+   * dynamicStaleTime — Per-page BFCache stale time in seconds, from
+   * `unstable_dynamicStaleTime`. Only included for dynamic renders. Controls
+   * how long the client router cache retains dynamic navigation data. This is
+   * distinct from the `s` field, which controls segment cache (prefetch)
+   * staleness.
+   */
+  d?: number
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

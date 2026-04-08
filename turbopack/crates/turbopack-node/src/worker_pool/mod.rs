@@ -13,12 +13,13 @@ use tokio::{
     sync::{Semaphore, oneshot},
     time::sleep,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     AssetsForSourceMapping,
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     pool_stats::{AcquiredPermits, PoolStatsSnapshot},
     worker_pool::{
@@ -148,6 +149,57 @@ impl WorkerThreadPool {
     }
 }
 
+#[turbo_tasks::value(shared)]
+pub(crate) struct WorkerThreadsBackend;
+
+#[turbo_tasks::value_impl]
+impl NodeBackend for WorkerThreadsBackend {
+    fn runtime_module_path(&self) -> RcStr {
+        rcstr!("worker_thread/evaluate.ts")
+    }
+
+    fn globals_module_path(&self) -> RcStr {
+        rcstr!("worker_thread/globals.ts")
+    }
+
+    fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture {
+        Box::pin(async move {
+            let CreatePoolOptions {
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            } = options;
+
+            Ok(WorkerThreadPool::create(
+                cwd,
+                entrypoint,
+                env,
+                assets_for_source_mapping,
+                assets_root,
+                project_dir,
+                concurrency,
+                debug,
+            )
+            .await)
+        })
+    }
+
+    fn scale_down(&self) -> Result<()> {
+        WorkerThreadPool::scale_down();
+        Ok(())
+    }
+
+    fn scale_zero(&self) -> Result<()> {
+        WorkerThreadPool::scale_zero();
+        Ok(())
+    }
+}
+
 impl WorkerThreadPool {
     pub fn scale_down() {
         let _ = WORKER_POOL_OPERATION.scale_down();
@@ -206,5 +258,9 @@ impl EvaluateOperation for WorkerThreadPool {
     /// Returns a snapshot of the pool's internal statistics.
     fn stats(&self) -> PoolStatsSnapshot {
         self.state.stats.lock().snapshot()
+    }
+
+    fn pre_warm(&self) {
+        // TODO: This is a no-op for worker_pool right now, only process_pool implements it
     }
 }

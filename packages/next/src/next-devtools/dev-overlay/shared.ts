@@ -1,5 +1,6 @@
 import { useReducer } from 'react'
 
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { VersionInfo } from '../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
@@ -7,6 +8,7 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
+import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -68,9 +70,10 @@ export interface OverlayState {
   >
   readonly scale: number
   readonly page: string
+  readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
   readonly hideShortcut: string | null
-  readonly cacheOnly: boolean
+  readonly instantNavs: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -102,7 +105,8 @@ export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
-export const ACTION_CACHE_ONLY_TOGGLE = 'cache-only-toggle'
+export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
+export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -211,6 +215,7 @@ interface DevToolsScaleAction {
 interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
   page: string
+  tree: FlightRouterState | null
 }
 
 interface DevToolsConfigAction {
@@ -219,7 +224,11 @@ interface DevToolsConfigAction {
 }
 
 interface CacheOnlyToggleAction {
-  type: typeof ACTION_CACHE_ONLY_TOGGLE
+  type: typeof ACTION_INSTANT_NAVS_TOGGLE
+}
+
+interface InstantNavResetAction {
+  type: typeof ACTION_INSTANT_NAVS_RESET
 }
 
 export type DispatcherEvent =
@@ -248,6 +257,7 @@ export type DispatcherEvent =
   | DevIndicatorSetAction
   | DevToolsConfigAction
   | CacheOnlyToggleAction
+  | InstantNavResetAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -270,10 +280,9 @@ const shouldDisableDevIndicator =
 const devToolsInitialPositionFromNextConfig = (process.env
   .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
 
-const hasInstantTestCookie =
+const hasInstantNavsCookie =
   !!process.env.__NEXT_INSTANT_NAV_TOGGLE &&
-  typeof document !== 'undefined' &&
-  document.cookie.includes('next-instant-navigation-testing=')
+  readInstantNavCookieState() !== null
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -291,10 +300,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
     whether the indicator is in disabled state or not.
     Otherwise the surface would flicker because the disabled flag loads from the config.
   */
-  // When cache-only is active, show the indicator immediately so the user
+  // When instant nav is active, show the indicator immediately so the user
   // can toggle it off. Normally this is set to true by the HMR connection,
   // but the HMR WebSocket is only created during hydration.
-  showIndicator: hasInstantTestCookie,
+  showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
@@ -307,9 +316,10 @@ export const INITIAL_OVERLAY_STATE: Omit<
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  tree: null,
   theme: 'system',
   hideShortcut: null,
-  cacheOnly: hasInstantTestCookie,
+  instantNavs: hasInstantNavsCookie,
 }
 
 function getInitialState(
@@ -495,7 +505,7 @@ export function useErrorOverlayReducer(
           return { ...state, scale: action.scale }
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
-          return { ...state, page: action.page }
+          return { ...state, page: action.page, tree: action.tree }
         }
         case ACTION_DEVTOOLS_CONFIG: {
           const {
@@ -523,8 +533,11 @@ export function useErrorOverlayReducer(
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
-        case ACTION_CACHE_ONLY_TOGGLE: {
-          return { ...state, cacheOnly: !state.cacheOnly }
+        case ACTION_INSTANT_NAVS_TOGGLE: {
+          return { ...state, instantNavs: !state.instantNavs }
+        }
+        case ACTION_INSTANT_NAVS_RESET: {
+          return { ...state, instantNavs: false }
         }
         default: {
           return state

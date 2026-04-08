@@ -22,9 +22,10 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
-    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
+    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode, new_hash_encoder,
 };
 use turbo_rcstr::RcStr;
+use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
@@ -76,10 +77,24 @@ pub struct CachedTaskType {
 }
 
 impl CachedTaskType {
-    /// Get the name of the function from the registry. Equivalent to the
+    /// Get the name of the function. Equivalent to the
     /// [`Display`]/[`ToString::to_string`] implementation, but does not allocate a [`String`].
     pub fn get_name(&self) -> &'static str {
-        self.native_fn.name
+        self.native_fn.ty.name
+    }
+
+    /// Encodes this task type directly to a hasher, avoiding buffer allocation.
+    ///
+    /// This uses the same encoding logic as [`TurboBincodeEncode`] but writes
+    /// directly to a [`DeterministicHasher`] instead of a buffer.
+    pub fn hash_encode<H: DeterministicHasher>(&self, hasher: &mut H) {
+        let fn_id = registry::get_function_id(self.native_fn);
+        {
+            let mut encoder = new_hash_encoder(hasher);
+            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
+            Encode::encode(&self.this, &mut encoder).expect("this encoding should not fail");
+        }
+        (self.native_fn.arg_meta.hash_encode)(&*self.arg, hasher);
     }
 }
 
@@ -272,6 +287,13 @@ impl TryFrom<CellContent> for SharedReference {
 }
 
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
+
+/// A 128-bit content hash stored as little-endian bytes.
+///
+/// Using a byte array rather than `u128` keeps the alignment at 1 byte, which avoids padding
+/// in structures such as `AutoMap`/`LazyField` enums that would otherwise grow to accommodate
+/// `u128`'s 16-byte alignment requirement.
+pub type CellHash = [u8; 16];
 
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
@@ -576,6 +598,7 @@ pub trait Backend: Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );

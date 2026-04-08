@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, LinkContent, LinkType, glob::Glob,
@@ -122,10 +122,7 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
         // match.
         let source_path = entry.path().unwrap();
         if source_path.is_inside_or_equal(&resolved_entry.clone().path().unwrap()) {
-            bail!(
-                "'{}' is a symlink causes that causes an infinite loop!",
-                source_path.path,
-            )
+            bail!("'{source_path}' is a symlink causes that causes an infinite loop!",)
         }
     }
     Ok(resolved_entry)
@@ -197,12 +194,10 @@ async fn track_glob_internal(
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => bail!(
+                    DirectoryEntry::Symlink(symlink_path) => turbobail!(
                         "resolve_symlink_safely() should have resolved all symlinks or returned \
-                         an error, but found unresolved symlink at path: '{}'. Found path: '{}'. \
-                         Please report this as a bug.",
-                        entry_path,
-                        symlink_path
+                         an error, but found unresolved symlink at path: '{entry_path}'. Found \
+                         path: '{symlink_path}'. Please report this as a bug.",
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
@@ -237,7 +232,7 @@ pub mod tests {
     };
 
     use turbo_rcstr::{RcStr, rcstr};
-    use turbo_tasks::{Completion, OperationVc, ReadRef, Vc, apply_effects};
+    use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc, take_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use crate::{
@@ -491,10 +486,9 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    async fn apply_effects_operation(op: OperationVc<()>) -> anyhow::Result<()> {
-        op.read_strongly_consistent().await?;
-        apply_effects(op).await?;
-        Ok(())
+    async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+        let _ = op.resolve().strongly_consistent().await?;
+        Ok(take_effects(op).await?.cell())
     }
 
     #[turbo_tasks::function(operation)]
@@ -564,8 +558,10 @@ pub mod tests {
                 .await?;
 
             // Delete a file that we shouldn't be tracking
-            apply_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?))
+            extract_effects_operation(delete(root.join("dir/sub/.vim/.gitignore")?))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
@@ -574,8 +570,10 @@ pub mod tests {
             assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Delete a file that we should be tracking
-            apply_effects_operation(delete(root.join("dir/foo")?))
+            extract_effects_operation(delete(root.join("dir/foo")?))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
 
             let read_dir2 = track_star_star_glob(dir.clone())
@@ -585,8 +583,10 @@ pub mod tests {
             assert!(!ReadRef::ptr_eq(&read_dir, &read_dir2));
 
             // Modify a symlink target file
-            apply_effects_operation(write(root.join("link_target.js")?, rcstr!("new_contents")))
+            extract_effects_operation(write(root.join("link_target.js")?, rcstr!("new_contents")))
                 .read_strongly_consistent()
+                .await?
+                .apply()
                 .await?;
             let read_dir3 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()

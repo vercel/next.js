@@ -76,7 +76,7 @@ impl TurboBincodeEncode for TypedSharedReference {
         } else {
             Err(EncodeError::OtherString(format!(
                 "{} is not encodable",
-                value_type.global_name
+                value_type.ty.global_name
             )))
         }
     }
@@ -92,7 +92,7 @@ impl<Context> TurboBincodeDecode<Context> for TypedSharedReference {
         } else {
             #[cold]
             fn not_decodable(value_type: &ValueType) -> DecodeError {
-                DecodeError::OtherString(format!("{} is not decodable", value_type.global_name))
+                DecodeError::OtherString(format!("{} is not decodable", value_type.ty.global_name))
             }
             Err(not_decodable(value_type))
         }
@@ -155,7 +155,7 @@ impl Display for TypedSharedReference {
         write!(
             f,
             "value of type {}",
-            registry::get_value_type(self.type_id).name
+            registry::get_value_type(self.type_id).ty.name
         )
     }
 }
