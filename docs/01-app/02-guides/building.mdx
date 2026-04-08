@@ -146,13 +146,11 @@ The fallback is prerendered into the static shell. The content streams in at req
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-├ /products/[id]
-│ ├ ◐ /products/1
-│ ├ ◐ /products/2
-│ └ ◐ [+4 more paths]
+├ ◐ /products/[id]
+│ └ ◐ /products/[id]
 ```
 
-The routes now show `◐` (Partial Prerender) because each page has a static shell with dynamic content that streams in at request time.
+The route now shows `◐` (Partial Prerender). Every request serves the static shell instantly while the dynamic content streams in.
 
 You can combine both approaches: use `generateStaticParams` for known params and `<Suspense>` for dynamic content within the page.
 
