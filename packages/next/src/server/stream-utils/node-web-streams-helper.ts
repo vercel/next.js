@@ -343,7 +343,7 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createMetadataTransformStream(
+export function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let chunkIndex = -1
@@ -444,7 +444,7 @@ function createMetadataTransformStream(
   })
 }
 
-function createHeadInsertionTransformStream(
+export function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
@@ -668,7 +668,7 @@ export function createInstantTestScriptInsertionTransformStream(
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-function createDeferredSuffixStream(
+export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
@@ -713,7 +713,7 @@ function createDeferredSuffixStream(
   })
 }
 
-function createFlightDataInjectionTransformStream(
+export function createFlightDataInjectionTransformStream(
   stream: ReadableStream<Uint8Array>,
   delayDataUntilFirstHtmlChunk: boolean
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -793,14 +793,17 @@ function createFlightDataInjectionTransformStream(
   })
 }
 
-const CLOSE_TAG = '</body></html>'
+export const CLOSE_TAG = '</body></html>'
 
 /**
  * This transform stream moves the suffix to the end of the stream, so results
  * like `</body></html><script>...</script>` will be transformed to
  * `<script>...</script></body></html>`.
  */
-function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
+export function createMoveSuffixStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let foundSuffix = false
 
   return new TransformStream({
@@ -875,7 +878,7 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-function createHtmlDataDplIdTransformStream(
+export function createHtmlDataDplIdTransformStream(
   dplId: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let didTransform = false
@@ -973,7 +976,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
   })
 }
 
-function chainTransformers<T>(
+export function chainTransformers<T>(
   readable: ReadableStream<T>,
   transformers: ReadonlyArray<TransformStream<T, T> | null>
 ): ReadableStream<T> {

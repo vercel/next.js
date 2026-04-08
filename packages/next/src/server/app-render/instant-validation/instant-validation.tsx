@@ -41,7 +41,7 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createDebugChannel } from '../debug-channel-server'
+import { createWebDebugChannel } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -297,7 +297,7 @@ export async function collectStagedSegmentData(
     cacheEntry: SegmentCacheItem
   ): Promise<void> => {
     const segmentDebugChannel = cacheEntry.debugChunks
-      ? createDebugChannel()
+      ? createWebDebugChannel()
       : undefined
 
     const itemStream = renderFlightStream(
@@ -536,7 +536,7 @@ export async function createCombinedPayloadStream(
   const allChunks: Uint8Array[] = []
 
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
-  const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
+  const debugChannel = isDebugChannelEnabled ? createWebDebugChannel() : null
 
   let streamFinished: Promise<any>
 
