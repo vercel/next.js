@@ -4,7 +4,7 @@ description: Learn what happens when you run next build, how to read the build o
 nav_title: Building
 ---
 
-When your application is ready for production, `next build` compiles it into optimized bundles and prerendered pages. The build output shows exactly how each route will be served: fully static, partially prerendered, or dynamic.
+When your application is ready for production, `next build` compiles it into optimized bundles and prerendered pages. The build output shows how each route will be served: fully static or partially prerendered.
 
 This guide will show you how to read the build output, pre-render dynamic routes, and fix common build errors.
 
@@ -19,10 +19,10 @@ We'll start by reading the build output, then pre-render specific product pages 
 Run `next build` to create a production build. The terminal shows a route table:
 
 ```bash filename="Terminal"
-Route (app)                    Revalidate  Expire
-┌ ○ /_not-found
-├ ○ /products                  15m         1y
-└ ◐ /products/[id]             15m         1y
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└ ◐ /products/[id]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -34,13 +34,10 @@ Each symbol tells you how a route is served:
 | ------ | ----------------- | ------------------------------------------------------------------------- |
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
-| `ƒ`    | Dynamic           | Entirely server-rendered on each request.                                 |
 
-A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](https://react.dev/reference/react/Suspense) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), every route is either fully static (`○`) or partially prerendered (`◐`). A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](https://react.dev/reference/react/Suspense) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
-The **Revalidate** column shows how long cached data is considered fresh. The **Expire** column shows how long stale data can be served while revalidating in the background. See [Time-based revalidation](/docs/app/getting-started/revalidating#time) for details.
-
-> **Good to know:** [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). You don't need to enable it separately.
+> **Good to know:** [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with Cache Components. You don't need to enable it separately. If a route has Revalidate and Expire columns, see [Time-based revalidation](/docs/app/getting-started/revalidating#time).
 
 ### Step 2: Pre-render dynamic routes
 
@@ -63,10 +60,10 @@ export default async function Page({ params }) {
 If we run `next build` again, the pre-rendered params appear in the output:
 
 ```bash filename="Terminal"
-Route (app)                    Revalidate  Expire
+Route (app)
 ┌ ○ /_not-found
-├ ○ /products                  15m         1y
-├ ◐ /products/[id]             15m         1y
+├ ○ /products
+├ ◐ /products/[id]
 ├   ├ /products/1
 ├   ├ /products/2
 ├   └ /products/3
@@ -83,16 +80,18 @@ Params not listed in `generateStaticParams` (for example, `/products/99`) are re
 During `next build`, you may see this error:
 
 ```txt filename="Terminal"
-Error: Uncached data was accessed outside of `<Suspense>`
+Uncached data, `params`, `searchParams`, or `connection()` was accessed outside of `<Suspense>`.
+This delays the entire page from rendering, resulting in a slow user experience.
 ```
 
-This means a component accesses data that depends on the incoming request, but nothing tells Next.js how to handle it during prerendering. Common triggers include:
+This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. Common triggers:
 
-- Awaiting [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly in a Page component
+- Awaiting [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly in a Page or Layout
 - Calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)
 - Calling [`connection()`](/docs/app/api-reference/functions/connection)
+- Fetching data that isn't cached with [`'use cache'`](/docs/app/api-reference/directives/use-cache)
 
-For example, awaiting `params` directly blocks the entire response from being prerendered:
+For example, `await params` directly in a Page blocks the entire page from prerendering:
 
 ```tsx filename="app/products/[id]/page.tsx"
 export default async function Page({ params }) {
