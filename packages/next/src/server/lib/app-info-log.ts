@@ -152,14 +152,9 @@ export function warnIfMissingAgentRules(dir: string): void {
   }
 
   const command = cyan('npx @next/codemod@latest agents-md')
-  const docsHint = cyan('node_modules/next/dist/docs/')
-  const docsUrl = 'https://nextjs.org/docs/app/guides/ai-agents'
 
   Log.warn(
-    `No Next.js agent rules found in AGENTS.md or CLAUDE.md. AI coding agents ` +
-      `may rely on stale training data instead of the version-matched docs ` +
-      `bundled at ${docsHint}. Run ${command} to install the agent rules, ` +
-      `or see ${docsUrl}.`
+    `Next.js agent rules not installed. Run ${command} so AI coding agents read the bundled docs instead of stale training data.`
   )
 }
 
