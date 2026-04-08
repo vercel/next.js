@@ -581,6 +581,11 @@ jobs:
     env:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
       - name: Collect bytesize metrics
         uses: actions/download-artifact@v8
         with:

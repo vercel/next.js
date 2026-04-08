@@ -232,6 +232,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Report test results to datadog
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
       - name: Download test report artifacts
         uses: actions/download-artifact@v4
         with:
