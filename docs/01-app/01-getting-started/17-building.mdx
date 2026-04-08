@@ -112,7 +112,7 @@ This delays the entire page from rendering, resulting in a slow user experience.
 
 This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
-For example, `await params` directly in a Page blocks the entire page from prerendering:
+For example, `await params` in a Page without `generateStaticParams` blocks the entire page from prerendering, because the param values are not known at build time:
 
 ```tsx filename="app/products/[id]/page.tsx"
 export default async function Page({ params }) {
