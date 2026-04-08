@@ -69,7 +69,7 @@ describe('Production browser sourcemaps', () => {
       it('check sourcemaps for all browser files', async () => {
         const buildManifest = getBuildManifest(next.testDir)
 
-        for (let dir of ['static', 'immutable']) {
+        for (let dir of ['static', 'static/immutable']) {
           const chunksDir = path.join(next.testDir, '.next', dir, 'chunks')
           if (fs.existsSync(chunksDir)) {
             const browserFiles = await recursiveReadDir(chunksDir)
