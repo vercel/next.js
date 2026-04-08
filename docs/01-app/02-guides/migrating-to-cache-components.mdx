@@ -232,7 +232,7 @@ export default async function Page({ params }) {
 }
 ```
 
-> **Good to know:** `next build` may show **`◐` (Partial Prerender)** instead of **`○` (Static)** for these routes. That is normal under Cache Components; see [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) (and the [glossary](/docs/app/glossary#partial-prerendering-ppr)).
+> **Good to know:** With Cache Components, each listed param shows its own symbol in the [build output](/docs/app/guides/building) — `○` if the page is fully static, or `◐` if it contains streamed content. See [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) for more details.
 
 ## `runtime = 'edge'`
 
