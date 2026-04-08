@@ -1,11 +1,33 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { warnIfMissingAgentRules } from './app-info-log'
+import { warnIfMissingAgentRules, getAgentRulesDevError } from './app-info-log'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
-describe('warnIfMissingAgentRules', () => {
+// Clear every env var `detectAgent()` inspects so the base state is
+// "no agent detected" regardless of what the host has set.
+function clearAgentEnv() {
+  delete process.env.AI_AGENT
+  delete process.env.CURSOR_TRACE_ID
+  delete process.env.CURSOR_AGENT
+  delete process.env.GEMINI_CLI
+  delete process.env.CODEX_SANDBOX
+  delete process.env.CODEX_CI
+  delete process.env.CODEX_THREAD_ID
+  delete process.env.ANTIGRAVITY_AGENT
+  delete process.env.AUGMENT_AGENT
+  delete process.env.OPENCODE_CLIENT
+  delete process.env.CLAUDECODE
+  delete process.env.CLAUDE_CODE
+  delete process.env.CLAUDE_CODE_IS_COWORK
+  delete process.env.REPL_ID
+  delete process.env.COPILOT_MODEL
+  delete process.env.COPILOT_ALLOW_ALL
+  delete process.env.COPILOT_GITHUB_TOKEN
+}
+
+describe('warnIfMissingAgentRules (build-side warning)', () => {
   let tmpDir: string
   let warnSpy: jest.SpyInstance
   let originalEnv: NodeJS.ProcessEnv
@@ -16,25 +38,7 @@ describe('warnIfMissingAgentRules', () => {
     // jest.spyOn issues with `* as` namespace imports.
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
     originalEnv = { ...process.env }
-    // Clear every env var `detectAgent()` inspects so the base state is
-    // "no agent detected" regardless of what the host has set.
-    delete process.env.AI_AGENT
-    delete process.env.CURSOR_TRACE_ID
-    delete process.env.CURSOR_AGENT
-    delete process.env.GEMINI_CLI
-    delete process.env.CODEX_SANDBOX
-    delete process.env.CODEX_CI
-    delete process.env.CODEX_THREAD_ID
-    delete process.env.ANTIGRAVITY_AGENT
-    delete process.env.AUGMENT_AGENT
-    delete process.env.OPENCODE_CLIENT
-    delete process.env.CLAUDECODE
-    delete process.env.CLAUDE_CODE
-    delete process.env.CLAUDE_CODE_IS_COWORK
-    delete process.env.REPL_ID
-    delete process.env.COPILOT_MODEL
-    delete process.env.COPILOT_ALLOW_ALL
-    delete process.env.COPILOT_GITHUB_TOKEN
+    clearAgentEnv()
   })
 
   afterEach(() => {
@@ -53,8 +57,6 @@ describe('warnIfMissingAgentRules', () => {
     warnIfMissingAgentRules(tmpDir)
     expect(warnSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = warnSpy.mock.calls[0].join(' ')
-    // The warning must surface the install command so agents know how to
-    // fix it, not just that something is missing.
     expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
   })
 
@@ -67,8 +69,6 @@ describe('warnIfMissingAgentRules', () => {
     warnIfMissingAgentRules(tmpDir)
     expect(warnSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = warnSpy.mock.calls[0].join(' ')
-    // Even when a file exists, the warning must tell the user how to install
-    // the rules — not just that the marker is missing.
     expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
   })
 
@@ -80,5 +80,52 @@ describe('warnIfMissingAgentRules', () => {
     )
     warnIfMissingAgentRules(tmpDir)
     expect(warnSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('getAgentRulesDevError (dev-side hard gate)', () => {
+  let tmpDir: string
+  let originalEnv: NodeJS.ProcessEnv
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-dev-'))
+    originalEnv = { ...process.env }
+    clearAgentEnv()
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    process.env = originalEnv
+  })
+
+  it('returns null when no agent is detected (humans are never blocked)', () => {
+    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
+  })
+
+  it('returns null when --skip-agent-rule-check is passed, even with an agent and no rules', () => {
+    process.env.CLAUDECODE = '1'
+    expect(getAgentRulesDevError(tmpDir, { skip: true })).toBeNull()
+  })
+
+  it('returns null when the marker is installed in AGENTS.md', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
+  })
+
+  it('returns null when the marker is installed in CLAUDE.md', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
+  })
+
+  it('returns an error message when an agent is detected and rules are missing', () => {
+    process.env.CLAUDECODE = '1'
+    const error = getAgentRulesDevError(tmpDir, { skip: false })
+    expect(error).not.toBeNull()
+    // The error must carry both the install command (so agents can act) and
+    // the escape hatch flag (so users can bypass if they're in an edge case).
+    expect(error).toContain('npx @next/codemod@latest agents-md')
+    expect(error).toContain('--skip-agent-rule-check')
   })
 })

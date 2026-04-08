@@ -123,39 +123,60 @@ export function logExperimentalInfo({
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
 /**
- * Warn when the project is missing the Next.js agent rules in AGENTS.md or
- * CLAUDE.md.
- *
- * Next.js ships version-matched docs at `node_modules/next/dist/docs/` and
- * skills at `node_modules/next/dist/skills/`. `create-next-app` generates an
- * `AGENTS.md` with a marker that points AI coding agents at those bundled
- * resources so they don't rely on stale training data. If neither `AGENTS.md`
- * nor `CLAUDE.md` contains the marker while an AI coding agent is driving the
- * dev server, surface a hint so the agent knows to scaffold the file.
- *
- * Gated on `detectAgent()` so humans running `next dev` in a normal terminal
- * never see this.
+ * Returns true when `AGENTS.md` or `CLAUDE.md` in `dir` contains the
+ * Next.js-managed agent-rules marker. The marker is what tells AI coding
+ * agents to read the version-matched bundled docs instead of relying on
+ * stale training data.
+ */
+function hasAgentRulesInstalled(dir: string): boolean {
+  const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
+  const claudeMdContents = tryReadFile(path.join(dir, 'CLAUDE.md'))
+  return Boolean(
+    agentsMdContents?.includes(AGENT_RULES_MARKER) ||
+      claudeMdContents?.includes(AGENT_RULES_MARKER)
+  )
+}
+
+function baseAgentRulesMessage(): string {
+  const command = cyan('npx @next/codemod@latest agents-md')
+  return `Next.js agent rules not installed. Run ${command} so AI coding agents read the bundled docs instead of stale training data.`
+}
+
+/**
+ * Emit a warning at the end of `next build` when the agent rules are missing
+ * and an AI coding agent is driving the build. Never fails the build — CI
+ * pipelines should keep working. Humans never see this.
  */
 export function warnIfMissingAgentRules(dir: string): void {
   if (detectAgent() === null) {
     return
   }
-
-  const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
-  const claudeMdContents = tryReadFile(path.join(dir, 'CLAUDE.md'))
-
-  if (
-    agentsMdContents?.includes(AGENT_RULES_MARKER) ||
-    claudeMdContents?.includes(AGENT_RULES_MARKER)
-  ) {
+  if (hasAgentRulesInstalled(dir)) {
     return
   }
+  Log.warn(baseAgentRulesMessage())
+}
 
-  const command = cyan('npx @next/codemod@latest agents-md')
-
-  Log.warn(
-    `Next.js agent rules not installed. Run ${command} so AI coding agents read the bundled docs instead of stale training data.`
-  )
+/**
+ * Returns an error message when `next dev` should be blocked because the
+ * Next.js agent rules aren't installed, or `null` when the caller should
+ * proceed as normal. Gated on `detectAgent()` so humans never trip it. The
+ * `--skip-agent-rule-check` CLI flag bypasses the check entirely (for edge
+ * cases like an `AI_AGENT` env var leaking into a human shell).
+ *
+ * Unlike the build-side warning, this path exits the dev server so agents
+ * can't accidentally develop against a project that isn't scaffolded with
+ * the bundled-docs instructions.
+ */
+export function getAgentRulesDevError(
+  dir: string,
+  { skip }: { skip: boolean }
+): string | null {
+  if (skip) return null
+  if (detectAgent() === null) return null
+  if (hasAgentRulesInstalled(dir)) return null
+  const escape = cyan('--skip-agent-rule-check')
+  return `${baseAgentRulesMessage()} Pass ${escape} to \`next dev\` to bypass this check.`
 }
 
 function tryReadFile(filePath: string): string | null {
