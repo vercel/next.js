@@ -30,7 +30,7 @@ Running `next build` goes through these phases:
 
 ## Prerendering with Cache Components
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `cookies()`, or `headers()`) can't be resolved ahead of time. Next.js requires you to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache). If you don't, the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `searchParams`, `cookies()`, or `headers()`) can't be resolved ahead of time. Next.js requires you to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache). If you don't, the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
 
 Every route in the build output is either fully static (`○`) or partially prerendered (`◐`). [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model. The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
