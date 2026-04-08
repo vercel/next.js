@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "agents-md-monorepo-fixture-web",
   "dependencies": {
     "next": "16.2.0"
   }

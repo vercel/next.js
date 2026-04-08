@@ -151,22 +151,16 @@ export function warnIfMissingAgentRules(dir: string): void {
     return
   }
 
+  const command = cyan('npx @next/codemod@latest agents-md')
   const docsHint = cyan('node_modules/next/dist/docs/')
   const docsUrl = 'https://nextjs.org/docs/app/guides/ai-agents'
 
-  if (agentsMdContents === null && claudeMdContents === null) {
-    Log.warn(
-      `AGENTS.md not found. AI coding agents may rely on stale training data ` +
-        `instead of the version-matched docs bundled at ${docsHint}. ` +
-        `Run \`npx @next/codemod@latest agents-md\` to scaffold one, or see ${docsUrl}.`
-    )
-  } else {
-    Log.warn(
-      `AGENTS.md/CLAUDE.md is missing the \`${AGENT_RULES_MARKER}\` marker ` +
-        `that points AI coding agents at the version-matched docs in ${docsHint}. ` +
-        `See ${docsUrl}.`
-    )
-  }
+  Log.warn(
+    `No Next.js agent rules found in AGENTS.md or CLAUDE.md. AI coding agents ` +
+      `may rely on stale training data instead of the version-matched docs ` +
+      `bundled at ${docsHint}. Run ${command} to install the agent rules, ` +
+      `or see ${docsUrl}.`
+  )
 }
 
 function tryReadFile(filePath: string): string | null {

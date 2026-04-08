@@ -53,7 +53,23 @@ describe('warnIfMissingAgentRules', () => {
     warnIfMissingAgentRules(tmpDir)
     expect(warnSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = warnSpy.mock.calls[0].join(' ')
-    expect(loggedMessage).toContain('AGENTS.md not found')
+    // The warning must surface the install command so agents know how to
+    // fix it, not just that something is missing.
+    expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
+  })
+
+  it('warns when an agent is detected and AGENTS.md exists without the marker', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(
+      path.join(tmpDir, 'AGENTS.md'),
+      '# My Project\n\nCustom team rules.\n'
+    )
+    warnIfMissingAgentRules(tmpDir)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+    const loggedMessage = warnSpy.mock.calls[0].join(' ')
+    // Even when a file exists, the warning must tell the user how to install
+    // the rules — not just that the marker is missing.
+    expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
   })
 
   it('is silent when the marker appears in CLAUDE.md alone', () => {
