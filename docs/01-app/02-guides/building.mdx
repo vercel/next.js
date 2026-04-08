@@ -21,7 +21,15 @@ Running `next build` goes through these phases:
 
 ## Example
 
-As an example, we'll work with a product catalog that has a list page and dynamic product detail pages.
+As an example, we'll work with a product catalog. The app has a static list page at `/products` and a dynamic detail page at `/products/[id]` that fetches product data:
+
+```tsx filename="app/products/[id]/page.tsx"
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <div>{product.name}</div>
+}
+```
 
 We'll start by reading the build output, then pre-render specific product pages with `generateStaticParams`, and finally fix a prerender error using `--debug-prerender`.
 
