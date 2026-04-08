@@ -17,6 +17,7 @@ import {
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { scaffoldAgentRulesIfBundledDocs } from '../lib/agents-md'
 import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
@@ -422,7 +423,38 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
+  scaffoldAgentRulesPostUpgrade()
+
   endMessage(targetNextVersion)
+}
+
+/**
+ * After a successful upgrade, scaffold the `AGENTS.md` + `CLAUDE.md` agent
+ * rules if the newly-installed Next.js ships version-matched bundled docs.
+ * This mirrors what `create-next-app` does for new projects so existing
+ * projects pick up the scaffolding as a natural side effect of upgrading.
+ */
+function scaffoldAgentRulesPostUpgrade(): void {
+  const result = scaffoldAgentRulesIfBundledDocs(cwd)
+  if (result === null) {
+    return
+  }
+
+  const touched: string[] = []
+  if (result.agentsMd === 'created' || result.agentsMd === 'updated') {
+    touched.push('AGENTS.md')
+  }
+  if (result.claudeMd === 'created' || result.claudeMd === 'updated') {
+    touched.push('CLAUDE.md')
+  }
+  if (touched.length === 0) {
+    // Already up to date — nothing to announce.
+    return
+  }
+
+  console.log(
+    `${pc.green('✔')} Agent rules scaffolded in ${pc.bold(touched.join(' and '))} (pointing at ${pc.cyan(`${result.bundledDocsPath}/`)}).`
+  )
 }
 
 function getInstalledNextVersion(): string {
