@@ -156,6 +156,16 @@ This disables minification and enables source maps for server bundles, producing
 
 > **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
 
+#### Building specific routes
+
+In large applications, you can build only specific routes using `--debug-build-paths` to speed up debugging:
+
+```bash filename="Terminal"
+next build --debug-build-paths="app/products/[id]/page.tsx"
+```
+
+This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
+
 ## Next steps
 
 You now know how to read the build output, pre-render dynamic routes, and fix prerender errors.
