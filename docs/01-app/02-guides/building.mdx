@@ -55,6 +55,26 @@ This delays the entire page from rendering, resulting in a slow user experience.
 
 The param values are not known at build time, so Next.js can't prerender the page. We need to tell it how to handle the dynamic data. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
+#### Debugging prerender errors
+
+If the error doesn't point to the exact line, use `--debug-prerender`:
+
+```bash filename="Terminal"
+next build --debug-prerender
+```
+
+This disables minification and enables source maps for server bundles, producing readable stack traces that show which function triggered the error. It also continues past the first error so you can see all issues at once.
+
+> **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
+
+In large applications, you can build only specific routes using `--debug-build-paths` to speed up debugging:
+
+```bash filename="Terminal"
+next build --debug-build-paths="app/products/[id]/page.tsx"
+```
+
+This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
+
 ### Step 1: Resolve params with `generateStaticParams`
 
 The most direct fix is telling Next.js which param values exist. Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to resolve them at build time:
@@ -156,28 +176,6 @@ export default nextConfig
 ```
 
 This means you can keep `generateStaticParams` small and let traffic determine which additional pages get cached.
-
-#### Getting detailed stack traces
-
-When the error doesn't point to the exact line, use `--debug-prerender`:
-
-```bash filename="Terminal"
-next build --debug-prerender
-```
-
-This disables minification and enables source maps for server bundles, producing readable stack traces that show which function triggered the error. It also continues past the first error so you can see all issues at once.
-
-> **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
-
-#### Building specific routes
-
-In large applications, you can build only specific routes using `--debug-build-paths` to speed up debugging:
-
-```bash filename="Terminal"
-next build --debug-build-paths="app/products/[id]/page.tsx"
-```
-
-This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
 
 ### Next steps
 
