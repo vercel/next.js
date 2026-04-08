@@ -124,7 +124,7 @@ const API_DOCS: Record<
       'The `runtime` option controls the preferred runtime to render this route.',
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
-      '"edge"': 'Prefer the Edge runtime.',
+      '"edge"': `@deprecated\n\nThe Edge Runtime is deprecated. Use \`"nodejs"\` instead.`,
       '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
     } satisfies DocsOptionsObject<
       FullAppSegmentConfig['runtime'] | 'experimental-edge'
