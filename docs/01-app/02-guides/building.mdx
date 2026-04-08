@@ -98,6 +98,18 @@ Unlisted params (for example, `/products/99`) are server-rendered on the first r
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
+Routes that use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) also show `Revalidate` and `Expire` columns:
+
+```bash filename="Terminal"
+Route (app)                Revalidate  Expire
+┌ ○ /                             15m      1y
+├ ○ /_not-found
+├ /products/[id]
+│ ├ ○ /products/1                 15m      1y
+│ ├ ○ /products/2                 15m      1y
+│ └ ○ [+4 more paths]
+```
+
 ### Stream dynamic content with Suspense
 
 You may not have all param values ahead of time, or the page may have content that depends on the request (cookies, headers). In these cases, [stream](/docs/app/guides/streaming) the dynamic content with [`<Suspense>`](https://react.dev/reference/react/Suspense), or add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
