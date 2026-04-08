@@ -162,7 +162,9 @@ describe('should handle unresolved files gracefully', () => {
             const mediaCount = content.match(/\(\.\.\/media/g).length
             expect(mediaCount === 1 || mediaCount === 2).toBe(true)
           } else {
-            expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+            expect(
+              content.match(/\(\/_next\/static\/(immutable\/)?\/media/g).length
+            ).toBe(1)
           }
           const httpsCount = content.match(/\(https:\/\//g).length
           expect(httpsCount === 1 || httpsCount === 2).toBe(true)
