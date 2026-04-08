@@ -4893,6 +4893,7 @@ dependencies = [
  "styled_jsx",
  "swc_core",
  "swc_emotion",
+ "swc_plugin_backend_wasmtime",
  "swc_relay",
  "testing",
  "tracing",

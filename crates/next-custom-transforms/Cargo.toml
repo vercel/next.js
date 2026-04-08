@@ -77,4 +77,5 @@ preset_env_base = { workspace = true }
 testing = { workspace = true }
 # effectively enable the "plugin" feature for tests
 swc_core = { workspace = true, features = ["testing_transform", "__plugin_transform_host", "__plugin_transform_host_schema_v1"] }
+swc_plugin_backend_wasmtime = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = ["swc_ecma_transform_plugin"] }
