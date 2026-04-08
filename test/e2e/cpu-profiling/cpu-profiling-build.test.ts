@@ -23,7 +23,7 @@ describe('CPU Profiling - next build', () => {
   })
 
   it('should create CPU profile files after build', async () => {
-    const profileDir = join(next.testDir, '.next', 'cpu-profiles')
+    const profileDir = join(next.testDir, '.next-profiles')
 
     const profileDirExists = await pathExists(profileDir)
     expect(profileDirExists).toBe(true)
