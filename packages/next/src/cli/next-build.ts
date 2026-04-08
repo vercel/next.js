@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
 import { warn } from '../build/output/log'
+import { warnIfMissingAgentRules } from '../server/lib/app-info-log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -147,6 +148,15 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     resolvedBuildPaths,
     enabledFeatures
   )
+    .then((result) => {
+      // Fire the agent-rules warning as the very last line of `next build`
+      // output when an AI coding agent is driving the build. Tail-of-log
+      // recency means agents are much more likely to surface this than a
+      // warning buried early in the build pipeline. `warnIfMissingAgentRules`
+      // is already gated on `detectAgent()`, so humans never see it.
+      warnIfMissingAgentRules(dir)
+      return result
+    })
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
