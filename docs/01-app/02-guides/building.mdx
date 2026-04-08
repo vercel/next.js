@@ -120,7 +120,19 @@ async function ProductContent({ params }) {
 }
 ```
 
-The fallback is prerendered into the static shell. The content streams in at request time. The route shows as `◐` (Partial Prerender).
+The fallback is prerendered into the static shell. The content streams in at request time:
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ /products/[id]
+│ ├ ◐ /products/1
+│ ├ ◐ /products/2
+│ └ ◐ [+4 more paths]
+```
+
+The routes now show `◐` (Partial Prerender) because each page has a static shell with dynamic content that streams in at request time.
 
 You can combine both approaches: use `generateStaticParams` for known params and `<Suspense>` for dynamic content within the page.
 
@@ -143,7 +155,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-This means you can keep `generateStaticParams` small (or omit it entirely) and let traffic determine which pages get cached.
+This means you can keep `generateStaticParams` small and let traffic determine which additional pages get cached.
 
 #### Getting detailed stack traces
 
