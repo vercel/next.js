@@ -6,7 +6,7 @@ use std::{
     mem::take,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU32, Ordering},
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
     time::{Duration, Instant},
 };
 
@@ -858,7 +858,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // (A3) Compute the final sequence number that will be written to
             // CURRENT. A .del file is created only when there are files to
             // delete, which consumes one extra sequence number.
->>>>>>> 92d68435 (Defer inner mutation in commit() until after CURRENT is durable)
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
