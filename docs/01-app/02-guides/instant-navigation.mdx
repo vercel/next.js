@@ -21,8 +21,11 @@ This guide starts with a product page that navigates instantly, then shows how t
 
 A product page at `/store/[slug]` that fetches two things: product details (name, price) and live inventory. Product details rarely change, so they are cached with `use cache`. Inventory must be fresh and streams behind its own `<Suspense>` fallback:
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={1,12-19,25}
-export const unstable_instant = { prefetch: 'static' }
+```tsx filename="app/store/[slug]/page.tsx" highlight={1-3,14-21,27}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ params: { slug: 'example' } }],
+}
 
 import { Suspense } from 'react'
 
@@ -65,7 +68,9 @@ async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
 
 There is no `generateStaticParams`, so `[slug]` is a dynamic segment and `slug` is only known at request time. Awaiting `params` suspends, which is why each component that reads it has its own `<Suspense>` boundary. The `params` Promise is resolved inline with `.then()` so the cached `ProductInfo` receives a plain `slug` string.
 
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export on line 1 tells Next.js to validate that this page produces an instant [static shell](/docs/app/glossary#static-shell) at every possible entry point. Validation runs during development and at build time. If a component would block navigation, the error overlay tells you exactly which one and suggests a fix.
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export tells Next.js to validate that this page produces an instant [static shell](/docs/app/glossary#static-shell) at every possible entry point. Validation runs during development and at build time. If a component would block navigation, the error overlay tells you exactly which one and suggests a fix.
+
+This route has a `[slug]` param that can take any value. When running `next dev`, Next.js uses the actual request from your browser, so `slug` and other runtime data are available. During a build, there is no real request. The `samples` array gives the build example data to simulate navigations to this page. Here we provide a `slug` so the build can render the page and check that the Suspense boundaries are in the right place. If your code also reads `cookies`, `headers`, or `searchParams`, add those to the sample too. You can provide multiple samples to cover different code paths. The build will tell you if anything is missing.
 
 ### Inspect it with the Next.js DevTools
 
@@ -178,8 +183,11 @@ On an initial page load, the root Suspense catches the async work and streams th
 
 Add the `unstable_instant` export to surface the problem:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={1}
-export const unstable_instant = { prefetch: 'static' }
+```tsx filename="app/shop/[slug]/page.tsx" highlight={1-3}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ params: { slug: 'example' } }],
+}
 
 export default async function ProductPage({
   params,
@@ -212,8 +220,11 @@ Decide what to do with each fetch:
 
 The result is the same structure from the first section:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={1,12-19,25}
-export const unstable_instant = { prefetch: 'static' }
+```tsx filename="app/shop/[slug]/page.tsx" highlight={1-3,14-21,27}
+export const unstable_instant = {
+  prefetch: 'static',
+  samples: [{ params: { slug: 'example' } }],
+}
 
 import { Suspense } from 'react'
 
