@@ -7,7 +7,7 @@ const os = require('os')
 const { runAgentsMd } = require('../../bin/agents-md')
 const {
   getNextjsVersion,
-  hasBundledDocs,
+  findBundledDocsPath,
   AGENT_RULES_START_MARKER,
   AGENT_RULES_END_MARKER,
 } = require('../../lib/agents-md')
@@ -15,6 +15,10 @@ const {
 const BUNDLED_FIXTURE_DIR = path.join(
   __dirname,
   'fixtures/agents-md/next-bundled-docs'
+)
+const MONOREPO_FIXTURE_DIR = path.join(
+  __dirname,
+  'fixtures/agents-md/next-monorepo-bundled'
 )
 
 /**
@@ -338,26 +342,28 @@ This is my project documentation.
       }
     })
 
-    it('detects bundled docs via hasBundledDocs', () => {
-      expect(hasBundledDocs(fixtureProjectDir)).toBe(true)
-
-      // A project with no `next` installed at all should return false.
-      const bareDir = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'agents-md-bare-')
+    it('findBundledDocsPath returns the correct path for each project layout', () => {
+      // Flat layout (next installed at the project root) → relative path is
+      // the standard `node_modules/next/dist/docs`.
+      expect(findBundledDocsPath(fixtureProjectDir)).toBe(
+        'node_modules/next/dist/docs'
       )
+
+      // A project with no `next` installed at all should return null.
+      const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-bare-'))
       try {
-        expect(hasBundledDocs(bareDir)).toBe(false)
+        expect(findBundledDocsPath(bareDir)).toBeNull()
       } finally {
         fs.rmSync(bareDir, { recursive: true, force: true })
       }
 
-      // A project with `next` installed but no `dist/docs/` (e.g. 15.x)
-      // should also return false — this is the legacy-flow fork point.
+      // A project with `next` installed but no `dist/docs/` (e.g. 15.x) also
+      // returns null — this is the legacy-flow fork point.
       const legacyFixture = path.join(
         __dirname,
         'fixtures/agents-md/next-specific-version'
       )
-      expect(hasBundledDocs(legacyFixture)).toBe(false)
+      expect(findBundledDocsPath(legacyFixture)).toBeNull()
     })
 
     it('writes AGENTS.md + CLAUDE.md and skips .next-docs when bundled docs exist', async () => {
@@ -586,6 +592,62 @@ Footer content.
         process.chdir(originalCwd)
       }
     }, 30000)
+  })
+
+  describe('bundled docs fast path (monorepo)', () => {
+    let monorepoProjectDir
+
+    beforeEach(() => {
+      const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
+      monorepoProjectDir = path.join(
+        tmpBase,
+        `agents-md-monorepo-${Date.now()}-${(Math.random() * 1000) | 0}`
+      )
+      copyFixture(MONOREPO_FIXTURE_DIR, monorepoProjectDir)
+    })
+
+    afterEach(() => {
+      if (monorepoProjectDir && fs.existsSync(monorepoProjectDir)) {
+        fs.rmSync(monorepoProjectDir, { recursive: true, force: true })
+      }
+    })
+
+    it('findBundledDocsPath returns a workspace-relative path when next lives in a sub-package', () => {
+      // In the monorepo fixture, `next` is installed at
+      // `apps/web/node_modules/next/`, not at the root. The returned path
+      // must be relative to the monorepo root so an AGENTS.md at the root
+      // correctly points into the workspace package.
+      expect(findBundledDocsPath(monorepoProjectDir)).toBe(
+        'apps/web/node_modules/next/dist/docs'
+      )
+    })
+
+    it('writes AGENTS.md with a monorepo-relative docs path', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(monorepoProjectDir)
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdPath = path.join(monorepoProjectDir, 'AGENTS.md')
+        expect(fs.existsSync(agentsMdPath)).toBe(true)
+
+        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf-8')
+
+        // The block must reference the workspace-relative path, not the
+        // hardcoded `node_modules/next/dist/docs/` that's only correct for
+        // flat projects.
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(agentsMdContent).toContain(
+          '`apps/web/node_modules/next/dist/docs/`'
+        )
+        expect(agentsMdContent).not.toContain(
+          '`node_modules/next/dist/docs/`'
+        )
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
   })
 
   describe('getNextjsVersion', () => {

@@ -1,0 +1,7 @@
+{
+  "name": "next-monorepo-bundled",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ]
+}

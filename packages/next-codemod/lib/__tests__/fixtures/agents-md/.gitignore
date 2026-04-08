@@ -1,7 +1,9 @@
 # Allow node_modules in test fixtures
 !node_modules/
-# Allow dist/ under fixture node_modules (the bundled docs fixture ships a
-# fake next/dist/docs/ tree so `hasBundledDocs` has something to find). Path
-# is fully anchored so the root `.gitignore`'s unanchored `dist` rule loses.
+# Allow dist/ under fixture node_modules (the bundled docs fixtures ship fake
+# next/dist/docs/ trees so `findBundledDocsPath` has something to find). Paths
+# are fully anchored so the root `.gitignore`'s unanchored `dist` rule loses.
 !/next-bundled-docs/node_modules/next/dist/
 !/next-bundled-docs/node_modules/next/dist/**
+!/next-monorepo-bundled/apps/web/node_modules/next/dist/
+!/next-monorepo-bundled/apps/web/node_modules/next/dist/**

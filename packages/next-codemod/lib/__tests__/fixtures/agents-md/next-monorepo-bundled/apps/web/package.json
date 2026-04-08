@@ -1,0 +1,6 @@
+{
+  "name": "web",
+  "dependencies": {
+    "next": "16.2.0"
+  }
+}
