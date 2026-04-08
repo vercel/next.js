@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use tracing::trace_span;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
@@ -177,10 +178,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         task_id: TaskId,
         category: SpecificTaskDataCategory,
     ) -> Result<TaskStorage> {
-        if !self.backend.should_restore() {
-            // If we don't need to restore, we can just return an empty storage
-            return Ok(TaskStorage::default());
-        }
+        debug_assert!(
+            self.backend.should_restore(),
+            "restore_task_data called when should_restore() is false"
+        );
         let mut storage = TaskStorage::default();
         self.backend
             .backing_storage
@@ -193,12 +194,12 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Option<Vec<TaskStorage>>> {
+    ) -> Result<Vec<TaskStorage>> {
         debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
-        if !self.backend.should_restore() {
-            // If we don't need to restore, we return None
-            return Ok(None);
-        }
+        debug_assert!(
+            self.backend.should_restore(),
+            "restore_task_data_batch called when should_restore() is false"
+        );
         let result = self
             .backend
             .backing_storage
@@ -209,7 +210,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                     task_ids.len()
                 )
             })?;
-        Ok(Some(result))
+        Ok(result)
     }
 
     /// Waits for another thread's in-progress restore of a task to complete.
@@ -286,7 +287,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         call_prepared_task_callback_for_transient_tasks: bool,
-        _reason: &'static str,
+        reason: &'static str,
         mut prepared_task_callback: impl FnMut(
             &mut Self,
             TaskId,
@@ -294,24 +295,23 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
-        // Fast path: no backing storage to restore from — mark all tasks as restored
-        // and invoke callbacks directly, skipping the I/O pipeline.
+        let _span = trace_span!("prepare_tasks_with_callback", reason).entered();
+
+        // Fast path: no backing storage to restore from — all tasks should already
+        // have restored flags set at allocation time, so just invoke callbacks directly.
         if !self.backend.should_restore() {
             for (task_id, category) in task_ids {
                 self.task_lock_counter.acquire();
-                let mut task = self.backend.storage.access_mut(task_id);
-                if !task.flags.is_restored(category) {
-                    task.flags.set_restored(if task_id.is_transient() {
-                        TaskDataCategory::All
-                    } else {
-                        category
-                    });
-                }
+                let task = self.backend.storage.access_mut(task_id);
+                debug_assert!(
+                    task.flags.is_restored(category),
+                    "task {task_id} should already be marked restored when there is no backing \
+                     storage"
+                );
                 self.task_lock_counter.release();
                 if !task_id.is_transient() || call_prepared_task_callback_for_transient_tasks {
                     prepared_task_callback(self, task_id, category, task);
                 }
-                // else: task guard is dropped here
             }
             return;
         }
@@ -323,11 +323,14 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .into_iter()
             .filter(|&(id, category)| {
                 if id.is_transient() {
+                    // Transient tasks have restored flags set at allocation time,
+                    // so they never need DB restoration.
                     if call_prepared_task_callback_for_transient_tasks {
-                        let mut task = self.backend.storage.access_mut(id);
-                        if !task.flags.is_restored(category) {
-                            task.flags.set_restored(TaskDataCategory::All);
-                        }
+                        let task = self.backend.storage.access_mut(id);
+                        debug_assert!(
+                            task.flags.is_restored(category),
+                            "transient task {id} should already be marked restored"
+                        );
                         prepared_task_callback(self, id, category, task);
                     }
                     false
@@ -427,16 +430,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                     &tasks_to_restore_for_data,
                     SpecificTaskDataCategory::Data,
                 ) {
-                    Ok(Some(data)) => {
+                    Ok(data) => {
                         for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_data_indices)
                         {
                             tasks[idx].data_restore_result = Some(Ok(item));
-                        }
-                    }
-                    Ok(None) => {
-                        // should_restore() was false; treat as empty
-                        for &idx in &tasks_to_restore_for_data_indices {
-                            tasks[idx].data_restore_result = Some(Ok(TaskStorage::default()));
                         }
                     }
                     Err(e) => {
@@ -465,16 +462,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
                     &tasks_to_restore_for_meta,
                     SpecificTaskDataCategory::Meta,
                 ) {
-                    Ok(Some(data)) => {
+                    Ok(data) => {
                         for (item, &idx) in data.into_iter().zip(&tasks_to_restore_for_meta_indices)
                         {
                             tasks[idx].meta_restore_result = Some(Ok(item));
-                        }
-                    }
-                    Ok(None) => {
-                        // should_restore() was false; treat as empty
-                        for &idx in &tasks_to_restore_for_meta_indices {
-                            tasks[idx].meta_restore_result = Some(Ok(TaskStorage::default()));
                         }
                     }
                     Err(e) => {
@@ -572,13 +563,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         // immediately call the callback with the already-acquired write guard.
         if any_waiting {
             for entry in &tasks {
-                let wait_category = match (entry.wait_data, entry.wait_meta) {
-                    (true, true) => Some(TaskDataCategory::All),
-                    (true, false) => Some(TaskDataCategory::Data),
-                    (false, true) => Some(TaskDataCategory::Meta),
-                    (false, false) => None,
-                };
-                if let Some(cat) = wait_category {
+                if let Some(cat) = wait_category(entry.wait_data, entry.wait_meta) {
                     // Blocks (using shared read locks) until this task is fully restored.
                     // Returns the write guard so we call the callback without re-acquiring.
                     self.task_lock_counter.acquire();
@@ -596,9 +581,9 @@ struct TaskRestoreEntry {
     task_id: TaskId,
     category: TaskDataCategory,
     /// Result of restoring the data category (set in Phase 1b, consumed in Phase 1c).
-    data_restore_result: Option<anyhow::Result<TaskStorage>>,
+    data_restore_result: Option<Result<TaskStorage>>,
     /// Result of restoring the meta category (set in Phase 1b, consumed in Phase 1c).
-    meta_restore_result: Option<anyhow::Result<TaskStorage>>,
+    meta_restore_result: Option<Result<TaskStorage>>,
     /// Another thread claimed the data restore; we must wait in Phase 3.
     wait_data: bool,
     /// Another thread claimed the meta restore; we must wait in Phase 3.
@@ -607,6 +592,16 @@ struct TaskRestoreEntry {
     task_type: Option<Arc<CachedTaskType>>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
+}
+
+/// Combines per-category booleans into a single `TaskDataCategory` for waiting.
+fn wait_category(wait_data: bool, wait_meta: bool) -> Option<TaskDataCategory> {
+    match (wait_data, wait_meta) {
+        (true, true) => Some(TaskDataCategory::All),
+        (true, false) => Some(TaskDataCategory::Data),
+        (false, true) => Some(TaskDataCategory::Meta),
+        (false, false) => None,
+    }
 }
 
 /// Applies a restore I/O result to a task's in-memory state.
@@ -695,13 +690,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
 
                     // Wait for categories claimed by another thread (after our I/O).
                     // Reuse the returned write guard to avoid a second lock acquisition.
-                    let wait_category = match (data_restoring, meta_restoring) {
-                        (true, true) => Some(TaskDataCategory::All),
-                        (true, false) => Some(TaskDataCategory::Data),
-                        (false, true) => Some(TaskDataCategory::Meta),
-                        (false, false) => None,
-                    };
-                    task = if let Some(cat) = wait_category {
+                    task = if let Some(cat) = wait_category(data_restoring, meta_restoring) {
                         self.wait_for_restore_or_panic(task_id, cat)
                     } else {
                         self.backend.storage.access_mut(task_id)
@@ -849,23 +838,11 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
                 do_meta2.then(|| self.restore_task_data(task_id2, SpecificTaskDataCategory::Meta));
 
             // Wait for categories claimed by another thread (after our I/O, so they can overlap).
-            let wait_category1 = match (data1_restoring, meta1_restoring) {
-                (true, true) => Some(TaskDataCategory::All),
-                (true, false) => Some(TaskDataCategory::Data),
-                (false, true) => Some(TaskDataCategory::Meta),
-                (false, false) => None,
-            };
-            let wait_category2 = match (data2_restoring, meta2_restoring) {
-                (true, true) => Some(TaskDataCategory::All),
-                (true, false) => Some(TaskDataCategory::Data),
-                (false, true) => Some(TaskDataCategory::Meta),
-                (false, false) => None,
-            };
             // Returns write guards; drop them since we re-acquire via access_pair_mut below.
-            if let Some(cat) = wait_category1 {
+            if let Some(cat) = wait_category(data1_restoring, meta1_restoring) {
                 drop(self.wait_for_restore_or_panic(task_id1, cat));
             }
-            if let Some(cat) = wait_category2 {
+            if let Some(cat) = wait_category(data2_restoring, meta2_restoring) {
                 drop(self.wait_for_restore_or_panic(task_id2, cat));
             }
 
