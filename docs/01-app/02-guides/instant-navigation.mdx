@@ -17,7 +17,9 @@ With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config helps you place `<Suspense>` boundaries and `use cache` correctly. Add it to any page or layout and Next.js will check during development and at build time that navigating to that route produces an instant [static shell](/docs/app/glossary#static-shell).
 
-This guide starts with a product page that loads instantly on navigation, then shows how to catch and fix a page where a misplaced `<Suspense>` boundary causes the navigation to feel blocked, nothing visible changes until the server finishes rendering.
+This guide starts with a product page that loads instantly on navigation, then shows how to catch and fix a page where a misplaced `<Suspense>` boundary blocks the navigation, nothing visible changes until the server finishes rendering.
+
+> **Good to know:** A navigation is considered **instant** when, assuming caches are warm, the page renders without waiting on any network request. Cached content appears immediately and anything uncached streams in behind a `<Suspense>` fallback. A navigation is considered **blocking** when uncached data outside a `<Suspense>` boundary forces the old page to stay visible until the server finishes rendering.
 
 ## A page that navigates instantly
 
@@ -145,7 +147,7 @@ Inside the `instant()` callback, only the static shell is visible. After the cal
 
 There is no need to write an `instant()` test for every navigation. Build-time validation already provides the structural guarantee. Use `instant()` for the user flows that matter most.
 
-## Fixing a page that blocks
+## Fixing a navigation that blocks
 
 Now consider a different route, `/shop/[slug]`, that has the same data requirements but without local `<Suspense>` boundaries or caching:
 
@@ -186,7 +188,7 @@ export default function RootLayout({
 
 On an initial page load, the root `<Suspense>` catches the async work and streams the page in behind the `fallback`.
 
-Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared layout is `/shop` and only the content below it re-renders. The root `<Suspense>` boundary is above that layout and is not triggered for this navigation. The page fetches uncached data with no local boundary, leaving the old page visible until the server finishes rendering.
+Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared layout is `/shop` and only the content below it re-renders. The root `<Suspense>` boundary is above that layout and is not triggered for this navigation. The page fetches uncached data with no local boundary, blocking the navigation until the server finishes rendering.
 
 ### Step 1: Add instant validation
 
