@@ -1777,12 +1777,17 @@ export default async function loadConfig(
       throw err
     }
 
-    const loadedConfig = Object.freeze(
-      (await normalizeConfig(
-        phase,
-        interopDefault(userConfigModule)
-      )) as NextConfig
-    )
+    const configModule = interopDefault(userConfigModule)
+
+    const normalized = await normalizeConfig(phase, configModule)
+
+    // unwrap default if present
+    const finalNormalized =
+      normalized && typeof normalized === 'object' && 'default' in normalized
+        ? (normalized as any).default
+        : normalized
+
+    const loadedConfig = Object.freeze({ ...finalNormalized })
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
