@@ -28,6 +28,12 @@ Running `next build` goes through these phases:
 5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
 6. **Output.** Writes the final build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
 
+## Prerendering with Cache Components
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `cookies()`, or `headers()`) can't be resolved ahead of time. Next.js requires you to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache). If you don't, the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
+
+Every route in the build output is either fully static (`○`) or partially prerendered (`◐`). [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model. The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
+
 ## Example
 
 As an example, we'll work with a product catalog. We have a dynamic detail page at `/products/[id]` that fetches product data:
@@ -87,8 +93,6 @@ Each symbol tells you how a route is served:
 | ------ | ----------------- | ------------------------------------------------------------------------- |
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
-
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), every route is either fully static (`○`) or partially prerendered (`◐`). A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](/docs/app/guides/streaming) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
 The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request, then cached. Without [`partialFallbacks`](#high-cardinality-routes), the page has to resolve entirely without a fallback.
 
