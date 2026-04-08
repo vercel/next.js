@@ -78,10 +78,10 @@ Now `next build` succeeds and prints the route table:
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-├ ◐ /products/[id]
-├   ├ /products/1
-├   ├ /products/2
-├   └ /products/3
+├ /products/[id]
+│ ├ ○ /products/1
+│ ├ ○ /products/2
+│ └ ○ [+4 more paths]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -94,7 +94,7 @@ Each symbol tells you how a route is served:
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
 
-The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
+The listed params are resolved ahead of time. Each one shows its own symbol — `○` if the page is fully static, or `◐` if it contains streamed content. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
