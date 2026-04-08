@@ -8,7 +8,6 @@ const { runAgentsMd } = require('../../bin/agents-md')
 const {
   getNextjsVersion,
   findBundledDocsPath,
-  scaffoldAgentRulesIfBundledDocs,
   AGENT_RULES_START_MARKER,
   AGENT_RULES_END_MARKER,
 } = require('../../lib/agents-md')
@@ -648,80 +647,6 @@ Footer content.
       } finally {
         process.chdir(originalCwd)
       }
-    })
-  })
-
-  describe('scaffoldAgentRulesIfBundledDocs (shared with upgrade codemod)', () => {
-    // This helper is the single entry point both the standalone `agents-md`
-    // codemod and the `upgrade` codemod use to install agent rules as a
-    // side effect of an upgrade. Testing it here covers the upgrade path too
-    // without needing to run the real `runUpgrade` flow (which hits real
-    // package registries).
-
-    let fixtureProjectDir
-
-    beforeEach(() => {
-      const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
-      fixtureProjectDir = path.join(
-        tmpBase,
-        `agents-md-scaffold-${Date.now()}-${(Math.random() * 1000) | 0}`
-      )
-    })
-
-    afterEach(() => {
-      if (fixtureProjectDir && fs.existsSync(fixtureProjectDir)) {
-        fs.rmSync(fixtureProjectDir, { recursive: true, force: true })
-      }
-    })
-
-    it('returns null when no bundled docs are installed (legacy upgrade)', () => {
-      // Simulates upgrading to a Next.js version that predates bundled docs.
-      // The helper must no-op so the upgrade codemod doesn't break older flows.
-      copyFixture(
-        path.join(__dirname, 'fixtures/agents-md/next-specific-version'),
-        fixtureProjectDir
-      )
-      expect(scaffoldAgentRulesIfBundledDocs(fixtureProjectDir)).toBeNull()
-      expect(
-        fs.existsSync(path.join(fixtureProjectDir, 'AGENTS.md'))
-      ).toBe(false)
-      expect(
-        fs.existsSync(path.join(fixtureProjectDir, 'CLAUDE.md'))
-      ).toBe(false)
-    })
-
-    it('scaffolds AGENTS.md + CLAUDE.md and returns the write result on success', () => {
-      copyFixture(BUNDLED_FIXTURE_DIR, fixtureProjectDir)
-
-      const result = scaffoldAgentRulesIfBundledDocs(fixtureProjectDir)
-      expect(result).not.toBeNull()
-      expect(result.agentsMd).toBe('created')
-      expect(result.claudeMd).toBe('created')
-      expect(result.bundledDocsPath).toBe('node_modules/next/dist/docs')
-
-      const agentsMdContent = fs.readFileSync(
-        path.join(fixtureProjectDir, 'AGENTS.md'),
-        'utf-8'
-      )
-      expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
-    })
-
-    it('honors monorepo layouts when called from a workspace root', () => {
-      copyFixture(MONOREPO_FIXTURE_DIR, fixtureProjectDir)
-
-      const result = scaffoldAgentRulesIfBundledDocs(fixtureProjectDir)
-      expect(result).not.toBeNull()
-      expect(result.bundledDocsPath).toBe(
-        'apps/web/node_modules/next/dist/docs'
-      )
-
-      const agentsMdContent = fs.readFileSync(
-        path.join(fixtureProjectDir, 'AGENTS.md'),
-        'utf-8'
-      )
-      expect(agentsMdContent).toContain(
-        '`apps/web/node_modules/next/dist/docs/`'
-      )
     })
   })
 

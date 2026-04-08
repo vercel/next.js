@@ -183,27 +183,6 @@ export function writeBundledDocsAgentFiles(
 }
 
 /**
- * Composite helper: detect whether the installed Next.js ships bundled docs
- * and, if so, scaffold `AGENTS.md` + `CLAUDE.md` in one call. Returns `null`
- * when no bundled docs are found, so consumers can branch on the absence.
- *
- * Used by both the standalone `agents-md` codemod and the `upgrade` codemod,
- * which invokes it as a final step so existing projects pick up the agent
- * rules scaffolding as a natural side effect of upgrading to a version that
- * ships the bundled docs.
- */
-export function scaffoldAgentRulesIfBundledDocs(
-  cwd: string
-): (BundledDocsWriteResult & { bundledDocsPath: string }) | null {
-  const bundledDocsPath = findBundledDocsPath(cwd)
-  if (bundledDocsPath === null) {
-    return null
-  }
-  const result = writeBundledDocsAgentFiles(cwd, bundledDocsPath)
-  return { ...result, bundledDocsPath }
-}
-
-/**
  * Upsert the canonical agent-rules block into an existing file and return
  * whether the file actually changed.
  */
