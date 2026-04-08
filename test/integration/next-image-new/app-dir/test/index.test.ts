@@ -825,6 +825,11 @@ function runTests(mode: 'dev' | 'server') {
         expect(warnings).not.toMatch(
           /Image with src "\/test.png" has either width or height modified, but not the other./gm
         )
+        // Ensure no false positive when CSS preserves the aspect ratio
+        // (e.g. height: auto changes the dimension but keeps the ratio)
+        expect(warnings).not.toMatch(
+          /Image with src "\/super-wide.png" has either width or height modified, but not the other./gm
+        )
       }
     } finally {
       if (browser) {
