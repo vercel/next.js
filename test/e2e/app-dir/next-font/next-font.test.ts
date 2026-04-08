@@ -315,11 +315,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -340,11 +340,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -365,11 +365,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -390,11 +390,11 @@ describe('app dir - next/font', () => {
             expect(link.crossorigin).toBe('')
             if (process.env.IS_TURBOPACK_TEST) {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.(.*)\.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.(.*)\.woff2/
               )
             } else {
               expect(link.href).toMatch(
-                /\/_next\/static\/(immutable\/)?\/media\/(.*)-s.p.woff2/
+                /\/_next\/static\/(immutable\/)?media\/(.*)-s.p.woff2/
               )
             }
             expect(link.rel).toBe('preload')
@@ -443,11 +443,11 @@ describe('app dir - next/font', () => {
         const href = await preloadBeforeNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
           expect(href).toMatch(
-            /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.(.*)\.woff2/
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
           )
         } else {
           expect(href).toMatch(
-            /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.woff2/
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
           )
         }
 
@@ -463,11 +463,11 @@ describe('app dir - next/font', () => {
         const href2 = await preloadAfterNavigation[0].getAttribute('href')
         if (process.env.IS_TURBOPACK_TEST) {
           expect(href2).toMatch(
-            /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.(.*)\.woff2/
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
           )
         } else {
           expect(href2).toMatch(
-            /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.woff2/
+            /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
           )
         }
       })

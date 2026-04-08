@@ -299,5 +299,5 @@ function normalizeURL(text: string) {
       /media%2F([\w-]+).[0-9a-z_-]{4,}\.(png|jpe?g)/g,
       'media%2F$1.HASH.$2'
     )
-    .replace(/_next%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
 }

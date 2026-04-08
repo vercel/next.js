@@ -43,7 +43,7 @@ import { join } from 'path'
     }
 
     const expectedServer =
-      /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?\/media\/vercel\.[0-9a-z_-]+\.png<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?\/media\/vercel\.[0-9a-z_-]+\.png/
+      /Hello <!-- -->42<!-- -->\+<!-- -->42<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?media\/vercel\.[0-9a-z_-]+\.png<!-- -->\+<!-- -->\/_next\/static\/(immutable\/)?media\/vercel\.[0-9a-z_-]+\.png/
     const expectedClient = new RegExp(
       expectedServer.source.replace(/<!-- -->/g, '')
     )
@@ -84,7 +84,7 @@ import { join } from 'path'
             .elementByCss('#static-css')
             .getComputedCss('background-image')
         ).toMatch(
-          /^url\("http(s)?:\/\/.+\/_next\/static\/(immutable\/)?\/media\/vercel\.[0-9a-z_-]+\.png(?:\?.*)?"\)$/
+          /^url\("http(s)?:\/\/.+\/_next\/static\/(immutable\/)?media\/vercel\.[0-9a-z_-]+\.png(?:\?.*)?"\)$/
         )
       )
     })

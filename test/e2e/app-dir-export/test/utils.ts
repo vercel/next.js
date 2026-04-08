@@ -32,12 +32,12 @@ export const expectedWhenTrailingSlashTrue = [
   ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/(immutable\/)?\/media\/favicon\.[0-9a-z_-]+\.ico/
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
   expect.stringMatching(
-    /_next\/static\/(immutable\/)?\/media\/test\.[0-9a-z_-]+\.png/
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
   ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
@@ -117,12 +117,12 @@ const expectedWhenTrailingSlashFalse = [
   ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/(immutable\/)?\/media\/favicon\.[0-9a-z_-]+\.ico/
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
   expect.stringMatching(
-    /_next\/static\/(immutable\/)?\/media\/test\.[0-9a-z_-]+\.png/
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
   ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST

@@ -17,11 +17,11 @@ function hrefMatchesFontWithSizeAdjust(href: string) {
   if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
     )
   } else {
     expect(href).toMatch(
-      /\/_next\/static\/(immutable\/)?\/media\/(.*)-s\.p\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
     )
   }
 }
@@ -30,12 +30,10 @@ function hrefMatchesFontWithoutSizeAdjust(href: string) {
   if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/(immutable\/)?\/media\/(.*)\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)\.p\.(.*)\.woff2/
     )
   } else {
-    expect(href).toMatch(
-      /\/_next\/static\/(immutable\/)?\/media\/(.*)\.p\.woff2/
-    )
+    expect(href).toMatch(/\/_next\/static\/(immutable\/)?media\/(.*)\.p\.woff2/)
   }
 }
 

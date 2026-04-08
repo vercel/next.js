@@ -86,7 +86,7 @@ const runTests = (isDev: boolean) => {
       'width=device-width'
     )
     expect(normalizeURL((linkPreload.attribs as any).imagesrcset)).toMatch(
-      /%2F_next%2F(?:static|immutable)%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
+      /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })

@@ -293,5 +293,5 @@ describe('app dir - next-image', () => {
 function normalizeURL(text: string) {
   return text
     .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
-    .replace(/_next%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
 }
