@@ -4,7 +4,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingType, ChunkingTypeOption},
+    chunk::ChunkingType,
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
@@ -62,25 +62,24 @@ impl ModuleReference for FileSourceReference {
                 /* force_in_lookup_dir */ false,
             )
             .as_raw_module_result()
-            .resolve()
+            .to_resolved()
             .await?;
             check_and_emit_too_many_matches_warning(
-                result,
+                *result,
                 self.issue_source,
                 self.context_dir.clone(),
                 self.path,
             )
             .await?;
 
-            Ok(result)
+            Ok(*result)
         }
         .instrument(span)
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced)
     }
 }
 
@@ -207,8 +206,7 @@ impl ModuleReference for DirAssetReference {
         .await
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced)
     }
 }

@@ -16,6 +16,14 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
+/**
+ * Resolved form of the prefetchInlining config after normalization in
+ * config.ts. User input (true, partial objects) is converted to this shape.
+ */
+export type PrefetchInliningConfig =
+  | false
+  | { maxSize: number; maxBundleSize: number }
+
 export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
@@ -24,11 +32,17 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig
+  experimental: ExperimentalConfig & {
+    // Normalized by config.ts: true and partial objects become resolved objects
+    prefetchInlining?: PrefetchInliningConfig
+  }
   // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
+  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
+  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
+  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -382,7 +396,17 @@ export interface LightningCssFeatures {
 }
 
 export interface ExperimentalConfig {
-  adapterPath?: string
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
+
   appNewScrollHandler?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
@@ -405,9 +429,15 @@ export interface ExperimentalConfig {
    */
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
+  useOffline?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
-  prefetchInlining?: boolean
+  prefetchInlining?:
+    | boolean
+    | {
+        maxSize?: number
+        maxBundleSize?: number
+      }
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -504,6 +534,53 @@ export interface ExperimentalConfig {
   forceSwcTransforms?: boolean
 
   swcPlugins?: Array<[string, Record<string, unknown>]>
+
+  /**
+   * Additional options for SWC's preset-env (`env` configuration).
+   * These are merged into the `env` block that Next.js passes to SWC,
+   * alongside the browserslist-derived `targets`.
+   *
+   * See https://swc.rs/docs/configuration/supported-browsers for full details.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   experimental: {
+   *     swcEnvOptions: {
+   *       mode: 'usage',
+   *       coreJs: '3.38',
+   *     },
+   *   },
+   * }
+   * ```
+   */
+  swcEnvOptions?: {
+    /**
+     * Polyfill injection mode, matching Babel's `useBuiltIns`.
+     * - `'usage'`: Adds specific polyfill imports per file based on actual usage.
+     * - `'entry'`: Replaces a single `import 'core-js'` with only the polyfills
+     *   needed for the target browsers.
+     */
+    mode?: 'usage' | 'entry'
+    /** The core-js version to use (e.g. `'3.38'`). Required when `mode` is set. */
+    coreJs?: string
+    /** Core-js modules or SWC transform passes to skip. */
+    skip?: string[]
+    /** Core-js modules or SWC transform passes to always include. */
+    include?: string[]
+    /** Core-js modules or SWC transform passes to always exclude. */
+    exclude?: string[]
+    /** Enable shipped TC39 proposals. */
+    shippedProposals?: boolean
+    /** Force all transforms regardless of targets. */
+    forceAllTransforms?: boolean
+    /** Enable debug output for preset-env. */
+    debug?: boolean
+    /** Enable loose mode for transforms. */
+    loose?: boolean
+  }
+
   largePageDataBytes?: number
   /**
    * If set to `false`, webpack won't fall back to polyfill Node.js modules in the browser
@@ -551,9 +628,32 @@ export interface ExperimentalConfig {
   turbopackMemoryLimit?: number
 
   /**
-   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
+   * loaders, Babel, or PostCSS.
+   *
+   * This defaults to `'childProcesses'`, which creates a pool of child node.js
+   * processes and communciates with them over sockets.
+   *
+   * `'workerThreads'` should use less memory and CPU. It may become the default
+   * in a future version of Next.js.
+   *
+   * Node.js 24.13.1+ or 25.4.0+ is required for `'workerThreads'` due to memory
+   * safety bugs in older versions. If you use this option with an older Node.js
+   * version, the setting is ignored and a warning is emitted. Bun and Deno are
+   * assumed safe, and are not checked for compatibility.
+   *
+   * - Fix for memory safety issue: <https://github.com/nodejs/node/pull/55877>
+   * - Backported to 25.4.0: <https://github.com/nodejs/node/pull/61400>
+   * - Backported to 24.13.1: <https://github.com/nodejs/node/pull/61661>
+   *
+   * `'forceWorkerThreads'` behaves like `'workerThreads'` but skips the
+   * version-gated downgrade. You should not use this option unless you're
+   * confident that the version check in Next.js is wrong.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -658,6 +758,18 @@ export interface ExperimentalConfig {
    * for production.
    */
   turbopackModuleIds?: 'named' | 'deterministic'
+
+  /**
+   * Enable server-side Fast Refresh (Hot Module Replacement) during development
+   * with Turbopack. When set to `false`, server-side HMR is disabled and a full
+   * restart is performed on server file changes.
+   *
+   * Can also be controlled via the `--no-server-fast-refresh` CLI flag.
+   * If both are set, the CLI flag takes precedence.
+   *
+   * @default true
+   */
+  turbopackServerFastRefresh?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -898,8 +1010,16 @@ export interface ExperimentalConfig {
 
   /**
    * Enables the use of the `"use cache"` directive.
+   * @deprecated use top-level `cacheComponents` instead
    */
   useCache?: boolean
+
+  /**
+   * Use Node.js native streams instead of web streams for the App Router
+   * rendering pipeline on the Node.js runtime. This can improve performance
+   * by avoiding the overhead of web stream wrappers.
+   */
+  useNodeStreams?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -1022,18 +1142,6 @@ export interface ExperimentalConfig {
    * doesn't have to be unique per deployment.
    */
   immutableAssetToken?: string
-
-  /**
-   * Use 'no-cache' instead of 'no-store' in the Cache-Control header for development.
-   * This allows conditional requests to the server, which can help with development
-   * workflows that benefit from caching validation.
-   *
-   * When enabled, the Cache-Control header changes from 'no-store, must-revalidate'
-   * to 'no-cache, must-revalidate'.
-   *
-   * @default false
-   */
-  devCacheControlNoCache?: boolean
 
   /**
    * An array of paths in app or pages directories that should wait to be processed
@@ -1253,6 +1361,12 @@ export interface NextConfig {
    * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
+
+  /**
+   * Path to a custom adapter module for deployment platform integration.
+   * Can also be set via the `NEXT_ADAPTER_PATH` environment variable.
+   */
+  adapterPath?: string
 
   cacheHandlers?: {
     default?: string
@@ -1703,8 +1817,8 @@ export const defaultConfig = Object.freeze({
     remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
+  adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
     appNewScrollHandler: false,
     useSkewCookie: false,
     cssChunking: true,
@@ -1718,6 +1832,7 @@ export const defaultConfig = Object.freeze({
     cachedNavigations: false,
     partialFallbacks: false,
     dynamicOnHover: false,
+    useOffline: false,
     varyParams: false,
     prefetchInlining: false,
     preloadEntriesOnStart: true,
@@ -1796,7 +1911,6 @@ export const defaultConfig = Object.freeze({
     turbopackFileSystemCacheForBuild: false,
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    devCacheControlNoCache: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -1855,6 +1969,7 @@ export interface NextConfigRuntime {
   pageExtensions: NextConfigComplete['pageExtensions']
   useFileSystemPublicRoutes: NextConfigComplete['useFileSystemPublicRoutes']
   logging?: NextConfigComplete['logging']
+  adapterPath?: NextConfigComplete['adapterPath']
 
   experimental: Pick<
     NextConfigComplete['experimental'],
@@ -1863,13 +1978,13 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'useOffline'
     | 'optimisticRouting'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
-    | 'adapterPath'
     | 'allowedRevalidateHeaderKeys'
     | 'fetchCacheKeyPrefix'
     | 'isrFlushToDisk'
@@ -1895,11 +2010,11 @@ export interface NextConfigRuntime {
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
-    | 'devCacheControlNoCache'
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'immutableAssetToken'
+    | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -1930,16 +2045,13 @@ export function getNextConfigRuntime(
         serverActions: ex.serverActions,
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
+        useOffline: ex.useOffline,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         prefetchInlining: ex.prefetchInlining,
         authInterrupts: ex.authInterrupts,
         clientTraceMetadata: ex.clientTraceMetadata,
         clientParamParsingOrigins: ex.clientParamParsingOrigins,
-        // The full adapterPath might be non-deterministic across builds and doesn't actually matter
-        // at runtime, as it's only used to determine whether the adapter was used or not, not to
-        // execute it again. So replace it with a placeholder if it's set.
-        adapterPath: ex.adapterPath ? '<ommited but set>' : undefined,
         allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
         fetchCacheKeyPrefix: ex.fetchCacheKeyPrefix,
         isrFlushToDisk: ex.isrFlushToDisk,
@@ -1966,11 +2078,11 @@ export function getNextConfigRuntime(
         testProxy: ex.testProxy,
         runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
         maxPostponedStateSize: ex.maxPostponedStateSize,
-        devCacheControlNoCache: ex.devCacheControlNoCache,
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         immutableAssetToken: ex.immutableAssetToken,
+        useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,
@@ -2001,6 +2113,9 @@ export function getNextConfigRuntime(
     poweredByHeader: config.poweredByHeader,
     cacheHandler: config.cacheHandler,
     cacheHandlers: config.cacheHandlers,
+    // The full adapterPath might be non-deterministic across builds and doesn't
+    // actually matter at runtime, so replace it with a placeholder if it's set.
+    adapterPath: config.adapterPath ? '<omitted but set>' : undefined,
     cacheMaxMemorySize: config.cacheMaxMemorySize,
     compress: config.compress,
     i18n: config.i18n,

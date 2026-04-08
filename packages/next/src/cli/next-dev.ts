@@ -55,7 +55,7 @@ export type NextDevOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -185,7 +185,7 @@ const nextDev = async (
 
   if (options.experimentalCpuProf) {
     Log.info(
-      `CPU profiling enabled. Profile will be saved to .next/cpu-profiles/ on exit (Ctrl+C).`
+      `CPU profiling enabled. Profile will be saved to .next-profiles/ on exit (Ctrl+C).`
     )
   }
 
@@ -249,7 +249,7 @@ const nextDev = async (
 
   const enabledFeatures = Object.fromEntries(
     Object.entries({
-      experimentalServerFastRefresh: options.experimentalServerFastRefresh,
+      serverFastRefreshDisabled: options.serverFastRefresh === false,
       experimentalCpuProf: options.experimentalCpuProf,
     }).filter(([_, value]) => value)
   )
@@ -269,7 +269,7 @@ const nextDev = async (
     allowRetry,
     isDev: true,
     hostname: host,
-    experimentalServerFastRefresh: options.experimentalServerFastRefresh,
+    serverFastRefresh: options.serverFastRefresh,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')
@@ -336,7 +336,7 @@ const nextDev = async (
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS: formattedNodeOptions,
           // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
-          // This limits the number of watchers to mitigate the issue.
+          // This limits the number of watchers x mitigate the issue.
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
@@ -344,7 +344,7 @@ const nextDev = async (
           ...(options.experimentalCpuProf
             ? {
                 NEXT_CPU_PROF: '1',
-                NEXT_CPU_PROF_DIR: path.join(dir, '.next', 'cpu-profiles'),
+                NEXT_CPU_PROF_DIR: path.join(dir, '.next-profiles'),
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
             : undefined),
@@ -390,6 +390,10 @@ const nextDev = async (
               sync: true,
             })
           }
+
+          // Reset the start time so "Ready in X" reflects the restart
+          // duration, not time since the original process started.
+          process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
           return startServer({ ...startServerOptions, port })
         }

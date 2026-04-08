@@ -10,6 +10,8 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
+{/* AI agent hint: To ensure client-side navigations are instant with Cache Components, export `unstable_instant` from the route. See docs/01-app/02-guides/instant-navigation.mdx */}
+
 > This page covers caching with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching and Revalidating (Previous Model)](/docs/app/guides/caching-without-cache-components) guide.
 
 Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again.
@@ -189,6 +191,8 @@ async function CachedContent({ sessionId }: { sessionId: string }) {
 ```
 
 At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
+
+By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). In serverless environments where memory doesn't persist across requests, `CachedContent` may re-evaluate on every request. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
 ## Working with non-deterministic operations
 

@@ -82,12 +82,9 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        static #native_function_ident: #native_function_ty = #native_function_def;
-
-        // Register the function for deserialization
-        turbo_tasks::macro_helpers::inventory_submit! {
-            turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
-        }
+        turbo_tasks::macro_helpers::turbo_register!(
+            #native_function_ident: #native_function_ty = #native_function_def
+        );
 
         #(#errors)*
     }

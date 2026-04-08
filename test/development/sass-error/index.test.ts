@@ -4,7 +4,6 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },
@@ -37,6 +36,11 @@ describe('app dir - css', () => {
              48 |
 
            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
+
+           Generated code of PostCSS transform of loaders [next/dist/build/webpack/loaders/resolve-url-loader/index, next/dist/compiled/sass-loader] transform of file content of app/global.scss:
+           ./app/global.scss.css:1:884
+           > 1 | ...ate(-50%, 0px)}input.defaultCheckbox::before path{fill:currentColor}input:checked.defaul...
+               |                                                ^
 
            Import trace:
              Client Component Browser:

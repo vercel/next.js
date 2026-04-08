@@ -1,4 +1,3 @@
-#![feature(future_join)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
@@ -27,4 +26,3 @@ pub mod routes_hashes_manifest;
 mod server_actions;
 mod sri_manifest;
 mod versioned_content_map;
-mod webpack_stats;

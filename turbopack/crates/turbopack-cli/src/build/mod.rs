@@ -6,23 +6,28 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
+use either::Either;
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{
+    Effects, OperationVc, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc,
+    take_effects,
+};
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
+    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_unix_path::join_path;
 use turbopack::global_module_ids::get_global_module_id_strategy;
-use turbopack_browser::{BrowserChunkingContext, ContentHashing, CurrentChunkMethod};
+use turbopack_browser::{BrowserChunkingContext, CurrentChunkMethod};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, MangleType,
-        MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
+        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -55,7 +60,7 @@ use crate::{
     },
 };
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
+type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
 
 pub struct TurbopackBuildBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -142,7 +147,7 @@ impl TurbopackBuildBuilder {
     pub async fn build(self) -> Result<()> {
         self.turbo_tasks
             .run_once(async move {
-                let build_result_op = build_internal(
+                let wrapper_op = extract_effects_operation(build_internal(
                     self.project_dir.clone(),
                     self.root_dir,
                     self.entry_requests.clone(),
@@ -151,12 +156,12 @@ impl TurbopackBuildBuilder {
                     self.minify_type,
                     self.target,
                     self.scope_hoist,
-                );
+                ));
 
-                // Await the result to propagate any errors.
-                build_result_op.read_strongly_consistent().await?;
+                // Await the result to propagate any errors and capture effects.
+                let effects = wrapper_op.read_strongly_consistent().await?;
 
-                apply_effects(build_result_op).await?;
+                effects.apply().await?;
 
                 let issue_reporter: Vc<Box<dyn IssueReporter>> =
                     Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
@@ -167,19 +172,18 @@ impl TurbopackBuildBuilder {
                         log_level: self.log_level,
                     })));
 
-                handle_issues(
-                    build_result_op,
-                    issue_reporter,
-                    IssueSeverity::Error,
-                    None,
-                    None,
-                )
-                .await?;
+                handle_issues(wrapper_op, issue_reporter, IssueSeverity::Error, None, None).await?;
 
                 Ok(())
             })
             .await
     }
+}
+
+#[turbo_tasks::function(operation)]
+async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
+    let _ = op.resolve().strongly_consistent().await?;
+    Ok(take_effects(op).await?.cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -375,7 +379,8 @@ async fn build_internal(
                                 ..Default::default()
                             },
                         )
-                        .use_content_hashing(ContentHashing::Direct { length: 16 })
+                        .chunk_content_hashing(ContentHashing::Direct { length: 13 })
+                        .asset_content_hashing(ContentHashing::Direct { length: 13 })
                         .nested_async_availability(true)
                         .module_merging(scope_hoist);
                 }
@@ -522,14 +527,57 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            dependency_tracking: false,
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = true; // build sessions are always short
+
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) =
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: false,
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            Either::Left(backing_storage),
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "warn  - Turbopack cache was invalidated{}",
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                dependency_tracking: false,
+                storage_mode: None,
+                ..Default::default()
+            },
+            Either::Right(noop_backing_storage()),
+        ))
+    };
 
     let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
         .log_detail(args.common.log_detail)

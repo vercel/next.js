@@ -74,11 +74,14 @@ export async function instant<T>(
   // navigation-testing-lock.ts, which acquires the in-memory navigation lock.
   const { hostname } = new URL(resolveURL(page, options))
   await step('Acquire Instant Lock', () =>
-    page
-      .context()
-      .addCookies([
-        { name: INSTANT_COOKIE, value: '[0]', domain: hostname, path: '/' },
-      ])
+    page.context().addCookies([
+      {
+        name: INSTANT_COOKIE,
+        value: JSON.stringify([0, `p${Math.random()}`]),
+        domain: hostname,
+        path: '/',
+      },
+    ])
   )
   try {
     return await fn()

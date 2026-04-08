@@ -9,4 +9,6 @@ module.exports = {
       ? `imm-${process.env.IMMUTABLE_ASSET_TOKEN}`
       : undefined,
   },
+  adapterPath:
+    process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
 }

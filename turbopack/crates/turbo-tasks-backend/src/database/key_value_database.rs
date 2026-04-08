@@ -12,13 +12,39 @@ pub enum KeySpace {
     TaskCache = 3,
 }
 impl KeySpace {
+    /// Constructs a [`KeySpace`] from its numeric index (i.e., the `usize` discriminant).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `i` is out of range (i.e., `>= FAMILIES`).
+    pub const fn from_index(i: usize) -> Self {
+        match i {
+            0 => KeySpace::Infra,
+            1 => KeySpace::TaskMeta,
+            2 => KeySpace::TaskData,
+            3 => KeySpace::TaskCache,
+            _ => panic!("KeySpace index out of range"),
+        }
+    }
+
+    const fn name(&self) -> &'static str {
+        match self {
+            KeySpace::Infra => "Infra",
+            KeySpace::TaskMeta => "TaskMeta",
+            KeySpace::TaskData => "TaskData",
+            KeySpace::TaskCache => "TaskCache",
+        }
+    }
+
     /// Returns the persistence configuration for this keyspace.
     pub const fn family_config(&self) -> FamilyConfig {
         match self {
             KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+                name: self.name(),
                 kind: FamilyKind::SingleValue,
             },
             KeySpace::TaskCache => FamilyConfig {
+                name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
             },
@@ -80,6 +106,14 @@ pub trait KeyValueDatabase {
     /// this to leave the database in a half-updated and corrupted state.
     fn prevent_writes(&self) {
         // this is an optional performance hint to the database
+    }
+
+    /// Triggers compaction of the database.
+    ///
+    /// Returns `Ok(true)` if compaction actually merged files, `Ok(false)` if there was nothing
+    /// to compact. The default implementation is a no-op.
+    fn compact(&self) -> Result<bool> {
+        Ok(false)
     }
 
     fn shutdown(&self) -> Result<()> {

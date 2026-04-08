@@ -25,7 +25,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
-use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_css::{CssModule, EcmascriptCssModule};
 
 use crate::{
     client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
@@ -76,7 +76,7 @@ impl NextDynamicGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -274,7 +274,7 @@ impl ServerActionsGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -452,7 +452,7 @@ impl ClientReferencesGraphs {
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
         let result_op = Self::new_operation(graphs, is_single_page);
         let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let result_vc = result_op.resolve().strongly_consistent().await?;
             result_op.drop_collectibles::<Box<dyn Issue>>();
             *result_vc
         } else {
@@ -809,16 +809,15 @@ async fn validate_pages_css_imports_individual(
 
             // If the module being imported isn't a global css module, there is nothing to
             // validate.
-            let module_is_global_css =
-                ResolvedVc::try_downcast_type::<CssModuleAsset>(module).is_some();
+            let module_is_global_css = ResolvedVc::try_downcast_type::<CssModule>(module).is_some();
 
             if !module_is_global_css {
                 return Ok(GraphTraversalAction::Continue);
             }
 
             let parent_is_css_module =
-                ResolvedVc::try_downcast_type::<ModuleCssAsset>(parent_module).is_some()
-                    || ResolvedVc::try_downcast_type::<CssModuleAsset>(parent_module).is_some();
+                ResolvedVc::try_downcast_type::<EcmascriptCssModule>(parent_module).is_some()
+                    || ResolvedVc::try_downcast_type::<CssModule>(parent_module).is_some();
 
             // We also always allow .module css/scss/sass files to import global css files as
             // well.

@@ -199,6 +199,15 @@ module.exports = {
 }
 ```
 
+### CSS / Sass / SCSS decimal precision
+
+Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightning CSS uses 5 digits of decimal precision for numeric CSS values, while webpack uses 10 digits. This applies to both plain CSS and Sass/SCSS output. For example, a value that evaluates to `25/17` produces:
+
+- **Webpack:** `line-height: 1.4705882353` (10 digits)
+- **Turbopack:** `line-height: 1.47059` (5 digits)
+
+This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
+
 ### Build Caching
 
 Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to improve build performance. Turbopack provides a similar feature, currently in beta. Starting with Next 16, you can enable Turbopack’s filesystem cache by setting the following experimental flags:
@@ -234,7 +243,6 @@ Some features are not yet implemented or not planned:
   Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
 - **Some Next.js Experimental Flags**
   - `experimental.nextScriptWorkers`
-  - `experimental.sri.algorithm`
   - `experimental.fallbackNodePolyfills`
     We plan to implement these in the future.
 
@@ -296,9 +304,7 @@ If you encounter performance or memory issues and want to help the Next.js team 
 NEXT_TURBOPACK_TRACING=1 next dev
 ```
 
-This will produce a `.next/dev/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
-
-By default the development server outputs to `.next/dev`.
+This will produce a `.next-profiles/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
 
 ## Summary
 

@@ -1,8 +1,5 @@
-#![feature(box_patterns)]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(map_try_insert)]
-#![feature(hash_set_entry)]
 #![recursion_limit = "256"]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -43,7 +40,7 @@ use turbopack_core::{
     source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::{CssModuleAsset, ModuleCssAsset};
+use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     EcmascriptOptions, TreeShakingMode,
@@ -215,10 +212,10 @@ async fn apply_module_type(
                                     ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
                                                     *module,
                                                 ))
-                                                .resolve()
+                                                .to_resolved()
                                                 .await?,
                                             ),
                                             part.clone(),
@@ -249,7 +246,7 @@ async fn apply_module_type(
             ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
         }
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
+            EcmascriptCssModule::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
@@ -259,7 +256,7 @@ async fn apply_module_type(
             environment,
             lightningcss_features,
         } => ResolvedVc::upcast(
-            CssModuleAsset::new(
+            CssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
@@ -436,10 +433,10 @@ impl ModuleAssetContext {
             return Ok(self);
         }
         let this = self.await?;
-        let resolve_options_context = this
+        let resolve_options_context = *this
             .resolve_options_context
             .with_types_enabled()
-            .resolve()
+            .to_resolved()
             .await?;
 
         Ok(ModuleAssetContext::new(
@@ -716,7 +713,7 @@ async fn process_default_internal(
             *execution_context,
             Some(import_map),
             None,
-            Layer::new(rcstr!("turbopack_use_loaders")),
+            Layer::new(rcstr!("webpack_loaders")),
             false,
         )
         .to_resolved()
@@ -743,7 +740,10 @@ async fn process_default_internal(
         .await?;
 
         let transforms = Vc::<SourceTransforms>::cell(vec![ResolvedVc::upcast(webpack_loaders)]);
-        current_source = transforms.transform(*current_source).to_resolved().await?;
+        current_source = transforms
+            .transform(*current_source, Vc::upcast(module_asset_context))
+            .to_resolved()
+            .await?;
 
         // If turbopackModuleType is specified, skip rule matching and directly
         // apply the requested module type with empty transforms (loader output
@@ -773,7 +773,10 @@ async fn process_default_internal(
                     .await;
                 }
                 ModuleRuleEffect::SourceTransforms(transforms) => {
-                    current_source = transforms.transform(*current_source).to_resolved().await?;
+                    current_source = transforms
+                        .transform(*current_source, Vc::upcast(module_asset_context))
+                        .to_resolved()
+                        .await?;
                     // Fall through to re-process with new ident
                 }
                 _ => bail!("Unexpected module rule effect for turbopackModuleType"),
@@ -829,8 +832,10 @@ async fn process_default_internal(
                         return Ok(ProcessResult::Ignore.cell());
                     }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
-                        current_source =
-                            transforms.transform(*current_source).to_resolved().await?;
+                        current_source = transforms
+                            .transform(*current_source, Vc::upcast(module_asset_context))
+                            .to_resolved()
+                            .await?;
                         if current_source.ident().to_resolved().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
@@ -1009,7 +1014,7 @@ impl AssetContext for ModuleAssetContext {
             resolve_options,
         );
 
-        let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
+        let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
             let types_result = type_resolve(

@@ -14,7 +14,8 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size = ["dep:lzzzz"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
 verify_serialization = []
@@ -57,6 +58,7 @@ turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+thread_local = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

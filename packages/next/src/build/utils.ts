@@ -80,7 +80,7 @@ import type {
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
 import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
 
@@ -162,7 +162,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
@@ -667,6 +667,7 @@ export async function isPageStatic({
   cacheHandlers,
   cacheLifeProfiles,
   pprConfig,
+  partialFallbacksEnabled,
   buildId,
   clientAssetToken,
   sriEnabled,
@@ -694,6 +695,7 @@ export async function isPageStatic({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacksEnabled: boolean
   buildId: string
   clientAssetToken: string
   sriEnabled: boolean
@@ -834,7 +836,7 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        const route = parseAppRoute(page, true)
+        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
@@ -857,6 +859,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              partialFallbacksEnabled,
               buildId,
               rootParamKeys,
             }))

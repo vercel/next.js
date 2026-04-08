@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -32,7 +31,7 @@ pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
-pub(crate) mod transform;
+pub mod transform;
 pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
@@ -78,8 +77,8 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
+    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -597,7 +596,7 @@ async fn determine_module_type_for_directory(
     context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
-        find_context_file(context_path, package_json().resolve().await?, false).await?;
+        find_context_file(context_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
@@ -822,8 +821,9 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
             let async_module_options = self.get_async_module().module_options(async_module_info);
             let content = self.module_content(chunking_context, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
-                .resolve()
+                .to_resolved()
                 .await
+                .map(|r| *r)
         }
         .instrument(span)
         .await
@@ -1000,9 +1000,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -1890,7 +1890,7 @@ async fn process_parse_result(
                     .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -1918,7 +1918,7 @@ async fn process_parse_result(
                             .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),

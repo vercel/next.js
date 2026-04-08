@@ -1,15 +1,14 @@
 import type {
   TreePrefetch,
   RootTreePrefetch,
-  SegmentPrefetch,
-  InlinedPrefetchResponse,
-  InlinedSegmentPrefetch,
+  SegmentPrefetchResponse,
 } from '../../../server/app-render/collect-segment-data'
 import type {
   CacheNodeSeedData,
   FlightData,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 import {
   readVaryParams,
   type VaryParams,
@@ -99,15 +98,12 @@ import {
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
 } from '../../flight-data-helpers'
-import {
-  DYNAMIC_STALETIME_MS,
-  STATIC_STALETIME_MS,
-} from '../router-reducer/reducers/navigate-reducer'
+import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
-import { readFromBFCacheDuringRegularNavigation } from './bfcache'
+import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
 import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
@@ -289,11 +285,27 @@ export type NonEmptySegmentCacheEntry = Exclude<
   EmptySegmentCacheEntry
 >
 
+/**
+ * A linked list of segment cache entries to fulfill from a single prefetch
+ * response. The head is the requested segment; subsequent nodes are parent
+ * segments whose data is bundled into the same response by the server.
+ *
+ * When segments are not bundled, the list has a single node. The list
+ * maps 1:1 to the data array in the SegmentPrefetchResponse the server returns.
+ */
+export type SegmentBundle = {
+  // Null when the segment has prefetching disabled (instant = false).
+  // The bundle chain passes through it but no cache entry is created.
+  tree: RouteTree | null
+  entry: SegmentCacheEntry | null
+  parent: SegmentBundle | null
+}
+
 const isOutputExportMode =
   process.env.NODE_ENV === 'production' &&
   process.env.__NEXT_CONFIG_OUTPUT === 'export'
 
-const MetadataOnlyRequestTree: FlightRouterState = [
+export const MetadataOnlyRequestTree: FlightRouterState = [
   '',
   {},
   null,
@@ -455,7 +467,7 @@ export function readRouteCacheEntry(
   // No cache hit. Attempt to construct from template using the new
   // optimistic routing mechanism (pattern-based matching).
   if (process.env.__NEXT_OPTIMISTIC_ROUTING) {
-    return matchKnownRoute(key.pathname, key.search)
+    return matchKnownRoute(now, key.pathname, key.search)
   }
 
   return null
@@ -951,23 +963,20 @@ export function attemptToFulfillDynamicSegmentFromBFCache(
   // regular navigation.
   const varyPath = tree.varyPath
 
-  // The stale time for dynamic prefetches (default: 5 mins) is different from
-  // the stale time for regular navigations (default: 0 secs). We adjust the
-  // current timestamp to account for the difference.
-  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
-  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-    adjustedCurrentTime,
-    varyPath
-  )
+  // Read from the BFCache without expiring it (pass -1). We check freshness
+  // ourselves using navigatedAt, because the BFCache's staleAt may have been
+  // overridden by a per-page unstable_dynamicStaleTime and can't be used to
+  // derive the original request time.
+  const bfcacheEntry = readFromBFCache(varyPath)
   if (bfcacheEntry !== null) {
-    // Fulfill the prefetch using the bfcache entry.
-
-    // As explained above, the stale time of this prefetch entry is different
-    // than the one for the bfcache. Calculate when it was originally requested
-    // by subtracting the stale time used by the bfcache.
-    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
-    // Now add the stale time used by dynamic prefetches.
-    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+    // The stale time for dynamic prefetches (default: 5 mins) is different
+    // from the stale time for regular navigations (default: 0 secs). Use
+    // navigatedAt to compute the correct expiry for prefetch purposes.
+    const dynamicPrefetchStaleAt =
+      bfcacheEntry.navigatedAt + STATIC_STALETIME_MS
+    if (now > dynamicPrefetchStaleAt) {
+      return null
+    }
 
     const pendingSegment = upgradeToPendingSegment(segment, FetchStrategy.Full)
     const isPartial = false
@@ -992,14 +1001,13 @@ export function attemptToUpgradeSegmentFromBFCache(
   tree: RouteTree
 ): FulfilledSegmentCacheEntry | null {
   const varyPath = tree.varyPath
-  const adjustedCurrentTime = now - STATIC_STALETIME_MS + DYNAMIC_STALETIME_MS
-  const bfcacheEntry = readFromBFCacheDuringRegularNavigation(
-    adjustedCurrentTime,
-    varyPath
-  )
+  const bfcacheEntry = readFromBFCache(varyPath)
   if (bfcacheEntry !== null) {
-    const requestedAt = bfcacheEntry.staleAt - DYNAMIC_STALETIME_MS
-    const dynamicPrefetchStaleAt = requestedAt + STATIC_STALETIME_MS
+    const dynamicPrefetchStaleAt =
+      bfcacheEntry.navigatedAt + STATIC_STALETIME_MS
+    if (now > dynamicPrefetchStaleAt) {
+      return null
+    }
     const pendingSegment = upgradeToPendingSegment(
       createDetachedSegmentCacheEntry(now),
       FetchStrategy.Full
@@ -1077,7 +1085,17 @@ export function fulfillRouteCacheEntry(
   // Always use the static stale time.
   // NOTE: An exception is rewrites/redirects in middleware or proxy, which can
   // change routes dynamically. We have other strategies for handling those.
-  fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
+  //
+  // If the route tree has stale inlining hints (e.g. the initial RSC payload
+  // for a build-time static page, generated before collectPrefetchHints ran),
+  // immediately expire the entry so it gets re-fetched with correct hints.
+  // The segment data itself is still valid — only the route tree (which
+  // contains the hint bits) needs to be re-fetched.
+  if (tree.prefetchHints & PrefetchHint.InliningHintsStale) {
+    fulfilledEntry.staleAt = -1
+  } else {
+    fulfilledEntry.staleAt = now + STATIC_STALETIME_MS
+  }
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
@@ -1689,7 +1707,13 @@ export async function fetchRouteOnCacheMiss(
     const couldBeIntercepted =
       varyHeader !== null && varyHeader.includes(NEXT_URL)
 
-    // Track when the network connection closes.
+    // TODO: The `closed` promise was originally used to track when a streaming
+    // network connection closes, so the scheduler could limit concurrent
+    // connections. Now that prefetch responses are buffered, `closed` is
+    // resolved immediately after buffering — before the outer function even
+    // returns. This mechanism is only still meaningful for dynamic (Full)
+    // prefetches, which use incremental streaming. Consider removing the
+    // `closed` plumbing for buffered prefetch paths.
     const closed = createPromiseWithResolvers<void>()
 
     // This checks whether the response was served from the per-segment cache,
@@ -1703,13 +1727,10 @@ export async function fetchRouteOnCacheMiss(
       isOutputExportMode
 
     if (routeIsPPREnabled) {
-      const prefetchStream = createPrefetchResponseStream(
-        response.body,
-        closed.resolve,
-        function onResponseSizeUpdate(size) {
-          setSizeInCacheMap(entry, size)
-        }
-      )
+      const { stream: prefetchStream, size: responseSize } =
+        await createNonTaskyPrefetchResponseStream(response.body)
+      closed.resolve()
+      setSizeInCacheMap(entry, responseSize)
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
         prefetchStream,
         headers,
@@ -1769,13 +1790,10 @@ export async function fetchRouteOnCacheMiss(
       // TODO: We will unify the responses eventually. I'm keeping the types
       // separate for now because FlightRouterState has so many
       // overloaded concerns.
-      const prefetchStream = createPrefetchResponseStream(
-        response.body,
-        closed.resolve,
-        function onResponseSizeUpdate(size) {
-          setSizeInCacheMap(entry, size)
-        }
-      )
+      const { stream: prefetchStream, size: responseSize } =
+        await createNonTaskyPrefetchResponseStream(response.body)
+      closed.resolve()
+      setSizeInCacheMap(entry, responseSize)
       const serverData =
         await createFromNextReadableStream<NavigationFlightResponse>(
           prefetchStream,
@@ -1844,18 +1862,46 @@ export async function fetchRouteOnCacheMiss(
     return { value: null, closed: closed.promise }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
-    // decoding the response.
+    // decoding the response. If we're offline, reject with staleAt=-1 so the
+    // entry immediately expires and gets retried once the scheduler is
+    // re-pinged after connectivity is restored.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRouteCacheEntry(entry, -1)
+        return null
+      }
+    }
     rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
     return null
   }
 }
 
-export async function fetchSegmentOnCacheMiss(
+function rejectRemainingSegmentsInBundle(
+  entries: SegmentBundle,
+  staleAt: number
+): void {
+  let node: SegmentBundle | null = entries
+  while (node !== null) {
+    if (node.entry !== null && node.entry.status === EntryStatus.Pending) {
+      rejectSegmentCacheEntry(node.entry as PendingSegmentCacheEntry, staleAt)
+    }
+    node = node.parent
+  }
+}
+
+export async function fetchSegmentsOnCacheMiss(
   route: FulfilledRouteCacheEntry,
-  segmentCacheEntry: PendingSegmentCacheEntry,
   routeKey: RouteCacheKey,
-  tree: RouteTree
-): Promise<PrefetchSubtaskResult<FulfilledSegmentCacheEntry> | null> {
+  tree: RouteTree,
+  segments: SegmentBundle,
+  segmentCount: number
+): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
   // cache entry directly, rather than return data that is then written by
@@ -1919,73 +1965,133 @@ export async function fetchSegmentOnCacheMiss(
     ) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
-      rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
+      rejectRemainingSegmentsInBundle(segments, Date.now() + 10 * 1000)
       return null
     }
 
-    // Track when the network connection closes.
+    // See TODO in fetchRouteOnCacheMiss about removing `closed` for
+    // buffered prefetch paths.
     const closed = createPromiseWithResolvers<void>()
 
-    const prefetchStream = createPrefetchResponseStream(
-      response.body,
-      closed.resolve,
-      function onResponseSizeUpdate(size) {
-        setSizeInCacheMap(segmentCacheEntry, size)
+    const { stream: prefetchStream, size: responseSize } =
+      await createNonTaskyPrefetchResponseStream(response.body)
+    closed.resolve()
+    // Distribute the response size evenly across all segments in the bundle.
+    const averageSize = responseSize / segmentCount
+    let sizeNode: SegmentBundle | null = segments
+    while (sizeNode !== null) {
+      if (sizeNode.entry !== null) {
+        setSizeInCacheMap(sizeNode.entry, averageSize)
       }
-    )
-    const serverData = await createFromNextReadableStream<SegmentPrefetch>(
-      prefetchStream,
-      headers,
-      { allowPartialStream: true }
-    )
+      sizeNode = sizeNode.parent
+    }
+
+    // Parse the response. Always a SegmentPrefetchResponse with a build ID
+    // and a data array.
+    const serverResponse =
+      await createFromNextReadableStream<SegmentPrefetchResponse>(
+        prefetchStream,
+        headers,
+        { allowPartialStream: true }
+      )
+
+    const now = Date.now()
+    const serverDataArray = serverResponse.data
+
+    if (serverDataArray.length === 0) {
+      rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
+      return null
+    }
     if (
       (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-        serverData.buildId) !== getNavigationBuildId()
+        serverResponse.buildId) !== getNavigationBuildId()
     ) {
       // The server build does not match the client. Treat as a 404. During
       // an actual navigation, the router will trigger an MPA navigation.
-      rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
+      rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
       return null
     }
-    const staleAt = Date.now() + getStaleTimeMs(serverData.staleTime)
-    const fulfilledEntry = fulfillSegmentCacheEntry(
-      segmentCacheEntry,
-      serverData.rsc,
-      staleAt,
-      serverData.isPartial
-    )
 
-    // If the server tells us which params the segment varies by, we can re-key
-    // the entry to a more generic vary path. This allows the entry to be reused
-    // across different param values for params that the segment doesn't
-    // actually depend on.
-    const varyParams = serverData.varyParams
-    if (process.env.__NEXT_VARY_PARAMS && varyParams !== null) {
-      // Re-key the entry by storing it at a more generic vary path where
-      // unused params are replaced with Fallback.
-      const fulfilledVaryPath = getFulfilledSegmentVaryPath(
-        tree.varyPath,
-        varyParams
-      )
-      const isRevalidation = false
-      setInCacheMap(
-        segmentCacheMap,
-        fulfilledVaryPath,
-        fulfilledEntry,
-        isRevalidation
-      )
+    // Walk the segments list and the response array in parallel, fulfilling
+    // each cache entry from the corresponding response element.
+    let node: SegmentBundle | null = segments
+    let dataIndex = 0
+    while (node !== null && dataIndex < serverDataArray.length) {
+      const data = serverDataArray[dataIndex]
+
+      // Null data means this segment has prefetching disabled. Skip it
+      // without creating a cache entry.
+      if (data === null || node.tree === null) {
+        node = node.parent
+        dataIndex++
+        continue
+      }
+
+      const entryStaleAt = now + getStaleTimeMs(data.staleTime)
+
+      // Determine the canonical vary path for this segment. If the server
+      // tells us which params the segment varies by, re-key to a more
+      // generic path. Otherwise use the request vary path.
+      const canonicalVaryPath =
+        process.env.__NEXT_VARY_PARAMS && data.varyParams !== null
+          ? getFulfilledSegmentVaryPath(node.tree.varyPath, data.varyParams)
+          : getSegmentVaryPathForRequest(FetchStrategy.PPR, node.tree)
+
+      let fulfilled: FulfilledSegmentCacheEntry | null = null
+      const nodeEntry = node.entry
+      if (nodeEntry !== null && nodeEntry.status === EntryStatus.Pending) {
+        // We own this entry — fulfill it directly.
+        fulfilled = fulfillSegmentCacheEntry(
+          nodeEntry as PendingSegmentCacheEntry,
+          data.rsc,
+          entryStaleAt,
+          data.isPartial
+        )
+      } else {
+        // We don't own this entry. Create a detached entry and attempt
+        // to upsert it into the canonical slot.
+        const detachedEntry = createDetachedSegmentCacheEntry(now)
+        fulfilled = fulfillSegmentCacheEntry(
+          upgradeToPendingSegment(detachedEntry, FetchStrategy.PPR),
+          data.rsc,
+          entryStaleAt,
+          data.isPartial
+        )
+      }
+
+      // Set the fulfilled entry into the canonical cache slot.
+      upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+
+      node = node.parent
+      dataIndex++
+    }
+
+    // If the server returned fewer segments than expected, reject any
+    // remaining pending entries so they don't stay Pending forever.
+    if (node !== null) {
+      rejectRemainingSegmentsInBundle(node, now + 10 * 1000)
     }
 
     return {
-      value: fulfilledEntry,
-      // Return a promise that resolves when the network connection closes, so
-      // the scheduler can track the number of concurrent network connections.
+      value: null,
       closed: closed.promise,
     }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
-    rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRemainingSegmentsInBundle(segments, -1)
+        return null
+      }
+    }
+    rejectRemainingSegmentsInBundle(segments, Date.now() + 10 * 1000)
     return null
   }
 }
@@ -1995,171 +2101,6 @@ export async function fetchSegmentOnCacheMiss(
 // boolean flag. At that point, the per-segment and inlined fetch paths will
 // merge, and these separate functions will be removed.
 //
-// The call site in the scheduler is guarded by
-// process.env.__NEXT_PREFETCH_INLINING, so these functions are
-// dead-code-eliminated from the client bundle when the feature is disabled.
-
-export async function fetchInlinedSegmentsOnCacheMiss(
-  route: FulfilledRouteCacheEntry,
-  routeKey: RouteCacheKey,
-  tree: RouteTree,
-  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
-): Promise<PrefetchSubtaskResult<null> | null> {
-  // When prefetch inlining is enabled, all segment data for a route is bundled
-  // into a single /_inlined response instead of individual per-segment
-  // requests. This function fetches that response and walks the tree to fill
-  // all segment cache entries at once.
-  const url = new URL(route.canonicalUrl, location.origin)
-  const nextUrl = routeKey.nextUrl
-
-  const headers: RequestHeaders = {
-    [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
-    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/' + PAGE_SEGMENT_KEY,
-  }
-  if (nextUrl !== null) {
-    headers[NEXT_URL] = nextUrl
-  }
-  addInstantPrefetchHeaderIfLocked(headers)
-
-  try {
-    const response = await fetchPrefetchResponse(url, headers)
-    if (
-      !response ||
-      !response.ok ||
-      response.status === 204 ||
-      (response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' &&
-        !isOutputExportMode) ||
-      !response.body
-    ) {
-      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
-      return null
-    }
-
-    const closed = createPromiseWithResolvers<void>()
-
-    const prefetchStream = createPrefetchResponseStream(
-      response.body,
-      closed.resolve,
-      function onResponseSizeUpdate() {
-        // For inlined responses, size tracking per segment is approximate.
-        // We don't track individual sizes since they're all in one response.
-      }
-    )
-    const serverData =
-      await createFromNextReadableStream<InlinedPrefetchResponse>(
-        prefetchStream,
-        headers,
-        { allowPartialStream: true }
-      )
-
-    if (
-      (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
-        serverData.tree.segment.buildId) !== getNavigationBuildId()
-    ) {
-      rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
-      return null
-    }
-
-    const now = Date.now()
-
-    // Walk the inlined tree in parallel with the RouteTree and fill
-    // segment cache entries.
-    fillInlinedSegmentEntries(now, route, tree, serverData.tree, spawnedEntries)
-
-    // Fill the head entry.
-    const headStaleAt = now + getStaleTimeMs(serverData.head.staleTime)
-    const headKey = route.metadata.requestKey
-    const ownedHeadEntry = spawnedEntries.get(headKey)
-    if (ownedHeadEntry !== undefined) {
-      fulfillSegmentCacheEntry(
-        ownedHeadEntry,
-        serverData.head.rsc,
-        headStaleAt,
-        serverData.head.isPartial
-      )
-    } else {
-      // The head was already cached. Try to upsert if the entry is empty.
-      const existingEntry = readOrCreateSegmentCacheEntry(
-        now,
-        FetchStrategy.PPR,
-        route.metadata
-      )
-      if (existingEntry.status === EntryStatus.Empty) {
-        fulfillSegmentCacheEntry(
-          upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
-          serverData.head.rsc,
-          headStaleAt,
-          serverData.head.isPartial
-        )
-      }
-    }
-
-    // Reject any remaining entries that were not fulfilled by the response.
-    rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
-
-    return { value: null, closed: closed.promise }
-  } catch (error) {
-    rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
-    return null
-  }
-}
-
-function fillInlinedSegmentEntries(
-  now: number,
-  route: FulfilledRouteCacheEntry,
-  tree: RouteTree,
-  inlinedNode: InlinedSegmentPrefetch,
-  spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>
-): void {
-  // Check if the spawned entries map has an entry for this segment's key.
-  const segment = inlinedNode.segment
-  const staleAt = now + getStaleTimeMs(segment.staleTime)
-  const ownedEntry = spawnedEntries.get(tree.requestKey)
-  if (ownedEntry !== undefined) {
-    // We own this entry. Fulfill it directly.
-    fulfillSegmentCacheEntry(
-      ownedEntry,
-      segment.rsc,
-      staleAt,
-      segment.isPartial
-    )
-  } else {
-    // Not owned by us — this is extra data from the inlined response for a
-    // segment that was already cached. Try to upsert if the entry is empty.
-    const existingEntry = readOrCreateSegmentCacheEntry(
-      now,
-      FetchStrategy.PPR,
-      tree
-    )
-    if (existingEntry.status === EntryStatus.Empty) {
-      fulfillSegmentCacheEntry(
-        upgradeToPendingSegment(existingEntry, FetchStrategy.PPR),
-        segment.rsc,
-        staleAt,
-        segment.isPartial
-      )
-    }
-  }
-
-  // Recurse into children.
-  if (tree.slots !== null && inlinedNode.slots !== null) {
-    for (const parallelRouteKey in tree.slots) {
-      const childTree = tree.slots[parallelRouteKey]
-      const childInlinedNode = inlinedNode.slots[parallelRouteKey]
-      if (childInlinedNode !== undefined) {
-        fillInlinedSegmentEntries(
-          now,
-          route,
-          childTree,
-          childInlinedNode,
-          spawnedEntries
-        )
-      }
-    }
-  }
-}
-
 export async function fetchSegmentPrefetchesUsingDynamicRequest(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
@@ -2180,6 +2121,9 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   ) {
     // The only thing pending is the head. Instruct the server to
     // skip over everything else.
+    // TODO: Lift this logic into the caller. Or perhaps unify the
+    // "request tree" and the spawnedEntries into the same type so they are
+    // guaranteed to always been in sync.
     dynamicRequestTree = MetadataOnlyRequestTree
   }
 
@@ -2233,28 +2177,45 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       return null
     }
 
-    // Track when the network connection closes.
+    // Track when the network connection closes. Only meaningful for Full
+    // (dynamic) prefetches which use incremental streaming. For buffered
+    // paths, this is resolved immediately — see TODO in fetchRouteOnCacheMiss.
     const closed = createPromiseWithResolvers<void>()
 
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
-    const prefetchStream = createPrefetchResponseStream(
-      response.body,
-      closed.resolve,
-      function onResponseSizeUpdate(totalBytesReceivedSoFar) {
-        // When processing a dynamic response, we don't know how large each
-        // individual segment is, so approximate by assigning each segment
-        // the average of the total response size.
-        if (fulfilledEntries === null) {
-          // Haven't received enough data yet to know which segments
-          // were included.
-          return
+    let prefetchStream: ReadableStream<Uint8Array>
+    let bufferedResponseSize: number | null = null
+    if (fetchStrategy === FetchStrategy.Full) {
+      // Full prefetches are dynamic responses stored in the prefetch cache.
+      // They don't carry vary params or other cache metadata, so there's no
+      // need to buffer them. Use the incremental version to allow data to be
+      // processed as it arrives.
+      prefetchStream = createIncrementalPrefetchResponseStream(
+        response.body,
+        closed.resolve,
+        function onResponseSizeUpdate(totalBytesReceivedSoFar) {
+          // When processing a dynamic response, we don't know how large each
+          // individual segment is, so approximate by assigning each segment
+          // the average of the total response size.
+          if (fulfilledEntries === null) {
+            // Haven't received enough data yet to know which segments
+            // were included.
+            return
+          }
+          const averageSize = totalBytesReceivedSoFar / fulfilledEntries.length
+          for (const entry of fulfilledEntries) {
+            setSizeInCacheMap(entry, averageSize)
+          }
         }
-        const averageSize = totalBytesReceivedSoFar / fulfilledEntries.length
-        for (const entry of fulfilledEntries) {
-          setSizeInCacheMap(entry, averageSize)
-        }
-      }
-    )
+      )
+    } else {
+      const { stream, size } = await createNonTaskyPrefetchResponseStream(
+        response.body
+      )
+      closed.resolve()
+      prefetchStream = stream
+      bufferedResponseSize = size
+    }
 
     const [serverData, cacheData] = await Promise.all([
       createFromNextReadableStream<NavigationFlightResponse>(
@@ -2292,9 +2253,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       return null
     }
     const navigationSeed = convertServerPatchToFullTree(
+      now,
       dynamicRequestTree,
       flightDatas,
-      renderedSearch
+      renderedSearch,
+      // Not needed for prefetch responses; pass unknown to use the default.
+      UnknownDynamicStaleTime
     )
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       now,
@@ -2308,10 +2272,35 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       spawnedEntries
     )
 
+    // For buffered responses, update LRU sizes now that we know which
+    // entries were fulfilled.
+    if (
+      bufferedResponseSize !== null &&
+      fulfilledEntries !== null &&
+      fulfilledEntries.length > 0
+    ) {
+      const averageSize = bufferedResponseSize / fulfilledEntries.length
+      for (const entry of fulfilledEntries) {
+        setSizeInCacheMap(entry, averageSize)
+      }
+    }
+
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
     return { value: null, closed: closed.promise }
   } catch (error) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectSegmentEntriesIfStillPending(spawnedEntries, -1)
+        return null
+      }
+    }
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
     return null
   }
@@ -2395,9 +2384,11 @@ function writeDynamicTreeResponseIntoCache(
   // enabled everywhere. Tree prefetches should never include segment data.  We
   // can delete it. Leaving for a subsequent PR.
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     flightRouterState,
     normalizedFlightDataResult,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   const buildId =
     response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
@@ -2707,7 +2698,7 @@ async function fetchPrefetchResponse<T>(
   // When issuing a prefetch request, don't immediately decode the response; we
   // use the lower level `createFromResponse` API instead because we need to do
   // some extra processing of the response stream. See
-  // `createPrefetchResponseStream` for more details.
+  // `createNonTaskyPrefetchResponseStream` for more details.
   const shouldImmediatelyDecode = false
   const response = await createFetch<T>(
     url,
@@ -2736,7 +2727,81 @@ async function fetchPrefetchResponse<T>(
   return response
 }
 
-function createPrefetchResponseStream(
+export async function createNonTaskyPrefetchResponseStream(
+  body: ReadableStream<Uint8Array>,
+  byteLimit?: number
+): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
+  // Buffer the entire response before passing it to the Flight client. This
+  // ensures that when Flight processes the stream, all model data is available
+  // synchronously. This is important for readVaryParams, which synchronously
+  // checks the thenable status — if data arrived in multiple network chunks,
+  // the thenables might not yet be fulfilled.
+  //
+  // TODO: There are too many intermediate stream transformations in the
+  // prefetch response pipeline (e.g. stripIsPartialByte, this function).
+  // These could all be consolidated into a single transformation. Refactor
+  // once the cached navigations experiment lands.
+  //
+  // Read the response from the network, optionally truncating at byteLimit.
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let size = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (byteLimit !== undefined && size + value.byteLength >= byteLimit) {
+      const remaining = byteLimit - size
+      if (remaining > 0) {
+        chunks.push(
+          value.byteLength > remaining ? value.subarray(0, remaining) : value
+        )
+        size += remaining
+      }
+      reader.cancel()
+      break
+    }
+    chunks.push(value)
+    size += value.byteLength
+  }
+  // Concatenate into a single chunk so that Flight's processBinaryChunk
+  // processes all rows synchronously in one call. Multiple chunks would not
+  // be sufficient: even though reader.read() resolves as a microtask for
+  // already-enqueued data, the `await` continuation from
+  // createFromReadableStream can interleave between chunks. If the root
+  // model row isn't the first row (e.g. outlined values come first), the
+  // PromiseResolveThenableJob from `await` can cause the root to initialize
+  // eagerly, scheduling the continuation before remaining chunks (including
+  // promise value rows) are processed. A single chunk avoids this.
+  let buffer: Uint8Array
+  if (chunks.length === 1) {
+    buffer = chunks[0]
+  } else if (chunks.length > 1) {
+    buffer = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+  } else {
+    buffer = new Uint8Array(0)
+  }
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(buffer)
+      controller.close()
+    },
+  })
+  return { stream, size }
+}
+
+/**
+ * Creates a streaming (non-buffered) prefetch response stream for dynamic/Full
+ * prefetches. These are essentially dynamic responses that get stored in the
+ * prefetch cache — they don't carry vary params or other cache metadata that
+ * requires synchronous thenable resolution, so there's no need to buffer them.
+ * They should continue to stream so consumers can process data as it arrives.
+ */
+function createIncrementalPrefetchResponseStream(
   originalFlightStream: ReadableStream<Uint8Array>,
   onStreamClose: () => void,
   onResponseSizeUpdate: (size: number) => void
@@ -2755,9 +2820,6 @@ function createPrefetchResponseStream(
           controller.enqueue(value)
 
           // Incrementally update the size of the cache entry in the LRU.
-          // NOTE: Since prefetch responses are delivered in a single chunk,
-          // it's not really necessary to do this streamingly, but I'm doing it
-          // anyway in case this changes in the future.
           totalByteLength += value.byteLength
           onResponseSizeUpdate(totalByteLength)
           continue
@@ -2921,9 +2983,11 @@ export function writeStaticStageResponseIntoCache(
     return
   }
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     baseTree,
     flightDatas,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
   writeDynamicRenderResponseIntoCache(
     now,
@@ -2979,9 +3043,11 @@ export async function processRuntimePrefetchStream(
     return null
   }
   const navigationSeed = convertServerPatchToFullTree(
+    now,
     baseTree,
     flightDatas,
-    renderedSearch
+    renderedSearch,
+    UnknownDynamicStaleTime
   )
 
   return {

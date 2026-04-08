@@ -1,12 +1,7 @@
-use std::{fmt::Debug, future::Future, marker::PhantomData};
-
-use anyhow::Result;
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    Vc, VcValueTrait,
-    registry::get_value_type,
-    task::shared_reference::TypedSharedReference,
-    vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
+    Vc, VcValueTrait, registry::get_value_type, task::shared_reference::TypedSharedReference,
 };
 
 /// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait object instead.
@@ -115,33 +110,5 @@ where
         } = trait_ref;
         let value_type = get_value_type(shared_reference.type_id);
         (value_type.raw_cell)(shared_reference).into()
-    }
-}
-
-/// A trait that allows a value trait vc to be converted into a trait reference.
-///
-/// The signature is similar to `IntoFuture`, but we don't want trait vcs to
-/// have the same future-like semantics as value vcs when it comes to producing
-/// refs. This behavior is rarely needed, so in most cases, `.await`ing a trait
-/// vc is a mistake.
-pub trait IntoTraitRef {
-    type ValueTrait: VcValueTrait + ?Sized;
-    type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
-
-    fn into_trait_ref(self) -> Self::Future;
-}
-
-impl<T> IntoTraitRef for Vc<T>
-where
-    T: VcValueTrait + ?Sized,
-{
-    type ValueTrait = T;
-
-    type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
-
-    fn into_trait_ref(self) -> Self::Future {
-        self.node
-            .into_read_with_unknown_is_serializable_cell_content()
-            .into()
     }
 }

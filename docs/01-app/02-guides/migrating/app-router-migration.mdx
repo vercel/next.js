@@ -824,7 +824,7 @@ export default function Post({ post }) {
 }
 ```
 
-In the `app` directory the [`config.dynamicParams` property](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) controls how params outside of [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are handled:
+In the `app` directory the [`config.dynamicParams` property](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) controls how params outside of [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are handled:
 
 - **`true`**: (default) Dynamic segments not included in `generateStaticParams` are generated on demand.
 - **`false`**: Dynamic segments not included in `generateStaticParams` will return a 404.
@@ -851,7 +851,7 @@ export default async function Post({ params }) {
 }
 ```
 
-With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached.
+With [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams) set to `true` (the default), when a route segment is requested that hasn't been generated, it will be server-rendered and cached.
 
 #### Incremental Static Regeneration (`getStaticProps` with `revalidate`)
 

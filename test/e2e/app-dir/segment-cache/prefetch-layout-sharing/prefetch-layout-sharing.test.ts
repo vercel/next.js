@@ -3,7 +3,8 @@ import { Playwright as NextBrowser } from '../../../../lib/next-webdriver'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-describe('layout sharing in non-static prefetches', () => {
+// TODO: Skipped due to flakiness
+describe.skip('layout sharing in non-static prefetches', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })

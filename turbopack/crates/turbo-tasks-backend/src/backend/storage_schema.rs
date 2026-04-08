@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
     ValueTypeId,
-    backend::{CachedTaskType, TransientTaskType},
+    backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
@@ -171,11 +171,11 @@ struct TaskStorageSchema {
 
     /// Whether meta was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    meta_snapshot: bool,
+    meta_modified_during_snapshot: bool,
 
     /// Whether data was modified after snapshot mode was entered (snapshot taken).
     #[field(storage = "flag", category = "transient")]
-    data_snapshot: bool,
+    data_modified_during_snapshot: bool,
 
     /// Whether dependencies have been prefetched.
     #[field(storage = "flag", category = "transient")]
@@ -186,6 +186,11 @@ struct TaskStorageSchema {
     /// Used to skip determinism checks for stateful tasks.
     #[field(storage = "flag", category = "transient")]
     stateful: bool,
+
+    /// Whether this task is new and needs its type persisted to the task cache.
+    /// Set when task is created, cleared after persisting.
+    #[field(storage = "flag", category = "transient")]
+    pub new_task: bool,
 
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
@@ -275,6 +280,16 @@ struct TaskStorageSchema {
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     transient_cell_data: AutoMap<CellId, SharedReference>,
 
+    /// Hash of transient cell data, persisted for hash-based change detection when
+    /// transient data has been evicted from memory.
+    ///
+    /// Stored as `[u8; 16]` (little-endian bytes of a u128) rather than `u128` to keep
+    /// the 1-byte alignment out of the `AutoMap` and therefore out of the `LazyField`
+    /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
+    /// alignment requirement.
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
+    cell_data_hash: AutoMap<CellId, CellHash>,
+
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
     cell_type_max_index: AutoMap<ValueTypeId, u32>,
@@ -334,8 +349,8 @@ impl TaskFlags {
     }
 
     /// Check if any snapshot flag is set
-    pub fn any_snapshot(&self) -> bool {
-        self.meta_snapshot() || self.data_snapshot()
+    pub fn any_modified_during_snapshot(&self) -> bool {
+        self.meta_modified_during_snapshot() || self.data_modified_during_snapshot()
     }
 
     /// Check if any modified flag is set
@@ -360,18 +375,22 @@ impl TaskFlags {
     }
 
     /// Check if the specified category has a snapshot
-    pub fn is_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
+    pub fn is_modified_during_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
         match category {
-            SpecificTaskDataCategory::Meta => self.meta_snapshot(),
-            SpecificTaskDataCategory::Data => self.data_snapshot(),
+            SpecificTaskDataCategory::Meta => self.meta_modified_during_snapshot(),
+            SpecificTaskDataCategory::Data => self.data_modified_during_snapshot(),
         }
     }
 
     /// Set the snapshot flag for the specified category
-    pub fn set_snapshot(&mut self, category: SpecificTaskDataCategory, value: bool) {
+    pub fn set_modified_during_snapshot(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        value: bool,
+    ) {
         match category {
-            SpecificTaskDataCategory::Meta => self.set_meta_snapshot(value),
-            SpecificTaskDataCategory::Data => self.set_data_snapshot(value),
+            SpecificTaskDataCategory::Meta => self.set_meta_modified_during_snapshot(value),
+            SpecificTaskDataCategory::Data => self.set_data_modified_during_snapshot(value),
         }
     }
 }
@@ -534,7 +553,8 @@ impl TaskStorage {
         task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
-        // Mark as fully restored since transient tasks don't need restoration from disk
+        // Mark as fully restored since transient tasks don't need restoration from disk,
+        // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
@@ -739,8 +759,8 @@ mod tests {
         assert!(!storage.flags.data_restored());
         assert!(!storage.flags.meta_modified());
         assert!(!storage.flags.data_modified());
-        assert!(!storage.flags.meta_snapshot());
-        assert!(!storage.flags.data_snapshot());
+        assert!(!storage.flags.meta_modified_during_snapshot());
+        assert!(!storage.flags.data_modified_during_snapshot());
         assert!(!storage.flags.prefetched());
 
         // Test setting restored flags
@@ -756,10 +776,10 @@ mod tests {
         assert!(storage.flags.data_modified());
 
         // Test setting snapshot flags
-        storage.flags.set_meta_snapshot(true);
-        storage.flags.set_data_snapshot(true);
-        assert!(storage.flags.meta_snapshot());
-        assert!(storage.flags.data_snapshot());
+        storage.flags.set_meta_modified_during_snapshot(true);
+        storage.flags.set_data_modified_during_snapshot(true);
+        assert!(storage.flags.meta_modified_during_snapshot());
+        assert!(storage.flags.data_modified_during_snapshot());
 
         // Test prefetched flag
         storage.flags.set_prefetched(true);

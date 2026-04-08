@@ -5,14 +5,15 @@ use std::{
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
+use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, IntoTraitRef, NonLocalValue, OperationVc, PrettyPrintError,
-    ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, mark_session_dependent,
+    mark_top_level_task, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -121,9 +122,9 @@ pub trait EvaluateOperation: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait Operation: Send {
-    async fn recv(&mut self) -> Result<Vec<u8>>;
+    async fn recv(&mut self) -> Result<Bytes>;
 
-    async fn send(&mut self, data: Vec<u8>) -> Result<()>;
+    async fn send(&mut self, data: Bytes) -> Result<()>;
 
     async fn wait_or_kill(&mut self) -> Result<ExitStatus>;
 
@@ -186,19 +187,29 @@ async fn emit_evaluate_pool_assets_operation(
 #[turbo_tasks::value(serialization = "none")]
 struct EmittedEvaluatePoolAssetsWithEffects {
     assets: ReadRef<EmittedEvaluatePoolAssets>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function(operation)]
-async fn emit_evaluate_pool_assets_with_effects_operation(
+async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+) -> Result<Vc<EmittedEvaluatePoolAssets>> {
+    mark_session_dependent();
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    let assets = operation.read_strongly_consistent().await?;
-    let effects = Arc::new(get_effects(operation).await?);
-    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
+    let assets = operation.resolve().strongly_consistent().await?;
+    let effects = Arc::new(take_effects(operation).await?);
+
+    // HACK: `Effects::apply` normally panics if not called at the top-level. We want to apply most
+    // effects outside of turbo-task functions to avoid re-executing effects during invalidations.
+    //
+    // That's not possible here because we lazily create the pool, so instead, use
+    // `mark_top_level_task` to avoid the debug assertion. The consequence is that these effects
+    // might get evaluated more than once if this function is invalidated.
+    mark_top_level_task();
+    effects.apply().await?;
+
+    Ok(*assets)
 }
 
 #[derive(
@@ -223,17 +234,14 @@ pub async fn get_evaluate_pool(
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
-    let operation =
-        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
-    let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
-        &*operation.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    let assets = assets_op.read_strongly_consistent().await?;
 
     let EmittedEvaluatePoolAssets {
         bootstrap,
         output_root,
         entrypoint,
-    } = &**assets;
+    } = &*assets;
 
     let (Some(cwd), Some(entrypoint)) = (
         to_sys_path(cwd.clone()).await?,
@@ -374,11 +382,11 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
         || async {
             let mut operation = pool.operation().await?;
             operation
-                .send(serde_json::to_vec(
+                .send(Bytes::from(serde_json::to_vec(
                     &EvalJavaScriptOutgoingMessage::Evaluate {
                         args: args.iter().map(|v| &**v).collect(),
                     },
-                )?)
+                )?))
                 .await?;
             Ok(operation)
         },
@@ -567,24 +575,24 @@ async fn pull_operation<T: EvaluateContext>(
                 {
                     Ok(response) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: None,
                                     data: Some(serde_json::to_value(response)?),
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                     Err(e) => {
                         operation
-                            .send(serde_json::to_vec(
+                            .send(Bytes::from(serde_json::to_vec(
                                 &EvalJavaScriptOutgoingMessage::Result {
                                     id,
                                     error: Some(PrettyPrintError(&e).to_string()),
                                     data: None,
                                 },
-                            )?)
+                            )?))
                             .await?;
                     }
                 }

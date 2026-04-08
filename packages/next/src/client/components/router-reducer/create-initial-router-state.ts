@@ -14,6 +14,10 @@ import {
   writeStaticStageResponseIntoCache,
 } from '../segment-cache/cache'
 import { FetchStrategy } from '../segment-cache/types'
+import {
+  UnknownDynamicStaleTime,
+  computeDynamicStaleAt,
+} from '../segment-cache/bfcache'
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
@@ -41,6 +45,7 @@ export function createInitialRouterState({
     l: initialStaticStageByteLength,
     h: initialHeadVaryParams,
     p: initialRuntimePrefetchStream,
+    d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
 
   // When initialized on the server, the canonical URL is provided as an array of parts.
@@ -69,6 +74,13 @@ export function createInitialRouterState({
   // NOTE: The metadataVaryPath isn't used for anything currently because the
   // head is embedded into the CacheNode tree, but eventually we'll lift it out
   // and store it on the top-level state object.
+  //
+  // For statically-generated-at-build-time HTML pages, the FlightRouterState
+  // baked into the initial RSC payload won't have the correct segment inlining
+  // hints because those are computed after the pre-render. The server marks
+  // these trees with InliningHintsStale, which causes the route cache entry
+  // to be immediately expired. The next prefetch will re-fetch the tree with
+  // correct hints from the /_tree response.
   const acc = { metadataVaryPath: null }
   const initialRouteTree = convertRootFlightRouterStateToRouteTree(
     initialTree,
@@ -80,7 +92,11 @@ export function createInitialRouterState({
     navigatedAt,
     initialRouteTree,
     initialSeedData,
-    initialHead
+    initialHead,
+    computeDynamicStaleAt(
+      navigatedAt,
+      initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
+    )
   )
 
   // The following only applies in the browser (location !== null) since neither
@@ -226,10 +242,10 @@ export function createInitialRouterState({
       preserveCustomHistoryState: true,
     },
     focusAndScrollRef: {
-      apply: false,
+      scrollRef: null,
+      forceScroll: false,
       onlyHashChange: false,
       hashFragment: null,
-      segmentPaths: [],
     },
     canonicalUrl,
     renderedSearch: initialRenderedSearch,

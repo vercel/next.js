@@ -225,6 +225,35 @@ declare module 'react-server-dom-webpack/server.node' {
     renderToReadableStream,
   } from 'react-server-dom-webpack/server.edge'
 
+  export function renderToPipeableStream(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      signal?: AbortSignal
+      // React's Node API expects debugChannel to be a Node.js Writable
+      // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
+      // This differs from the web API which expects { readable?, writable? }.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
+    }
+  ): {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
+
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
@@ -306,6 +335,35 @@ declare module 'react-server-dom-webpack/static' {
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
+  }>
+
+  export function prerenderToNodeStream(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: ReadonlyArray<string>
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      identifierPrefix?: string
+      signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
+      onError?: (error: unknown) => void
+    }
+  ): Promise<{
+    prelude: import('node:stream').Readable
   }>
 }
 declare module 'react-server-dom-webpack/client.edge' {
