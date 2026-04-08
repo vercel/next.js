@@ -225,8 +225,8 @@ function BlockingPageLoadErrorDescription({
             Viewport metadata needs to be available on page load so accessing
             data that comes from a user Request while producing it prevents
             Next.js from prerendering an initial UI.
-            <code>cookies()</code>, <code>headers()</code>, and{' '}
-            <code>searchParams</code>, are examples of Runtime data that can
+            <code>cookies()</code>, <code>headers()</code>, <code>params</code>,
+            and <code>searchParams</code> are examples of Runtime data that can
             only come from a user request.
           </p>
           <h4>To fix this:</h4>
