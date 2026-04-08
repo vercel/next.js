@@ -666,53 +666,6 @@ export function createInstantTestScriptInsertionTransformStream(
   })
 }
 
-// Suffix after main body content - scripts before </body>,
-// but wait for the major chunks to be enqueued.
-export function createDeferredSuffixStream(
-  suffix: string
-): TransformStream<Uint8Array, Uint8Array> {
-  let flushed = false
-  let pending: DetachedPromise<void> | undefined
-
-  const flush = (controller: TransformStreamDefaultController) => {
-    const detached = new DetachedPromise<void>()
-    pending = detached
-
-    scheduleImmediate(() => {
-      try {
-        controller.enqueue(encoder.encode(suffix))
-      } catch {
-        // If an error occurs while enqueuing it can't be due to this
-        // transformers fault. It's likely due to the controller being
-        // errored due to the stream being cancelled.
-      } finally {
-        pending = undefined
-        detached.resolve()
-      }
-    })
-  }
-
-  return new TransformStream({
-    transform(chunk, controller) {
-      controller.enqueue(chunk)
-
-      // If we've already flushed, we're done.
-      if (flushed) return
-
-      // Schedule the flush to happen.
-      flushed = true
-      flush(controller)
-    },
-    flush(controller) {
-      if (pending) return pending.promise
-      if (flushed) return
-
-      // Flush now.
-      controller.enqueue(encoder.encode(suffix))
-    },
-  })
-}
-
 export function createFlightDataInjectionTransformStream(
   stream: ReadableStream<Uint8Array>,
   delayDataUntilFirstHtmlChunk: boolean
@@ -996,16 +949,11 @@ export type ContinueStreamOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   validateRootLayout?: boolean
-  /**
-   * Suffix to inject after the buffered data, but before the close tags.
-   */
-  suffix?: string | undefined
 }
 
 export async function continueFizzStream(
   renderStream: ReactDOMServerReadableStream,
   {
-    suffix,
     inlinedDataStream,
     isStaticGeneration,
     deploymentId,
@@ -1014,9 +962,6 @@ export async function continueFizzStream(
     validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
-  // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
-
   if (isStaticGeneration) {
     // If we're generating static HTML we need to wait for it to resolve before continuing.
     await renderStream.allReady
@@ -1035,11 +980,6 @@ export async function continueFizzStream(
 
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
-
-    // Insert suffix content
-    suffixUnclosed != null && suffixUnclosed.length > 0
-      ? createDeferredSuffixStream(suffixUnclosed)
-      : null,
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
     inlinedDataStream

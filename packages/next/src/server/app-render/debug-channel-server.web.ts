@@ -54,5 +54,5 @@ export function createWebDebugChannel(): DebugChannelPair {
  * which expects debugChannel to be a Node.js stream with a .write() method.
  */
 export function createNodeDebugChannel(): DebugChannelPair {
-  throw new Error('not implemented')
+  throw new Error('Not implemented')
 }

@@ -50,7 +50,6 @@ export type ContinueFizzStreamOptions = ContinueStreamSharedOptions & {
   isStaticGeneration: boolean
   allReady?: Promise<void>
   validateRootLayout?: boolean
-  suffix?: string
 }
 
 export type ContinueStaticPrerenderOptions = ContinueStreamSharedOptions & {
@@ -158,7 +157,7 @@ export function continueDynamicHTMLResumeNode(
   _renderStream: AnyStream,
   _opts: ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {
-  throw new Error('not implemented')
+  throw new Error('Not implemented')
 }
 
 export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
@@ -200,7 +199,7 @@ export function createNodeInlinedDataStream(
   _nonce: string | undefined,
   _formState: unknown | null
 ): AnyStream {
-  throw new Error('not implemented')
+  throw new Error('Not implemented')
 }
 
 export function createPendingStream(): AnyStream {
@@ -235,7 +234,7 @@ export function renderToNodeFlightStream(
   _clientModules: FlightClientModules,
   _opts: FlightRenderOptions
 ): AnyStream {
-  throw new Error('not implemented')
+  throw new Error('Not implemented')
 }
 
 export function renderToWebFlightStream(
