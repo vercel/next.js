@@ -70,7 +70,7 @@ describe('warnIfMissingAgentRules', () => {
     expect(errorSpy).not.toHaveBeenCalled()
   })
 
-  it('prints a stderr error telling agents to ask the user when rules are missing', () => {
+  it('prints a stderr error directly addressed to agents when rules are missing', () => {
     process.env.CLAUDECODE = '1'
     warnIfMissingAgentRules(tmpDir)
     expect(errorSpy).toHaveBeenCalledTimes(1)
@@ -80,12 +80,22 @@ describe('warnIfMissingAgentRules', () => {
     // The install command must be the primary call-to-action.
     expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
 
-    // The message must frame the install as a user decision, not an auto-
-    // fix the agent should apply on its own. These exact phrases are what
-    // nudge agents to stop and consult the user instead of blindly running
-    // the codemod.
-    expect(loggedMessage).toContain('ask the user for permission')
-    expect(loggedMessage).toContain('project-level opt-in')
+    // Direct-addressee tag — LLM-based assistants parse `AGENT:` as "this
+    // message is for me", which is what makes them act on it instead of
+    // skimming past.
+    expect(loggedMessage).toContain('AGENT:')
+
+    // The message must reference BOTH AGENTS.md and CLAUDE.md because the
+    // marker can live in either file, and agents should not be confused
+    // into thinking only one is checked.
+    expect(loggedMessage).toContain('AGENTS.md/CLAUDE.md')
+
+    // Priority framing — tells the agent to do this before anything else.
+    expect(loggedMessage).toContain('before any other Next.js work')
+
+    // Rationale — explains WHY running the codemod matters, which makes
+    // the instruction stick instead of being ignored as boilerplate.
+    expect(loggedMessage).toContain('stale')
 
     // No bypass language — we removed the `--skip-agent-rule-check` flag,
     // so the error must not mention any way to "skip" or "bypass" the
@@ -104,6 +114,6 @@ describe('warnIfMissingAgentRules', () => {
     expect(errorSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = errorSpy.mock.calls[0].join(' ')
     expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
-    expect(loggedMessage).toContain('ask the user for permission')
+    expect(loggedMessage).toContain('AGENT:')
   })
 })
