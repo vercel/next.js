@@ -2,6 +2,7 @@ packages:
   - 'crates/binding'
   - '.'
 
+blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
   - '@next/*'

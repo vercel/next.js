@@ -29,6 +29,7 @@ ignoredBuiltDependencies:
   - ssh2
   - unrs-resolver
   - wasm-pack
+blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
   - '@next/*'
