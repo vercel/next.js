@@ -2218,7 +2218,7 @@ describe('Prerender', () => {
     if ((global as any).isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
-        expect(next.cliOutput).toMatch(/● \/blog\/\[post\]/)
+        expect(next.cliOutput).toMatch(/[├└] {3}\/blog\/\[post\]/)
         expect(next.cliOutput).toMatch(/\+2 more paths/)
       })
 
