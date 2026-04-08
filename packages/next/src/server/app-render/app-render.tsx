@@ -4392,6 +4392,7 @@ function createAsyncApiPromises(
       'connection',
       undefined
     ),
+    io: stagedRendering.delayUntilStage(RenderStage.Dynamic, 'io', undefined),
   }
 }
 

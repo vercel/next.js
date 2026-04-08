@@ -114,6 +114,10 @@ export type AsyncApiPromises = {
   // Connection is not a runtime promise and doesn't
   // need to distinguish between early and late
   connection: Promise<undefined>
+
+  // IO is not a runtime promise and doesn't
+  // need to distinguish between early and late
+  io: Promise<undefined>
 }
 
 /**

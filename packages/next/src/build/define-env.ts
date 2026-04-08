@@ -246,6 +246,7 @@ export function getDefineEnv({
       config.experimental.dynamicOnHover
     ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_UNSTABLE_IO': Boolean(config.experimental.unstableIO),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),

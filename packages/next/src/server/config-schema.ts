@@ -223,6 +223,7 @@ export const experimentalSchema = {
   partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
+  unstableIO: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
