@@ -235,7 +235,9 @@ program
     }
     if (options.internalTrace) {
       process.env.NEXT_TURBOPACK_TRACING =
-        options.internalTrace === 'overview' ? '1' : 'turbo-tasks'
+        options.internalTrace === 'all'
+          ? 'turbo-tasks'
+          : String(options.internalTrace)
     }
 
     // ensure process exits after build completes so open handles/connections
@@ -388,7 +390,7 @@ program
         process.env.NEXT_TURBOPACK_TRACING =
           options.internalTrace === 'all'
             ? 'turbo-tasks'
-            : options.internalTrace
+            : String(options.internalTrace)
       }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
