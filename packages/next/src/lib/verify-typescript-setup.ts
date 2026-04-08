@@ -67,6 +67,7 @@ export async function verifyAndRunTypeScript({
   appDir,
   pagesDir,
   debugBuildPaths,
+  rootParams,
 }: {
   dir: string
   distDir: string
@@ -81,6 +82,7 @@ export async function verifyAndRunTypeScript({
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
+  rootParams?: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
@@ -131,6 +133,7 @@ export async function verifyAndRunTypeScript({
           hasAppDir,
           strictRouteTypes,
           typedRoutes,
+          rootParams: !!rootParams,
         })
 
         return { version: null }
@@ -214,6 +217,7 @@ export async function verifyAndRunTypeScript({
       hasAppDir,
       strictRouteTypes,
       typedRoutes,
+      rootParams: !!rootParams,
     })
 
     let result

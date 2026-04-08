@@ -40,6 +40,7 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
+      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -70,6 +71,7 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
+      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -98,6 +100,7 @@ describe('find config', () => {
       hasAppDir: false,
       strictRouteTypes: false,
       typedRoutes: true,
+      rootParams: false,
     })
     expect(await fs.readFile(declarationFile, 'utf8')).toBe(content)
   })
@@ -111,6 +114,7 @@ describe('find config', () => {
       hasAppDir: true,
       strictRouteTypes: false,
       typedRoutes: true,
+      rootParams: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.not.toContain(
@@ -125,6 +129,7 @@ describe('find config', () => {
       hasAppDir: true,
       strictRouteTypes: false,
       typedRoutes: true,
+      rootParams: false,
     })
 
     await expect(fs.readFile(declarationFile, 'utf8')).resolves.toContain(
