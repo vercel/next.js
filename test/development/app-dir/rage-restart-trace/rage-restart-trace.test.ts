@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import os from 'node:os'
+import { getCacheDirectory } from 'next/dist/lib/helpers/get-cache-directory'
 import { nextTestSetup } from 'e2e-utils'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
@@ -20,19 +20,8 @@ describe('rage restart trace attributes', () => {
     return
   }
 
-  // Mirrors getCacheDirectory('nextjs-nodejs') logic from get-cache-directory.ts
-  const getDevStateFilePath = () => {
-    let cacheDir: string
-    if (process.platform === 'linux') {
-      cacheDir = process.env.XDG_CACHE_HOME || join(os.homedir(), '.cache')
-    } else if (process.platform === 'darwin') {
-      cacheDir = join(os.homedir(), 'Library', 'Caches')
-    } else {
-      cacheDir =
-        process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local')
-    }
-    return join(cacheDir, 'nextjs-nodejs', 'dev-state.json')
-  }
+  const getDevStateFilePath = () =>
+    join(getCacheDirectory('nextjs-nodejs'), 'dev-state.json')
 
   beforeEach(async () => {
     // Ensure each test starts from a clean stopped state with no prior session.

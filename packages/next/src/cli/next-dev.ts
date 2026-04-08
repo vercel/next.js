@@ -111,7 +111,9 @@ function writeDevState(): void {
       distDirPath: path.join(dir, distDir ?? '.next'),
     }
 
-    fs.writeFileSync(DEV_STATE_FILE, JSON.stringify(state))
+    const { sync: writeFileAtomicSync } =
+      (require('next/dist/compiled/write-file-atomic') as typeof import('next/dist/compiled/write-file-atomic'))
+    writeFileAtomicSync(DEV_STATE_FILE, JSON.stringify(state))
   } catch {
     // Best effort — don't interfere with shutdown
   }
