@@ -53,7 +53,7 @@ class RotatingWriteStream {
     const phase = traceGlobals.get('phase')
     this.writeStream = fs.createWriteStream(this.file, {
       ...writeStreamOptions,
-      // In dev, append so traces accumulate across hot reloads. In production,
+      // In dev, append so traces accumulate across sessions. In production,
       // truncate so each build starts with a fresh trace file.
       flags: phase === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w',
     })
