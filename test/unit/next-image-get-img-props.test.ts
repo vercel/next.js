@@ -689,11 +689,11 @@ describe('getImageProps()', () => {
         ['style', { color: 'transparent' }],
         [
           'srcSet',
-          '/_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
         ],
         [
           'src',
-          '/_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
         ],
       ])
     } finally {
@@ -720,11 +720,11 @@ describe('getImageProps()', () => {
         ['style', { color: 'transparent' }],
         [
           'srcSet',
-          '/_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75 1x, /_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75 2x',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75 2x',
         ],
         [
           'src',
-          '/_next/image?url=%2F_next%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75',
         ],
       ])
     } finally {

@@ -148,5 +148,5 @@ describe('Unoptimized Image Tests', () => {
 function normalizeURL(text: string) {
   return text
     .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
-    .replace(/_next\/immutable\//g, '_next/static/')
+    .replace(/_next\/static\/immutable\//g, '_next/static/')
 }
