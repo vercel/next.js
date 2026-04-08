@@ -68,6 +68,27 @@ describe('build-output-tree-view', () => {
       `)
     })
   })
+
+  describe('with generated app routes that mix static and partial outputs', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, '../../../e2e/app-dir/cache-components'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
+
+    beforeAll(() => next.build())
+
+    it('should show child route symbols for generated app paths', async () => {
+      expect(getTreeView(next.cliOutput)).toContain(
+        `├ ◐ /params/semantics/[lowcard]/[highcard]/layout-has/server
+│ ├ ◐ /params/semantics/[lowcard]/[highcard]/layout-has/server
+│ ├ ◐ /params/semantics/one/[highcard]/layout-has/server
+│ └ ○ /params/semantics/one/build/layout-has/server`
+      )
+    })
+  })
 })
 
 function getTreeView(cliOutput: string): string {
