@@ -55,7 +55,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -84,7 +84,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -116,7 +116,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -145,7 +145,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -177,7 +177,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -206,7 +206,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -242,7 +242,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -271,7 +271,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -303,7 +303,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -332,7 +332,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -364,7 +364,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -393,7 +393,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -425,7 +425,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -454,7 +454,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -486,7 +486,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -515,7 +515,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -547,7 +547,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -576,7 +576,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1083",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 

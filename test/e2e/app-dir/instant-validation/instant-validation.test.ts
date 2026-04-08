@@ -183,7 +183,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -368,7 +368,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -493,7 +493,7 @@ describe('instant validation', () => {
          "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -555,7 +555,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -652,7 +652,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -1282,7 +1282,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1372,7 +1372,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1499,7 +1499,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1563,7 +1563,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1627,7 +1627,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2267,7 +2267,7 @@ describe('instant validation', () => {
              "code": "E1086",
              "description": "Runtime data was accessed inside generateViewport()
 
-           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2487,7 +2487,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2550,7 +2550,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2614,7 +2614,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2678,7 +2678,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2742,7 +2742,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2813,7 +2813,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2891,7 +2891,7 @@ describe('instant validation', () => {
                "code": "E1078",
                "description": "Runtime data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
              To fix this:
 
@@ -2963,7 +2963,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3036,7 +3036,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -3106,7 +3106,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3171,7 +3171,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3237,7 +3237,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3304,7 +3304,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
