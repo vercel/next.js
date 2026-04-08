@@ -87,7 +87,7 @@ inherits = "release"
 debug = true
 
 # Size-optimized crates: determined via `cargo bloat --release --crates -p next-napi-bindings`.
-# Wasmtime/cranelift crates are used by the plugin feature (wasm builds).
+# Wasmtime/cranelift crates are used by the SWC plugin transform system.
 [profile.release.package.browserslist-rs]
 opt-level = "s"
 

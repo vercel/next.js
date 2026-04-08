@@ -4989,7 +4989,6 @@ dependencies = [
  "turbo-unix-path",
  "turbopack-core",
  "turbopack-ecmascript-hmr-protocol",
- "turbopack-ecmascript-plugins",
  "turbopack-node",
  "turbopack-trace-server",
  "turbopack-trace-utils",

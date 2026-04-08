@@ -168,8 +168,7 @@ jobs:
                 abi: msvc
                 arch:
                   x86_64: {}
-                  aarch64:
-                    build_task: build-native-no-plugin-release
+                  aarch64: {}
               linux:
                 host: "['self-hosted', 'linux', 'x64', 'metal']"
                 docker: next-swc-builder:latest
