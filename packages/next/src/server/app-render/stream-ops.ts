@@ -46,7 +46,6 @@ export const createOnHeadersCallback = _m.createOnHeadersCallback
 export const resumeAndAbort = _m.resumeAndAbort
 export const renderToFlightStream = _m.renderToFlightStream
 export const streamToString = _m.streamToString
-export const streamToUint8Array = _m.streamToUint8Array
 export const renderToFizzStream = _m.renderToFizzStream
 export const resumeToFizzStream = _m.resumeToFizzStream
 export const getServerPrerender = _m.getServerPrerender
