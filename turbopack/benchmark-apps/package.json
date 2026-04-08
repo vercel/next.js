@@ -28,5 +28,5 @@
     "buffer": "^5.5.0||^6.0.0",
     "process": "0.11.10"
   },
-  "packageManager": "pnpm@9.6.0"
+  "packageManager": "pnpm@10.33.0"
 }

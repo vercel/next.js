@@ -13,11 +13,13 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
+use tracing::trace_span;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
     TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
 };
 
+use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
         EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
@@ -43,30 +45,36 @@ pub trait ExecuteContext<'e>: Sized {
     /// The iterator should not have duplicates, as this would cause over-fetching.
     fn prepare_tasks(
         &mut self,
-        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)> + Clone,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
     );
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     );
     fn for_each_task_meta(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
+            reason,
             func,
         )
     }
     fn for_each_task_all(
         &mut self,
         task_ids: impl IntoIterator<Item = TaskId>,
+        reason: &'static str,
         func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
+            reason,
             func,
         )
     }
@@ -164,20 +172,15 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn should_check_backing_storage(&self) -> bool {
-        self.backend.should_restore() && self.backend.local_is_partial
-    }
-
     fn restore_task_data(
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
     ) -> TaskStorage {
-        if !self.should_check_backing_storage() {
-            // If we don't need to restore, we can just return an empty storage
-            return TaskStorage::default();
-        }
         let mut storage = TaskStorage::default();
+        if !self.backend.should_restore() {
+            return storage;
+        }
         let result = self
             .backend
             .backing_storage
@@ -203,8 +206,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             task_ids.len() > 1,
             "Use restore_task_data_typed for single task"
         );
-        if !self.should_check_backing_storage() {
-            // If we don't need to restore, we return None
+        if !self.backend.should_restore() {
             return None;
         }
         let result = self
@@ -229,6 +231,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         call_prepared_task_callback_for_transient_tasks: bool,
+        reason: &'static str,
         mut prepared_task_callback: impl FnMut(
             &mut Self,
             TaskId,
@@ -236,6 +239,13 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
+        let span = trace_span!(
+            "prepare_tasks_with_callback",
+            reason,
+            requested_data = tracing::field::Empty,
+            requested_meta = tracing::field::Empty,
+        );
+        let _guard = span.enter();
         let mut data_count = 0;
         let mut meta_count = 0;
         let mut all_count = 0;
@@ -243,13 +253,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .into_iter()
             .filter(|&(id, category)| {
                 if id.is_transient() {
+                    // Transient tasks don't need DB restoration (restored flags are
+                    // set at allocation time), so just invoke the callback directly.
                     if call_prepared_task_callback_for_transient_tasks {
-                        let mut task = self.backend.storage.access_mut(id);
-                        // TODO add is_restoring and avoid concurrent restores and duplicates tasks
-                        // ids in `task_ids`
-                        if !task.flags.is_restored(category) {
-                            task.flags.set_restored(TaskDataCategory::All);
-                        }
+                        let task = self.backend.storage.access_mut(id);
                         prepared_task_callback(self, id, category, task);
                     }
                     false
@@ -266,6 +273,8 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             .collect::<Vec<_>>();
         data_count += all_count;
         meta_count += all_count;
+        span.record("requested_data", data_count);
+        span.record("requested_meta", meta_count);
 
         let mut tasks_to_restore_for_data = Vec::with_capacity(data_count);
         let mut tasks_to_restore_for_data_indicies = Vec::with_capacity(data_count);
@@ -399,40 +408,43 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
 
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.flags.is_restored(category) {
-            if task_id.is_transient() {
-                task.flags.set_restored(TaskDataCategory::All);
-            } else {
-                // Collect which categories need restoring while we have the lock
-                let needs_data =
-                    category.includes_data() && !task.flags.is_restored(TaskDataCategory::Data);
-                let needs_meta =
-                    category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
+            // New tasks (transient and persistent) have restored flags set at allocation
+            // time, so this path is only hit for persistent tasks being restored from DB.
+            debug_assert!(
+                !task.flags.new_task() && !task_id.is_transient(),
+                "new or transient task should already be marked restored"
+            );
 
-                if needs_data || needs_meta {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    // Drop lock once, do all I/O, then re-acquire once
-                    drop(task);
+            // Collect which categories need restoring while we have the lock
+            let needs_data =
+                category.includes_data() && !task.flags.is_restored(TaskDataCategory::Data);
+            let needs_meta =
+                category.includes_meta() && !task.flags.is_restored(TaskDataCategory::Meta);
 
-                    let storage_data = needs_data
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
-                    let storage_meta = needs_meta
-                        .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+            if needs_data || needs_meta {
+                // Avoid holding the lock too long since this can also affect other tasks
+                // Drop lock once, do all I/O, then re-acquire once
+                drop(task);
 
-                    task = self.backend.storage.access_mut(task_id);
+                let storage_data = needs_data
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                let storage_meta = needs_meta
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
 
-                    // Handle race conditions and merge
-                    if let Some(storage) = storage_data
-                        && !task.flags.is_restored(TaskDataCategory::Data)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Data);
-                        task.flags.set_restored(TaskDataCategory::Data);
-                    }
-                    if let Some(storage) = storage_meta
-                        && !task.flags.is_restored(TaskDataCategory::Meta)
-                    {
-                        task.restore_from(storage, TaskDataCategory::Meta);
-                        task.flags.set_restored(TaskDataCategory::Meta);
-                    }
+                task = self.backend.storage.access_mut(task_id);
+
+                // Handle race conditions and merge
+                if let Some(storage) = storage_data
+                    && !task.flags.is_restored(TaskDataCategory::Data)
+                {
+                    task.restore_from(storage, TaskDataCategory::Data);
+                    task.flags.set_restored(TaskDataCategory::Data);
+                }
+                if let Some(storage) = storage_meta
+                    && !task.flags.is_restored(TaskDataCategory::Meta)
+                {
+                    task.restore_from(storage, TaskDataCategory::Meta);
+                    task.flags.set_restored(TaskDataCategory::Meta);
                 }
             }
         }
@@ -445,30 +457,41 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         }
     }
 
-    fn prepare_tasks(&mut self, task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>) {
-        self.prepare_tasks_with_callback(task_ids, false, |_, _, _, _| {});
+    fn prepare_tasks(
+        &mut self,
+        task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
+    ) {
+        self.prepare_tasks_with_callback(task_ids, false, reason, |_, _, _, _| {});
     }
 
     fn for_each_task(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
+        reason: &'static str,
         mut func: impl FnMut(Self::TaskGuardImpl, &mut Self),
     ) {
         let task_lock_counter = self.task_lock_counter.clone();
-        self.prepare_tasks_with_callback(task_ids, true, |this, task_id, _category, task| {
-            // prepare_tasks_with_callback releases the counter before calling this callback,
-            // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on Drop.
-            task_lock_counter.acquire();
+        self.prepare_tasks_with_callback(
+            task_ids,
+            true,
+            reason,
+            |this, task_id, _category, task| {
+                // prepare_tasks_with_callback releases the counter before calling this callback,
+                // so the counter is 0 here. Acquire for the TaskGuardImpl that will release on
+                // Drop.
+                task_lock_counter.acquire();
 
-            let guard = TaskGuardImpl {
-                task,
-                task_id,
-                #[cfg(debug_assertions)]
-                category: _category,
-                task_lock_counter: task_lock_counter.clone(),
-            };
-            func(guard, this);
-        });
+                let guard = TaskGuardImpl {
+                    task,
+                    task_id,
+                    #[cfg(debug_assertions)]
+                    category: _category,
+                    task_lock_counter: task_lock_counter.clone(),
+                };
+                func(guard, this);
+            },
+        );
     }
 
     fn task_pair(
@@ -599,7 +622,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
     }
 
     fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
-        if !self.should_check_backing_storage() {
+        if !self.backend.should_restore() {
             return None;
         }
 
@@ -756,6 +779,77 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             Some(Dirtyness::Dirty(_)) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
+    }
+    /// Update the task's dirty state to `new_dirtyness`, applying the change to stored fields,
+    /// computing the aggregated propagation update, and firing the `all_clean_event` if the task
+    /// transitioned to clean.
+    ///
+    /// Returns an optional `AggregationUpdateJob` that the caller must run via
+    /// `AggregationUpdateQueue::run` to propagate the change to aggregating ancestors.
+    fn update_dirty_state(
+        &mut self,
+        new_dirtyness: Option<Dirtyness>,
+    ) -> Option<AggregationUpdateJob>
+    where
+        Self: Sized,
+    {
+        let task_id = self.id();
+        let old_dirtyness = self.get_dirty().cloned();
+        let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
+        let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
+            None => (false, false),
+            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::SessionDependent) => (true, true),
+        };
+        if old_dirtyness != new_dirtyness {
+            if let Some(value) = new_dirtyness {
+                self.set_dirty(value);
+            } else {
+                self.take_dirty();
+            }
+        }
+        if old_current_session_self_clean != new_current_session_self_clean {
+            self.set_current_session_clean(new_current_session_self_clean);
+        }
+        if old_self_dirty == new_self_dirty
+            && old_current_session_self_clean == new_current_session_self_clean
+        {
+            return None;
+        }
+        let dirty_container_count = self
+            .get_aggregated_dirty_container_count()
+            .cloned()
+            .unwrap_or_default();
+        let current_session_clean_container_count = self
+            .get_aggregated_current_session_clean_container_count()
+            .copied()
+            .unwrap_or_default();
+        let result = ComputeDirtyAndCleanUpdate {
+            old_dirty_container_count: dirty_container_count,
+            new_dirty_container_count: dirty_container_count,
+            old_current_session_clean_container_count: current_session_clean_container_count,
+            new_current_session_clean_container_count: current_session_clean_container_count,
+            old_self_dirty,
+            new_self_dirty,
+            old_current_session_self_clean,
+            new_current_session_self_clean,
+        }
+        .compute();
+        // Fire the all_clean_event if the task transitioned to clean
+        if result.dirty_count_update - result.current_session_clean_update < 0
+            && let Some(activeness_state) = self.get_activeness_mut()
+        {
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+            if activeness_state.is_empty() {
+                self.take_activeness();
+            }
+        }
+        result
+            .aggregated_update(task_id)
+            .and_then(|aggregated_update| {
+                AggregationUpdateJob::data_update(self, aggregated_update)
+            })
     }
     fn dirty_containers(&self) -> impl Iterator<Item = TaskId> {
         self.dirty_containers_with_count()
@@ -1099,8 +1193,8 @@ impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        AggregatedDataUpdate, AggregationUpdateJob, ComputeDirtyAndCleanUpdate,
-        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
+        is_aggregating_node, is_root_node,
     },
     cleanup_old_edges::OutdatedEdge,
     connect_children::connect_children,

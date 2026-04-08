@@ -8,6 +8,15 @@ use turbo_tasks_hash::{HashAlgorithm, Xxh3Hash64Hasher};
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
+/// Returns an empty salt `Vc<RcStr>` meaning "no salt applied to this hash".
+///
+/// Use this instead of `Vc::cell(RcStr::default())` at call sites that don't control the
+/// hash salt — e.g. internal hashes not exposed to the user as filenames.
+#[turbo_tasks::function]
+pub fn no_hash_salt() -> Vc<RcStr> {
+    Vc::cell(RcStr::default())
+}
+
 /// A file or intermediate result containing content as a [`Rope`] or a symlink.
 ///
 /// This is a supertrait for [`Source`], [`OutputAsset`], and [`OutputChunk`].
@@ -27,10 +36,15 @@ pub trait Asset {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 
-    /// Hash of the content of the `Asset`.
+    /// Hash of the content of the `Asset`. If `salt` is non-empty it is mixed
+    /// into the hash in a single pass before the file bytes.
     #[turbo_tasks::function]
-    fn content_hash(self: Vc<Self>, algorithm: HashAlgorithm) -> Vc<Option<RcStr>> {
-        self.content().content_hash(algorithm)
+    fn content_hash(
+        self: Vc<Self>,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Vc<Option<RcStr>> {
+        self.content().content_hash(salt, algorithm)
     }
 }
 
@@ -130,12 +144,19 @@ impl AssetContent {
         }
     }
 
-    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and nothing
-    /// else. If there is no file content, it returns `None`.
+    /// Compared to [AssetContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` for redirects or missing files.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
     #[turbo_tasks::function]
-    pub async fn content_hash(&self, algorithm: HashAlgorithm) -> Result<Vc<Option<RcStr>>> {
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
         match self {
-            AssetContent::File(content) => Ok(content.content_hash(algorithm)),
+            AssetContent::File(content) => Ok(content.content_hash(salt, algorithm)),
             AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
         }
     }

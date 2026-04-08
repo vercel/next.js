@@ -80,7 +80,7 @@ import type {
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
 import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
 
@@ -836,7 +836,7 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        const route = parseAppRoute(page, true)
+        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static

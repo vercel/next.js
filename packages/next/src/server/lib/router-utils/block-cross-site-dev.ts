@@ -119,7 +119,7 @@ export const blockCrossSiteDEV = (
   hostname: string | undefined
 ): boolean => {
   const allowedOrigins = [
-    '*.localhost',
+    '**.localhost',
     'localhost',
     ...(allowedDevOrigins ?? []),
   ]

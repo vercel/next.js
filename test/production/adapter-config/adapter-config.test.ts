@@ -379,6 +379,7 @@ describe('adapter-config', () => {
 
     expect(routing).toEqual({
       beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
       afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),

@@ -53,7 +53,10 @@ import {
   INSTANT_SLOT_MARKER_PREFIX,
   INSTANT_SLOT_MARKER_SUFFIX,
 } from './instant-validation/boundary-constants'
-import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import {
+  type ValidationBoundaryTracking,
+  allRequiredBoundariesRendered,
+} from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
@@ -922,7 +925,7 @@ export function trackDynamicHoleInNavigation(
     // If we managed to render all the validation boundaries, that means
     // that the client holes aren't blocking validation and we can disregard them.
     // Note that we don't even care whether they have suspense or not.
-    if (boundaryState.expectedIds.size === boundaryState.renderedIds.size) {
+    if (allRequiredBoundariesRendered(boundaryState)) {
       dynamicValidation.hasAllowedClientDynamicAboveBoundary = true
       dynamicValidation.hasAllowedDynamic = true // Holes outside the boundary contribute to allowing dynamic metadata
       return
@@ -1332,7 +1335,7 @@ export function getNavigationDisallowedDynamicReasons(
     return validationPreventingErrors
   }
 
-  if (boundaryState.renderedIds.size < boundaryState.expectedIds.size) {
+  if (!allRequiredBoundariesRendered(boundaryState)) {
     const { thrownErrorsOutsideBoundary } = dynamicValidation
     const rootInstantStack = dynamicValidation.slotStacks[0]
     if (thrownErrorsOutsideBoundary.length === 0) {

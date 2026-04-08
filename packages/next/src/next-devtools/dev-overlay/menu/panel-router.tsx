@@ -261,6 +261,8 @@ export const PanelRouter = () => {
         <PanelRoute name="instant-navs">
           <DynamicPanel
             sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
             sizeConfig={{
               kind: 'fixed',
               height: 300 / state.scale,
