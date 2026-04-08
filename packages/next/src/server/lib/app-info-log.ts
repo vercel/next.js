@@ -149,9 +149,24 @@ function baseAgentRulesMessage(): string {
 }
 
 /**
- * Emit a warning at the end of `next build` when the agent rules are missing
- * and an AI coding agent is driving the build. Never fails the build — CI
- * pipelines should keep working. Humans never see this.
+ * Emit an error-level message when the Next.js agent rules are missing and
+ * an AI coding agent is driving `next dev` or `next build`. Non-fatal — the
+ * dev server and build still run, so CI pipelines and interactive workflows
+ * aren't broken.
+ *
+ * Implementation notes:
+ *
+ *   - We use `Log.error` (red ⨯ prefix on `console.error` / stderr) rather
+ *     than `Log.warn` because agents parsing command output latch onto
+ *     ERROR-level lines far more reliably than yellow warnings.
+ *   - The message body is deliberately worded to tell agents to stop and
+ *     ask the user for permission, rather than auto-running the codemod.
+ *     See `baseAgentRulesMessage`.
+ *   - Cheap enough to call unconditionally at startup: two small sync file
+ *     reads (`AGENTS.md` + `CLAUDE.md`) and one env var check. No config
+ *     load, no workspace walk, no dynamic imports.
+ *   - Gated on `detectAgent()` so humans running the dev server or build in
+ *     a normal terminal never see it.
  */
 export function warnIfMissingAgentRules(dir: string): void {
   if (detectAgent() === null) {
@@ -160,35 +175,7 @@ export function warnIfMissingAgentRules(dir: string): void {
   if (hasAgentRulesInstalled(dir)) {
     return
   }
-  Log.warn(baseAgentRulesMessage())
-}
-
-/**
- * Returns an error message when `next dev` should be blocked because the
- * Next.js agent rules aren't installed, or `null` when the caller should
- * proceed as normal. Gated on `detectAgent()` so humans never trip it.
- *
- * The error message intentionally does NOT mention the
- * `--skip-agent-rule-check` bypass flag. Agents parsing command output will
- * always take the cheapest path to unblock themselves, and advertising the
- * bypass turns the gate into a suggestion. The flag still exists and still
- * works (for humans who genuinely hit an edge case like an `AI_AGENT` env
- * var leaking into a non-agent shell), but it's hidden from `next dev --help`
- * and never surfaced in the error. The only path agents see is "run the
- * codemod".
- *
- * Unlike the build-side warning, this path exits the dev server so agents
- * can't accidentally develop against a project that isn't scaffolded with
- * the bundled-docs instructions.
- */
-export function getAgentRulesDevError(
-  dir: string,
-  { skip }: { skip: boolean }
-): string | null {
-  if (skip) return null
-  if (detectAgent() === null) return null
-  if (hasAgentRulesInstalled(dir)) return null
-  return baseAgentRulesMessage()
+  Log.error(baseAgentRulesMessage())
 }
 
 function tryReadFile(filePath: string): string | null {

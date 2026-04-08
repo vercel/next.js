@@ -350,12 +350,6 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
-  // `--skip-agent-rule-check` is hidden from `--help` by design: if it's
-  // discoverable, agents parsing CLI output will use it instead of running
-  // the codemod. It still works for humans who know about it (e.g. someone
-  // with an `AI_AGENT` env var leaking into a non-agent shell), but it's
-  // intentionally undocumented.
-  .addOption(new Option('--skip-agent-rule-check').default(false).hideHelp())
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
