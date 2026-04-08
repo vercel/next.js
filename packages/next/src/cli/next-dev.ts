@@ -56,6 +56,7 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
+  internalTrace?: string | boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -347,6 +348,9 @@ const nextDev = async (
                 NEXT_CPU_PROF_DIR: path.join(dir, '.next-profiles'),
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
+            : undefined),
+          ...(process.env.NEXT_TURBOPACK_TRACING
+            ? { NEXT_TURBOPACK_TRACING: process.env.NEXT_TURBOPACK_TRACING }
             : undefined),
         },
       })
