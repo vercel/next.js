@@ -838,12 +838,12 @@ function runTests(mode: 'dev' | 'server') {
 
     // blur1
     expect(
-      stripTestHash(await browser.elementById('blur1').getAttribute('src'))
+      normalizeURL(await browser.elementById('blur1').getAttribute('src'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     expect(
-      stripTestHash(await browser.elementById('blur1').getAttribute('srcset'))
+      normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
     )
@@ -866,12 +866,12 @@ function runTests(mode: 'dev' | 'server') {
       /test(.*)jpg/
     )
     expect(
-      stripTestHash(await browser.elementById('blur1').getAttribute('src'))
+      normalizeURL(await browser.elementById('blur1').getAttribute('src'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     expect(
-      stripTestHash(await browser.elementById('blur1').getAttribute('srcset'))
+      normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
     )
@@ -889,12 +889,12 @@ function runTests(mode: 'dev' | 'server') {
 
     // blur2
     expect(
-      stripTestHash(await browser.elementById('blur2').getAttribute('src'))
+      normalizeURL(await browser.elementById('blur2').getAttribute('src'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
     )
     expect(
-      stripTestHash(await browser.elementById('blur2').getAttribute('srcset'))
+      normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
     )
@@ -919,12 +919,12 @@ function runTests(mode: 'dev' | 'server') {
       /test(.*)png/
     )
     expect(
-      stripTestHash(await browser.elementById('blur2').getAttribute('src'))
+      normalizeURL(await browser.elementById('blur2').getAttribute('src'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
     )
     expect(
-      stripTestHash(await browser.elementById('blur2').getAttribute('srcset'))
+      normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
     ).toBe(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
     )
@@ -1862,6 +1862,8 @@ describe('Image Component Default Tests', () => {
   )
 })
 
-function stripTestHash(text: string) {
-  return text.replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
 }

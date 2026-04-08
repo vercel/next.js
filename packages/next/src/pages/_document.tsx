@@ -149,9 +149,9 @@ function getScripts(
   )
 
   return [...normalScripts, ...lowPriorityScripts].map((file) => {
-    // static/chunks/51e975e7b637a580.js should use the immutable id, while
+    // static/immutable/chunks/51e975e7b637a580.js should use the immutable id, while
     // static/Yj152X97rfGgF7NPcJEZs/_ssgManifest.js should use the deployment id
-    const query = file.startsWith('static/chunks')
+    const query = file.startsWith('static/immutable/chunks')
       ? assetQueryString
       : mutableAssetQueryString
     return (

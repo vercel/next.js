@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import path from 'path'
 import fs from 'fs'
-import { retry } from 'next-test-utils'
+import { listClientChunks, retry } from 'next-test-utils'
 
 describe('chunk-load-failure', () => {
   const { next } = nextTestSetup({
@@ -10,14 +9,15 @@ describe('chunk-load-failure', () => {
   })
 
   async function getNextDynamicChunk() {
-    const chunksPath = path.join(next.testDir, '.next/static/')
-    const browserChunks = await recursiveReadDir(chunksPath, {
-      pathnameFilter: (f) => /\.js$/.test(f),
-    })
-    let nextDynamicChunks = browserChunks.filter((f) =>
-      fs
-        .readFileSync(path.join(chunksPath, f), 'utf8')
-        .includes('this is a lazy loaded async component')
+    const browserChunks = await listClientChunks(
+      path.join(next.testDir, next.distDir)
+    )
+    let nextDynamicChunks = browserChunks.filter(
+      (f) =>
+        /\.js$/.test(f) &&
+        fs
+          .readFileSync(path.join(next.testDir, next.distDir, f), 'utf8')
+          .includes('this is a lazy loaded async component')
     )
     expect(nextDynamicChunks).toHaveLength(1)
 
@@ -49,11 +49,11 @@ describe('chunk-load-failure', () => {
     expect(pageError.name).toBe('ChunkLoadError')
     if (process.env.IS_TURBOPACK_TEST) {
       expect(pageError.message).toStartWith(
-        'Failed to load chunk /_next/static/' + nextDynamicChunk
+        'Failed to load chunk /_next/' + nextDynamicChunk
       )
     } else {
       expect(pageError.message).toMatch(/^Loading chunk \S+ failed./)
-      expect(pageError.message).toContain('/_next/static/' + nextDynamicChunk)
+      expect(pageError.message).toContain('/_next/' + nextDynamicChunk)
     }
   })
 

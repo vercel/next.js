@@ -200,6 +200,7 @@ pub struct EdgeChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
@@ -225,6 +226,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         scope_hoisting,
         nested_async_chunking,
         client_root,
+        client_static_folder_name,
         asset_prefix,
         css_url_suffix,
         hash_salt,
@@ -237,7 +239,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
         output_root_to_root_path.owned().await?,
         client_root.clone(),
         output_root.join("chunks/ssr")?,
-        client_root.join("static/media")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -304,6 +308,7 @@ pub async fn get_edge_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         client_root,
+        client_static_folder_name,
         asset_prefix,
         css_url_suffix,
         hash_salt,
@@ -322,7 +327,12 @@ pub async fn get_edge_chunking_context(
         next_mode.runtime_type(),
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
-    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_root_path_override(
+        rcstr!("client"),
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
+    )
     .asset_base_path_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),

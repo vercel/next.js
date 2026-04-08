@@ -28,6 +28,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -538,7 +539,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -566,7 +567,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommandDev(
@@ -2134,9 +2135,11 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 
   const deploymentId: string | undefined =
     requiredServerFiles?.config?.deploymentId
-  const immutableAssetToken: string | undefined =
-    requiredServerFiles?.config?.experimental?.immutableAssetToken
-  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.experimental?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
 
   return {
     deploymentId,
@@ -2148,4 +2151,12 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
       return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
     },
   }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }

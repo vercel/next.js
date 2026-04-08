@@ -1139,10 +1139,11 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * A different token to use for static assets (as opposed to config.deploymentId) which
-   * doesn't have to be unique per deployment.
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
    */
-  immutableAssetToken?: string
+  supportsImmutableAssets?: boolean
 
   /**
    * An array of paths in app or pages directories that should wait to be processed
@@ -2016,7 +2017,7 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
-    | 'immutableAssetToken'
+    | 'supportsImmutableAssets'
     | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2085,7 +2086,7 @@ export function getNextConfigRuntime(
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-        immutableAssetToken: ex.immutableAssetToken,
+        supportsImmutableAssets: ex.supportsImmutableAssets,
         useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,

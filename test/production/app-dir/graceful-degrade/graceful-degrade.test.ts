@@ -7,8 +7,8 @@ describe('graceful-degrade', () => {
   })
 
   // Delete client chunks to simulate chunk loading failure
-  beforeAll(() => {
-    deleteBrowserDynamicChunks(next)
+  beforeAll(async () => {
+    await deleteBrowserDynamicChunks(next)
   })
 
   it('should degrade to graceful error when chunk loading fails in ssr for bot', async () => {

@@ -77,9 +77,7 @@ describe('next-image-proxy', () => {
     })
 
     const local = await browser.elementByCss('#app-page').getAttribute('src')
-    expect(
-      local.replace(/test\.[0-9a-z_-]{4,}\.png/g, 'test.HASH.png')
-    ).toEqual(
+    expect(normalizeURL(local)).toEqual(
       `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
     )
 
@@ -112,3 +110,9 @@ describe('next-image-proxy', () => {
     proxyServer.close()
   })
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

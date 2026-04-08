@@ -1,25 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { readdir, readFile } from 'fs/promises'
-
-async function readFilesRecursive(
-  dir: string,
-  predicate: (filename: string) => boolean
-): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true })
-  const results: string[] = []
-
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name)
-    if (entry.isDirectory()) {
-      results.push(...(await readFilesRecursive(fullPath, predicate)))
-    } else if (predicate(entry.name)) {
-      results.push(await readFile(fullPath, 'utf8'))
-    }
-  }
-
-  return results
-}
+import { readFile } from 'fs/promises'
+import { listClientChunks } from 'next-test-utils'
 
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
@@ -29,15 +11,21 @@ describe('browser-chunks', () => {
   let sources: string[] = []
   let jsContents: string[] = []
   beforeAll(async () => {
-    const chunksDir = join(next.testDir, '.next/static/chunks')
+    const chunksDir = join(next.testDir, '.next')
 
-    const sourcemaps = await readFilesRecursive(chunksDir, (filename) =>
-      filename.endsWith('.js.map')
+    const chunks = await listClientChunks(chunksDir)
+
+    const sourcemaps = await Promise.all(
+      chunks
+        .filter((filename) => filename.endsWith('.js.map'))
+        .map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
 
-    jsContents = await readFilesRecursive(chunksDir, (filename) =>
-      filename.endsWith('.js')
+    jsContents = await Promise.all(
+      chunks
+        .filter((filename) => filename.endsWith('.js'))
+        .map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
   })
 

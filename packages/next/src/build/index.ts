@@ -861,9 +861,9 @@ export function createStaticWorker(
           : undefined),
         // worker.ts copies this value into globalThis.NEXT_CLIENT_ASSET_SUFFIX
         __NEXT_PRERENDER_CLIENT_ASSET_SUFFIX:
-          config.experimental.immutableAssetToken || config.deploymentId
-            ? `?dpl=${config.experimental.immutableAssetToken || config.deploymentId}`
-            : '',
+          config.experimental.supportsImmutableAssets || !config.deploymentId
+            ? ''
+            : `?dpl=${config.deploymentId}`,
       },
     },
   }) as StaticWorker
@@ -2101,8 +2101,9 @@ export default async function build(
                 config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
-              clientAssetToken:
-                config.experimental.immutableAssetToken || config.deploymentId,
+              clientAssetToken: config.experimental.supportsImmutableAssets
+                ? ''
+                : config.deploymentId,
               sriEnabled,
               cacheMaxMemorySize: config.cacheMaxMemorySize,
             })
@@ -2330,9 +2331,10 @@ export default async function build(
                               config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
-                            clientAssetToken:
-                              config.experimental.immutableAssetToken ||
-                              config.deploymentId,
+                            clientAssetToken: config.experimental
+                              .supportsImmutableAssets
+                              ? ''
+                              : config.deploymentId,
                             sriEnabled,
                           })
                         }

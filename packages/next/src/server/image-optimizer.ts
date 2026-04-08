@@ -524,9 +524,11 @@ export class ImageOptimizerCache {
 
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
-    const isStatic = url.startsWith(
-      `${nextConfig.basePath || ''}/_next/static/media`
-    )
+    const isStatic =
+      url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
+      url.startsWith(
+        `${nextConfig.basePath || ''}/_next/static/immutable/media`
+      )
 
     return {
       href,

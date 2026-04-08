@@ -493,12 +493,11 @@ export function getResolveRoutes(
                 output.type === 'nextStaticFolder' &&
                 config.deploymentId
               ) {
-                let useImmutableToken =
-                  config.experimental.immutableAssetToken &&
+                let isImmutableFile =
+                  config.experimental.supportsImmutableAssets &&
                   clientHashes![`static${decodeURI(output.itemPath)}`]
-
-                const expectedToken = useImmutableToken
-                  ? config.experimental.immutableAssetToken
+                const expectedToken = isImmutableFile
+                  ? undefined
                   : config.deploymentId
                 if (parsedUrl.query.dpl !== expectedToken) {
                   console.error(

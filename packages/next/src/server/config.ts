@@ -548,14 +548,29 @@ function assignDefaultsAndValidate(
         )
       }
       // avoid double-pushing the same pattern if it already exists
-      const hasMatch = images.localPatterns.some(
-        (pattern) =>
-          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
-      )
-      if (!hasMatch) {
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/media/**' &&
+            pattern.search === ''
+        )
+      ) {
         // static import images are automatically allowed
         images.localPatterns.push({
           pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/immutable/media/**' &&
+            pattern.search === ''
+        )
+      ) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/immutable/media/**',
           search: '',
         })
       }
@@ -1025,10 +1040,9 @@ function assignDefaultsAndValidate(
     process.env.__NEXT_TEST_MODE &&
     process.env.IS_TURBOPACK_TEST &&
     result.deploymentId &&
-    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    result.experimental.immutableAssetToken =
-      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    result.experimental.supportsImmutableAssets = true
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1833,13 +1847,13 @@ export default async function loadConfig(
     }
 
     if (
-      phase === PHASE_PRODUCTION_BUILD &&
-      bundler !== Bundler.Turbopack &&
-      userConfig.experimental?.immutableAssetToken
+      userConfig.experimental?.supportsImmutableAssets &&
+      bundler !== undefined &&
+      bundler !== Bundler.Turbopack
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
       // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.immutableAssetToken = undefined
+      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {

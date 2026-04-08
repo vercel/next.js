@@ -183,8 +183,8 @@ export function getDefineEnv({
       ? false
       : isUseNodeStreamsEnabled,
 
-    'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
-      config.experimental.immutableAssetToken || '',
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.experimental.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {

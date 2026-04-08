@@ -74,9 +74,8 @@ function runTests(mode: 'dev' | 'server') {
         `window.scrollTo(0, 0); document.getElementById("static-image").scrollIntoView()`
       )
       expect(
-        (await browser.elementById('static-image').getAttribute('src')).replace(
-          /test\.[0-9a-z_-]+\.jpg/,
-          'test.HASH.jpg'
+        normalizeURL(
+          await browser.elementById('static-image').getAttribute('src')
         )
       ).toMatch('/_next/static/media/test.HASH.jpg' + assetDpl)
     })
@@ -145,3 +144,9 @@ describe('Unoptimized Image Tests', () => {
     }
   )
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next\/static\/immutable\//g, '_next/static/')
+}

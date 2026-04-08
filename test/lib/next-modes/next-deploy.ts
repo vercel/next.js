@@ -10,7 +10,7 @@ export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
   private _deploymentId: string | undefined
-  private _immutableAssetToken: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
 
   protected throwIfUnavailable(): void | never {
@@ -39,8 +39,8 @@ export class NextDeployInstance extends NextInstance {
     return this._deploymentId
   }
 
-  public get immutableAssetToken() {
-    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -169,19 +169,19 @@ export class NextDeployInstance extends NextInstance {
       throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
     }
     this._deploymentId = deploymentId
-    const immutableAssetToken = this._cliOutput
-      .match(/IMMUTABLE_ASSET_TOKEN: (.+)/)?.[1]
+    const supportsImmutableAssets = this._cliOutput
+      .match(/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/)?.[1]
       ?.trim()
-    if (!immutableAssetToken) {
+    if (!supportsImmutableAssets) {
       throw new Error(
-        `Failed to get immutableAssetToken from logs ${this._cliOutput}`
+        `Failed to get supportsImmutableAssets from logs ${this._cliOutput}`
       )
     }
-    this._immutableAssetToken =
-      immutableAssetToken === 'undefined' ? undefined : immutableAssetToken
+    this._supportsImmutableAssets =
+      supportsImmutableAssets === '1' ? true : false
 
     require('console').log(
-      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
     )
   }
 
