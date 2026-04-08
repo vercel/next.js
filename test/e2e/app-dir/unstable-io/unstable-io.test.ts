@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-
 describe('unstable_io with cache components', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/cache-components',
@@ -53,15 +51,10 @@ describe('unstable_io with cache components', () => {
     expect($('#pages-content').text()).toBe('ok')
   })
 
-  /* eslint-disable jest/no-standalone-expect */
-  ;(isReact18 ? it.skip : it)(
-    'should work in pages router with React.use() (CC)',
-    async () => {
-      const $ = await next.render$('/pages-use')
-      expect($('#pages-content').text()).toBe('ok')
-    }
-  )
-  /* eslint-enable jest/no-standalone-expect */
+  it('should work in pages router with React.use() (CC)', async () => {
+    const $ = await next.render$('/pages-use')
+    expect($('#pages-content').text()).toBe('ok')
+  })
 })
 
 describe('unstable_io without cache components', () => {
@@ -99,13 +92,8 @@ describe('unstable_io without cache components', () => {
     expect($('#pages-content').text()).toBe('ok')
   })
 
-  /* eslint-disable jest/no-standalone-expect */
-  ;(isReact18 ? it.skip : it)(
-    'should work in pages router with React.use()',
-    async () => {
-      const $ = await next.render$('/pages-use')
-      expect($('#pages-content').text()).toBe('ok')
-    }
-  )
-  /* eslint-enable jest/no-standalone-expect */
+  it('should work in pages router with React.use()', async () => {
+    const $ = await next.render$('/pages-use')
+    expect($('#pages-content').text()).toBe('ok')
+  })
 })
