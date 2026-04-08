@@ -27,12 +27,12 @@ describe('parseStack', () => {
     )
   })
 
-  it('rewrites /_next/immutable/ URLs to distDir', () => {
+  it('rewrites /_next/static/immutable/ URLs to distDir', () => {
     const stack = `Error
-    at fn (http://localhost:3000/_next/immutable/chunks/app.js:1:1)`
+    at fn (http://localhost:3000/_next/static/immutable/chunks/app.js:1:1)`
     const [frame] = parseStack(stack, '/home/user/project/.next')
     expect(frame.file).toBe(
-      'file:///home/user/project/.next/immutable/chunks/app.js'
+      'file:///home/user/project/.next/static/immutable/chunks/app.js'
     )
   })
 

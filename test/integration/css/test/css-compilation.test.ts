@@ -401,13 +401,13 @@ module.exports = {
               const cssPreload = $('link[rel="preload"][as="style"]')
               expect(cssPreload.length).toBe(1)
               expect(cssPreload.attr('href')).toMatch(
-                /^\/_next\/(static|immutable)\/.*\.css(\?dpl=.*)?$/
+                /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
               )
 
               const cssSheet = $('link[rel="stylesheet"]')
               expect(cssSheet.length).toBe(1)
               expect(cssSheet.attr('href')).toMatch(
-                /^\/_next\/(static|immutable)\/.*\.css(\?dpl=.*)?$/
+                /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
               )
 
               /* ensure CSS preloaded first */

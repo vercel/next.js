@@ -42,7 +42,7 @@ describe('app-dir assetPrefix with basePath handling', () => {
       const { src } = script.attribs
       if (
         src?.includes('/custom-asset-prefix/_next/static') ||
-        src?.includes('/custom-asset-prefix/_next/immutable')
+        src?.includes('/custom-asset-prefix/_next/static/immutable')
       ) {
         bundles.push(src)
       }

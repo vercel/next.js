@@ -114,13 +114,13 @@ const runTests = (isDev) => {
               `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
             ).length +
             $(
-              `#${id} ~ script[src^="/_next/immutable/chunks/%5Broot-of-the-server%5D__"]`
+              `#${id} ~ script[src^="/_next/static/immutable/chunks/%5Broot-of-the-server%5D__"]`
             ).length
         } else {
           // In production mode, content hashes are used
           scriptCount =
             $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length +
-            $(`#${id} ~ script[src^="/_next/immutable/chunks/"]`).length
+            $(`#${id} ~ script[src^="/_next/static/immutable/chunks/"]`).length
         }
       } else {
         scriptCount = $(
@@ -155,13 +155,13 @@ const runTests = (isDev) => {
               `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
             ).length +
             $(
-              `#${id} ~ script[src^="/_next/immutable/chunks/%5Broot-of-the-server%5D__"]`
+              `#${id} ~ script[src^="/_next/static/immutable/chunks/%5Broot-of-the-server%5D__"]`
             ).length
         } else {
           // In production mode, content hashes are used
           scriptCount =
             $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length +
-            $(`#${id} ~ script[src^="/_next/immutable/chunks/"]`).length
+            $(`#${id} ~ script[src^="/_next/static/immutable/chunks/"]`).length
         }
       } else {
         scriptCount = $(
@@ -235,7 +235,7 @@ const runTests = (isDev) => {
         $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
           (i, element) => $(element).attr('href')?.includes('.css')
         ).length +
-          $(`#inline-before ~ link[href^="/_next/immutable/"]`).filter(
+          $(`#inline-before ~ link[href^="/_next/static/immutable/"]`).filter(
             (i, element) => $(element).attr('href')?.includes('.css')
           ).length
       ).toBeGreaterThan(0)

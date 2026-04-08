@@ -105,7 +105,7 @@ function isInternalEndpoint(req: IncomingMessage): boolean {
     const isIgnoredRequest =
       req.url.includes('/_next/image') ||
       req.url.includes('/_next/static/media') ||
-      req.url.includes('/_next/immutable/media')
+      req.url.includes('/_next/static/immutable/media')
 
     return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
   } catch (err) {

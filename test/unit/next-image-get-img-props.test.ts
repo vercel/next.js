@@ -675,7 +675,7 @@ describe('getImageProps()', () => {
       assetToken = 'dpl_789'
       const { props } = getImageProps({
         alt: 'a nice desc',
-        src: '/_next/immutable/media/test.abc123.png',
+        src: '/_next/static/immutable/media/test.abc123.png',
         width: 100,
         height: 200,
       })
@@ -706,7 +706,7 @@ describe('getImageProps()', () => {
       deploymentId = 'dpl_123'
       const { props } = getImageProps({
         alt: 'a nice desc',
-        src: '/_next/immutable/media/test.abc123.png',
+        src: '/_next/static/immutable/media/test.abc123.png',
         width: 100,
         height: 200,
       })

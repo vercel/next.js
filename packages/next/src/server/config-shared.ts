@@ -1139,7 +1139,7 @@ export interface ExperimentalConfig {
 
   /**
    * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
    * deployments.)
    */
   supportsImmutableAssets?: boolean

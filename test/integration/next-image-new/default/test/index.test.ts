@@ -1627,7 +1627,7 @@ function runTests(mode: 'dev' | 'server') {
       const files = await listClientChunks(join(appDir, '.next'))
       expect(files).toEqual(
         expect.arrayContaining([
-          expect.stringMatching(/^(static|immutable)\/media\/small\.\w+\.jpg$/),
+          expect.stringMatching(/^static\/media\/small\.\w+\.jpg$/),
         ])
       )
     })

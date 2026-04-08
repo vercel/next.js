@@ -564,13 +564,13 @@ function assignDefaultsAndValidate(
       if (
         !images.localPatterns.some(
           (pattern) =>
-            pattern.pathname === '/_next/immutable/media/**' &&
+            pattern.pathname === '/_next/static/immutable/media/**' &&
             pattern.search === ''
         )
       ) {
         // static import images are automatically allowed
         images.localPatterns.push({
-          pathname: '/_next/immutable/media/**',
+          pathname: '/_next/static/immutable/media/**',
           search: '',
         })
       }

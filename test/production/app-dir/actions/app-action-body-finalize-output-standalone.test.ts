@@ -42,12 +42,6 @@ describe('app-dir action body finalize with nodejs middleware and output-standal
       path.join(next.testDir, '.next/static'),
       path.join(distFolder, '.next/static')
     )
-    // When immutable assets are enabled (turbopack + deploymentId), JS chunks are
-    // served from _next/immutable instead of _next/static. Copy that folder too.
-    const immutableSrc = path.join(next.testDir, '.next/immutable')
-    if (await fs.pathExists(immutableSrc)) {
-      await fs.move(immutableSrc, path.join(distFolder, '.next/immutable'))
-    }
 
     const testServer = path.join(distFolder, 'server.js')
     appPort = await findPort()

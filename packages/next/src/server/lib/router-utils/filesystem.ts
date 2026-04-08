@@ -54,7 +54,6 @@ export type FsOutput = {
     | 'nextImage'
     | 'publicFolder'
     | 'nextStaticFolder'
-    | 'nextImmutableFolder'
     | 'legacyStaticFolder'
     | 'devVirtualFsItem'
 
@@ -131,7 +130,6 @@ export async function setupFsCheck(opts: {
   const nextDataRoutes = new Set<string>()
   const publicFolderItems = new Set<string>()
   const nextStaticFolderItems = new Set<string>()
-  const nextImmutableFolderItems = new Set<string>()
   const legacyStaticFolderItems = new Set<string>()
 
   const appFiles = new Set<string>()
@@ -154,7 +152,6 @@ export async function setupFsCheck(opts: {
   const distDir = path.join(opts.dir, opts.config.distDir)
   const publicFolderPath = path.join(opts.dir, 'public')
   const nextStaticFolderPath = path.join(distDir, 'static')
-  const nextImmutableFolderPath = path.join(distDir, 'immutable')
   const legacyStaticFolderPath = path.join(opts.dir, 'static')
   let customRoutes: UnwrapPromise<ReturnType<typeof loadCustomRoutes>> = {
     redirects: [],
@@ -217,20 +214,6 @@ export async function setupFsCheck(opts: {
       }
     } catch (err) {
       if (opts.config.output !== 'standalone') throw err
-    }
-
-    try {
-      for (const file of await recursiveReadDir(nextImmutableFolderPath)) {
-        // Ensure filename is encoded and normalized.
-        nextImmutableFolderItems.add(
-          path.posix.join(
-            '/_next/immutable',
-            encodeURIPath(normalizePathSep(file))
-          )
-        )
-      }
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') throw err
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -544,7 +527,6 @@ export async function setupFsCheck(opts: {
       const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
         [nextStaticFolderItems, 'nextStaticFolder'],
-        [nextImmutableFolderItems, 'nextImmutableFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
         [publicFolderItems, 'publicFolder'],
         [appFiles, 'appFile'],
@@ -596,13 +578,6 @@ export async function setupFsCheck(opts: {
         if (
           type === 'nextStaticFolder' &&
           !pathHasPrefix(curItemPath, '/_next/static')
-        ) {
-          continue
-        }
-
-        if (
-          type === 'nextImmutableFolder' &&
-          !pathHasPrefix(curItemPath, '/_next/immutable')
         ) {
           continue
         }
@@ -664,11 +639,6 @@ export async function setupFsCheck(opts: {
             case 'nextStaticFolder': {
               itemsRoot = nextStaticFolderPath
               curItemPath = curItemPath.substring('/_next/static'.length)
-              break
-            }
-            case 'nextImmutableFolder': {
-              itemsRoot = nextImmutableFolderPath
-              curItemPath = curItemPath.substring('/_next/immutable'.length)
               break
             }
             case 'legacyStaticFolder': {

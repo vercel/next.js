@@ -8,6 +8,6 @@ export default function middleware(req) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/immutable|favicon|.well-known|auth|sitemap|robots.txt|files).*)',
+    '/((?!api|_next/static|favicon|.well-known|auth|sitemap|robots.txt|files).*)',
   ],
 }

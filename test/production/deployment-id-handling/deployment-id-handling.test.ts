@@ -35,7 +35,7 @@ describe.each([
     })
 
     const validateTokenForRequest = (url: string) => {
-      const token = url.includes('/_next/immutable/')
+      const token = url.includes('/_next/static/immutable/')
         ? // Turbopack-emitted chunks
           immutableAssetToken
         : // e.g. /_next/static/build-id/_ssgManifest.js
@@ -88,7 +88,7 @@ describe.each([
               // TODO this currently exclude _next/image
               if (
                 req.url().includes('/_next/static') ||
-                req.url().includes('/_next/immutable')
+                req.url().includes('/_next/static/immutable')
               ) {
                 clientRequests.push(req.url())
               }
@@ -100,7 +100,7 @@ describe.each([
         browser.on('request', (req) => {
           if (
             req.url().includes('/_next/static') ||
-            req.url().includes('/_next/immutable')
+            req.url().includes('/_next/static/immutable')
           ) {
             dynamicImportRequests.push(req.url())
           }
@@ -198,7 +198,7 @@ describe.each([
         const immutableAssets = outputs.staticFiles.filter(
           (a) =>
             (a.pathname.startsWith('/_next/static/') ||
-              a.pathname.startsWith('/_next/immutable/')) &&
+              a.pathname.startsWith('/_next/static/immutable/')) &&
             !(
               a.pathname.endsWith('/_buildManifest.js') ||
               a.pathname.endsWith('/_clientMiddlewareManifest.js') ||

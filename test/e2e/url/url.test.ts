@@ -45,7 +45,7 @@ describe(`Handle new URL asset references`, () => {
     }
     clientUrl =
       isTurbopack && !isNextDev
-        ? `/_next/immutable/media/vercel.HASH.png`
+        ? `/_next/static/immutable/media/vercel.HASH.png`
         : `/_next/static/media/vercel.HASH.png${expectedToken ? `?dpl=${expectedToken}` : ''}`
   })
 

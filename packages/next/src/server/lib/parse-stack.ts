@@ -1,6 +1,6 @@
 import { parse } from 'next/dist/compiled/stacktrace-parser'
 
-const regexNextStatic = /\/_next(\/(?:static|immutable)\/.+)/
+const regexNextStatic = /\/_next(\/static\/.+)/
 
 export interface StackFrame {
   file: string | null

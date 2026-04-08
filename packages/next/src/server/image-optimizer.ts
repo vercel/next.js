@@ -526,7 +526,9 @@ export class ImageOptimizerCache {
 
     const isStatic =
       url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
-      url.startsWith(`${nextConfig.basePath || ''}/_next/immutable/media`)
+      url.startsWith(
+        `${nextConfig.basePath || ''}/_next/static/immutable/media`
+      )
 
     return {
       href,
