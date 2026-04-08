@@ -247,7 +247,7 @@ import 'server-only'
 
 This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
 
-In Next.js, installing `server-only` is optional. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
+Next.js handles `server-only` imports internally. The contents of these packages from NPM are not used. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
 
 ```bash package="npm"
 npm install server-only
