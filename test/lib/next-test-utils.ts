@@ -2154,15 +2154,9 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 }
 
 export async function listClientChunks(distDir: string) {
-  const staticDir = path.join(distDir, 'static')
-  const immutableDir = path.join(distDir, 'immutable')
-
-  return [
-    ...(existsSync(staticDir)
-      ? await recursiveReadDir(staticDir, { relativePathnames: false })
-      : []),
-    ...(existsSync(immutableDir)
-      ? await recursiveReadDir(immutableDir, { relativePathnames: false })
-      : []),
-  ].map((f) => path.relative(distDir, f))
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }

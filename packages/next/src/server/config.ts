@@ -1847,9 +1847,8 @@ export default async function loadConfig(
     }
 
     if (
-      phase === PHASE_PRODUCTION_BUILD &&
-      bundler !== Bundler.Turbopack &&
-      userConfig.experimental?.supportsImmutableAssets
+      userConfig.experimental?.supportsImmutableAssets &&
+      bundler !== Bundler.Turbopack
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
       // in `static/chunks` are always immutable without checking the manifest.

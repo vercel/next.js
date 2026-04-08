@@ -670,7 +670,6 @@ export async function setupFsCheck(opts: {
             const isStaticAsset = (
               [
                 'nextStaticFolder',
-                'nextImmutableFolder',
                 'publicFolder',
                 'legacyStaticFolder',
               ] as (typeof type)[]
