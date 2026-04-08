@@ -283,3 +283,35 @@ describe('config-testing-utils', () => {
     expect(response.headers.get('x-using-base-path')).toBeNull()
   })
 })
+
+describe('function configs', () => {
+  it('resolves a synchronous function config', async () => {
+    const response = await unstable_getResponseFromNextConfig({
+      url: 'https://nextjs.org/old',
+      nextConfig: (_phase, _ctx) => ({
+        async rewrites() {
+          return [{ source: '/old', destination: '/new' }]
+        },
+      }),
+    })
+    expect(response.status).toEqual(200)
+    expect(getRewrittenUrl(response)).toEqual('https://nextjs.org/new')
+  })
+
+  it('resolves an async function config (plugin wrapper pattern)', async () => {
+    function withPlugin(config: object) {
+      return async (_phase: string, _ctx: object) => ({
+        ...config,
+      })
+    }
+    const response = await unstable_getResponseFromNextConfig({
+      url: 'https://nextjs.org/old',
+      nextConfig: withPlugin({
+        async rewrites() {
+          return [{ source: '/old', destination: '/new' }]
+        },
+      }) as any,
+    })
+    expect(response.status).toEqual(200)
+  })
+})
