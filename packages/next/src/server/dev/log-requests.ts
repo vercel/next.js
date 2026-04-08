@@ -15,6 +15,8 @@ import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
 import { getRequestMeta, removeRequestMeta } from '../request-meta'
 import { formatArgs } from './server-action-logger'
+import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getLogStream } from './log-stream'
 
 /**
  * Returns true if the incoming request should be ignored for logging.
@@ -51,34 +53,213 @@ export function logRequests(
   devRequestTimingInternalsEnd: bigint | undefined,
   devGenerateStaticParamsDuration: bigint | undefined
 ): void {
-  if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
-    logIncomingRequests(
+  const shouldLog = !ignoreLoggingIncomingRequests(request, loggingConfig)
+
+  // Emit structured log to LogStream (for MCP querying and TUI display).
+  // Respects the same logging config as console output.
+  if (shouldLog) {
+    emitStructuredRequestLog(
       request,
+      response.statusCode,
       requestStartTime,
       requestEndTime,
-      response.statusCode,
       devRequestTimingMiddlewareStart,
       devRequestTimingMiddlewareEnd,
       devRequestTimingInternalsEnd,
-      devGenerateStaticParamsDuration
+      devGenerateStaticParamsDuration,
+      loggingConfig
     )
+  }
 
-    // Log server action after the request log
-    const serverActionLog = getRequestMeta(request, 'devServerActionLog')
-    if (serverActionLog) {
-      const argsStr = formatArgs(serverActionLog.args)
-      process.stdout.write(
-        `  └─ ƒ ${serverActionLog.functionName}(${argsStr}) in ${serverActionLog.duration}ms ${dim(serverActionLog.location)}\n`
+  // When TUI is active, structured data is sent via IPC (TuiSink) so
+  // skip stdout logging to avoid duplicate/poorly-wrapped output.
+  if (!process.env.__NEXT_TUI_ENABLED) {
+    if (shouldLog) {
+      logIncomingRequests(
+        request,
+        requestStartTime,
+        requestEndTime,
+        response.statusCode,
+        devRequestTimingMiddlewareStart,
+        devRequestTimingMiddlewareEnd,
+        devRequestTimingInternalsEnd,
+        devGenerateStaticParamsDuration
       )
-      removeRequestMeta(request, 'devServerActionLog')
+
+      // Log server action after the request log
+      const serverActionLog = getRequestMeta(request, 'devServerActionLog')
+      if (serverActionLog) {
+        const argsStr = formatArgs(serverActionLog.args)
+        process.stdout.write(
+          `  └─ ƒ ${serverActionLog.functionName}(${argsStr}) in ${serverActionLog.duration}ms ${dim(serverActionLog.location)}\n`
+        )
+        removeRequestMeta(request, 'devServerActionLog')
+      }
+    }
+
+    if (request.fetchMetrics) {
+      for (const fetchMetric of request.fetchMetrics) {
+        logFetchMetric(fetchMetric, loggingConfig)
+      }
+    }
+  }
+}
+
+/** Timing breakdown for request logging */
+interface RequestTiming {
+  label: string
+  time: bigint
+}
+
+/**
+ * Calculate timing breakdown for a request.
+ * Shared by both console logging and structured logging.
+ */
+function calculateRequestTimings(
+  requestStartTime: bigint,
+  requestEndTime: bigint,
+  devRequestTimingMiddlewareStart: bigint | undefined,
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined
+): RequestTiming[] {
+  const timings: RequestTiming[] = []
+
+  let middlewareTime: bigint | undefined
+  if (devRequestTimingMiddlewareStart && devRequestTimingMiddlewareEnd) {
+    middlewareTime =
+      devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
+    timings.push({ label: 'middleware', time: middlewareTime })
+  }
+
+  if (devRequestTimingInternalsEnd) {
+    let frameworkTime = devRequestTimingInternalsEnd - requestStartTime
+    // Middleware runs during the internals so we have to subtract it from the framework time
+    if (middlewareTime) {
+      frameworkTime -= middlewareTime
+    }
+    // Insert as the first item to be rendered in the list
+    timings.unshift({ label: 'compile', time: frameworkTime })
+
+    // Insert after compile, before render based on the execution order
+    if (devGenerateStaticParamsDuration) {
+      // Pages Router getStaticPaths are technically "generate params" as well
+      timings.push({
+        label: 'generate-params',
+        time: devGenerateStaticParamsDuration,
+      })
+    }
+
+    timings.push({
+      label: 'render',
+      time: requestEndTime - devRequestTimingInternalsEnd,
+    })
+  }
+
+  return timings
+}
+
+// Emit a structured request log via LogStream
+function emitStructuredRequestLog(
+  request: NodeNextRequest,
+  statusCode: number,
+  requestStartTime: bigint,
+  requestEndTime: bigint,
+  devRequestTimingMiddlewareStart: bigint | undefined,
+  devRequestTimingMiddlewareEnd: bigint | undefined,
+  devRequestTimingInternalsEnd: bigint | undefined,
+  devGenerateStaticParamsDuration: bigint | undefined,
+  loggingConfig: LoggingConfig
+): void {
+  const isRSC = getRequestMeta(request, 'isRSCRequest')
+  const { isFetchAction, actionId } = getServerActionRequestMetadata(request)
+  const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
+  const totalRequestTime = requestEndTime - requestStartTime
+
+  // Determine request type: 'action' for server actions, 'nav' for RSC navigations, 'load' for initial loads
+  let requestType: 'action' | 'nav' | 'load'
+  if (isFetchAction) {
+    requestType = 'action'
+  } else if (isRSC) {
+    requestType = 'nav'
+  } else {
+    requestType = 'load'
+  }
+
+  const timings = calculateRequestTimings(
+    requestStartTime,
+    requestEndTime,
+    devRequestTimingMiddlewareStart,
+    devRequestTimingMiddlewareEnd,
+    devRequestTimingInternalsEnd,
+    devGenerateStaticParamsDuration
+  )
+
+  // Convert to milliseconds for structured output
+  const timingsMs = timings.map(({ label, time }) => ({
+    label,
+    time: Number(time / BigInt(1_000_000)),
+  }))
+
+  // Collect fetch metrics
+  const fetchMetrics: Array<{
+    method: string
+    url: string
+    status: number
+    totalTime: number
+    cacheStatus?: string
+    cacheReason?: string
+    cacheWarning?: string
+  }> = []
+
+  if (request.fetchMetrics && loggingConfig?.fetches) {
+    for (const metric of request.fetchMetrics) {
+      if (
+        metric.cacheStatus === 'hmr' &&
+        !loggingConfig.fetches?.hmrRefreshes
+      ) {
+        continue
+      }
+      fetchMetrics.push({
+        method: metric.method,
+        url: metric.url,
+        status: metric.status,
+        totalTime: Math.round(metric.end - metric.start),
+        cacheStatus: metric.cacheStatus,
+        cacheReason: metric.cacheReason,
+        cacheWarning: metric.cacheWarning,
+      })
     }
   }
 
-  if (request.fetchMetrics) {
-    for (const fetchMetric of request.fetchMetrics) {
-      logFetchMetric(fetchMetric, loggingConfig)
-    }
-  }
+  // Get server action info if present
+  const serverActionLog = getRequestMeta(request, 'devServerActionLog')
+  const serverAction = serverActionLog
+    ? {
+        functionName: serverActionLog.functionName,
+        duration: serverActionLog.duration,
+        location: serverActionLog.location,
+      }
+    : undefined
+
+  // Emit to LogStream (automatically goes to MCP file via sinks)
+  const logStream = getLogStream()
+  const totalTime = Number(totalRequestTime / BigInt(1_000_000))
+  logStream.info(`${request.method} ${url} ${statusCode} in ${totalTime}ms`, {
+    scope: 'request',
+    structured: {
+      type: 'request',
+      method: request.method,
+      url,
+      status: statusCode,
+      totalTime,
+      requestType,
+      actionId: isFetchAction ? actionId : undefined,
+      serverAction,
+      timings: timingsMs.length > 0 ? timingsMs : undefined,
+      fetchMetrics: fetchMetrics.length > 0 ? fetchMetrics : undefined,
+    },
+  })
 }
 
 function logIncomingRequests(
@@ -106,42 +287,25 @@ function logIncomingRequests(
             : red
 
   const coloredStatus = statusCodeColor(statusCode.toString())
-
   const totalRequestTime = requestEndTime - requestStartTime
 
-  const times: Array<[label: string, time: bigint]> = []
+  const timings = calculateRequestTimings(
+    requestStartTime,
+    requestEndTime,
+    devRequestTimingMiddlewareStart,
+    devRequestTimingMiddlewareEnd,
+    devRequestTimingInternalsEnd,
+    devGenerateStaticParamsDuration
+  )
 
-  let middlewareTime: bigint | undefined
-  if (devRequestTimingMiddlewareStart && devRequestTimingMiddlewareEnd) {
-    middlewareTime =
-      devRequestTimingMiddlewareEnd - devRequestTimingMiddlewareStart
-    times.push(['proxy.ts', middlewareTime])
-  }
-
-  if (devRequestTimingInternalsEnd) {
-    let frameworkTime = devRequestTimingInternalsEnd - requestStartTime
-
-    /* Middleware runs during the internals so we have to subtract it from the framework time */
-    if (middlewareTime) {
-      frameworkTime -= middlewareTime
-    }
-    // Insert as the first item to be rendered in the list
-    times.unshift(['next.js', frameworkTime])
-
-    // Insert after compile, before render based on the execution order.
-    if (devGenerateStaticParamsDuration) {
-      // Pages Router getStaticPaths are technically "generate params" as well.
-      times.push(['generate-params', devGenerateStaticParamsDuration])
-    }
-
-    times.push([
-      'application-code',
-      requestEndTime - devRequestTimingInternalsEnd,
-    ])
-  }
+  // Console logging uses 'proxy.ts' label for middleware (legacy behavior)
+  const consoleTimings = timings.map(({ label, time }) => {
+    const displayLabel = label === 'middleware' ? 'proxy.ts' : label
+    return [displayLabel, time] as [string, bigint]
+  })
 
   return writeLine(
-    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(totalRequestTime)}${times.length > 0 ? dim(` (${times.map(([label, time]) => `${label}: ${hrtimeBigIntDurationToString(time)}`).join(', ')})`) : ''}`
+    `${request.method} ${url} ${coloredStatus} in ${hrtimeBigIntDurationToString(totalRequestTime)}${consoleTimings.length > 0 ? dim(` (${consoleTimings.map(([label, time]) => `${label}: ${hrtimeBigIntDurationToString(time)}`).join(', ')})`) : ''}`
   )
 }
 

@@ -16,9 +16,12 @@ import {
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
+import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
+import type { NextConfigComplete } from '../server/config-shared'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
@@ -37,7 +40,12 @@ import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
-import { Bundler, parseBundlerArgs } from '../lib/bundler'
+import {
+  Bundler,
+  finalizeBundlerFromConfig,
+  parseBundlerArgs,
+} from '../lib/bundler'
+import type { TuiInstance } from 'next/dist/compiled/tui/index.mjs'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -56,15 +64,17 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
+  experimentalTui?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
-// distDir is received from the child process via IPC, used for telemetry and trace.
-let distDir: string | undefined
-let isTurbopack: boolean
+let tuiInstance: TuiInstance | undefined
+// The config in next-dev is only used to access config.distDir for telemetry and trace.
+let config: NextConfigComplete
+let bundler: Bundler
 let traceUploadUrl: string
 let sessionStopHandled = false
 const sessionStarted = Date.now()
@@ -81,6 +91,12 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  // Cleanup TUI if it was started
+  if (tuiInstance) {
+    tuiInstance.unmount()
+    tuiInstance = undefined
+  }
 
   // Capture the child's exit code if it has already exited and caused the
   // session stop (via the 'exit' event), otherwise assume success (0).
@@ -117,18 +133,24 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
+    config =
+      config ||
+      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
+
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
       >) ||
       new Telemetry({
-        distDir: path.join(dir, distDir || '.next'),
+        distDir: path.join(dir, config.distDir),
       })
+    // Reading the config can modify environment variables that influence the bundler selection.
+    bundler = finalizeBundlerFromConfig(bundler)
 
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: isTurbopack,
+        turboFlag: bundler === Bundler.Turbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -141,13 +163,13 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     // noise to the output
   }
 
-  if (traceUploadUrl && distDir) {
+  if (traceUploadUrl) {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
       projectDir: dir,
-      distDir,
-      isTurboSession: isTurbopack,
+      distDir: config.distDir,
+      isTurboSession: bundler === Bundler.Turbopack,
     })
   }
 
@@ -172,9 +194,7 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  // Note: parseBundlerArgs can only decide on Turbopack or webpack.
-  // Rspack can be configured via next.config.js but next.config.js is not loaded in the main process, only in the child process.
-  isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
+  bundler = parseBundlerArgs(options)
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
@@ -320,12 +340,17 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // When TUI is enabled, use pipes for stdio so we can capture output
+      const tuiEnabled = options.experimentalTui && process.stdout.isTTY
+
       child = fork(startServerPath, {
-        stdio: 'inherit',
+        stdio: tuiEnabled ? ['pipe', 'pipe', 'pipe', 'ipc'] : 'inherit',
         execArgv,
         env: {
           ...defaultEnv,
-          ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          ...(bundler === Bundler.Turbopack
+            ? { TURBOPACK: process.env.TURBOPACK }
+            : undefined),
           __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
@@ -348,10 +373,12 @@ const nextDev = async (
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
             : undefined),
+          // Tell child process that TUI is enabled
+          __NEXT_TUI_ENABLED: tuiEnabled ? '1' : undefined,
         },
       })
 
-      child.on('message', (msg: any) => {
+      child.on('message', async (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
@@ -361,9 +388,30 @@ const nextDev = async (
               // it can be re-used on automatic dev server restarts.
               port = parseInt(msg.port, 10)
             }
-            if (msg.distDir) {
-              // Store the distDir from the child process for telemetry and trace uploads.
-              distDir = msg.distDir
+
+            // Start TUI after server is ready
+            if (tuiEnabled && child) {
+              const protocol = startServerOptions.selfSignedCertificate
+                ? 'https'
+                : 'http'
+              const serverUrl = `${protocol}://${host || 'localhost'}:${port}`
+
+              // Load config to get distDir
+              config =
+                config ||
+                (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+                  silent: true,
+                }))
+
+              const { startTui } = await import(
+                'next/dist/compiled/tui/index.mjs'
+              )
+              tuiInstance = startTui(child, serverUrl)
+
+              // When TUI exits (user pressed 'q'), trigger full cleanup
+              tuiInstance.waitUntilExit().then(() => {
+                handleSessionStop('SIGTERM')
+              })
             }
 
             resolved = true
@@ -380,13 +428,13 @@ const nextDev = async (
           // Starting the dev server will overwrite the `.next/trace` file, so we
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
-          if (traceUploadUrl && distDir) {
+          if (traceUploadUrl && config) {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
-              distDir,
-              isTurboSession: isTurbopack,
+              distDir: config.distDir,
+              isTurboSession: bundler === Bundler.Turbopack,
               sync: true,
             })
           }

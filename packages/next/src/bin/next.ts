@@ -347,6 +347,10 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
   )
+  .option(
+    '--experimental-tui',
+    'Enable experimental TUI (text user interface) for the dev server.'
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {

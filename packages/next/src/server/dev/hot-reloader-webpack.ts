@@ -89,10 +89,7 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import {
-  receiveBrowserLogsWebpack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -113,7 +110,7 @@ import {
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
-import { getFileLogger } from './browser-logs/file-logger'
+import { initLogStream, FileSink, TuiSink } from './log-stream'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
 import {
@@ -333,13 +330,24 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
 
-    // Initialize log monitor for file logging
-    // Enable logging by default in development mode
-    const mcpServerEnabled = !!config.experimental.mcpServer
-    const fileLogger = getFileLogger()
-    fileLogger.initialize(this.distDir, mcpServerEnabled)
+    // Initialize structured logging
+    const tuiEnabled = !!process.env.__NEXT_TUI_ENABLED
+    const logStream = initLogStream(1000)
+
+    // Only write log file to disk when MCP server is enabled
+    if (this.config.experimental.mcpServer) {
+      logStream.addSink(
+        new FileSink(join(this.distDir, 'logs', 'next-development.log'))
+      )
+    }
+
+    // Add TUI sink if TUI is enabled
+    if (tuiEnabled) {
+      logStream.addSink(new TuiSink())
+    }
 
     onDevServerCleanup?.(async () => {
+      logStream.close()
       await lockfile?.unlock()
     })
   }
@@ -604,26 +612,22 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              const browserToTerminalConfig =
-                this.config.logging && this.config.logging.browserToTerminal
-              if (browserToTerminalConfig) {
-                await receiveBrowserLogsWebpack({
-                  entries: payload.entries,
-                  router: payload.router,
-                  sourceType: payload.sourceType,
-                  clientStats: () => this.clientStats,
-                  serverStats: () => this.serverStats,
-                  edgeServerStats: () => this.edgeServerStats,
-                  rootDirectory: this.dir,
-                  distDir: this.distDir,
-                  config: browserToTerminalConfig,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(payload.logs)
+              // Always process for LogStream (TUI/MCP)
+              // Terminal output is gated by config inside handleLog()
+              await receiveBrowserLogsWebpack({
+                entries: payload.entries,
+                router: payload.router,
+                sourceType: payload.sourceType,
+                clientStats: () => this.clientStats,
+                serverStats: () => this.serverStats,
+                edgeServerStats: () => this.edgeServerStats,
+                rootDirectory: this.dir,
+                distDir: this.distDir,
+                config:
+                  this.config.logging !== false
+                    ? (this.config.logging?.browserToTerminal ?? false)
+                    : false,
+              })
               break
             }
             case 'ping': {
