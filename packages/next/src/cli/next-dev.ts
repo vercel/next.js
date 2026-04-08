@@ -32,8 +32,8 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
 import os from 'os'
-import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
@@ -79,25 +79,39 @@ const sessionSpan = trace('next-dev')
 // If the user restarts the dev server within this window we count it as a "rage restart".
 const RAGE_RESTART_THRESHOLD_MS = 120_000
 
-function getDevStateFilePath(projectDir: string): string {
-  const hash = crypto
-    .createHash('sha256')
-    .update(projectDir)
-    .digest('hex')
-    .slice(0, 16)
-  return path.join(os.tmpdir(), 'next-dev-state', `${hash}.json`)
-}
+// Single shared file for all projects — keyed by project directory path.
+const DEV_STATE_FILE = path.join(
+  getCacheDirectory('nextjs-nodejs'),
+  'dev-state.json'
+)
 
 function writeDevState(): void {
   if (!traceUploadUrl || !dir) return
   try {
-    const stateFilePath = getDevStateFilePath(dir)
-    const state = {
+    fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
+
+    let state: Record<string, { stopTime: number; distDirPath: string }> = {}
+    try {
+      state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
+    } catch {
+      // File missing or corrupt — start with empty state
+    }
+
+    // Eagerly remove entries older than the threshold
+    const cutoff = Date.now() - RAGE_RESTART_THRESHOLD_MS
+    for (const key of Object.keys(state)) {
+      if (!state[key]?.stopTime || state[key].stopTime < cutoff) {
+        delete state[key]
+      }
+    }
+
+    // Update current project
+    state[dir] = {
       stopTime: Date.now(),
       distDirPath: path.join(dir, distDir ?? '.next'),
     }
-    fs.mkdirSync(path.dirname(stateFilePath), { recursive: true })
-    fs.writeFileSync(stateFilePath, JSON.stringify(state))
+
+    fs.writeFileSync(DEV_STATE_FILE, JSON.stringify(state))
   } catch {
     // Best effort — don't interfere with shutdown
   }
@@ -293,24 +307,23 @@ const nextDev = async (
     let isRageRestart = false
     let distDirCleared = false
     try {
-      const stateFilePath = getDevStateFilePath(dir)
-      if (fs.existsSync(stateFilePath)) {
-        const state = JSON.parse(fs.readFileSync(stateFilePath, 'utf8')) as {
-          stopTime?: number
-          distDirPath?: string
-        }
+      if (fs.existsSync(DEV_STATE_FILE)) {
+        const allState = JSON.parse(
+          fs.readFileSync(DEV_STATE_FILE, 'utf8')
+        ) as Record<string, { stopTime?: number; distDirPath?: string }>
+        const state = allState[dir]
         if (
-          state.stopTime &&
+          state?.stopTime &&
           Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
         ) {
           isRageRestart = true
         }
-        if (state.distDirPath && !fs.existsSync(state.distDirPath)) {
+        if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
           distDirCleared = true
         }
       }
     } catch {
-      // Best effort — don't affect startup
+      // Corrupt file — leave both flags false
     }
     devSpanAttrs = {
       'rage-restart': isRageRestart,

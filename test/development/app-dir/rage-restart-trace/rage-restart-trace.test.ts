@@ -1,7 +1,6 @@
-import { createHash } from 'node:crypto'
 import { rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import os from 'node:os'
 import { nextTestSetup } from 'e2e-utils'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
@@ -21,12 +20,18 @@ describe('rage restart trace attributes', () => {
     return
   }
 
+  // Mirrors getCacheDirectory('nextjs-nodejs') logic from get-cache-directory.ts
   const getDevStateFilePath = () => {
-    const hash = createHash('sha256')
-      .update(next.testDir)
-      .digest('hex')
-      .slice(0, 16)
-    return join(tmpdir(), 'next-dev-state', `${hash}.json`)
+    let cacheDir: string
+    if (process.platform === 'linux') {
+      cacheDir = process.env.XDG_CACHE_HOME || join(os.homedir(), '.cache')
+    } else if (process.platform === 'darwin') {
+      cacheDir = join(os.homedir(), 'Library', 'Caches')
+    } else {
+      cacheDir =
+        process.env.LOCALAPPDATA || join(os.homedir(), 'AppData', 'Local')
+    }
+    return join(cacheDir, 'nextjs-nodejs', 'dev-state.json')
   }
 
   beforeEach(async () => {
