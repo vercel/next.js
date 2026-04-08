@@ -613,13 +613,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
-    "passed": [
-      "app dir client cache with parallel routes prefetch={true} should prefetch the full page"
-    ],
-    "failed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir client cache with parallel routes prefetch={true} should prefetch the full page",
       "app dir client cache with parallel routes prefetch={true} should re-use the cache for the full page, only for 5 mins"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1164,6 +1163,7 @@
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -1240,6 +1240,7 @@
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -2330,7 +2331,8 @@
       "cache-components should prerender pages that only use cached (unstable_cache) IO",
       "cache-components should prerender pages that only use cached fetches",
       "cache-components should prerender pages that render in a microtask",
-      "cache-components should prerender static not-found pages"
+      "cache-components should prerender static not-found pages",
+      "cache-components should render not-found with Suspense in layout without connection errors"
     ],
     "failed": [],
     "pending": [],
@@ -7315,17 +7317,20 @@
   "test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts": {
     "passed": [
       "cached navigations caches a fully static page from the initial HTML for subsequent navigations",
+      "cached navigations serves a fully static page without any requests on the second navigation"
+    ],
+    "failed": [],
+    "pending": [
       "cached navigations caches a partially static page from the initial HTML for subsequent navigations",
       "cached navigations caches runtime-prefetchable content from a navigation for instant second visit",
       "cached navigations caches runtime-prefetchable content from the initial HTML for subsequent navigations",
       "cached navigations caches static segments when navigating to a known route without a prefetch",
       "cached navigations defers fallback params to the runtime stage",
       "cached navigations includes static params in the cached static stage",
-      "cached navigations serves a fully static page without any requests on the second navigation",
+      "cached navigations reuses cached page segment across different fallback params after initial HTML load",
+      "cached navigations reuses cached page segment across different fallback params after navigation",
       "cached navigations serves cached static segments instantly on the second navigation"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7484,20 +7489,19 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
-    "passed": [
-      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
-      "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
-      "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
-      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
-      "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
-    ],
+    "passed": [],
     "failed": [],
     "pending": [
       "layout sharing in non-static prefetches full prefetches should include layouts that were only prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches full prefetches should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches full prefetches should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
+      "layout sharing in non-static prefetches navigations should omit layouts that were already prefetched with a full prefetch",
       "layout sharing in non-static prefetches navigations should omit layouts that were prefetched with a runtime prefetch and had no dynamic holes",
       "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a full prefetch",
-      "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch"
+      "layout sharing in non-static prefetches runtime prefetches should omit layouts that were already prefetched with a runtime prefetch",
+      "layout sharing in non-static prefetches segment-level prefetch config does not unnecessarily use a runtime prefetch for sub-pages of runtime-prefetchable layouts",
+      "layout sharing in non-static prefetches segment-level prefetch config statically prefetches a fully-static page segment if all its runtime-prefetchable parents are available",
+      "layout sharing in non-static prefetches segment-level prefetch config uses a runtime prefetch for sub-pages of runtime-prefetchable layouts if requested"
     ],
     "flakey": [],
     "runtimeError": false
@@ -7566,13 +7570,13 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "segment cache (refresh) Server Action refresh() refreshes dynamic data only, not cached",
       "segment cache (refresh) re-navigation to a fully static page does not overwrite dynamic slots with default content",
       "segment cache (refresh) router.refresh() refreshes both cached and dynamic data"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7613,15 +7617,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-per-page-dynamic-stale-time.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "segment cache (per-page dynamic stale time) back/forward navigation always reuses BFCache regardless of stale time",
       "segment cache (per-page dynamic stale time) per-page value overrides global staleTimes.dynamic regardless of direction",
       "segment cache (per-page dynamic stale time) reuses dynamic data within the per-page stale time window",
       "segment cache (per-page dynamic stale time) two dynamic pages with different stale times behave independently",
       "segment cache (per-page dynamic stale time) with parallel routes, uses the minimum stale time across all slots"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -7639,7 +7643,21 @@
   },
   "test/e2e/app-dir/segment-cache/vary-params-base-dynamic/vary-params-base-dynamic.test.ts": {
     "passed": [
-      "segment cache - vary params base dynamic keeps dynamic segment params valid before and after time-based revalidation"
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after path-root-layout with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after path-team-layout with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after path-team-page with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after tag-layout-expireNow with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after tag-layout-legacy with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid after tag-layout-max with in-view Link back/forward navigations",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid before and after time-based revalidation",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses server-action-tag-layout-expireNow",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses server-action-tag-layout-legacy",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses server-action-tag-layout-max",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses tag-layout-expireNow",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses tag-layout-legacy",
+      "segment cache - vary params base dynamic keeps dynamic segment params valid when browser-triggered revalidation uses tag-layout-max",
+      "segment cache - vary params base dynamic keeps params valid for production route shape /[team]/[project]/settings/domains after tag-layout-expireNow",
+      "segment cache - vary params base dynamic keeps params valid for production route shape /[team]/[project]/settings/domains after tag-layout-legacy"
     ],
     "failed": [],
     "pending": [],
@@ -7666,6 +7684,7 @@
       "segment cache - vary params renders cached loading state instantly during navigation",
       "segment cache - vary params renders cached loading state instantly with runtime prefetching",
       "segment cache - vary params reuses page segment when layout varies but page does not",
+      "segment cache - vary params reuses prefetched page segment with in-page loading boundary across different params",
       "segment cache - vary params reuses prefetched segment when page does not access searchParams",
       "segment cache - vary params shares cached segment across all params when none accessed statically (runtime prefetch)",
       "segment cache - vary params shares cached segment across search params when not accessed (runtime prefetch)",
@@ -11331,6 +11350,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/styled-jsx-dynamic/index.test.ts": {
+    "passed": [
+      "styled-jsx dynamic styles SSR should contain dynamic styled-jsx styles during SSR"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
       "styled-jsx should contain styled-jsx styles during SSR",
@@ -11338,6 +11366,27 @@
       "styled-jsx should render styles inside TypeScript"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill-disabled/swc-auto-polyfill-disabled.test.ts": {
+    "passed": [
+      "swc-auto-polyfill-disabled should not include replaceAll polyfill in non-framework chunks",
+      "swc-auto-polyfill-disabled should render the page correctly without swcEnvOptions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill/swc-auto-polyfill.test.ts": {
+    "passed": [
+      "swc-auto-polyfill should render the page correctly with swcEnvOptions enabled"
+    ],
+    "failed": [
+      "swc-auto-polyfill should include core-js polyfill in a chunk with user code"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21067,10 +21116,10 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
+      "config telemetry production mode emits telemetry for usage of `adapterPath`",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
@@ -21080,7 +21129,9 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21104,11 +21155,10 @@
       "Telemetry CLI production mode detect static 404 correctly for `next build`",
       "Telemetry CLI production mode detects correct cli session defaults",
       "Telemetry CLI production mode detects tests correctly for `next build`",
+      "Telemetry CLI production mode emits event when swc fails to load",
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
-    "failed": [
-      "Telemetry CLI production mode emits event when swc fails to load"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21899,6 +21949,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/hash-salt/hash-salt.test.ts": {
+    "passed": [
+      "NEXT_HASH_SALT different salt produces different chunk filenames",
+      "NEXT_HASH_SALT different salt produces different css filenames",
+      "NEXT_HASH_SALT different salt produces different image filenames",
+      "NEXT_HASH_SALT same salt produces identical chunk filenames",
+      "NEXT_HASH_SALT same salt produces identical css filenames",
+      "NEXT_HASH_SALT same salt produces identical image filenames",
+      "NEXT_HASH_SALT should produce chunk files",
+      "NEXT_HASH_SALT should produce css files",
+      "NEXT_HASH_SALT should produce image files",
+      "experimental.outputHashSalt combined salt differs from config-only salt",
+      "experimental.outputHashSalt combined salt differs from env-var-only salt",
+      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/image-jest-qualities/image-jest-qualities.test.ts": {
     "passed": [
       "next/jest image qualities config should pass jest tests with custom image qualities"
@@ -22558,11 +22628,10 @@
   },
   "test/production/dynamic-css-client-navigation/react-lazy.test.ts": {
     "passed": [
-      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge"
-    ],
-    "failed": [
+      "dynamic-css-client-navigation react lazy edge should not remove style when navigating from static imported component to react lazy at runtime edge",
       "dynamic-css-client-navigation react lazy nodejs should not remove style when navigating from static imported component to react lazy at runtime nodejs"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -22641,7 +22710,7 @@
       "escheck-output nomodule browsers should downlevel JS"
     ],
     "failed": [],
-    "pending": [],
+    "pending": ["escheck-output ancient should downlevel JS"],
     "flakey": [],
     "runtimeError": false
   },
@@ -23514,7 +23583,7 @@
     "failed": [],
     "pending": [
       "turbopack-node-backend (childProcesses) should match expected loader pid behavior",
-      "turbopack-node-backend (workerThreads) should match expected loader pid behavior"
+      "turbopack-node-backend (forceWorkerThreads) should match expected loader pid behavior"
     ],
     "flakey": [],
     "runtimeError": false
