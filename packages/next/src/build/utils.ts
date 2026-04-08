@@ -376,6 +376,7 @@ export async function printTreeView(
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
       const symbol = getTreeViewSymbol(item, pageInfo)
+      const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
 
@@ -396,10 +397,14 @@ export async function printTreeView(
         ])
       }
 
-      usedSymbols.add(symbol)
+      // Grouped rows act as headers for the generated outputs below them. The
+      // child rows carry the concrete route symbols instead.
+      if (!hasChildRoutes) {
+        usedSymbols.add(symbol)
+      }
 
       messages.push([
-        `${border} ${symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -465,6 +470,7 @@ export async function printTreeView(
             // parent route pattern, so prefer the child entry when present.
             const routePageInfo = pageInfos.get(route) ?? pageInfo
             const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            usedSymbols.add(routeSymbol)
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
