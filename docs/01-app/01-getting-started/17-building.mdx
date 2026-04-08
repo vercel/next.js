@@ -75,6 +75,32 @@ Params not listed in `generateStaticParams` (for example, `/products/99`) are re
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
+#### High-cardinality routes
+
+For sites with many possible slugs (e-commerce with millions of products, user-generated content), pre-rendering every page at build time is not practical. Without `generateStaticParams`, visitors hitting a runtime-discovered slug get a fully blocking page load while the server renders.
+
+The experimental [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) flag changes this behavior:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    partialFallbacks: true,
+  },
+}
+
+export default nextConfig
+```
+
+With `partialFallbacks` enabled:
+
+1. **Instant fallback shell for unknown slugs.** When a user visits a slug that wasn't pre-rendered, the generic `<Suspense>` shell is served immediately from CDN while the dynamic data streams in. No blocking server render.
+2. **Automatic upgrade.** After the first visit, the page is cached and upgraded to a fully static version. Subsequent visits load instantly without needing the slug in `generateStaticParams`.
+
+This means you can keep `generateStaticParams` small (or omit it entirely) and let traffic determine which pages get cached.
+
 ### Step 3: Fix prerender errors
 
 During `next build`, you may see this error:
