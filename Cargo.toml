@@ -100,9 +100,6 @@ opt-level = "s"
 [profile.release.package.lightningcss]
 opt-level = "s"
 
-[profile.release.package.lightningcss-napi]
-opt-level = "s"
-
 [profile.release.package.markdown]
 opt-level = "s"
 
@@ -208,6 +205,7 @@ turbopack-test-utils = { path = "turbopack/crates/turbopack-test-utils" }
 turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
+turbopack-lightningcss-napi = { path = "turbopack/crates/turbopack-lightningcss-napi" }
 
 # SWC crates
 swc_core = { version = "63.1.0", default-features = false, features = [
@@ -274,14 +272,11 @@ indexmap = "2.13.0"
 indoc = "2.0.0"
 inventory = "0.3.21"
 itertools = "0.10.5"
-lightningcss = { version = "1.0.0-alpha.70", features = [
+lightningcss = { version = "1.0.0-alpha.71", features = [
   "serde",
   "visitor",
   "into_owned",
   "browserslist",
-] }
-lightningcss-napi = { version = "0.4.6", default-features = false, features = [
-  "visitor",
 ] }
 lzzzz = "2.0.0"
 markdown = "1.0.0-alpha.18"
