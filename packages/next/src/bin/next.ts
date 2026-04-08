@@ -32,6 +32,7 @@ import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
+import { mkdirSync } from 'fs'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -205,7 +206,7 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
+    'Enable CPU profiling. Profile is saved to .next-profiles/ on exit.'
   )
   .action((directory: string, options: NextBuildOptions) => {
     if (options.debugPrerender) {
@@ -220,7 +221,9 @@ program
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
       const { join } = require('path') as typeof import('path')
       const dir = directory || process.cwd()
-      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+      const cpuProfileDir = join(dir, '.next-profiles')
+      mkdirSync(cpuProfileDir, { recursive: true })
+      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
 
     // ensure process exits after build completes so open handles/connections
@@ -345,7 +348,7 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+    'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
@@ -357,7 +360,9 @@ program
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
         const { join } = require('path') as typeof import('path')
         const dir = directory || process.cwd()
-        process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+        const cpuProfileDir = join(dir, '.next-profiles')
+        mkdirSync(cpuProfileDir, { recursive: true })
+        process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
       }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
@@ -428,7 +433,7 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+    'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
   .action((directory: string, options: NextStartOptions) => {
     if (options.experimentalNextConfigStripTypes) {
@@ -439,7 +444,9 @@ program
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
       const { join } = require('path') as typeof import('path')
       const dir = directory || process.cwd()
-      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+      const cpuProfileDir = join(dir, '.next-profiles')
+      mkdirSync(cpuProfileDir, { recursive: true })
+      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)

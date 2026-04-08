@@ -18,7 +18,7 @@ pub mod mmap_helper;
 mod parallel_scheduler;
 mod rc_bytes;
 mod shared_bytes;
-mod sst_filter;
+pub mod sst_filter;
 pub mod static_sorted_file;
 mod static_sorted_file_builder;
 mod value_block_count_tracker;
@@ -49,6 +49,7 @@ pub enum FamilyKind {
 /// Configuration for a single family to describe how the data is stored.
 #[derive(Clone, Copy, Debug)]
 pub struct FamilyConfig {
+    pub name: &'static str,
     pub kind: FamilyKind,
 }
 
@@ -65,6 +66,7 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
     fn default() -> Self {
         Self {
             family_configs: [FamilyConfig {
+                name: "unknown",
                 kind: FamilyKind::SingleValue,
             }; FAMILIES],
         }
@@ -74,7 +76,8 @@ pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
-    BlockCache, BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+    BlockCache, BlockCacheLifecycle, BlockWeighter, SstLookupResult, StaticSortedFile,
+    StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,

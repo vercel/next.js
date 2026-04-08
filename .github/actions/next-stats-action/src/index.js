@@ -110,25 +110,36 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
+        if (usePnpm) {
+          // TODO: we can remove this explicit `corepack use` once Next.js
+          // 16.3 is released, but we must override it for now because 16.2 uses
+          // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
+          // points to the most recent stable tag.
+          await exec.spawnPromise('corepack use pnpm@10.33.0', {
+            cwd: dir,
+          })
+        }
 
         if (!statsConfig.skipInitialInstall) {
-          await exec.spawnPromise(
-            `cd ${dir}${
-              usePnpm
-                ? // --no-frozen-lockfile is used here to tolerate lockfile
-                  // changes from merging latest changes
-                  // --package-import-method=copy avoids hardlink issues on
-                  // self-hosted runners, and the store is colocated with the
-                  // workdir to avoid EXDEV copy failures on overlayfs runners.
-                  ` && pnpm install --no-frozen-lockfile --package-import-method=copy --store-dir=${pnpmStoreDir}`
-                : ' && yarn install --network-timeout 1000000'
-            }`,
-            { env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' } }
-          )
+          const command = usePnpm
+            ? 'pnpm install ' +
+              // tolerate lockfile changes from merging latest changes
+              '--no-frozen-lockfile ' +
+              // avoid hardlink issues on self-hosted runners,
+              '--package-import-method=clone-or-copy ' +
+              // the store is colocated with the workdir to avoid EXDEV copy
+              // failures on overlayfs runners.
+              `--store-dir=${pnpmStoreDir}`
+            : 'yarn install --network-timeout=1000000'
+          await exec.spawnPromise(command, {
+            env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' },
+            cwd: dir,
+          })
 
           await exec.spawnPromise(
             statsConfig.initialBuildCommand ||
-              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
+              (usePnpm ? 'pnpm build' : 'echo built'),
+            { cwd: dir }
           )
         }
       }
