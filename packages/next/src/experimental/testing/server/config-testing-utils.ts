@@ -5,6 +5,7 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
+import { PHASE_PRODUCTION_BUILD } from '../../../shared/lib/constants'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
 import { normalizeConfig, type NextConfig } from '../../../server/config-shared'
@@ -81,14 +82,16 @@ export async function unstable_getResponseFromNextConfig({
   cookies = {},
 }: {
   url: string
-  nextConfig: NextConfig
+  nextConfig:
+    | NextConfig
+    | ((...args: any[]) => NextConfig | Promise<NextConfig>)
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
   const parsedUrl = parse(url, true)
   const request = constructRequest({ url, headers, cookies })
   const resolvedConfig = await normalizeConfig(
-    'phase-production-build',
+    PHASE_PRODUCTION_BUILD,
     nextConfig
   )
   const routes = await loadCustomRoutes(resolvedConfig)

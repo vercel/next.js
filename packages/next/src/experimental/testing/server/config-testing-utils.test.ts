@@ -253,7 +253,10 @@ describe('config-testing-utils', () => {
       // Plugins like withSentry, withWorkflow, etc. wrap the config in an
       // async (phase, ctx) => config function. This should be resolved
       // transparently.
-      const fnConfig = async () => ({
+      const fnConfig = async (
+        _phase: string,
+        _ctx: { defaultConfig: object }
+      ) => ({
         async rewrites() {
           return [{ source: '/old', destination: '/new' }]
         },
@@ -266,7 +269,7 @@ describe('config-testing-utils', () => {
 
       const rewriteResponse = await unstable_getResponseFromNextConfig({
         url: 'https://example.com/old',
-        nextConfig: fnConfig as any,
+        nextConfig: fnConfig,
       })
       expect(isRewrite(rewriteResponse)).toEqual(true)
       expect(getRewrittenUrl(rewriteResponse)).toEqual(
@@ -275,7 +278,7 @@ describe('config-testing-utils', () => {
 
       const redirectResponse = await unstable_getResponseFromNextConfig({
         url: 'https://example.com/legacy',
-        nextConfig: fnConfig as any,
+        nextConfig: fnConfig,
       })
       expect(redirectResponse.status).toEqual(308)
       expect(redirectResponse.headers.get('location')).toEqual(
