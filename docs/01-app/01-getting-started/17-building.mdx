@@ -69,9 +69,9 @@ Route (app)
 ├   └ /products/3
 ```
 
-These params are now resolved at build time. The route stays `◐` (Partial Prerender) but the listed params are fully prerendered and served instantly from CDN.
+These params are now resolved at build time. The listed pages are prerendered and served instantly from CDN. Whether the page is fully static or partially prerendered depends on the content inside the route.
 
-Params not listed in `generateStaticParams` (for example, `/products/99`) are rendered on the first request, then cached for subsequent visits.
+Params not listed in `generateStaticParams` (for example, `/products/99`) are rendered on the first request. How the page loads depends on the route's content: if it uses `<Suspense>`, the shell is served instantly and the dynamic content streams in. After the first visit, the result is cached for subsequent requests.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
