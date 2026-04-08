@@ -69,7 +69,7 @@ Route (app)
 ├   └ /products/3
 ```
 
-The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request, then cached. Without [`partialFallbacks`](#high-cardinality-routes), unlisted params block until the server finishes rendering.
+The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request, then cached. Without [`partialFallbacks`](#high-cardinality-routes), the page has to resolve entirely without a fallback.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
