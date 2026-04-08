@@ -382,37 +382,66 @@ function getPRComments(prNumber) {
 
 function replyToThread(threadId, body) {
   body = ':robot: ' + body
-  const mutation = `
-    mutation($threadId: ID!, $body: String!) {
-      addPullRequestReviewThreadReply(input: {
-        pullRequestReviewThreadId: $threadId,
-        body: $body
-      }) {
-        comment {
-          id
-          url
+
+  // Step 1: Look up the PR number and first comment's databaseId from the
+  // thread's GraphQL node ID. The REST reply endpoint requires both.
+  const lookupQuery = `
+    query($id: ID!) {
+      node(id: $id) {
+        ... on PullRequestReviewThread {
+          pullRequest {
+            number
+          }
+          comments(first: 1) {
+            nodes {
+              databaseId
+            }
+          }
         }
       }
     }
   `
+  let prNumber, commentDatabaseId
+  try {
+    const lookupOutput = execFileSync(
+      'gh',
+      ['api', 'graphql', '-f', `query=${lookupQuery}`, '-f', `id=${threadId}`],
+      { encoding: 'utf8' }
+    ).trim()
+    const lookupData = JSON.parse(lookupOutput)
+    const thread = lookupData.data.node
+    if (!thread || !thread.pullRequest || !thread.comments?.nodes?.[0]) {
+      console.error(`Could not resolve thread node ID: ${threadId}`)
+      process.exit(1)
+    }
+    prNumber = thread.pullRequest.number
+    commentDatabaseId = thread.comments.nodes[0].databaseId
+  } catch (error) {
+    console.error(
+      'Failed to look up thread info:',
+      error.stderr || error.message
+    )
+    process.exit(1)
+  }
+
+  // Step 2: Post the reply via REST. Unlike the GraphQL mutation
+  // addPullRequestReviewThreadReply, this endpoint always publishes the reply
+  // immediately — it is never attached to a pending/draft review.
   try {
     const output = execFileSync(
       'gh',
       [
         'api',
-        'graphql',
-        '-f',
-        `query=${mutation}`,
-        '-f',
-        `threadId=${threadId}`,
+        '--method',
+        'POST',
+        `/repos/vercel/next.js/pulls/${prNumber}/comments/${commentDatabaseId}/replies`,
         '-f',
         `body=${body}`,
       ],
       { encoding: 'utf8' }
     ).trim()
     const data = JSON.parse(output)
-    const comment = data.data.addPullRequestReviewThreadReply.comment
-    console.log(`Reply posted: ${comment.url}`)
+    console.log(`Reply posted: ${data.html_url}`)
   } catch (error) {
     console.error('Failed to reply to thread:', error.stderr || error.message)
     process.exit(1)
@@ -1066,6 +1095,11 @@ function generateThreadMd(thread, index) {
         '```',
         `node scripts/pr-status.js resolve-thread ${thread.id}`,
         '```',
+        '',
+        'Reply and resolve in one step:',
+        '```',
+        `node scripts/pr-status.js reply-and-resolve-thread ${thread.id} "Your reply here"`,
+        '```',
         ''
       )
     }
@@ -1522,6 +1556,20 @@ async function main() {
       )
       process.exit(1)
     }
+    resolveThread(threadId)
+    return
+  }
+
+  if (subcommand === 'reply-and-resolve-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
     resolveThread(threadId)
     return
   }

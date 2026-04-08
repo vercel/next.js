@@ -22,7 +22,11 @@ export function normalizeNextDataUrl(
       pathAfterData = pathAfterData.slice(0, -5)
     }
 
-    pathname = basePath ? `${basePath}/${pathAfterData}` : `/${pathAfterData}`
+    if (pathAfterData === 'index') {
+      pathname = basePath || '/'
+    } else {
+      pathname = basePath ? `${basePath}/${pathAfterData}` : `/${pathAfterData}`
+    }
     newUrl.pathname = pathname
   }
 
@@ -48,6 +52,10 @@ export function denormalizeNextDataUrl(
     let pathWithoutBase = pathname
     if (basePath && pathname.startsWith(basePath)) {
       pathWithoutBase = pathname.slice(basePath.length)
+    }
+
+    if (pathWithoutBase === '' || pathWithoutBase === '/') {
+      pathWithoutBase = '/index'
     }
 
     // Add the /_next/data/${buildId}/ prefix and .json extension

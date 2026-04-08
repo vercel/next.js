@@ -7,3 +7,25 @@ packages:
   - 'turbopack/crates/turbopack-tests/tests/execution'
   - 'turbopack/packages/*'
 updateNotifier: false
+publicHoistPattern:
+  - '*eslint*'
+allowBuilds:
+  '@ast-grep/cli': true
+ignoredBuiltDependencies:
+  - '@datadog/native-appsec'
+  - '@datadog/native-metrics'
+  - '@datadog/pprof'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - core-js
+  - cpu-features
+  - dd-trace
+  - esbuild
+  - msw
+  - nx
+  - playwright-chromium
+  - protobufjs
+  - sharp
+  - ssh2
+  - unrs-resolver
+  - wasm-pack

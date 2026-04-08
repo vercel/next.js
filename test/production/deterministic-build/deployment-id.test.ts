@@ -216,7 +216,6 @@ const FILES = {
           NOW_BUILDER: '1',
         },
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 
@@ -254,7 +253,6 @@ const FILES = {
               }
             : undefined,
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 
