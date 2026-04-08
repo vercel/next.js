@@ -30,19 +30,52 @@ Running `next build` goes through these phases:
 
 ## Example
 
-As an example, we'll work with a product catalog that has a static list page at `/products` and a dynamic detail page at `/products/[id]`.
+As an example, we'll work with a product catalog. We have a dynamic detail page at `/products/[id]` that fetches product data:
 
-We'll start by reading the build output, then pre-render specific product pages with `generateStaticParams`, and finally fix a prerender error using `--debug-prerender`.
+```tsx filename="app/products/[id]/page.tsx"
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <div>{product.name}</div>
+}
+```
 
-### Step 1: Read the build output
+If we run `next build`, this fails:
 
-Run `next build` to create a production build. The terminal shows a route table:
+```txt filename="Terminal"
+Uncached data, `params`, `searchParams`, or `connection()` was accessed outside of `<Suspense>`.
+This delays the entire page from rendering, resulting in a slow user experience.
+```
+
+The param values are not known at build time, so Next.js can't prerender the page. We need to tell it how to handle the dynamic data. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
+
+### Step 1: Resolve params with `generateStaticParams`
+
+The most direct fix is telling Next.js which param values exist. Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to resolve them at build time:
+
+```tsx filename="app/products/[id]/page.tsx"
+export async function generateStaticParams() {
+  const products = await db.product.findMany()
+  return products.map((product) => ({ id: product.id }))
+}
+
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <div>{product.name}</div>
+}
+```
+
+Now `next build` succeeds and prints the route table:
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-└ ◐ /products/[id]
+├ ◐ /products/[id]
+├   ├ /products/1
+├   ├ /products/2
+├   └ /products/3
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -57,90 +90,13 @@ Each symbol tells you how a route is served:
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), every route is either fully static (`○`) or partially prerendered (`◐`). A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](/docs/app/guides/streaming) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
-> **Good to know:** [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with Cache Components. You don't need to enable it separately. If a route has Revalidate and Expire columns, see [Time-based revalidation](/docs/app/getting-started/revalidating#time).
-
-### Step 2: Pre-render dynamic routes
-
-Dynamic routes like `/products/[id]` appear in the build output without expanded params. Without knowing which `id` values exist, Next.js can only render them on demand when a user visits.
-
-To pre-render specific params at build time, export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params):
-
-```tsx filename="app/products/[id]/page.tsx"
-export async function generateStaticParams() {
-  const products = await db.product.findMany()
-  return products.map((product) => ({ id: product.id }))
-}
-
-export default async function Page({ params }) {
-  const { id } = await params
-  // ...
-}
-```
-
-If we run `next build` again, the pre-rendered params appear in the output:
-
-```bash filename="Terminal"
-Route (app)
-┌ ○ /_not-found
-├ ○ /products
-├ ◐ /products/[id]
-├   ├ /products/1
-├   ├ /products/2
-├   └ /products/3
-```
-
 The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request, then cached. Without [`partialFallbacks`](#high-cardinality-routes), the page has to resolve entirely without a fallback.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-#### High-cardinality routes
+### Step 2: Stream dynamic content with Suspense
 
-For sites with many possible slugs (e-commerce with millions of products, user-generated content), pre-rendering every page at build time is not practical. Without `generateStaticParams`, visitors hitting a runtime-discovered slug get a fully blocking page load while the server renders.
-
-The experimental [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) flag changes this behavior:
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  cacheComponents: true,
-  experimental: {
-    partialFallbacks: true,
-  },
-}
-
-export default nextConfig
-```
-
-With `partialFallbacks` enabled:
-
-1. **Instant fallback shell for unknown slugs.** When a user visits a slug that wasn't pre-rendered, the generic `<Suspense>` shell is served immediately from CDN while the dynamic data streams in. No blocking server render.
-2. **Automatic upgrade.** After the first visit, the page is cached and upgraded to a fully static version. Subsequent visits load instantly without needing the slug in `generateStaticParams`.
-
-This means you can keep `generateStaticParams` small (or omit it entirely) and let traffic determine which pages get cached.
-
-### Step 3: Fix prerender errors
-
-During `next build`, you may see this error:
-
-```txt filename="Terminal"
-Uncached data, `params`, `searchParams`, or `connection()` was accessed outside of `<Suspense>`.
-This delays the entire page from rendering, resulting in a slow user experience.
-```
-
-This happens when a component accesses runtime data without a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
-
-For example, `await params` in a Page without `generateStaticParams` triggers this error because the param values are not known at build time:
-
-```tsx filename="app/products/[id]/page.tsx"
-export default async function Page({ params }) {
-  const { id } = await params
-  const product = await db.product.find(id)
-  return <div>{product.name}</div>
-}
-```
-
-The simplest fix is [streaming](/docs/app/guides/streaming) the dynamic content with `<Suspense>`, or adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to create a route-level Suspense boundary:
+Sometimes you can't provide all param values ahead of time, or the page has content that depends on the request (cookies, headers). In these cases, [stream](/docs/app/guides/streaming) the dynamic content with [`<Suspense>`](https://react.dev/reference/react/Suspense), or add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
 
 ```tsx filename="app/products/[id]/page.tsx"
 import { Suspense } from 'react'
@@ -160,9 +116,30 @@ async function ProductContent({ params }) {
 }
 ```
 
-The fallback is prerendered into the static shell. The content streams in at request time. The route now shows as `◐` (Partial Prerender).
+The fallback is prerendered into the static shell. The content streams in at request time. The route shows as `◐` (Partial Prerender).
 
-See the [blocking-route error reference](/docs/messages/blocking-route) for all fix options.
+You can combine both approaches: use `generateStaticParams` for known params and `<Suspense>` for dynamic content within the page.
+
+#### High-cardinality routes
+
+For sites with many possible slugs (e-commerce with millions of products, user-generated content), pre-rendering every page at build time is not practical.
+
+The experimental [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) flag serves an instant `<Suspense>` shell from CDN for unknown slugs while the dynamic data streams in. After the first visit, the page is cached and upgraded to a fully static version.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    partialFallbacks: true,
+  },
+}
+
+export default nextConfig
+```
+
+This means you can keep `generateStaticParams` small (or omit it entirely) and let traffic determine which pages get cached.
 
 #### Getting detailed stack traces
 
