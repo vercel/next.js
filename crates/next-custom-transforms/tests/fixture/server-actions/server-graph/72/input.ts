@@ -1,5 +1,6 @@
 'use server'
 
+// @ts-ignore -- that file does not exist
 export type { Item } from './types'
 export type { Foo }
 
