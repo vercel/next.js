@@ -26,12 +26,7 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import {
-  getEnvInfo,
-  logExperimentalInfo,
-  logStartInfo,
-  warnIfMissingAgentRules,
-} from './app-info-log'
+import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -507,7 +502,6 @@ export async function startServer(
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
           })
-          warnIfMissingAgentRules(dir)
         }
 
         handlersReady()

@@ -350,6 +350,11 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
+  .option(
+    '--skip-agent-rule-check',
+    'Last resort: bypass the AGENTS.md/CLAUDE.md agent-rules gate. Only use when an AI agent env var is set but you are not actually running inside one.',
+    false
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
