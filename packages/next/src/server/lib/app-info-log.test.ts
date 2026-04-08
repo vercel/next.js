@@ -119,20 +119,26 @@ describe('getAgentRulesDevError (dev-side hard gate)', () => {
     expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
   })
 
-  it('returns an error message framed around the install command, with the bypass flag as a last resort', () => {
+  it('returns an error message that tells agents to ask the user for permission', () => {
     process.env.CLAUDECODE = '1'
     const error = getAgentRulesDevError(tmpDir, { skip: false })
     expect(error).not.toBeNull()
-    // Primary call-to-action: run the codemod.
+
+    // The install command must be the primary call-to-action.
     expect(error).toContain('npx @next/codemod@latest agents-md')
-    // Bypass is mentioned, but explicitly framed as a last resort so agents
-    // and users don't treat it as a first-class option.
-    expect(error).toContain('--skip-agent-rule-check')
-    expect(error).toContain('last resort')
-    // And it must appear after the install command, not before, so the
-    // primary action is what the reader sees first.
-    expect(error!.indexOf('npx @next/codemod@latest agents-md')).toBeLessThan(
-      error!.indexOf('--skip-agent-rule-check')
-    )
+
+    // The message must frame the install as a user decision, not an auto-
+    // fix the agent should apply on its own. These exact phrases are what
+    // nudge agents to stop and consult the user instead of blindly running
+    // the codemod or reaching for a bypass.
+    expect(error).toContain('ask the user for permission')
+    expect(error).toContain('project-level opt-in')
+
+    // The `--skip-agent-rule-check` flag still works, but the error must
+    // NEVER surface it. Advertising the bypass turns the gate into a
+    // suggestion agents will always take instead of asking.
+    expect(error).not.toContain('--skip-agent-rule-check')
+    expect(error).not.toContain('bypass')
+    expect(error).not.toContain('last resort')
   })
 })

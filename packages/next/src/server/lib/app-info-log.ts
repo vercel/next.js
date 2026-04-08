@@ -139,7 +139,13 @@ function hasAgentRulesInstalled(dir: string): boolean {
 
 function baseAgentRulesMessage(): string {
   const command = cyan('npx @next/codemod@latest agents-md')
-  return `Next.js agent rules not installed. Run ${command} so AI coding agents read the bundled docs instead of stale training data.`
+  // The phrasing is deliberate. Agents are told (a) that installing the
+  // rules is a project-level opt-in, not an auto-fix, (b) that they must
+  // ask the user for permission first, and (c) the exact command to propose
+  // running. Framing the codemod as a user decision (not an agent action)
+  // is what makes agents stop and consult the user instead of either
+  // running it blindly or reaching for a bypass.
+  return `Next.js agent rules not installed. AI coding agents must ask the user for permission before running ${command} to install them — agent rules are a project-level opt-in, not an automatic fix. Once installed, AGENTS.md tells agents to read the version-matched bundled docs instead of stale training data.`
 }
 
 /**
@@ -160,10 +166,16 @@ export function warnIfMissingAgentRules(dir: string): void {
 /**
  * Returns an error message when `next dev` should be blocked because the
  * Next.js agent rules aren't installed, or `null` when the caller should
- * proceed as normal. Gated on `detectAgent()` so humans never trip it. The
- * `--skip-agent-rule-check` CLI flag bypasses the check — this is an
- * intentional last resort for edge cases like an `AI_AGENT` env var leaking
- * into a human shell, and the error message reflects that.
+ * proceed as normal. Gated on `detectAgent()` so humans never trip it.
+ *
+ * The error message intentionally does NOT mention the
+ * `--skip-agent-rule-check` bypass flag. Agents parsing command output will
+ * always take the cheapest path to unblock themselves, and advertising the
+ * bypass turns the gate into a suggestion. The flag still exists and still
+ * works (for humans who genuinely hit an edge case like an `AI_AGENT` env
+ * var leaking into a non-agent shell), but it's hidden from `next dev --help`
+ * and never surfaced in the error. The only path agents see is "run the
+ * codemod".
  *
  * Unlike the build-side warning, this path exits the dev server so agents
  * can't accidentally develop against a project that isn't scaffolded with
@@ -176,8 +188,7 @@ export function getAgentRulesDevError(
   if (skip) return null
   if (detectAgent() === null) return null
   if (hasAgentRulesInstalled(dir)) return null
-  const escape = cyan('--skip-agent-rule-check')
-  return `${baseAgentRulesMessage()} As a last resort, you can pass ${escape} to \`next dev\` to bypass this check.`
+  return baseAgentRulesMessage()
 }
 
 function tryReadFile(filePath: string): string | null {
