@@ -1779,6 +1779,15 @@ export default async function loadConfig(
 
     const configModule = interopDefault(userConfigModule)
 
+    if (
+      configModule == null ||
+      (typeof configModule !== 'object' && typeof configModule !== 'function')
+    ) {
+      throw new Error(
+        `Invalid next.config export. Expected an object or function, but received ${configModule}.`
+      )
+    }
+
     const normalized = await normalizeConfig(phase, configModule)
 
     // Spread into a plain object so Object.freeze works even if
