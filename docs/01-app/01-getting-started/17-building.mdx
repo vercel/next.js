@@ -1,0 +1,155 @@
+---
+title: Building your application
+description: Learn what happens when you run next build, how to read the build output, and how to fix common prerender errors.
+nav_title: Building
+---
+
+When your application is ready for production, `next build` compiles it into optimized bundles and prerendered pages. The build output shows exactly how each route will be served: fully static, partially prerendered, or dynamic.
+
+This guide will show you how to read the build output, pre-render dynamic routes, and fix common build errors.
+
+## Example
+
+As an example, we'll work with a product catalog that has a list page and dynamic product detail pages.
+
+We'll start by reading the build output, then pre-render specific product pages with `generateStaticParams`, and finally fix a prerender error using `--debug-prerender`.
+
+### Step 1: Read the build output
+
+Run `next build` to create a production build. The terminal shows a route table:
+
+```bash filename="Terminal"
+Route (app)                    Revalidate  Expire
+┌ ○ /_not-found
+├ ○ /products                  15m         1y
+└ ◐ /products/[id]             15m         1y
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+Each symbol tells you how a route is served:
+
+| Symbol | Name              | Behavior                                                                  |
+| ------ | ----------------- | ------------------------------------------------------------------------- |
+| `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
+| `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
+| `ƒ`    | Dynamic           | Entirely server-rendered on each request.                                 |
+
+A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](https://react.dev/reference/react/Suspense) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
+
+The **Revalidate** column shows how long cached data is considered fresh. The **Expire** column shows how long stale data can be served while revalidating in the background. See [Time-based revalidation](/docs/app/getting-started/revalidating#time) for details.
+
+> **Good to know:** [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). You don't need to enable it separately.
+
+### Step 2: Pre-render dynamic routes
+
+Dynamic routes like `/products/[id]` appear in the build output without expanded params. Without knowing which `id` values exist, Next.js can only render them on demand when a user visits.
+
+To pre-render specific params at build time, export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params):
+
+```tsx filename="app/products/[id]/page.tsx"
+export async function generateStaticParams() {
+  const products = await db.product.findMany()
+  return products.map((product) => ({ id: product.id }))
+}
+
+export default async function Page({ params }) {
+  const { id } = await params
+  // ...
+}
+```
+
+If we run `next build` again, the pre-rendered params appear in the output:
+
+```bash filename="Terminal"
+Route (app)                    Revalidate  Expire
+┌ ○ /_not-found
+├ ○ /products                  15m         1y
+├ ◐ /products/[id]             15m         1y
+├   ├ /products/1
+├   ├ /products/2
+├   └ /products/3
+```
+
+These pages are now prerendered. Visiting `/products/1` serves the page instantly from CDN without any server work.
+
+Params not listed in `generateStaticParams` (for example, `/products/99`) are rendered on the first request, then cached for subsequent visits.
+
+> **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
+
+### Step 3: Fix prerender errors
+
+During `next build`, you may see this error:
+
+```txt filename="Terminal"
+Error: Uncached data was accessed outside of `<Suspense>`
+```
+
+This means a component accesses data that depends on the incoming request, but nothing tells Next.js how to handle it during prerendering. Common triggers include:
+
+- Awaiting [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly in a Page component
+- Calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)
+- Calling [`connection()`](/docs/app/api-reference/functions/connection)
+
+For example, awaiting `params` directly blocks the entire response from being prerendered:
+
+```tsx filename="app/products/[id]/page.tsx"
+export default async function Page({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <div>{product.name}</div>
+}
+```
+
+To fix this, move the data access into a child component wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense):
+
+```tsx filename="app/products/[id]/page.tsx"
+import { Suspense } from 'react'
+
+export default function Page({ params }) {
+  return (
+    <Suspense fallback={<ProductSkeleton />}>
+      <ProductContent params={params} />
+    </Suspense>
+  )
+}
+
+async function ProductContent({ params }) {
+  const { id } = await params
+  const product = await db.product.find(id)
+  return <div>{product.name}</div>
+}
+```
+
+The `<Suspense>` fallback is prerendered into the static shell. The content streams in at request time. If we run `next build` again, the error is gone and the route shows as `◐` (Partial Prerender).
+
+Other ways to resolve this error:
+
+- **Cache the component** with [`'use cache'`](/docs/app/api-reference/directives/use-cache) so its output can be prerendered.
+- **Add [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)** to provide sample params at build time. Routes with known params can be fully prerendered.
+- **Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading)** file to create a route-level Suspense boundary.
+
+See the [blocking-route error reference](/docs/messages/blocking-route) for more details.
+
+#### Getting detailed stack traces
+
+When the error doesn't point to the exact line, use `--debug-prerender`:
+
+```bash filename="Terminal"
+next build --debug-prerender
+```
+
+This disables minification and enables source maps for server bundles, producing readable stack traces that show which function triggered the error. It also continues past the first error so you can see all issues at once.
+
+> **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
+
+## Next steps
+
+You now know how to read the build output, pre-render dynamic routes, and fix prerender errors.
+
+Next, learn how to:
+
+- [Deploy your application](/docs/app/getting-started/deploying)
+- [Cache data and UI](/docs/app/getting-started/caching)
+- [Build public, static pages](/docs/app/guides/public-static-pages)
