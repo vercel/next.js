@@ -8,6 +8,17 @@ When your application is ready for production, `next build` compiles it into opt
 
 This guide will show you how to read the build output, pre-render dynamic routes, and fix common build errors.
 
+## What `next build` does
+
+Running `next build` goes through these phases:
+
+1. **Setup.** Loads [environment variables](/docs/app/guides/environment-variables) (`.env` files), validates your [`next.config`](/docs/app/api-reference/config/next-config-js), and generates a [build ID](/docs/app/api-reference/config/next-config-js/generateBuildId).
+2. **Route discovery.** Scans `app/` and `pages/` directories for routes, middleware, and [instrumentation](/docs/app/api-reference/file-conventions/instrumentation) hooks. Generates TypeScript route definitions.
+3. **Compilation.** Bundles client, server, and edge code with [Turbopack](/docs/app/api-reference/turbopack) (or Webpack). Transpiles TypeScript and JSX, tree-shakes unused code, and optimizes CSS and fonts. Type checking runs in parallel.
+4. **Static analysis.** Classifies each route as static or partially prerendered. Collects [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) output. Checks for [prerender-blocking errors](/docs/messages/blocking-route).
+5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
+6. **Output.** Writes the final build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
+
 ## Example
 
 As an example, we'll work with a product catalog that has a list page and dynamic product detail pages.
