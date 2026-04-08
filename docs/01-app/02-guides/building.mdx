@@ -28,15 +28,22 @@ Running `next build` goes through these phases:
 5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
 6. **Output.** Writes the final build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
 
-## Prerendering with Cache Components
+## Reading the build output
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `searchParams`, `cookies()`, or `headers()`) cannot be resolved ahead of time. You need to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache), otherwise the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
 
-Every route in the build output is either fully static (`○`) or partially prerendered (`◐`). [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model. The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
+After a successful build, the route table shows a symbol next to each route:
+
+| Symbol | Name              | Behavior                                                                  |
+| ------ | ----------------- | ------------------------------------------------------------------------- |
+| `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
+| `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
+
+[Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model. For dynamic routes with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), each listed param shows its own symbol: `○` if the page is fully static, or `◐` if it contains streamed content.
 
 ## Example
 
-As an example, we'll work with a product catalog. We have a dynamic detail page at `/products/[id]` that fetches product data:
+We have a dynamic product detail page at `/products/[id]` that fetches product data:
 
 ```tsx filename="app/products/[id]/page.tsx"
 export default async function Page({ params }) {
@@ -46,7 +53,7 @@ export default async function Page({ params }) {
 }
 ```
 
-If we run `next build`, this fails:
+Running `next build` fails:
 
 ```txt filename="Terminal"
 Uncached data, `params`, `searchParams`, or `connection()` was accessed outside of `<Suspense>`.
@@ -55,27 +62,7 @@ This delays the entire page from rendering, resulting in a slow user experience.
 
 The param values are unknown at build time, so Next.js cannot prerender the page. You need to tell it how to handle the dynamic data. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
-#### Debugging prerender errors
-
-If the error does not point to the exact line, use `--debug-prerender`:
-
-```bash filename="Terminal"
-next build --debug-prerender
-```
-
-This disables minification and enables source maps for server bundles, producing readable stack traces that show which function triggered the error. It also continues past the first error so you can see all issues at once.
-
-> **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
-
-In large applications, you can build only specific routes using `--debug-build-paths` to speed up debugging:
-
-```bash filename="Terminal"
-next build --debug-build-paths="app/products/[id]/page.tsx"
-```
-
-This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
-
-### Step 1: Resolve params with `generateStaticParams`
+### Resolve params with `generateStaticParams`
 
 The most direct fix is telling Next.js which param values exist. Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to resolve them at build time:
 
@@ -92,7 +79,7 @@ export default async function Page({ params }) {
 }
 ```
 
-Now `next build` succeeds and prints the route table:
+Now `next build` succeeds:
 
 ```bash filename="Terminal"
 Route (app)
@@ -107,18 +94,11 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-Each symbol tells you how a route is served:
-
-| Symbol | Name              | Behavior                                                                  |
-| ------ | ----------------- | ------------------------------------------------------------------------- |
-| `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
-| `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
-
-The listed params are resolved ahead of time. Each one shows its own symbol: `○` if the page is fully static, or `◐` if it contains streamed content. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
+Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-### Step 2: Stream dynamic content with Suspense
+### Stream dynamic content with Suspense
 
 You may not have all param values ahead of time, or the page may have content that depends on the request (cookies, headers). In these cases, [stream](/docs/app/guides/streaming) the dynamic content with [`<Suspense>`](https://react.dev/reference/react/Suspense), or add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
 
@@ -150,11 +130,9 @@ Route (app)
 │ └ ◐ /products/[id]
 ```
 
-The route now shows `◐` (Partial Prerender). Every request serves the static shell instantly while the dynamic content streams in.
-
 You can combine both approaches: use `generateStaticParams` for known params and `<Suspense>` for dynamic content within the page.
 
-#### High-cardinality routes
+### High-cardinality routes
 
 For sites with many possible slugs (e-commerce with millions of products, user-generated content), pre-rendering every page at build time is not practical.
 
@@ -175,9 +153,29 @@ export default nextConfig
 
 Without `partialFallbacks`, unlisted params block until the server finishes rendering. With `partialFallbacks`, you can keep `generateStaticParams` small and let traffic determine which additional pages get cached.
 
-### Next steps
+## Debugging prerender errors
 
-You now know how to read the build output, pre-render dynamic routes, and fix prerender errors.
+If the error does not point to the exact line, use `--debug-prerender`:
+
+```bash filename="Terminal"
+next build --debug-prerender
+```
+
+This disables minification and enables source maps for server bundles, producing readable stack traces that show which function triggered the error. It also continues past the first error so you can see all issues at once.
+
+> **Warning:** Do not deploy builds generated with `--debug-prerender`. It disables optimizations needed for production performance.
+
+### Building specific routes
+
+In large applications, you can build only specific routes using `--debug-build-paths` to speed up debugging:
+
+```bash filename="Terminal"
+next build --debug-build-paths="app/products/[id]/page.tsx"
+```
+
+This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
+
+## Next steps
 
 Next, learn how to:
 
