@@ -116,22 +116,36 @@ ${AGENT_RULES_END_MARKER}`
 
 const CLAUDE_MD_CONTENT = `@AGENTS.md\n`
 
+export type BundledDocsFileAction =
+  | 'created'
+  | 'updated'
+  | 'unchanged'
+  | 'skipped'
+
 export interface BundledDocsWriteResult {
   agentsMdPath: string
   claudeMdPath: string
-  agentsMdAction: 'created' | 'updated' | 'unchanged'
-  claudeMdAction: 'created' | 'unchanged'
+  agentsMd: BundledDocsFileAction
+  claudeMd: BundledDocsFileAction
 }
 
 /**
- * Write the create-next-app-style `AGENTS.md` + `CLAUDE.md` pair into the
- * project root, non-destructively:
+ * Write the create-next-app-style agent rules into the project, respecting
+ * whichever file the user already uses as their agent instructions:
  *
- *   - `AGENTS.md`: if missing → write the canonical block; if present with
- *     the marker → replace the block in place; if present without the marker
- *     → append the block, preserving existing content.
- *   - `CLAUDE.md`: if missing → create with `@AGENTS.md`; if present → leave
- *     untouched (the user may already have their own setup).
+ *   - If `AGENTS.md` exists, upsert the rules block into it and leave
+ *     `CLAUDE.md` alone. `AGENTS.md` is the canonical file, so we prefer it
+ *     whenever the user has one.
+ *   - Otherwise, if `CLAUDE.md` exists, upsert the rules block into it. The
+ *     user is clearly using `CLAUDE.md` as their primary agent file and we
+ *     shouldn't force a new `AGENTS.md` next to it.
+ *   - Otherwise (neither exists), create a fresh `AGENTS.md` containing the
+ *     canonical block and a `CLAUDE.md` that points at it via the `@` import
+ *     syntax — identical to what `create-next-app` generates for new projects.
+ *
+ * Upserts are non-destructive: existing content outside the marker block is
+ * preserved. If the canonical block is already present verbatim, the file is
+ * reported as `unchanged` and not rewritten.
  */
 export function writeBundledDocsAgentFiles(
   cwd: string
@@ -139,30 +153,50 @@ export function writeBundledDocsAgentFiles(
   const agentsMdPath = path.join(cwd, 'AGENTS.md')
   const claudeMdPath = path.join(cwd, 'CLAUDE.md')
 
-  let agentsMdAction: BundledDocsWriteResult['agentsMdAction']
-  if (!fs.existsSync(agentsMdPath)) {
-    fs.writeFileSync(agentsMdPath, AGENT_RULES_BLOCK + '\n', 'utf-8')
-    agentsMdAction = 'created'
-  } else {
-    const existing = fs.readFileSync(agentsMdPath, 'utf-8')
-    const updated = upsertAgentRulesBlock(existing)
-    if (updated === existing) {
-      agentsMdAction = 'unchanged'
-    } else {
-      fs.writeFileSync(agentsMdPath, updated, 'utf-8')
-      agentsMdAction = 'updated'
+  const agentsMdExists = fs.existsSync(agentsMdPath)
+  const claudeMdExists = fs.existsSync(claudeMdPath)
+
+  if (agentsMdExists) {
+    return {
+      agentsMdPath,
+      claudeMdPath,
+      agentsMd: upsertFile(agentsMdPath),
+      claudeMd: 'skipped',
     }
   }
 
-  let claudeMdAction: BundledDocsWriteResult['claudeMdAction']
-  if (!fs.existsSync(claudeMdPath)) {
-    fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
-    claudeMdAction = 'created'
-  } else {
-    claudeMdAction = 'unchanged'
+  if (claudeMdExists) {
+    return {
+      agentsMdPath,
+      claudeMdPath,
+      agentsMd: 'skipped',
+      claudeMd: upsertFile(claudeMdPath),
+    }
   }
 
-  return { agentsMdPath, claudeMdPath, agentsMdAction, claudeMdAction }
+  // Neither file exists — scaffold both, create-next-app style.
+  fs.writeFileSync(agentsMdPath, AGENT_RULES_BLOCK + '\n', 'utf-8')
+  fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
+  return {
+    agentsMdPath,
+    claudeMdPath,
+    agentsMd: 'created',
+    claudeMd: 'created',
+  }
+}
+
+/**
+ * Upsert the canonical agent-rules block into an existing file and return
+ * whether the file actually changed.
+ */
+function upsertFile(filePath: string): BundledDocsFileAction {
+  const existing = fs.readFileSync(filePath, 'utf-8')
+  const updated = upsertAgentRulesBlock(existing)
+  if (updated === existing) {
+    return 'unchanged'
+  }
+  fs.writeFileSync(filePath, updated, 'utf-8')
+  return 'updated'
 }
 
 /**

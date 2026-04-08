@@ -491,7 +491,7 @@ Footer content.
       }
     })
 
-    it('leaves an existing CLAUDE.md untouched', async () => {
+    it('upserts the block into CLAUDE.md when it exists and AGENTS.md does not', async () => {
       const originalCwd = process.cwd()
       process.chdir(fixtureProjectDir)
 
@@ -508,6 +508,50 @@ Footer content.
           path.join(fixtureProjectDir, 'CLAUDE.md'),
           'utf-8'
         )
+
+        // Original content preserved, rules block appended.
+        expect(claudeMdContent).toContain('# Team CLAUDE.md')
+        expect(claudeMdContent).toContain('Custom rules.')
+        expect(claudeMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(claudeMdContent).toContain('node_modules/next/dist/docs/')
+
+        // AGENTS.md is NOT created — the user chose CLAUDE.md as their file.
+        expect(
+          fs.existsSync(path.join(fixtureProjectDir, 'AGENTS.md'))
+        ).toBe(false)
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('leaves CLAUDE.md untouched when AGENTS.md exists (prefers AGENTS.md)', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingClaude = '# Team CLAUDE.md\n\nCustom rules.\n'
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'AGENTS.md'),
+        '# Existing AGENTS.md\n'
+      )
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'CLAUDE.md'),
+        existingClaude
+      )
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'AGENTS.md'),
+          'utf-8'
+        )
+        const claudeMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+
+        // AGENTS.md got the block; CLAUDE.md is byte-identical.
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
         expect(claudeMdContent).toBe(existingClaude)
       } finally {
         process.chdir(originalCwd)

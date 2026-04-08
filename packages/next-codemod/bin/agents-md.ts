@@ -18,6 +18,7 @@ import {
   generateClaudeMdIndex,
   injectIntoClaudeMd,
   ensureGitignoreEntry,
+  type BundledDocsFileAction,
 } from '../lib/agents-md'
 import { onCancel } from '../lib/utils'
 
@@ -155,16 +156,15 @@ function runBundledDocsFastPath(cwd: string): void {
   )
   console.log(
     pc.gray(
-      '  Skipping git clone — writing AGENTS.md + CLAUDE.md that point at the bundled docs.\n'
+      '  Skipping git clone — writing the agent rules into the existing AGENTS.md or CLAUDE.md.\n'
     )
   )
 
   const result = writeBundledDocsAgentFiles(cwd)
 
-  const describe = (
-    file: string,
-    action: 'created' | 'updated' | 'unchanged'
-  ) => {
+  const describe = (file: string, action: BundledDocsFileAction) => {
+    // Don't list files we didn't touch at all.
+    if (action === 'skipped') return
     const symbol = action === 'unchanged' ? pc.gray('•') : pc.green('✓')
     const verb =
       action === 'created'
@@ -175,8 +175,8 @@ function runBundledDocsFastPath(cwd: string): void {
     console.log(`${symbol} ${verb} ${pc.bold(file)}`)
   }
 
-  describe('AGENTS.md', result.agentsMdAction)
-  describe('CLAUDE.md', result.claudeMdAction)
+  describe('AGENTS.md', result.agentsMd)
+  describe('CLAUDE.md', result.claudeMd)
   console.log('')
 }
 

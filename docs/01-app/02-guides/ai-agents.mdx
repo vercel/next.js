@@ -59,13 +59,17 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-On Next.js `v16.2.0-canary.37` or later, run the codemod to generate both files automatically:
+On Next.js `v16.2.0-canary.37` or later, run the codemod to install the agent rules automatically:
 
 ```bash
 npx @next/codemod@latest agents-md
 ```
 
-The codemod detects the bundled docs at `node_modules/next/dist/docs/` and writes `AGENTS.md` and `CLAUDE.md` at the project root:
+The codemod writes the following managed block into whichever agent file your project already uses:
+
+- If `AGENTS.md` exists, the block is upserted into `AGENTS.md`.
+- Otherwise, if `CLAUDE.md` exists, the block is upserted into `CLAUDE.md`.
+- Otherwise, a new `AGENTS.md` is created with the block and a new `CLAUDE.md` is created that imports it via the `@` syntax.
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -81,7 +85,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 @AGENTS.md
 ```
 
-`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content. Running the codemod again is a no-op when the files already contain the managed block. You can also create both files by hand with the exact content above.
+`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content. Upserts preserve existing content outside the marker block, and running the codemod again is a no-op when the block is already up to date. You can also add the block by hand with the exact content above.
 
 <details>
 <summary>For earlier versions</summary>
