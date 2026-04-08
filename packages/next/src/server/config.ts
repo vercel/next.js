@@ -1848,6 +1848,7 @@ export default async function loadConfig(
 
     if (
       userConfig.experimental?.supportsImmutableAssets &&
+      bundler !== undefined &&
       bundler !== Bundler.Turbopack
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
