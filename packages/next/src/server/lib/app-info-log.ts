@@ -143,9 +143,12 @@ function baseAgentRulesMessage(): string {
 }
 
 /**
- * Emit a warning at the end of `next build` when the agent rules are missing
- * and an AI coding agent is driving the build. Never fails the build — CI
- * pipelines should keep working. Humans never see this.
+ * Emit an error-level message when the Next.js agent rules are missing and
+ * an AI coding agent is driving `next dev` or `next build`. Non-fatal — the
+ * dev server and build still proceed. We use `Log.error` (red ⨯ prefix on
+ * stderr) rather than `Log.warn` because agents parsing command output are
+ * much more likely to latch onto ERROR-level lines than yellow warnings.
+ * Humans never see this (gated on `detectAgent()`).
  */
 export function warnIfMissingAgentRules(dir: string): void {
   if (detectAgent() === null) {
@@ -154,29 +157,7 @@ export function warnIfMissingAgentRules(dir: string): void {
   if (hasAgentRulesInstalled(dir)) {
     return
   }
-  Log.warn(baseAgentRulesMessage())
-}
-
-/**
- * Returns an error message when `next dev` should be blocked because the
- * Next.js agent rules aren't installed, or `null` when the caller should
- * proceed as normal. Gated on `detectAgent()` so humans never trip it. The
- * `--skip-agent-rule-check` CLI flag bypasses the check entirely (for edge
- * cases like an `AI_AGENT` env var leaking into a human shell).
- *
- * Unlike the build-side warning, this path exits the dev server so agents
- * can't accidentally develop against a project that isn't scaffolded with
- * the bundled-docs instructions.
- */
-export function getAgentRulesDevError(
-  dir: string,
-  { skip }: { skip: boolean }
-): string | null {
-  if (skip) return null
-  if (detectAgent() === null) return null
-  if (hasAgentRulesInstalled(dir)) return null
-  const escape = cyan('--skip-agent-rule-check')
-  return `${baseAgentRulesMessage()} Pass ${escape} to \`next dev\` to bypass this check.`
+  Log.error(baseAgentRulesMessage())
 }
 
 function tryReadFile(filePath: string): string | null {
