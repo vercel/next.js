@@ -15,6 +15,7 @@ import {
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
+import { warnAboutEdgeRuntime } from '../warn-about-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
@@ -721,6 +722,10 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if (isEdgeRuntime(config.runtime)) {
+    warnAboutEdgeRuntime()
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,
@@ -829,6 +834,10 @@ export async function getPagesPageStaticInfo({
     } else {
       throw new Error(message)
     }
+  }
+
+  if (isEdgeRuntime(resolvedRuntime)) {
+    warnAboutEdgeRuntime()
   }
 
   return {

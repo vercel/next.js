@@ -15,7 +15,7 @@ The `outputs` object contains arrays of build output types:
 
 > **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
-For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime.
+For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime. Note that the Edge Runtime is [deprecated](/docs/messages/edge-runtime-deprecated).
 
 ## Pages (`outputs.pages`)
 
