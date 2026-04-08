@@ -212,6 +212,48 @@ export interface PageInfo {
 
 export type PageInfos = Map<string, PageInfo>
 
+function getTreeViewSymbol(
+  item: string,
+  pageInfo: PageInfo | undefined
+): string {
+  if (item === '/_app' || item === '/_app.server') {
+    return ' '
+  }
+
+  if (isEdgeRuntime(pageInfo?.runtime)) {
+    return 'ƒ'
+  }
+
+  if (pageInfo?.isRoutePPREnabled) {
+    if (
+      // If the page has an empty static shell, then it's equivalent to a
+      // dynamic page
+      pageInfo?.hasEmptyStaticShell ||
+      // ensure we don't mark dynamic paths that postponed as being dynamic
+      // since in this case we're able to partially prerender it
+      (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+    ) {
+      return 'ƒ'
+    }
+
+    if (!pageInfo?.hasPostponed) {
+      return '○'
+    }
+
+    return '◐'
+  }
+
+  if (pageInfo?.isStatic) {
+    return '○'
+  }
+
+  if (pageInfo?.isSSG) {
+    return '●'
+  }
+
+  return 'ƒ'
+}
+
 export interface RoutesUsingEdgeRuntime {
   [route: string]: 0
 }
@@ -333,34 +375,7 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      let symbol: string
-
-      if (item === '/_app' || item === '/_app.server') {
-        symbol = ' '
-      } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ƒ'
-      } else if (pageInfo?.isRoutePPREnabled) {
-        if (
-          // If the page has an empty static shell, then it's equivalent to a
-          // dynamic page
-          pageInfo?.hasEmptyStaticShell ||
-          // ensure we don't mark dynamic paths that postponed as being dynamic
-          // since in this case we're able to partially prerender it
-          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
-        ) {
-          symbol = 'ƒ'
-        } else if (!pageInfo?.hasPostponed) {
-          symbol = '○'
-        } else {
-          symbol = '◐'
-        }
-      } else if (pageInfo?.isStatic) {
-        symbol = '○'
-      } else if (pageInfo?.isSSG) {
-        symbol = '●'
-      } else {
-        symbol = 'ƒ'
-      }
+      const symbol = getTreeViewSymbol(item, pageInfo)
 
       const displayPath = getTreeViewDisplayPath(item)
 
@@ -446,12 +461,16 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+            // Generated child paths can have more precise metadata than the
+            // parent route pattern, so prefer the child entry when present.
+            const routePageInfo = pageInfos.get(route) ?? pageInfo
+            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
