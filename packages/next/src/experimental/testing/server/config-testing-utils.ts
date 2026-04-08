@@ -7,7 +7,7 @@ import {
 } from '../../../shared/lib/router/utils/prepare-destination'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
-import type { NextConfig } from '../../../server/config-shared'
+import { normalizeConfig, type NextConfig } from '../../../server/config-shared'
 import { NextResponse } from '../../../server/web/exports'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import type {
@@ -87,7 +87,11 @@ export async function unstable_getResponseFromNextConfig({
 }): Promise<NextResponse> {
   const parsedUrl = parse(url, true)
   const request = constructRequest({ url, headers, cookies })
-  const routes = await loadCustomRoutes(nextConfig)
+  const resolvedConfig = await normalizeConfig(
+    'phase-production-build',
+    nextConfig
+  )
+  const routes = await loadCustomRoutes(resolvedConfig)
 
   const headerRoutes = routes.headers.map((route) =>
     buildCustomRoute('header', route)
