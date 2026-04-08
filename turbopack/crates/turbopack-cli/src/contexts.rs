@@ -57,18 +57,20 @@ pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<Im
     import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
     import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
 
+    let embed_root = turbopack_ecmascript_runtime::embed_fs()
+        .root()
+        .owned()
+        .await?;
+
     import_map.insert_wildcard_alias(
         rcstr!("@vercel/turbopack-ecmascript-runtime/"),
-        ImportMapping::PrimaryAlternative(
-            rcstr!("./*"),
-            Some(
-                turbopack_ecmascript_runtime::embed_fs()
-                    .root()
-                    .owned()
-                    .await?,
-            ),
-        )
-        .resolved_cell(),
+        ImportMapping::PrimaryAlternative(rcstr!("./*"), Some(embed_root.clone())).resolved_cell(),
+    );
+
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/base64"),
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root))
+            .resolved_cell(),
     );
 
     Ok(import_map.cell())
