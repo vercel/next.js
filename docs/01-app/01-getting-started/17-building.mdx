@@ -69,7 +69,7 @@ Route (app)
 ├   └ /products/3
 ```
 
-These params are now resolved at build time. If the route has no other dynamic content, it becomes fully static (`○`). If it also contains streamed content, it stays `◐` but the params no longer block prerendering.
+These params are now resolved at build time. The route stays `◐` (Partial Prerender) but the listed params are fully prerendered and served instantly from CDN.
 
 Params not listed in `generateStaticParams` (for example, `/products/99`) are rendered on the first request, then cached for subsequent visits.
 
