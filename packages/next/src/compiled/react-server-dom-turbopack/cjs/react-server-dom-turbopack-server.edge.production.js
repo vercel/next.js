@@ -2823,22 +2823,22 @@ function getOutlinedModel(
 function createMap(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Map initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Map.");
-  response = new Map(model);
   model.$$consumed = !0;
+  response = new Map(model);
   return response;
 }
 function createSet(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Set initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Set.");
-  response = new Set(model);
   model.$$consumed = !0;
+  response = new Set(model);
   return response;
 }
 function extractIterator(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Iterator initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Iterator.");
-  response = model[Symbol.iterator]();
   model.$$consumed = !0;
+  response = model[Symbol.iterator]();
   return response;
 }
 function createModel(response, model, parentObject, key) {

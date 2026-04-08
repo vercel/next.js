@@ -514,17 +514,17 @@ importers:
         specifier: npm:react-is@19.3.0-canary-3f0b9e61-20260317
         version: react-is@19.3.0-canary-3f0b9e61-20260317
       react-server-dom-turbopack:
-        specifier: npm:react-server-dom-turbopack@19.3.0-canary-3f0b9e61-20260317
-        version: 19.3.0-canary-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)
+        specifier: file:packages/next/src/compiled/react-server-dom-turbopack
+        version: react-server-dom-turbopack-builtin@file:packages/next/src/compiled/react-server-dom-turbopack(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)
       react-server-dom-turbopack-experimental:
-        specifier: npm:react-server-dom-turbopack@0.0.0-experimental-3f0b9e61-20260317
-        version: react-server-dom-turbopack@0.0.0-experimental-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)
+        specifier: file:packages/next/src/compiled/react-server-dom-turbopack-experimental
+        version: react-server-dom-turbopack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-turbopack-experimental(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)
       react-server-dom-webpack:
-        specifier: npm:react-server-dom-webpack@19.3.0-canary-3f0b9e61-20260317
-        version: 19.3.0-canary-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
+        specifier: file:packages/next/src/compiled/react-server-dom-webpack
+        version: react-server-dom-webpack-builtin@file:packages/next/src/compiled/react-server-dom-webpack(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
       react-server-dom-webpack-experimental:
-        specifier: npm:react-server-dom-webpack@0.0.0-experimental-3f0b9e61-20260317
-        version: react-server-dom-webpack@0.0.0-experimental-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
+        specifier: file:packages/next/src/compiled/react-server-dom-webpack-experimental
+        version: react-server-dom-webpack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-webpack-experimental(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15)))
       react-ssr-prepass:
         specifier: 1.0.8
         version: 1.0.8(react-is@19.3.0-canary-3f0b9e61-20260317)(react@19.3.0-canary-3f0b9e61-20260317)
@@ -13207,8 +13207,8 @@ packages:
   lodash@4.17.20:
     resolution: {integrity: sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+  lodash@4.17.23:
+    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
 
   log-driver@1.2.7:
     resolution: {integrity: sha512-U7KCmLdqsGHBLeWqYlFA0V0Sl6P08EE1ZrmA9cxjUE0WVqT9qnyVDPz1kzpFEP0jdJuFnasWIfSd7fsaNXkpbg==}
@@ -16119,31 +16119,27 @@ packages:
       '@types/react':
         optional: true
 
-  react-server-dom-turbopack@0.0.0-experimental-3f0b9e61-20260317:
-    resolution: {integrity: sha512-u2/9RnOIRoE3B0/DBG0v8d7oEgEvwlUj4CXgQy0WIKFWGRPlZpvwQoOCJUBNeXO21jxZpZ7i4V0JleWZmmBjjQ==}
-    engines: {node: '>=0.10.0'}
+  react-server-dom-turbopack-builtin@file:packages/next/src/compiled/react-server-dom-turbopack:
+    resolution: {directory: packages/next/src/compiled/react-server-dom-turbopack, type: directory}
     peerDependencies:
       react: npm:react@19.3.0-canary-3f0b9e61-20260317
       react-dom: npm:react-dom@19.3.0-canary-3f0b9e61-20260317
 
-  react-server-dom-turbopack@19.3.0-canary-3f0b9e61-20260317:
-    resolution: {integrity: sha512-l52ViZmK4nBlwgYoj62gsUoFNKMu/DaBz3d4S8iJvQ63bUwn+RcxI+xYXXP5Ma3ijPg5vMgRekiShxiN/pFwUg==}
-    engines: {node: '>=0.10.0'}
+  react-server-dom-turbopack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-turbopack-experimental:
+    resolution: {directory: packages/next/src/compiled/react-server-dom-turbopack-experimental, type: directory}
     peerDependencies:
       react: npm:react@19.3.0-canary-3f0b9e61-20260317
       react-dom: npm:react-dom@19.3.0-canary-3f0b9e61-20260317
 
-  react-server-dom-webpack@0.0.0-experimental-3f0b9e61-20260317:
-    resolution: {integrity: sha512-5GfnYtnZA/ZCtDWavyBG8bszYr3MkW0MEtoXrJR+hn5szKIcCffuRZBNpSHasvqaK6zjjgr5pSIoqTfQj4t7+Q==}
-    engines: {node: '>=0.10.0'}
+  react-server-dom-webpack-builtin@file:packages/next/src/compiled/react-server-dom-webpack:
+    resolution: {directory: packages/next/src/compiled/react-server-dom-webpack, type: directory}
     peerDependencies:
       react: npm:react@19.3.0-canary-3f0b9e61-20260317
       react-dom: npm:react-dom@19.3.0-canary-3f0b9e61-20260317
       webpack: 5.98.0
 
-  react-server-dom-webpack@19.3.0-canary-3f0b9e61-20260317:
-    resolution: {integrity: sha512-464U+AzbPc53QyqrXeXHcottq8b+MmEBcUrgMOQqeKDpDt2zVtXrHsgdgTXBf3IIkfHSzD6cJlvUJStPbvhUcQ==}
-    engines: {node: '>=0.10.0'}
+  react-server-dom-webpack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-webpack-experimental:
+    resolution: {directory: packages/next/src/compiled/react-server-dom-webpack-experimental, type: directory}
     peerDependencies:
       react: npm:react@19.3.0-canary-3f0b9e61-20260317
       react-dom: npm:react-dom@19.3.0-canary-3f0b9e61-20260317
@@ -24192,7 +24188,7 @@ snapshots:
       chalk: 3.0.0
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
-      lodash: 4.17.21
+      lodash: 4.17.23
       redent: 3.0.0
 
   '@testing-library/react@15.0.7(@types/react@19.2.10)(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)':
@@ -25742,7 +25738,7 @@ snapshots:
 
   babel-plugin-transform-define@2.0.0:
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.23
       traverse: 0.6.6
 
   babel-plugin-transform-react-remove-prop-types@0.4.24: {}
@@ -30459,7 +30455,7 @@ snapshots:
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       pretty-error: 4.0.0
       tapable: 2.2.1
     optionalDependencies:
@@ -30820,7 +30816,7 @@ snapshots:
       cli-width: 3.0.0
       external-editor: 3.1.0
       figures: 3.1.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       mute-stream: 0.0.8
       ora: 5.4.1
       run-async: 2.4.1
@@ -30839,7 +30835,7 @@ snapshots:
       cli-cursor: 3.1.0
       cli-width: 4.1.0
       external-editor: 3.1.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       mute-stream: 1.0.0
       ora: 5.4.1
       run-async: 3.0.0
@@ -32057,7 +32053,7 @@ snapshots:
   jsonwebtoken@9.0.0:
     dependencies:
       jws: 3.2.2
-      lodash: 4.17.21
+      lodash: 4.17.23
       ms: 2.1.3
       semver: 7.6.3
 
@@ -32077,7 +32073,7 @@ snapshots:
 
   junit-report-builder@5.1.1:
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.23
       make-dir: 3.1.0
       xmlbuilder: 15.1.1
 
@@ -32560,7 +32556,7 @@ snapshots:
 
   lodash@4.17.20: {}
 
-  lodash@4.17.21: {}
+  lodash@4.17.23: {}
 
   log-driver@1.2.7: {}
 
@@ -36278,21 +36274,21 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.10
 
-  react-server-dom-turbopack@0.0.0-experimental-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317):
+  react-server-dom-turbopack-builtin@file:packages/next/src/compiled/react-server-dom-turbopack(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
       react: 19.3.0-canary-3f0b9e61-20260317
       react-dom: 19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317)
 
-  react-server-dom-turbopack@19.3.0-canary-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317):
+  react-server-dom-turbopack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-turbopack-experimental(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
       react: 19.3.0-canary-3f0b9e61-20260317
       react-dom: 19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317)
 
-  react-server-dom-webpack@0.0.0-experimental-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
+  react-server-dom-webpack-builtin@file:packages/next/src/compiled/react-server-dom-webpack(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
@@ -36301,7 +36297,7 @@ snapshots:
       webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))
       webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
 
-  react-server-dom-webpack@19.3.0-canary-3f0b9e61-20260317(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
+  react-server-dom-webpack-experimental-builtin@file:packages/next/src/compiled/react-server-dom-webpack-experimental(react-dom@19.3.0-canary-3f0b9e61-20260317(react@19.3.0-canary-3f0b9e61-20260317))(react@19.3.0-canary-3f0b9e61-20260317)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
@@ -36817,7 +36813,7 @@ snapshots:
       css-select: 4.3.0
       dom-converter: 0.2.0
       htmlparser2: 6.1.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       strip-ansi: 6.0.1
 
   repeat-string@1.6.1: {}
@@ -36828,7 +36824,7 @@ snapshots:
 
   request-promise-core@1.1.2(request@2.88.2):
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.20
       request: 2.88.2
 
   request@2.88.2:
@@ -39464,7 +39460,7 @@ snapshots:
     dependencies:
       axios: 1.7.9(debug@4.1.1)
       joi: 17.13.3
-      lodash: 4.17.21
+      lodash: 4.17.23
       minimist: 1.2.8
       rxjs: 7.8.1
     transitivePeerDependencies:
@@ -39556,7 +39552,7 @@ snapshots:
       chalk: 4.1.2
       commander: 7.2.0
       gzip-size: 6.0.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       opener: 1.5.2
       sirv: 1.0.10
       ws: 7.5.3
@@ -39571,7 +39567,7 @@ snapshots:
       chalk: 4.1.2
       commander: 7.2.0
       gzip-size: 6.0.0
-      lodash: 4.17.20
+      lodash: 4.17.23
       opener: 1.5.2
       sirv: 1.0.10
       ws: 7.5.3
