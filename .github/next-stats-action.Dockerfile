@@ -16,8 +16,9 @@ RUN corepack enable
 FROM base AS pnpm-deploy
 
 WORKDIR /dot-github
-COPY --exclude=node_modules --exclude=actions/*/node_modules . .
-RUN ls -l
+COPY pnpm-lock.yaml pnpm-workspace.yaml .
+COPY --exclude=actions/*/node_modules \
+  actions/next-stats-action actions/next-stats-action
 RUN pnpm deploy --filter=next-stats-action --production /next-stats
 
 
@@ -34,7 +35,6 @@ RUN git config --global user.email 'stats@localhost' && \
 WORKDIR /next-stats
 
 COPY --from=pnpm-deploy /next-stats .
-RUN pnpm install --production
 
-COPY entrypoint.sh /entrypoint.sh
+COPY actions/next-stats-action/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
