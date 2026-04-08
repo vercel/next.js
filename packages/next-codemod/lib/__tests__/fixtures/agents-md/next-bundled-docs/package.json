@@ -1,0 +1,6 @@
+{
+  "name": "next-bundled-docs",
+  "dependencies": {
+    "next": "16.2.0"
+  }
+}

@@ -59,9 +59,13 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-Ensure you are on Next.js `v16.2.0-canary.37` or later, then add the following files to the root of your project.
+On Next.js `v16.2.0-canary.37` or later, run the codemod to generate both files automatically:
 
-`AGENTS.md` contains the instructions that agents will read:
+```bash
+npx @next/codemod@latest agents-md
+```
+
+The codemod detects the bundled docs at `node_modules/next/dist/docs/` and writes `AGENTS.md` and `CLAUDE.md` at the project root:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
@@ -73,22 +77,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!-- END:nextjs-agent-rules -->
 ```
 
-`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content:
-
 ```md filename="CLAUDE.md"
 @AGENTS.md
 ```
 
+`CLAUDE.md` uses the `@` import syntax to include `AGENTS.md`, so [Claude Code](https://docs.anthropic.com/en/docs/claude-code) users get the same instructions without duplicating content. Running the codemod again is a no-op when the files already contain the managed block. You can also create both files by hand with the exact content above.
+
 <details>
 <summary>For earlier versions</summary>
 
-On version 16.1 and earlier, use the codemod to generate these files automatically:
+On version 16.1 and earlier, the codemod downloads the docs to `.next-docs/` in the project root instead of using the bundled `node_modules/next/dist/docs/`, and the generated agent files will point at that directory:
 
 ```bash
 npx @next/codemod@latest agents-md
 ```
-
-The codemod outputs the bundled docs to `.next-docs/` in the project root instead of `node_modules/next/dist/docs/`, and the generated agent files will point to that directory.
 
 </details>
 

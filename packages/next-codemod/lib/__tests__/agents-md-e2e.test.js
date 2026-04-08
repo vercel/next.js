@@ -5,7 +5,34 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { runAgentsMd } = require('../../bin/agents-md')
-const { getNextjsVersion } = require('../../lib/agents-md')
+const {
+  getNextjsVersion,
+  hasBundledDocs,
+  AGENT_RULES_START_MARKER,
+  AGENT_RULES_END_MARKER,
+} = require('../../lib/agents-md')
+
+const BUNDLED_FIXTURE_DIR = path.join(
+  __dirname,
+  'fixtures/agents-md/next-bundled-docs'
+)
+
+/**
+ * Recursively copy the bundled-docs fixture into `dest` so tests can mutate
+ * it without touching the checked-in tree.
+ */
+function copyFixture(src, dest) {
+  fs.mkdirSync(dest, { recursive: true })
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name)
+    const destPath = path.join(dest, entry.name)
+    if (entry.isDirectory()) {
+      copyFixture(srcPath, destPath)
+    } else {
+      fs.copyFileSync(srcPath, destPath)
+    }
+  }
+}
 
 /**
  * TRUE E2E TESTS
@@ -292,6 +319,230 @@ This is my project documentation.
       process.chdir(originalCwd)
     }
   }, 30000) // Increase timeout for git clone
+
+  describe('bundled docs fast path', () => {
+    let fixtureProjectDir
+
+    beforeEach(() => {
+      const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
+      fixtureProjectDir = path.join(
+        tmpBase,
+        `agents-md-bundled-${Date.now()}-${(Math.random() * 1000) | 0}`
+      )
+      copyFixture(BUNDLED_FIXTURE_DIR, fixtureProjectDir)
+    })
+
+    afterEach(() => {
+      if (fixtureProjectDir && fs.existsSync(fixtureProjectDir)) {
+        fs.rmSync(fixtureProjectDir, { recursive: true, force: true })
+      }
+    })
+
+    it('detects bundled docs via hasBundledDocs', () => {
+      expect(hasBundledDocs(fixtureProjectDir)).toBe(true)
+
+      // A project with no `next` installed at all should return false.
+      const bareDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'agents-md-bare-')
+      )
+      try {
+        expect(hasBundledDocs(bareDir)).toBe(false)
+      } finally {
+        fs.rmSync(bareDir, { recursive: true, force: true })
+      }
+
+      // A project with `next` installed but no `dist/docs/` (e.g. 15.x)
+      // should also return false — this is the legacy-flow fork point.
+      const legacyFixture = path.join(
+        __dirname,
+        'fixtures/agents-md/next-specific-version'
+      )
+      expect(hasBundledDocs(legacyFixture)).toBe(false)
+    })
+
+    it('writes AGENTS.md + CLAUDE.md and skips .next-docs when bundled docs exist', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdPath = path.join(fixtureProjectDir, 'AGENTS.md')
+        const claudeMdPath = path.join(fixtureProjectDir, 'CLAUDE.md')
+        const dotNextDocsPath = path.join(fixtureProjectDir, '.next-docs')
+
+        expect(fs.existsSync(agentsMdPath)).toBe(true)
+        expect(fs.existsSync(claudeMdPath)).toBe(true)
+        // Crucially: no git clone, no .next-docs/ directory created.
+        expect(fs.existsSync(dotNextDocsPath)).toBe(false)
+
+        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf-8')
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(agentsMdContent).toContain(AGENT_RULES_END_MARKER)
+        expect(agentsMdContent).toContain('node_modules/next/dist/docs/')
+
+        const claudeMdContent = fs.readFileSync(claudeMdPath, 'utf-8')
+        expect(claudeMdContent.trim()).toBe('@AGENTS.md')
+
+        const output = consoleOutput.join('\n')
+        expect(output).toContain('bundled docs')
+        expect(output).toContain('AGENTS.md')
+        expect(output).toContain('CLAUDE.md')
+        expect(output).not.toContain('Downloading Next.js')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('is idempotent: re-running leaves files unchanged', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdPath = path.join(fixtureProjectDir, 'AGENTS.md')
+        const claudeMdPath = path.join(fixtureProjectDir, 'CLAUDE.md')
+        const firstAgents = fs.readFileSync(agentsMdPath, 'utf-8')
+        const firstClaude = fs.readFileSync(claudeMdPath, 'utf-8')
+
+        await runAgentsMd({})
+
+        expect(fs.readFileSync(agentsMdPath, 'utf-8')).toBe(firstAgents)
+        expect(fs.readFileSync(claudeMdPath, 'utf-8')).toBe(firstClaude)
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('preserves existing AGENTS.md content and injects the marker block', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingAgents = `# My Project
+
+Custom team instructions.
+
+- Use tabs, not spaces.
+`
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'AGENTS.md'),
+        existingAgents
+      )
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'AGENTS.md'),
+          'utf-8'
+        )
+
+        // Custom content preserved.
+        expect(agentsMdContent).toContain('# My Project')
+        expect(agentsMdContent).toContain('Custom team instructions.')
+        expect(agentsMdContent).toContain('Use tabs, not spaces.')
+
+        // Marker block appended.
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(agentsMdContent).toContain(AGENT_RULES_END_MARKER)
+        expect(agentsMdContent).toContain('node_modules/next/dist/docs/')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('replaces the agent-rules block in place when the marker is already present', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingAgents = `# My Project
+
+${AGENT_RULES_START_MARKER}
+# Old stale instructions
+${AGENT_RULES_END_MARKER}
+
+Footer content.
+`
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'AGENTS.md'),
+        existingAgents
+      )
+
+      try {
+        await runAgentsMd({})
+
+        const agentsMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'AGENTS.md'),
+          'utf-8'
+        )
+
+        expect(agentsMdContent).toContain('# My Project')
+        expect(agentsMdContent).toContain('Footer content.')
+        expect(agentsMdContent).not.toContain('Old stale instructions')
+        expect(agentsMdContent).toContain('node_modules/next/dist/docs/')
+        // Exactly one BEGIN marker.
+        const matches = agentsMdContent.match(
+          new RegExp(AGENT_RULES_START_MARKER, 'g')
+        )
+        expect(matches).toHaveLength(1)
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('leaves an existing CLAUDE.md untouched', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingClaude = '# Team CLAUDE.md\n\nCustom rules.\n'
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'CLAUDE.md'),
+        existingClaude
+      )
+
+      try {
+        await runAgentsMd({})
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+        expect(claudeMdContent).toBe(existingClaude)
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('--version flag forces the legacy flow even when bundled docs exist', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      try {
+        await runAgentsMd({
+          version: '15.0.0',
+          output: 'CLAUDE.md',
+        })
+
+        // Legacy flow: .next-docs/ directory created from git clone.
+        const dotNextDocsPath = path.join(fixtureProjectDir, '.next-docs')
+        expect(fs.existsSync(dotNextDocsPath)).toBe(true)
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+        expect(claudeMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
+        expect(claudeMdContent).toContain('[Next.js Docs Index]')
+
+        const output = consoleOutput.join('\n')
+        expect(output).toContain('Downloading Next.js')
+        expect(output).toContain('15.0.0')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    }, 30000)
+  })
 
   describe('getNextjsVersion', () => {
     const fixturesDir = path.join(__dirname, 'fixtures/agents-md')

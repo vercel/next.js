@@ -10,6 +10,8 @@ import pc from 'picocolors'
 import { BadInput } from './shared'
 import {
   getNextjsVersion,
+  hasBundledDocs,
+  writeBundledDocsAgentFiles,
   pullDocs,
   collectDocFiles,
   buildDocTree,
@@ -36,6 +38,17 @@ function formatSize(bytes: number): string {
 
 export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const cwd = process.cwd()
+
+  // Fast path: if the installed Next.js already ships version-matched docs at
+  // `node_modules/next/dist/docs/` (Next.js 16.2+), there is nothing to
+  // download or index. Write the same minimal AGENTS.md + CLAUDE.md that
+  // `create-next-app` would have generated and exit. This branch is skipped
+  // when `--version` is explicitly passed, since that flag signals the user
+  // wants to pull docs for a specific (potentially older) version.
+  if (!options.version && hasBundledDocs(cwd)) {
+    runBundledDocsFastPath(cwd)
+    return
+  }
 
   // Mode logic:
   // 1. No flags → interactive mode (prompts for version + target file)
@@ -128,6 +141,42 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
       `${pc.green('✓')} Added ${pc.bold(DOCS_DIR_NAME)} to .gitignore`
     )
   }
+  console.log('')
+}
+
+function runBundledDocsFastPath(cwd: string): void {
+  const detectedVersion = getNextjsVersion(cwd).version
+  const versionLabel = detectedVersion
+    ? pc.cyan(detectedVersion)
+    : pc.cyan('next')
+
+  console.log(
+    `\nDetected bundled docs at ${pc.cyan('node_modules/next/dist/docs/')} for Next.js ${versionLabel}.`
+  )
+  console.log(
+    pc.gray(
+      '  Skipping git clone — writing AGENTS.md + CLAUDE.md that point at the bundled docs.\n'
+    )
+  )
+
+  const result = writeBundledDocsAgentFiles(cwd)
+
+  const describe = (
+    file: string,
+    action: 'created' | 'updated' | 'unchanged'
+  ) => {
+    const symbol = action === 'unchanged' ? pc.gray('•') : pc.green('✓')
+    const verb =
+      action === 'created'
+        ? 'Created'
+        : action === 'updated'
+          ? 'Updated'
+          : 'Up to date:'
+    console.log(`${symbol} ${verb} ${pc.bold(file)}`)
+  }
+
+  describe('AGENTS.md', result.agentsMdAction)
+  describe('CLAUDE.md', result.claudeMdAction)
   console.log('')
 }
 

@@ -1,9 +1,12 @@
 import { loadEnvConfig } from '@next/env'
+import fs from 'fs'
 import * as inspector from 'inspector'
+import path from 'path'
 import * as Log from '../../build/output/log'
-import { bold, purple, strikethrough } from '../../lib/picocolors'
+import { bold, cyan, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
+import { detectAgent } from '../../telemetry/detect-agent'
 
 // Re-export the type for consumers
 export type { ConfiguredExperimentalFeature }
@@ -111,6 +114,67 @@ export function logExperimentalInfo({
 
   // New line after the bootstrap info
   Log.info('')
+}
+
+/**
+ * Keep in sync with the marker written by `create-next-app` in
+ * packages/create-next-app/helpers/generate-agent-files.ts.
+ */
+const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+
+/**
+ * Warn when the project is missing the Next.js agent rules in AGENTS.md or
+ * CLAUDE.md.
+ *
+ * Next.js ships version-matched docs at `node_modules/next/dist/docs/` and
+ * skills at `node_modules/next/dist/skills/`. `create-next-app` generates an
+ * `AGENTS.md` with a marker that points AI coding agents at those bundled
+ * resources so they don't rely on stale training data. If neither `AGENTS.md`
+ * nor `CLAUDE.md` contains the marker while an AI coding agent is driving the
+ * dev server, surface a hint so the agent knows to scaffold the file.
+ *
+ * Gated on `detectAgent()` so humans running `next dev` in a normal terminal
+ * never see this.
+ */
+export function warnIfMissingAgentRules(dir: string): void {
+  if (detectAgent() === null) {
+    return
+  }
+
+  const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
+  const claudeMdContents = tryReadFile(path.join(dir, 'CLAUDE.md'))
+
+  if (
+    agentsMdContents?.includes(AGENT_RULES_MARKER) ||
+    claudeMdContents?.includes(AGENT_RULES_MARKER)
+  ) {
+    return
+  }
+
+  const docsHint = cyan('node_modules/next/dist/docs/')
+  const docsUrl = 'https://nextjs.org/docs/app/guides/ai-agents'
+
+  if (agentsMdContents === null && claudeMdContents === null) {
+    Log.warn(
+      `AGENTS.md not found. AI coding agents may rely on stale training data ` +
+        `instead of the version-matched docs bundled at ${docsHint}. ` +
+        `Run \`npx @next/codemod@latest agents-md\` to scaffold one, or see ${docsUrl}.`
+    )
+  } else {
+    Log.warn(
+      `AGENTS.md/CLAUDE.md is missing the \`${AGENT_RULES_MARKER}\` marker ` +
+        `that points AI coding agents at the version-matched docs in ${docsHint}. ` +
+        `See ${docsUrl}.`
+    )
+  }
+}
+
+function tryReadFile(filePath: string): string | null {
+  try {
+    return fs.readFileSync(filePath, 'utf-8')
+  } catch {
+    return null
+  }
 }
 
 /**

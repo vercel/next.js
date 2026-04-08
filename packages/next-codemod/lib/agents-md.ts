@@ -43,6 +43,151 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
   }
 }
 
+/**
+ * Resolve the directory of the installed `next` package, or null if not found.
+ * Checks both the project root and any detected monorepo workspace packages.
+ */
+function resolveNextPackageDir(cwd: string): string | null {
+  try {
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    return path.dirname(nextPkgPath)
+  } catch {
+    // Fall through to workspace lookup.
+  }
+
+  const workspace = detectWorkspace(cwd)
+  if (!workspace.isMonorepo || workspace.packages.length === 0) {
+    return null
+  }
+
+  const packagePaths = expandWorkspacePatterns(cwd, workspace.packages)
+  for (const pkgPath of packagePaths) {
+    try {
+      const nextPkgPath = require.resolve('next/package.json', {
+        paths: [pkgPath],
+      })
+      return path.dirname(nextPkgPath)
+    } catch {
+      // Not installed in this workspace package; try the next one.
+    }
+  }
+
+  return null
+}
+
+/**
+ * Returns true when the installed Next.js ships version-matched docs at
+ * `node_modules/next/dist/docs/`. Starting with Next.js 16.2, the docs are
+ * bundled into the published package, which makes the git clone + index
+ * workflow unnecessary: an `AGENTS.md` pointing at the bundled path is enough.
+ */
+export function hasBundledDocs(cwd: string): boolean {
+  const nextPkgDir = resolveNextPackageDir(cwd)
+  if (!nextPkgDir) {
+    return false
+  }
+  const bundledDocsDir = path.join(nextPkgDir, 'dist', 'docs')
+  try {
+    return fs.statSync(bundledDocsDir).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Marker pair delimiting the Next.js-managed section inside an AGENTS.md file.
+ * Keep in sync with:
+ *   - packages/create-next-app/helpers/generate-agent-files.ts
+ *   - packages/next/src/server/lib/app-info-log.ts
+ */
+export const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+export const AGENT_RULES_END_MARKER = '<!-- END:nextjs-agent-rules -->'
+
+/**
+ * The canonical block that `create-next-app` writes into AGENTS.md. The
+ * codemod produces the exact same block so that projects upgrading from older
+ * Next.js versions end up with identical scaffolding.
+ */
+const AGENT_RULES_BLOCK = `${AGENT_RULES_START_MARKER}
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` before writing any code. Heed deprecation notices.
+${AGENT_RULES_END_MARKER}`
+
+const CLAUDE_MD_CONTENT = `@AGENTS.md\n`
+
+export interface BundledDocsWriteResult {
+  agentsMdPath: string
+  claudeMdPath: string
+  agentsMdAction: 'created' | 'updated' | 'unchanged'
+  claudeMdAction: 'created' | 'unchanged'
+}
+
+/**
+ * Write the create-next-app-style `AGENTS.md` + `CLAUDE.md` pair into the
+ * project root, non-destructively:
+ *
+ *   - `AGENTS.md`: if missing → write the canonical block; if present with
+ *     the marker → replace the block in place; if present without the marker
+ *     → append the block, preserving existing content.
+ *   - `CLAUDE.md`: if missing → create with `@AGENTS.md`; if present → leave
+ *     untouched (the user may already have their own setup).
+ */
+export function writeBundledDocsAgentFiles(
+  cwd: string
+): BundledDocsWriteResult {
+  const agentsMdPath = path.join(cwd, 'AGENTS.md')
+  const claudeMdPath = path.join(cwd, 'CLAUDE.md')
+
+  let agentsMdAction: BundledDocsWriteResult['agentsMdAction']
+  if (!fs.existsSync(agentsMdPath)) {
+    fs.writeFileSync(agentsMdPath, AGENT_RULES_BLOCK + '\n', 'utf-8')
+    agentsMdAction = 'created'
+  } else {
+    const existing = fs.readFileSync(agentsMdPath, 'utf-8')
+    const updated = upsertAgentRulesBlock(existing)
+    if (updated === existing) {
+      agentsMdAction = 'unchanged'
+    } else {
+      fs.writeFileSync(agentsMdPath, updated, 'utf-8')
+      agentsMdAction = 'updated'
+    }
+  }
+
+  let claudeMdAction: BundledDocsWriteResult['claudeMdAction']
+  if (!fs.existsSync(claudeMdPath)) {
+    fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
+    claudeMdAction = 'created'
+  } else {
+    claudeMdAction = 'unchanged'
+  }
+
+  return { agentsMdPath, claudeMdPath, agentsMdAction, claudeMdAction }
+}
+
+/**
+ * Given the current contents of an AGENTS.md file, return a version that
+ * contains the canonical agent-rules block exactly once. If the markers are
+ * already present, the block between them is replaced. Otherwise the block
+ * is appended after the existing content. If the canonical block is already
+ * present verbatim, the input is returned unchanged.
+ */
+function upsertAgentRulesBlock(existing: string): string {
+  const startIdx = existing.indexOf(AGENT_RULES_START_MARKER)
+  const endIdx = existing.indexOf(AGENT_RULES_END_MARKER)
+
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const before = existing.slice(0, startIdx)
+    const after = existing.slice(endIdx + AGENT_RULES_END_MARKER.length)
+    const replaced = before + AGENT_RULES_BLOCK + after
+    return replaced === existing ? existing : replaced
+  }
+
+  const separator =
+    existing.length === 0 || existing.endsWith('\n') ? '\n' : '\n\n'
+  return existing + separator + AGENT_RULES_BLOCK + '\n'
+}
+
 function versionToGitHubTag(version: string): string {
   return version.startsWith('v') ? version : `v${version}`
 }
