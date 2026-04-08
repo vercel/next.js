@@ -2,6 +2,15 @@
 title: Building your application
 description: Learn what happens when you run next build, how to read the build output, and how to fix common prerender errors.
 nav_title: Building
+related:
+  description: Related API references and guides.
+  links:
+    - app/api-reference/cli/next
+    - app/api-reference/functions/generate-static-params
+    - app/api-reference/config/next-config-js/cacheComponents
+    - app/guides/streaming
+    - app/guides/public-static-pages
+    - app/guides/ci-build-caching
 ---
 
 When your application is ready for production, `next build` compiles it into optimized bundles and prerendered pages. The build output shows how each route will be served: fully static or partially prerendered.
@@ -185,7 +194,7 @@ next build --debug-build-paths="app/products/[id]/page.tsx"
 
 This accepts comma-separated file paths and glob patterns. See [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) for more details.
 
-## Next steps
+### Next steps
 
 You now know how to read the build output, pre-render dynamic routes, and fix prerender errors.
 
@@ -193,4 +202,4 @@ Next, learn how to:
 
 - [Deploy your application](/docs/app/getting-started/deploying)
 - [Cache data and UI](/docs/app/getting-started/caching)
-- [Build public, static pages](/docs/app/guides/public-static-pages)
+- [Configure CI build caching](/docs/app/guides/ci-build-caching)
