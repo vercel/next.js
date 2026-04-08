@@ -1781,13 +1781,10 @@ export default async function loadConfig(
 
     const normalized = await normalizeConfig(phase, configModule)
 
-    // unwrap default if present
-    const finalNormalized =
-      normalized && typeof normalized === 'object' && 'default' in normalized
-        ? (normalized as any).default
-        : normalized
-
-    const loadedConfig = Object.freeze({ ...finalNormalized })
+    // Spread into a plain object so Object.freeze works even if
+    // `normalized` is an exotic object (e.g. ESM module namespace)
+    // whose properties are already non-configurable.
+    const loadedConfig = Object.freeze({ ...normalized } as NextConfig)
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
