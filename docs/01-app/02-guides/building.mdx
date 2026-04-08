@@ -120,7 +120,7 @@ export default async function Page({ params }) {
 }
 ```
 
-The simplest fix is [streaming](/docs/app/guides/streaming) the dynamic content with `<Suspense>`:
+The simplest fix is [streaming](/docs/app/guides/streaming) the dynamic content with `<Suspense>`, or adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to create a route-level Suspense boundary:
 
 ```tsx filename="app/products/[id]/page.tsx"
 import { Suspense } from 'react'
@@ -142,7 +142,7 @@ async function ProductContent({ params }) {
 
 The fallback is prerendered into the static shell. The content streams in at request time. The route now shows as `◐` (Partial Prerender).
 
-Other fixes include caching the component with [`'use cache'`](/docs/app/api-reference/directives/use-cache), adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known params, or adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file.
+Other fixes include caching the component with [`'use cache'`](/docs/app/api-reference/directives/use-cache) or adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known params.
 
 #### Getting detailed stack traces
 
