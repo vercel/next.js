@@ -921,22 +921,22 @@ module.exports = {
 
 Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` instances on the same project.
 
-Since the development server outputs to `.next/dev`, the [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
+The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
 ```bash package="pnpm"
-pnpm next internal trace .next/dev/trace-turbopack
+pnpm next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="npm"
-npx next internal trace .next/dev/trace-turbopack
+npx next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="yarn"
-yarn next internal trace .next/dev/trace-turbopack
+yarn next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="bun"
-bunx next internal trace .next/dev/trace-turbopack
+bunx next internal trace .next-profiles/trace-turbopack
 ```
 
 ## Parallel Routes `default.js` requirement
