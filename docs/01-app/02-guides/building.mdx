@@ -94,7 +94,7 @@ Each symbol tells you how a route is served:
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
 
-The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request, then cached. Without [`partialFallbacks`](#high-cardinality-routes), the page has to resolve entirely without a fallback.
+The listed params are resolved ahead of time. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
