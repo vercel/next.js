@@ -1,0 +1,14 @@
+/* This CSS file is imported with raw-loader */
+/* If the fix is working, this should be returned as raw text, not applied as styles */
+
+body {
+  background-color: red !important;
+  color: white !important;
+}
+
+.test {
+  color: red;
+  font-weight: bold;
+}
+
+/* This should not be applied to the page when imported with raw-loader */

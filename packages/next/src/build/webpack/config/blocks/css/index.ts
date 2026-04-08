@@ -196,6 +196,30 @@ export const css = curry(async function css(
 
   const fns: ConfigurationFn[] = []
 
+  // Handle raw-loader imports before any CSS processing
+  // This prevents CSS files imported with raw-loader from being processed as CSS
+  fns.push(
+    loader({
+      oneOf: [
+        {
+          test: regexLikeCss,
+          resourceQuery: /raw/,
+          type: 'asset/source',
+        },
+        {
+          test: regexLikeCss,
+          resourceQuery: /raw-loader/,
+          type: 'asset/source',
+        },
+        {
+          test: regexLikeCss,
+          resourceQuery: /!!raw-loader!/,
+          type: 'asset/source',
+        },
+      ],
+    })
+  )
+
   const googleLoader = require.resolve(
     'next/dist/compiled/@next/font/google/loader'
   )
