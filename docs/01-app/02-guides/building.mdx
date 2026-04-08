@@ -15,7 +15,7 @@ related:
 
 When your application is ready for production, `next build` compiles it into optimized bundles and prerendered pages. The build output shows how each route will be served: fully static or partially prerendered.
 
-This guide will show you how to read the build output, pre-render dynamic routes, and fix common build errors.
+This guide covers how to read the build output, pre-render dynamic routes, and fix common build errors.
 
 ## What `next build` does
 
@@ -30,7 +30,7 @@ Running `next build` goes through these phases:
 
 ## Prerendering with Cache Components
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `searchParams`, `cookies()`, or `headers()`) can't be resolved ahead of time. Next.js requires you to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache). If you don't, the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as possible at build time. Components that depend on request-time data (such as `params`, `searchParams`, `cookies()`, or `headers()`) cannot be resolved ahead of time. You need to explicitly handle these with [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache), otherwise the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
 
 Every route in the build output is either fully static (`○`) or partially prerendered (`◐`). [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model. The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
@@ -53,11 +53,11 @@ Uncached data, `params`, `searchParams`, or `connection()` was accessed outside 
 This delays the entire page from rendering, resulting in a slow user experience.
 ```
 
-The param values are not known at build time, so Next.js can't prerender the page. We need to tell it how to handle the dynamic data. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
+The param values are unknown at build time, so Next.js cannot prerender the page. You need to tell it how to handle the dynamic data. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
 #### Debugging prerender errors
 
-If the error doesn't point to the exact line, use `--debug-prerender`:
+If the error does not point to the exact line, use `--debug-prerender`:
 
 ```bash filename="Terminal"
 next build --debug-prerender
@@ -114,13 +114,13 @@ Each symbol tells you how a route is served:
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
 
-The listed params are resolved ahead of time. Each one shows its own symbol — `○` if the page is fully static, or `◐` if it contains streamed content. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
+The listed params are resolved ahead of time. Each one shows its own symbol: `○` if the page is fully static, or `◐` if it contains streamed content. Unlisted params (for example, `/products/99`) are server-rendered on the first request and the page has to resolve entirely without a fallback. After the first visit, the result is cached.
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
 ### Step 2: Stream dynamic content with Suspense
 
-Sometimes you can't provide all param values ahead of time, or the page has content that depends on the request (cookies, headers). In these cases, [stream](/docs/app/guides/streaming) the dynamic content with [`<Suspense>`](https://react.dev/reference/react/Suspense), or add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
+You may not have all param values ahead of time, or the page may have content that depends on the request (cookies, headers). In these cases, [stream](/docs/app/guides/streaming) the dynamic content with [`<Suspense>`](https://react.dev/reference/react/Suspense), or add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
 
 ```tsx filename="app/products/[id]/page.tsx"
 import { Suspense } from 'react'
@@ -173,7 +173,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-This means you can keep `generateStaticParams` small and let traffic determine which additional pages get cached.
+Without `partialFallbacks`, unlisted params block until the server finishes rendering. With `partialFallbacks`, you can keep `generateStaticParams` small and let traffic determine which additional pages get cached.
 
 ### Next steps
 
