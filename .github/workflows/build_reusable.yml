@@ -92,7 +92,7 @@ on:
         default: 'chromium'
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.8.11
+  TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided

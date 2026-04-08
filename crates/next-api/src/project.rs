@@ -594,6 +594,13 @@ impl ProjectContainer {
             "initialize project",
             project_name = %this.name,
             version = options.next_version.as_str(),
+            node_version = options.current_node_js_version.as_str(),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            cpu_cores = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(0),
+            dev = options.dev,
             env_diff = Empty
         );
         let span_clone = span.clone();
@@ -615,7 +622,8 @@ impl ProjectContainer {
                 container.connect().project()
             }
             let project = project_from_container_operation(this_op)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -738,7 +746,8 @@ impl ProjectContainer {
             let watch = new_options.watch;
 
             let project = project_operation(self)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let prev_project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -756,7 +765,8 @@ impl ProjectContainer {
             }
             this.options_state.set(Some(new_options));
             let project = project_operation(self)
-                .resolve_strongly_consistent()
+                .resolve()
+                .strongly_consistent()
                 .await?;
             let project_fs = project_fs_operation(project)
                 .read_strongly_consistent()
@@ -1512,7 +1522,7 @@ impl Project {
         } else {
             // In development mode, we need to to take and drop the issues, otherwise every
             // route will report all issues.
-            let vc = module_graphs_op.resolve_strongly_consistent().await?;
+            let vc = module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.drop_issues();
             *vc
         };

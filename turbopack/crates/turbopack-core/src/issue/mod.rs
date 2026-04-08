@@ -875,6 +875,7 @@ pub enum IssueStage {
     Resolve,
     Bindings,
     CodeGen,
+    Emit,
     Unsupported,
     Misc,
     Other(RcStr),
@@ -893,6 +894,7 @@ impl Display for IssueStage {
             IssueStage::Analysis => write!(f, "analysis"),
             IssueStage::Bindings => write!(f, "bindings"),
             IssueStage::CodeGen => write!(f, "code gen"),
+            IssueStage::Emit => write!(f, "emit"),
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
@@ -1134,7 +1136,7 @@ pub async fn handle_issues<T: Send>(
     operation: Option<&str>,
 ) -> Result<()> {
     let source_vc = source_op.connect();
-    let _ = source_op.resolve_strongly_consistent().await?;
+    let _ = source_op.resolve().strongly_consistent().await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientValue::new(Vc::into_raw(source_vc)),
