@@ -71,7 +71,7 @@ Route (app)
 
 These params are now resolved at build time and prerendered. The static shell is served instantly from CDN, and cached content is included in it.
 
-Params not listed in `generateStaticParams` (for example, `/products/99`) are rendered on the first request. The static shell is still served instantly, and any dynamic content streams in. After the first visit, the result is cached for subsequent requests.
+Params not listed in `generateStaticParams` (for example, `/products/99`) have no prerendered shell. The page is fully server-rendered on the first request, blocking until complete. After the first visit, the result is cached for subsequent requests. To serve an instant shell for unknown params, see [High-cardinality routes](#high-cardinality-routes).
 
 > **Good to know:** `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
