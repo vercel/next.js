@@ -35,7 +35,7 @@ Each symbol tells you how a route is served:
 | `○`    | Static            | Fully prerendered at build time. Served from CDN with no server work.     |
 | `◐`    | Partial Prerender | Static shell served from CDN. Dynamic content streams in at request time. |
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), every route is either fully static (`○`) or partially prerendered (`◐`). A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](https://react.dev/reference/react/Suspense) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), every route is either fully static (`○`) or partially prerendered (`◐`). A route shows `◐` when it contains both prerenderable content (static components, [cache components](/docs/app/getting-started/caching)) and dynamic content (components inside [`<Suspense>`](/docs/app/guides/streaming) that access [runtime APIs](/docs/app/getting-started/caching#working-with-runtime-apis)). The static parts are served instantly from a CDN. The dynamic parts stream in at request time.
 
 > **Good to know:** [Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with Cache Components. You don't need to enable it separately. If a route has Revalidate and Expire columns, see [Time-based revalidation](/docs/app/getting-started/revalidating#time).
 
@@ -110,7 +110,7 @@ Uncached data, `params`, `searchParams`, or `connection()` was accessed outside 
 This delays the entire page from rendering, resulting in a slow user experience.
 ```
 
-This happens when a component accesses runtime data without a parent `<Suspense>` boundary. Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
+This happens when a component accesses runtime data without a parent [`<Suspense>` boundary](/docs/app/guides/streaming). Without one, the page can't send any HTML until the data resolves, which blocks the entire response. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
 
 For example, `await params` in a Page without `generateStaticParams` triggers this error because the param values are not known at build time:
 
@@ -122,7 +122,7 @@ export default async function Page({ params }) {
 }
 ```
 
-The simplest fix is wrapping the dynamic content in [`<Suspense>`](https://react.dev/reference/react/Suspense):
+The simplest fix is [streaming](/docs/app/guides/streaming) the dynamic content with `<Suspense>`:
 
 ```tsx filename="app/products/[id]/page.tsx"
 import { Suspense } from 'react'
