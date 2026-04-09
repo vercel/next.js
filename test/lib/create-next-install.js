@@ -165,8 +165,17 @@ async function createNextInstall({
             scripts,
             dependencies: combinedDependencies,
             private: true,
-            overrides: workspacePkgOverrides,
-            pnpm: { overrides: workspacePkgOverrides },
+            overrides: {
+              ...workspacePkgOverrides,
+              ...(packageJson.overrides || {}),
+            },
+            pnpm: {
+              ...(packageJson.pnpm || {}),
+              overrides: {
+                ...workspacePkgOverrides,
+                ...(packageJson.pnpm?.overrides || {}),
+              },
+            },
             resolutions: {
               ...workspacePkgOverrides,
               ...(resolutions || {}),
