@@ -261,8 +261,16 @@ export function checkAgentRulesForDev(
   if (!isRepeat) {
     markGateFired(dir)
   }
+  // First-run messages are prefixed with `fatal:` — the same convention
+  // git uses for its hardest errors, which agents are heavily trained on
+  // and treat as authoritative. The second-run softened message drops the
+  // prefix because it's semantically less severe (dev server still runs)
+  // and we don't want it to be indistinguishable from the hard-exit case.
+  const message = isRepeat
+    ? baseAgentRulesMessage()
+    : `fatal: ${baseAgentRulesMessage()}`
   return {
-    message: baseAgentRulesMessage(),
+    message,
     fatal: !isRepeat,
   }
 }

@@ -140,20 +140,24 @@ describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
     expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
   })
 
-  it('first failure is fatal and writes the gate state marker', () => {
+  it('first failure is fatal, prefixed with `fatal:`, and writes the state marker', () => {
     process.env.CLAUDECODE = '1'
 
     const result = checkAgentRulesForDev(tmpDir)
     expect(result).not.toBeNull()
     // First failure must be fatal so the caller hard-exits.
     expect(result!.fatal).toBe(true)
+    // First-run messages must lead with the git-style `fatal:` prefix so
+    // agents (which are heavily trained on git output) treat the error as
+    // authoritative rather than as a suggestion.
+    expect(result!.message.startsWith('fatal: ')).toBe(true)
     assertFactualFrameworkError(result!.message)
 
     // The state file must now exist so the next run sees this as a repeat.
     expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
   })
 
-  it('second failure is non-fatal (soft warning) with the same message', () => {
+  it('second failure is non-fatal (soft warning) and drops the `fatal:` prefix', () => {
     process.env.CLAUDECODE = '1'
 
     const first = checkAgentRulesForDev(tmpDir)
@@ -166,9 +170,13 @@ describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
     // the message but lets dev startup continue, so nobody is permanently
     // locked out of the dev server.
     expect(second!.fatal).toBe(false)
-    // The message body is identical — we deliberately do NOT advertise the
-    // retry-softens behavior or any bypass, so agents can't game it.
-    expect(second!.message).toBe(first!.message)
+    // Softened messages drop the `fatal:` prefix — they're semantically
+    // less severe (server keeps running) and shouldn't look identical to
+    // the hard-exit case.
+    expect(second!.message.startsWith('fatal: ')).toBe(false)
+    // But the body payload is the same — we deliberately don't advertise
+    // the retry-softens behavior or any bypass.
+    expect(second!.message).toBe(first!.message.replace(/^fatal: /, ''))
   })
 
   it('state resets after install + removal: first failure is fatal again', () => {
