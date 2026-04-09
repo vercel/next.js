@@ -99,8 +99,8 @@ interface TraceEvent {
 interface TraceMetadata {
   anonymousId: string
   arch: string
-  branch: string
-  commit: string
+  branch?: string
+  commit?: string
   cpus: number
   isVercelEnvironment: boolean
   isTurboSession: boolean

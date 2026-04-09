@@ -11,11 +11,11 @@ function gitExec(args: string, cwd: string): string {
 }
 
 /**
- * Returns the current git branch name for the given working directory, or an
- * empty string if it cannot be determined (not a git repo, detached HEAD,
+ * Returns the current git branch name for the given working directory, or
+ * undefined if it cannot be determined (not a git repo, detached HEAD,
  * git not installed, etc.). Prefers VERCEL_GIT_COMMIT_REF when set.
  */
-export function getGitBranch(cwd: string): string {
+export function getGitBranch(cwd: string): string | undefined {
   if (process.env.VERCEL_GIT_COMMIT_REF) {
     return process.env.VERCEL_GIT_COMMIT_REF
   }
@@ -25,22 +25,22 @@ export function getGitBranch(cwd: string): string {
     // (caught below and treated as unknown).
     return gitExec('symbolic-ref --short HEAD', cwd)
   } catch {
-    return ''
+    return undefined
   }
 }
 
 /**
- * Returns the current git commit SHA for the given working directory, or an
- * empty string if it cannot be determined. Prefers VERCEL_GIT_COMMIT_SHA when
+ * Returns the current git commit SHA for the given working directory, or
+ * undefined if it cannot be determined. Prefers VERCEL_GIT_COMMIT_SHA when
  * set.
  */
-export function getGitCommit(cwd: string): string {
+export function getGitCommit(cwd: string): string | undefined {
   if (process.env.VERCEL_GIT_COMMIT_SHA) {
     return process.env.VERCEL_GIT_COMMIT_SHA
   }
   try {
     return gitExec('rev-parse HEAD', cwd)
   } catch {
-    return ''
+    return undefined
   }
 }
