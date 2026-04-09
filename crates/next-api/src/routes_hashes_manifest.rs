@@ -102,7 +102,7 @@ pub async fn endpoint_entry_modules(
     let modules = entries
         .await?
         .into_iter()
-        .chain(additional_entries.await?.into_iter())
+        .chain(additional_entries.await?)
         .flat_map(|e| e.entries())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
@@ -128,7 +128,7 @@ pub async fn endpoints_entry_modules(
         .flat_map(|(entries, additional_entries)| {
             entries
                 .into_iter()
-                .chain(additional_entries.into_iter())
+                .chain(additional_entries)
                 .flat_map(|e| e.entries())
         })
         .collect::<FxIndexSet<_>>();
@@ -245,7 +245,7 @@ impl Asset for RoutesHashesManifestAsset {
         let manifest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
                 .into_keys()
-                .zip(entrypoint_hashes_values.into_iter())
+                .zip(entrypoint_hashes_values)
                 .map(|(k, (sources_hash, outputs_hash))| {
                     (
                         k,

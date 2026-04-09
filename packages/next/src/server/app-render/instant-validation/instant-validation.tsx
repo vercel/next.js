@@ -41,11 +41,11 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createDebugChannel } from '../debug-channel-server'
+import { createWebDebugChannel } from '../debug-channel-server'
+import type { FlightComponentMod } from '../stream-ops'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { renderToReadableStream } from 'react-server-dom-webpack/server'
 import {
   addSearchParamsIfPageSegment,
   isGroupSegment,
@@ -203,7 +203,16 @@ export type StageEndTimes = {
  * Splits an existing staged stream (represented as arrays of chunks)
  * into separate staged streams (also in arrays-of-chunks form), one for each segment.
  * */
+type RenderToFlightStream = (
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any
+) => AsyncIterable<Uint8Array>
+
 export async function collectStagedSegmentData(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   fullPageChunks: StageChunks,
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
@@ -288,10 +297,11 @@ export async function collectStagedSegmentData(
     cacheEntry: SegmentCacheItem
   ): Promise<void> => {
     const segmentDebugChannel = cacheEntry.debugChunks
-      ? createDebugChannel()
+      ? createWebDebugChannel()
       : undefined
 
-    const itemStream = renderToReadableStream(
+    const itemStream = renderFlightStream(
+      ComponentMod,
       data,
       clientReferenceManifest.clientModules,
       {
@@ -335,14 +345,14 @@ export async function collectStagedSegmentData(
     await Promise.all([
       // accumulate Flight chunks
       (async () => {
-        for await (const chunk of itemStream.values()) {
+        for await (const chunk of itemStream) {
           writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
         }
       })(),
       // accumulate Debug chunks
       segmentDebugChannel &&
         (async () => {
-          for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+          for await (const chunk of segmentDebugChannel.clientSide.readable) {
             cacheEntry.debugChunks!.push(chunk)
           }
         })(),
@@ -510,6 +520,8 @@ function writeChunk(
  * to provide extra debug info.
  * */
 export async function createCombinedPayloadStream(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   payload: InitialRSCPayload,
   extraChunksAbortController: AbortController,
   renderSignal: AbortSignal,
@@ -524,13 +536,14 @@ export async function createCombinedPayloadStream(
   const allChunks: Uint8Array[] = []
 
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
-  const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
+  const debugChannel = isDebugChannelEnabled ? createWebDebugChannel() : null
 
   let streamFinished: Promise<any>
 
   await runInSequentialTasks(
     () => {
-      const stream = renderToReadableStream(
+      const stream = renderFlightStream(
+        ComponentMod,
         payload,
         clientReferenceManifest.clientModules,
         {
@@ -573,7 +586,7 @@ export async function createCombinedPayloadStream(
       streamFinished = Promise.all([
         // Accumulate Flight chunks
         (async () => {
-          for await (const chunk of stream.values()) {
+          for await (const chunk of stream) {
             allChunks.push(chunk)
             if (isRenderable) {
               renderableChunks.push(chunk)
@@ -583,7 +596,7 @@ export async function createCombinedPayloadStream(
         // Accumulate debug chunks
         debugChannel &&
           (async () => {
-            for await (const chunk of debugChannel.clientSide.readable.values()) {
+            for await (const chunk of debugChannel.clientSide.readable) {
               debugChunks!.push(chunk)
             }
           })(),
@@ -1021,7 +1034,6 @@ export async function createCombinedPayloadAtDepth(
       debug?.(
         `    ['${path}' is the boundary (url=${nextUrlDepth}, group=${currentGroupDepth})]`
       )
-      boundaryState.expectedIds.add(path)
       const finalSegmentData: SegmentData = {
         ...segmentData,
         node: (
@@ -1059,6 +1071,13 @@ export async function createCombinedPayloadAtDepth(
             createInstantStack = result.createInstantStack
           }
         }
+      }
+
+      // Only require this boundary to render if the subtree has an
+      // instant config. Unconfigured slot subtrees are allowed to not
+      // render (e.g. conditionally excluded by a layout).
+      if (requiresInstantUI) {
+        boundaryState.requiredIds.add(path)
       }
 
       wrapSlotsWithMarkers(slots, slotResults)

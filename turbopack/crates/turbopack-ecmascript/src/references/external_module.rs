@@ -3,7 +3,9 @@ use std::{borrow::Cow, fmt::Display, io::Write};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -151,7 +153,7 @@ impl CachedExternalModule {
             CachedExternalType::EcmaScriptViaImport => {
                 writeln!(
                     code,
-                    "const mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
+                    "var mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
                     StringifyJs(&self.request())
                 )?;
             }
@@ -159,18 +161,18 @@ impl CachedExternalModule {
                 let request = self.request();
                 writeln!(
                     code,
-                    "const mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
+                    "var mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
                     StringifyJs(&request),
                     StringifyJs(&request)
                 )?;
             }
             CachedExternalType::Global => {
                 if self.request.is_empty() {
-                    writeln!(code, "const mod = {{}};")?;
+                    writeln!(code, "var mod = {{}};")?;
                 } else {
                     writeln!(
                         code,
-                        "const mod = globalThis[{}];",
+                        "var mod = globalThis[{}];",
                         StringifyJs(&self.request)
                     )?;
                 }
@@ -183,7 +185,7 @@ impl CachedExternalModule {
                     let url = &self.request[at_index + 1..];
 
                     // Wrap the loading and variable access in a try-catch block
-                    writeln!(code, "let mod;")?;
+                    writeln!(code, "var mod;")?;
                     writeln!(code, "try {{")?;
 
                     // First load the URL
@@ -226,7 +228,7 @@ impl CachedExternalModule {
                          got: {}');",
                         StringifyJs(&self.request)
                     )?;
-                    writeln!(code, "const mod = undefined;")?;
+                    writeln!(code, "var mod = undefined;")?;
                 }
             }
         }
@@ -270,7 +272,7 @@ impl Module for CachedExternalModule {
             .with_modifier(self.external_type.to_string().into());
 
         if let Some(target) = &self.target {
-            ident = ident.with_modifier(target.value_to_string().owned().await?);
+            ident = ident.with_modifier(target.to_string_ref().await?);
         }
 
         Ok(ident)

@@ -25,6 +25,7 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output
@@ -50,6 +51,7 @@ examples/**/out/*
 
 # env
 .env*.local
+evals/.env
 
 pr-stats.md
 test-timings.json

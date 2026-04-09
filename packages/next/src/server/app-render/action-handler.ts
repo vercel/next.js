@@ -32,6 +32,7 @@ import RenderResult, {
   type AppPageRenderResultMetadata,
 } from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -705,8 +706,6 @@ export async function handleAction({
     'Cache-Control',
     'no-cache, no-store, max-age=0, must-revalidate'
   )
-
-  const { actionAsyncStorage } = ComponentMod
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 

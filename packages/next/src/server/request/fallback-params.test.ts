@@ -1,6 +1,8 @@
 import {
+  buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
+  getPlaceholderFallbackRouteParams,
 } from './fallback-params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -69,6 +71,54 @@ describe('createOpaqueFallbackRouteParams', () => {
       expect(name).toBe('slug')
       expect(value).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
     })
+  })
+})
+
+describe('placeholder fallback route params', () => {
+  it('builds route placeholders by dynamic param type', () => {
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'dynamic',
+      })
+    ).toBe('[slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'catchall',
+      })
+    ).toBe('[...slug]')
+    expect(
+      buildDynamicSegmentPlaceholder({
+        paramName: 'slug',
+        paramType: 'optional-catchall',
+      })
+    ).toBe('[[...slug]]')
+  })
+
+  it('returns only fallback params that are still placeholders', () => {
+    const fallbackParams: readonly FallbackRouteParam[] = [
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'project', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ]
+
+    const result = getPlaceholderFallbackRouteParams(
+      {
+        team: '[team]',
+        project: 'dashboard',
+        slug: ['[...slug]'],
+        optional: '[[...optional]]',
+      },
+      fallbackParams
+    )
+
+    expect(result).toEqual([
+      { paramName: 'team', paramType: 'dynamic' },
+      { paramName: 'slug', paramType: 'catchall' },
+      { paramName: 'optional', paramType: 'optional-catchall' },
+    ])
   })
 })
 

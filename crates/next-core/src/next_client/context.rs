@@ -29,6 +29,7 @@ use turbopack_core::{
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    transform::PresetEnvConfig,
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -330,6 +331,24 @@ pub async fn get_client_module_options_context(
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
     let source_maps = *next_config.client_source_maps(mode).await?;
+
+    let preset_env_config = (*next_config.experimental_swc_env_options().await?)
+        .as_ref()
+        .map(|opts| {
+            PresetEnvConfig {
+                mode: opts.mode.clone(),
+                core_js: opts.core_js.clone(),
+                skip: opts.skip.clone(),
+                include: opts.include.clone(),
+                exclude: opts.exclude.clone(),
+                shipped_proposals: opts.shipped_proposals,
+                force_all_transforms: opts.force_all_transforms,
+                debug: opts.debug,
+                loose: opts.loose,
+            }
+            .resolved_cell()
+        });
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
@@ -338,6 +357,7 @@ pub async fn get_client_module_options_context(
             enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            preset_env_config,
             ..Default::default()
         },
         css: CssOptionsContext {
@@ -374,6 +394,9 @@ pub async fn get_client_module_options_context(
             enable_typeof_window_inlining: None,
             // Ignore e.g. import(`${url}`) requests in node_modules.
             ignore_dynamic_requests: true,
+            // Don't inject core-js polyfills into node_modules — only user code
+            // should be processed by preset_env's usage/entry mode.
+            preset_env_config: None,
             ..module_options_context.ecmascript
         },
         enable_webpack_loaders: foreign_enable_webpack_loaders,
@@ -390,6 +413,8 @@ pub async fn get_client_module_options_context(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
             enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
+            // Don't inject core-js polyfills into framework internals.
+            preset_env_config: None,
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: None,
@@ -432,6 +457,7 @@ pub struct ClientChunkingContextOptions {
     pub root_path: FileSystemPath,
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: Vc<RcStr>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<ModuleIdStrategy>,
@@ -445,6 +471,7 @@ pub struct ClientChunkingContextOptions {
     pub debug_ids: Vc<bool>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -456,6 +483,7 @@ pub async fn get_client_chunking_context(
         root_path,
         client_root,
         client_root_to_root_path,
+        client_static_folder_name,
         asset_prefix,
         environment,
         module_id_strategy,
@@ -469,6 +497,7 @@ pub async fn get_client_chunking_context(
         debug_ids,
         should_use_absolute_url_references,
         css_url_suffix,
+        hash_salt,
     } = options;
 
     let next_mode = mode.await?;
@@ -478,8 +507,12 @@ pub async fn get_client_chunking_context(
         client_root.clone(),
         client_root_to_root_path,
         client_root.clone(),
-        client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone()).owned().await?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("chunks")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -502,6 +535,7 @@ pub async fn get_client_chunking_context(
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
+    .hash_salt(hash_salt)
     .default_url_behavior(UrlBehavior {
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,
@@ -535,11 +569,6 @@ pub async fn get_client_chunking_context(
     }
 
     Ok(Vc::upcast(builder.build()))
-}
-
-#[turbo_tasks::function]
-pub fn get_client_assets_path(client_root: FileSystemPath) -> Result<Vc<FileSystemPath>> {
-    Ok(client_root.join("static/media")?.cell())
 }
 
 #[turbo_tasks::function]

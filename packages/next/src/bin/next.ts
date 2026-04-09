@@ -2,6 +2,7 @@
 
 import '../server/require-hook'
 
+import os from 'os'
 import {
   Argument,
   Command,
@@ -31,6 +32,7 @@ import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
+import { mkdirSync } from 'fs'
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -88,6 +90,18 @@ class NextRootCommand extends Command {
 
       ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
       ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
+      if (
+        process.platform === 'darwin' &&
+        process.arch === 'x64' &&
+        os.cpus().some((cpu) => cpu.model.includes('Apple'))
+      ) {
+        warn(
+          'You are running Next.js on an Apple Silicon Mac with Rosetta 2 ' +
+            'translation, which may cause degraded performance. You may have ' +
+            'accidentally installed an x86-64 version of Node.js.'
+        )
+      }
 
       if (
         commandName !== 'dev' &&
@@ -192,7 +206,15 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profile is saved to .next/cpu-profiles/ on completion.'
+    'Enable CPU profiling. Profile is saved to .next-profiles/ on exit.'
+  )
+  .addOption(
+    new Option(
+      '--internal-trace [level]',
+      'Enable Turbopack tracing. "all" (default) enables turbo-tasks level tracing, "overview" enables overview tracing.'
+    )
+      .choices(['all', 'overview'])
+      .preset('all')
   )
   .action((directory: string, options: NextBuildOptions) => {
     if (options.debugPrerender) {
@@ -207,7 +229,15 @@ program
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
       const { join } = require('path') as typeof import('path')
       const dir = directory || process.cwd()
-      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+      const cpuProfileDir = join(dir, '.next-profiles')
+      mkdirSync(cpuProfileDir, { recursive: true })
+      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
+    }
+    if (options.internalTrace) {
+      process.env.NEXT_TURBOPACK_TRACING =
+        options.internalTrace === 'all'
+          ? 'turbo-tasks'
+          : String(options.internalTrace)
     }
 
     // ensure process exits after build completes so open handles/connections
@@ -314,7 +344,14 @@ program
     '--experimental-https-ca, <path>',
     'Path to a HTTPS certificate authority file.'
   )
-  .option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  // `--server-fast-refresh` is hidden because it's the default behavior and
+  // only needs to be explicitly passed to override a
+  // `experimental.turbopackServerFastRefresh: false` in next.config. The
+  // `--no-server-fast-refresh` negation is the meaningful user-facing flag.
+  .addOption(new Option('--server-fast-refresh').default(undefined).hideHelp())
+  .addOption(
+    new Option('--no-server-fast-refresh', 'Disable server-side Fast Refresh')
+  )
   .option(
     '--experimental-upload-trace, <traceUrl>',
     'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
@@ -325,7 +362,15 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+    'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
+  )
+  .addOption(
+    new Option(
+      '--internal-trace [level]',
+      'Enable Turbopack tracing. "all" (default) enables turbo-tasks level tracing, "overview" enables overview tracing.'
+    )
+      .choices(['all', 'overview'])
+      .preset('all')
   )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
@@ -337,7 +382,15 @@ program
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
         const { join } = require('path') as typeof import('path')
         const dir = directory || process.cwd()
-        process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+        const cpuProfileDir = join(dir, '.next-profiles')
+        mkdirSync(cpuProfileDir, { recursive: true })
+        process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
+      }
+      if (options.internalTrace) {
+        process.env.NEXT_TURBOPACK_TRACING =
+          options.internalTrace === 'all'
+            ? 'turbo-tasks'
+            : String(options.internalTrace)
       }
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
@@ -408,7 +461,7 @@ program
   )
   .option(
     '--experimental-cpu-prof',
-    'Enable CPU profiling. Profiles are saved to .next/cpu-profiles/ on exit.'
+    'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
   .action((directory: string, options: NextStartOptions) => {
     if (options.experimentalNextConfigStripTypes) {
@@ -419,7 +472,9 @@ program
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
       const { join } = require('path') as typeof import('path')
       const dir = directory || process.cwd()
-      process.env.NEXT_CPU_PROF_DIR = join(dir, '.next', 'cpu-profiles')
+      const cpuProfileDir = join(dir, '.next-profiles')
+      mkdirSync(cpuProfileDir, { recursive: true })
+      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
@@ -569,6 +624,24 @@ internal
     )
       .nextPostBuild(options, directory)
       .then(() => process.exit(0))
+  })
+  .usage('[directory] [options]')
+
+internal
+  .command('upload-trace')
+  .description(
+    'Upload CPU profiles from .next-profiles/ to Vercel Blob storage.'
+  )
+  .argument(
+    '[directory]',
+    `The project directory containing .next-profiles/. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string) => {
+    return import('../cli/internal/upload-trace.js').then((mod) =>
+      mod.uploadTraceToBlob({ directory })
+    )
   })
   .usage('[directory] [options]')
 

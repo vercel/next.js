@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('remove-unused-imports', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {

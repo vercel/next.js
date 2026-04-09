@@ -37,6 +37,7 @@ turbopack-node = { workspace = true, default-features = false, features = ["proc
 
 criterion = { workspace = true, features = ["async_tokio"] }
 difference = "2.0"
+similar = "2.2.0"
 rstest = { workspace = true }
 rstest_reuse = "0.5.0"
 tokio = { workspace = true }
