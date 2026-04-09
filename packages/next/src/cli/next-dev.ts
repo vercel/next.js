@@ -81,6 +81,14 @@ const sessionSpan = trace('next-dev')
 // If the user restarts the dev server within this window we count it as a "rage restart".
 const RAGE_RESTART_THRESHOLD_MS = 90_000
 
+// Shape of a single project entry in the dev-state.json file.
+// All fields are optional so older entries without gitBranch are still valid.
+type DevStateEntry = {
+  stopTime?: number
+  distDirPath?: string
+  gitBranch?: string
+}
+
 // Single shared file for all projects — keyed by project directory path.
 const DEV_STATE_FILE = path.join(
   getCacheDirectory('nextjs-nodejs'),
@@ -280,10 +288,7 @@ const nextDev = async (
       if (fs.existsSync(DEV_STATE_FILE)) {
         const allState = JSON.parse(
           fs.readFileSync(DEV_STATE_FILE, 'utf8')
-        ) as Record<
-          string,
-          { stopTime?: number; distDirPath?: string; gitBranch?: string }
-        >
+        ) as Record<string, DevStateEntry>
         const state = allState[dir]
         if (
           state?.stopTime &&
@@ -520,10 +525,7 @@ function writeDevState(): void {
   try {
     fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
 
-    let state: Record<
-      string,
-      { stopTime: number; distDirPath: string; gitBranch?: string }
-    > = {}
+    let state: Record<string, DevStateEntry> = {}
     try {
       state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
     } catch {
