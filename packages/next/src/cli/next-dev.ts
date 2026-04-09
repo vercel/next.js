@@ -26,13 +26,14 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { fork, execSync } from 'child_process'
+import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
+import { getGitBranch } from '../lib/helpers/get-git-branch'
 import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
@@ -85,24 +86,6 @@ const DEV_STATE_FILE = path.join(
   getCacheDirectory('nextjs-nodejs'),
   'dev-state.json'
 )
-
-// Returns the current git branch name, or an empty string if it cannot be
-// determined (not a git repo, detached HEAD, git not installed, etc.).
-function getGitBranch(cwd: string): string {
-  try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
-      cwd,
-      timeout: 2000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim()
-    // "HEAD" indicates a detached HEAD state — treat as unknown.
-    return branch === 'HEAD' ? '' : branch
-  } catch {
-    return ''
-  }
-}
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?

@@ -6,6 +6,7 @@ import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { getGitBranch } from '../lib/helpers/get-git-branch'
 
 const COMMON_ALLOWED_EVENTS = ['memory-usage']
 
@@ -139,12 +140,7 @@ interface TraceMetadata {
       .stdout.toString()
       .trimEnd()
 
-  const branch =
-    process.env.VERCEL_GIT_COMMIT_REF ||
-    child_process
-      .spawnSync(git, ['rev-parse', '--abbrev-ref', 'HEAD'])
-      .stdout.toString()
-      .trimEnd()
+  const branch = process.env.VERCEL_GIT_COMMIT_REF || getGitBranch(projectDir)
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
