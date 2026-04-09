@@ -468,7 +468,7 @@ pub fn project_new(
     if let Some(mut trace) = trace {
         let internal_dir = PathBuf::from(&options.root_path)
             .join(&options.project_path)
-            .join(&options.dist_dir);
+            .join(".next-profiles");
         let trace_file = internal_dir.join("trace-turbopack");
 
         println!("Turbopack tracing enabled with targets: {trace}");
@@ -509,7 +509,7 @@ pub fn project_new(
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
+            .context("Unable to create .next-profiles directory")
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -2521,18 +2521,14 @@ async fn get_all_compilation_issues_inner_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<()>> {
     let project = container.project();
-    // Build the module graph for every endpoint without chunking, code gen, or disk emission.
-    // We iterate endpoints rather than calling project.whole_app_module_graphs() because the
-    // latter calls drop_issues() in development mode (to avoid duplicate per-route HMR noise).
-    // Per-endpoint module_graphs() calls are not subject to that suppression, so issues like
-    // missing modules and transform errors are properly collected as collectables here.
-    let endpoint_groups = project.get_all_endpoint_groups(false).await?;
-    endpoint_groups
-        .iter()
-        .map(|(_, endpoint_group)| async move {
-            endpoint_group.module_graphs().as_side_effect().await
-        })
-        .try_join()
+    // Build the whole app module graph without chunking, code gen, or disk emission.
+    // We use whole_app_module_graphs_without_dropping_issues() instead of
+    // whole_app_module_graphs() because the latter drops issues in development mode
+    // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
+    // like missing modules and transform errors are properly collected as collectables here.
+    project
+        .whole_app_module_graphs_without_dropping_issues()
+        .as_side_effect()
         .await?;
     Ok(Vc::cell(()))
 }

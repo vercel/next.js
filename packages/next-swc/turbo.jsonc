@@ -2,9 +2,8 @@
   "$schema": "https://turborepo.org/schema.json",
   "extends": ["//"],
   "tasks": {
-    // Fingerprint all Rust inputs into a single stamp file. Every Rust task
-    // depends on this, so they only need inputs: [stamp file] instead of
-    // repeating the full list of Rust source globs.
+    // Fingerprint all Rust inputs into a single stamp file so other tasks
+    // only need inputs: [stamp file] instead of repeating the full glob list.
     "rust-fingerprint": {
       "inputs": [
         "../../.cargo/**",
@@ -19,8 +18,10 @@
       "outputs": ["../../target/.rust-fingerprint"],
       "cache": false,
     },
-
-    // "auto" is used by the workspace `pnpm build-all` script.
+    "build-sccache": {
+      "inputs": ["../../scripts/sccache-version"],
+      "outputs": ["../../target/sccache/**"],
+    },
     "build-native-auto": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],
