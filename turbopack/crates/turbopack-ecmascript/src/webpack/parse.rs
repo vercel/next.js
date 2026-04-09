@@ -14,7 +14,7 @@ use swc_core::{
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::source::Source;
+use turbopack_core::{compile_time_info::CompileTimeInfo, source::Source};
 
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
@@ -189,11 +189,14 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
     transforms: Vc<EcmascriptInputTransforms>,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<WebpackRuntime>> {
+    let node_env = crate::parse::node_env_from_compile_time_info(compile_time_info).await?;
     let parsed = parse(
         source,
         EcmascriptModuleAssetType::Ecmascript,
         transforms,
+        node_env,
         false,
         false,
     )

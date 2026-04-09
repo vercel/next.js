@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::smallvec;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
@@ -38,6 +39,9 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
+    compile_time_info::{
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
+    },
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
     source_map::utils::add_default_ignore_list,
@@ -263,11 +267,30 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     }
 }
 
+/// Extracts the value of `process.env.NODE_ENV` from the compile-time defines,
+/// defaulting to `"development"` when not set.
+pub(crate) async fn node_env_from_compile_time_info(
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<RcStr> {
+    let key = DefinableNameSegmentRefs(smallvec![
+        DefinableNameSegmentRef::Name("process"),
+        DefinableNameSegmentRef::Name("env"),
+        DefinableNameSegmentRef::Name("NODE_ENV"),
+    ]);
+    let defines = compile_time_info.await?.defines.await?;
+    Ok(match defines.get(&key) {
+        Some(CompileTimeDefineValue::String(s)) => s.clone(),
+        Some(CompileTimeDefineValue::Evaluate(s)) => s.clone(),
+        _ => rcstr!("development"),
+    })
+}
+
 #[turbo_tasks::function]
 pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     is_external_tracing: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -277,9 +300,16 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        node_env,
+        is_external_tracing,
+        inline_helpers,
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         // ast-grep-ignore: no-context-turbofmt
@@ -291,6 +321,7 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -336,6 +367,7 @@ async fn parse_internal(
                             source,
                             ty,
                             transforms,
+                            node_env.clone(),
                             loose_errors,
                             inline_helpers,
                         )
@@ -396,6 +428,7 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -552,6 +585,7 @@ async fn parse_file_content(
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
+                node_env,
             };
             let span = tracing::trace_span!("transforms");
             async {

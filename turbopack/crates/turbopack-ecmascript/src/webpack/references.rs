@@ -9,6 +9,7 @@ use swc_core::{
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    compile_time_info::CompileTimeInfo,
     reference::{ModuleReference, ModuleReferences},
     source::Source,
 };
@@ -17,7 +18,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::{WebpackChunkAssetReference, parse::WebpackRuntime};
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    parse::{ParseResult, parse},
+    parse::{ParseResult, node_env_from_compile_time_info, parse},
 };
 
 #[turbo_tasks::function]
@@ -25,11 +26,14 @@ pub async fn module_references(
     source: ResolvedVc<Box<dyn Source>>,
     runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleReferences>> {
+    let node_env = node_env_from_compile_time_info(*compile_time_info).await?;
     let parsed = parse(
         *source,
         EcmascriptModuleAssetType::Ecmascript,
         *transforms,
+        node_env,
         false,
         false,
     )
@@ -45,6 +49,7 @@ pub async fn module_references(
                 references: &mut references,
                 runtime,
                 transforms,
+                compile_time_info,
             };
             let (emitter, collector) = IssueEmitter::new(
                 source,
@@ -66,6 +71,7 @@ struct ModuleReferencesVisitor<'a> {
     runtime: ResolvedVc<WebpackRuntime>,
     references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {
@@ -82,6 +88,7 @@ impl Visit for ModuleReferencesVisitor<'_> {
                     chunk_id: lit.clone(),
                     runtime: self.runtime,
                     transforms: self.transforms,
+                    compile_time_info: self.compile_time_info,
                 }
                 .resolved_cell(),
             ));
