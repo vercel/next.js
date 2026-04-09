@@ -3291,6 +3291,83 @@ describe('instant validation', () => {
       })
     })
 
+    describe('metadata images', () => {
+      it('valid - static icon', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/metadata-images/static-icon'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/metadata-images/static-icon'
+          )
+          expectNoBuildValidationErrors(result)
+          expect(result.exitCode).toBe(0)
+        }
+      })
+
+      it('valid - dynamic icon', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/metadata-images/dynamic-icon'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/metadata-images/dynamic-icon'
+          )
+          expectNoBuildValidationErrors(result)
+          expect(result.exitCode).toBe(0)
+        }
+      })
+
+      it('valid - static icon with params', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/metadata-images/with-params/123/static-icon'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/metadata-images/with-params/[slug]/static-icon'
+          )
+          expectNoBuildValidationErrors(result)
+          expect(result.exitCode).toBe(0)
+        }
+      })
+
+      it('valid - dynamic icon with unused params', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/metadata-images/with-params/123/dynamic-icon-unused-params'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/metadata-images/with-params/[slug]/dynamic-icon-unused-params'
+          )
+          expectNoBuildValidationErrors(result)
+          expect(result.exitCode).toBe(0)
+        }
+      })
+
+      it('valid - dynamic icon used params', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/metadata-images/with-params/123/dynamic-icon-used-params'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/metadata-images/with-params/[slug]/dynamic-icon-used-params'
+          )
+          expectNoBuildValidationErrors(result)
+          expect(result.exitCode).toBe(0)
+        }
+      })
+    })
+
     describe('disabling validation', () => {
       it('in a layout', async () => {
         if (isNextDev) {
