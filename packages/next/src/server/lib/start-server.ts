@@ -508,26 +508,28 @@ export async function startServer(
             cacheComponents: initResult.cacheComponents,
           })
 
-          // Agent-rules gate. Runs here (after the banner/URL/Ready line
-          // has already been printed) rather than in the parent CLI so
-          // we don't drag the `app-info-log` import chain — and the
-          // config-schema zod dependency it pulls in — into every
-          // `next dev` cold start. Trade-off: blocked runs pay the full
-          // startup cost before the check fires, which is deliberate.
+          // Agent-rules gate. Runs here (after the banner/URL/Ready
+          // line has already been printed) rather than in the parent
+          // CLI so we don't drag the `app-info-log` import chain — and
+          // the config-schema zod dependency it pulls in — into every
+          // `next dev` cold start. Trade-off: blocked runs pay the
+          // full startup cost before the check fires, which is
+          // deliberate.
           //
-          // Hard-fails dev startup when an AI coding agent is driving
-          // and neither AGENTS.md nor CLAUDE.md exists in the project.
-          // The error message itself tells the user how to escape: run
-          // the codemod, or create one of the files and re-run. Uses
-          // the same `Log.error` + `process.exit(1)` pattern as the
-          // lockfile "Another next dev server is already running" error
-          // — by this point the banner has already flushed to the
-          // parent stream, so there's no early-exit flush race to work
-          // around.
-          const agentRulesError = checkAgentRulesForDev(dir)
-          if (agentRulesError !== null) {
-            Log.error(agentRulesError)
-            process.exit(1)
+          // First failure hard-exits with the full fatal message
+          // (`fatal:` + cause + accuracy benefit + primary fix +
+          // discouraged escape hatch). Second+ consecutive failures
+          // print the softened install instruction but let the server
+          // keep running — that's the retry-unblocks mechanism the
+          // fatal message explicitly discloses and discourages. Uses
+          // `Log.error` + `process.exit(1)` matching the lockfile
+          // "Another next dev server is already running" error path.
+          const agentRulesCheck = checkAgentRulesForDev(dir)
+          if (agentRulesCheck !== null) {
+            Log.error(agentRulesCheck.message)
+            if (agentRulesCheck.fatal) {
+              process.exit(1)
+            }
           }
         }
 
