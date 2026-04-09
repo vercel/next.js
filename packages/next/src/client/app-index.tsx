@@ -298,6 +298,7 @@ if (instantTestStaticFetch) {
         callServer,
         findSourceMapURL,
         debugChannel,
+        unstable_allowPartialStream: true,
       }
     )
 

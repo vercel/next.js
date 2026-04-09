@@ -102,24 +102,20 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   const canonicalUrl = createHrefFromUrl(
     renderedUrlOverride ?? new URL(location.href)
   )
-  const originalFlightDataPath = fallbackInitialRSCPayload.f[0]
-  const originalFlightRouterState = originalFlightDataPath[0]
+  const patchedFlightData = replaceDeferredRouteParamMarkersInFlightData(
+    fillInFallbackFlightDataPaths(
+      fallbackInitialRSCPayload.f,
+      renderedPathname,
+      renderedSearch as NormalizedSearch
+    ),
+    renderedPathname,
+    renderedSearch as NormalizedSearch
+  )
   const payload: InitialRSCPayload = {
     c: canonicalUrl.split('/'),
     q: renderedSearch,
     i: fallbackInitialRSCPayload.i,
-    f: [
-      [
-        fillInFallbackFlightRouterState(
-          originalFlightRouterState,
-          renderedPathname,
-          renderedSearch as NormalizedSearch
-        ),
-        originalFlightDataPath[1],
-        originalFlightDataPath[2],
-        originalFlightDataPath[2],
-      ],
-    ],
+    f: patchedFlightData,
     m: fallbackInitialRSCPayload.m,
     G: fallbackInitialRSCPayload.G,
     S: fallbackInitialRSCPayload.S,
@@ -131,19 +127,248 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   return payload
 }
 
-function fillInFallbackFlightRouterState(
+export function fillInFallbackFlightData(
+  flightData: FlightData,
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): FlightData {
+  if (typeof flightData === 'string') {
+    return flightData
+  }
+
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+
+  return flightData.map((flightDataPath) =>
+    fillInFallbackFlightDataPath(flightDataPath, renderedSearch, pathnameParts)
+  )
+}
+
+function fillInFallbackFlightDataPaths(
+  flightData: FlightDataPath[],
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): FlightDataPath[] {
+  return fillInFallbackFlightData(
+    flightData,
+    renderedPathname,
+    renderedSearch
+  ) as FlightDataPath[]
+}
+
+export function replaceDeferredRouteParamMarkersInFlightData<
+  T extends FlightData | FlightDataPath[],
+>(
+  flightData: T,
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): T {
+  const replacements = collectFallbackParamReplacementMap(
+    flightData,
+    renderedPathname,
+    renderedSearch
+  )
+  if (replacements.size === 0) {
+    return flightData
+  }
+
+  replaceDeferredRouteParamMarkersInValue(flightData, replacements)
+  return flightData
+}
+
+export function replaceDeferredRouteParamMarkersInFlightRouterState(
   flightRouterState: FlightRouterState,
   renderedPathname: string,
   renderedSearch: NormalizedSearch
 ): FlightRouterState {
   const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
-  const index = 0
+  replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+    flightRouterState,
+    renderedSearch,
+    pathnameParts,
+    0
+  )
+  return flightRouterState
+}
+
+function fillInFallbackFlightDataPath(
+  flightDataPath: FlightDataPath,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>
+): FlightDataPath {
+  const flightDataPathLength = 4
+  const segmentPath = flightDataPath.slice(
+    0,
+    -flightDataPathLength
+  ) as FlightSegmentPath
+  const [tree, seedData, head, isHeadPartial] = flightDataPath.slice(
+    -flightDataPathLength
+  ) as [FlightRouterState, CacheNodeSeedData | null, HeadData, boolean]
+
+  return [
+    ...fillInFallbackFlightSegmentPath(
+      segmentPath,
+      renderedSearch,
+      pathnameParts
+    ),
+    fillInFallbackFlightRouterStateFromParts(
+      tree,
+      renderedSearch,
+      pathnameParts
+    ),
+    seedData,
+    head,
+    isHeadPartial,
+  ]
+}
+
+function collectFallbackParamReplacementMap(
+  flightData: FlightData | FlightDataPath[],
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): Map<string, string> {
+  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const replacements = new Map<string, string>()
+  const flightDataPaths = Array.isArray(flightData) ? flightData : []
+
+  for (const flightDataPath of flightDataPaths) {
+    const flightDataPathLength = 4
+    const tree = flightDataPath[flightDataPath.length - flightDataPathLength]
+    collectFallbackParamReplacementMapFromTree(
+      tree as FlightRouterState,
+      renderedSearch,
+      pathnameParts,
+      0,
+      replacements
+    )
+  }
+
+  return replacements
+}
+
+function collectFallbackParamReplacementMapFromTree(
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number,
+  replacements: Map<string, string>
+): void {
+  const originalSegment = flightRouterState[0]
+  const { nextPathnamePartsIndex } = fillInFallbackSegment(
+    originalSegment,
+    renderedSearch,
+    pathnameParts,
+    pathnamePartsIndex
+  )
+
+  if (
+    Array.isArray(originalSegment) &&
+    originalSegment[1].startsWith('%%drp:')
+  ) {
+    const paramValue = parseDynamicParamFromURLPart(
+      originalSegment[2],
+      pathnameParts,
+      pathnamePartsIndex
+    )
+    replacements.set(
+      originalSegment[0],
+      getCacheKeyForDynamicParam(paramValue, renderedSearch)
+    )
+  }
+
+  const children = flightRouterState[1]
+  for (const child of Object.values(children)) {
+    collectFallbackParamReplacementMapFromTree(
+      child,
+      renderedSearch,
+      pathnameParts,
+      nextPathnamePartsIndex,
+      replacements
+    )
+  }
+}
+
+function replaceDeferredRouteParamMarkersInValue(
+  value: unknown,
+  replacements: Map<string, string>,
+  seen: Set<object> = new Set()
+): void {
+  if (typeof value === 'string') {
+    return
+  }
+
+  if (value === null || value === undefined || typeof value !== 'object') {
+    return
+  }
+
+  if (seen.has(value)) {
+    return
+  }
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const item = value[i]
+      if (typeof item === 'string') {
+        value[i] = replaceDeferredRouteParamMarkerString(item, replacements)
+      } else {
+        replaceDeferredRouteParamMarkersInValue(item, replacements, seen)
+      }
+    }
+    return
+  }
+
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'string') {
+      ;(value as Record<string, unknown>)[key] =
+        replaceDeferredRouteParamMarkerString(item, replacements)
+    } else {
+      replaceDeferredRouteParamMarkersInValue(item, replacements, seen)
+    }
+  }
+}
+
+function replaceDeferredRouteParamMarkerString(
+  value: string,
+  replacements: Map<string, string>
+): string {
+  return value.replace(/%%drp:([^:]+):[^%]+%%/g, (match, paramName) => {
+    return replacements.get(paramName) ?? match
+  })
+}
+
+function fillInFallbackFlightRouterStateFromParts(
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>
+): FlightRouterState {
   return fillInFallbackFlightRouterStateImpl(
     flightRouterState,
     renderedSearch,
     pathnameParts,
-    index
+    0
   )
+}
+
+function fillInFallbackFlightSegmentPath(
+  segmentPath: FlightSegmentPath,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>
+): FlightSegmentPath {
+  const newSegmentPath = [...segmentPath]
+  let pathnamePartsIndex = 0
+
+  for (let i = 1; i < segmentPath.length; i += 2) {
+    const { segment, nextPathnamePartsIndex } = fillInFallbackSegment(
+      segmentPath[i] as Segment,
+      renderedSearch,
+      pathnameParts,
+      pathnamePartsIndex
+    )
+    newSegmentPath[i] = segment
+    pathnamePartsIndex = nextPathnamePartsIndex
+  }
+
+  return newSegmentPath as FlightSegmentPath
 }
 
 function fillInFallbackFlightRouterStateImpl(
@@ -152,32 +377,15 @@ function fillInFallbackFlightRouterStateImpl(
   pathnameParts: Array<string>,
   pathnamePartsIndex: number
 ): FlightRouterState {
-  const originalSegment = flightRouterState[0]
-  let newSegment: Segment
-  let doesAppearInURL: boolean
-  if (typeof originalSegment === 'string') {
-    newSegment = originalSegment
-    doesAppearInURL = doesStaticSegmentAppearInURL(originalSegment)
-  } else {
-    const paramName = originalSegment[0]
-    const paramType = originalSegment[2]
-    const staticSiblings = originalSegment[3]
-    const paramValue = parseDynamicParamFromURLPart(
-      paramType,
-      pathnameParts,
-      pathnamePartsIndex
-    )
-    const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
-    newSegment = [paramName, cacheKey, paramType, staticSiblings]
-    doesAppearInURL = true
-  }
+  const { segment: newSegment, nextPathnamePartsIndex } = fillInFallbackSegment(
+    flightRouterState[0],
+    renderedSearch,
+    pathnameParts,
+    pathnamePartsIndex
+  )
 
   // Only increment the index if the segment appears in the URL. If it's a
   // "virtual" segment, like a route group, it remains the same.
-  const childPathnamePartsIndex = doesAppearInURL
-    ? pathnamePartsIndex + 1
-    : pathnamePartsIndex
-
   const children = flightRouterState[1]
   const newChildren: { [key: string]: FlightRouterState } = {}
   for (let key in children) {
@@ -186,7 +394,7 @@ function fillInFallbackFlightRouterStateImpl(
       childFlightRouterState,
       renderedSearch,
       pathnameParts,
-      childPathnamePartsIndex
+      nextPathnamePartsIndex
     )
   }
 
@@ -198,6 +406,74 @@ function fillInFallbackFlightRouterStateImpl(
     flightRouterState[4],
   ]
   return newState
+}
+
+function replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number
+): number {
+  const originalSegment = flightRouterState[0]
+  const { segment: resolvedSegment, nextPathnamePartsIndex } =
+    fillInFallbackSegment(
+      originalSegment,
+      renderedSearch,
+      pathnameParts,
+      pathnamePartsIndex
+    )
+
+  if (
+    Array.isArray(originalSegment) &&
+    originalSegment[1].startsWith('%%drp:') &&
+    Array.isArray(resolvedSegment)
+  ) {
+    flightRouterState[0] = resolvedSegment
+  }
+
+  const children = flightRouterState[1]
+  for (const child of Object.values(children)) {
+    replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+      child,
+      renderedSearch,
+      pathnameParts,
+      nextPathnamePartsIndex
+    )
+  }
+
+  return nextPathnamePartsIndex
+}
+
+function fillInFallbackSegment(
+  originalSegment: Segment,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number
+): { segment: Segment; nextPathnamePartsIndex: number } {
+  if (typeof originalSegment === 'string') {
+    const doesAppearInURL = doesStaticSegmentAppearInURL(originalSegment)
+    return {
+      segment: originalSegment,
+      nextPathnamePartsIndex: doesAppearInURL
+        ? pathnamePartsIndex + 1
+        : pathnamePartsIndex,
+    }
+  }
+
+  const paramName = originalSegment[0]
+  const paramType = originalSegment[2]
+  const staticSiblings = originalSegment[3]
+  const paramValue = parseDynamicParamFromURLPart(
+    paramType,
+    pathnameParts,
+    pathnamePartsIndex
+  )
+  const cacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
+
+  return {
+    segment: [paramName, cacheKey, paramType, staticSiblings],
+    nextPathnamePartsIndex: pathnamePartsIndex + 1,
+  }
 }
 
 export function getNextFlightSegmentPath(

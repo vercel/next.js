@@ -4,7 +4,7 @@ export function getOutputExportFallbackCandidates(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean)
   const candidates: string[] = []
 
-  for (let i = segments.length - 1; i >= 0; i--) {
+  for (let i = segments.length; i >= 0; i--) {
     const prefix = segments.slice(0, i).join('/')
     candidates.push(prefix.length > 0 ? `/${prefix}/__fallback` : '/__fallback')
   }

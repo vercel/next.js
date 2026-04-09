@@ -6,7 +6,10 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { HeadData } from '../../../shared/lib/app-router-types'
-import type { NormalizedFlightData } from '../../flight-data-helpers'
+import {
+  replaceDeferredRouteParamMarkersInFlightRouterState,
+  type NormalizedFlightData,
+} from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
@@ -264,6 +267,18 @@ export function navigateToKnownRoute(
     accumulation
   )
   if (task !== null) {
+    replaceDeferredRouteParamMarkersInFlightRouterState(
+      task.route,
+      url.pathname,
+      navigationSeed.renderedSearch as NormalizedSearch
+    )
+    if (task.dynamicRequestTree !== null) {
+      replaceDeferredRouteParamMarkersInFlightRouterState(
+        task.dynamicRequestTree,
+        url.pathname,
+        navigationSeed.renderedSearch as NormalizedSearch
+      )
+    }
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
       spawnDynamicRequests(
         task,

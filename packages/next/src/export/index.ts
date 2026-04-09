@@ -27,7 +27,10 @@ import {
   SSG_FALLBACK_EXPORT_ERROR,
 } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { isOutputExportOptimisticRoutingEnabled } from '../lib/output-export-dynamic-fallback'
+import {
+  isOutputExportDynamicFallbackEnabled,
+  isOutputExportOptimisticRoutingEnabled,
+} from '../lib/output-export-dynamic-fallback'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -868,30 +871,10 @@ async function exportAppImpl(
   }
 
   if (
-    options.buildExport &&
-    allExportPaths.some(
-      ({ _fallbackRouteParams = [] }) => _fallbackRouteParams.length > 0
-    )
+    !options.buildExport &&
+    nextConfig.experimental.ppr &&
+    !isOutputExportDynamicFallbackEnabled(nextConfig)
   ) {
-    const fallbackSource = [
-      join(outDir, 'index.html'),
-      join(outDir, '404.html'),
-    ].find((candidate) => existsSync(candidate))
-
-    if (fallbackSource) {
-      const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
-      const exportFallbackScript =
-        '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
-      const patchedFallbackHtml = fallbackHtml.includes('</head>')
-        ? fallbackHtml.replace('</head>', `${exportFallbackScript}</head>`)
-        : exportFallbackScript + fallbackHtml
-
-      await fs.writeFile(join(outDir, '_fallback.html'), patchedFallbackHtml)
-    }
-  }
-
-  // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
@@ -1031,6 +1014,92 @@ async function exportAppImpl(
         }
       })
     )
+
+    await Promise.all(
+      Object.entries(prerenderManifest.dynamicRoutes).map(
+        async ([dynamicRoute, prerenderInfo]) => {
+          if (
+            !prerenderInfo.fallbackSourceRoute ||
+            !prerenderInfo.fallbackRouteParams ||
+            prerenderInfo.fallbackRouteParams.length === 0
+          ) {
+            return
+          }
+
+          const fallbackRoute = getFallbackExportPath(dynamicRoute)
+          if (!fallbackRoute) {
+            return
+          }
+
+          const appPageName = mapAppRouteToPage.get(
+            prerenderInfo.fallbackSourceRoute
+          )
+          if (!appPageName) {
+            return
+          }
+
+          const pagePath = getPagePath(appPageName, distDir, undefined, true)
+          const distPagesDir = join(
+            pagePath,
+            appPageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+
+          const route = normalizePagePath(fallbackRoute)
+          const orig = join(distPagesDir, route)
+          const htmlSrc = `${orig}.html`
+          const jsonSrc = `${orig}${RSC_SUFFIX}`
+
+          if (!existsSync(htmlSrc) || !existsSync(jsonSrc)) {
+            return
+          }
+
+          const htmlDest = join(
+            outDir,
+            `${route}${subFolders && route !== '/index' ? `${sep}index` : ''}.html`
+          )
+          const jsonDest = join(
+            outDir,
+            `${route}${subFolders && route !== '/index' ? `${sep}index` : ''}.txt`
+          )
+
+          await fs.mkdir(dirname(htmlDest), { recursive: true })
+          await fs.mkdir(dirname(jsonDest), { recursive: true })
+          await fs.copyFile(htmlSrc, htmlDest)
+          await fs.copyFile(jsonSrc, jsonDest)
+
+          const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+
+          if (existsSync(segmentsDir)) {
+            const segmentsDirDest = join(outDir, fallbackRoute)
+            const segmentPaths = await collectSegmentPaths(segmentsDir)
+            await Promise.all(
+              segmentPaths.map(async (segmentFileSrc) => {
+                const segmentPath =
+                  '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+                const segmentFilename =
+                  convertSegmentPathToStaticExportFilename(segmentPath)
+                const segmentFileDest = join(segmentsDirDest, segmentFilename)
+                await fs.mkdir(dirname(segmentFileDest), { recursive: true })
+                await fs.copyFile(
+                  join(segmentsDir, segmentFileSrc),
+                  segmentFileDest
+                )
+              })
+            )
+          }
+        }
+      )
+    )
+
+    if (
+      hasOutputExportDynamicFallbackRoutes(allExportPaths, prerenderManifest)
+    ) {
+      await writeOutputExportFallbackHtml(outDir)
+    }
   }
 
   if (failedExportAttemptsByPage.size > 0) {
@@ -1067,6 +1136,53 @@ async function exportAppImpl(
   }
 
   return collector
+}
+
+function hasOutputExportDynamicFallbackRoutes(
+  allExportPaths: ExportPathEntry[],
+  prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
+): boolean {
+  return (
+    allExportPaths.some(
+      ({ _fallbackRouteParams = [] }) => _fallbackRouteParams.length > 0
+    ) ||
+    Object.values(prerenderManifest?.dynamicRoutes ?? {}).some(
+      (route) => (route.fallbackRouteParams?.length ?? 0) > 0
+    )
+  )
+}
+
+function getFallbackExportPath(routePath: string): string | null {
+  const segments = routePath.split('/').filter(Boolean)
+  const firstDynamicIndex = segments.findIndex(
+    (segment) => segment.startsWith('[') && segment.endsWith(']')
+  )
+
+  if (firstDynamicIndex === -1) {
+    return null
+  }
+
+  const staticPrefix = segments.slice(0, firstDynamicIndex).join('/')
+  return staticPrefix.length > 0 ? `/${staticPrefix}/__fallback` : '/__fallback'
+}
+
+async function writeOutputExportFallbackHtml(outDir: string): Promise<void> {
+  const fallbackSource = [
+    join(outDir, 'index.html'),
+    join(outDir, '404.html'),
+  ].find((candidate) => existsSync(candidate))
+
+  if (!fallbackSource) {
+    return
+  }
+
+  const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
+  const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+  const patchedFallbackHtml = fallbackHtml.includes('</head>')
+    ? fallbackHtml.replace('</head>', `${exportFallbackScript}</head>`)
+    : exportFallbackScript + fallbackHtml
+
+  await fs.writeFile(join(outDir, '_fallback.html'), patchedFallbackHtml)
 }
 
 async function collectSegmentPaths(segmentsDirectory: string) {

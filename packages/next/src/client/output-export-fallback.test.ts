@@ -15,9 +15,17 @@ describe('output export fallback helpers', () => {
 
   it('discovers fallback candidates from deepest static prefix to root', () => {
     expect(getOutputExportFallbackCandidates('/org/acme/chat/123')).toEqual([
+      '/org/acme/chat/123/__fallback',
       '/org/acme/chat/__fallback',
       '/org/acme/__fallback',
       '/org/__fallback',
+      '/__fallback',
+    ])
+  })
+
+  it('includes the current pathname for optional catch-all root matches', () => {
+    expect(getOutputExportFallbackCandidates('/optional/')).toEqual([
+      '/optional/__fallback',
       '/__fallback',
     ])
   })
@@ -100,6 +108,8 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/org/acme/chat/123/__fallback.txt',
+      'https://example.com/org/acme/chat/123/__fallback/index.txt',
       'https://example.com/org/acme/chat/__fallback.txt',
       'https://example.com/org/acme/chat/__fallback/index.txt',
       'https://example.com/org/acme/__fallback.txt',
