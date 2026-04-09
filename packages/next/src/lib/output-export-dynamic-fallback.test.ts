@@ -1,10 +1,29 @@
 import {
+  getOutputExportFallbackPath,
+  getOutputExportFallbackStaticPrefix,
   isOutputExportDynamicFallbackEnabled,
   isOutputExportOptimisticRoutingEnabled,
   isOutputExportVaryParamsEnabled,
 } from './output-export-dynamic-fallback'
 
 describe('output export dynamic fallback flags', () => {
+  it('derives the fallback path contract from a static prefix', () => {
+    expect(getOutputExportFallbackPath('org/acme/chat')).toBe(
+      '/org/acme/chat/__fallback'
+    )
+    expect(getOutputExportFallbackPath('')).toBe('/__fallback')
+  })
+
+  it('derives the static prefix before the first dynamic segment', () => {
+    expect(getOutputExportFallbackStaticPrefix('/org/acme/chat/[thread]')).toBe(
+      'org/acme/chat'
+    )
+    expect(getOutputExportFallbackStaticPrefix('/[locale]/blog/[slug]')).toBe(
+      ''
+    )
+    expect(getOutputExportFallbackStaticPrefix('/org/acme/chat')).toBeNull()
+  })
+
   it('enables export fallback only for output export with cache components', () => {
     expect(
       isOutputExportDynamicFallbackEnabled({

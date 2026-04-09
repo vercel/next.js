@@ -98,7 +98,6 @@ import {
   type NormalizedFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
-  replaceDeferredRouteParamMarkersInFlightData,
 } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
@@ -1609,14 +1608,6 @@ function normalizeFlightDataForResponse(
   flightData: FlightData,
   response: RSCResponse<unknown> | Response
 ): NormalizedFlightData[] | string {
-  if (isOutputExportMode) {
-    replaceDeferredRouteParamMarkersInFlightData(
-      flightData,
-      getRenderedPathname(response),
-      getRenderedSearch(response)
-    )
-  }
-
   return normalizeFlightData(
     isOutputExportMode
       ? fillInFallbackFlightData(

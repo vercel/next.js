@@ -1,3 +1,4 @@
+import { getOutputExportFallbackPath } from '../lib/output-export-dynamic-fallback'
 import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
@@ -6,7 +7,7 @@ export function getOutputExportFallbackCandidates(pathname: string): string[] {
 
   for (let i = segments.length; i >= 0; i--) {
     const prefix = segments.slice(0, i).join('/')
-    candidates.push(prefix.length > 0 ? `/${prefix}/__fallback` : '/__fallback')
+    candidates.push(getOutputExportFallbackPath(prefix))
   }
 
   return candidates
