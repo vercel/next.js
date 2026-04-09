@@ -42,7 +42,7 @@ pub struct PersistedCode(Code);
 #[turbo_tasks::value_impl]
 impl PersistedCode {
     #[turbo_tasks::function]
-    async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
         // PersistedCode is transparent over Code; owned() yields Code directly.
         Ok(self.owned().await?.cell())
     }
@@ -69,8 +69,8 @@ impl Code {
 
     /// Stores this `Code` as a [`PersistedCode`] (fully serialized) and returns a `Vc<Code>`
     /// backed by the persisted version, avoiding an intermediate hash-mode `Code` cell.
-    pub fn cell_persisted(self) -> Vc<Code> {
-        PersistedCode::to_code(PersistedCode(self).cell())
+    pub fn cell_persisted(self) -> ResolvedVc<PersistedCode> {
+        PersistedCode(self).resolved_cell()
     }
 
     // Formats the code with the source map and debug id comments as
