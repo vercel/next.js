@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "webpack-bundle-analyzer": "4.10.1"
+  },
+  "scripts": {
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   }
 }

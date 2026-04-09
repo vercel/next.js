@@ -85,7 +85,6 @@ export class NextInstance {
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   public distDir: string
-  tmpRepoDir: string
   protected isStopping: Error | null = null
   protected isDestroyed: Error | null = null
   protected childProcess?: ChildProcess
@@ -324,14 +323,13 @@ export class NextInstance {
             )
             await this.beforeInstall(parentSpan)
           } else {
-            const { tmpRepoDir } = await createNextInstall({
+            await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               subDir: this.subDir,
-              keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
                 require('console').log(
@@ -340,7 +338,6 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -623,9 +620,6 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
-        if (this.tmpRepoDir) {
-          rmSync(this.tmpRepoDir, { recursive: true, force: true })
-        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
