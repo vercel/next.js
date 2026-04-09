@@ -111,18 +111,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (!actionInfo.skipClone) {
         const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
         if (usePnpm) {
-          // TODO: we can remove this explicit `corepack use` once Next.js
+          // TODO: we can remove this `packageManager` modification once Next.js
           // 16.3 is released, but we must override it for now because 16.2 uses
           // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
           // points to the most recent stable tag.
-          //
-          // First, remove `engines.pnpm`. `corepack use` will update
-          // `packageManager`, but not `engines`. `pnpm install` can then fail
-          // because it checks `engines.pnpm`.
           const packageJson = path.join(dir, 'package.json')
           const packageJsonContents = JSON.parse(
             await fs.readFile(packageJson, { encoding: 'utf8' })
           )
+          packageJsonContents.packageManager = 'pnpm@10.33.0'
           if (packageJsonContents.engines != null) {
             delete packageJsonContents.engines.pnpm
           }
@@ -130,9 +127,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
             packageJson,
             JSON.stringify(packageJsonContents, null, '  ')
           )
-          await exec.spawnPromise('corepack use pnpm@10.33.0', {
-            cwd: dir,
-          })
         }
 
         if (!statsConfig.skipInitialInstall) {

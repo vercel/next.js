@@ -314,8 +314,7 @@
     "yargs": "16.2.0"
   },
   "engines": {
-    "node": ">=20.9.0",
-    "pnpm": "10.33.0"
+    "node": ">=20.9.0"
   },
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
