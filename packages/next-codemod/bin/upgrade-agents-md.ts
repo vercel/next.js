@@ -1,17 +1,8 @@
 /**
- * CLI handler for `npx @next/codemod upgrade agents-md` — the
- * `agents-md` subcommand nested under `upgrade`.
- *
- * This is the "fast path" variant of the `agents-md` codemod. It
- * upserts the canonical create-next-app-style agent-rules block into
- * the project's `AGENTS.md` / `CLAUDE.md` using the version-matched
- * docs bundled at `node_modules/next/dist/docs/`. No git clone, no
- * `.next-docs/` scratch directory.
- *
- * Anchors strictly on `cwd`: the caller must already be inside a
- * Next.js app directory (the `package.json` that declares `next`).
- * This mirrors `upgrade.ts`'s own cwd contract — running either
- * command from a monorepo root is an error, not a silent fallback.
+ * CLI handler for `npx @next/codemod upgrade agents-md`. Upserts the
+ * create-next-app agent-rules block into `AGENTS.md` / `CLAUDE.md`
+ * using the docs bundled at `node_modules/next/dist/docs/`. Anchors
+ * strictly on `cwd` — same contract as `codemod upgrade`.
  */
 
 import pc from 'picocolors'

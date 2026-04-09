@@ -134,14 +134,8 @@ function tryReadFile(filePath: string): string | null {
 /**
  * Returns true when `AGENTS.md` or `CLAUDE.md` at `dir` contains the
  * managed agent-rules marker. `dir` is the Next.js project directory
- * — the same level as `package.json` and the only place AI coding
- * agents natively look for agent-rules files. In a monorepo that's
- * the sub-package (e.g. `apps/web/`), never the monorepo root.
- *
- * The only supported way to install the marker is via
- * `npx @next/codemod@canary upgrade agents-md`, which writes the
- * managed block to the same project directory — keeping the check and
- * the codemod anchored on the same location.
+ * (the package.json level) — the same location `upgrade agents-md`
+ * writes to, so check and codemod stay anchored together.
  */
 function hasAgentRulesInstalled(dir: string): boolean {
   const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
@@ -154,52 +148,24 @@ function hasAgentRulesInstalled(dir: string): boolean {
 }
 
 /**
- * The env var an intentional user can set to bypass the agent-rules
- * hard-exit. Named with `DISABLE` rather than `SKIP` so the word
- * itself carries some behavioral friction — setting this is a
- * deliberate acknowledgement that Next.js is running in a
- * knowingly-degraded state for agent-driven workflows.
- *
- * Not documented in any `--help` output and not mentioned as a CLI
- * flag. The only place it's surfaced is inside the fatal error
- * message itself, framed as an explicit "strongly discouraged" escape
- * hatch for cases where the user genuinely can't run the codemod
- * (e.g. locked-down CI, air-gapped environments).
+ * Escape hatch for the agent-rules hard-exit. Disclosed only inside
+ * the fatal message itself (not in `--help`) and framed as "strongly
+ * discouraged" so agents don't grab it off surface area.
  */
 const BYPASS_ENV_VAR = 'NEXT_DISABLE_AGENT_RULE_CHECK'
 
 const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade agents-md'
 
 /**
- * Check the Next.js agent-rules gate for `next dev`.
+ * Returns a fatal message string when `next dev` should exit instead
+ * of starting — AI coding agent detected, managed block missing, and
+ * no bypass env var set. Returns `null` when the caller should
+ * proceed. The caller prints and `process.exit(1)`; anything short
+ * of a non-zero exit is empirically ignored by agents.
  *
- * Returns `null` when the caller should proceed normally: no AI
- * coding agent is driving, OR the managed agent-rules block is
- * already installed in `AGENTS.md`/`CLAUDE.md`, OR the user has
- * explicitly set the `NEXT_DISABLE_AGENT_RULE_CHECK` env-var escape
- * hatch.
- *
- * Returns a fatal error message string when an agent is driving and
- * none of the above apply. The caller should print the message and
- * `process.exit(1)` — warnings attached to a successful process are
- * empirically ignored by agents, so the only reliable way to make
- * them act on this is to prevent the `Ready` / success signal from
- * firing at all.
- *
- * Only `next dev` runs this gate. `next build` deliberately does
- * nothing: failing a build mid-pipeline feels wrong even when an
- * agent is driving, and the dev-server gate already catches
- * agent-driven projects at the first iteration.
- *
- * The message is deliberately long and rationale-heavy. Agents
- * processing tool output weigh concrete negative consequences ("will
- * suggest wrong APIs that fail at runtime") far more than abstract
- * ones ("improves accuracy"), so spelling out exactly what goes wrong
- * without the managed block is the single most effective way to
- * discourage them from grabbing the escape hatch. The bypass env var
- * is disclosed, but framed as a last resort with a concrete negative
- * consequence attached ("agents will continue producing broken code
- * that takes more time to fix than the codemod takes to run").
+ * Message length is deliberate: concrete negative consequences and a
+ * last-resort bypass with stick framing are what actually move agent
+ * behavior, validated against live Claude Code.
  */
 export function checkAgentRulesForDev(dir: string): string | null {
   if (detectAgent() === null) return null

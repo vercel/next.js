@@ -44,26 +44,13 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 }
 
 /**
- * Assert that `cwd` is a valid Next.js project directory, matching
- * the same strict check `@next/codemod upgrade` uses:
+ * Strict-cwd check shared by `codemod upgrade` and `upgrade agents-md`:
+ * `cwd/package.json` must exist and `next` must be resolvable from
+ * `cwd`. No walk-up — monorepo root or wrong subdir both error out.
  *
- *   1. `cwd/package.json` must exist directly (no walk-up).
- *   2. `next` must be resolvable from `cwd` via Node's module
- *      resolution (walks up through parent `node_modules/`).
- *
- * Both `upgrade-agents-md` and the `upgrade` post-scaffold hook
- * require running from the Next.js app directory for this reason —
- * the AGENTS.md location must be co-located with `package.json`, and
- * the bundled docs must be resolvable from that same location. Users
- * running from a subdirectory or from the monorepo root will hit
- * this and get a clear "cd into the app directory" message.
- *
- * Returns the resolved `cwd` on success. Throws a plain `Error` on
- * failure — this module lives in the `lib/` layer and can't import
- * `BadInput` from `bin/shared.ts` without inverting the layering, so
- * callers in the `bin/` layer are expected to catch and rethrow as
- * `BadInput` when they want the root `next-codemod.ts` error handler
- * to print just the message instead of a full stack trace.
+ * Throws a plain `Error` (this module is in the `lib/` layer and
+ * can't import `BadInput`); `bin/` callers rewrap for clean CLI
+ * formatting.
  */
 export function requireNextProjectDir(cwd: string): string {
   const resolved = path.resolve(cwd)
@@ -84,15 +71,9 @@ export function requireNextProjectDir(cwd: string): string {
 }
 
 /**
- * Returns true when the Next.js install resolvable from `projectDir`
- * ships version-matched bundled docs at `node_modules/next/dist/docs/`.
- *
- * Uses `require.resolve` so it correctly finds next in both flat
- * layouts and hoisted monorepos — then checks whether `dist/docs/`
- * is present in that install. The managed block always writes the
- * path as `node_modules/next/dist/docs/` because at a valid
- * Next.js project dir that string will resolve correctly via Node's
- * parent-directory `node_modules` walk-up.
+ * Returns true when the `next` install resolvable from `projectDir`
+ * ships bundled docs at `node_modules/next/dist/docs/`. False on
+ * pre-16.2 Next.js.
  */
 export function hasBundledDocs(projectDir: string): boolean {
   try {
@@ -115,27 +96,13 @@ export const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 export const AGENT_RULES_END_MARKER = '<!-- END:nextjs-agent-rules -->'
 
 /**
- * Marker pair used by the *legacy* `agents-md` codemod (the git-clone +
- * `.next-docs/` index workflow). Projects that ran the codemod on a Next.js
- * version older than the bundled-docs era still have a block delimited by
- * these markers in their `AGENTS.md` / `CLAUDE.md`. Whenever the new
- * fast-path upserts the canonical block, we strip the legacy block first
- * so the file ends up with one source of truth instead of both blocks
- * coexisting (the legacy one points at a `.next-docs/` directory that
- * may no longer exist or be up to date).
+ * Markers written by the pre-bundled-docs version of `agents-md`.
+ * Stripped on upsert so projects that ran the old codemod end up with
+ * a single current block instead of two stale-and-current blocks.
  */
 const LEGACY_AGENT_RULES_START_MARKER = '<!-- NEXT-AGENTS-MD-START -->'
 const LEGACY_AGENT_RULES_END_MARKER = '<!-- NEXT-AGENTS-MD-END -->'
 
-/**
- * Build the canonical agent-rules block. The bundled-docs path is
- * hardcoded to `node_modules/next/dist/docs/` because AGENTS.md is
- * always written at the Next.js project directory — the same level
- * as `package.json` and `node_modules/next/` — so the relative path
- * from the file to the docs is always this string regardless of
- * project layout. This is what `create-next-app` writes for new
- * projects too.
- */
 function buildAgentRulesBlock(): string {
   return `${AGENT_RULES_START_MARKER}
 # This is NOT the Next.js you know
@@ -161,37 +128,17 @@ export interface BundledDocsWriteResult {
 
 /**
  * Write the create-next-app-style agent rules into `projectDir`,
- * respecting whichever file the user already uses as their agent
- * instructions:
+ * respecting whichever file the user already uses:
  *
- *   - If `AGENTS.md` exists, upsert the rules block into it and
- *     leave `CLAUDE.md` alone. `AGENTS.md` is the canonical file,
- *     so we prefer it whenever the user has one.
- *   - Otherwise, if `CLAUDE.md` exists, upsert the rules block into
- *     it. The user is clearly using `CLAUDE.md` as their primary
- *     agent file and we shouldn't force a new `AGENTS.md` next to it.
- *   - Otherwise (neither exists), create a fresh `AGENTS.md`
- *     containing the canonical block and a `CLAUDE.md` that points
- *     at it via the `@` import syntax — identical to what
- *     `create-next-app` generates for new projects.
+ *   - `AGENTS.md` exists → upsert into it, leave `CLAUDE.md` alone.
+ *   - `CLAUDE.md` exists (but not `AGENTS.md`) → upsert into it.
+ *   - Neither exists → create both (`AGENTS.md` + `CLAUDE.md` with
+ *     `@AGENTS.md` import), matching `create-next-app`.
  *
- * `projectDir` must be the Next.js project directory (the package
- * that declares `next` as a dependency). AI coding agents locate
- * agent-rules files at that level by default, so that's the only
- * location we write to — in a monorepo it's the sub-package (e.g.
- * `apps/web/`), never the monorepo root.
- *
- * Upserts are non-destructive: existing content outside the marker
- * block is preserved. If the canonical block is already present
- * verbatim, the file is reported as `unchanged` and not rewritten.
- *
- * Not atomic across the two-file create branch: if `AGENTS.md` writes
- * successfully and `CLAUDE.md` then throws (ENOSPC, permissions), the
- * process leaves the freshly-created `AGENTS.md` behind and bubbles
- * the error. Re-running cleanly recovers — the next invocation takes
- * the `agentsMdExists` branch and no-ops on the already-present
- * canonical block — so we accept the transient inconsistency rather
- * than add cleanup bookkeeping for a cold-path failure mode.
+ * Upserts preserve content outside the marker block. Idempotent: a
+ * file already containing the canonical block is reported as
+ * `unchanged`. The two-file create branch is not atomic — if the
+ * second write fails, re-running recovers.
  */
 export function writeBundledDocsAgentFiles(
   projectDir: string
@@ -261,32 +208,17 @@ function normalizeEol(s: string, eol: '\r\n' | '\n'): string {
 }
 
 /**
- * Given the current contents of an AGENTS.md file and a rendered agent-rules
- * block, return a version that contains the block exactly once. If the
- * markers are already present, the block between them is replaced. Otherwise
- * the block is appended after the existing content. If the block is already
- * present verbatim, the input is returned unchanged.
- *
- * Also strips any leftover *legacy* agent-rules block (delimited by the old
- * `<!-- NEXT-AGENTS-MD-START -->` / `<!-- NEXT-AGENTS-MD-END -->` markers)
- * so projects that ran the pre-bundled-docs version of this codemod end up
- * with a single, current block instead of two stale-and-current blocks
- * coexisting in the same file.
- *
- * Preserves the existing file's line-ending style (CRLF or LF) — important
- * on Windows where stomping `\n` into a CRLF file produces mixed EOLs that
- * confuse editors, diffs, and `.gitattributes` normalization.
+ * Upsert the canonical agent-rules block into `existing`. Replaces
+ * the block between markers if present, otherwise appends. Idempotent:
+ * if the block is already there verbatim, returns `existing`
+ * unchanged. Also strips any leftover legacy `NEXT-AGENTS-MD-*` block.
+ * Preserves the existing file's EOL style (CRLF or LF) to avoid mixed
+ * line endings on Windows.
  */
 function upsertAgentRulesBlock(existing: string, block: string): string {
   const eol = detectEol(existing)
   const normalizedBlock = normalizeEol(block, eol)
 
-  // Migration step: drop the legacy block first. Older projects that ran
-  // `agents-md` against a pre-16.2 Next.js still have a `NEXT-AGENTS-MD-*`
-  // wrapper around a `.next-docs/`-style doc index. The legacy block points
-  // at a directory that probably doesn't exist anymore (or has gone stale
-  // versus the bundled docs), so we remove it before injecting the new
-  // canonical block. Surrounding content is preserved.
   existing = stripLegacyAgentRulesBlock(existing, eol)
 
   const startIdx = existing.indexOf(AGENT_RULES_START_MARKER)
@@ -305,23 +237,9 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
 }
 
 /**
- * Strip any `<!-- NEXT-AGENTS-MD-START -->...<!-- NEXT-AGENTS-MD-END -->`
- * blocks from a file's contents, including any whitespace immediately
- * surrounding each block so we don't leave stray blank lines behind. If no
- * legacy block is present, returns the input unchanged. Loops until every
- * occurrence is stripped (defensive against a file that somehow acquired
- * more than one, e.g. via manual edits).
- *
- * The legacy block was written by the pre-bundled-docs version of the
- * `agents-md` codemod, which generated a custom doc index pointing at a
- * `.next-docs/` directory. That directory and the index inside the block
- * were tied to a specific Next.js version and almost certainly no longer
- * match the project's current install, so we drop the entire block when
- * we install the new managed block.
- *
- * `eol` is the detected line-ending style of the surrounding file, used
- * when re-joining the two halves so the re-joined seam doesn't introduce
- * mixed CRLF/LF into a Windows file.
+ * Strip all legacy `NEXT-AGENTS-MD-*` blocks along with the whitespace
+ * surrounding them. Loops until none remain. `eol` matches the
+ * surrounding file so the re-joined seam stays consistent on Windows.
  */
 function stripLegacyAgentRulesBlock(
   existing: string,

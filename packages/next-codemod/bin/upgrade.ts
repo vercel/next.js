@@ -119,10 +119,22 @@ export async function runUpgrade(
   options: { verbose: boolean }
 ): Promise<void> {
   const { verbose } = options
-  const appPackageJsonPath = path.resolve(cwd, 'package.json')
+
+  // Validate `cwd` once at the top: must have `package.json` and a
+  // resolvable `next` install. Shared with `upgrade agents-md` via
+  // `requireNextProjectDir`, which throws a plain `Error` that we
+  // rewrap as `BadInput` for clean CLI formatting.
+  let projectDir: string
+  try {
+    projectDir = requireNextProjectDir(cwd)
+  } catch (err) {
+    throw new BadInput((err as Error).message)
+  }
+
+  const appPackageJsonPath = path.join(projectDir, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
-  const installedNextVersion = getInstalledNextVersion()
+  const installedNextVersion = getInstalledNextVersion(projectDir)
 
   // Resolve semantic keywords to npm version queries
   const resolvedRevision = resolveSemanticRevision(
@@ -427,27 +439,9 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  // Scaffold `AGENTS.md` + `CLAUDE.md` at the Next.js project dir if
-  // the upgraded Next.js ships version-matched bundled docs. `upgrade`
-  // already anchors on `cwd` (see `getInstalledNextVersion` above), so
-  // we reuse the same strict-cwd check here instead of walking up —
-  // the project dir is always `cwd`. Mirrors what `create-next-app`
-  // does for new projects so existing projects pick up the agent
-  // rules as a natural side effect of upgrading. No-op on older
-  // versions without bundled docs.
-  //
-  // `requireNextProjectDir` throws a plain `Error` (it lives in the
-  // `lib/` layer and can't import `BadInput`), so we wrap it to get
-  // the clean "print just the message" path in `next-codemod.ts`.
-  // Should never actually fire here because `getInstalledNextVersion`
-  // validated the same condition earlier — defense in depth so a
-  // future reorder doesn't leak a stack trace to users.
-  let projectDir: string
-  try {
-    projectDir = requireNextProjectDir(cwd)
-  } catch (err) {
-    throw new BadInput((err as Error).message)
-  }
+  // Scaffold `AGENTS.md` + `CLAUDE.md` when the upgraded Next.js
+  // ships bundled docs. Same fast path `upgrade agents-md` runs, so
+  // upgrading picks up the agent rules as a side effect.
   if (hasBundledDocs(projectDir)) {
     const result = writeBundledDocsAgentFiles(projectDir)
     const touched: string[] = []
@@ -467,21 +461,12 @@ export async function runUpgrade(
   endMessage(targetNextVersion)
 }
 
-function getInstalledNextVersion(): string {
-  try {
-    return require(
-      require.resolve('next/package.json', {
-        paths: [cwd],
-      })
-    ).version
-  } catch (error) {
-    throw new BadInput(
-      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
-      {
-        cause: error,
-      }
-    )
-  }
+function getInstalledNextVersion(projectDir: string): string {
+  // `projectDir` has already been validated by `requireNextProjectDir`,
+  // so the resolve is guaranteed to succeed — this is just the version
+  // read.
+  return require(require.resolve('next/package.json', { paths: [projectDir] }))
+    .version
 }
 
 function getInstalledReactVersion(): string {
