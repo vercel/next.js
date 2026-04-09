@@ -562,32 +562,42 @@ function createSegmentProps(
     : props
 }
 
+let nextId = 0
 async function collectStaticImagesFiles(
   metadata: AppDirModules['metadata'],
   props: SegmentProps,
-  type: 'icon' | 'apple' | 'openGraph' | 'twitter'
+  type: 'icon' | 'apple' | 'openGraph' | 'twitter',
+  segment?: string
 ) {
   if (!metadata?.[type]) return undefined
 
-  const iconPromises = metadata[type].map(
-    async (imageModule: (p: SegmentProps) => Promise<MetadataImageModule[]>) =>
-      await imageModule(props)
-  )
+  const id = nextId++
+  console.log(`collectStaticImagesFiles ${segment} ${id} - ${type} - start`)
+  try {
+    const iconPromises = metadata[type].map(
+      async (
+        imageModule: (p: SegmentProps) => Promise<MetadataImageModule[]>
+      ) => await imageModule(props)
+    )
 
-  return iconPromises?.length > 0
-    ? (await Promise.all(iconPromises)).flat()
-    : undefined
+    return iconPromises?.length > 0
+      ? (await Promise.all(iconPromises)).flat()
+      : undefined
+  } finally {
+    console.log(`collectStaticImagesFiles ${segment} ${id} - ${type} - end`)
+  }
 }
 
 async function resolveStaticMetadata(
   modules: AppDirModules,
-  props: SegmentProps
+  props: SegmentProps,
+  segment: string
 ): Promise<StaticMetadata> {
   const { metadata } = modules
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
-    collectStaticImagesFiles(metadata, props, 'icon'),
+    collectStaticImagesFiles(metadata, props, 'icon', segment),
     collectStaticImagesFiles(metadata, props, 'apple'),
     collectStaticImagesFiles(metadata, props, 'openGraph'),
     collectStaticImagesFiles(metadata, props, 'twitter'),
@@ -639,7 +649,11 @@ async function collectMetadata({
     route += `/${modType}`
   }
 
-  const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
+  const staticFilesMetadata = await resolveStaticMetadata(
+    tree[2],
+    props,
+    tree[0]
+  )
   const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
   metadataItems.push([metadataExport, staticFilesMetadata])
@@ -769,11 +783,16 @@ async function resolveMetadataItemsImpl(
       ? segmentParam.paramName
       : parentOptionalCatchAllParamName
 
+  console.group(
+    `resolveMetadataItemsImpl - ${segment} - createServerParamsForMetadata`,
+    currentParams
+  )
   const params = createServerParamsForMetadata(
     currentParams,
     optionalCatchAllParamName,
     isRuntimePrefetchable
   )
+  console.groupEnd()
   const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({

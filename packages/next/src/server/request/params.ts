@@ -254,6 +254,16 @@ export function createServerParamsForServerSegment(
           isRuntimePrefetchable
         )
       case 'request':
+        console.log('createServerParamsForServerSegment', {
+          asyncApiPromises: !!workUnitStore.asyncApiPromises,
+          validationSamples: !!workUnitStore.validationSamples,
+          underlyingParams,
+          fallbackParams: workUnitStore.fallbackParams,
+          hasFallbackRouteParams: hasFallbackRouteParams(
+            underlyingParams,
+            workUnitStore.fallbackParams
+          ),
+        })
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
           // but since you would never use next dev with production NODE_ENV we use this
