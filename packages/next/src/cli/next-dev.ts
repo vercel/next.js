@@ -26,7 +26,7 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { fork } from 'child_process'
+import { fork, execSync } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
@@ -78,13 +78,31 @@ const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
 
 // If the user restarts the dev server within this window we count it as a "rage restart".
-const RAGE_RESTART_THRESHOLD_MS = 120_000
+const RAGE_RESTART_THRESHOLD_MS = 90_000
 
 // Single shared file for all projects — keyed by project directory path.
 const DEV_STATE_FILE = path.join(
   getCacheDirectory('nextjs-nodejs'),
   'dev-state.json'
 )
+
+// Returns the current git branch name, or an empty string if it cannot be
+// determined (not a git repo, detached HEAD, git not installed, etc.).
+function getGitBranch(cwd: string): string {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+      cwd,
+      timeout: 2000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim()
+    // "HEAD" indicates a detached HEAD state — treat as unknown.
+    return branch === 'HEAD' ? '' : branch
+  } catch {
+    return ''
+  }
+}
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -279,13 +297,25 @@ const nextDev = async (
       if (fs.existsSync(DEV_STATE_FILE)) {
         const allState = JSON.parse(
           fs.readFileSync(DEV_STATE_FILE, 'utf8')
-        ) as Record<string, { stopTime?: number; distDirPath?: string }>
+        ) as Record<
+          string,
+          { stopTime?: number; distDirPath?: string; gitBranch?: string }
+        >
         const state = allState[dir]
         if (
           state?.stopTime &&
           Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
         ) {
-          isRageRestart = true
+          // Only flag as a rage restart if the git branch hasn't changed. If
+          // either the stored or current branch is unknown, skip the comparison
+          // and fall back to time-only detection.
+          const storedBranch = state.gitBranch ?? ''
+          const currentBranch = getGitBranch(dir)
+          const branchChanged =
+            storedBranch && currentBranch && storedBranch !== currentBranch
+          if (!branchChanged) {
+            isRageRestart = true
+          }
         }
         if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
           distDirCleared = true
@@ -507,7 +537,10 @@ function writeDevState(): void {
   try {
     fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
 
-    let state: Record<string, { stopTime: number; distDirPath: string }> = {}
+    let state: Record<
+      string,
+      { stopTime: number; distDirPath: string; gitBranch?: string }
+    > = {}
     try {
       state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
     } catch {
@@ -526,9 +559,11 @@ function writeDevState(): void {
     }
 
     // Update current project
+    const gitBranch = getGitBranch(dir)
     state[dir] = {
       stopTime: Date.now(),
       distDirPath: path.join(dir, distDir ?? '.next'),
+      ...(gitBranch ? { gitBranch } : {}),
     }
 
     const { sync: writeFileAtomicSync } =
