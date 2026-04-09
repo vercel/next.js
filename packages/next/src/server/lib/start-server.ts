@@ -19,7 +19,7 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { printAndExit, RESTART_EXIT_CODE } from './utils'
+import { RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -521,12 +521,16 @@ export async function startServer(
           // that's the escape hatch for users who legitimately don't
           // want an AGENTS.md, and it's deliberately never advertised in
           // the message so agents can't game it.
+          //
+          // Uses the same exit pattern as the lockfile "Another next dev
+          // server is already running" error (`Log.error` + `process.exit`)
+          // — by this point the banner has already flushed to the parent
+          // stream, so there's no early-exit flush race to work around.
           const agentRulesCheck = checkAgentRulesForDev(dir)
           if (agentRulesCheck !== null) {
+            Log.error(agentRulesCheck.message)
             if (agentRulesCheck.fatal) {
-              printAndExit(agentRulesCheck.message)
-            } else {
-              Log.error(agentRulesCheck.message)
+              process.exit(1)
             }
           }
         }
