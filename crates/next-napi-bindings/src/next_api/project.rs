@@ -2746,9 +2746,9 @@ async fn get_all_compilation_issues_operation(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
-    let container = project.container;
+    let container = project.container();
     let (issues, diagnostics) = project
-        .turbopack_ctx
+        .ctx()
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
