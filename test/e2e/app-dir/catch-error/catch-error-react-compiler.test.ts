@@ -1,28 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// FIXME: If NEXT_TEST_REACT_VERSION is set, skip the test for now. Need to address react/compiler-runtime
-// compatibility with React below 19.
-// _describe for cleaner git history.
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-const _describe = isReact18 ? describe.skip : describe
 
-_describe('app-dir - unstable_catchError with react compiler', () => {
+describe('app-dir - unstable_catchError with react compiler', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     nextConfig: {
-      reactCompiler: {
-        // For React 18 & Pages Router, need to specifiy the target to '18'
-        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
-        target: process.env.NEXT_TEST_REACT_VERSION
-          ? // e.g. 18.3.1 -> 18
-            process.env.NEXT_TEST_REACT_VERSION.split('.')[0]
-          : undefined,
-      },
+      reactCompiler: true,
     },
     dependencies: {
       'babel-plugin-react-compiler': 'latest',
-      // For React 18 & Pages Router
-      'react-compiler-runtime': 'latest',
+      // React 18 & Pages Router require installing react-compiler-runtime (target is handled by Next.js internally)
+      // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+      ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
     },
   })
 
