@@ -264,6 +264,9 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
   }
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
+      if (prop === EXHAUSTIVE_PROXY_MARKER) {
+        return true
+      }
       if (
         typeof prop === 'string' &&
         !wellKnownProperties.has(prop) &&
@@ -285,6 +288,16 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
     // the shape of the params object is determined by the routing structure
     // and independent of the samples. We only need to instrument accessing the values.
   })
+}
+
+const EXHAUSTIVE_PROXY_MARKER: unique symbol = Symbol.for(
+  'next.instant-validation.params-proxy'
+)
+
+export function isExhaustiveParamsProxy(params: Params): boolean {
+  return (
+    (params as Record<string | symbol, any>)[EXHAUSTIVE_PROXY_MARKER] === true
+  )
 }
 
 function isEmptyParams(params: Params) {
