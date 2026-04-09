@@ -57,7 +57,6 @@ export type NextDevOptions = {
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
-  skipAgentRuleCheck?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -186,16 +185,11 @@ const nextDev = async (
   }
 
   // Hard-fail dev startup when an AI coding agent is driving the command
-  // and the Next.js agent rules aren't installed. The first failure shows
-  // only the install command; a marker file under `.next/dev/` is used so
-  // that the second consecutive failure additionally mentions the hidden
-  // `--skip-agent-rule-check` escape hatch as a last resort. The check is
-  // cheap (two small sync file reads + env-var lookups) and runs before
-  // the worker fork, so we don't waste startup on an invocation we're
-  // about to abort.
-  const agentRulesError = getAgentRulesDevError(dir, {
-    skip: !!options.skipAgentRuleCheck,
-  })
+  // and the Next.js agent rules aren't installed. Runs before the worker
+  // fork so we don't waste startup on an invocation we're about to abort.
+  // No bypass flag exists: any escape hatch gets grabbed by frustrated
+  // agents instead of the fix.
+  const agentRulesError = getAgentRulesDevError(dir)
   if (agentRulesError !== null) {
     printAndExit(agentRulesError)
   }

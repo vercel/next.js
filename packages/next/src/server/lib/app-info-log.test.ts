@@ -4,7 +4,6 @@ import path from 'path'
 import { warnIfMissingAgentRules, getAgentRulesDevError } from './app-info-log'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
-const GATE_STATE_FILE = path.join('.next', 'dev', 'agent-rules-gate-fired')
 
 // Clear every env var `detectAgent()` inspects so the base state is
 // "no agent detected" regardless of what the host has set.
@@ -26,6 +25,33 @@ function clearAgentEnv() {
   delete process.env.COPILOT_MODEL
   delete process.env.COPILOT_ALLOW_ALL
   delete process.env.COPILOT_GITHUB_TOKEN
+}
+
+/**
+ * The error and the build-side notice share a single body via
+ * `baseAgentRulesMessage`. Both are framework-style errors: factual, no
+ * direct-addressee tag, no claims about the reader, no bypass mentions.
+ * These checks must hold for both call sites.
+ */
+function assertFactualFrameworkError(message: string) {
+  // Must include the install command, pinned to `@canary` so users pick up
+  // codemod updates on the faster release channel.
+  expect(message).toContain('npx @next/codemod@canary agents-md')
+  expect(message).toContain('AGENTS.md')
+  expect(message).toContain('CLAUDE.md')
+
+  // Must NOT contain anything that looks like a prompt-injection payload
+  // or an agent-addressed directive — that's what triggered agents to
+  // flag the message as suspicious in earlier iterations.
+  expect(message).not.toContain('AGENT:')
+  expect(message).not.toContain('stale')
+  expect(message).not.toContain('Do this before')
+
+  // Must NOT advertise any bypass — there is none, and mentioning one at
+  // all gives frustrated agents permission to take it instead of the fix.
+  expect(message).not.toContain('--skip-agent-rule-check')
+  expect(message).not.toContain('bypass')
+  expect(message).not.toContain('last resort')
 }
 
 describe('warnIfMissingAgentRules (build-side notice)', () => {
@@ -60,18 +86,16 @@ describe('warnIfMissingAgentRules (build-side notice)', () => {
     expect(errorSpy).not.toHaveBeenCalled()
   })
 
-  it('prints the AGENT-addressed error when rules are missing', () => {
+  it('prints a factual framework error when rules are missing', () => {
     process.env.CLAUDECODE = '1'
     warnIfMissingAgentRules(tmpDir)
     expect(errorSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = errorSpy.mock.calls[0].join(' ')
-    expect(loggedMessage).toContain('AGENT:')
-    expect(loggedMessage).toContain('npx @next/codemod@latest agents-md')
-    expect(loggedMessage).toContain('AGENTS.md/CLAUDE.md')
+    assertFactualFrameworkError(loggedMessage)
   })
 })
 
-describe('getAgentRulesDevError (dev-side hard gate with repeat-failure state)', () => {
+describe('getAgentRulesDevError (dev-side hard gate)', () => {
   let tmpDir: string
   let originalEnv: NodeJS.ProcessEnv
 
@@ -87,77 +111,25 @@ describe('getAgentRulesDevError (dev-side hard gate with repeat-failure state)',
   })
 
   it('returns null when no agent is detected', () => {
-    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
+    expect(getAgentRulesDevError(tmpDir)).toBeNull()
   })
 
-  it('returns null when --skip-agent-rule-check is passed', () => {
+  it('returns null when the marker is installed in AGENTS.md', () => {
     process.env.CLAUDECODE = '1'
-    expect(getAgentRulesDevError(tmpDir, { skip: true })).toBeNull()
-    // skip must not leave state behind — we haven't actually surfaced the
-    // error yet, so the first real failure should still be treated as
-    // "first time".
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
-  })
-
-  it('returns null when the marker is installed (and clears any prior state)', () => {
-    process.env.CLAUDECODE = '1'
-    // Pre-seed the gate state file to simulate a prior failure.
-    fs.mkdirSync(path.join(tmpDir, '.next', 'dev'), { recursive: true })
-    fs.writeFileSync(path.join(tmpDir, GATE_STATE_FILE), '')
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-
-    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
-    // State file must be cleared so a future regression starts clean.
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
+    expect(getAgentRulesDevError(tmpDir)).toBeNull()
   })
 
-  it('first failure: error contains install command but NOT the bypass hint', () => {
+  it('returns null when the marker is installed in CLAUDE.md', () => {
     process.env.CLAUDECODE = '1'
-
-    const error = getAgentRulesDevError(tmpDir, { skip: false })
-    expect(error).not.toBeNull()
-    expect(error).toContain('AGENT:')
-    expect(error).toContain('npx @next/codemod@latest agents-md')
-    // Crucially: no bypass hint the first time around.
-    expect(error).not.toContain('--skip-agent-rule-check')
-    expect(error).not.toContain('last resort')
-
-    // And the state file must now exist so the next run knows this is a
-    // repeat failure.
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(getAgentRulesDevError(tmpDir)).toBeNull()
   })
 
-  it('second failure: error additionally mentions the bypass as a last resort', () => {
+  it('returns a factual framework error when rules are missing', () => {
     process.env.CLAUDECODE = '1'
-
-    // First call — primes the state file.
-    getAgentRulesDevError(tmpDir, { skip: false })
-
-    // Second call — should now surface the bypass hint.
-    const error = getAgentRulesDevError(tmpDir, { skip: false })
+    const error = getAgentRulesDevError(tmpDir)
     expect(error).not.toBeNull()
-    expect(error).toContain('npx @next/codemod@latest agents-md')
-    expect(error).toContain('--skip-agent-rule-check')
-    expect(error).toContain('last resort')
-  })
-
-  it('after rules are installed and then removed, counter resets to first-failure behavior', () => {
-    process.env.CLAUDECODE = '1'
-
-    // First failure: no bypass.
-    getAgentRulesDevError(tmpDir, { skip: false })
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
-
-    // User installs rules. Gate clears state.
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(getAgentRulesDevError(tmpDir, { skip: false })).toBeNull()
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
-
-    // User removes the rules again. Next failure should be "first time".
-    fs.unlinkSync(path.join(tmpDir, 'AGENTS.md'))
-    const error = getAgentRulesDevError(tmpDir, { skip: false })
-    expect(error).not.toBeNull()
-    expect(error).not.toContain('--skip-agent-rule-check')
-    expect(error).not.toContain('last resort')
+    assertFactualFrameworkError(error!)
   })
 })
