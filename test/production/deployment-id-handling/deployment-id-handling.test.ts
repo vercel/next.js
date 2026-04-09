@@ -7,18 +7,21 @@ describe.each([
   ['NEXT_DEPLOYMENT_ID', ''],
   ['CUSTOM_DEPLOYMENT_ID', ''],
   ['NEXT_DEPLOYMENT_ID', ' and runtimeServerDeploymentId'],
-  ['IMMUTABLE_ASSET_TOKEN', ''],
+  ['NEXT_DEPLOYMENT_ID_IMMUTABLE', ''],
 ])(
   'deployment-id-handling enabled with %s%s',
   (envKey, runtimeServerDeploymentId) => {
-    if (envKey === 'IMMUTABLE_ASSET_TOKEN' && !process.env.IS_TURBOPACK_TEST) {
+    if (
+      envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE' &&
+      !process.env.IS_TURBOPACK_TEST
+    ) {
       it.skip('skip for webpack', () => {})
       return
     }
 
     const deploymentId = Date.now() + ''
     const immutableAssetToken =
-      envKey === 'IMMUTABLE_ASSET_TOKEN' ? `imm-${deploymentId}` : deploymentId
+      envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE' ? '' : deploymentId
 
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
@@ -31,16 +34,17 @@ describe.each([
       disableAutoSkewProtection: true,
     })
 
-    const tokenForRequest = (url) => {
-      return url.includes('_next/static/chunks') ||
-        url.includes('_next/static/media')
+    const validateTokenForRequest = (url: string) => {
+      const token = url.includes('/_next/static/immutable/')
         ? // Turbopack-emitted chunks
           immutableAssetToken
-        : // e.g. _next/static/build-id/_ssgManifest.js
+        : // e.g. /_next/static/build-id/_ssgManifest.js
           deploymentId
-    }
-    const validateTokenForRequest = (url) => {
-      expect(url).toContain('dpl=' + tokenForRequest(url))
+      if (token) {
+        expect(url).toContain('dpl=' + token)
+      } else {
+        expect(url).not.toContain('dpl=')
+      }
     }
 
     it.each([
@@ -99,9 +103,7 @@ describe.each([
         await retry(() => expect(dynamicImportRequests).not.toBeEmpty())
 
         try {
-          expect(dynamicImportRequests).toSatisfyAll((item) =>
-            item.includes('dpl=' + tokenForRequest(item))
-          )
+          dynamicImportRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error(
             'dynamicImportRequests',
@@ -110,9 +112,7 @@ describe.each([
         }
 
         try {
-          expect(clientRequests).toSatisfyAll((item) =>
-            item.includes('dpl=' + tokenForRequest(item))
-          )
+          clientRequests.forEach((item) => validateTokenForRequest(item))
         } finally {
           require('console').error('clientRequests', clientRequests)
         }
@@ -184,7 +184,7 @@ describe.each([
       )
     })
 
-    if (envKey === 'IMMUTABLE_ASSET_TOKEN') {
+    if (envKey === 'NEXT_DEPLOYMENT_ID_IMMUTABLE') {
       it('should emit hashes to adapter', async () => {
         const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
           await next.readJSON('build-complete.json')

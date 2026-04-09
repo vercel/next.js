@@ -14,7 +14,7 @@ describe('CPU Profiling', () => {
 
   describe('next build --experimental-cpu-prof', () => {
     it('should create CPU profile files with meaningful names', async () => {
-      const profileDir = join(appDir, '.next', 'cpu-profiles')
+      const profileDir = join(appDir, '.next-profiles')
 
       const { stdout } = await nextBuild(appDir, ['--experimental-cpu-prof'], {
         stdout: true,
@@ -40,7 +40,7 @@ describe('CPU Profiling', () => {
     })
 
     it('should create profiles for worker processes', async () => {
-      const profileDir = join(appDir, '.next', 'cpu-profiles')
+      const profileDir = join(appDir, '.next-profiles')
 
       await nextBuild(appDir, ['--experimental-cpu-prof'], {
         stdout: true,

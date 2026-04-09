@@ -21,7 +21,7 @@ let $
 
 const indexPage = new File(join(appDir, 'pages/static-img.js'))
 
-const runTests = (isDev) => {
+const runTests = (isDev: boolean) => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
@@ -85,7 +85,7 @@ const runTests = (isDev) => {
     expect((metaViewport.attribs as any).content).toContain(
       'width=device-width'
     )
-    expect((linkPreload.attribs as any).imagesrcset).toMatch(
+    expect(normalizeURL((linkPreload.attribs as any).imagesrcset)).toMatch(
       /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
@@ -232,3 +232,12 @@ describe('Static Image Component Tests for basePath', () => {
     }
   )
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(
+      /media%2F([\w-]+).[0-9a-z_-]{4,}\.(png|jpe?g)/g,
+      'media%2F$1.HASH.$2'
+    )
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

@@ -1512,6 +1512,22 @@ impl Project {
         })
     }
 
+    /// Computes the whole app module graph without dropping issues.
+    ///
+    /// Use this instead of [`whole_app_module_graphs`] when you need to collect issues from the
+    /// computation (e.g. for the `get_compilation_issues` MCP tool).
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graphs_without_dropping_issues(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = module_graphs_op.connect();
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
+    }
+
+    /// Computes the whole app module graph, dropping issues in development mode so that
+    /// individual routes don't each report every issue from the shared graph.
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
@@ -1520,23 +1536,11 @@ impl Project {
         let module_graphs_vc = if self.next_mode().await?.is_production() {
             module_graphs_op.connect()
         } else {
-            // In development mode, we need to to take and drop the issues, otherwise every
-            // route will report all issues.
             let vc = module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.drop_issues();
             *vc
         };
-
-        // At this point all modules have been computed and we can get rid of the node.js
-        // process pools
-        let execution_context = self.execution_context().await?;
-        let node_backend = execution_context.node_backend.into_trait_ref().await?;
-        if *self.is_watch_enabled().await? {
-            node_backend.scale_down()?;
-        } else {
-            node_backend.scale_zero()?;
-        }
-
+        scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
 
@@ -1586,6 +1590,11 @@ impl Project {
             root_path: self.project_root_path().owned().await?,
             client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
@@ -1629,6 +1638,11 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), false),
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
@@ -1663,6 +1677,11 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
@@ -2460,6 +2479,18 @@ impl Project {
         }
         .cell())
     }
+}
+
+/// Scales down or shuts down the Node.js process pool after module graph computation.
+async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
+    let execution_context = project.execution_context().await?;
+    let node_backend = execution_context.node_backend.into_trait_ref().await?;
+    if *project.is_watch_enabled().await? {
+        node_backend.scale_down()?;
+    } else {
+        node_backend.scale_zero()?;
+    }
+    Ok(())
 }
 
 // This is a performance optimization. This function is a root aggregation function that

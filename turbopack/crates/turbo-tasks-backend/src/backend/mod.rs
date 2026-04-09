@@ -1563,10 +1563,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // We're creating a new task.
                     let task_type = Arc::new(task_type);
                     let task_id = self.persisted_task_id_factory.get();
-                    e.insert(task_type.clone(), task_id);
-                    // Mark the task as new in storage.
-                    // Do this after e.insert so we aren't holding the task_cache lock
+                    // Initialize storage BEFORE making task_id visible in the cache.
+                    // This ensures any thread that reads task_id from the cache sees
+                    // the storage entry already initialized (restored flags set).
                     self.storage.initialize_new_task(task_id);
+                    e.insert(task_type.clone(), task_id);
                     // insert() consumes e, releasing the lock
                     self.track_cache_miss(&task_type);
                     is_new = true;
@@ -1638,8 +1639,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             RawEntry::Vacant(e) => {
                 let task_type = Arc::new(task_type);
                 let task_id = self.transient_task_id_factory.get();
-                e.insert(task_type.clone(), task_id);
+                // Initialize storage BEFORE making task_id visible in the cache.
                 self.storage.initialize_new_task(task_id);
+                e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
 
                 if is_root {
