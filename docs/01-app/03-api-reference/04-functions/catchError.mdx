@@ -12,7 +12,7 @@ The `unstable_catchError` function creates a component that wraps its children i
 
 Compared to a custom React error boundary, `unstable_catchError` is designed to work with Next.js out of the box:
 
-- **Built-in error recovery** — [`unstable_retry()`](/docs/app/api-reference/file-conventions/error#unstable_retry) re-fetches and re-renders the error boundary's children, including Server Components.
+- **Built-in error recovery** — [`unstable_retry()`](/docs/app/api-reference/file-conventions/error#unstable_retry) re-renders the page inside a [Transition](https://react.dev/reference/react/startTransition), preserving Client Components state outside of the error boundary.
 - **Framework-aware integration** — APIs like `redirect()` and `notFound()` work by throwing special errors under the hood. `unstable_catchError` handles these seamlessly, so they're not accidentally caught by your error boundary.
 - **Client navigation handling** — The error state automatically clears when you do a client navigation to a different route.
 
