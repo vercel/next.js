@@ -1051,17 +1051,38 @@ export function trackThrownErrorInNavigation(
   }
 }
 
-export function trackDynamicHoleInRuntimeShell(
+export type ShellValidationKind = 'runtime' | 'static'
+
+const shellMessages: Record<
+  ShellValidationKind,
+  { metadata: string; viewport: string; suspense: string }
+> = {
+  runtime: {
+    metadata: `Uncached data or \`connection()\` was accessed inside \`generateMetadata\`.`,
+    viewport: `Uncached data or \`connection()\` was accessed inside \`generateViewport\`.`,
+    suspense: `Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`.`,
+  },
+  static: {
+    metadata: `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments.`,
+    viewport: `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`.`,
+    suspense: `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`.`,
+  },
+}
+
+export function trackDynamicHoleInShell(
   workStore: WorkStore,
   componentStack: string,
   dynamicValidation: DynamicValidationState,
-  clientDynamic: DynamicTrackingState
+  clientDynamic: DynamicTrackingState,
+  kind: ShellValidationKind
 ) {
+  const messages = shellMessages[kind]
+
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+    const message = `Route "${workStore.route}": ${messages.metadata} Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicMetadata = error
     return
@@ -1069,7 +1090,7 @@ export function trackDynamicHoleInRuntimeShell(
     // TODO(instant-validation): If the page only has holes caused by runtime data,
     // we won't find out if there's a suspense-above-body and error for dynamic viewport
     // even if there is in fact a suspense-above-body
-    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+    const message = `Route "${workStore.route}": ${messages.viewport} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -1097,10 +1118,25 @@ export function trackDynamicHoleInRuntimeShell(
     return
   }
 
-  const message = `Route "${workStore.route}": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
+  const message = `Route "${workStore.route}": ${messages.suspense} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
   const error = addErrorContext(new Error(message), componentStack, null)
   dynamicValidation.dynamicErrors.push(error)
   return
+}
+
+export function trackDynamicHoleInRuntimeShell(
+  workStore: WorkStore,
+  componentStack: string,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState
+) {
+  return trackDynamicHoleInShell(
+    workStore,
+    componentStack,
+    dynamicValidation,
+    clientDynamic,
+    'runtime'
+  )
 }
 
 export function trackDynamicHoleInStaticShell(
@@ -1109,47 +1145,13 @@ export function trackDynamicHoleInStaticShell(
   dynamicValidation: DynamicValidationState,
   clientDynamic: DynamicTrackingState
 ) {
-  if (hasOutletRegex.test(componentStack)) {
-    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
-    return
-  } else if (hasMetadataRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = addErrorContext(new Error(message), componentStack, null)
-    dynamicValidation.dynamicMetadata = error
-    return
-  } else if (hasViewportRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = addErrorContext(new Error(message), componentStack, null)
-    dynamicValidation.dynamicErrors.push(error)
-    return
-  } else if (
-    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
-      componentStack
-    )
-  ) {
-    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
-    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
-    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
-    dynamicValidation.hasAllowedDynamic = true
-    dynamicValidation.hasSuspenseAboveBody = true
-    return
-  } else if (hasSuspenseRegex.test(componentStack)) {
-    // this error had a Suspense boundary above it so we don't need to report it as a source
-    // of disallowed
-    dynamicValidation.hasAllowedDynamic = true
-    return
-  } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
-    return
-  } else {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-    const error = addErrorContext(new Error(message), componentStack, null)
-    dynamicValidation.dynamicErrors.push(error)
-    return
-  }
+  return trackDynamicHoleInShell(
+    workStore,
+    componentStack,
+    dynamicValidation,
+    clientDynamic,
+    'static'
+  )
 }
 
 /**
