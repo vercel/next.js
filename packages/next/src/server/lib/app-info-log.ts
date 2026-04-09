@@ -251,28 +251,20 @@ export function checkAgentRulesForDev(dir: string): string | null {
   const bypass = cyan(`${BYPASS_ENV_VAR}=1`)
 
   return (
-    `fatal: dev server exited. We detected you're running Next.js ` +
+    `Fatal: Dev Server exited. We detected you're running Next.js ` +
     `inside an AI coding agent but the managed agent-rules block is ` +
     `not installed in AGENTS.md or CLAUDE.md.\n\n` +
-    `Why this matters: AI coding agents were trained on older Next.js ` +
-    `versions and do not know about the breaking changes, deprecated ` +
-    `APIs, and new features in your installed version. Without the ` +
-    `managed block pointing them at the version-matched docs bundled ` +
-    `with your Next.js install, agents will write code using outdated ` +
-    `patterns — wrong APIs, deprecated lifecycle methods, legacy ` +
-    `config syntax, and missing modern features — that fail at ` +
-    `runtime or are silently incorrect. The managed block is small ` +
-    `(a single comment block in AGENTS.md or CLAUDE.md) and the ` +
-    `codemod runs in a few seconds.\n\n` +
-    `Run ${command} to install it, then start the dev server again.\n\n` +
-    `As a last-resort escape hatch for locked-down environments where ` +
-    `you can't run the codemod, setting ${bypass} bypasses this ` +
-    `check. This is strongly discouraged — the dev server will start, ` +
-    `but AI coding agents will continue producing broken code for ` +
-    `this project, and you'll spend far more time fixing their output ` +
-    `than the few seconds the codemod takes to run. Do not set this ` +
-    `env var unless you have a specific reason you can't install the ` +
-    `managed block.`
+    `Why this matters: AI coding agents are trained on older Next.js ` +
+    `versions and don't know about breaking changes, deprecated APIs, ` +
+    `or new features in your installed version. Without the managed ` +
+    `block pointing them at the version-matched docs bundled with ` +
+    `your install, they will write code using outdated patterns that ` +
+    `fail at runtime or are silently incorrect.\n\n` +
+    `Run ${command} to install it.\n\n` +
+    `As a last-resort escape hatch, setting ${bypass} bypasses this ` +
+    `check. Strongly discouraged — agents will still produce broken ` +
+    `code, and fixing that will cost far more time than the codemod ` +
+    `takes to run.`
   )
 }
 

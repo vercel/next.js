@@ -207,10 +207,10 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
     expect(error).not.toBeNull()
     const message = error!
 
-    // Leads with `fatal: dev server exited` — the caller will
-    // `process.exit(1)` right after, and this wording makes it clear
-    // in the log that the process terminated intentionally.
-    expect(message.startsWith('fatal: dev server exited')).toBe(true)
+    // Leads with title-cased `Fatal: Dev Server exited.` — the caller
+    // will `process.exit(1)` right after, and this wording makes it
+    // clear in the log that the process terminated intentionally.
+    expect(message.startsWith('Fatal: Dev Server exited.')).toBe(true)
 
     // States the cause.
     expect(message).toContain('AI coding agent')
@@ -232,13 +232,11 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
 
     // Escape hatch — disclosed, but env var not a CLI flag (agents
     // grab CLI flags more readily than env vars), and explicitly
-    // framed as "strongly discouraged" with a concrete negative
+    // framed as "Strongly discouraged" with a concrete negative
     // consequence attached.
     expect(message).toContain('NEXT_DISABLE_AGENT_RULE_CHECK=1')
-    expect(message).toContain('strongly discouraged')
+    expect(message).toContain('Strongly discouraged')
     expect(message).toContain('last-resort')
-    expect(message).toContain(
-      'far more time fixing their output than the few seconds the codemod'
-    )
+    expect(message).toContain('far more time than the codemod takes to run')
   })
 })
