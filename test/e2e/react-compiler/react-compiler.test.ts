@@ -3,6 +3,8 @@ import { waitForRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 function normalizeCodeLocInfo(str) {
   return (
     str &&
@@ -33,6 +35,7 @@ describe.each(['default', 'babelrc'] as const)(
           ? __dirname
           : {
               app: new FileRef(join(__dirname, 'app')),
+              pages: new FileRef(join(__dirname, 'pages')),
               'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
               'reference-library': new FileRef(
                 join(__dirname, 'reference-library')
@@ -42,12 +45,33 @@ describe.each(['default', 'babelrc'] as const)(
       buildArgs: ['--profile'],
       dependencies: {
         'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+        // For React versions below 19, need to install react-compiler-runtime.
+        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+        ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
         ...dependencies,
       },
     })
 
     it('should memoize Components', async () => {
       const browser = await next.browser('/')
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 1')
+
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 4')
+    })
+
+    it('should memoize Pages Router Components', async () => {
+      const browser = await next.browser('/pages-router')
 
       expect(await browser.eval('window.staticChildRenders')).toEqual(1)
       expect(
