@@ -139,6 +139,12 @@ export class NextInstance {
         )
       }
 
+      const skippedRelativePaths = new Set([
+        'package.json',
+        '.next',
+        '.next-profiles',
+        '.DS_Store',
+      ])
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
         // By default Node.js turns relative symlinks into absolute symlinks.
@@ -148,12 +154,10 @@ export class NextInstance {
         // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
         verbatimSymlinks: true,
         filter(source) {
-          // we don't copy a package.json as it's manually written
-          // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
-            return false
-          }
-          return true
+          const topLevel = path
+            .relative(files.fsPath, source)
+            .split(path.sep)[0]
+          return !skippedRelativePaths.has(topLevel)
         },
       })
     } else {
