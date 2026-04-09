@@ -33,7 +33,7 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
-import { getGitBranch } from '../lib/helpers/get-git-branch'
+import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
 import fs from 'node:fs'
 import { once } from 'node:events'
