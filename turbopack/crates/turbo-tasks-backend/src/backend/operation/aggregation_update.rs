@@ -1260,8 +1260,8 @@ impl AggregationUpdateQueue {
                 self.scheduled_tasks.keys().copied(),
                 "schedule tasks",
                 |task, ctx| {
-                    let parent_priority = self.scheduled_tasks[&task.id()];
-                    ctx.schedule_task(task, parent_priority);
+                    let execution_order = self.scheduled_tasks[&task.id()];
+                    ctx.schedule_task(task, execution_order);
                 },
             );
             self.scheduled_tasks.clear();
@@ -1474,8 +1474,8 @@ impl AggregationUpdateQueue {
     ) {
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = task.is_dirty();
-        let should_schedule = if let Some(parent_priority) = dirty {
-            Some((TaskExecutionReason::ActivateDirty, parent_priority))
+        let should_schedule = if let Some(execution_order) = dirty {
+            Some((TaskExecutionReason::ActivateDirty, execution_order))
         } else if !task.has_output() {
             Some((
                 TaskExecutionReason::ActivateInitial,
@@ -1499,11 +1499,11 @@ impl AggregationUpdateQueue {
                 activeness_state.set_active_until_clean();
             }
         }
-        if let Some((reason, parent_priority)) = should_schedule {
+        if let Some((reason, execution_order)) = should_schedule {
             let description = EventDescription::new(|| task.get_task_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
-                self.scheduled_tasks.insert(task_id, parent_priority);
+                self.scheduled_tasks.insert(task_id, execution_order);
             }
         }
     }

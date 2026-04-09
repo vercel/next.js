@@ -240,7 +240,7 @@ pub fn make_task_dirty_internal(
         *stale = true;
     }
     let current = task.get_dirty();
-    let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
+    let (old_self_dirty, old_current_session_self_clean, execution_order) = match current {
         Some(Dirtyness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
@@ -251,23 +251,25 @@ pub fn make_task_dirty_internal(
             )
             .entered();
             // already dirty
-            let parent_priority = ctx.get_current_task_execution_order();
-            if *current_priority < parent_priority {
-                // Update the priority to be the lower one
-                task.set_dirty(Dirtyness::Dirty(parent_priority));
+            let execution_order = ctx.get_current_task_execution_order();
+            if *current_priority < execution_order {
+                // The new execution order is later (higher value = runs after). Delay the task so
+                // it runs after the current invalidation context, avoiding premature
+                // re-execution before its dependencies are settled.
+                task.set_dirty(Dirtyness::Dirty(execution_order));
             }
             return;
         }
         Some(Dirtyness::SessionDependent) => {
-            let parent_priority = ctx.get_current_task_execution_order();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            let execution_order = ctx.get_current_task_execution_order();
+            task.set_dirty(Dirtyness::Dirty(execution_order));
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = task.current_session_clean();
             if was_current_session_clean {
                 task.set_current_session_clean(false);
                 // There was a clean count for a session. If it was the current session, we need to
                 // propagate that change.
-                (true, true, parent_priority)
+                (true, true, execution_order)
             } else {
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
@@ -281,10 +283,10 @@ pub fn make_task_dirty_internal(
             }
         }
         None => {
-            let parent_priority = ctx.get_current_task_execution_order();
-            task.set_dirty(Dirtyness::Dirty(parent_priority));
+            let execution_order = ctx.get_current_task_execution_order();
+            task.set_dirty(Dirtyness::Dirty(execution_order));
             // It was clean before, so we need to increase the dirty count
-            (false, false, parent_priority)
+            (false, false, execution_order)
         }
     };
 
@@ -335,7 +337,7 @@ pub fn make_task_dirty_internal(
         if task.add_scheduled(TaskExecutionReason::Invalidated, description) {
             drop(task);
             let task = ctx.task(task_id, TaskDataCategory::All);
-            ctx.schedule_task(task, parent_priority);
+            ctx.schedule_task(task, execution_order);
         }
     }
 }

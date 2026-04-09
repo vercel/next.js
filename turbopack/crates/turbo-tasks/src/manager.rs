@@ -440,6 +440,9 @@ impl TaskExecutionOrder {
 
     pub fn in_parent(&self, parent_task_execution_order: TaskExecutionOrder) -> Self {
         match self {
+            // Initial tasks (no prior output, run for the first time) inherit the parent's
+            // execution order so they run in-sequence with the invalidation wave that
+            // triggered them.
             TaskExecutionOrder::Initial => parent_task_execution_order,
             TaskExecutionOrder::Invalidation {
                 phase,
@@ -454,7 +457,14 @@ impl TaskExecutionOrder {
                     // execution order is after the parent task
                     let phase = parent_phase.max(*phase);
                     let phase = if parent_leaf_distance > *leaf_distance {
-                        phase + 1
+                        // The parent has a higher leaf_distance (closer to the root), so this child
+                        // task must run after it. Bump the phase to ensure this. The phase bump is
+                        // intentionally conservative: it delays this task after *all* tasks in the
+                        // current phase, not just after this specific parent. This avoids
+                        // worst-case double-recomputation at the cost of
+                        // being slightly more conservative than
+                        // strictly necessary.
+                        phase.saturating_add(1)
                     } else {
                         phase
                     };
@@ -918,8 +928,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         persistence: TaskPersistence,
     ) -> RawVc {
         let task_type = ty.task_type;
-        let (global_task_state, execution_id, priority, local_task_id) =
-            CURRENT_TASK_STATE.with(|gts| {
+        let (global_task_state, execution_id, execution_order, local_task_id) = CURRENT_TASK_STATE
+            .with(|gts| {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.create_local_task(LocalTask::Scheduled {
                     done_event: Event::new(move || {
@@ -943,7 +953,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 global_task_state: global_task_state.clone(),
                 span: Span::current(),
             },
-            Reverse(priority),
+            Reverse(execution_order),
         );
         global_task_state
             .write()

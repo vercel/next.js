@@ -1096,7 +1096,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     fn is_dirty(&self) -> Option<TaskExecutionOrder> {
         self.get_dirty().and_then(|dirtyness| match dirtyness {
-            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::Dirty(execution_order) => Some(*execution_order),
             Dirtyness::SessionDependent => {
                 if !self.current_session_clean() {
                     Some(TaskExecutionOrder::leaf())
@@ -1108,7 +1108,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
         match self.get_dirty()? {
-            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
+            Dirtyness::Dirty(execution_order) => Some((Dirtyness::Dirty(*execution_order), false)),
             Dirtyness::SessionDependent => {
                 Some((Dirtyness::SessionDependent, self.current_session_clean()))
             }
