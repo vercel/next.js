@@ -130,9 +130,9 @@ interface TraceMetadata {
 
   const isVercelEnvironment = !!process.env.VERCEL
 
-  const commit = process.env.VERCEL_GIT_COMMIT_SHA || getGitCommit(projectDir)
+  const commit = getGitCommit(projectDir)
 
-  const branch = process.env.VERCEL_GIT_COMMIT_REF || getGitBranch(projectDir)
+  const branch = getGitBranch(projectDir)
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
