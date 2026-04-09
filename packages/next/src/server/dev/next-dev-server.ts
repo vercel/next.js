@@ -843,7 +843,7 @@ export default class DevServer extends Server {
           if (this.nextConfig.output === 'export') {
             if (!prerenderedRoutes) {
               throw new Error(
-                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing exported function "generateStaticParams()", which is required with "output: export" config. To support dynamic routes without enumerating every param, enable Cache Components (cacheComponents: true). Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes`
               )
             }
 
@@ -852,7 +852,7 @@ export default class DevServer extends Server {
               !prerenderedRoutes.some((item) => item.pathname === urlPathname)
             ) {
               throw new Error(
-                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config. To support unenumerated params, enable Cache Components (cacheComponents: true). Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes`
               )
             }
           }
