@@ -31,6 +31,8 @@ ignoredBuiltDependencies:
   - wasm-pack
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
+# Keep in sync with pnpm-workspace.yaml written to temporary fixture dirs in
+# file://./test/lib/create-next-install.js
 minimumReleaseAgeExclude:
   - '@next/*'
   - '@turbo/*'

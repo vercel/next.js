@@ -2,6 +2,7 @@ const os = require('os')
 const path = require('path')
 const execa = require('execa')
 const fs = require('fs-extra')
+const outdent = require('outdent')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
 const { linkPackages } =
@@ -188,6 +189,31 @@ async function createNextInstall({
           null,
           2
         )
+      )
+
+      // pnpm propagates minimumReleaseAge via `npm_config_minimum_release_age`
+      // env variable despite claiming `npm_config` has no effect on pnpm.
+      // Only `pnpm_config_*` should have.
+      // However, it doesn't propagate `minimumReleaseAgeExclude` so we need to
+      // manually propagate those from the minimumReleaseAgeExclude in
+      // file://./../../pnpm-workspace.yaml
+      await fs.writeFile(
+        path.join(installDir, 'pnpm-workspace.yaml'),
+        outdent`
+          minimumReleaseAgeExclude:
+            - '@next/*'
+            - '@turbo/*'
+            - '@vercel/*'
+            - '@workflow/*'
+            - babel-plugin-react-compiler
+            - next
+            - react
+            - react-dom
+            - react-is
+            - react-server-dom-*
+            - scheduler
+            - turbo
+        `
       )
 
       if (beforeInstall !== undefined) {
