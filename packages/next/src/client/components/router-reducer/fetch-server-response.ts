@@ -37,6 +37,7 @@ import {
 } from '../../flight-data-helpers'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
+import { fetchOutputExportFallbackResponse } from '../../output-export-fallback'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
@@ -186,7 +187,7 @@ export async function fetchServerResponse(
     const isLegacyPPR =
       process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
     const shouldImmediatelyDecode = !isLegacyPPR
-    const res = await createFetch<NavigationFlightResponse>(
+    let res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
       'auto',
@@ -201,12 +202,12 @@ export async function fetchServerResponse(
       notifyOnline()
     }
 
-    const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
-    const canonicalUrl = res.redirected ? responseUrl : originalUrl
+    let responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
+    let canonicalUrl = res.redirected ? responseUrl : originalUrl
 
-    const contentType = res.headers.get('content-type') || ''
-    const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    let contentType = res.headers.get('content-type') || ''
+    let interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+    let postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -214,6 +215,41 @@ export async function fetchServerResponse(
         if (!isFlightResponse) {
           isFlightResponse = contentType.startsWith('text/plain')
         }
+      }
+    }
+
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      (!isFlightResponse || !res.ok || !res.body)
+    ) {
+      const fallbackResult = await fetchOutputExportFallbackResponse(
+        originalUrl,
+        {
+          credentials: 'same-origin',
+          headers,
+        }
+      )
+
+      if (fallbackResult !== null) {
+        const fallbackFetch = await createFetch<NavigationFlightResponse>(
+          new URL(fallbackResult.response.url),
+          headers,
+          'auto',
+          shouldImmediatelyDecode
+        )
+
+        res = {
+          ...fallbackFetch,
+          redirected: false,
+          url: originalUrl.href,
+        }
+        responseUrl = originalUrl
+        canonicalUrl = originalUrl
+        contentType = res.headers.get('content-type') || ''
+        interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+        postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+        isFlightResponse = true
       }
     }
 

@@ -845,6 +845,7 @@ export default class DevServer extends Server {
             }
 
             if (
+              fallback === FallbackMode.NOT_FOUND &&
               !prerenderedRoutes.some((item) => item.pathname === urlPathname)
             ) {
               throw new Error(

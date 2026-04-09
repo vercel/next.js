@@ -27,6 +27,11 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
+import {
+  addOutputExportDataSuffix,
+  fetchOutputExportDataResponse,
+  fetchOutputExportFallbackResponse,
+} from './output-export-fallback'
 
 /// <reference types="react-dom/experimental" />
 
@@ -73,6 +78,7 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
+    __NEXT_EXPORT_FALLBACK?: boolean
   }
 }
 
@@ -261,6 +267,46 @@ if (instantTestStaticFetch) {
       fallbackInitialRSCPayload
     )
   )
+} else if (window.__NEXT_EXPORT_FALLBACK) {
+  initialServerResponse = (async () => {
+    const renderedUrl = new URL(window.location.href)
+    const fallbackResult = await fetchOutputExportFallbackResponse(
+      renderedUrl,
+      {
+        credentials: 'same-origin',
+      }
+    )
+
+    const response =
+      fallbackResult?.response ??
+      (await fetchOutputExportDataResponse(
+        new URL('/_not-found', renderedUrl),
+        {
+          credentials: 'same-origin',
+        }
+      )) ??
+      (await fetch(
+        addOutputExportDataSuffix(new URL('/_not-found', renderedUrl)),
+        {
+          credentials: 'same-origin',
+        }
+      ))
+
+    const fallbackInitialRSCPayload = await createFromFetch<InitialRSCPayload>(
+      Promise.resolve(response),
+      {
+        callServer,
+        findSourceMapURL,
+        debugChannel,
+      }
+    )
+
+    return createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      renderedUrl
+    )
+  })()
 } else {
   initialServerResponse = createFromReadableStream<InitialRSCPayload>(
     readable,
@@ -402,7 +448,10 @@ export async function hydrate(
     </StrictModeIfEnabled>
   )
 
-  if (document.documentElement.id === '__next_error__') {
+  if (
+    document.documentElement.id === '__next_error__' ||
+    window.__NEXT_EXPORT_FALLBACK
+  ) {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {

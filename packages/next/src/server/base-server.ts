@@ -48,6 +48,7 @@ import type { InstrumentationModule } from './instrumentation/types'
 import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
+import { isOutputExportOptimisticRoutingEnabled } from '../lib/output-export-dynamic-fallback'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -570,8 +571,9 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
-        optimisticRouting:
-          this.nextConfig.experimental.optimisticRouting ?? false,
+        optimisticRouting: isOutputExportOptimisticRoutingEnabled(
+          this.nextConfig
+        ),
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,

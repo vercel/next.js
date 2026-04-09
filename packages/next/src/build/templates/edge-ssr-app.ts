@@ -23,6 +23,7 @@ import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { interopDefault } from '../../lib/interop-default'
+import { isOutputExportOptimisticRoutingEnabled } from '../../lib/output-export-dynamic-fallback'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
@@ -163,7 +164,7 @@ async function requestHandler(
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
-        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
+        optimisticRouting: isOutputExportOptimisticRoutingEnabled(nextConfig),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

@@ -146,6 +146,52 @@ export default function Page() {
 }
 ```
 
+### Dynamic Routes with Cache Components
+
+When [Cache Components](/docs/app/getting-started/caching) are enabled, dynamic routes in the App Router can use a static export without enumerating every param in [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+
+During `next build`, Next.js renders a shared fallback shell for the route. Param-independent layouts and Server Components are prerendered into the shell, while param-dependent parts of the route render on the client after navigation or page load.
+
+If you export `generateStaticParams`, the returned params are still fully prerendered at build time. Any other param values fall back to the shared shell.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  cacheComponents: true,
+}
+
+module.exports = nextConfig
+```
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
+  const { slug } = await params
+
+  return <ClientPost slug={slug} />
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export default async function Page({ params }) {
+  const { slug } = await params
+
+  return <ClientPost slug={slug} />
+}
+```
+
+To serve unenumerated params on a static host, configure the host's 404 or error document to serve `/_fallback.html` from the export output. For example:
+
+- Nginx: `try_files $uri $uri/ /_fallback.html`
+- Apache: `ErrorDocument 404 /_fallback.html`
+- GitHub Pages: rename `/_fallback.html` to `404.html`
+
+> **Good to know**:
+>
+> - Param-dependent content for fallback routes renders on the client, so use client-side fetching patterns like `fetch`, SWR, or React Query in those parts of the tree.
+> - Direct requests for unenumerated params may initially return a 404 status from the static host before the fallback shell loads.
+> - This mode does not provide ISR. Rebuilding is still required to promote a fallback path to a fully prerendered page.
+
 </AppOnly>
 
 <PagesOnly>
@@ -278,7 +324,6 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 <AppOnly>
 
 - [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
-- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
 - [Route Handlers](/docs/app/api-reference/file-conventions/route) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
