@@ -65,6 +65,9 @@ export default function Page(props) {
         <li>
           <Link href="/another">Visit another page</Link>
         </li>
+        <li>
+          <Link href="/another/third">Visit another third (fallback)</Link>
+        </li>
       </ul>
     </main>
   )
@@ -286,6 +289,102 @@ export default function OrgThreadPage() {
             )
             expect(await browser.elementByCss('h1').text()).toBe(
               'acme:thread-789'
+            )
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('client navigates from a prerendered page to a fallback route', async () => {
+        // Start on a prerendered page (known from generateStaticParams)
+        const browser = await webdriver(port, '/another/first/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          // Client navigate to an unenumerated slug (fallback)
+          await browser.elementByCss('a[href="/another/third/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+
+          // Navigate back to the prerendered page
+          await browser.elementByCss('a[href="/another/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+
+          // Navigate to a different prerendered page
+          await browser.elementByCss('a[href="/another/first/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('client navigates from a fallback route to a prerendered page', async () => {
+        // Start on a fallback route (not in generateStaticParams)
+        const browser = await webdriver(port, '/org/acme/chat/thread-789/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-789'
+            )
+          })
+
+          // Client navigate to a prerendered page (known from generateStaticParams)
+          await browser.elementByCss('a[href="/org/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Org index')
+          })
+
+          await browser
+            .elementByCss('a[href="/org/acme/chat/thread-123/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-123'
+            )
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('navigates from a known prerendered param to an unknown param via client nav then back', async () => {
+        const browser = await webdriver(port, '/org/acme/chat/thread-123/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-123'
+            )
+          })
+
+          // Client navigate to a fallback param
+          await browser
+            .elementByCss('a[href="/org/acme/chat/thread-789/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-789'
+            )
+          })
+
+          // Browser back to the prerendered page
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-123'
             )
           })
         } finally {
