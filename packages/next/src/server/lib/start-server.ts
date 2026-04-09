@@ -374,6 +374,19 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
+      // Agent-rules warning fires BEFORE the banner and Ready line so
+      // it's the very first thing an AI coding agent sees in the
+      // worker output. If we fired it after `Ready in X`, agents would
+      // have already categorized the command as succeeded and would
+      // classify the warning as "trailing noise" — empirically that
+      // bias is stronger than any content framing we put in the
+      // warning itself. Printing before `Ready` forces the warning to
+      // be processed as part of the startup sequence instead of as
+      // post-success trailing output.
+      if (isDev) {
+        warnIfMissingAgentRules(dir)
+      }
+
       // Log basic startup info immediately (before loading config)
       logStartInfo({
         networkUrl,
@@ -507,15 +520,6 @@ export async function startServer(
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
           })
-
-          // Non-fatal warning if the Next.js agent-rules block isn't
-          // installed and an AI coding agent is driving. Fires here
-          // (after the banner/URL/Ready line) rather than in the
-          // parent CLI so we don't drag the `app-info-log` import
-          // chain into every `next dev` cold start. Same function is
-          // called at the end of `next build` — one shared path,
-          // `Log.warn`-based, never blocks startup.
-          warnIfMissingAgentRules(dir)
         }
 
         handlersReady()
