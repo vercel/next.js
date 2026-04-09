@@ -58,8 +58,12 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
  * running from a subdirectory or from the monorepo root will hit
  * this and get a clear "cd into the app directory" message.
  *
- * Returns the resolved `cwd` on success, throws `BadInput` on
- * failure.
+ * Returns the resolved `cwd` on success. Throws a plain `Error` on
+ * failure — this module lives in the `lib/` layer and can't import
+ * `BadInput` from `bin/shared.ts` without inverting the layering, so
+ * callers in the `bin/` layer are expected to catch and rethrow as
+ * `BadInput` when they want the root `next-codemod.ts` error handler
+ * to print just the message instead of a full stack trace.
  */
 export function requireNextProjectDir(cwd: string): string {
   const resolved = path.resolve(cwd)
@@ -180,6 +184,14 @@ export interface BundledDocsWriteResult {
  * Upserts are non-destructive: existing content outside the marker
  * block is preserved. If the canonical block is already present
  * verbatim, the file is reported as `unchanged` and not rewritten.
+ *
+ * Not atomic across the two-file create branch: if `AGENTS.md` writes
+ * successfully and `CLAUDE.md` then throws (ENOSPC, permissions), the
+ * process leaves the freshly-created `AGENTS.md` behind and bubbles
+ * the error. Re-running cleanly recovers — the next invocation takes
+ * the `agentsMdExists` branch and no-ops on the already-present
+ * canonical block — so we accept the transient inconsistency rather
+ * than add cleanup bookkeeping for a cold-path failure mode.
  */
 export function writeBundledDocsAgentFiles(
   projectDir: string
@@ -235,6 +247,20 @@ function upsertFile(filePath: string, block: string): BundledDocsFileAction {
 }
 
 /**
+ * Detect the predominant line-ending style in `content`. Returns
+ * `'\r\n'` if any CRLF is present, `'\n'` otherwise. Used to keep
+ * upserts from introducing mixed EOLs into Windows CRLF files.
+ */
+function detectEol(content: string): '\r\n' | '\n' {
+  return /\r\n/.test(content) ? '\r\n' : '\n'
+}
+
+/** Convert all line endings in `s` to `eol`. */
+function normalizeEol(s: string, eol: '\r\n' | '\n'): string {
+  return s.replace(/\r?\n/g, eol)
+}
+
+/**
  * Given the current contents of an AGENTS.md file and a rendered agent-rules
  * block, return a version that contains the block exactly once. If the
  * markers are already present, the block between them is replaced. Otherwise
@@ -246,15 +272,22 @@ function upsertFile(filePath: string, block: string): BundledDocsFileAction {
  * so projects that ran the pre-bundled-docs version of this codemod end up
  * with a single, current block instead of two stale-and-current blocks
  * coexisting in the same file.
+ *
+ * Preserves the existing file's line-ending style (CRLF or LF) — important
+ * on Windows where stomping `\n` into a CRLF file produces mixed EOLs that
+ * confuse editors, diffs, and `.gitattributes` normalization.
  */
 function upsertAgentRulesBlock(existing: string, block: string): string {
+  const eol = detectEol(existing)
+  const normalizedBlock = normalizeEol(block, eol)
+
   // Migration step: drop the legacy block first. Older projects that ran
   // `agents-md` against a pre-16.2 Next.js still have a `NEXT-AGENTS-MD-*`
   // wrapper around a `.next-docs/`-style doc index. The legacy block points
   // at a directory that probably doesn't exist anymore (or has gone stale
   // versus the bundled docs), so we remove it before injecting the new
   // canonical block. Surrounding content is preserved.
-  existing = stripLegacyAgentRulesBlock(existing)
+  existing = stripLegacyAgentRulesBlock(existing, eol)
 
   const startIdx = existing.indexOf(AGENT_RULES_START_MARKER)
   const endIdx = existing.indexOf(AGENT_RULES_END_MARKER)
@@ -262,20 +295,22 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
     const before = existing.slice(0, startIdx)
     const after = existing.slice(endIdx + AGENT_RULES_END_MARKER.length)
-    const replaced = before + block + after
+    const replaced = before + normalizedBlock + after
     return replaced === existing ? existing : replaced
   }
 
   const separator =
-    existing.length === 0 || existing.endsWith('\n') ? '\n' : '\n\n'
-  return existing + separator + block + '\n'
+    existing.length === 0 || /\r?\n$/.test(existing) ? eol : eol + eol
+  return existing + separator + normalizedBlock + eol
 }
 
 /**
- * Strip the legacy `<!-- NEXT-AGENTS-MD-START -->...<!-- NEXT-AGENTS-MD-END -->`
- * block from a file's contents, including any whitespace immediately
- * surrounding it so we don't leave a stray blank line behind. If no legacy
- * block is present, returns the input unchanged.
+ * Strip any `<!-- NEXT-AGENTS-MD-START -->...<!-- NEXT-AGENTS-MD-END -->`
+ * blocks from a file's contents, including any whitespace immediately
+ * surrounding each block so we don't leave stray blank lines behind. If no
+ * legacy block is present, returns the input unchanged. Loops until every
+ * occurrence is stripped (defensive against a file that somehow acquired
+ * more than one, e.g. via manual edits).
  *
  * The legacy block was written by the pre-bundled-docs version of the
  * `agents-md` codemod, which generated a custom doc index pointing at a
@@ -283,33 +318,42 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
  * were tied to a specific Next.js version and almost certainly no longer
  * match the project's current install, so we drop the entire block when
  * we install the new managed block.
+ *
+ * `eol` is the detected line-ending style of the surrounding file, used
+ * when re-joining the two halves so the re-joined seam doesn't introduce
+ * mixed CRLF/LF into a Windows file.
  */
-function stripLegacyAgentRulesBlock(existing: string): string {
-  const startIdx = existing.indexOf(LEGACY_AGENT_RULES_START_MARKER)
-  if (startIdx === -1) return existing
-  const endIdx = existing.indexOf(LEGACY_AGENT_RULES_END_MARKER, startIdx)
-  if (endIdx === -1) return existing
+function stripLegacyAgentRulesBlock(
+  existing: string,
+  eol: '\r\n' | '\n' = '\n'
+): string {
+  while (true) {
+    const startIdx = existing.indexOf(LEGACY_AGENT_RULES_START_MARKER)
+    if (startIdx === -1) return existing
+    const endIdx = existing.indexOf(LEGACY_AGENT_RULES_END_MARKER, startIdx)
+    if (endIdx === -1) return existing
 
-  // Expand the slice outward to swallow leading/trailing whitespace so we
-  // don't leave a stray blank line where the block used to be.
-  let cutStart = startIdx
-  while (cutStart > 0 && /\s/.test(existing[cutStart - 1])) {
-    cutStart--
-  }
-  let cutEnd = endIdx + LEGACY_AGENT_RULES_END_MARKER.length
-  while (cutEnd < existing.length && /\s/.test(existing[cutEnd])) {
-    cutEnd++
-  }
+    // Expand the slice outward to swallow leading/trailing whitespace so
+    // we don't leave a stray blank line where the block used to be.
+    let cutStart = startIdx
+    while (cutStart > 0 && /\s/.test(existing[cutStart - 1])) {
+      cutStart--
+    }
+    let cutEnd = endIdx + LEGACY_AGENT_RULES_END_MARKER.length
+    while (cutEnd < existing.length && /\s/.test(existing[cutEnd])) {
+      cutEnd++
+    }
 
-  const before = existing.slice(0, cutStart)
-  const after = existing.slice(cutEnd)
+    const before = existing.slice(0, cutStart)
+    const after = existing.slice(cutEnd)
 
-  // Re-join with a single newline if both sides have content, so we don't
-  // accidentally fuse the surrounding paragraphs.
-  if (before.length > 0 && after.length > 0) {
-    return before + '\n\n' + after
+    // Re-join with a single blank line if both sides have content, so we
+    // don't accidentally fuse the surrounding paragraphs.
+    existing =
+      before.length > 0 && after.length > 0
+        ? before + eol + eol + after
+        : before + after
   }
-  return before + after
 }
 
 function versionToGitHubTag(version: string): string {

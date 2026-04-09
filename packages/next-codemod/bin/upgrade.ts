@@ -435,7 +435,19 @@ export async function runUpgrade(
   // does for new projects so existing projects pick up the agent
   // rules as a natural side effect of upgrading. No-op on older
   // versions without bundled docs.
-  const projectDir = requireNextProjectDir(cwd)
+  //
+  // `requireNextProjectDir` throws a plain `Error` (it lives in the
+  // `lib/` layer and can't import `BadInput`), so we wrap it to get
+  // the clean "print just the message" path in `next-codemod.ts`.
+  // Should never actually fire here because `getInstalledNextVersion`
+  // validated the same condition earlier — defense in depth so a
+  // future reorder doesn't leak a stack trace to users.
+  let projectDir: string
+  try {
+    projectDir = requireNextProjectDir(cwd)
+  } catch (err) {
+    throw new BadInput((err as Error).message)
+  }
   if (hasBundledDocs(projectDir)) {
     const result = writeBundledDocsAgentFiles(projectDir)
     const touched: string[] = []

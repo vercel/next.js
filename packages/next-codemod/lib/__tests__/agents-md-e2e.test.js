@@ -52,13 +52,10 @@ describe('agents-md e2e (CLI invocation)', () => {
   let consoleOutput
 
   beforeEach(() => {
-    // Create isolated test project directory
+    // Create an isolated test project dir via `mkdtempSync` so parallel
+    // workers can't collide on the same path.
     const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
-    testProjectDir = path.join(
-      tmpBase,
-      `agents-md-e2e-${Date.now()}-${(Math.random() * 1000) | 0}`
-    )
-    fs.mkdirSync(testProjectDir, { recursive: true })
+    testProjectDir = fs.mkdtempSync(path.join(tmpBase, 'agents-md-e2e-'))
 
     // Mock console.log to capture CLI output
     originalConsoleLog = console.log
@@ -331,9 +328,8 @@ This is my project documentation.
 
     beforeEach(() => {
       const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
-      fixtureProjectDir = path.join(
-        tmpBase,
-        `agents-md-bundled-${Date.now()}-${(Math.random() * 1000) | 0}`
+      fixtureProjectDir = fs.mkdtempSync(
+        path.join(tmpBase, 'agents-md-bundled-')
       )
       copyFixture(BUNDLED_FIXTURE_DIR, fixtureProjectDir)
     })
@@ -553,6 +549,102 @@ Custom rules below.
       }
     })
 
+    it('strips multiple legacy NEXT-AGENTS-MD blocks when several coexist', async () => {
+      // Defensive: if a file somehow acquired two legacy blocks (e.g.
+      // a manual paste or an interrupted earlier run), both should be
+      // stripped in a single pass. Surrounding user content is
+      // preserved.
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingClaude = `# My Project
+
+Top section.
+
+<!-- NEXT-AGENTS-MD-START -->first stale payload<!-- NEXT-AGENTS-MD-END -->
+
+Middle section.
+
+<!-- NEXT-AGENTS-MD-START -->second stale payload<!-- NEXT-AGENTS-MD-END -->
+
+Bottom section.
+`
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'CLAUDE.md'),
+        existingClaude
+      )
+
+      try {
+        await runUpgradeAgentsMd()
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+
+        // All user sections preserved.
+        expect(claudeMdContent).toContain('# My Project')
+        expect(claudeMdContent).toContain('Top section.')
+        expect(claudeMdContent).toContain('Middle section.')
+        expect(claudeMdContent).toContain('Bottom section.')
+
+        // Neither legacy payload survives.
+        expect(claudeMdContent).not.toContain('<!-- NEXT-AGENTS-MD-START -->')
+        expect(claudeMdContent).not.toContain('<!-- NEXT-AGENTS-MD-END -->')
+        expect(claudeMdContent).not.toContain('first stale payload')
+        expect(claudeMdContent).not.toContain('second stale payload')
+
+        // Exactly one canonical block.
+        const matches = claudeMdContent.match(
+          new RegExp(AGENT_RULES_START_MARKER, 'g')
+        )
+        expect(matches).toHaveLength(1)
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('preserves CRLF line endings when upserting into a Windows-style file', async () => {
+      // On Windows, existing `AGENTS.md` / `CLAUDE.md` files commonly
+      // use CRLF. If the upsert stomps `\n` into a CRLF file, the
+      // result ends up with mixed EOLs that confuse editors, diffs,
+      // and `.gitattributes` normalization. The upsert must detect
+      // the existing EOL style and match it.
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      const existingAgents =
+        '# My Project\r\n\r\nCustom team instructions.\r\n\r\n- Use tabs.\r\n'
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'AGENTS.md'),
+        existingAgents
+      )
+
+      try {
+        await runUpgradeAgentsMd()
+
+        const agentsMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'AGENTS.md'),
+          'utf-8'
+        )
+
+        // User content preserved verbatim, CRLF and all.
+        expect(agentsMdContent).toContain('# My Project\r\n')
+        expect(agentsMdContent).toContain('Custom team instructions.\r\n')
+
+        // Canonical block landed.
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(agentsMdContent).toContain('node_modules/next/dist/docs/')
+
+        // No lone LFs introduced: every `\n` must be preceded by `\r`.
+        // `match(/(?<!\r)\n/g)` would catch any LF that isn't part of a
+        // CRLF pair.
+        expect(agentsMdContent.match(/(?<!\r)\n/g)).toBeNull()
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
     it('replaces the agent-rules block in place when the marker is already present', async () => {
       const originalCwd = process.cwd()
       process.chdir(fixtureProjectDir)
@@ -665,9 +757,8 @@ Footer content.
 
     beforeEach(() => {
       const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
-      monorepoProjectDir = path.join(
-        tmpBase,
-        `agents-md-monorepo-${Date.now()}-${(Math.random() * 1000) | 0}`
+      monorepoProjectDir = fs.mkdtempSync(
+        path.join(tmpBase, 'agents-md-monorepo-')
       )
       copyFixture(MONOREPO_FIXTURE_DIR, monorepoProjectDir)
     })
