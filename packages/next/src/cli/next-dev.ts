@@ -132,7 +132,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
-    let telemetry =
+    const telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
       >) ||
@@ -164,9 +164,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       distDir,
       isTurboSession: isTurbopack,
     })
-  }
 
-  writeDevState()
+    writeDevState()
+  }
 
   // Save CPU profile if it was enabled (before exiting)
   saveCpuProfile()
