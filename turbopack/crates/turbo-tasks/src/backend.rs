@@ -29,10 +29,17 @@ use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
-    VcValueTrait, VcValueType, event::EventListener, macro_helpers::NativeFunction,
-    magic_any::MagicAny, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
-    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi, turbo_tasks,
+    TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId, VcValueTrait,
+    VcValueType,
+    event::EventListener,
+    macro_helpers::NativeFunction,
+    magic_any::MagicAny,
+    manager::{TaskExecutionOrder, TurboTasksBackendApi},
+    raw_vc::CellId,
+    registry,
+    task::shared_reference::TypedSharedReference,
+    task_statistics::TaskStatisticsApi,
+    turbo_tasks,
 };
 
 pub type TransientTaskRoot =
@@ -504,7 +511,7 @@ pub trait Backend: Sync + Send {
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
-        priority: TaskPriority,
+        execution_order: TaskExecutionOrder,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Option<TaskExecutionSpec<'a>>;
 

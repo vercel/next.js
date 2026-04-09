@@ -9,7 +9,7 @@ use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
-    CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
+    CellId, RawVc, TaskExecutionOrder, TaskExecutionReason, TaskId, TraitTypeId,
     backend::TransientTaskRoot,
     event::{Event, EventDescription, EventListener},
 };
@@ -214,7 +214,7 @@ transient_traits!(TransientTask);
 
 #[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty(TaskPriority),
+    Dirty(TaskExecutionOrder),
     SessionDependent,
 }
 

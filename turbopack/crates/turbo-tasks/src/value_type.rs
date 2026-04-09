@@ -10,10 +10,11 @@ use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
-    RawVc, SharedReference, TaskPriority, VcValueType,
+    RawVc, SharedReference, VcValueType,
     id::TraitTypeId,
     macro_helpers::{CollectableTraitMethods, NativeFunction},
     magic_any::any_as_encode,
+    manager::TaskExecutionOrder,
     registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
@@ -244,11 +245,11 @@ impl TraitMethod {
         unsafe { TraitTypeId::new_unchecked(raw) }
     }
 
-    pub(crate) fn resolve_span(&self, priority: TaskPriority) -> Span {
+    pub(crate) fn resolve_span(&self, execution_order: TaskExecutionOrder) -> Span {
         tracing::trace_span!(
             "turbo_tasks::resolve_trait_call",
             name = format_args!("{}::{}", &self.trait_name, &self.method_name),
-            priority = %priority,
+            execution_order = %execution_order,
         )
     }
 }

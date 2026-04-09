@@ -24,7 +24,7 @@ use tracing::span::Span;
 ))]
 use tracing::trace_span;
 use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
+    FxIndexMap, TaskExecutionOrder, TaskExecutionReason, TaskId, backend::CachedTaskType,
     event::EventDescription,
 };
 
@@ -863,7 +863,7 @@ pub struct AggregationUpdateQueue {
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
     #[bincode(skip, default = "FxHashMap::default")]
-    scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    scheduled_tasks: FxHashMap<TaskId, TaskExecutionOrder>,
 }
 
 impl AggregationUpdateQueue {
@@ -1479,7 +1479,7 @@ impl AggregationUpdateQueue {
         } else if !task.has_output() {
             Some((
                 TaskExecutionReason::ActivateInitial,
-                ctx.get_current_task_priority(),
+                ctx.get_current_task_execution_order(),
             ))
         } else {
             None

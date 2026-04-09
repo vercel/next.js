@@ -248,10 +248,10 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
     /// Schedule a task for execution.
-    fn schedule(&self, task: TaskId, priority: TaskPriority);
+    fn schedule(&self, task: TaskId, execution_order: TaskExecutionOrder);
 
-    /// Returns the priority of the current task.
-    fn get_current_task_priority(&self) -> TaskPriority;
+    /// Returns the execution order of the current task.
+    fn get_current_task_execution_order(&self) -> TaskExecutionOrder;
 
     /// Schedule a foreground backend job for execution.
     fn schedule_backend_foreground_job(&self, job: B::BackendJob);
@@ -408,19 +408,22 @@ impl Display for ReadTracking {
     }
 }
 
+/// The aimed execution order of scheduled tasks. Tasks with lower values will be executed first.
 #[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub enum TaskPriority {
+pub enum TaskExecutionOrder {
+    Invalidation {
+        phase: u32,
+        leaf_distance: u32,
+    },
     #[default]
     Initial,
-    Invalidation {
-        priority: Reverse<u32>,
-    },
 }
 
-impl TaskPriority {
-    pub fn invalidation(priority: u32) -> Self {
+impl TaskExecutionOrder {
+    pub fn invalidation(leaf_distance: u32) -> Self {
         Self::Invalidation {
-            priority: Reverse(priority),
+            phase: 0,
+            leaf_distance,
         }
     }
 
@@ -430,21 +433,34 @@ impl TaskPriority {
 
     pub fn leaf() -> Self {
         Self::Invalidation {
-            priority: Reverse(0),
+            phase: 0,
+            leaf_distance: 0,
         }
     }
 
-    pub fn in_parent(&self, parent_priority: TaskPriority) -> Self {
+    pub fn in_parent(&self, parent_task_execution_order: TaskExecutionOrder) -> Self {
         match self {
-            TaskPriority::Initial => parent_priority,
-            TaskPriority::Invalidation { priority } => {
-                if let TaskPriority::Invalidation {
-                    priority: parent_priority,
-                } = parent_priority
-                    && priority.0 < parent_priority.0
+            TaskExecutionOrder::Initial => parent_task_execution_order,
+            TaskExecutionOrder::Invalidation {
+                phase,
+                leaf_distance,
+            } => {
+                if let TaskExecutionOrder::Invalidation {
+                    phase: parent_phase,
+                    leaf_distance: parent_leaf_distance,
+                } = parent_task_execution_order
                 {
+                    // We want to keep leaf distance, but adjust the phase so that the whole task
+                    // execution order is after the parent task
+                    let phase = parent_phase.max(*phase);
+                    let phase = if parent_leaf_distance > *leaf_distance {
+                        phase + 1
+                    } else {
+                        phase
+                    };
                     Self::Invalidation {
-                        priority: Reverse(parent_priority.0.saturating_add(1)),
+                        phase,
+                        leaf_distance: *leaf_distance,
                     }
                 } else {
                     *self
@@ -454,11 +470,20 @@ impl TaskPriority {
     }
 }
 
-impl Display for TaskPriority {
+impl Display for TaskExecutionOrder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TaskPriority::Initial => write!(f, "initial"),
-            TaskPriority::Invalidation { priority } => write!(f, "invalidation({})", priority.0),
+            TaskExecutionOrder::Initial => write!(f, "initial"),
+            TaskExecutionOrder::Invalidation {
+                phase,
+                leaf_distance,
+            } => {
+                write!(
+                    f,
+                    "invalidation(phase: {}, leaf_distance: {})",
+                    phase, leaf_distance
+                )
+            }
         }
     }
 }
@@ -487,8 +512,14 @@ pub struct TurboTasks<B: Backend + 'static> {
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
-    priority_runner:
-        Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
+    priority_runner: Arc<
+        PriorityRunner<
+            TurboTasks<B>,
+            ScheduledTask,
+            Reverse<TaskExecutionOrder>,
+            TurboTasksExecutor,
+        >,
+    >,
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
     /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
@@ -517,7 +548,7 @@ type LocalTaskTracker = Option<
 struct CurrentTaskState {
     task_id: Option<TaskId>,
     execution_id: ExecutionId,
-    priority: TaskPriority,
+    execution_order: TaskExecutionOrder,
 
     /// True if the current task has state in cells (interior mutability).
     /// Only tracked when verify_determinism feature is enabled.
@@ -549,13 +580,13 @@ impl CurrentTaskState {
     fn new(
         task_id: TaskId,
         execution_id: ExecutionId,
-        priority: TaskPriority,
+        execution_order: TaskExecutionOrder,
         in_top_level_task: bool,
     ) -> Self {
         Self {
             task_id: Some(task_id),
             execution_id,
-            priority,
+            execution_order,
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
@@ -568,13 +599,13 @@ impl CurrentTaskState {
 
     fn new_temporary(
         execution_id: ExecutionId,
-        priority: TaskPriority,
+        execution_order: TaskExecutionOrder,
         in_top_level_task: bool,
     ) -> Self {
         Self {
             task_id: None,
             execution_id,
-            priority,
+            execution_order,
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
@@ -693,7 +724,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule(id, TaskExecutionOrder::initial());
         id
     }
 
@@ -718,7 +749,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule(id, TaskExecutionOrder::initial());
     }
 
     pub async fn run_once<T: TraceRawVcs + Send + 'static>(
@@ -747,7 +778,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let execution_id = self.execution_id_factory.wrapping_get();
         let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new_temporary(
             execution_id,
-            TaskPriority::initial(),
+            TaskExecutionOrder::initial(),
             true, // in_top_level_task
         )));
 
@@ -866,7 +897,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+    pub(crate) fn schedule(&self, task_id: TaskId, execution_order: TaskExecutionOrder) {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
@@ -876,7 +907,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 task_id,
                 span: Span::current(),
             },
-            priority,
+            Reverse(execution_order),
         );
     }
 
@@ -898,7 +929,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 (
                     Arc::clone(gts),
                     gts_write.execution_id,
-                    gts_write.priority,
+                    gts_write.execution_order,
                     local_task_id,
                 )
             });
@@ -912,7 +943,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 global_task_state: global_task_state.clone(),
                 span: Span::current(),
             },
-            priority,
+            Reverse(priority),
         );
         global_task_state
             .write()
@@ -1194,14 +1225,16 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
 struct TurboTasksExecutor;
 
-impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
+impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, Reverse<TaskExecutionOrder>>
+    for TurboTasksExecutor
+{
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
         &self,
         this: &Arc<TurboTasks<B>>,
         scheduled_task: ScheduledTask,
-        priority: TaskPriority,
+        Reverse(execution_order): Reverse<TaskExecutionOrder>,
     ) -> Self::Future {
         match scheduled_task {
             ScheduledTask::Task { task_id, span } => {
@@ -1216,7 +1249,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
                             task_id,
                             execution_id,
-                            priority,
+                            execution_order,
                             false, // in_top_level_task
                         )));
                         let single_execution_future = async {
@@ -1227,7 +1260,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
 
                             let Some(TaskExecutionSpec { future, span }) = this
                                 .backend
-                                .try_start_task_execution(task_id, priority, &*this)
+                                .try_start_task_execution(task_id, execution_order, &*this)
                             else {
                                 return false;
                             };
@@ -1282,10 +1315,10 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                 let future = async move {
                     let span = match &ty.task_type {
                         LocalTaskType::ResolveNative { native_fn } => {
-                            native_fn.resolve_span(priority)
+                            native_fn.resolve_span(execution_order)
                         }
                         LocalTaskType::ResolveTrait { trait_method } => {
-                            trait_method.resolve_span(priority)
+                            trait_method.resolve_span(execution_order)
                         }
                     };
                     async move {
@@ -1669,14 +1702,14 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     #[track_caller]
-    fn schedule(&self, task: TaskId, priority: TaskPriority) {
-        self.schedule(task, priority)
+    fn schedule(&self, task: TaskId, execution_order: TaskExecutionOrder) {
+        self.schedule(task, execution_order)
     }
 
-    fn get_current_task_priority(&self) -> TaskPriority {
+    fn get_current_task_execution_order(&self) -> TaskExecutionOrder {
         CURRENT_TASK_STATE
-            .try_with(|task_state| task_state.read().unwrap().priority)
-            .unwrap_or(TaskPriority::initial())
+            .try_with(|task_state| task_state.read().unwrap().execution_order)
+            .unwrap_or(TaskExecutionOrder::initial())
     }
 
     fn program_duration_until(&self, instant: Instant) -> Duration {
@@ -1893,7 +1926,7 @@ pub fn with_turbo_tasks_for_testing<T>(
             Arc::new(RwLock::new(CurrentTaskState::new(
                 current_task,
                 execution_id,
-                TaskPriority::initial(),
+                TaskExecutionOrder::initial(),
                 false, // in_top_level_task
             ))),
             f,

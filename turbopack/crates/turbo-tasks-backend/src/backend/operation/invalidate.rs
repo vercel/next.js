@@ -251,15 +251,15 @@ pub fn make_task_dirty_internal(
             )
             .entered();
             // already dirty
-            let parent_priority = ctx.get_current_task_priority();
-            if *current_priority >= parent_priority {
+            let parent_priority = ctx.get_current_task_execution_order();
+            if *current_priority < parent_priority {
                 // Update the priority to be the lower one
                 task.set_dirty(Dirtyness::Dirty(parent_priority));
             }
             return;
         }
         Some(Dirtyness::SessionDependent) => {
-            let parent_priority = ctx.get_current_task_priority();
+            let parent_priority = ctx.get_current_task_execution_order();
             task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = task.current_session_clean();
@@ -281,7 +281,7 @@ pub fn make_task_dirty_internal(
             }
         }
         None => {
-            let parent_priority = ctx.get_current_task_priority();
+            let parent_priority = ctx.get_current_task_execution_order();
             task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was clean before, so we need to increase the dirty count
             (false, false, parent_priority)

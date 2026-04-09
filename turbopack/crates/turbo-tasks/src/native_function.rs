@@ -8,9 +8,10 @@ use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
 use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     macro_helpers::into_task_fn,
     magic_any::{MagicAny, any_as_encode},
+    manager::TaskExecutionOrder,
     registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
@@ -248,7 +249,7 @@ impl NativeFunction {
         &'static self,
         persistence: TaskPersistence,
         reason: TaskExecutionReason,
-        priority: TaskPriority,
+        execution_order: TaskExecutionOrder,
     ) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
@@ -257,14 +258,14 @@ impl NativeFunction {
         tracing::trace_span!(
             "turbo_tasks::function",
             name = self.ty.name,
-            priority = %priority,
+            execution_order = %execution_order,
             flags = flags,
             reason = reason.as_str()
         )
     }
 
-    pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
+    pub fn resolve_span(&'static self, execution_order: TaskExecutionOrder) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, execution_order = %execution_order)
     }
 }
 
