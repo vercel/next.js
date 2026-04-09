@@ -1019,30 +1019,6 @@ async function exportAppImpl(
 
     const fallbackHtmlPaths: string[] = []
 
-    // Check for route name collisions with __fallback
-    const fallbackPaths = new Set<string>()
-    for (const [dynamicRoute, prerenderInfo] of Object.entries(
-      prerenderManifest.dynamicRoutes
-    )) {
-      if (
-        prerenderInfo.fallbackRouteParams &&
-        prerenderInfo.fallbackRouteParams.length > 0
-      ) {
-        const path = getFallbackExportPath(dynamicRoute)
-        if (path) fallbackPaths.add(path)
-      }
-    }
-
-    for (const route of Object.keys(prerenderManifest.routes)) {
-      if (fallbackPaths.has(route)) {
-        throw new ExportError(
-          `The route "${route}" conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode. ` +
-            `Please rename this route to something else.\n\n` +
-            `Learn more: https://nextjs.org/docs/app/guides/static-exports`
-        )
-      }
-    }
-
     await Promise.all(
       Object.entries(prerenderManifest.dynamicRoutes).map(
         async ([dynamicRoute, prerenderInfo]) => {
@@ -1094,6 +1070,16 @@ async function exportAppImpl(
             outDir,
             `${route}${subFolders && route !== '/index' ? `${sep}index` : ''}.txt`
           )
+
+          // Check for route name collision: a user-defined route may
+          // already occupy the __fallback path (e.g. app/blog/__fallback/page.js)
+          if (existsSync(htmlDest) || existsSync(jsonDest)) {
+            throw new ExportError(
+              `The route "${fallbackRoute}" conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode. ` +
+                `Please rename this route to something else.\n\n` +
+                `Learn more: https://nextjs.org/docs/app/guides/static-exports`
+            )
+          }
 
           await fs.mkdir(dirname(htmlDest), { recursive: true })
           await fs.mkdir(dirname(jsonDest), { recursive: true })

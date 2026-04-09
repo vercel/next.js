@@ -1157,5 +1157,8 @@
   "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed.",
   "1157": "`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.",
   "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable.",
-  "1159": "The route \"%s\" conflicts with the internal \"__fallback\" path used by dynamic route fallbacks in static export mode. Please rename this route to something else.\\n\\nLearn more: https://nextjs.org/docs/app/guides/static-exports"
+  "1159": "The route \"%s\" conflicts with the internal \"__fallback\" path used by dynamic route fallbacks in static export mode. Please rename this route to something else.\\n\\nLearn more: https://nextjs.org/docs/app/guides/static-exports",
+  "1160": "Page \"%s\" is missing param \"%s\" in \"generateStaticParams()\", which is required with \"output: export\" config. To support unenumerated params, enable Cache Components (cacheComponents: true). Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes",
+  "1161": "Page \"%s\" is missing exported function \"generateStaticParams()\", which is required with \"output: export\" config. To support dynamic routes without enumerating every param, enable Cache Components (cacheComponents: true). Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes",
+  "1162": "Page \"%s\" is missing \"generateStaticParams()\" so it cannot be used with \"output: export\" config. Either add generateStaticParams() to enumerate all params, or enable Cache Components (cacheComponents: true) to support dynamic route fallbacks without enumerating every param. Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes"
 }
