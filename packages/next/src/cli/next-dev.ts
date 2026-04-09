@@ -85,40 +85,6 @@ const DEV_STATE_FILE = path.join(
   'dev-state.json'
 )
 
-function writeDevState(): void {
-  if (!traceUploadUrl || !dir) return
-  try {
-    fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
-
-    let state: Record<string, { stopTime: number; distDirPath: string }> = {}
-    try {
-      state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
-    } catch {
-      // File missing or corrupt — start with empty state
-    }
-
-    // Eagerly remove entries older than the threshold
-    const cutoff = Date.now() - RAGE_RESTART_THRESHOLD_MS
-    for (const key of Object.keys(state)) {
-      if (!state[key]?.stopTime || state[key].stopTime < cutoff) {
-        delete state[key]
-      }
-    }
-
-    // Update current project
-    state[dir] = {
-      stopTime: Date.now(),
-      distDirPath: path.join(dir, distDir ?? '.next'),
-    }
-
-    const { sync: writeFileAtomicSync } =
-      require('next/dist/compiled/write-file-atomic') as typeof import('next/dist/compiled/write-file-atomic')
-    writeFileAtomicSync(DEV_STATE_FILE, JSON.stringify(state))
-  } catch {
-    // Best effort — don't interfere with shutdown
-  }
-}
-
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
 const CHILD_EXIT_TIMEOUT_MS = parseInt(
@@ -530,6 +496,40 @@ const nextDev = async (
   }
 
   await runDevServer(false)
+}
+
+function writeDevState(): void {
+  if (!traceUploadUrl || !dir) return
+  try {
+    fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
+
+    let state: Record<string, { stopTime: number; distDirPath: string }> = {}
+    try {
+      state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
+    } catch {
+      // File missing or corrupt — start with empty state
+    }
+
+    // Eagerly remove entries older than the threshold
+    const cutoff = Date.now() - RAGE_RESTART_THRESHOLD_MS
+    for (const key of Object.keys(state)) {
+      if (!state[key]?.stopTime || state[key].stopTime < cutoff) {
+        delete state[key]
+      }
+    }
+
+    // Update current project
+    state[dir] = {
+      stopTime: Date.now(),
+      distDirPath: path.join(dir, distDir ?? '.next'),
+    }
+
+    const { sync: writeFileAtomicSync } =
+      require('next/dist/compiled/write-file-atomic') as typeof import('next/dist/compiled/write-file-atomic')
+    writeFileAtomicSync(DEV_STATE_FILE, JSON.stringify(state))
+  } catch {
+    // Best effort — don't interfere with shutdown
+  }
 }
 
 export { nextDev }
