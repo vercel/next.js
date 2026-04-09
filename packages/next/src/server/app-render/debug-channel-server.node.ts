@@ -6,14 +6,14 @@
 import { PassThrough, Writable } from 'node:stream'
 import type { DebugChannelPair } from './debug-channel-server.web'
 
-export function createDebugChannel(): DebugChannelPair | undefined {
-  if (process.env.NODE_ENV === 'production') {
-    return undefined
-  }
-  return createNodeDebugChannel()
-}
+export { createWebDebugChannel } from './debug-channel-server.web'
 
-function createNodeDebugChannel(): DebugChannelPair {
+/**
+ * Creates a debug channel using Node.js streams.
+ * Use with renderToNodeFlightStream (React's renderToPipeableStream),
+ * which expects debugChannel to be a Node.js stream with a .write() method.
+ */
+export function createNodeDebugChannel(): DebugChannelPair {
   const readable = new PassThrough()
 
   // Use a plain Writable instead of exposing the PassThrough directly.

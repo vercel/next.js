@@ -84,6 +84,7 @@ export function makeGetServerInsertedHTML({
       return ''
     }
 
+    // TODO: This should use Node streams when __NEXT_USE_NODE_STREAMS is true
     const stream = await renderToReadableStream(
       <>
         {polyfillTags}

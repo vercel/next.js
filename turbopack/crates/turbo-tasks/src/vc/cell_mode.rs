@@ -1,5 +1,7 @@
 use std::{any::type_name, marker::PhantomData};
 
+use turbo_tasks_hash::DeterministicHash;
+
 use super::{read::VcRead, traits::VcValueType};
 use crate::{
     RawVc, Vc, backend::VerificationMode, keyed::KeyedEq, manager::find_cell_by_type,
@@ -119,4 +121,32 @@ fn debug_assert_type<T: VcValueType>(content: &TypedSharedReference) {
         "SharedReference for type {} must contain data matching that type",
         type_name::<T>(),
     );
+}
+
+/// Mode that compares the cell's content with the new value and only updates
+/// if the new value is different, using both PartialEq (when old content is available)
+/// and a stored hash (when old content has been evicted from memory) for comparison.
+pub struct VcCellHashedCompareMode<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<T> VcCellMode<T> for VcCellHashedCompareMode<T>
+where
+    T: VcValueType + PartialEq + DeterministicHash,
+{
+    fn cell(inner: VcReadTarget<T>) -> Vc<T> {
+        let cell = find_cell_by_type::<T>();
+        cell.hashed_compare_and_update(<T::Read as VcRead<T>>::target_to_value(inner));
+        Vc {
+            node: cell.into(),
+            _t: PhantomData,
+        }
+    }
+
+    fn raw_cell(content: TypedSharedReference) -> RawVc {
+        debug_assert_type::<T>(&content);
+        let cell = find_cell_by_type::<T>();
+        cell.hashed_compare_and_update_with_shared_reference::<T>(content.reference);
+        cell.into()
+    }
 }

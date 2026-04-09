@@ -10,22 +10,17 @@ export type DebugChannelPair = {
   clientSide: DebugChannelClient
 }
 
-// Opaque: PassThrough on node, { writable: WritableStream } on web.
-// Each React render API handles its own variant.
-
 export type DebugChannelServer = any
 
 type DebugChannelClient = {
   readable: AnyStream
 }
 
-export function createDebugChannel(): DebugChannelPair | undefined {
-  if (process.env.NODE_ENV === 'production') {
-    return undefined
-  }
-  return createWebDebugChannel()
-}
-
+/**
+ * Creates a debug channel using web WritableStream/ReadableStream.
+ * Use with renderToWebFlightStream (React's renderToReadableStream),
+ * which expects debugChannel = { writable: WritableStream }.
+ */
 export function createWebDebugChannel(): DebugChannelPair {
   let readableController: ReadableStreamDefaultController | undefined
 
@@ -51,4 +46,13 @@ export function createWebDebugChannel(): DebugChannelPair {
     },
     clientSide: { readable: clientSideReadable },
   }
+}
+
+/**
+ * Creates a debug channel using Node.js streams.
+ * Use with renderToNodeFlightStream (React's renderToPipeableStream),
+ * which expects debugChannel to be a Node.js stream with a .write() method.
+ */
+export function createNodeDebugChannel(): DebugChannelPair {
+  throw new Error('not implemented')
 }
