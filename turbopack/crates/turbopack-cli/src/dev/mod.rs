@@ -1,26 +1,30 @@
 use std::{
     env::current_dir,
-    future::{join, Future},
-    io::{stdout, Write},
+    future::{Future, join},
+    io::{Write, stdout},
     net::{IpAddr, SocketAddr},
-    path::{PathBuf, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result};
+use either::Either;
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
+    trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
-    ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_backend::{
-    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
+    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
+use turbo_unix_path::join_path;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -29,16 +33,16 @@ use turbopack_core::{
     server_fs::ServerFileSystem,
 };
 use turbopack_dev_server::{
+    DevServer, DevServerBuilder, SourceProvider,
     introspect::IntrospectionSource,
     source::{
-        combined::CombinedContentSource, router::PrefixedRouterContentSource,
-        static_assets::StaticAssetsContentSource, ContentSource,
+        ContentSource, combined::CombinedContentSource, router::PrefixedRouterContentSource,
+        static_assets::StaticAssetsContentSource,
     },
-    DevServer, DevServerBuilder, NonLocalSourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use self::web_entry_source::create_web_entry_source;
@@ -46,13 +50,13 @@ use crate::{
     arguments::DevArguments,
     contexts::NodeEnv,
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
+        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
     },
 };
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<NoopBackingStorage>;
+type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
 
 pub struct TurbopackDevServerBuilder {
     turbo_tasks: Arc<TurboTasks<Backend>>,
@@ -158,29 +162,30 @@ impl TurbopackDevServerBuilder {
             let addr = SocketAddr::new(host, current_port);
             let listen_result = DevServer::listen(addr);
 
-            if let Err(e) = &listen_result {
-                if self.allow_retry && attempts < max_attempts {
-                    // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
-                    // so we need to access its source to check if it is
-                    // `std::io::ErrorKind::AddrInUse`.
-                    let should_retry = e
-                        .source()
-                        .and_then(|e| {
-                            e.downcast_ref::<std::io::Error>()
-                                .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                        })
-                        .unwrap_or(false);
+            if let Err(e) = &listen_result
+                && self.allow_retry
+                && attempts < max_attempts
+            {
+                // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
+                // so we need to access its source to check if it is
+                // `std::io::ErrorKind::AddrInUse`.
+                let should_retry = e
+                    .source()
+                    .and_then(|e| {
+                        e.downcast_ref::<std::io::Error>()
+                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                    })
+                    .unwrap_or(false);
 
-                    if should_retry {
-                        println!(
-                            "{} - Port {} is in use, trying {} instead",
-                            "warn ".yellow(),
-                            current_port,
-                            current_port + 1
-                        );
-                        attempts += 1;
-                        continue;
-                    }
+                if should_retry {
+                    println!(
+                        "{} - Port {} is in use, trying {} instead",
+                        "warn ".yellow(),
+                        current_port,
+                        current_port + 1
+                    );
+                    attempts += 1;
+                    continue;
                 }
             }
 
@@ -208,24 +213,39 @@ impl TurbopackDevServerBuilder {
             log_detail,
             log_level: self.log_level,
         });
-        let entry_requests = TransientInstance::new(self.entry_requests);
+        let entry_requests = Arc::new(self.entry_requests);
         let tasks = turbo_tasks.clone();
         let issue_provider = self.issue_reporter.unwrap_or_else(|| {
             // Initialize a ConsoleUi reporter if no custom reporter was provided
             Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
-        let source = move || {
-            source(
-                root_dir.clone(),
-                project_dir.clone(),
-                entry_requests.clone(),
-                eager_compile,
-                browserslist_query.clone(),
-            )
+        #[derive(Clone, TraceRawVcs, NonLocalValue)]
+        struct ServerSourceProvider {
+            root_dir: RcStr,
+            project_dir: RcStr,
+            entry_requests: Arc<Vec<EntryRequest>>,
+            eager_compile: bool,
+            browserslist_query: RcStr,
+        }
+        impl SourceProvider for ServerSourceProvider {
+            fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
+                source(
+                    self.root_dir.clone(),
+                    self.project_dir.clone(),
+                    self.entry_requests.clone(),
+                    self.eager_compile,
+                    self.browserslist_query.clone(),
+                )
+            }
+        }
+        let source = ServerSourceProvider {
+            root_dir,
+            project_dir,
+            entry_requests,
+            eager_compile,
+            browserslist_query,
         };
-        // safety: Everything that `source` captures in its closure is a `NonLocalValue`
-        let source = unsafe { NonLocalSourceProvider::new(source) };
 
         let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
         Ok(server.serve(tasks, source, issue_reporter_arc))
@@ -236,7 +256,7 @@ impl TurbopackDevServerBuilder {
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,
-    entry_requests: TransientInstance<Vec<EntryRequest>>,
+    entry_requests: Arc<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
@@ -248,59 +268,60 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
-    let root_path = fs.root().to_resolved().await?;
-    let project_path = root_path.join(project_relative).to_resolved().await?;
+    const OUTPUT_DIR: &str = ".turbopack/build";
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(
+        root_dir,
+        /* watch= */ true,
+        join_path(project_relative.as_str(), OUTPUT_DIR)
+            .unwrap()
+            .into(),
+    );
+    let root_path = fs.root().owned().await?;
+    let project_path = root_path.join(&project_relative)?;
 
-    let env = load_env(*root_path);
-    let build_output_root = output_fs
-        .root()
-        .join(".turbopack/build".into())
-        .to_resolved()
-        .await?;
+    let env = load_env(root_path.clone());
+    let build_output_root = output_fs.root().await?.join(OUTPUT_DIR)?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build".into())
-        .await?
-        .get_relative_path_to(&*root_path.await?)
+        .join(OUTPUT_DIR)?
+        .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
-    let build_output_root_to_root_path = ResolvedVc::cell(build_output_root_to_root_path);
+    let build_output_root_to_root_path = build_output_root_to_root_path;
 
     let build_chunking_context = NodeJsChunkingContext::builder(
-        root_path,
-        build_output_root,
+        root_path.clone(),
+        build_output_root.clone(),
         build_output_root_to_root_path,
-        build_output_root,
-        build_output_root
-            .join("chunks".into())
-            .to_resolved()
-            .await?,
-        build_output_root
-            .join("assets".into())
-            .to_resolved()
-            .await?,
+        build_output_root.clone(),
+        build_output_root.join("chunks")?,
+        build_output_root.join("assets")?,
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
     .build();
 
-    let execution_context =
-        ExecutionContext::new(*root_path, Vc::upcast(build_chunking_context), env);
+    let node_backend = child_process_backend();
+    let execution_context = ExecutionContext::new(
+        root_path.clone(),
+        Vc::upcast(build_chunking_context),
+        env,
+        node_backend,
+    );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
-    let server_root = server_fs.root();
+    let server_root = server_fs.root().owned().await?;
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => Request::relative(
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
-                m.clone(),
-                Value::new(p.clone().into()),
+                m.clone().into(),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
             ),
@@ -308,11 +329,11 @@ async fn source(
         .collect();
 
     let web_source: ResolvedVc<Box<dyn ContentSource>> = create_web_entry_source(
-        *root_path,
+        root_path.clone(),
         execution_context,
         entry_requests,
         server_root,
-        Vc::cell("/ROOT".into()),
+        rcstr!("/ROOT"),
         env,
         eager_compile,
         NodeEnv::Development.cell(),
@@ -322,7 +343,7 @@ async fn source(
     .to_resolved()
     .await?;
     let static_source = ResolvedVc::upcast(
-        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+        StaticAssetsContentSource::new(Default::default(), project_path.join("public")?)
             .to_resolved()
             .await?,
     );
@@ -338,14 +359,9 @@ async fn source(
     let main_source = ResolvedVc::upcast(main_source);
     Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![("__turbopack__".into(), introspect)],
+        vec![(rcstr!("__turbopack__"), introspect)],
         *main_source,
     )))
-}
-
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 /// Start a devserver with the given args.
@@ -354,20 +370,62 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
-    register();
 
     let NormalizedDirs {
         project_dir,
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions {
-            storage_mode: None,
-            ..Default::default()
-        },
-        noop_backing_storage(),
-    ));
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    let is_short_session = is_ci;
+
+    let tt = if args.common.persistent_caching {
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|v| v.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
+        };
+        let cache_dir = args
+            .common
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
+        let (backing_storage, cache_state) =
+            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+            StorageMode::ReadOnly
+        } else if is_ci || is_short_session {
+            StorageMode::ReadWriteOnShutdown
+        } else {
+            StorageMode::ReadWrite
+        };
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(storage_mode),
+                ..Default::default()
+            },
+            Either::Left(backing_storage),
+        ));
+        if let StartupCacheState::Invalidated { reason_code } = cache_state {
+            eprintln!(
+                "{} - Turbopack cache was invalidated{}",
+                "warn ".yellow(),
+                reason_code
+                    .as_deref()
+                    .map(|r| format!(": {r}"))
+                    .unwrap_or_default()
+            );
+        }
+        tt
+    } else {
+        TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                ..Default::default()
+            },
+            Either::Right(noop_backing_storage()),
+        ))
+    };
 
     let tt_clone = tt.clone();
 

@@ -5,5 +5,5 @@
     "allowJs": true,
     "outDir": "dist"
   },
-  "include": ["index.js"],
+  "include": ["index.js"]
 }

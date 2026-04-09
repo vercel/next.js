@@ -11,6 +11,7 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function noop() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -49,15 +50,13 @@
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
-        return type.$$typeof === REACT_CLIENT_REFERENCE$1
+        return type.$$typeof === REACT_CLIENT_REFERENCE
           ? null
           : type.displayName || type.name || null;
       if ("string" === typeof type) return type;
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -66,6 +65,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
         case REACT_VIEW_TRANSITION_TYPE:
           return "ViewTransition";
       }
@@ -77,8 +78,10 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
-            return (type.displayName || "Context") + ".Provider";
+            return type.displayName || "Context";
           case REACT_CONSUMER_TYPE:
             return (type._context.displayName || "Context") + ".Consumer";
           case REACT_FORWARD_REF_TYPE:
@@ -123,6 +126,9 @@
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
     }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
+    }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
         var getter = Object.getOwnPropertyDescriptor(config, "key").get;
@@ -155,17 +161,8 @@
       componentName = this.props.ref;
       return void 0 !== componentName ? componentName : null;
     }
-    function ReactElement(
-      type,
-      key,
-      self,
-      source,
-      owner,
-      props,
-      debugStack,
-      debugTask
-    ) {
-      self = props.ref;
+    function ReactElement(type, key, props, owner, debugStack, debugTask) {
+      var refProp = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -173,7 +170,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== self ? self : null)
+      null !== (void 0 !== refProp ? refProp : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -211,16 +208,26 @@
       newKey = ReactElement(
         oldElement.type,
         newKey,
-        void 0,
-        void 0,
-        oldElement._owner,
         oldElement.props,
+        oldElement._owner,
         oldElement._debugStack,
         oldElement._debugTask
       );
       oldElement._store &&
         (newKey._store.validated = oldElement._store.validated);
       return newKey;
+    }
+    function validateChildKeys(node) {
+      isValidElement(node)
+        ? node._store && (node._store.validated = 1)
+        : "object" === typeof node &&
+          null !== node &&
+          node.$$typeof === REACT_LAZY_TYPE &&
+          ("fulfilled" === node._payload.status
+            ? isValidElement(node._payload.value) &&
+              node._payload.value._store &&
+              (node._payload.value._store.validated = 1)
+            : node._store && (node._store.validated = 1));
     }
     function isValidElement(object) {
       return (
@@ -239,13 +246,23 @@
       );
     }
     function getElementKey(element, index) {
-      return "object" === typeof element &&
+      if (
+        "object" === typeof element &&
         null !== element &&
         null != element.key
-        ? (checkKeyStringCoercion(element.key), escape("" + element.key))
-        : index.toString(36);
+      ) {
+        if (element.key === REACT_OPTIMISTIC_KEY)
+          return (
+            console.error(
+              "React.Children helpers don't support optimisticKey."
+            ),
+            index.toString(36)
+          );
+        checkKeyStringCoercion(element.key);
+        return escape("" + element.key);
+      }
+      return index.toString(36);
     }
-    function noop$1() {}
     function resolveThenable(thenable) {
       switch (thenable.status) {
         case "fulfilled":
@@ -255,7 +272,7 @@
         default:
           switch (
             ("string" === typeof thenable.status
-              ? thenable.then(noop$1, noop$1)
+              ? thenable.then(noop, noop)
               : ((thenable.status = "pending"),
                 thenable.then(
                   function (fulfilledValue) {
@@ -425,35 +442,74 @@
     }
     function lazyInitializer(payload) {
       if (-1 === payload._status) {
-        var ctor = payload._result;
-        ctor = ctor();
-        ctor.then(
+        var resolveDebugValue = null,
+          rejectDebugValue = null,
+          ioInfo = payload._ioInfo;
+        null != ioInfo &&
+          ((ioInfo.start = ioInfo.end = performance.now()),
+          (ioInfo.value = new Promise(function (resolve, reject) {
+            resolveDebugValue = resolve;
+            rejectDebugValue = reject;
+          })));
+        ioInfo = payload._result;
+        var thenable = ioInfo();
+        thenable.then(
           function (moduleObject) {
-            if (0 === payload._status || -1 === payload._status)
-              (payload._status = 1), (payload._result = moduleObject);
+            if (0 === payload._status || -1 === payload._status) {
+              payload._status = 1;
+              payload._result = moduleObject;
+              var _ioInfo = payload._ioInfo;
+              if (null != _ioInfo) {
+                _ioInfo.end = performance.now();
+                var debugValue =
+                  null == moduleObject ? void 0 : moduleObject.default;
+                resolveDebugValue(debugValue);
+                _ioInfo.value.status = "fulfilled";
+                _ioInfo.value.value = debugValue;
+              }
+              void 0 === thenable.status &&
+                ((thenable.status = "fulfilled"),
+                (thenable.value = moduleObject));
+            }
           },
           function (error) {
-            if (0 === payload._status || -1 === payload._status)
-              (payload._status = 2), (payload._result = error);
+            if (0 === payload._status || -1 === payload._status) {
+              payload._status = 2;
+              payload._result = error;
+              var _ioInfo2 = payload._ioInfo;
+              null != _ioInfo2 &&
+                ((_ioInfo2.end = performance.now()),
+                _ioInfo2.value.then(noop, noop),
+                rejectDebugValue(error),
+                (_ioInfo2.value.status = "rejected"),
+                (_ioInfo2.value.reason = error));
+              void 0 === thenable.status &&
+                ((thenable.status = "rejected"), (thenable.reason = error));
+            }
           }
         );
+        ioInfo = payload._ioInfo;
+        if (null != ioInfo) {
+          var displayName = thenable.displayName;
+          "string" === typeof displayName && (ioInfo.name = displayName);
+        }
         -1 === payload._status &&
-          ((payload._status = 0), (payload._result = ctor));
+          ((payload._status = 0), (payload._result = thenable));
       }
       if (1 === payload._status)
         return (
-          (ctor = payload._result),
-          void 0 === ctor &&
+          (ioInfo = payload._result),
+          void 0 === ioInfo &&
             console.error(
               "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
-              ctor
+              ioInfo
             ),
-          "default" in ctor ||
+          "default" in ioInfo ||
             console.error(
               "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
-              ctor
+              ioInfo
             ),
-          ctor.default
+          ioInfo.default
         );
       throw payload._result;
     }
@@ -463,7 +519,9 @@
     function createCacheNode() {
       return { s: 0, v: void 0, o: null, p: null };
     }
-    function noop() {}
+    function releaseAsyncTransition() {
+      ReactSharedInternals.asyncTransitions--;
+    }
     function cleanup(entryValue) {
       var entry = TaintRegistryValues.get(entryValue);
       void 0 !== entry &&
@@ -486,37 +544,45 @@
     ReactSharedInternals.TaintRegistryPendingRequests =
       TaintRegistryPendingRequests$1;
     ReactSharedInternals.getCurrentStack = null;
+    ReactSharedInternals.recentlyCreatedOwnerStacks = 0;
     var isArrayImpl = Array.isArray,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
       REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
-      REACT_PROFILER_TYPE = Symbol.for("react.profiler");
-    Symbol.for("react.provider");
-    var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
+      REACT_PROFILER_TYPE = Symbol.for("react.profiler"),
+      REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
       REACT_CONTEXT_TYPE = Symbol.for("react.context"),
       REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
       REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
-          },
-      specialPropKeyWarningShown,
-      didWarnAboutOldJSXRuntime;
+          };
+    TaintRegistryObjects$1 = {
+      react_stack_bottom_frame: function (callStackForError) {
+        return callStackForError();
+      }
+    };
+    var specialPropKeyWarningShown, didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
+    var unknownOwnerDebugStack =
+      TaintRegistryObjects$1.react_stack_bottom_frame.bind(
+        TaintRegistryObjects$1,
+        UnknownOwner
+      )();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
       reportGlobalError =
@@ -561,7 +627,7 @@
         "function" === typeof FinalizationRegistry
           ? new FinalizationRegistry(cleanup)
           : null;
-    exports.Children = {
+    TaintRegistryObjects$1 = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -594,10 +660,13 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = TaintRegistryObjects$1;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
     exports.StrictMode = REACT_STRICT_MODE_TYPE;
     exports.Suspense = REACT_SUSPENSE_TYPE;
+    exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
     exports.cache = function (fn) {
@@ -644,6 +713,10 @@
         }
       };
     };
+    exports.cacheSignal = function () {
+      var dispatcher = ReactSharedInternals.A;
+      return dispatcher ? dispatcher.cacheSignal() : null;
+    };
     exports.captureOwnerStack = function () {
       var getCurrentStack = ReactSharedInternals.getCurrentStack;
       return null === getCurrentStack ? null : getCurrentStack();
@@ -676,7 +749,9 @@
         }
         JSCompiler_inline_result && (owner = getOwner());
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (key = "" + config.key));
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key)));
         for (propName in config)
           !hasOwnProperty.call(config, propName) ||
             "key" === propName ||
@@ -696,26 +771,21 @@
       props = ReactElement(
         element.type,
         key,
-        void 0,
-        void 0,
-        owner,
         props,
+        owner,
         element._debugStack,
         element._debugTask
       );
       for (key = 2; key < arguments.length; key++)
-        (owner = arguments[key]),
-          isValidElement(owner) && owner._store && (owner._store.validated = 1);
+        validateChildKeys(arguments[key]);
       return props;
     };
     exports.createElement = function (type, config, children) {
-      for (var i = 2; i < arguments.length; i++) {
-        var node = arguments[i];
-        isValidElement(node) && node._store && (node._store.validated = 1);
-      }
+      for (var i = 2; i < arguments.length; i++)
+        validateChildKeys(arguments[i]);
       var propName;
       i = {};
-      node = null;
+      var key = null;
       if (null != config)
         for (propName in (didWarnAboutOldJSXRuntime ||
           !("__self" in config) ||
@@ -725,7 +795,9 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (node = "" + config.key)),
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key))),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -747,22 +819,26 @@
       if (type && type.defaultProps)
         for (propName in ((childrenLength = type.defaultProps), childrenLength))
           void 0 === i[propName] && (i[propName] = childrenLength[propName]);
-      node &&
+      key &&
         defineKeyPropWarningGetter(
           i,
           "function" === typeof type
             ? type.displayName || type.name || "Unknown"
             : type
         );
+      (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++)
+        ? ((childArray = Error.stackTraceLimit),
+          (Error.stackTraceLimit = 10),
+          (childrenLength = Error("react-stack-top-frame")),
+          (Error.stackTraceLimit = childArray))
+        : (childrenLength = unknownOwnerDebugStack);
       return ReactElement(
         type,
-        node,
-        void 0,
-        void 0,
-        getOwner(),
+        key,
         i,
-        Error("react-stack-top-frame"),
-        createTask(getTaskName(type))
+        getOwner(),
+        childrenLength,
+        propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
     exports.createRef = function () {
@@ -874,31 +950,27 @@
     };
     exports.isValidElement = isValidElement;
     exports.lazy = function (ctor) {
-      return {
-        $$typeof: REACT_LAZY_TYPE,
-        _payload: { _status: -1, _result: ctor },
-        _init: lazyInitializer
-      };
+      ctor = { _status: -1, _result: ctor };
+      var lazyType = {
+          $$typeof: REACT_LAZY_TYPE,
+          _payload: ctor,
+          _init: lazyInitializer
+        },
+        ioInfo = {
+          name: "lazy",
+          start: -1,
+          end: -1,
+          value: null,
+          owner: null,
+          debugStack: Error("react-stack-top-frame"),
+          debugTask: console.createTask ? console.createTask("lazy()") : null
+        };
+      ctor._ioInfo = ioInfo;
+      lazyType._debugInfo = [{ awaited: ioInfo }];
+      return lazyType;
     };
     exports.memo = function (type, compare) {
-      "string" === typeof type ||
-        "function" === typeof type ||
-        type === REACT_FRAGMENT_TYPE ||
-        type === REACT_PROFILER_TYPE ||
-        type === REACT_STRICT_MODE_TYPE ||
-        type === REACT_SUSPENSE_TYPE ||
-        type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_OFFSCREEN_TYPE ||
-        type === REACT_VIEW_TRANSITION_TYPE ||
-        ("object" === typeof type &&
-          null !== type &&
-          (type.$$typeof === REACT_LAZY_TYPE ||
-            type.$$typeof === REACT_MEMO_TYPE ||
-            type.$$typeof === REACT_CONTEXT_TYPE ||
-            type.$$typeof === REACT_CONSUMER_TYPE ||
-            type.$$typeof === REACT_FORWARD_REF_TYPE ||
-            type.$$typeof === REACT_CLIENT_REFERENCE ||
-            void 0 !== type.getModuleId)) ||
+      null == type &&
         console.error(
           "memo: The first argument must be a component. Instead received: %s",
           null === type ? "null" : typeof type
@@ -925,11 +997,15 @@
       });
       return compare;
     };
+    exports.optimisticKey = REACT_OPTIMISTIC_KEY;
     exports.startTransition = function (scope) {
       var prevTransition = ReactSharedInternals.T,
         currentTransition = {};
-      ReactSharedInternals.T = currentTransition;
+      currentTransition.types =
+        null !== prevTransition ? prevTransition.types : null;
+      currentTransition.gesture = null;
       currentTransition._updatedFibers = new Set();
+      ReactSharedInternals.T = currentTransition;
       try {
         var returnValue = scope(),
           onStartTransitionFinish = ReactSharedInternals.S;
@@ -938,7 +1014,9 @@
         "object" === typeof returnValue &&
           null !== returnValue &&
           "function" === typeof returnValue.then &&
-          returnValue.then(noop, reportGlobalError);
+          (ReactSharedInternals.asyncTransitions++,
+          returnValue.then(releaseAsyncTransition, releaseAsyncTransition),
+          returnValue.then(noop, reportGlobalError));
       } catch (error) {
         reportGlobalError(error);
       } finally {
@@ -950,31 +1028,26 @@
             console.warn(
               "Detected a large number of updates inside startTransition. If this is due to a subscription please re-write it to use React provided hooks. Otherwise concurrent mode guarantees are off the table."
             )),
+          null !== prevTransition &&
+            null !== currentTransition.types &&
+            (null !== prevTransition.types &&
+              prevTransition.types !== currentTransition.types &&
+              console.error(
+                "We expected inner Transitions to have transferred the outer types set and that you cannot add to the outer Transition while inside the inner.This is a bug in React."
+              ),
+            (prevTransition.types = currentTransition.types)),
           (ReactSharedInternals.T = prevTransition);
       }
     };
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-    exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.unstable_getCacheForType = function (resourceType) {
       var dispatcher = ReactSharedInternals.A;
       return dispatcher
         ? dispatcher.getCacheForType(resourceType)
         : resourceType();
     };
-    exports.unstable_postpone = function (reason) {
-      reason = Error(reason);
-      reason.$$typeof = REACT_POSTPONE_TYPE;
-      throw reason;
-    };
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
-    };
-    exports.useActionState = function (action, initialState, permalink) {
-      return resolveDispatcher().useActionState(
-        action,
-        initialState,
-        permalink
-      );
     };
     exports.useCallback = function (callback, deps) {
       return resolveDispatcher().useCallback(callback, deps);
@@ -988,5 +1061,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-experimental-ff628334-20250205";
+    exports.version = "19.3.0-experimental-404b38c7-20260408";
   })();

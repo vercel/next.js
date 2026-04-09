@@ -1,37 +1,39 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use swc_core::quote;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbopack_core::{
-    chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ChunkingTypeOption,
-    },
-    module_graph::ModuleGraph,
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
-use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{
+        AstPath,
+        esm::{EsmAssetReference, base::ReferencedAsset},
+    },
     utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module id of {inner}")]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
-    ast_path: AstPath,
+    chunking_type: Option<ChunkingType>,
 }
 
-#[turbo_tasks::value_impl]
 impl EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: AstPath) -> Vc<Self> {
-        Self::cell(EsmModuleIdAssetReference { inner, ast_path })
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, chunking_type: Option<ChunkingType>) -> Self {
+        EsmModuleIdAssetReference {
+            inner,
+            chunking_type,
+        }
     }
 }
 
@@ -41,58 +43,68 @@ impl ModuleReference for EsmModuleIdAssetReference {
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         self.inner.resolve_reference()
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("module id of {}", self.inner.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        self.chunking_type.clone()
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        self.inner.chunking_type()
+impl IntoCodeGenReference for EsmModuleIdAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen {
+                reference,
+                path,
+            }),
+        )
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
+pub struct EsmModuleIdAssetReferenceCodeGen {
+    path: AstPath,
+    reference: ResolvedVc<EsmModuleIdAssetReference>,
+}
+
+impl EsmModuleIdAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
-            let id = asset
-                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                .id()
-                .await?;
+        if let ReferencedAsset::Some(asset) =
+            &*self.reference.await?.inner.get_referenced_asset().await?
+        {
+            let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);
-            visitors.push(
-                create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
-                    *expr = id.clone()
-                }),
-            );
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = id.clone();
+                }
+            ));
         } else {
             // If the referenced asset can't be found, replace the expression with null.
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
-            visitors.push(
-                create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
                     *expr = quote!("null" as Expr);
-                }),
-            );
+                }
+            ));
         }
 
-        Ok(CodeGeneration::visitors(visitors).cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

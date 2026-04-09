@@ -3,9 +3,9 @@ import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
-function getStaleness(browser: BrowserInterface) {
+function getStaleness(browser: Playwright) {
   return browser
     .waitForElementByCss('.nextjs-container-build-error-version-status')
     .text()
@@ -47,14 +47,21 @@ describe('Error Overlay version staleness', () => {
 
     await session.openRedbox()
 
-    if (process.env.TURBOPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (1.0.0) is outdated (learn more) (Turbopack)"`
-      )
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 1.0.0 (outdated)
+         Turbopack"
+        `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 1.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (1.0.0) is outdated (learn more)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 1.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 
@@ -82,14 +89,21 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (2.0.0) is outdated (learn more) (Turbopack)"`
-      )
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 2.0.0 (outdated)
+         Turbopack"
+        `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 2.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (2.0.0) is outdated (learn more)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 2.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 
@@ -114,14 +128,21 @@ describe('Error Overlay version staleness', () => {
       `
     )
 
-    if (process.env.TURBOPACK) {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (3.0.0) is outdated (learn more) (Turbopack)"`
-      )
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 3.0.0 (outdated)
+         Turbopack"
+        `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 3.0.0 (outdated)
+         Rspack"
+        `)
     } else {
-      expect(await getStaleness(browser)).toMatchInlineSnapshot(
-        `"Next.js (3.0.0) is outdated (learn more)"`
-      )
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+         "Next.js 3.0.0 (outdated)
+         Webpack"
+        `)
     }
   })
 })

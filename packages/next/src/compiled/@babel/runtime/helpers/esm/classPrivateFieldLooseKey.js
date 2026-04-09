@@ -1,4 +1,5 @@
 var id = 0;
-export default function _classPrivateFieldKey(name) {
-  return "__private_" + id++ + "_" + name;
+function _classPrivateFieldKey(e) {
+  return "__private_" + id++ + "_" + e;
 }
+export { _classPrivateFieldKey as default };

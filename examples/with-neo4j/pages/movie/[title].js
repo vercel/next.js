@@ -43,9 +43,9 @@ export default function Movie() {
                 <Link
                   key={actor}
                   href={`/actor/${encodeURIComponent(actor)}`}
-                  legacyBehavior
+                  className="link"
                 >
-                  <a className="link">{actor}</a>
+                  {actor}
                 </Link>
               </div>
             ))}
@@ -59,9 +59,7 @@ export default function Movie() {
         </div>
 
         <div className="back">
-          <Link href="/" legacyBehavior>
-            <a>🔙 Go Back</a>
-          </Link>
+          <Link href="/">🔙 Go Back</Link>
         </div>
       </main>
 

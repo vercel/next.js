@@ -1,5 +1,4 @@
-export default function _newArrowCheck(innerThis, boundThis) {
-  if (innerThis !== boundThis) {
-    throw new TypeError("Cannot instantiate an arrow function");
-  }
+function _newArrowCheck(n, r) {
+  if (n !== r) throw new TypeError("Cannot instantiate an arrow function");
 }
+export { _newArrowCheck as default };

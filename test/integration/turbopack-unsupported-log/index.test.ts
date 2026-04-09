@@ -9,7 +9,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 
 describe('turbopack unsupported features log', () => {
-  if (process.env.TURBOPACK) {
+  if (process.env.IS_TURBOPACK_TEST) {
     const appDir = join(__dirname, 'app')
 
     it('should not warn by default', async () => {

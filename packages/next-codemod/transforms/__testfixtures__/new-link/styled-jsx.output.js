@@ -7,10 +7,10 @@ const CustomLink = ({
 }) => {
   return (
     (<span className="link-container">
-      <Link href={href} legacyBehavior>
-        <a className="link" title={title}>
-          {children}
-        </a>
+      <Link href={href} className="link" title={title}>
+
+        {children}
+
       </Link>
       <style jsx>{`
         .link {

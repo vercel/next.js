@@ -6,11 +6,21 @@ const myFont1 = localFont({
   weight: '100',
   fallback: ['system-ui'],
   adjustFontFallback: 'Times New Roman',
+  declarations: [{ prop: 'ascent-override', value: '90%' }],
 })
 const myFont2 = localFont({
   src: '../fonts/my-other-font.woff2',
   preload: false,
   variable: '--my-font',
+})
+const myFont1Override = localFont({
+  src: '../fonts/my-font.woff2',
+  declarations: [
+    {
+      prop: 'font-family',
+      value: 'foobar',
+    },
+  ],
 })
 
 const roboto = localFont({
@@ -132,6 +142,9 @@ export default function WithFonts() {
       </div>
       <div id="second-local-font" className={myFont2.className}>
         {JSON.stringify(myFont2)}
+      </div>
+      <div id="first-local-font-override" className={myFont1Override.className}>
+        {JSON.stringify(myFont1Override)}
       </div>
       <div id="roboto-local-font" className={roboto.className}>
         {JSON.stringify(roboto)}

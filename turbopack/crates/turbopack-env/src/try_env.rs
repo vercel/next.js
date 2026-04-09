@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_env::{DotenvProcessEnv, EnvMap, ProcessEnv};
+use turbo_tasks_env::{DotenvProcessEnv, ProcessEnv, TransientEnvMap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, StyledString};
 
@@ -10,7 +10,7 @@ use crate::ProcessEnvIssue;
 pub struct TryDotenvProcessEnv {
     dotenv: ResolvedVc<DotenvProcessEnv>,
     prior: ResolvedVc<Box<dyn ProcessEnv>>,
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -18,9 +18,9 @@ impl TryDotenvProcessEnv {
     #[turbo_tasks::function]
     pub async fn new(
         prior: ResolvedVc<Box<dyn ProcessEnv>>,
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
     ) -> Result<Vc<Self>> {
-        let dotenv = DotenvProcessEnv::new(Some(*prior), *path)
+        let dotenv = DotenvProcessEnv::new(Some(*prior), path.clone())
             .to_resolved()
             .await?;
         Ok(TryDotenvProcessEnv {
@@ -35,7 +35,7 @@ impl TryDotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for TryDotenvProcessEnv {
     #[turbo_tasks::function]
-    async fn read_all(&self) -> Result<Vc<EnvMap>> {
+    async fn read_all(&self) -> Result<Vc<TransientEnvMap>> {
         let dotenv = self.dotenv;
         let prior = dotenv.read_prior();
 
@@ -51,7 +51,7 @@ impl ProcessEnv for TryDotenvProcessEnv {
                 // If parsing the dotenv file fails (but getting the prior value didn't), then
                 // we want to emit an Issue and fall back to the prior's read.
                 ProcessEnvIssue {
-                    path: self.path,
+                    path: self.path.clone(),
                     // read_all_with_prior will wrap a current error with a context containing the
                     // failing file, which we don't really care about (we report the filepath as the
                     // Issue context, not the description). So extract the real error.

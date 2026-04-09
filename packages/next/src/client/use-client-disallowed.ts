@@ -3,7 +3,7 @@ const error = new Proxy(
   {
     get(_target) {
       throw new Error(
-        'Using client components is not allowed in this environment.'
+        'Using Client Components is not allowed in this environment.'
       )
     },
   }

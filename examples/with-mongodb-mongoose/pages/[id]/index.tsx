@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import dbConnect from "../../lib/dbConnect";
-import Pet, { Pets } from "../../models/Pet";
+import dbConnect from "@/lib/dbConnect";
+import Pet, { Pets } from "@/models/Pet";
 import { GetServerSideProps, GetServerSidePropsContext } from "next";
 import { ParsedUrlQuery } from "querystring";
 

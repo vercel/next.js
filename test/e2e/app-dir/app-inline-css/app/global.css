@@ -1,3 +1,7 @@
 p {
   color: yellow;
 }
+
+body {
+  font-family: var(--font-1);
+}

@@ -1,17 +1,22 @@
-use anyhow::{bail, Result};
-use turbo_tasks::{Completion, Vc};
-use turbopack_core::module::Modules;
+use anyhow::{Result, bail};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
+use turbopack_core::module_graph::GraphEntries;
 
-use crate::route::{Endpoint, EndpointOutput};
+use crate::{
+    project::Project,
+    route::{Endpoint, EndpointOutput, ModuleGraphs},
+};
 
 #[turbo_tasks::value]
-pub struct EmptyEndpoint;
+pub struct EmptyEndpoint {
+    project: ResolvedVc<Project>,
+}
 
 #[turbo_tasks::value_impl]
 impl EmptyEndpoint {
     #[turbo_tasks::function]
-    pub fn new() -> Vc<Self> {
-        EmptyEndpoint.cell()
+    pub fn new(project: ResolvedVc<Project>) -> Vc<Self> {
+        EmptyEndpoint { project }.cell()
     }
 }
 
@@ -33,7 +38,17 @@ impl Endpoint for EmptyEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
+    fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
+        GraphEntries::empty()
+    }
+
+    #[turbo_tasks::function]
+    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs> {
         Vc::cell(vec![])
+    }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
     }
 }

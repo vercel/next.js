@@ -1,2 +1,2 @@
 // reexporting
-export * from "./magic.wat";
+export * from './magic.wat'

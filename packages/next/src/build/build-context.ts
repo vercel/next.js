@@ -93,4 +93,11 @@ export const NextBuildContext: Partial<{
   previewModeId: string
   fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]
+  isCompileMode?: boolean
+  debugPrerender: boolean
+  analyze: boolean
+  debugBuildPaths?: {
+    app: string[]
+    pages: string[]
+  }
 }> = {}

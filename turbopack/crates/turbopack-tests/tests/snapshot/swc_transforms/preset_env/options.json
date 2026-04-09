@@ -1,3 +1,4 @@
 {
-  "browserslist": "ie 11"
+  "browserslist": "chrome 41",
+  "runtimeType": "Production"
 }

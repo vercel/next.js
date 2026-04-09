@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export const revalidate = 60\n\nexport default function Page() {\n  return <div>Hello</div>\n}\n"],"names":[],"mappings":"AAAA,OAAO,MAAM,aAAa,GAAE;AAE5B,eAAe,SAAS;IACtB,QAAQ,IAAI,KAAK,EAAE;AACrB"}

@@ -1,6 +1,6 @@
-const mathAsyncModule = require("./math");
+const mathAsyncModule = require('./math')
 
-it("should handle wasm imports", async () => {
+it('should handle wasm imports', async () => {
   // math.js is an async module, so we require it and await inside this function to make sure the entrypoint isn't async.
   const {
     add,
@@ -8,9 +8,9 @@ it("should handle wasm imports", async () => {
     factorialJavascript,
     fibonacci,
     fibonacciJavascript,
-  } = await mathAsyncModule;
+  } = await mathAsyncModule
 
-  expect(add(22, 2200)).toEqual(22 + 2200);
-  expect(factorial(10)).toEqual(factorialJavascript(10));
-  expect(fibonacci(15)).toEqual(fibonacciJavascript(15));
-});
+  expect(add(22, 2200)).toEqual(22 + 2200)
+  expect(factorial(10)).toEqual(factorialJavascript(10))
+  expect(fibonacci(15)).toEqual(fibonacciJavascript(15))
+})

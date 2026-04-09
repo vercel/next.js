@@ -7,18 +7,17 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../base/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
 
-let DEV_BACKEND: DevRuntimeBackend;
-
-(() => {
+let DEV_BACKEND: DevRuntimeBackend
+;(() => {
   DEV_BACKEND = {
     restart: () => {
-      throw new Error("restart is not supported");
+      throw new Error('restart is not supported')
     },
-  };
-})();
+  }
+})()
 
 function _eval(_: EcmascriptModuleEntry) {
-  throw new Error("HMR evaluation is not implemented on this backend");
+  throw new Error('HMR evaluation is not implemented on this backend')
 }

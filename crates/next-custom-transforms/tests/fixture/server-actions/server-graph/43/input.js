@@ -1,4 +1,4 @@
-import { Foo } from './client'
+import { Button } from 'components'
 
 const secret = 'my password is qwerty123'
 
@@ -8,7 +8,7 @@ async function getCachedRandom(x, children) {
     x,
     y: Math.random(),
     z: (
-      <Foo
+      <Button
         action={async () => {
           'use server'
 

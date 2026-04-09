@@ -1,7 +1,7 @@
-export const c = "c";
+export const c = 'c'
 
-export const d = "d";
+export const d = 'd'
 
-export default "default2";
+export default 'default2'
 
-export const usedExports = __webpack_exports_info__.usedExports;
+export const usedExports = __webpack_exports_info__.usedExports

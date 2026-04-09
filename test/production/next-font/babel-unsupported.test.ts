@@ -3,7 +3,7 @@ import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
 // Turbopack does not support `.babelrc`. So this test is not relevant for Turbopack.
-;(process.env.TURBOPACK ? describe.skip : describe)(
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   '@next/font babel unsupported',
   () => {
     let next: NextInstance

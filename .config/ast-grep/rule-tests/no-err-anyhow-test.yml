@@ -1,0 +1,23 @@
+id: no-err-anyhow
+valid:
+  - 'bail!("error message")'
+  - 'bail!("error: {}", msg)'
+  - 'Err(SomeOtherError::new("error"))'
+  - 'Err(err.into())'
+  - 'Err(anyhow!("error").context("context"))'
+  - 'Some(Err(anyhow!("wrapped in Some")))'
+  - 'Some(Err(anyhow::anyhow!("wrapped in Some")))'
+  - 'self.error = Err(anyhow::anyhow!("assigned to field"))'
+  - 'Err(anyhow::anyhow!("msg")).context("ctx")'
+  - |
+    let x = match blah {
+        1 => Err(anyhow!("foo")),
+        2 => Ok(()),
+    };
+    do_something();
+    return x;
+invalid:
+  - 'Err(anyhow!("error message"))'
+  - 'Err(anyhow!("error: {}", msg))'
+  - 'Err(anyhow::anyhow!("error message"))'
+  - 'Err(anyhow::anyhow!("error: {}", msg))'

@@ -1,236 +1,236 @@
 var _typeof = require("./typeof.js")["default"];
-function old_createMetadataMethodsForProperty(metadataMap, kind, property, decoratorFinishedRef) {
+var setFunctionName = require("./setFunctionName.js");
+var toPropertyKey = require("./toPropertyKey.js");
+function old_createMetadataMethodsForProperty(e, t, a, r) {
   return {
-    getMetadata: function getMetadata(key) {
-      old_assertNotFinished(decoratorFinishedRef, "getMetadata"), old_assertMetadataKey(key);
-      var metadataForKey = metadataMap[key];
-      if (void 0 !== metadataForKey) if (1 === kind) {
-        var pub = metadataForKey["public"];
-        if (void 0 !== pub) return pub[property];
-      } else if (2 === kind) {
-        var priv = metadataForKey["private"];
-        if (void 0 !== priv) return priv.get(property);
-      } else if (Object.hasOwnProperty.call(metadataForKey, "constructor")) return metadataForKey.constructor;
+    getMetadata: function getMetadata(o) {
+      old_assertNotFinished(r, "getMetadata"), old_assertMetadataKey(o);
+      var i = e[o];
+      if (void 0 !== i) if (1 === t) {
+        var n = i["public"];
+        if (void 0 !== n) return n[a];
+      } else if (2 === t) {
+        var l = i["private"];
+        if (void 0 !== l) return l.get(a);
+      } else if (Object.hasOwnProperty.call(i, "constructor")) return i.constructor;
     },
-    setMetadata: function setMetadata(key, value) {
-      old_assertNotFinished(decoratorFinishedRef, "setMetadata"), old_assertMetadataKey(key);
-      var metadataForKey = metadataMap[key];
-      if (void 0 === metadataForKey && (metadataForKey = metadataMap[key] = {}), 1 === kind) {
-        var pub = metadataForKey["public"];
-        void 0 === pub && (pub = metadataForKey["public"] = {}), pub[property] = value;
-      } else if (2 === kind) {
-        var priv = metadataForKey.priv;
-        void 0 === priv && (priv = metadataForKey["private"] = new Map()), priv.set(property, value);
-      } else metadataForKey.constructor = value;
+    setMetadata: function setMetadata(o, i) {
+      old_assertNotFinished(r, "setMetadata"), old_assertMetadataKey(o);
+      var n = e[o];
+      if (void 0 === n && (n = e[o] = {}), 1 === t) {
+        var l = n["public"];
+        void 0 === l && (l = n["public"] = {}), l[a] = i;
+      } else if (2 === t) {
+        var s = n.priv;
+        void 0 === s && (s = n["private"] = new Map()), s.set(a, i);
+      } else n.constructor = i;
     }
   };
 }
-function old_convertMetadataMapToFinal(obj, metadataMap) {
-  var parentMetadataMap = obj[Symbol.metadata || Symbol["for"]("Symbol.metadata")],
-    metadataKeys = Object.getOwnPropertySymbols(metadataMap);
-  if (0 !== metadataKeys.length) {
-    for (var i = 0; i < metadataKeys.length; i++) {
-      var key = metadataKeys[i],
-        metaForKey = metadataMap[key],
-        parentMetaForKey = parentMetadataMap ? parentMetadataMap[key] : null,
-        pub = metaForKey["public"],
-        parentPub = parentMetaForKey ? parentMetaForKey["public"] : null;
-      pub && parentPub && Object.setPrototypeOf(pub, parentPub);
-      var priv = metaForKey["private"];
-      if (priv) {
-        var privArr = Array.from(priv.values()),
-          parentPriv = parentMetaForKey ? parentMetaForKey["private"] : null;
-        parentPriv && (privArr = privArr.concat(parentPriv)), metaForKey["private"] = privArr;
+function old_convertMetadataMapToFinal(e, t) {
+  var a = e[Symbol.metadata || Symbol["for"]("Symbol.metadata")],
+    r = Object.getOwnPropertySymbols(t);
+  if (0 !== r.length) {
+    for (var o = 0; o < r.length; o++) {
+      var i = r[o],
+        n = t[i],
+        l = a ? a[i] : null,
+        s = n["public"],
+        c = l ? l["public"] : null;
+      s && c && Object.setPrototypeOf(s, c);
+      var d = n["private"];
+      if (d) {
+        var u = Array.from(d.values()),
+          f = l ? l["private"] : null;
+        f && (u = u.concat(f)), n["private"] = u;
       }
-      parentMetaForKey && Object.setPrototypeOf(metaForKey, parentMetaForKey);
+      l && Object.setPrototypeOf(n, l);
     }
-    parentMetadataMap && Object.setPrototypeOf(metadataMap, parentMetadataMap), obj[Symbol.metadata || Symbol["for"]("Symbol.metadata")] = metadataMap;
+    a && Object.setPrototypeOf(t, a), e[Symbol.metadata || Symbol["for"]("Symbol.metadata")] = t;
   }
 }
-function old_createAddInitializerMethod(initializers, decoratorFinishedRef) {
-  return function (initializer) {
-    old_assertNotFinished(decoratorFinishedRef, "addInitializer"), old_assertCallable(initializer, "An initializer"), initializers.push(initializer);
+function old_createAddInitializerMethod(e, t) {
+  return function (a) {
+    old_assertNotFinished(t, "addInitializer"), old_assertCallable(a, "An initializer"), e.push(a);
   };
 }
-function old_memberDec(dec, name, desc, metadataMap, initializers, kind, isStatic, isPrivate, value) {
-  var kindStr;
-  switch (kind) {
+function old_memberDec(e, t, a, r, o, i, n, l, s) {
+  var c;
+  switch (i) {
     case 1:
-      kindStr = "accessor";
+      c = "accessor";
       break;
     case 2:
-      kindStr = "method";
+      c = "method";
       break;
     case 3:
-      kindStr = "getter";
+      c = "getter";
       break;
     case 4:
-      kindStr = "setter";
+      c = "setter";
       break;
     default:
-      kindStr = "field";
+      c = "field";
   }
-  var metadataKind,
-    metadataName,
-    ctx = {
-      kind: kindStr,
-      name: isPrivate ? "#" + name : name,
-      isStatic: isStatic,
-      isPrivate: isPrivate
+  var d,
+    u,
+    f = {
+      kind: c,
+      name: l ? "#" + t : toPropertyKey(t),
+      isStatic: n,
+      isPrivate: l
     },
-    decoratorFinishedRef = {
+    p = {
       v: !1
     };
-  if (0 !== kind && (ctx.addInitializer = old_createAddInitializerMethod(initializers, decoratorFinishedRef)), isPrivate) {
-    metadataKind = 2, metadataName = Symbol(name);
-    var access = {};
-    0 === kind ? (access.get = desc.get, access.set = desc.set) : 2 === kind ? access.get = function () {
-      return desc.value;
-    } : (1 !== kind && 3 !== kind || (access.get = function () {
-      return desc.get.call(this);
-    }), 1 !== kind && 4 !== kind || (access.set = function (v) {
-      desc.set.call(this, v);
-    })), ctx.access = access;
-  } else metadataKind = 1, metadataName = name;
+  if (0 !== i && (f.addInitializer = old_createAddInitializerMethod(o, p)), l) {
+    d = 2, u = Symbol(t);
+    var v = {};
+    0 === i ? (v.get = a.get, v.set = a.set) : 2 === i ? v.get = function () {
+      return a.value;
+    } : (1 !== i && 3 !== i || (v.get = function () {
+      return a.get.call(this);
+    }), 1 !== i && 4 !== i || (v.set = function (e) {
+      a.set.call(this, e);
+    })), f.access = v;
+  } else d = 1, u = t;
   try {
-    return dec(value, Object.assign(ctx, old_createMetadataMethodsForProperty(metadataMap, metadataKind, metadataName, decoratorFinishedRef)));
+    return e(s, Object.assign(f, old_createMetadataMethodsForProperty(r, d, u, p)));
   } finally {
-    decoratorFinishedRef.v = !0;
+    p.v = !0;
   }
 }
-function old_assertNotFinished(decoratorFinishedRef, fnName) {
-  if (decoratorFinishedRef.v) throw new Error("attempted to call " + fnName + " after decoration was finished");
+function old_assertNotFinished(e, t) {
+  if (e.v) throw Error("attempted to call " + t + " after decoration was finished");
 }
-function old_assertMetadataKey(key) {
-  if ("symbol" != _typeof(key)) throw new TypeError("Metadata keys must be symbols, received: " + key);
+function old_assertMetadataKey(e) {
+  if ("symbol" != _typeof(e)) throw new TypeError("Metadata keys must be symbols, received: " + e);
 }
-function old_assertCallable(fn, hint) {
-  if ("function" != typeof fn) throw new TypeError(hint + " must be a function");
+function old_assertCallable(e, t) {
+  if ("function" != typeof e) throw new TypeError(t + " must be a function");
 }
-function old_assertValidReturnValue(kind, value) {
-  var type = _typeof(value);
-  if (1 === kind) {
-    if ("object" !== type || null === value) throw new TypeError("accessor decorators must return an object with get, set, or init properties or void 0");
-    void 0 !== value.get && old_assertCallable(value.get, "accessor.get"), void 0 !== value.set && old_assertCallable(value.set, "accessor.set"), void 0 !== value.init && old_assertCallable(value.init, "accessor.init"), void 0 !== value.initializer && old_assertCallable(value.initializer, "accessor.initializer");
-  } else if ("function" !== type) {
-    var hint;
-    throw hint = 0 === kind ? "field" : 10 === kind ? "class" : "method", new TypeError(hint + " decorators must return a function or void 0");
+function old_assertValidReturnValue(e, t) {
+  var a = _typeof(t);
+  if (1 === e) {
+    if ("object" !== a || null === t) throw new TypeError("accessor decorators must return an object with get, set, or init properties or void 0");
+    void 0 !== t.get && old_assertCallable(t.get, "accessor.get"), void 0 !== t.set && old_assertCallable(t.set, "accessor.set"), void 0 !== t.init && old_assertCallable(t.init, "accessor.init"), void 0 !== t.initializer && old_assertCallable(t.initializer, "accessor.initializer");
+  } else if ("function" !== a) throw new TypeError((0 === e ? "field" : 10 === e ? "class" : "method") + " decorators must return a function or void 0");
+}
+function old_getInit(e) {
+  var t;
+  return null == (t = e.init) && (t = e.initializer) && void 0 !== console && console.warn(".initializer has been renamed to .init as of March 2022"), t;
+}
+function old_applyMemberDec(e, t, a, r, o, i, n, l, s) {
+  var c,
+    d,
+    u,
+    f,
+    p,
+    v,
+    y,
+    h = a[0];
+  if (n ? (0 === o || 1 === o ? (c = {
+    get: a[3],
+    set: a[4]
+  }, u = "get") : 3 === o ? (c = {
+    get: a[3]
+  }, u = "get") : 4 === o ? (c = {
+    set: a[3]
+  }, u = "set") : c = {
+    value: a[3]
+  }, 0 !== o && (1 === o && setFunctionName(a[4], "#" + r, "set"), setFunctionName(a[3], "#" + r, u))) : 0 !== o && (c = Object.getOwnPropertyDescriptor(t, r)), 1 === o ? f = {
+    get: c.get,
+    set: c.set
+  } : 2 === o ? f = c.value : 3 === o ? f = c.get : 4 === o && (f = c.set), "function" == typeof h) void 0 !== (p = old_memberDec(h, r, c, l, s, o, i, n, f)) && (old_assertValidReturnValue(o, p), 0 === o ? d = p : 1 === o ? (d = old_getInit(p), v = p.get || f.get, y = p.set || f.set, f = {
+    get: v,
+    set: y
+  }) : f = p);else for (var m = h.length - 1; m >= 0; m--) {
+    var b;
+    void 0 !== (p = old_memberDec(h[m], r, c, l, s, o, i, n, f)) && (old_assertValidReturnValue(o, p), 0 === o ? b = p : 1 === o ? (b = old_getInit(p), v = p.get || f.get, y = p.set || f.set, f = {
+      get: v,
+      set: y
+    }) : f = p, void 0 !== b && (void 0 === d ? d = b : "function" == typeof d ? d = [d, b] : d.push(b)));
   }
-}
-function old_getInit(desc) {
-  var initializer;
-  return null == (initializer = desc.init) && (initializer = desc.initializer) && "undefined" != typeof console && console.warn(".initializer has been renamed to .init as of March 2022"), initializer;
-}
-function old_applyMemberDec(ret, base, decInfo, name, kind, isStatic, isPrivate, metadataMap, initializers) {
-  var desc,
-    initializer,
-    value,
-    newValue,
-    get,
-    set,
-    decs = decInfo[0];
-  if (isPrivate ? desc = 0 === kind || 1 === kind ? {
-    get: decInfo[3],
-    set: decInfo[4]
-  } : 3 === kind ? {
-    get: decInfo[3]
-  } : 4 === kind ? {
-    set: decInfo[3]
-  } : {
-    value: decInfo[3]
-  } : 0 !== kind && (desc = Object.getOwnPropertyDescriptor(base, name)), 1 === kind ? value = {
-    get: desc.get,
-    set: desc.set
-  } : 2 === kind ? value = desc.value : 3 === kind ? value = desc.get : 4 === kind && (value = desc.set), "function" == typeof decs) void 0 !== (newValue = old_memberDec(decs, name, desc, metadataMap, initializers, kind, isStatic, isPrivate, value)) && (old_assertValidReturnValue(kind, newValue), 0 === kind ? initializer = newValue : 1 === kind ? (initializer = old_getInit(newValue), get = newValue.get || value.get, set = newValue.set || value.set, value = {
-    get: get,
-    set: set
-  }) : value = newValue);else for (var i = decs.length - 1; i >= 0; i--) {
-    var newInit;
-    if (void 0 !== (newValue = old_memberDec(decs[i], name, desc, metadataMap, initializers, kind, isStatic, isPrivate, value))) old_assertValidReturnValue(kind, newValue), 0 === kind ? newInit = newValue : 1 === kind ? (newInit = old_getInit(newValue), get = newValue.get || value.get, set = newValue.set || value.set, value = {
-      get: get,
-      set: set
-    }) : value = newValue, void 0 !== newInit && (void 0 === initializer ? initializer = newInit : "function" == typeof initializer ? initializer = [initializer, newInit] : initializer.push(newInit));
-  }
-  if (0 === kind || 1 === kind) {
-    if (void 0 === initializer) initializer = function initializer(instance, init) {
-      return init;
-    };else if ("function" != typeof initializer) {
-      var ownInitializers = initializer;
-      initializer = function initializer(instance, init) {
-        for (var value = init, i = 0; i < ownInitializers.length; i++) value = ownInitializers[i].call(instance, value);
-        return value;
+  if (0 === o || 1 === o) {
+    if (void 0 === d) d = function d(e, t) {
+      return t;
+    };else if ("function" != typeof d) {
+      var g = d;
+      d = function d(e, t) {
+        for (var a = t, r = 0; r < g.length; r++) a = g[r].call(e, a);
+        return a;
       };
     } else {
-      var originalInitializer = initializer;
-      initializer = function initializer(instance, init) {
-        return originalInitializer.call(instance, init);
+      var _ = d;
+      d = function d(e, t) {
+        return _.call(e, t);
       };
     }
-    ret.push(initializer);
+    e.push(d);
   }
-  0 !== kind && (1 === kind ? (desc.get = value.get, desc.set = value.set) : 2 === kind ? desc.value = value : 3 === kind ? desc.get = value : 4 === kind && (desc.set = value), isPrivate ? 1 === kind ? (ret.push(function (instance, args) {
-    return value.get.call(instance, args);
-  }), ret.push(function (instance, args) {
-    return value.set.call(instance, args);
-  })) : 2 === kind ? ret.push(value) : ret.push(function (instance, args) {
-    return value.call(instance, args);
-  }) : Object.defineProperty(base, name, desc));
+  0 !== o && (1 === o ? (c.get = f.get, c.set = f.set) : 2 === o ? c.value = f : 3 === o ? c.get = f : 4 === o && (c.set = f), n ? 1 === o ? (e.push(function (e, t) {
+    return f.get.call(e, t);
+  }), e.push(function (e, t) {
+    return f.set.call(e, t);
+  })) : 2 === o ? e.push(f) : e.push(function (e, t) {
+    return f.call(e, t);
+  }) : Object.defineProperty(t, r, c));
 }
-function old_applyMemberDecs(ret, Class, protoMetadataMap, staticMetadataMap, decInfos) {
-  for (var protoInitializers, staticInitializers, existingProtoNonFields = new Map(), existingStaticNonFields = new Map(), i = 0; i < decInfos.length; i++) {
-    var decInfo = decInfos[i];
-    if (Array.isArray(decInfo)) {
-      var base,
-        metadataMap,
-        initializers,
-        kind = decInfo[1],
-        name = decInfo[2],
-        isPrivate = decInfo.length > 3,
-        isStatic = kind >= 5;
-      if (isStatic ? (base = Class, metadataMap = staticMetadataMap, 0 !== (kind -= 5) && (initializers = staticInitializers = staticInitializers || [])) : (base = Class.prototype, metadataMap = protoMetadataMap, 0 !== kind && (initializers = protoInitializers = protoInitializers || [])), 0 !== kind && !isPrivate) {
-        var existingNonFields = isStatic ? existingStaticNonFields : existingProtoNonFields,
-          existingKind = existingNonFields.get(name) || 0;
-        if (!0 === existingKind || 3 === existingKind && 4 !== kind || 4 === existingKind && 3 !== kind) throw new Error("Attempted to decorate a public method/accessor that has the same name as a previously decorated public method/accessor. This is not currently supported by the decorators plugin. Property name was: " + name);
-        !existingKind && kind > 2 ? existingNonFields.set(name, kind) : existingNonFields.set(name, !0);
+function old_applyMemberDecs(e, t, a, r, o) {
+  for (var i, n, l = new Map(), s = new Map(), c = 0; c < o.length; c++) {
+    var d = o[c];
+    if (Array.isArray(d)) {
+      var u,
+        f,
+        p,
+        v = d[1],
+        y = d[2],
+        h = d.length > 3,
+        m = v >= 5;
+      if (m ? (u = t, f = r, 0 != (v -= 5) && (p = n = n || [])) : (u = t.prototype, f = a, 0 !== v && (p = i = i || [])), 0 !== v && !h) {
+        var b = m ? s : l,
+          g = b.get(y) || 0;
+        if (!0 === g || 3 === g && 4 !== v || 4 === g && 3 !== v) throw Error("Attempted to decorate a public method/accessor that has the same name as a previously decorated public method/accessor. This is not currently supported by the decorators plugin. Property name was: " + y);
+        !g && v > 2 ? b.set(y, v) : b.set(y, !0);
       }
-      old_applyMemberDec(ret, base, decInfo, name, kind, isStatic, isPrivate, metadataMap, initializers);
+      old_applyMemberDec(e, u, d, y, v, m, h, f, p);
     }
   }
-  old_pushInitializers(ret, protoInitializers), old_pushInitializers(ret, staticInitializers);
+  old_pushInitializers(e, i), old_pushInitializers(e, n);
 }
-function old_pushInitializers(ret, initializers) {
-  initializers && ret.push(function (instance) {
-    for (var i = 0; i < initializers.length; i++) initializers[i].call(instance);
-    return instance;
+function old_pushInitializers(e, t) {
+  t && e.push(function (e) {
+    for (var a = 0; a < t.length; a++) t[a].call(e);
+    return e;
   });
 }
-function old_applyClassDecs(ret, targetClass, metadataMap, classDecs) {
-  if (classDecs.length > 0) {
-    for (var initializers = [], newClass = targetClass, name = targetClass.name, i = classDecs.length - 1; i >= 0; i--) {
-      var decoratorFinishedRef = {
+function old_applyClassDecs(e, t, a, r) {
+  if (r.length > 0) {
+    for (var o = [], i = t, n = t.name, l = r.length - 1; l >= 0; l--) {
+      var s = {
         v: !1
       };
       try {
-        var ctx = Object.assign({
+        var c = Object.assign({
             kind: "class",
-            name: name,
-            addInitializer: old_createAddInitializerMethod(initializers, decoratorFinishedRef)
-          }, old_createMetadataMethodsForProperty(metadataMap, 0, name, decoratorFinishedRef)),
-          nextNewClass = classDecs[i](newClass, ctx);
+            name: n,
+            addInitializer: old_createAddInitializerMethod(o, s)
+          }, old_createMetadataMethodsForProperty(a, 0, n, s)),
+          d = r[l](i, c);
       } finally {
-        decoratorFinishedRef.v = !0;
+        s.v = !0;
       }
-      void 0 !== nextNewClass && (old_assertValidReturnValue(10, nextNewClass), newClass = nextNewClass);
+      void 0 !== d && (old_assertValidReturnValue(10, d), i = d);
     }
-    ret.push(newClass, function () {
-      for (var i = 0; i < initializers.length; i++) initializers[i].call(newClass);
+    e.push(i, function () {
+      for (var e = 0; e < o.length; e++) o[e].call(i);
     });
   }
 }
-function applyDecs(targetClass, memberDecs, classDecs) {
-  var ret = [],
-    staticMetadataMap = {},
-    protoMetadataMap = {};
-  return old_applyMemberDecs(ret, targetClass, protoMetadataMap, staticMetadataMap, memberDecs), old_convertMetadataMapToFinal(targetClass.prototype, protoMetadataMap), old_applyClassDecs(ret, targetClass, staticMetadataMap, classDecs), old_convertMetadataMapToFinal(targetClass, staticMetadataMap), ret;
+function applyDecs(e, t, a) {
+  var r = [],
+    o = {},
+    i = {};
+  return old_applyMemberDecs(r, e, i, o, t), old_convertMetadataMapToFinal(e.prototype, i), old_applyClassDecs(r, e, o, a), old_convertMetadataMapToFinal(e, o), r;
 }
 module.exports = applyDecs, module.exports.__esModule = true, module.exports["default"] = module.exports;

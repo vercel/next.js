@@ -5,7 +5,6 @@ import type {
   RenderOpts,
 } from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
-import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { Params } from '../../server/request/params'
 
@@ -15,14 +14,12 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import { isInAmpMode } from '../../shared/lib/amp-mode'
 import {
+  HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
@@ -38,10 +35,6 @@ export async function exportPagesPage(
   params: Params | undefined,
   htmlFilepath: string,
   htmlFilename: string,
-  ampPath: string,
-  subFolders: boolean,
-  outDir: string,
-  ampValidatorPath: string | undefined,
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
@@ -52,21 +45,6 @@ export async function exportPagesPage(
   components: LoadComponentsReturnType,
   fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
-  const ampState = {
-    ampFirst: components.pageConfig?.amp === true,
-    hasQuery: Boolean(query.amp),
-    hybrid: components.pageConfig?.amp === 'hybrid',
-  }
-
-  if (!ampValidatorPath) {
-    ampValidatorPath = require.resolve(
-      'next/dist/compiled/amphtml-validator/validator_wasm.js'
-    )
-  }
-
-  const inAmpMode = isInAmpMode(ampState)
-  const hybridAmp = ampState.hybrid
-
   if (components.getServerSideProps) {
     throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
   }
@@ -95,7 +73,10 @@ export async function exportPagesPage(
   let renderResult: RenderResult | undefined
 
   if (typeof components.Component === 'string') {
-    renderResult = RenderResult.fromStatic(components.Component)
+    renderResult = RenderResult.fromStatic(
+      components.Component,
+      HTML_CONTENT_TYPE_HEADER
+    )
 
     if (hasOrigQueryValues) {
       throw new Error(
@@ -128,74 +109,10 @@ export async function exportPagesPage(
 
   const ssgNotFound = renderResult?.metadata.isNotFound
 
-  const ampValidations: AmpValidation[] = []
-
-  const validateAmp = async (
-    rawAmpHtml: string,
-    ampPageName: string,
-    validatorPath: string | undefined
-  ) => {
-    const validator = await AmpHtmlValidator.getInstance(validatorPath)
-    const result = validator.validateString(rawAmpHtml)
-    const errors = result.errors.filter((e) => e.severity === 'ERROR')
-    const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
-
-    if (warnings.length || errors.length) {
-      ampValidations.push({
-        page: ampPageName,
-        result: {
-          errors,
-          warnings,
-        },
-      })
-    }
-  }
-
   const html =
     renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
-  let ampRenderResult: RenderResult | undefined
-
-  if (inAmpMode && !renderOpts.ampSkipValidation) {
-    if (!ssgNotFound) {
-      await validateAmp(html, path, ampValidatorPath)
-    }
-  } else if (hybridAmp) {
-    const ampHtmlFilename = subFolders
-      ? join(ampPath, 'index.html')
-      : `${ampPath}.html`
-
-    const ampHtmlFilepath = join(outDir, ampHtmlFilename)
-
-    const exists = await fileExists(ampHtmlFilepath, FileType.File)
-    if (!exists) {
-      try {
-        ampRenderResult = await lazyRenderPagesPage(
-          req,
-          res,
-          page,
-          { ...searchAndDynamicParams, amp: '1' },
-          renderOpts,
-          sharedContext,
-          renderContext
-        )
-      } catch (err) {
-        if (!isBailoutToCSRError(err)) throw err
-      }
-
-      const ampHtml =
-        ampRenderResult && !ampRenderResult.isNull
-          ? ampRenderResult.toUnchunkedString()
-          : ''
-      if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
-      }
-
-      fileWriter.append(ampHtmlFilepath, ampHtml)
-    }
-  }
-
-  const metadata = renderResult?.metadata || ampRenderResult?.metadata || {}
+  const metadata = renderResult?.metadata || {}
   if (metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
@@ -203,13 +120,6 @@ export async function exportPagesPage(
     )
 
     fileWriter.append(dataFile, JSON.stringify(metadata.pageData))
-
-    if (hybridAmp) {
-      fileWriter.append(
-        dataFile.replace(/\.json$/, '.amp.json'),
-        JSON.stringify(metadata.pageData)
-      )
-    }
   }
 
   if (!ssgNotFound) {
@@ -218,8 +128,10 @@ export async function exportPagesPage(
   }
 
   return {
-    ampValidations,
-    revalidate: metadata.revalidate ?? false,
+    cacheControl: metadata.cacheControl ?? {
+      revalidate: false,
+      expire: undefined,
+    },
     ssgNotFound,
   }
 }

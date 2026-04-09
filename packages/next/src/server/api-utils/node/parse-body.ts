@@ -58,7 +58,7 @@ export async function parseBody(
   if (type === 'application/json' || type === 'application/ld+json') {
     return parseJson(body)
   } else if (type === 'application/x-www-form-urlencoded') {
-    const qs = require('querystring')
+    const qs = require('querystring') as typeof import('querystring')
     return qs.decode(body)
   } else {
     return body

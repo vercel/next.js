@@ -33,18 +33,19 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
+let getServerError: typeof import('../../dev/node-stack-frames').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware =
-    require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
-  getServerError = middleware.getServerError
-  decorateServerError =
-    require('../../../shared/lib/error-source').decorateServerError
+  getServerError = (
+    require('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames') as typeof import('../../dev/node-stack-frames')
+  ).getServerError
+  decorateServerError = (
+    require('../../../shared/lib/error-source') as typeof import('../../../shared/lib/error-source')
+  ).decorateServerError
 } else {
-  getServerError = (error: Error, _: string) => error
-  decorateServerError = (_: Error, __: string) => {}
+  getServerError = (error) => error
+  decorateServerError = () => {}
 }
 
 /**
@@ -104,6 +105,7 @@ async function loadWasm(
   await Promise.all(
     wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.
         await fs.readFile(binding.filePath)
       )
       modules[binding.name] = module
@@ -116,12 +118,11 @@ async function loadWasm(
 function buildEnvironmentVariablesFrom(
   injectedEnvironments: Record<string, string>
 ): Record<string, string | undefined> {
-  const pairs = Object.keys(process.env).map((key) => [key, process.env[key]])
-  const env = Object.fromEntries(pairs)
-  for (const key of Object.keys(injectedEnvironments)) {
-    env[key] = injectedEnvironments[key]
-  }
-  env.NEXT_RUNTIME = 'edge'
+  let env = Object.fromEntries([
+    ...Object.entries(process.env),
+    ...Object.entries(injectedEnvironments),
+    ['NEXT_RUNTIME', 'edge'],
+  ])
   return env
 }
 
@@ -362,23 +363,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
         init.headers = new Headers(init.headers ?? {})
 
-        // Forward subrequest header from incoming request to outgoing request
-        const store = requestStore.getStore()
-        if (
-          store?.headers.has('x-middleware-subrequest') &&
-          !init.headers.has('x-middleware-subrequest')
-        ) {
-          init.headers.set(
-            'x-middleware-subrequest',
-            store.headers.get('x-middleware-subrequest') ?? ''
-          )
-        }
-
-        const prevs =
-          init.headers.get(`x-middleware-subrequest`)?.split(':') || []
-        const value = prevs.concat(options.moduleName).join(':')
-        init.headers.set('x-middleware-subrequest', value)
-
         if (!init.headers.has('user-agent')) {
           init.headers.set(`user-agent`, `Next.js Middleware`)
         }
@@ -422,8 +406,14 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
-          validateURL(url)
-          super(url, init)
+
+          if (typeof input === 'string') {
+            validateURL(url)
+            super(input, init)
+          } else {
+            super(input, init)
+            validateURL(url)
+          }
           this.next = init?.next
         }
       }

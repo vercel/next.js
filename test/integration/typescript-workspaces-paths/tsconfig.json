@@ -15,8 +15,8 @@
     },
     "esModuleInterop": true,
     "module": "esnext",
-    "jsx": "preserve",
-    "target": "es5",
+    "jsx": "react-jsx",
+    "target": "es2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -27,5 +27,6 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true
-  }
+  },
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]
 }

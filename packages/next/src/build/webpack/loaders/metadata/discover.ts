@@ -36,9 +36,7 @@ async function enumMetadataFiles(
   )
   for (const name of possibleFileNames) {
     const resolved = await metadataResolver(dir, name, extensions)
-    if (resolved) {
-      collectedFiles.push(resolved)
-    }
+    collectedFiles.push(...resolved)
   }
 
   return collectedFiles
@@ -86,7 +84,9 @@ export async function createStaticMetadataFromRoute(
         const extension = staticManifestExtension.includes(ext.slice(1))
           ? ext.slice(1)
           : 'webmanifest'
-        staticImagesMetadata.manifest = JSON.stringify(`/${name}.${extension}`)
+        staticImagesMetadata.manifest = JSON.stringify(
+          `${basePath}/${name}.${extension}`
+        )
       }
       return
     }

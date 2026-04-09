@@ -2,8 +2,8 @@
 name = "turbopack-dev-server"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 autobenches = false
 
 [lib]
@@ -17,12 +17,12 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-compression = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
+flate2 = { workspace = true }
 futures = { workspace = true }
 hyper = { version = "0.14", features = ["full"] }
 hyper-tungstenite = "0.9.0"
-indexmap = { workspace = true, features = ["serde"] }
 mime = { workspace = true }
 mime_guess = "2.0.4"
 parking_lot = { workspace = true }
@@ -36,6 +36,7 @@ tokio = { workspace = true }
 tokio-stream = "0.1.9"
 tokio-util = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }
@@ -48,5 +49,6 @@ turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 urlencoding = "2.1.2"
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }
+

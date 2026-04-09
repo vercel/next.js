@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    mem::take,
-};
+use std::mem::take;
 
 use crate::timestamp::Timestamp;
 
@@ -189,12 +186,13 @@ impl<T> SelfTimeTree<T> {
         }
     }
 
+    #[cfg(test)]
     pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
         let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
-                let start = max(entry.start, start);
-                let end = min(entry.end, end);
+                let start = std::cmp::max(entry.start, start);
+                let end = std::cmp::min(entry.end, end);
                 let span = end - start;
                 total_count += span;
             }
@@ -208,6 +206,46 @@ impl<T> SelfTimeTree<T> {
             }
         }
         total_count
+    }
+
+    pub fn lookup_range_corrected_time(&self, start: Timestamp, end: Timestamp) -> Timestamp {
+        let mut factor_times_1000 = 0u64;
+        #[derive(PartialEq, Eq, PartialOrd, Ord)]
+        enum Change {
+            Start,
+            End,
+        }
+        let mut current_count = 0;
+        let mut changes = Vec::new();
+        self.for_each_in_range(start, end, |s, e, _| {
+            if s <= start {
+                current_count += 1;
+            } else {
+                changes.push((s, Change::Start));
+            }
+            if e < end {
+                changes.push((e, Change::End));
+            }
+        });
+        changes.sort_unstable();
+        let mut current_ts = start;
+        for (ts, change) in changes {
+            if current_ts < ts {
+                // Move time
+                let time_diff = ts - current_ts;
+                factor_times_1000 += *time_diff * 1000 / current_count;
+                current_ts = ts;
+            }
+            match change {
+                Change::Start => current_count += 1,
+                Change::End => current_count -= 1,
+            }
+        }
+        if current_ts < end {
+            let time_diff = end - current_ts;
+            factor_times_1000 += *time_diff * 1000 / current_count;
+        }
+        Timestamp::from_value(factor_times_1000 / 1000)
     }
 
     pub fn for_each_in_range(

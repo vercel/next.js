@@ -22,12 +22,17 @@ export function trackStreamConsumed<TChunk>(
   stream: ReadableStream<TChunk>,
   onEnd: () => void
 ): ReadableStream<TChunk> {
-  const closePassThrough = new TransformStream<TChunk, TChunk>({
-    flush: () => {
-      return onEnd()
-    },
-  })
-  return stream.pipeThrough(closePassThrough)
+  // NOTE: This function must handle `stream` being aborted or cancelled,
+  // so it can't just be this:
+  //
+  //   return stream.pipeThrough(new TransformStream({ flush() { onEnd() } }))
+  //
+  // because that doesn't handle cancellations.
+  // (and cancellation handling via `Transformer.cancel` is only available in node >20)
+  const dest = new TransformStream()
+  const runOnEnd = () => onEnd()
+  stream.pipeTo(dest.writable).then(runOnEnd, runOnEnd)
+  return dest.readable
 }
 
 export class CloseController {

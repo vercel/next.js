@@ -16,13 +16,6 @@
 
 - [Adding Documentation](./contributing/docs/adding-documentation.md)
 
-## Examples
-
-To contribute to [our examples](./examples), please see
-
-- [Adding Examples](./contributing/examples/adding-examples.md)
-- [Run Example Apps](./contributing/examples/run-example-apps.md)
-
 ## Core
 
 - [Developing](./contributing/core/developing.md)
@@ -32,3 +25,7 @@ To contribute to [our examples](./examples), please see
 - [Adding a new feature](./contributing/core/adding-features.md)
 - [Developing Using Local App](./contributing/core/developing-using-local-app.md)
 <!-- - [Using the VS Code Debugger](./contributing/core/vscode-debugger.md) -->
+
+## Turbopack
+
+- [Tracing](./contributing/turbopack/tracing.md)

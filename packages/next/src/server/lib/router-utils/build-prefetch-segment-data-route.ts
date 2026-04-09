@@ -11,6 +11,7 @@ export const SEGMENT_PATH_KEY = 'nextSegmentPath'
 export type PrefetchSegmentDataRoute = {
   source: string
   destination: string
+  routeKeys: { [key: string]: string }
 }
 
 export function buildPrefetchSegmentDataRoute(
@@ -24,7 +25,7 @@ export function buildPrefetchSegmentDataRoute(
     `${segmentPath}${RSC_SEGMENT_SUFFIX}`
   )
 
-  const { namedRegex } = getNamedRouteRegex(destination, {
+  const { namedRegex, routeKeys } = getNamedRouteRegex(destination, {
     prefixRouteKeys: true,
     includePrefix: true,
     includeSuffix: true,
@@ -35,5 +36,6 @@ export function buildPrefetchSegmentDataRoute(
   return {
     destination,
     source: namedRegex,
+    routeKeys,
   }
 }

@@ -14,7 +14,7 @@ export const DotLink = ({ attrs: { href, target }, children }) => {
       {children}
     </a>
   ) : (
-    <Link href={href} target={target || "_self"} legacyBehavior>
+    <Link href={href} target={target || "_self"}>
       {children}
     </Link>
   );

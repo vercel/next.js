@@ -1,76 +1,150 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
+    atoms::Wtf8Atom,
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{Atom, atom},
+        utils::{IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, source::Source};
+use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
 
-use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
+use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
-    analyzer::{ConstantValue, ObjectPart},
-    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
+    analyzer::{ConstantValue, ObjectPart},
+    magic_identifier,
+    references::util::{SpecifiedChunkingType, parse_chunking_type_annotation},
+    tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
     #[turbo_tasks(trace_ignore)]
-    map: BTreeMap<JsWord, JsWord>,
+    #[bincode(with_serde)]
+    map: BTreeMap<Wtf8Atom, Wtf8Atom>,
+    /// Parsed turbopack loader configuration from import attributes.
+    /// e.g. `import "file" with { turbopackLoader: "raw-loader" }`
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    turbopack_loader: Option<WebpackLoaderItem>,
+    turbopack_rename_as: Option<RcStr>,
+    turbopack_module_type: Option<RcStr>,
+    chunking_type: Option<SpecifiedChunkingType>,
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<JsWord> =
+static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
-/// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> =
-    Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
-
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<JsWord> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
 impl ImportAnnotations {
-    pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
-        let Some(with) = with else {
-            return ImportAnnotations::default();
-        };
+    pub fn parse(with: Option<&ObjectLit>) -> Option<ImportAnnotations> {
+        let with = with?;
 
         let mut map = BTreeMap::new();
+        let mut turbopack_loader_name: Option<RcStr> = None;
+        let mut turbopack_loader_options: serde_json::Map<String, serde_json::Value> =
+            serde_json::Map::new();
+        let mut turbopack_rename_as: Option<RcStr> = None;
+        let mut turbopack_module_type: Option<RcStr> = None;
+        let mut chunking_type: Option<SpecifiedChunkingType> = None;
 
-        // The `with` clause is way more restrictive than `ObjectLit`, it only allows
-        // string -> value and value can only be a string.
-        // We just ignore everything else here till the SWC ast is more restrictive.
-        for (key, value) in with.props.iter().filter_map(|prop| {
-            let kv = prop.as_prop()?.as_key_value()?;
-
-            let Lit::Str(str) = kv.value.as_lit()? else {
-                return None;
+        for prop in &with.props {
+            let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
+                continue;
             };
 
-            Some((&kv.key, str))
-        }) {
-            let key = match key {
-                PropName::Ident(ident) => ident.sym.as_str(),
-                PropName::Str(str) => str.value.as_str(),
-                // the rest are invalid, ignore for now till SWC ast is correct
+            let key_str = match &kv.key {
+                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
+                PropName::Str(str) => str.value.to_string_lossy(),
                 _ => continue,
             };
 
-            map.insert(key.into(), value.value.as_str().into());
+            // All turbopack* keys are extracted as string values (per TC39 import attributes spec)
+            match &*key_str {
+                "turbopackLoader" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_loader_name =
+                            Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
+                "turbopackLoaderOptions" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        let json_str = s.value.to_string_lossy();
+                        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&json_str)
+                        {
+                            turbopack_loader_options = map;
+                        }
+                    }
+                }
+                "turbopackAs" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_rename_as =
+                            Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
+                "turbopackModuleType" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        turbopack_module_type =
+                            Some(RcStr::from(s.value.to_string_lossy().into_owned()));
+                    }
+                }
+                "turbopack-chunking-type" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        chunking_type = parse_chunking_type_annotation(
+                            kv.value.span(),
+                            &s.value.to_string_lossy(),
+                        );
+                    }
+                }
+                _ => {
+                    // For all other keys, only accept string values (per spec)
+                    if let Some(Lit::Str(str)) = kv.value.as_lit() {
+                        let key: Wtf8Atom = match &kv.key {
+                            PropName::Ident(ident) => ident.sym.clone().into(),
+                            PropName::Str(s) => s.value.clone(),
+                            _ => continue,
+                        };
+                        map.insert(key, str.value.clone());
+                    }
+                }
+            }
         }
 
-        ImportAnnotations { map }
+        let turbopack_loader = turbopack_loader_name.map(|name| WebpackLoaderItem {
+            loader: name,
+            options: turbopack_loader_options,
+        });
+
+        if !map.is_empty()
+            || turbopack_loader.is_some()
+            || turbopack_rename_as.is_some()
+            || turbopack_module_type.is_some()
+            || chunking_type.is_some()
+        {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader,
+                turbopack_rename_as,
+                turbopack_module_type,
+                chunking_type,
+            })
+        } else {
+            None
+        }
     }
 
     pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
@@ -92,29 +166,63 @@ impl ImportAnnotations {
                 continue;
             };
 
-            map.insert(key.as_str().into(), value.as_str().into());
+            map.insert(
+                key.as_atom().into_owned().into(),
+                value.as_atom().into_owned().into(),
+            );
         }
 
-        Some(ImportAnnotations { map })
+        if !map.is_empty() {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader: None,
+                turbopack_rename_as: None,
+                turbopack_module_type: None,
+                chunking_type: None,
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the content on the transition annotation
-    pub fn transition(&self) -> Option<&str> {
+    pub fn transition(&self) -> Option<Cow<'_, str>> {
         self.get(&ANNOTATION_TRANSITION)
+            .map(|v| v.to_string_lossy())
     }
 
     /// Returns the content on the chunking-type annotation
-    pub fn chunking_type(&self) -> Option<&str> {
-        self.get(&ANNOTATION_CHUNKING_TYPE)
+    pub fn chunking_type(&self) -> Option<SpecifiedChunkingType> {
+        self.chunking_type
     }
 
     /// Returns the content on the type attribute
-    pub fn module_type(&self) -> Option<&str> {
+    pub fn module_type(&self) -> Option<&Wtf8Atom> {
         self.get(&ATTRIBUTE_MODULE_TYPE)
     }
 
-    pub fn get(&self, key: &JsWord) -> Option<&str> {
-        self.map.get(key).map(|w| w.as_str())
+    /// Returns the turbopackLoader item, if present
+    pub fn turbopack_loader(&self) -> Option<&WebpackLoaderItem> {
+        self.turbopack_loader.as_ref()
+    }
+
+    /// Returns the turbopackAs rename configuration, if present
+    pub fn turbopack_rename_as(&self) -> Option<&RcStr> {
+        self.turbopack_rename_as.as_ref()
+    }
+
+    /// Returns the turbopackModuleType override, if present
+    pub fn turbopack_module_type(&self) -> Option<&RcStr> {
+        self.turbopack_module_type.as_ref()
+    }
+
+    /// Returns true if a turbopack loader is configured
+    pub fn has_turbopack_loader(&self) -> bool {
+        self.turbopack_loader.is_some()
+    }
+
+    pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
+        self.map.get(key)
     }
 }
 
@@ -122,12 +230,12 @@ impl Display for ImportAnnotations {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut it = self.map.iter();
         if let Some((k, v)) = it.next() {
-            write!(f, "{{ {k}: {v}")?
+            write!(f, "{{ {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         } else {
             return f.write_str("{}");
         };
         for (k, v) in it {
-            write!(f, ", {k}: {v}")?
+            write!(f, ", {}: {}", k.to_string_lossy(), v.to_string_lossy())?
         }
         f.write_str(" }")
     }
@@ -136,8 +244,8 @@ impl Display for ImportAnnotations {
 #[derive(Debug)]
 pub(crate) enum Reexport {
     Star,
-    Namespace { exported: JsWord },
-    Named { imported: JsWord, exported: JsWord },
+    Namespace { exported: Atom },
+    Named { imported: Atom, exported: Atom },
 }
 
 /// The storage for all kinds of imports.
@@ -147,7 +255,7 @@ pub(crate) enum Reexport {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    imports: FxIndexMap<Id, (usize, JsWord)>,
+    imports: FxIndexMap<Id, (usize, Atom)>,
 
     /// Map from identifier to index in references
     namespace_imports: FxIndexMap<Id, usize>,
@@ -167,6 +275,9 @@ pub(crate) struct ImportMap {
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
 
+    /// True if the module has "use strict"
+    pub(crate) strict: bool,
+
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
     /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportAttributes] for
@@ -177,7 +288,9 @@ pub(crate) struct ImportMap {
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.
-    full_star_imports: FxHashSet<JsWord>,
+    full_star_imports: FxHashSet<Wtf8Atom>,
+
+    pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -197,11 +310,49 @@ pub struct ImportAttributes {
     /// const b = import(/* turbopackIgnore: true */ "b");
     /// ```
     pub ignore: bool,
+    /// Should resolution errors be suppressed? If so, resolution errors will be completely
+    /// ignored (no error or warning emitted at build time).
+    ///
+    /// This is set by using a `turbopackOptional` comment.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = import(/* turbopackOptional: true */ "a");
+    /// ```
+    pub optional: bool,
+    /// Which exports are used from a dynamic import. When set, enables tree-shaking for the
+    /// dynamically imported module by only including the specified exports.
+    ///
+    /// This is set by using either a `webpackExports` or `turbopackExports` comment.
+    /// `None` means no directive was found (all exports assumed used).
+    /// `Some([])` means empty list (only side effects).
+    /// `Some([name, ...])` means specific named exports are used.
+    ///
+    /// Example:
+    /// ```js
+    /// const { a } = await import(/* webpackExports: ["a"] */ "module");
+    /// const { b } = await import(/* turbopackExports: "b" */ "module");
+    /// ```
+    pub export_names: Option<SmallVec<[RcStr; 1]>>,
+    /// Whether to use a specific chunking type for this import.
+    //
+    /// This is set by using a or `turbopackChunkingType` comment.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = require(/* turbopackChunkingType: parallel */ "a");
+    /// ```
+    pub chunking_type: Option<SpecifiedChunkingType>,
 }
 
 impl ImportAttributes {
     pub const fn empty() -> Self {
-        ImportAttributes { ignore: false }
+        ImportAttributes {
+            ignore: false,
+            optional: false,
+            export_names: None,
+            chunking_type: None,
+        }
     }
 
     pub fn empty_ref() -> &'static Self {
@@ -226,7 +377,7 @@ impl Default for &ImportAttributes {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
-    Symbol(JsWord),
+    Symbol(Atom),
     Exports,
     Part(u32),
     PartEvaluation(u32),
@@ -234,9 +385,9 @@ pub(crate) enum ImportedSymbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
-    pub module_path: JsWord,
+    pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<Arc<ImportAnnotations>>,
     pub issue_source: Option<IssueSource>,
 }
 
@@ -291,11 +442,11 @@ impl ImportMap {
         None
     }
 
-    pub fn references(&self) -> impl Iterator<Item = &ImportMapReference> {
+    pub fn references(&self) -> impl ExactSizeIterator<Item = &ImportMapReference> {
         self.references.iter()
     }
 
-    pub fn reexports(&self) -> impl Iterator<Item = (usize, &Reexport)> {
+    pub fn reexports(&self) -> impl ExactSizeIterator<Item = (usize, &Reexport)> {
         self.reexports.iter().map(|(i, r)| (*i, r))
     }
 
@@ -353,17 +504,17 @@ impl ImportMap {
 
 struct StarImportAnalyzer<'a> {
     /// The local identifiers of the star imports
-    candidates: FxIndexMap<Id, JsWord>,
-    full_star_imports: &'a mut FxHashSet<JsWord>,
+    candidates: FxIndexMap<Id, Wtf8Atom>,
+    full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
 }
 
 impl Visit for StarImportAnalyzer<'_> {
     fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -388,22 +539,22 @@ impl Visit for StarImportAnalyzer<'_> {
     }
 
     fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         pat.visit_children_with(self);
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -420,19 +571,19 @@ impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,
-        module_path: JsWord,
+        module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
-        annotations: ImportAnnotations,
+        annotations: Option<ImportAnnotations>,
     ) -> Option<usize> {
         let issue_source = self
             .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
+            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
 
         let r = ImportMapReference {
             module_path,
             imported_symbol,
             issue_source,
-            annotations,
+            annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
             Some(i)
@@ -441,13 +592,6 @@ impl Analyzer<'_> {
             self.data.references.insert(r);
             Some(i)
         }
-    }
-}
-
-fn to_word(name: &ModuleExportName) -> JsWord {
-    match name {
-        ModuleExportName::Ident(ident) => ident.sym.clone(),
-        ModuleExportName::Str(str) => str.value.clone(),
     }
 }
 
@@ -487,10 +631,10 @@ impl Visit for Analyzer<'_> {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
                 }) => match imported {
-                    Some(imported) => (local.to_id(), orig_name(imported)),
+                    Some(imported) => (local.to_id(), imported.atom().into_owned()),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data.namespace_imports.insert(s.local.to_id(), i);
                     continue;
@@ -499,15 +643,15 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-        if import.specifiers.is_empty() {
-            if let Some(internal_symbol) = internal_symbol {
-                self.ensure_reference(
-                    import.span,
-                    import.src.value.clone(),
-                    internal_symbol,
-                    annotations,
-                );
-            }
+        if import.specifiers.is_empty()
+            && let Some(internal_symbol) = internal_symbol
+        {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                internal_symbol,
+                annotations,
+            );
         }
     }
 
@@ -539,6 +683,7 @@ impl Visit for Analyzer<'_> {
         self.data.has_exports = true;
 
         let Some(ref src) = export.src else {
+            export.visit_children_with(self);
             return;
         };
 
@@ -572,7 +717,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: to_word(&n.name),
+                            exported: n.name.atom().into_owned(),
                         },
                     ));
                 }
@@ -580,7 +725,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: js_word!("default"),
+                            imported: atom!("default"),
                             exported: d.exported.sym.clone(),
                         },
                     ));
@@ -589,8 +734,8 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: to_word(&n.orig),
-                            exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
+                            imported: n.orig.atom().into_owned(),
+                            exported: n.exported.as_ref().unwrap_or(&n.orig).atom().into_owned(),
                         },
                     ));
                 }
@@ -605,7 +750,28 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        match &n.decl {
+            Decl::Class(n) => {
+                self.data
+                    .exports
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+            }
+            Decl::Fn(n) => {
+                self.data
+                    .exports
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+            }
+            Decl::Var(..) | Decl::Using(..) => {
+                let ids: Vec<Id> = find_pat_ids(&n.decl);
+                for id in ids {
+                    self.data.exports.insert(id.0.as_str().into(), id);
+                }
+            }
+            _ => {}
+        }
     }
+
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
         self.data.has_exports = true;
 
@@ -613,7 +779,33 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+            // class/function has an identifier.
+            match &n.decl {
+                DefaultDecl::Class(ClassExpr { ident, .. })
+                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+                    || {
+                        (
+                            magic_identifier::mangle("default export").into(),
+                            SyntaxContext::empty(),
+                        )
+                    },
+                    |ident| ident.to_id(),
+                ),
+                DefaultDecl::TsInterfaceDecl(_) => {
+                    // not matching, might happen due to eventual consistency
+                    (
+                        magic_identifier::mangle("default export").into(),
+                        SyntaxContext::empty(),
+                    )
+                }
+            },
+        );
     }
+
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
@@ -621,10 +813,49 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            (
+                // `EsmModuleItem::code_generation` inserts this variable.
+                magic_identifier::mangle("default export").into(),
+                SyntaxContext::empty(),
+            ),
+        );
+    }
+
+    fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
+        let ModuleExportName::Ident(local) = &n.orig else {
+            // This is only possible for re-exports, but they are already handled earlier in
+            // visit_named_export.
+            unreachable!("string reexports should have been already handled in visit_named_export");
+        };
+        let exported = n.exported.as_ref().unwrap_or(&n.orig);
+        self.data
+            .exports
+            .insert(exported.atom().as_str().into(), local.to_id());
+    }
+
+    fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
+        self.data
+            .exports
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_program(&mut self, m: &Program) {
         self.data.has_top_level_await = has_top_level_await(m).is_some();
+        self.data.strict = match m {
+            Program::Module(module) => module
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+            Program::Script(script) => script
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+        };
 
         m.visit_children_with(self);
     }
@@ -636,11 +867,13 @@ impl Visit for Analyzer<'_> {
         }
     }
 
-    /// check if import or require contains an ignore comment
+    /// check if import or require contains magic comments
     ///
     /// We are checking for the following cases:
     /// - import(/* webpackIgnore: true */ "a")
     /// - require(/* webpackIgnore: true */ "a")
+    /// - import(/* turbopackOptional: true */ "a")
+    /// - require(/* turbopackOptional: true */ "a")
     ///
     /// We can do this by checking if any of the comment spans are between the
     /// callee and the first argument.
@@ -651,24 +884,16 @@ impl Visit for Analyzer<'_> {
         // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
-                Callee::Import(Import { span, .. }) => Some(span),
-                Callee::Expr(box Expr::Ident(Ident { span, sym, .. })) if sym == "require" => {
-                    Some(span)
-                }
+                Callee::Import(Import { span, .. }) => Some(*span),
+                Callee::Expr(e) => Some(e.span()),
                 _ => None,
             };
 
-            // we are interested here in the last comment with a valid directive
-            let ignore_directive = parse_ignore_directive(comments, n.args.first());
-
-            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
-                        ignore: ignore_directive,
-                    },
-                );
-            };
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.first())
+            {
+                self.data.attributes.insert(callee_span.lo, attributes);
+            }
         }
 
         n.visit_children_with(self);
@@ -682,47 +907,94 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let ignore_directive = parse_ignore_directive(comments, n.args.iter().flatten().next());
-
-            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.attributes.insert(
-                    callee_span.lo,
-                    ImportAttributes {
-                        ignore: ignore_directive,
-                    },
-                );
-            };
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.iter().flatten().next())
+            {
+                self.data.attributes.insert(callee_span.lo, attributes);
+            }
         }
 
         n.visit_children_with(self);
     }
 }
 
-fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>) -> Option<bool> {
-    // we are interested here in the last comment with a valid directive
-    value
-        .map(|arg| arg.span_lo())
-        .and_then(|comment_pos| comments.get_leading(comment_pos))
-        .iter()
-        .flatten()
-        .rev()
-        .filter_map(|comment| {
-            let (directive, value) = comment.text.trim().split_once(':')?;
-            // support whitespace between the colon
-            match (directive.trim(), value.trim()) {
-                ("webpackIgnore" | "turbopackIgnore", "true") => Some(true),
-                ("webpackIgnore" | "turbopackIgnore", "false") => Some(false),
-                _ => None, // ignore anything else
+/// Parse magic comment directives from the leading comments of a call argument.
+/// Returns (ignore, optional) directives if any are found.
+fn parse_directives(
+    comments: &dyn Comments,
+    value: Option<&ExprOrSpread>,
+) -> Option<ImportAttributes> {
+    let value = value?;
+    let leading_comments = comments.get_leading(value.span_lo())?;
+
+    let mut ignore = None;
+    let mut optional = None;
+    let mut export_names = None;
+    let mut chunking_type = None;
+
+    // Process all comments, last one wins for each directive type
+    for comment in leading_comments.iter() {
+        if let Some((directive, val)) = comment.text.trim().split_once(':') {
+            let val = val.trim();
+            match directive.trim() {
+                "webpackIgnore" | "turbopackIgnore" => match val {
+                    "true" => ignore = Some(true),
+                    "false" => ignore = Some(false),
+                    _ => {}
+                },
+                "turbopackOptional" => match val {
+                    "true" => optional = Some(true),
+                    "false" => optional = Some(false),
+                    _ => {}
+                },
+                "webpackExports" | "turbopackExports" => {
+                    export_names = Some(parse_export_names(val));
+                }
+                "turbopackChunkingType" => {
+                    chunking_type = parse_chunking_type_annotation(value.span(), val);
+                }
+                _ => {} // ignore anything else
             }
+        }
+    }
+
+    // Return Some only if at least one directive was found
+    if ignore.is_some() || optional.is_some() || export_names.is_some() || chunking_type.is_some() {
+        Some(ImportAttributes {
+            ignore: ignore.unwrap_or(false),
+            optional: optional.unwrap_or(false),
+            export_names,
+            chunking_type,
         })
-        .next()
+    } else {
+        None
+    }
 }
 
-pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
-    match n {
-        ModuleExportName::Ident(v) => v.sym.clone(),
-        ModuleExportName::Str(v) => v.value.clone(),
+/// Parse export names from a `webpackExports` or `turbopackExports` comment value.
+///
+/// Supports two formats:
+/// - Single string: `"name"` → `["name"]`
+/// - JSON array: `["name1", "name2"]` → `["name1", "name2"]`
+fn parse_export_names(val: &str) -> SmallVec<[RcStr; 1]> {
+    let val = val.trim();
+
+    // Try parsing as JSON array of strings
+    if let Ok(names) = serde_json::from_str::<Vec<String>>(val) {
+        return names.into_iter().map(|s| s.into()).collect();
     }
+
+    // Try parsing as a single JSON string
+    if let Ok(name) = serde_json::from_str::<String>(val) {
+        return SmallVec::from_buf([name.into()]);
+    }
+
+    // Bare identifier (no quotes)
+    if !val.is_empty() {
+        return SmallVec::from_buf([val.into()]);
+    }
+
+    SmallVec::new()
 }
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
@@ -740,10 +1012,10 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
         }) => ImportedSymbol::Symbol(match imported {
-            Some(imported) => orig_name(imported),
+            Some(imported) => imported.atom().into_owned(),
             _ => local.sym.clone(),
         }),
-        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ImportSpecifier::Namespace(..) => ImportedSymbol::Exports,
     }
 }
@@ -751,9 +1023,95 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
 fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol {
     match specifier {
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
-            ImportedSymbol::Symbol(orig_name(orig))
+            ImportedSymbol::Symbol(orig.atom().into_owned())
         }
-        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{atoms::Atom, common::DUMMY_SP, ecma::ast::*};
+
+    use super::*;
+
+    /// Helper to create a string literal expression
+    fn str_lit(s: &str) -> Box<Expr> {
+        Box::new(Expr::Lit(Lit::Str(Str {
+            span: DUMMY_SP,
+            value: Atom::from(s).into(),
+            raw: None,
+        })))
+    }
+
+    /// Helper to create an ident property name
+    fn ident_key(s: &str) -> PropName {
+        PropName::Ident(IdentName {
+            span: DUMMY_SP,
+            sym: Atom::from(s),
+        })
+    }
+
+    /// Helper to create a key-value property
+    fn kv_prop(key: PropName, value: Box<Expr>) -> PropOrSpread {
+        PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value })))
+    }
+
+    #[test]
+    fn test_parse_turbopack_loader_annotation() {
+        // Simulate: with { turbopackLoader: "raw-loader" }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(ident_key("turbopackLoader"), str_lit("raw-loader"))],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
+        assert!(annotations.has_turbopack_loader());
+
+        let loader = annotations.turbopack_loader().unwrap();
+        assert_eq!(loader.loader.as_str(), "raw-loader");
+        assert!(loader.options.is_empty());
+    }
+
+    #[test]
+    fn test_parse_turbopack_loader_with_options() {
+        // Simulate: with { turbopackLoader: "my-loader", turbopackLoaderOptions: '{"flag":true}' }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![
+                kv_prop(ident_key("turbopackLoader"), str_lit("my-loader")),
+                kv_prop(
+                    ident_key("turbopackLoaderOptions"),
+                    str_lit(r#"{"flag":true}"#),
+                ),
+            ],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
+        assert!(annotations.has_turbopack_loader());
+
+        let loader = annotations.turbopack_loader().unwrap();
+        assert_eq!(loader.loader.as_str(), "my-loader");
+        assert_eq!(loader.options["flag"], serde_json::Value::Bool(true));
+    }
+
+    #[test]
+    fn test_parse_without_turbopack_loader() {
+        // Simulate: with { type: "json" }
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(ident_key("type"), str_lit("json"))],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
+        assert!(!annotations.has_turbopack_loader());
+        assert!(annotations.module_type().is_some());
+    }
+
+    #[test]
+    fn test_parse_empty_with() {
+        let annotations = ImportAnnotations::parse(None);
+        assert!(annotations.is_none());
     }
 }

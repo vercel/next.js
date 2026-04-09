@@ -41,7 +41,6 @@
             ),
         ],
         span: 9..25,
-        in_try: false,
     },
     ImportMeta {
         ast_path: [
@@ -81,6 +80,5 @@
             ),
         ],
         span: 9..20,
-        in_try: false,
     },
 ]

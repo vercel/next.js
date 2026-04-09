@@ -1,4 +1,3 @@
-import { join } from 'node:path'
 import {
   projectShouldHaveNoGitChanges,
   shouldBeTemplateProject,
@@ -30,11 +29,13 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--js',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -59,11 +60,13 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -86,11 +89,13 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -122,11 +127,13 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -157,12 +164,14 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--empty',
           '--no-tailwind',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -195,12 +204,14 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
           '--empty',
           '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
         nextTgzFilename,
         {
@@ -222,33 +233,6 @@ describe('create-next-app --app (App Router)', () => {
         projectName,
         isEmpty,
       })
-    })
-  })
-
-  it('should enable turbopack dev with --turbopack flag', async () => {
-    await useTempDir(async (cwd) => {
-      const projectName = 'app-turbo'
-      const { exitCode } = await run(
-        [
-          projectName,
-          '--ts',
-          '--app',
-          '--eslint',
-          '--turbopack',
-          '--no-src-dir',
-          '--no-tailwind',
-          '--no-import-alias',
-        ],
-        nextTgzFilename,
-        {
-          cwd,
-        }
-      )
-
-      expect(exitCode).toBe(0)
-      const projectRoot = join(cwd, projectName)
-      const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
     })
   })
 })

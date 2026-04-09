@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, DeriveInput};
-use turbo_tasks_macros_shared::{generate_exhaustive_destructuring, match_expansion};
+use syn::{DeriveInput, parse_macro_input, spanned::Spanned};
+
+use crate::expand::{generate_exhaustive_destructuring, match_expansion};
 
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
@@ -149,6 +150,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         .collect();
 
     quote! {
+        #[automatically_derived]
         #[turbo_tasks::macro_helpers::async_trait]
         impl #generics turbo_tasks::TaskInput for #ident #generics
         where

@@ -3,15 +3,15 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
-        transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-        visit::{fold_pass, Fold, FoldWith, VisitMutWith},
+        atoms::{Atom, atom},
+        transforms::optimization::simplify::dce::{Config as DCEConfig, dce},
+        visit::{Fold, FoldWith, VisitMutWith, fold_pass},
     },
 };
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub ignore: Vec<JsWord>,
+    pub ignore: Vec<Atom>,
 }
 
 pub fn shake_exports(config: Config) -> impl Pass {
@@ -23,7 +23,7 @@ pub fn shake_exports(config: Config) -> impl Pass {
 
 #[derive(Debug, Default)]
 struct ExportShaker {
-    ignore: Vec<JsWord>,
+    ignore: Vec<Atom>,
     remove_export: bool,
 }
 
@@ -48,25 +48,21 @@ impl Fold for ExportShaker {
 
     fn fold_export_decl(&mut self, mut decl: ExportDecl) -> ExportDecl {
         match &mut decl.decl {
-            Decl::Fn(fn_decl) => {
-                if !self.ignore.contains(&fn_decl.ident.sym) {
-                    self.remove_export = true;
-                }
+            Decl::Fn(fn_decl) if !self.ignore.contains(&fn_decl.ident.sym) => {
+                self.remove_export = true;
             }
-            Decl::Class(class_decl) => {
-                if !self.ignore.contains(&class_decl.ident.sym) {
-                    self.remove_export = true;
-                }
+            Decl::Class(class_decl) if !self.ignore.contains(&class_decl.ident.sym) => {
+                self.remove_export = true;
             }
             Decl::Var(var_decl) => {
                 var_decl.decls = var_decl
                     .decls
                     .iter()
                     .filter_map(|var_decl| {
-                        if let Pat::Ident(BindingIdent { id, .. }) = &var_decl.name {
-                            if self.ignore.contains(&id.sym) {
-                                return Some(var_decl.to_owned());
-                            }
+                        if let Pat::Ident(BindingIdent { id, .. }) = &var_decl.name
+                            && self.ignore.contains(&id.sym)
+                        {
+                            return Some(var_decl.to_owned());
                         }
                         None
                     })
@@ -87,15 +83,15 @@ impl Fold for ExportShaker {
             .filter_map(|spec| {
                 if let ExportSpecifier::Named(named_spec) = spec {
                     if let Some(ident) = &named_spec.exported {
-                        if let ModuleExportName::Ident(ident) = ident {
-                            if self.ignore.contains(&ident.sym) {
-                                return Some(ExportSpecifier::Named(named_spec));
-                            }
-                        }
-                    } else if let ModuleExportName::Ident(ident) = &named_spec.orig {
-                        if self.ignore.contains(&ident.sym) {
+                        if let ModuleExportName::Ident(ident) = ident
+                            && self.ignore.contains(&ident.sym)
+                        {
                             return Some(ExportSpecifier::Named(named_spec));
                         }
+                    } else if let ModuleExportName::Ident(ident) = &named_spec.orig
+                        && self.ignore.contains(&ident.sym)
+                    {
+                        return Some(ExportSpecifier::Named(named_spec));
                     }
                 }
                 None
@@ -108,14 +104,14 @@ impl Fold for ExportShaker {
     }
 
     fn fold_export_default_decl(&mut self, decl: ExportDefaultDecl) -> ExportDefaultDecl {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         decl
     }
 
     fn fold_export_default_expr(&mut self, expr: ExportDefaultExpr) -> ExportDefaultExpr {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         expr

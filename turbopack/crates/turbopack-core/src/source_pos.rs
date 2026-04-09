@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
+use bincode::{Decode, Encode};
+use serde::Serialize;
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -20,26 +21,30 @@ const U8_CR: u8 = 0x0D;
     TaskInput,
     TraceRawVcs,
     Serialize,
-    Deserialize,
     DeterministicHash,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct SourcePos {
     /// The line, 0-indexed.
-    pub line: usize,
+    pub line: u32,
     /// The byte index of the column, 0-indexed.
-    pub column: usize,
+    pub column: u32,
 }
 
 impl SourcePos {
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(start_line: u32) -> Self {
+        Self {
+            line: start_line,
+            column: 0,
+        }
     }
 
     pub fn max() -> Self {
         Self {
-            line: usize::MAX,
-            column: usize::MAX,
+            line: u32::MAX,
+            column: u32::MAX,
         }
     }
 
@@ -47,12 +52,12 @@ impl SourcePos {
     /// Line terminators are the classic "\n", "\r", "\r\n" (which counts as
     /// a single terminator), and JSON LINE/PARAGRAPH SEPARATORs.
     ///
-    /// See https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators
+    /// See <https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-line-terminators>
     pub fn update(&mut self, code: &[u8]) {
         // JS source text is interpreted as UCS-2, which is basically UTF-16 with less
         // restrictions. We cannot iterate UTF-8 bytes here, 2-byte UTF-8 octets
         // should count as a 1 char and not 2.
-        let SourcePos {
+        let &mut SourcePos {
             mut line,
             mut column,
         } = self;
@@ -131,8 +136,8 @@ impl SourcePos {
     }
 }
 
-impl std::cmp::PartialEq<(usize, usize)> for SourcePos {
-    fn eq(&self, other: &(usize, usize)) -> bool {
+impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
+    fn eq(&self, other: &(u32, u32)) -> bool {
         &(self.line, self.column) == other
     }
 }

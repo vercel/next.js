@@ -1,4 +1,5 @@
 // TODO: Remove use of `any` type.
+import './register-deployment-id-global'
 import './webpack'
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
@@ -13,7 +14,7 @@ window.next = {
   emitter,
 }
 
-const devClient = initHMR('webpack')
+const devClient = initHMR()
 initialize({ devClient })
   .then(({ assetPrefix }) => {
     return pageBootstrap(assetPrefix)

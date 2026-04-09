@@ -1,6 +1,7 @@
-use anyhow::{bail, Context, Result};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use anyhow::{Context, Result};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbobail};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::EvaluatableAsset,
@@ -12,26 +13,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-#[turbo_tasks::function]
-pub fn route_bootstrap(
-    asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
-    bootstrap_asset: Vc<Box<dyn Source>>,
-    config: Vc<BootstrapConfig>,
-) -> Vc<Box<dyn EvaluatableAsset>> {
-    bootstrap(
-        asset,
-        asset_context,
-        base_path,
-        bootstrap_asset,
-        Vc::cell(FxIndexMap::default()),
-        config,
-    )
-}
-
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(FxIndexMap<String, String>);
+pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {
@@ -45,66 +28,56 @@ impl BootstrapConfig {
 pub async fn bootstrap(
     asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: Vc<FileSystemPath>,
+    base_path: FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     let path = asset.ident().path().await?;
-    let Some(path) = base_path.await?.get_path_to(&path) else {
-        bail!(
-            "asset {} is not in base path {}",
-            asset.ident().to_string().await?,
-            base_path.to_string().await?
-        );
+    let Some(path) = base_path.get_path_to(&path) else {
+        turbobail!("asset {} is not in base path {base_path}", asset.ident())
     };
     let path = if let Some((name, ext)) = path.rsplit_once('.') {
-        if !ext.contains('/') {
-            name
-        } else {
-            path
-        }
+        if !ext.contains('/') { name } else { path }
     } else {
         path
     };
 
     let pathname = normalize_app_page_to_pathname(path);
 
-    let mut config = config.await?.clone_value();
+    let mut config = config.owned().await?;
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
     let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().join("bootstrap-config.ts".into()),
+                asset.ident().path().await?.join("bootstrap-config.ts")?,
                 AssetContent::file(
-                    File::from(
+                    FileContent::Content(File::from(
                         config
                             .iter()
                             .map(|(k, v)| format!("export const {} = {};\n", k, StringifyJs(v)))
                             .collect::<Vec<_>>()
                             .join(""),
-                    )
-                    .into(),
+                    ))
+                    .cell(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(
-                InnerAssets::empty().to_resolved().await?,
-            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
         )
         .module()
         .to_resolved()
         .await?;
 
-    let mut inner_assets = inner_assets.await?.clone_value();
-    inner_assets.insert("ENTRY".into(), asset);
-    inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
+    let mut inner_assets = inner_assets.owned().await?;
+    inner_assets.insert(rcstr!("ENTRY"), asset);
+    inner_assets.insert(rcstr!("BOOTSTRAP_CONFIG"), config_asset);
 
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module()
         .to_resolved()

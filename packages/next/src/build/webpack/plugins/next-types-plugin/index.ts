@@ -1,9 +1,11 @@
+// DO NOT ADD NEW FEATURES TO THIS PLUGIN
+// DOING SO PREVENTS THEM FROM WORKING FOR TURBOPACK USERS.
+// FOLLOW THE PATTERN OF TYPED-ROUTES AND CACHE-LIFE GENERATION
+
 import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
-import type { Token } from 'next/dist/compiled/path-to-regexp'
 
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { parse } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 
 import { WEBPACK_LAYERS } from '../../../../lib/constants'
@@ -13,11 +15,9 @@ import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-pat
 import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { getPageFromPath } from '../../../entries'
+import { getPageFromPath } from '../../../route-discovery'
 import type { PageExtensions } from '../../../page-extensions-type'
-import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
-import type { CacheLife } from '../../../../server/use-cache/cache-life'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -34,8 +34,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  typedRoutes: boolean
-  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
 }
@@ -56,6 +54,8 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
+import type { InstantConfigForTypeCheckInternal } from 'next/dist/build/segment-config/app/app-segment-config.js'
+
 type TEntry = typeof import('${relativePath}.js')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
@@ -71,6 +71,8 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
+  unstable_instant?: InstantConfigForTypeCheckInternal
+  unstable_dynamicStaleTime?: number
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -86,7 +88,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -240,18 +241,21 @@ const pluginState = getProxiedPluginState({
   collectedRootParams: {} as Record<string, string[]>,
   routeTypes: {
     edge: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
     node: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
     extra: {
-      static: '',
-      dynamic: '',
+      static: [],
+      dynamic: [],
     },
-  } as Record<'edge' | 'node' | 'extra', Record<'static' | 'dynamic', string>>,
+  } as Record<
+    'edge' | 'node' | 'extra',
+    Record<'static' | 'dynamic', string[]>
+  >,
 })
 
 function formatRouteToRouteType(route: string) {
@@ -278,311 +282,8 @@ function formatRouteToRouteType(route: string) {
 
   return {
     isDynamic,
-    routeType: `\n    | \`${route}\``,
+    routeType: route,
   }
-}
-
-// Whether redirects and rewrites have been converted into routeTypes or not.
-let redirectsRewritesTypesProcessed = false
-
-// Convert redirects and rewrites into routeTypes.
-function addRedirectsRewritesRouteTypes(
-  rewrites: Rewrites | undefined,
-  redirects: Redirect[] | undefined
-) {
-  function addExtraRoute(source: string) {
-    let tokens: Token[] | undefined
-    try {
-      tokens = parse(source)
-    } catch {
-      // Ignore invalid routes - they will be handled by other checks.
-    }
-
-    if (Array.isArray(tokens)) {
-      const possibleNormalizedRoutes = ['']
-      let slugCnt = 1
-
-      function append(suffix: string) {
-        for (let i = 0; i < possibleNormalizedRoutes.length; i++) {
-          possibleNormalizedRoutes[i] += suffix
-        }
-      }
-
-      function fork(suffix: string) {
-        const currentLength = possibleNormalizedRoutes.length
-        for (let i = 0; i < currentLength; i++) {
-          possibleNormalizedRoutes.push(possibleNormalizedRoutes[i] + suffix)
-        }
-      }
-
-      for (const token of tokens) {
-        if (typeof token === 'object') {
-          // Make sure the slug is always named.
-          const slug =
-            token.name || (slugCnt++ === 1 ? 'slug' : `slug${slugCnt}`)
-
-          if (token.modifier === '*') {
-            append(`${token.prefix}[[...${slug}]]`)
-          } else if (token.modifier === '+') {
-            append(`${token.prefix}[...${slug}]`)
-          } else if (token.modifier === '') {
-            if (token.pattern === '[^\\/#\\?]+?') {
-              // A safe slug
-              append(`${token.prefix}[${slug}]`)
-            } else if (token.pattern === '.*') {
-              // An optional catch-all slug
-              append(`${token.prefix}[[...${slug}]]`)
-            } else if (token.pattern === '.+') {
-              // A catch-all slug
-              append(`${token.prefix}[...${slug}]`)
-            } else {
-              // Other regex patterns are not supported. Skip this route.
-              return
-            }
-          } else if (token.modifier === '?') {
-            if (/^[a-zA-Z0-9_/]*$/.test(token.pattern)) {
-              // An optional slug with plain text only, fork the route.
-              append(token.prefix)
-              fork(token.pattern)
-            } else {
-              // Optional modifier `?` and regex patterns are not supported.
-              return
-            }
-          }
-        } else if (typeof token === 'string') {
-          append(token)
-        }
-      }
-
-      for (const normalizedRoute of possibleNormalizedRoutes) {
-        const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
-        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'] +=
-          routeType
-      }
-    }
-  }
-
-  if (rewrites) {
-    for (const rewrite of rewrites.beforeFiles) {
-      addExtraRoute(rewrite.source)
-    }
-    for (const rewrite of rewrites.afterFiles) {
-      addExtraRoute(rewrite.source)
-    }
-    for (const rewrite of rewrites.fallback) {
-      addExtraRoute(rewrite.source)
-    }
-  }
-
-  if (redirects) {
-    for (const redirect of redirects) {
-      // Skip internal redirects
-      // https://github.com/vercel/next.js/blob/8ff3d7ff57836c24088474175d595b4d50b3f857/packages/next/src/lib/load-custom-routes.ts#L704-L710
-      if (!('internal' in redirect)) {
-        addExtraRoute(redirect.source)
-      }
-    }
-  }
-}
-
-function createRouteDefinitions() {
-  let staticRouteTypes = ''
-  let dynamicRouteTypes = ''
-
-  for (const type of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes += pluginState.routeTypes[type].static
-    dynamicRouteTypes += pluginState.routeTypes[type].dynamic
-  }
-
-  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
-  const routeTypesFallback =
-    !staticRouteTypes && !dynamicRouteTypes ? 'string & {}' : ''
-
-  return `// Type definitions for Next.js routes
-
-/**
- * Internal types used by the Next.js router and Link component.
- * These types are not meant to be used directly.
- * @internal
- */
-declare namespace __next_route_internal_types__ {
-  type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-  type WithProtocol = \`\${string}:\${string}\`
-
-  type Suffix = '' | SearchOrHash
-
-  type SafeSlug<S extends string> = S extends \`\${string}/\${string}\`
-    ? never
-    : S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
-
-  type CatchAllSlug<S extends string> = S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
-
-  type OptionalCatchAllSlug<S extends string> =
-    S extends \`\${string}\${SearchOrHash}\` ? never : S
-
-  type StaticRoutes = ${staticRouteTypes || 'never'}
-  type DynamicRoutes<T extends string = string> = ${
-    dynamicRouteTypes || 'never'
-  }
-
-  type RouteImpl<T> = ${
-    routeTypesFallback ||
-    `
-    ${
-      // This keeps autocompletion working for static routes.
-      '| StaticRoutes'
-    }
-    | SearchOrHash
-    | WithProtocol
-    | \`\${StaticRoutes}\${SearchOrHash}\`
-    | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
-    `
-  }
-}
-
-declare module 'next' {
-  export { default } from 'next/types.js'
-  export * from 'next/types.js'
-
-  export type Route<T extends string = string> =
-    __next_route_internal_types__.RouteImpl<T>
-}
-
-declare module 'next/link' {
-  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
-  import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
-  import type { UrlObject } from 'url'
-
-  type LinkRestProps = Omit<
-    Omit<
-      DetailedHTMLProps<
-        AnchorHTMLAttributes<HTMLAnchorElement>,
-        HTMLAnchorElement
-      >,
-      keyof OriginalLinkProps
-    > &
-      OriginalLinkProps,
-    'href'
-  >
-
-  export type LinkProps<RouteInferType> = LinkRestProps & {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     * @see https://nextjs.org/docs/api-reference/next/link
-     */
-    href: __next_route_internal_types__.RouteImpl<RouteInferType> | UrlObject
-  }
-
-  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}
-
-declare module 'next/navigation' {
-  export * from 'next/dist/client/components/navigation.js'
-
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
-  interface AppRouterInstance extends OriginalAppRouterInstance {
-    /**
-     * Navigate to the provided href.
-     * Pushes a new history entry.
-     */
-    push<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
-    /**
-     * Navigate to the provided href.
-     * Replaces the current history entry.
-     */
-    replace<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
-    /**
-     * Prefetch the provided href.
-     */
-    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
-  }
-
-  export function useRouter(): AppRouterInstance;
-}
-
-declare module 'next/form' {
-  import type { FormProps as OriginalFormProps } from 'next/dist/client/form.js'
-
-  type FormRestProps = Omit<OriginalFormProps, 'action'>
-
-  export type FormProps<RouteInferType> = {
-    /**
-     * \`action\` can be either a \`string\` or a function.
-     * - If \`action\` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
-     *   The path will be prefetched when the form becomes visible.
-     * - If \`action\` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
-     */
-    action: __next_route_internal_types__.RouteImpl<RouteInferType> | ((formData: FormData) => void)
-  } & FormRestProps
-
-  export default function Form<RouteType>(props: FormProps<RouteType>): JSX.Element
-}
-`
-}
-
-function formatTimespan(seconds: number): string {
-  if (seconds > 0) {
-    if (seconds === 18748800) {
-      return '1 month'
-    }
-    if (seconds === 18144000) {
-      return '1 month'
-    }
-    if (seconds === 604800) {
-      return '1 week'
-    }
-    if (seconds === 86400) {
-      return '1 day'
-    }
-    if (seconds === 3600) {
-      return '1 hour'
-    }
-    if (seconds === 60) {
-      return '1 minute'
-    }
-    if (seconds % 18748800 === 0) {
-      return seconds / 18748800 + ' months'
-    }
-    if (seconds % 18144000 === 0) {
-      return seconds / 18144000 + ' months'
-    }
-    if (seconds % 604800 === 0) {
-      return seconds / 604800 + ' weeks'
-    }
-    if (seconds % 86400 === 0) {
-      return seconds / 86400 + ' days'
-    }
-    if (seconds % 3600 === 0) {
-      return seconds / 3600 + ' hours'
-    }
-    if (seconds % 60 === 0) {
-      return seconds / 60 + ' minutes'
-    }
-  }
-  return seconds + ' seconds'
-}
-
-function formatTimespanWithSeconds(seconds: undefined | number): string {
-  if (seconds === undefined) {
-    return 'default'
-  }
-  if (seconds >= 0xfffffffe) {
-    return 'never'
-  }
-  const text = seconds + ' seconds'
-  const descriptive = formatTimespan(seconds)
-  if (descriptive === text) {
-    return text
-  }
-  return text + ' (' + descriptive + ')'
 }
 
 function getRootParamsFromLayouts(layouts: Record<string, string[]>) {
@@ -648,9 +349,7 @@ function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
   )
 }
 
-function createServerDefinitions(
-  rootParams: { param: string; optional: boolean }[]
-) {
+function createServerDefinitions() {
   return `
   declare module 'next/server' {
 
@@ -661,7 +360,7 @@ function createServerDefinitions(
     export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
     export { NextRequest } from 'next/dist/server/web/spec-extension/request'
     export { NextResponse } from 'next/dist/server/web/spec-extension/response'
-    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { NextMiddleware, MiddlewareConfig, NextProxy, ProxyConfig } from 'next/dist/server/web/types'
     export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
     export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
     export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
@@ -669,134 +368,8 @@ function createServerDefinitions(
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
-    export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
-    export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
-    export function unstable_rootParams(): Promise<{ ${rootParams
-      .map(
-        ({ param, optional }) =>
-          // ensure params with dashes are valid keys
-          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
-      )
-      .join(', ')} }>
   }
   `
-}
-
-function createCustomCacheLifeDefinitions(cacheLife: {
-  [profile: string]: CacheLife
-}) {
-  let overloads = ''
-
-  const profileNames = Object.keys(cacheLife)
-  for (let i = 0; i < profileNames.length; i++) {
-    const profileName = profileNames[i]
-    const profile = cacheLife[profileName]
-    if (typeof profile !== 'object' || profile === null) {
-      continue
-    }
-
-    let description = ''
-
-    if (profile.stale === undefined) {
-      description += `
-     * This cache may be stale on clients for the default stale time of the scope before checking with the server.`
-    } else if (profile.stale >= 0xfffffffe) {
-      description += `
-     * This cache may be stale on clients indefinitely before checking with the server.`
-    } else {
-      description += `
-     * This cache may be stale on clients for ${formatTimespan(profile.stale)} before checking with the server.`
-    }
-    if (
-      profile.revalidate !== undefined &&
-      profile.expire !== undefined &&
-      profile.revalidate >= profile.expire
-    ) {
-      description += `
-     * This cache will expire after ${formatTimespan(profile.expire)}. The next request will recompute it.`
-    } else {
-      if (profile.revalidate === undefined) {
-        description += `
-     * It will inherit the default revalidate time of its scope since it does not define its own.`
-      } else if (profile.revalidate >= 0xfffffffe) {
-        // Nothing to mention.
-      } else {
-        description += `
-     * If the server receives a new request after ${formatTimespan(profile.revalidate)}, start revalidating new values in the background.`
-      }
-      if (profile.expire === undefined) {
-        description += `
-     * It will inherit the default expiration time of its scope since it does not define its own.`
-      } else if (profile.expire >= 0xfffffffe) {
-        description += `
-     * It lives for the maximum age of the server cache. If this entry has no traffic for a while, it may serve an old value the next request.`
-      } else {
-        description += `
-     * If this entry has no traffic for ${formatTimespan(profile.expire)} it will expire. The next request will recompute it.`
-      }
-    }
-
-    overloads += `
-    /**
-     * Cache this \`"use cache"\` for a timespan defined by the \`${JSON.stringify(profileName)}\` profile.
-     * \`\`\`
-     *   stale:      ${formatTimespanWithSeconds(profile.stale)}
-     *   revalidate: ${formatTimespanWithSeconds(profile.revalidate)}
-     *   expire:     ${formatTimespanWithSeconds(profile.expire)}
-     * \`\`\`
-     * ${description}
-     */
-    export function unstable_cacheLife(profile: ${JSON.stringify(profileName)}): void
-    `
-  }
-
-  overloads += `
-    /**
-     * Cache this \`"use cache"\` using a custom timespan.
-     * \`\`\`
-     *   stale: ... // seconds 
-     *   revalidate: ... // seconds
-     *   expire: ... // seconds
-     * \`\`\`
-     * 
-     * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-     * 
-     * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-     */
-    export function unstable_cacheLife(profile: {
-      /**
-       * This cache may be stale on clients for ... seconds before checking with the server.
-       */
-      stale?: number,
-      /**
-       * If the server receives a new request after ... seconds, start revalidating new values in the background.
-       */
-      revalidate?: number,
-      /**
-       * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-       */
-      expire?: number
-    }): void
-  `
-
-  // Redefine the cacheLife() accepted arguments.
-  return `// Type definitions for Next.js cacheLife configs
-
-declare module 'next/cache' {
-  export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-  export {
-    revalidateTag,
-    revalidatePath,
-    unstable_expireTag,
-    unstable_expirePath,
-  } from 'next/dist/server/web/spec-extension/revalidate'
-  export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-
-  ${overloads}
-
-  export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
-}
-`
 }
 
 const appTypesBasePath = path.join('types', 'app')
@@ -809,8 +382,6 @@ export class NextTypesPlugin {
   isEdgeServer: boolean
   pageExtensions: string[]
   pagesDir: string
-  typedRoutes: boolean
-  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   distDirAbsolutePath: string
 
   constructor(options: Options) {
@@ -821,16 +392,7 @@ export class NextTypesPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
-    this.typedRoutes = options.typedRoutes
-    this.cacheLifeConfig = options.cacheLifeConfig
     this.distDirAbsolutePath = path.join(this.dir, this.distDir)
-    if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
-      redirectsRewritesTypesProcessed = true
-      addRedirectsRewritesRouteTypes(
-        options.originalRewrites,
-        options.originalRedirects
-      )
-    }
   }
 
   getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
@@ -852,8 +414,6 @@ export class NextTypesPlugin {
   }
 
   collectPage(filePath: string) {
-    if (!this.typedRoutes) return
-
     const isApp = filePath.startsWith(this.appDir + path.sep)
     const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
 
@@ -887,7 +447,7 @@ export class NextTypesPlugin {
 
     pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][
       isDynamic ? 'dynamic' : 'static'
-    ] += routeType
+    ].push(routeType)
   }
 
   apply(compiler: webpack.Compiler) {
@@ -898,7 +458,10 @@ export class NextTypesPlugin {
         ? '..'
         : '../..'
 
-    const handleModule = async (mod: webpack.NormalModule, assets: any) => {
+    const handleModule = async (
+      mod: webpack.NormalModule,
+      compilation: webpack.Compilation
+    ) => {
       if (!mod.resource) return
 
       const pageExtensionsRegex = new RegExp(
@@ -970,23 +533,32 @@ export class NextTypesPlugin {
         pluginState.collectedRootParams[rootLayoutPath] = foundParams
 
         const slots = await collectNamedSlots(mod.resource)
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'layout',
-            slots,
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'layout',
+              slots,
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_PAGE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'page',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'page',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_ROUTE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'route',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'route',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       }
     }
@@ -997,16 +569,16 @@ export class NextTypesPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        async (assets, callback) => {
+        async (_, callback) => {
           const promises: Promise<any>[] = []
 
           // Clear routes
           if (this.isEdgeServer) {
-            pluginState.routeTypes.edge.dynamic = ''
-            pluginState.routeTypes.edge.static = ''
+            pluginState.routeTypes.edge.dynamic = []
+            pluginState.routeTypes.edge.static = []
           } else {
-            pluginState.routeTypes.node.dynamic = ''
-            pluginState.routeTypes.node.static = ''
+            pluginState.routeTypes.node.dynamic = []
+            pluginState.routeTypes.node.static = []
           }
 
           compilation.chunkGroups.forEach((chunkGroup) => {
@@ -1030,7 +602,7 @@ export class NextTypesPlugin {
                   chunk
                 ) as Iterable<webpack.NormalModule>
               for (const mod of chunkModules) {
-                promises.push(handleModule(mod, assets))
+                promises.push(handleModule(mod, compilation))
 
                 // If this is a concatenation, register each child to the parent ID.
                 const anyModule = mod as unknown as {
@@ -1038,7 +610,7 @@ export class NextTypesPlugin {
                 }
                 if (anyModule.modules) {
                   anyModule.modules.forEach((concatenatedMod) => {
-                    promises.push(handleModule(concatenatedMod, assets))
+                    promises.push(handleModule(concatenatedMod, compilation))
                   })
                 }
               }
@@ -1058,9 +630,12 @@ export class NextTypesPlugin {
               'types/server.d.ts'
             )
 
-            assets[serverTypesPath] = new sources.RawSource(
-              createServerDefinitions(rootParams)
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              serverTypesPath,
+              new sources.RawSource(
+                createServerDefinitions()
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
@@ -1070,34 +645,12 @@ export class NextTypesPlugin {
             'types/package.json'
           )
 
-          assets[packageJsonAssetPath] = new sources.RawSource(
-            '{"type": "module"}'
-          ) as unknown as webpack.sources.RawSource
-
-          if (this.typedRoutes) {
-            if (this.dev && !this.isEdgeServer) {
-              devPageFiles.forEach((file) => {
-                this.collectPage(file)
-              })
-            }
-
-            const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
-
-            assets[linkAssetPath] = new sources.RawSource(
-              createRouteDefinitions()
+          compilation.emitAsset(
+            packageJsonAssetPath,
+            new sources.RawSource(
+              '{"type": "module"}'
             ) as unknown as webpack.sources.RawSource
-          }
-
-          if (this.cacheLifeConfig) {
-            const cacheLifeAssetPath = path.join(
-              assetDirRelative,
-              'types/cache-life.d.ts'
-            )
-
-            assets[cacheLifeAssetPath] = new sources.RawSource(
-              createCustomCacheLifeDefinitions(this.cacheLifeConfig)
-            ) as unknown as webpack.sources.RawSource
-          }
+          )
 
           callback()
         }

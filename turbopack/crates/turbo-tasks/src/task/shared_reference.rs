@@ -6,13 +6,20 @@ use std::{
 };
 
 use anyhow::Result;
-use serde::{ser::SerializeTuple, Deserialize, Serialize};
+use bincode::{
+    Decode, Encode,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use turbo_bincode::{
+    TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
+    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
+};
 use unsize::CoerceUnsize;
 
 use crate::{
-    registry,
+    ValueType, ValueTypeId, registry,
     triomphe_utils::{coerce_to_any_send_sync, downcast_triomphe_arc},
-    ValueTypeId,
 };
 
 /// A reference to a piece of data
@@ -27,7 +34,10 @@ impl SharedReference {
 
 /// A reference to a piece of data with type information
 #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct TypedSharedReference(pub ValueTypeId, pub SharedReference);
+pub struct TypedSharedReference {
+    pub type_id: ValueTypeId,
+    pub reference: SharedReference,
+}
 
 impl SharedReference {
     pub fn downcast<T: Any + Send + Sync>(self) -> Result<triomphe::Arc<T>, Self> {
@@ -42,21 +52,62 @@ impl SharedReference {
     }
 
     pub fn into_typed(self, type_id: ValueTypeId) -> TypedSharedReference {
-        TypedSharedReference(type_id, self)
+        TypedSharedReference {
+            type_id,
+            reference: self,
+        }
     }
 }
 
 impl TypedSharedReference {
     pub fn into_untyped(self) -> SharedReference {
-        self.1
+        self.reference
     }
 }
+
+impl TurboBincodeEncode for TypedSharedReference {
+    fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
+        let Self { type_id, reference } = self;
+        let value_type = registry::get_value_type(*type_id);
+        if let Some(bincode) = value_type.bincode {
+            type_id.encode(encoder)?;
+            bincode.0(&*reference.0, encoder)?;
+            Ok(())
+        } else {
+            Err(EncodeError::OtherString(format!(
+                "{} is not encodable",
+                value_type.ty.global_name
+            )))
+        }
+    }
+}
+
+impl<Context> TurboBincodeDecode<Context> for TypedSharedReference {
+    fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
+        let type_id = ValueTypeId::decode(decoder)?;
+        let value_type = registry::get_value_type(type_id);
+        if let Some(bincode) = value_type.bincode {
+            let reference = bincode.1(decoder)?;
+            Ok(Self { type_id, reference })
+        } else {
+            #[cold]
+            fn not_decodable(value_type: &ValueType) -> DecodeError {
+                DecodeError::OtherString(format!("{} is not decodable", value_type.ty.global_name))
+            }
+            Err(not_decodable(value_type))
+        }
+    }
+}
+
+impl_encode_for_turbo_bincode_encode!(TypedSharedReference);
+impl_decode_for_turbo_bincode_decode!(TypedSharedReference);
+impl_borrow_decode!(TypedSharedReference);
 
 impl Deref for TypedSharedReference {
     type Target = SharedReference;
 
     fn deref(&self) -> &Self::Target {
-        &self.1
+        &self.reference
     }
 }
 
@@ -93,27 +144,6 @@ impl Debug for SharedReference {
     }
 }
 
-impl Serialize for TypedSharedReference {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let TypedSharedReference(ty, SharedReference(arc)) = self;
-        let value_type = registry::get_value_type(*ty);
-        if let Some(serializable) = value_type.any_as_serializable(arc) {
-            let mut t = serializer.serialize_tuple(2)?;
-            t.serialize_element(registry::get_value_type_global_name(*ty))?;
-            t.serialize_element(serializable)?;
-            t.end()
-        } else {
-            Err(serde::ser::Error::custom(format!(
-                "{:?} is not serializable",
-                registry::get_value_type_global_name(*ty)
-            )))
-        }
-    }
-}
-
 impl Display for SharedReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "untyped value")
@@ -122,58 +152,10 @@ impl Display for SharedReference {
 
 impl Display for TypedSharedReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "value of type {}", registry::get_value_type(self.0).name)
-    }
-}
-
-impl<'de> Deserialize<'de> for TypedSharedReference {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = TypedSharedReference;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a serializable shared reference")
-            }
-
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                if let Some(global_name) = seq.next_element()? {
-                    if let Some(ty) = registry::get_value_type_id_by_global_name(global_name) {
-                        if let Some(seed) = registry::get_value_type(ty).get_any_deserialize_seed()
-                        {
-                            if let Some(value) = seq.next_element_seed(seed)? {
-                                let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
-                                Ok(TypedSharedReference(ty, SharedReference(arc)))
-                            } else {
-                                Err(serde::de::Error::invalid_length(
-                                    1,
-                                    &"tuple with type and value",
-                                ))
-                            }
-                        } else {
-                            Err(serde::de::Error::custom(format!(
-                                "{ty} is not deserializable"
-                            )))
-                        }
-                    } else {
-                        Err(serde::de::Error::unknown_variant(global_name, &[]))
-                    }
-                } else {
-                    Err(serde::de::Error::invalid_length(
-                        0,
-                        &"tuple with type and value",
-                    ))
-                }
-            }
-        }
-
-        deserializer.deserialize_tuple(2, Visitor)
+        write!(
+            f,
+            "value of type {}",
+            registry::get_value_type(self.type_id).ty.name
+        )
     }
 }

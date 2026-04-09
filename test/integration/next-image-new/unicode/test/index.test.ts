@@ -2,6 +2,7 @@
 
 import {
   findPort,
+  getImagesManifest,
   killApp,
   launchApp,
   nextBuild,
@@ -17,11 +18,11 @@ let appPort
 let app
 let browser
 
-function runTests() {
+function runTests(mode: 'server' | 'dev') {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
-      /_next%2Fstatic%2Fmedia%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
+      /_next%2Fstatic%2F(immutable%2F)?media%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
@@ -65,6 +66,57 @@ function runTests() {
     const res = await fetch(fullSrc)
     expect(res.status).toBe(200)
   })
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [
+            {
+              protocol: 'https',
+              hostname:
+                '^(?:^(?:image\\-optimization\\-test\\.vercel\\.app)$)$',
+              port: '',
+              pathname:
+                '^(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?))$',
+              search: '',
+            },
+          ],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
+          minimumCacheTTL: 14400,
+          path: '/_next/image',
+          qualities: [75],
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
+          ],
+          unoptimized: false,
+          customCacheHandler: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Unicode Image URL', () => {
@@ -82,7 +134,7 @@ describe('Image Component Unicode Image URL', () => {
           browser.close()
         }
       })
-      runTests()
+      runTests('dev')
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -100,7 +152,7 @@ describe('Image Component Unicode Image URL', () => {
           browser.close()
         }
       })
-      runTests()
+      runTests('server')
     }
   )
 })

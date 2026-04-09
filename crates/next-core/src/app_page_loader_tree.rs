@@ -4,22 +4,22 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata,
-        MetadataItem, MetadataWithAltItem,
+        AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata, MetadataItem,
+        MetadataWithAltItem, get_metadata_route_name,
     },
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
+        metadata::{get_content_type, image::dynamic_image_metadata_source},
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
@@ -27,21 +27,19 @@ use crate::{
 pub struct AppPageLoaderTreeBuilder {
     base: BaseLoaderTreeBuilder,
     loader_tree_code: String,
-    pages: Vec<ResolvedVc<FileSystemPath>>,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
 }
 
 impl AppPageLoaderTreeBuilder {
     fn new(
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Self {
         AppPageLoaderTreeBuilder {
             base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
             loader_tree_code: String::new(),
-            pages: Vec::new(),
             base_path,
         }
     }
@@ -49,13 +47,9 @@ impl AppPageLoaderTreeBuilder {
     async fn write_modules_entry(
         &mut self,
         module_type: AppDirModuleType,
-        path: Option<ResolvedVc<FileSystemPath>>,
+        path: Option<FileSystemPath>,
     ) -> Result<()> {
         if let Some(path) = path {
-            if matches!(module_type, AppDirModuleType::Page) {
-                self.pages.push(path);
-            }
-
             let tuple_code = self
                 .base
                 .create_module_tuple_code(module_type, path)
@@ -96,7 +90,7 @@ impl AppPageLoaderTreeBuilder {
 
         // naively convert metadataitem -> metadatawithaltitem to iterate along with
         // other icon items
-        let icon = if let Some(favicon) = global_metadata.and_then(|m| m.favicon) {
+        let icon = if let Some(favicon) = global_metadata.and_then(|m| m.favicon.clone()) {
             let item = match favicon {
                 MetadataItem::Static { path } => MetadataWithAltItem::Static {
                     path,
@@ -105,7 +99,7 @@ impl AppPageLoaderTreeBuilder {
                 MetadataItem::Dynamic { path } => MetadataWithAltItem::Dynamic { path },
             };
             let mut item = vec![item];
-            item.extend(icon.iter());
+            item.extend(icon.iter().cloned());
             item
         } else {
             icon.clone()
@@ -121,7 +115,7 @@ impl AppPageLoaderTreeBuilder {
             .await?;
 
         if let Some(global_metadata) = global_metadata {
-            self.write_metadata_manifest(global_metadata.manifest)
+            self.write_metadata_manifest(global_metadata.manifest.clone())
                 .await?;
         }
         self.loader_tree_code += "  },";
@@ -133,11 +127,18 @@ impl AppPageLoaderTreeBuilder {
             return Ok(());
         };
 
-        let manifest_route = &format!("/{}", get_metadata_route_name(manifest).await?);
+        let metadata_manifest_route = get_metadata_route_name(manifest).await?;
+        // prefix with base_path if it exists
+        let manifest_route = if let Some(base_path) = &self.base_path {
+            format!("{base_path}/{metadata_manifest_route}")
+        } else {
+            metadata_manifest_route.to_string()
+        };
+
         writeln!(
             self.loader_tree_code,
             "    manifest: {},",
-            StringifyJs(manifest_route)
+            StringifyJs(&manifest_route)
         )?;
 
         Ok(())
@@ -173,8 +174,8 @@ impl AppPageLoaderTreeBuilder {
                     app_page,
                     name,
                     item,
-                    **path,
-                    alt_path.as_deref().copied(),
+                    path.clone(),
+                    alt_path.clone(),
                 )
                 .await?;
             }
@@ -183,13 +184,20 @@ impl AppPageLoaderTreeBuilder {
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let inner_module_id = format!("METADATA_{i}");
 
-                self.base
-                    .imports
-                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+                // This should use the same importing mechanism as create_module_tuple_code, so that
+                // the relative order of items is retained (which isn't the case
+                // when mixing ESM imports and requires).
+                self.base.imports.push(
+                    format!(
+                        "const {identifier} = () => require(/*turbopackChunkingType: \
+                         shared*/\"{inner_module_id}\");"
+                    )
+                    .into(),
+                );
 
                 let source = dynamic_image_metadata_source(
-                    Vc::upcast(self.base.module_asset_context),
-                    **path,
+                    *ResolvedVc::upcast(self.base.module_asset_context),
+                    path.clone(),
                     name.into(),
                     app_page.clone(),
                 );
@@ -200,7 +208,10 @@ impl AppPageLoaderTreeBuilder {
                     .insert(inner_module_id.into(), module);
 
                 let s = "      ";
-                writeln!(self.loader_tree_code, "{s}{identifier},")?;
+                writeln!(
+                    self.loader_tree_code,
+                    "{s}async (props) => interopDefault(await {identifier}())(props),"
+                )?;
             }
         }
         Ok(())
@@ -211,72 +222,55 @@ impl AppPageLoaderTreeBuilder {
         app_page: &AppPage,
         name: &str,
         item: &MetadataWithAltItem,
-        path: Vc<FileSystemPath>,
-        alt_path: Option<Vc<FileSystemPath>>,
+        path: FileSystemPath,
+        alt_path: Option<FileSystemPath>,
     ) -> Result<()> {
         let i = self.base.unique_number();
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        let helper_import: RcStr = "import { fillMetadataSegment } from \
-                                    'next/dist/lib/metadata/get-metadata-route' with { \
-                                    'turbopack-transition': 'next-server-utility' }"
-            .into();
+        let helper_import = rcstr!(
+            "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'"
+        );
 
         if !self.base.imports.contains(&helper_import) {
             self.base.imports.push(helper_import);
         }
 
-        self.base
-            .imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
-        let module = Vc::upcast(StructuredImageModuleType::create_module(
-            Vc::upcast(FileSource::new(path)),
+        // This should use the same importing mechanism as create_module_tuple_code, so that the
+        // relative order of items is retained (which isn't the case when mixing ESM imports and
+        // requires).
+        self.base.imports.push(
+            format!(
+                "const {identifier} = () => require(/*turbopackChunkingType: \
+                 shared*/\"{inner_module_id}\");"
+            )
+            .into(),
+        );
+        let module = StructuredImageModuleType::create_module(
+            Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
-            self.base.module_asset_context,
-        ));
+            *self.base.module_asset_context,
+        );
         let module = self.base.process_module(module).to_resolved().await?;
         self.base
             .inner_assets
             .insert(inner_module_id.into(), module);
 
-        let s = "      ";
-        writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
-        let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, app_page)
-        } else {
-            app_page.to_string()
-        };
-        let metadata_route = &*get_metadata_route_name((*item).into()).await?;
-        writeln!(
-            self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, await props.params, {}) + \
-             `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&pathname_prefix),
-            StringifyJs(metadata_route),
-        )?;
-
-        let numeric_sizes = name == "twitter" || name == "openGraph";
-        if numeric_sizes {
-            writeln!(self.loader_tree_code, "{s}  width: {identifier}.width,")?;
-            writeln!(self.loader_tree_code, "{s}  height: {identifier}.height,")?;
-        } else {
-            writeln!(
-                self.loader_tree_code,
-                "{s}  sizes: `${{{identifier}.width}}x${{{identifier}.height}}`,"
-            )?;
-        }
-
-        let content_type = get_content_type(path).await?;
-        writeln!(self.loader_tree_code, "{s}  type: `{content_type}`,")?;
-
-        if let Some(alt_path) = alt_path {
+        let alt = if let Some(alt_path) = alt_path {
             let identifier = magic_identifier::mangle(&format!("{name} alt text #{i}"));
             let inner_module_id = format!("METADATA_ALT_{i}");
 
-            self.base
-                .imports
-                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+            // This should use the same importing mechanism as create_module_tuple_code, so that the
+            // relative order of items is retained (which isn't the case when mixing ESM imports and
+            // requires).
+            self.base.imports.push(
+                format!(
+                    "const {identifier} = () => require(/*turbopackChunkingType: \
+                     shared*/\"{inner_module_id}\");"
+                )
+                .into(),
+            );
 
             let module = self
                 .base
@@ -290,10 +284,63 @@ impl AppPageLoaderTreeBuilder {
                 .inner_assets
                 .insert(inner_module_id.into(), module);
 
-            writeln!(self.loader_tree_code, "{s}  alt: {identifier},")?;
+            Some(identifier)
+        } else {
+            None
+        };
+
+        let s = "      ";
+        writeln!(self.loader_tree_code, "{s}(async (props) => {{")?;
+        writeln!(
+            self.loader_tree_code,
+            "{s}  const mod = interopDefault(await {identifier}());"
+        )?;
+        if let Some(alt) = &alt {
+            writeln!(
+                self.loader_tree_code,
+                "{s}  const alt = interopDefault(await {alt}());"
+            )?;
+        }
+        writeln!(self.loader_tree_code, "{s}  return [{{")?;
+        let pathname_prefix = if let Some(base_path) = &self.base_path {
+            format!("{base_path}/{app_page}")
+        } else {
+            app_page.to_string()
+        };
+        let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
+        writeln!(
+            self.loader_tree_code,
+            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
+             `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
+            StringifyJs(&pathname_prefix),
+            StringifyJs(metadata_route),
+        )?;
+
+        let numeric_sizes = name == "twitter" || name == "openGraph";
+        if numeric_sizes {
+            writeln!(self.loader_tree_code, "{s}    width: mod.width,")?;
+            writeln!(self.loader_tree_code, "{s}    height: mod.height,")?;
+        } else {
+            // For SVGs, skip sizes and use "any" to let it scale automatically based on viewport,
+            // For the images doesn't provide the size properly, use "any" as well.
+            // If the size is presented, use the actual size for the image.
+            let sizes = if path.has_extension(".svg") {
+                "any"
+            } else {
+                "${mod.width}x${mod.height}"
+            };
+            writeln!(self.loader_tree_code, "{s}    sizes: `{sizes}`,")?;
         }
 
-        writeln!(self.loader_tree_code, "{s}}}]),")?;
+        let content_type = get_content_type(path).await?;
+        writeln!(self.loader_tree_code, "{s}    type: `{content_type}`,")?;
+
+        if alt.is_some() {
+            writeln!(self.loader_tree_code, "{s}    alt,")?;
+        }
+
+        writeln!(self.loader_tree_code, "{s}  }}];")?;
+        writeln!(self.loader_tree_code, "{s}}}),")?;
 
         Ok(())
     }
@@ -307,6 +354,7 @@ impl AppPageLoaderTreeBuilder {
             parallel_routes,
             modules,
             global_metadata,
+            static_siblings,
         } = loader_tree;
 
         writeln!(
@@ -322,6 +370,7 @@ impl AppPageLoaderTreeBuilder {
             default,
             error,
             global_error,
+            global_not_found,
             layout,
             loading,
             template,
@@ -342,25 +391,27 @@ impl AppPageLoaderTreeBuilder {
         )
         .await?;
 
-        self.write_modules_entry(AppDirModuleType::Layout, *layout)
+        self.write_modules_entry(AppDirModuleType::Layout, layout.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Error, *error)
+        self.write_modules_entry(AppDirModuleType::Error, error.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Loading, *loading)
+        self.write_modules_entry(AppDirModuleType::Loading, loading.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Template, *template)
+        self.write_modules_entry(AppDirModuleType::Template, template.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
+        self.write_modules_entry(AppDirModuleType::NotFound, not_found.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Forbidden, *forbidden)
+        self.write_modules_entry(AppDirModuleType::Forbidden, forbidden.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Unauthorized, *unauthorized)
+        self.write_modules_entry(AppDirModuleType::Unauthorized, unauthorized.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::Page, *page)
+        self.write_modules_entry(AppDirModuleType::Page, page.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
+        self.write_modules_entry(AppDirModuleType::DefaultPage, default.clone())
             .await?;
-        self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
+        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.clone())
+            .await?;
+        self.write_modules_entry(AppDirModuleType::GlobalNotFound, global_not_found.clone())
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
@@ -375,7 +426,15 @@ impl AppPageLoaderTreeBuilder {
 
         self.loader_tree_code += &modules_code;
 
-        write!(self.loader_tree_code, "}}]")?;
+        // Add static siblings for dynamic segments. An empty array means "known
+        // to have no siblings" which is distinct from not outputting the field
+        // (unknown). Turbopack always knows all siblings since it builds the full
+        // directory tree.
+        write!(
+            self.loader_tree_code,
+            "}}, {}]",
+            StringifyJs(static_siblings)
+        )?;
         Ok(())
     }
 
@@ -386,13 +445,16 @@ impl AppPageLoaderTreeBuilder {
         let loader_tree = &*loader_tree.await?;
 
         let modules = &loader_tree.modules;
-        if let Some(global_error) = modules.global_error {
+        // load global-not-found module
+        if let Some(global_not_found) = &modules.global_not_found {
             let module = self
                 .base
-                .process_source(Vc::upcast(FileSource::new(*global_error)))
+                .process_source(Vc::upcast(FileSource::new(global_not_found.clone())))
                 .to_resolved()
                 .await?;
-            self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
+            self.base
+                .inner_assets
+                .insert(GLOBAL_NOT_FOUND.into(), module);
         };
 
         self.walk_tree(loader_tree, true).await?;
@@ -400,7 +462,6 @@ impl AppPageLoaderTreeBuilder {
             imports: self.base.imports,
             loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.base.inner_assets,
-            pages: self.pages,
         })
     }
 }
@@ -409,14 +470,13 @@ pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
-    pub pages: Vec<ResolvedVc<FileSystemPath>>,
 }
 
 impl AppPageLoaderTreeModule {
     pub async fn build(
         loader_tree: Vc<AppPageLoaderTree>,
-        module_asset_context: Vc<ModuleAssetContext>,
-        server_component_transition: Vc<Box<dyn Transition>>,
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+        server_component_transition: ResolvedVc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Result<Self> {
         AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
@@ -425,4 +485,4 @@ impl AppPageLoaderTreeModule {
     }
 }
 
-pub const GLOBAL_ERROR: &str = "GLOBAL_ERROR_MODULE";
+pub const GLOBAL_NOT_FOUND: &str = "GLOBAL_NOT_FOUND_MODULE";

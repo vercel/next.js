@@ -14,7 +14,7 @@ import {
   MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
   responseCookiesToRequestCookies,
-  wrapWithMutableAccessCheck,
+  createCookiesWithMutableAccessCheck,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -22,11 +22,14 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { Params } from '../request/params'
+import type { ImplicitTags } from '../lib/implicit-tags'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
   for (const header of FLIGHT_HEADERS) {
-    cleaned.delete(header.toLowerCase())
+    cleaned.delete(header)
   }
 
   return HeadersAdapter.seal(cleaned)
@@ -66,7 +69,7 @@ type RequestContext = RequestResponsePair & {
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
-  implicitTags?: string[] | undefined
+  implicitTags: ImplicitTags
 }
 
 type RequestResponsePair =
@@ -106,12 +109,14 @@ export function createRequestStoreForRender(
   req: RequestContext['req'],
   res: RequestContext['res'],
   url: RequestContext['url'],
+  rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | undefined
+  renderResumeDataCache: RenderResumeDataCache | null,
+  fallbackParams: OpaqueFallbackRouteParams | null
 ): RequestStore {
   return createRequestStoreImpl(
     // Pages start in render phase by default
@@ -119,12 +124,14 @@ export function createRequestStoreForRender(
     req,
     res,
     url,
+    rootParams,
     implicitTags,
     onUpdateCookies,
     renderResumeDataCache,
     previewProps,
     isHmrRefresh,
-    serverComponentsHmrCache
+    serverComponentsHmrCache,
+    fallbackParams
   )
 }
 
@@ -141,12 +148,14 @@ export function createRequestStoreForAPI(
     req,
     undefined,
     url,
+    {},
     implicitTags,
     onUpdateCookies,
-    undefined,
+    null,
     previewProps,
     false,
-    undefined
+    undefined,
+    null
   )
 }
 
@@ -155,12 +164,14 @@ function createRequestStoreImpl(
   req: RequestContext['req'],
   res: RequestContext['res'],
   url: RequestContext['url'],
+  rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | undefined,
+  renderResumeDataCache: RenderResumeDataCache | null,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
-  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
+  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
+  fallbackParams: OpaqueFallbackRouteParams | null | undefined
 ): RequestStore {
   function defaultOnUpdateCookies(cookies: string[]) {
     if (res) {
@@ -179,11 +190,12 @@ function createRequestStoreImpl(
   return {
     type: 'request',
     phase,
-    implicitTags: implicitTags ?? [],
+    implicitTags,
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
+    rootParams,
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could
@@ -228,9 +240,8 @@ function createRequestStoreImpl(
     },
     get userspaceMutableCookies() {
       if (!cache.userspaceMutableCookies) {
-        const userspaceMutableCookies = wrapWithMutableAccessCheck(
-          this.mutableCookies
-        )
+        const userspaceMutableCookies =
+          createCookiesWithMutableAccessCheck(this)
         cache.userspaceMutableCookies = userspaceMutableCookies
       }
       return cache.userspaceMutableCookies
@@ -252,6 +263,7 @@ function createRequestStoreImpl(
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
+    fallbackParams,
   }
 }
 

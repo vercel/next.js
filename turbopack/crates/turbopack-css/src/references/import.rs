@@ -1,17 +1,18 @@
 use anyhow::Result;
 use lightningcss::{
     media_query::MediaList,
-    rules::{import::ImportRule, layer::LayerName, supports::SupportsCondition},
+    printer::PrinterOptions,
+    rules::{Location, import::ImportRule, layer::LayerName, supports::SupportsCondition},
     traits::ToCss,
+    values::string::CowArcStr,
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
-    resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
+    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
 use crate::{
@@ -20,7 +21,8 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(into = "new", eq = "manual", serialization = "none")]
+#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
         #[turbo_tasks(trace_ignore)]
@@ -32,11 +34,7 @@ pub enum ImportAttributes {
     },
 }
 
-impl PartialEq for ImportAttributes {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
+impl Eq for ImportAttributes {}
 
 impl ImportAttributes {
     pub fn new_from_lightningcss(prelude: &ImportRule<'static>) -> Self {
@@ -81,12 +79,13 @@ impl ImportAttributes {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("import(url) {request}")]
 pub struct ImportAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub attributes: ResolvedVc<ImportAttributes>,
-    pub import_context: ResolvedVc<ImportContext>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
     pub issue_source: IssueSource,
 }
 
@@ -97,7 +96,7 @@ impl ImportAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         attributes: ResolvedVc<ImportAttributes>,
-        import_context: ResolvedVc<ImportContext>,
+        import_context: Option<ResolvedVc<ImportContext>>,
         issue_source: IssueSource,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
@@ -114,30 +113,40 @@ impl ImportAssetReference {
 impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let import_context = {
-            let own_attrs = (*self.attributes.await?).as_reference_import_attributes();
-            self.import_context
-                .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+        let own_attrs = self.attributes.await?.as_reference_import_attributes();
+        let import_context = match (&self.import_context, own_attrs.is_empty()) {
+            (Some(import_context), true) => Some(*import_context),
+            (None, false) => Some(
+                ImportContext::new(
+                    own_attrs.layer.iter().cloned().collect(),
+                    own_attrs.media.iter().cloned().collect(),
+                    own_attrs.supports.iter().cloned().collect(),
+                )
                 .to_resolved()
-                .await?
+                .await?,
+            ),
+            (Some(import_context), false) => Some(
+                import_context
+                    .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+                    .to_resolved()
+                    .await?,
+            ),
+            (None, true) => None,
         };
 
         Ok(css_resolve(
             *self.origin,
             *self.request,
-            Value::new(CssReferenceSubType::AtImport(Some(import_context))),
-            Some(self.issue_source.clone()),
+            CssReferenceSubType::AtImport(import_context),
+            Some(self.issue_source),
         ))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ImportAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("import(url) {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
     }
 }
 
@@ -145,25 +154,51 @@ impl ValueToString for ImportAssetReference {
 impl CodeGenerateable for ImportAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
-        self: Vc<Self>,
+        &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = &*self.await?;
         let mut imports = vec![];
+
         if let Request::Uri {
             protocol,
             remainder,
             ..
-        } = &*this.request.await?
+        } = &*self.request.await?
         {
-            imports.push(CssImport::External(ResolvedVc::cell(
-                format!("{}{}", protocol, remainder).into(),
-            )))
+            match &*self.attributes.await? {
+                ImportAttributes::LightningCss {
+                    layer_name,
+                    supports,
+                    media,
+                } => {
+                    let layer = if layer_name.is_none() {
+                        None
+                    } else {
+                        Some(layer_name.clone())
+                    };
+                    let css_rule = ImportRule {
+                        url: CowArcStr::from(format!("{protocol}{remainder}")),
+                        layer,
+                        supports: supports.clone(),
+                        media: media.clone(),
+                        loc: Location {
+                            source_index: 0,
+                            line: 0,
+                            column: 0,
+                        },
+                    };
+                    let css = css_rule
+                        .to_css_string(PrinterOptions {
+                            minify: true,
+                            ..PrinterOptions::default()
+                        })
+                        .unwrap();
+
+                    imports.push(CssImport::External(ResolvedVc::cell(css.into())));
+                }
+            }
         }
 
-        Ok(CodeGeneration { imports }.into())
+        Ok(CodeGeneration { imports }.cell())
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ImportAssetReference {}

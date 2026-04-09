@@ -1,7 +1,6 @@
-import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - global error', () => {
+describe('app dir - global-error', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -14,9 +13,19 @@ describe('app dir - global error', () => {
       .click()
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(`"Error: Client error"`)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Client error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/client/page.js (8:11) @ Page
+       >  8 |     throw new Error('Client error')
+            |           ^",
+         "stack": [
+           "Page app/client/page.js (8:11)",
+         ],
+       }
+      `)
     }
     expect(await browser.elementByCss('#error').text()).toBe(
       'Global error: Client error'
@@ -28,11 +37,19 @@ describe('app dir - global error', () => {
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: server page error"`
-      )
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "server page error",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/rsc/page.js (2:9) @ page
+       > 2 |   throw new Error('server page error')
+           |         ^",
+         "stack": [
+           "page app/rsc/page.js (2:9)",
+         ],
+       }
+      `)
     }
     // Show original error message in dev mode, but hide with the react fallback RSC error message in production mode
     expect(await browser.elementByCss('#error').text()).toBe(
@@ -47,9 +64,19 @@ describe('app dir - global error', () => {
     const browser = await next.browser('/ssr')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(`"Error: client page error"`)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "client page error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/ssr/page.js (4:9) @ page
+       > 4 |   throw new Error('client page error')
+           |         ^",
+         "stack": [
+           "page app/ssr/page.js (4:9)",
+         ],
+       }
+      `)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
@@ -72,11 +99,19 @@ describe('app dir - global error', () => {
     const browser = await next.browser('/metadata-error-without-boundary')
 
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: Metadata error"`
-      )
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Metadata error",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/metadata-error-without-boundary/page.js (4:9) @ Module.generateMetadata
+       > 4 |   throw new Error('Metadata error')
+           |         ^",
+         "stack": [
+           "Module.generateMetadata app/metadata-error-without-boundary/page.js (4:9)",
+         ],
+       }
+      `)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
@@ -89,9 +124,19 @@ describe('app dir - global error', () => {
   it('should catch the client error thrown in the nested routes', async () => {
     const browser = await next.browser('/nested/nested')
     if (isNextDev) {
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toMatchInlineSnapshot(`"Error: nested error"`)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "nested error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/nested/nested/page.js (15:11) @ ClientPage
+       > 15 |     throw Error('nested error')
+            |           ^",
+         "stack": [
+           "ClientPage app/nested/nested/page.js (15:11)",
+         ],
+       }
+      `)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(

@@ -73,7 +73,7 @@ describe('app-dir - metadata-streaming', () => {
     })
   })
 
-  it('should not insert metadata twice or inject into body', async () => {
+  it('should only insert metadata once into head or body', async () => {
     const browser = await next.browser('/slow')
 
     // each metadata should be inserted only once
@@ -98,10 +98,104 @@ describe('app-dir - metadata-streaming', () => {
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(await browser.elementByCss('body title').text()).toMatch(
-          /Dynamic api \d+/
-        )
+        expect(
+          await browser.elementByCss('body title', { state: 'attached' }).text()
+        ).toMatch(/Dynamic api \d+/)
       })
+    })
+  })
+
+  describe('navigation API', () => {
+    it('should trigger not-found boundary when call notFound', async () => {
+      const browser = await next.browser('/notfound')
+
+      // Show 404 page
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('404')
+      })
+    })
+
+    it('should trigger redirection when call redirect', async () => {
+      const browser = await next.browser('/redirect')
+      // Redirect to home page
+      expect(await browser.elementByCss('p').text()).toBe('index page')
+    })
+
+    it('should trigger custom not-found in the boundary', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      expect(await browser.elementByCss('h1').text()).toBe('Custom Not Found')
+    })
+
+    it('should not duplicate metadata with navigation API', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      const titleTags = await browser.elementsByCss('title')
+      expect(titleTags.length).toBe(1)
+    })
+
+    it('should render blocking 404 response status when html limited bots access notFound', async () => {
+      const { status } = await next.fetch('/notfound', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+      expect(status).toBe(404)
+    })
+
+    it('should render blocking 307 response status when html limited bots access redirect', async () => {
+      const { status } = await next.fetch('/redirect', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+        redirect: 'manual',
+      })
+      expect(status).toBe(307)
+    })
+  })
+
+  describe('static', () => {
+    it('should render static metadata in the head', async () => {
+      const $ = await next.render$('/static/full')
+      // We can't ensure if it's inserted into  head or body since it's a race condition,
+      // where sometimes the metadata can be suspended.
+      expect($('title').length).toBe(1)
+      expect($('title').text()).toBe('static page')
+    })
+
+    it('should determine dynamic metadata in build and render in the body', async () => {
+      const $ = await next.render$('/static/partial')
+      expect($('title').length).toBe(1)
+      expect($('body title').text()).toBe('partial static page')
+    })
+
+    it('should still render dynamic metadata in the head for html bots', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent': 'Twitterbot',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
+    })
+
+    it('should still render blocking metadata for Google speed insights bot (special case)', async () => {
+      const $ = await next.render$(
+        '/static/partial',
+        {},
+        {
+          headers: {
+            'user-agent':
+              'UA Mozilla/5.0 (Linux; Android 7.0; Moto G (4)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4590.2 Mobile Safari/537.36 Chrome-Lighthouse',
+          },
+        }
+      )
+      expect($('title').length).toBe(1)
+      expect($('head title').text()).toBe('partial static page')
     })
   })
 })

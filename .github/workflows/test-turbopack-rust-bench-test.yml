@@ -42,15 +42,19 @@ jobs:
           check-latest: true
       - run: corepack enable
 
+      # We need to install the dependencies for the benchmark apps
+      - run: pnpm install
+        working-directory: turbopack/benchmark-apps
+
       - name: Build benchmarks for tests
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --no-run
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings --no-run
 
       - name: Run cargo test on benchmarks
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-napi-bindings
 
       - name: Build benchmarks for tests for other bundlers
         if: inputs.all

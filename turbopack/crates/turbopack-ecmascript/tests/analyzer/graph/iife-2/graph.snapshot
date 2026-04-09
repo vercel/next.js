@@ -20,7 +20,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),
@@ -35,21 +37,30 @@
     ),
     (
         "key",
-        Member(
-            3,
-            Variable(
-                (
-                    "keys",
-                    #4,
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Member(
+                    3,
+                    Variable(
+                        (
+                            "keys",
+                            #4,
+                        ),
+                    ),
+                    Variable(
+                        (
+                            "i",
+                            #4,
+                        ),
+                    ),
                 ),
-            ),
-            Variable(
-                (
-                    "i",
-                    #4,
+                Constant(
+                    Undefined,
                 ),
-            ),
-        ),
+            ],
+            logical_property: None,
+        },
     ),
     (
         "keys",

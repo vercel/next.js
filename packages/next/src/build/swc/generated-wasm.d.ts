@@ -3,51 +3,24 @@
 
 /* tslint:disable */
 /* eslint-disable */
-/**
- * @param {string} s
- * @param {any} opts
- * @returns {any}
- */
-export function minifySync(s: string, opts: any): any
-/**
- * @param {string} s
- * @param {any} opts
- * @returns {Promise<any>}
- */
-export function minify(s: string, opts: any): Promise<any>
-/**
- * @param {any} s
- * @param {any} opts
- * @returns {any}
- */
-export function transformSync(s: any, opts: any): any
-/**
- * @param {any} s
- * @param {any} opts
- * @returns {Promise<any>}
- */
 export function transform(s: any, opts: any): Promise<any>
-/**
- * @param {string} s
- * @param {any} opts
- * @returns {any}
- */
+export function expandNextJsTemplate(
+  content: Uint8Array,
+  template_path: string,
+  next_package_dir_path: string,
+  replacements: any,
+  injections: any,
+  imports: any
+): string
+export function codeFrameColumns(
+  source: Uint8Array,
+  location: any,
+  options: any
+): string | undefined
+export function minifySync(s: string, opts: any): any
 export function parseSync(s: string, opts: any): any
-/**
- * @param {string} s
- * @param {any} opts
- * @returns {Promise<any>}
- */
+export function transformSync(s: any, opts: any): any
 export function parse(s: string, opts: any): Promise<any>
-/**
- * @param {string} value
- * @param {any} opts
- * @returns {any}
- */
-export function mdxCompileSync(value: string, opts: any): any
-/**
- * @param {string} value
- * @param {any} opts
- * @returns {Promise<any>}
- */
+export function minify(s: string, opts: any): Promise<any>
 export function mdxCompile(value: string, opts: any): Promise<any>
+export function mdxCompileSync(value: string, opts: any): any

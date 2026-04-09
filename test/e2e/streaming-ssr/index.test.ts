@@ -102,6 +102,7 @@ if (isNextProd) {
         /Listening/,
         {
           ...process.env,
+          ...next.env,
           PORT: appPort,
         },
         undefined,
@@ -167,7 +168,7 @@ if (isNextProd) {
     })
 
     // Relies on the custom webpack config above
-    ;(process.env.TURBOPACK ? it.skip : it)(
+    ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
       'should pass correct nextRuntime values',
       async () => {
         const content = await next.readFile('runtimes.txt')

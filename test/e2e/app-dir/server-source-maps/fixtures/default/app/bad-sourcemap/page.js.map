@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "file": "page.js",
+  "sourceRoot": "",
+  "sources": [
+    "custom://[badhost]/app/bad-sourcemap/page.js"
+  ],
+  "names": [],
+  "mappings": "AAAA,yNAAyN;AACzN,yGAAyG;AACzG,oCAAoC;AAEpC,SAAS,QAAQ;IACf,OAAO,CAAC,KAAK,CAAC,IAAI,KAAK,CAAC,eAAe,CAAC,CAAC,CAAA;AAC3C,CAAC;AAED,MAAM,CAAC,OAAO,UAAU,IAAI;IAC1B,QAAQ,EAAE,CAAA;IACV,OAAO,CAAC,CAAC,CAAC,YAAY,EAAE,CAAC,CAAC,CAAA;AAC5B,CAAC"
+}

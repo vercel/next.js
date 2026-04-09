@@ -3,7 +3,6 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
-pub mod include_modules_module;
 pub mod metadata;
 
 use std::{
@@ -12,13 +11,13 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{bail, Result};
-use serde::{Deserialize, Serialize};
+use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
+use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
+    app_client_references_chunks::{ClientReferencesChunks, get_app_client_references_chunks},
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
@@ -30,8 +29,6 @@ pub use crate::next_app::{
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -39,6 +36,8 @@ pub use crate::next_app::{
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
@@ -135,8 +134,6 @@ impl Display for PageSegment {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -144,6 +141,8 @@ impl Display for PageSegment {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PageType {
     Page,
@@ -169,11 +168,11 @@ impl Display for PageType {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPage(pub Vec<PageSegment>);
 
@@ -247,6 +246,18 @@ impl AppPage {
             app_page.push_str(segment)?;
         }
 
+        if let Some(last) = app_page.0.last_mut()
+            && let PageSegment::Static(last_name) = &*last
+        {
+            // Next.js internals sometimes omit extensions when creating synthetic page entries
+            if last_name == "page" || last_name.starts_with("page.") {
+                *last = PageSegment::PageType(PageType::Page);
+            } else if last_name == "route" || last_name.starts_with("route.") {
+                *last = PageSegment::PageType(PageType::Route);
+            }
+            // can also be metadata (and be neither Page nor Route)
+        }
+
         Ok(app_page)
     }
 
@@ -258,17 +269,22 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
-    pub fn is_catchall(&self) -> bool {
-        let segment = if self.is_complete() {
-            // The `PageType` is the last segment for completed pages.
-            self.0.iter().nth_back(1)
-        } else {
-            self.0.last()
-        };
+    /// The `PageType` is the last segment for completed pages. We need to find
+    /// the last segment that is not a `PageType`, `Group`, or `Parallel`
+    /// segment, because these do not inform the routing structure.
+    pub fn get_last_routing_segment(&self) -> Option<&PageSegment> {
+        self.0.iter().rev().find(|segment| {
+            !matches!(
+                segment,
+                PageSegment::PageType(_) | PageSegment::Group(_) | PageSegment::Parallel(_)
+            )
+        })
+    }
 
+    pub fn is_catchall(&self) -> bool {
         matches!(
-            segment,
-            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+            self.get_last_routing_segment(),
+            Some(PageSegment::CatchAll(_) | PageSegment::OptionalCatchAll(_))
         )
     }
 
@@ -287,6 +303,11 @@ impl AppPage {
                     || segment.starts_with("(..)")
                     || segment.starts_with("(...)")
         )
+    }
+
+    /// Returns true if there is only one segment and it is a group.
+    pub fn is_first_layer_group_route(&self) -> bool {
+        self.0.len() == 1 && matches!(self.0.last(), Some(PageSegment::Group(_)))
     }
 
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
@@ -339,8 +360,6 @@ impl PartialOrd for AppPage {
     Clone,
     Debug,
     Hash,
-    Serialize,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
@@ -348,6 +367,8 @@ impl PartialOrd for AppPage {
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
@@ -395,11 +416,11 @@ impl Display for PathSegment {
     PartialEq,
     Eq,
     Default,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 
@@ -450,6 +471,18 @@ impl AppPath {
         }
 
         true
+    }
+
+    /// Returns true if ANY segment in the entire path is an interception route.
+    /// This is different from `is_intercepting()` which only checks the last
+    /// segment.
+    pub fn contains_interception(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                segment,
+                PathSegment::Static(s) if s.starts_with("(.)") || s.starts_with("(..)") || s.starts_with("(...)")
+            )
+        })
     }
 }
 
@@ -506,5 +539,71 @@ impl From<AppPage> for AppPath {
                 })
                 .collect(),
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::next_app::{AppPage, PageSegment, PageType};
+
+    #[test]
+    fn test_normalize_metadata_route() {
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/page.tsx").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Page),
+            ])
+        );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/page").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Page),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/route.tsx").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Route),
+            ])
+        );
+        assert_eq!(
+            AppPage::parse("(group)/foo/@par/bar/route").unwrap(),
+            AppPage(vec![
+                PageSegment::Group("group".into()),
+                PageSegment::Static("foo".into()),
+                PageSegment::Parallel("par".into()),
+                PageSegment::Static("bar".into()),
+                PageSegment::PageType(PageType::Route),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("foo/sitemap").unwrap(),
+            AppPage(vec![
+                PageSegment::Static("foo".into()),
+                PageSegment::Static("sitemap".into()),
+            ])
+        );
+
+        assert_eq!(
+            AppPage::parse("foo/robots.txt").unwrap(),
+            AppPage(vec![
+                PageSegment::Static("foo".into()),
+                PageSegment::Static("robots.txt".into()),
+            ])
+        );
     }
 }

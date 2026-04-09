@@ -1,0 +1,6 @@
+{
+  "name": "@example/common",
+  "version": "1.0.0",
+  "main": "hello.js",
+  "type": "module"
+}

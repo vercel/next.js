@@ -1,351 +1,10 @@
+import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { isPrerenderInterruptedError } from './dynamic-rendering'
 
-/**
- * This is a utility function to make scheduling sequential tasks that run back to back easier.
- * We schedule on the same queue (setImmediate) at the same time to ensure no other events can sneak in between.
- */
-export function prerenderAndAbortInSequentialTasks<R>(
-  prerender: () => Promise<R>,
-  abort: () => void
-): Promise<R> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`prerenderAndAbortInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      let pendingResult: Promise<R>
-      setImmediate(() => {
-        try {
-          pendingResult = prerender()
-          pendingResult.catch(() => {})
-        } catch (err) {
-          reject(err)
-        }
-      })
-      setImmediate(() => {
-        abort()
-        resolve(pendingResult)
-      })
-    })
-  }
-}
+export type AnyStream = ReadableStream<Uint8Array> | Readable
 
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  finalPhase: () => void
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  secondPhase: () => void,
-  finalPhase: () => void
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  secondPhase: () => void,
-  thirdPhase: () => void,
-  ...remainingPhases: Array<() => void>
-): Promise<ServerPrerenderStreamResult>
-export function prerenderServerWithPhases(
-  signal: AbortSignal,
-  render: () => ReadableStream<Uint8Array>,
-  ...remainingPhases: Array<() => void>
-): Promise<ServerPrerenderStreamResult> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`prerenderAndAbortInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      let result: ServerPrerenderStreamResult
-
-      signal.addEventListener(
-        'abort',
-        () => {
-          if (isPrerenderInterruptedError(signal.reason)) {
-            result.markInterrupted()
-          } else {
-            result.markComplete()
-          }
-        },
-        {
-          once: true,
-        }
-      )
-
-      setImmediate(() => {
-        try {
-          result = new ServerPrerenderStreamResult(render())
-        } catch (err) {
-          reject(err)
-        }
-      })
-
-      function runFinalTask(this: () => void) {
-        try {
-          if (result) {
-            result.markComplete()
-            this()
-          }
-          resolve(result)
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      function runNextTask(this: () => void) {
-        try {
-          if (result) {
-            result.markPhase()
-            this()
-          }
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      let i = 0
-      for (; i < remainingPhases.length - 1; i++) {
-        const phase = remainingPhases[i]
-        setImmediate(runNextTask.bind(phase))
-      }
-      if (remainingPhases[i]) {
-        const finalPhase = remainingPhases[i]
-        setImmediate(runFinalTask.bind(finalPhase))
-      }
-    })
-  }
-}
-
-const PENDING = 0
-const COMPLETE = 1
-const INTERRUPTED = 2
-const ERRORED = 3
-
-export class ServerPrerenderStreamResult {
-  private currentChunks: Array<Uint8Array>
-  private chunksByPhase: Array<Array<Uint8Array>>
-  private trailingChunks: Array<Uint8Array>
-  private status: 0 | 1 | 2 | 3
-  private reason: null | unknown
-
-  constructor(stream: ReadableStream<Uint8Array>) {
-    this.status = PENDING
-    this.reason = null
-
-    this.trailingChunks = []
-    this.currentChunks = []
-    this.chunksByPhase = [this.currentChunks]
-
-    const reader = stream.getReader()
-
-    const progress = ({
-      done,
-      value,
-    }: ReadableStreamReadResult<Uint8Array>) => {
-      if (done) {
-        if (this.status === PENDING) {
-          this.status = COMPLETE
-        }
-        return
-      }
-      if (this.status === PENDING || this.status === INTERRUPTED) {
-        this.currentChunks.push(value)
-      } else {
-        this.trailingChunks.push(value)
-      }
-      reader.read().then(progress, error)
-    }
-    const error = (reason: unknown) => {
-      this.status = ERRORED
-      this.reason = reason
-    }
-
-    reader.read().then(progress, error)
-  }
-
-  markPhase() {
-    this.currentChunks = []
-    this.chunksByPhase.push(this.currentChunks)
-  }
-
-  markComplete() {
-    if (this.status === PENDING) {
-      this.status = COMPLETE
-    }
-  }
-
-  markInterrupted() {
-    this.status = INTERRUPTED
-  }
-
-  /**
-   * Returns a stream which only releases chunks when `releasePhase` is called. This stream will never "complete" because
-   * we rely upon the stream remaining open when prerendering to avoid triggering errors for incomplete chunks in the client.
-   *
-   * asPhasedStream is expected to be called once per result however it is safe to call multiple times as long as we have not
-   * transferred the underlying data. Generally this will only happen when streaming to a response
-   */
-  asPhasedStream() {
-    switch (this.status) {
-      case COMPLETE:
-      case INTERRUPTED:
-        return new PhasedStream(this.chunksByPhase)
-      default:
-        throw new InvariantError(
-          `ServerPrerenderStreamResult cannot be consumed as a stream because it is not yet complete. status: ${this.status}`
-        )
-    }
-  }
-
-  /**
-   * Returns a stream which will release all chunks immediately. This stream will "complete" synchronously. It should be used outside
-   * of render use cases like loading client chunks ahead of SSR or writing the streamed content to disk.
-   */
-  asStream() {
-    switch (this.status) {
-      case COMPLETE:
-      case INTERRUPTED:
-        const chunksByPhase = this.chunksByPhase
-        const trailingChunks = this.trailingChunks
-        return new ReadableStream({
-          start(controller) {
-            for (let i = 0; i < chunksByPhase.length; i++) {
-              const chunks = chunksByPhase[i]
-              for (let j = 0; j < chunks.length; j++) {
-                controller.enqueue(chunks[j])
-              }
-            }
-            for (let i = 0; i < trailingChunks.length; i++) {
-              controller.enqueue(trailingChunks[i])
-            }
-            controller.close()
-          },
-        })
-      default:
-        throw new InvariantError(
-          `ServerPrerenderStreamResult cannot be consumed as a stream because it is not yet complete. status: ${this.status}`
-        )
-    }
-  }
-}
-
-class PhasedStream<T> extends ReadableStream<T> {
-  private nextPhase: number
-  private chunksByPhase: Array<Array<T>>
-  private destination: ReadableStreamDefaultController<T>
-
-  constructor(chunksByPhase: Array<Array<T>>) {
-    if (chunksByPhase.length === 0) {
-      throw new InvariantError(
-        'PhasedStream expected at least one phase but none were found.'
-      )
-    }
-
-    let destination: ReadableStreamDefaultController<T>
-    super({
-      start(controller) {
-        destination = controller
-      },
-    })
-
-    // the start function above is called synchronously during construction so we will always have a destination
-    // We wait to assign it until after the super call because we cannot access `this` before calling super
-    this.destination = destination!
-    this.nextPhase = 0
-    this.chunksByPhase = chunksByPhase
-    this.releasePhase()
-  }
-
-  releasePhase() {
-    if (this.nextPhase < this.chunksByPhase.length) {
-      const chunks = this.chunksByPhase[this.nextPhase++]
-      for (let i = 0; i < chunks.length; i++) {
-        this.destination.enqueue(chunks[i])
-      }
-    } else {
-      throw new InvariantError(
-        'PhasedStream expected more phases to release but none were found.'
-      )
-    }
-  }
-
-  assertExhausted() {
-    if (this.nextPhase < this.chunksByPhase.length) {
-      throw new InvariantError(
-        'PhasedStream expected no more phases to release but some were found.'
-      )
-    }
-  }
-}
-
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  finalPhase: () => void
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  secondPhase: () => void,
-  finalPhase: () => void
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  secondPhase: () => void,
-  thirdPhase: () => void,
-  ...remainingPhases: Array<() => void>
-): Promise<T>
-export function prerenderClientWithPhases<T>(
-  render: () => Promise<T>,
-  ...remainingPhases: Array<() => void>
-): Promise<T> {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    throw new InvariantError(
-      '`prerenderAndAbortInSequentialTasks` should not be called in edge runtime.'
-    )
-  } else {
-    return new Promise((resolve, reject) => {
-      let pendingResult: Promise<T>
-      setImmediate(() => {
-        try {
-          pendingResult = render()
-          pendingResult.catch((err) => reject(err))
-        } catch (err) {
-          reject(err)
-        }
-      })
-
-      function runFinalTask(this: () => void) {
-        try {
-          this()
-          resolve(pendingResult)
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      function runNextTask(this: () => void) {
-        try {
-          this()
-        } catch (err) {
-          reject(err)
-        }
-      }
-
-      let i = 0
-      for (; i < remainingPhases.length - 1; i++) {
-        const phase = remainingPhases[i]
-        setImmediate(runNextTask.bind(phase))
-      }
-      if (remainingPhases[i]) {
-        const finalPhase = remainingPhases[i]
-        setImmediate(runFinalTask.bind(finalPhase))
-      }
-    })
-  }
+function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
+  return typeof (stream as ReadableStream).tee === 'function'
 }
 
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
@@ -353,24 +12,68 @@ export function prerenderClientWithPhases<T>(
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
-  private _stream: null | ReadableStream<Uint8Array>
+  private _stream: null | AnyStream
+  private _replayable: ReplayableNodeStream | null
 
-  constructor(stream: ReadableStream<Uint8Array>) {
-    this._stream = stream
+  constructor(stream: AnyStream) {
+    if (process.env.__NEXT_USE_NODE_STREAMS && !isWebStream(stream)) {
+      this._stream = null
+      this._replayable = new ReplayableNodeStream(stream as Readable)
+    } else {
+      this._stream = stream
+      this._replayable = null
+    }
   }
 
-  tee() {
+  tee(): AnyStream {
+    if (this._replayable) {
+      return this._replayable.createReplayStream()
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
       )
     }
-    const tee = this._stream.tee()
-    this._stream = tee[0]
-    return tee[1]
+    if (isWebStream(this._stream)) {
+      const tee = this._stream.tee()
+      this._stream = tee[0]
+      return tee[1]
+    }
+
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new InvariantError(
+        'Node.js Readable cannot be teed in the edge runtime'
+      )
+    } else {
+      let Readable: typeof import('node:stream').Readable
+      if (process.env.TURBOPACK) {
+        Readable = (require('node:stream') as typeof import('node:stream'))
+          .Readable
+      } else {
+        Readable = (
+          __non_webpack_require__('node:stream') as typeof import('node:stream')
+        ).Readable
+      }
+      const webStream = Readable.toWeb(
+        this._stream
+      ) as ReadableStream<Uint8Array>
+      const tee = webStream.tee()
+      this._stream = Readable.fromWeb(
+        tee[0] as import('stream/web').ReadableStream
+      )
+      return Readable.fromWeb(tee[1] as import('stream/web').ReadableStream)
+    }
   }
 
-  consume() {
+  consume(): AnyStream {
+    if (this._replayable) {
+      const stream = this._replayable.createReplayStream()
+      this._replayable.dispose()
+      this._replayable = null
+      return stream
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -379,6 +82,147 @@ export class ReactServerResult {
     const stream = this._stream
     this._stream = null
     return stream
+  }
+}
+
+type ReplayableStreamSubscriber = {
+  onChunk: (chunk: Uint8Array) => void
+  onEnd: () => void
+  onError: (err: Error) => void
+}
+
+/**
+ * Buffers all chunks from a Node.js Readable stream and allows creating new
+ * Readable streams that replay the buffered chunks plus any subsequent chunks
+ * from the source. Multiple replay streams can be created independently.
+ */
+export class ReplayableNodeStream {
+  private _chunks: Array<Uint8Array> | null
+  private _done: boolean
+  private _error: Error | null
+  private _subscribers: Set<ReplayableStreamSubscriber>
+
+  constructor(stream: Readable) {
+    this._chunks = []
+    this._done = false
+    this._error = null
+    this._subscribers = new Set()
+
+    stream.on('data', (chunk: Buffer | Uint8Array) => {
+      const buf = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
+      if (this._chunks !== null) {
+        this._chunks.push(buf)
+      }
+      for (const sub of this._subscribers) {
+        sub.onChunk(buf)
+      }
+    })
+
+    stream.on('end', () => {
+      this._done = true
+      for (const sub of this._subscribers) {
+        sub.onEnd()
+      }
+      this._subscribers.clear()
+    })
+
+    stream.on('error', (err: Error) => {
+      this._error = err
+      for (const sub of this._subscribers) {
+        sub.onError(err)
+      }
+      this._subscribers.clear()
+    })
+  }
+
+  /**
+   * Creates a new Node.js Readable stream that first emits all buffered chunks,
+   * then forwards any new chunks from the source as they arrive.
+   *
+   * Buffered chunks are delivered via _read() (pull-based) rather than pushed
+   * eagerly. This is critical because createReplayStream() is called outside
+   * of AsyncLocalStorage context, and eagerly pushing chunks triggers internal
+   * Node.js stream scheduling (process.nextTick for maybeReadMore) that
+   * captures the empty ALS context. By deferring to _read(), chunks are only
+   * delivered when the consumer reads, which happens inside the correct ALS
+   * scope (e.g. during Fizz's performWork).
+   */
+  createReplayStream(): Readable {
+    if (this._chunks === null) {
+      throw new InvariantError(
+        'Cannot create a replay stream after the ReplayableNodeStream has been disposed.'
+      )
+    }
+
+    let ReadableCtor: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      ReadableCtor = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    const bufferedChunks = this._chunks.slice()
+    let bufferIndex = 0
+    let bufferDrained = false
+    const isDone = this._done
+    const sourceError = this._error
+
+    const stream = new ReadableCtor({
+      read() {
+        if (!bufferDrained) {
+          bufferDrained = true
+          for (let i = bufferIndex; i < bufferedChunks.length; i++) {
+            this.push(bufferedChunks[i])
+          }
+          bufferIndex = bufferedChunks.length
+          if (isDone) {
+            this.push(null)
+          }
+        }
+      },
+    })
+
+    if (sourceError) {
+      stream.destroy(sourceError)
+      return stream
+    }
+
+    if (isDone) {
+      return stream
+    }
+
+    const subscriber: ReplayableStreamSubscriber = {
+      onChunk: (chunk) => {
+        stream.push(chunk)
+      },
+      onEnd: () => {
+        stream.push(null)
+      },
+      onError: (err) => {
+        stream.destroy(err)
+      },
+    }
+    this._subscribers.add(subscriber)
+
+    stream.on('close', () => {
+      this._subscribers.delete(subscriber)
+    })
+
+    return stream
+  }
+
+  /**
+   * Clears the buffered chunks and all subscriber references. After calling
+   * this, no new replay streams can be created.
+   */
+  dispose(): void {
+    this._chunks = null
   }
 }
 
@@ -403,18 +247,26 @@ export async function createReactServerPrerenderResult(
 }
 
 export async function createReactServerPrerenderResultFromRender(
-  underlying: ReadableStream<Uint8Array>
+  underlying: AnyStream
 ): Promise<ReactServerPrerenderResult> {
   const chunks: Array<Uint8Array> = []
-  const reader = underlying.getReader()
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
-    } else {
-      chunks.push(value)
+
+  if (isWebStream(underlying)) {
+    const reader = underlying.getReader()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      } else {
+        chunks.push(value)
+      }
+    }
+  } else {
+    for await (const chunk of underlying) {
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
     }
   }
+
   return new ReactServerPrerenderResult(chunks)
 }
 export class ReactServerPrerenderResult {
@@ -493,4 +345,18 @@ function createClosingStream(
       }
     },
   })
+}
+
+export async function processPrelude(
+  unprocessedPrelude: ReadableStream<Uint8Array>
+) {
+  const [prelude, peek] = unprocessedPrelude.tee()
+
+  const reader = peek.getReader()
+  const firstResult = await reader.read()
+  reader.cancel()
+
+  const preludeIsEmpty = firstResult.done === true
+
+  return { prelude, preludeIsEmpty }
 }

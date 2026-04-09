@@ -1,7 +1,8 @@
 import type { NextConfig } from '../server/config-shared'
 
+// Keep in sync with Turbopack's experimental React switch: file://./../../../../crates/next-core/src/next_import_map.rs
 export function needsExperimentalReact(config: NextConfig) {
-  const { ppr, taint, reactOwnerStack, viewTransition } =
+  const { taint, transitionIndicator, gestureTransition } =
     config.experimental || {}
-  return Boolean(ppr || taint || reactOwnerStack || viewTransition)
+  return Boolean(taint || transitionIndicator || gestureTransition)
 }

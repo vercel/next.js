@@ -1,0 +1,26 @@
+0 -> 1 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 2 conditional = !((null | Promise<"async result">))
+
+2 -> 3 call = (...) => Promise<"async result">()
+
+0 -> 4 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+0 -> 6 free var = FreeVar(console)
+
+0 -> 7 member call = ???*0*["log"]("initLasyInitAsyncProcess")
+- *0* FreeVar(console)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 8 conditional = !((null | Promise<undefined>))
+
+8 -> 9 call = (...) => Promise<undefined>()
+
+0 -> 10 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

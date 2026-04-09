@@ -1,4 +1,4 @@
-import { isMetadataRoute } from './is-metadata-route'
+import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -31,7 +31,7 @@ function getMetadataRouteSuffix(page: string) {
   // e.g. /parent/opengraph-image -> /parent
   const parentPathname = path.dirname(page)
   // Only apply suffix to metadata routes except for sitemaps
-  if (page.endsWith('/sitemap')) {
+  if (page.endsWith('/sitemap') || page.endsWith('/sitemap.xml')) {
     return ''
   }
 
@@ -52,19 +52,39 @@ function getMetadataRouteSuffix(page: string) {
  * Fill the dynamic segment in the metadata route
  *
  * Example:
- * fillMetadataSegment('/a/[slug]', { params: { slug: 'b' } }, 'open-graph') -> '/a/b/open-graph'
+ * fillMetadataSegment('/a/[slug]', { params: { slug: 'b' } }, 'open-graph', false) -> '/a/b/open-graph'
+ *
+ * When isStatic is true, all dynamic segments are filled with "-" placeholder
+ * since static metadata files have consistent responses regardless of params.
+ * Example:
+ * fillMetadataSegment('/a/[slug]', {}, 'icon.png', true) -> '/a/-/icon.png'
  *
  */
 export function fillMetadataSegment(
   segment: string,
   params: any,
-  lastSegment: string
+  lastSegment: string,
+  isStatic: boolean
 ) {
   const pathname = normalizeAppPath(segment)
   const routeRegex = getNamedRouteRegex(pathname, {
     prefixRouteKeys: false,
   })
-  const route = interpolateDynamicPath(pathname, params, routeRegex)
+
+  // For static metadata files, fill all dynamic segments with "-" placeholder
+  const routeParams = isStatic
+    ? Object.keys(routeRegex.groups).reduce(
+        (acc, key) => {
+          const { repeat } = routeRegex.groups[key]
+          // Use array for catch-all segments, string for regular segments
+          acc[key] = repeat ? ['-'] : '-'
+          return acc
+        },
+        {} as Record<string, string | string[]>
+      )
+    : params
+
+  const route = interpolateDynamicPath(pathname, routeParams, routeRegex)
   const { name, ext } = path.parse(lastSegment)
   const pagePath = path.posix.join(segment, name)
   const suffix = getMetadataRouteSuffix(pagePath)
@@ -83,7 +103,7 @@ export function fillMetadataSegment(
  * @returns
  */
 export function normalizeMetadataRoute(page: string) {
-  if (!isMetadataRoute(page)) {
+  if (!isMetadataPage(page)) {
     return page
   }
   let route = page

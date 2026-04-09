@@ -5,27 +5,8 @@ import type {
   Visitor,
   NodePath,
 } from 'next/dist/compiled/babel/core'
-import type { PageConfig } from '../../../types'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 const CONFIG_KEY = 'config'
-
-// replace program path with just a variable with the drop identifier
-function replaceBundle(path: any, t: typeof BabelTypes): void {
-  path.parentPath.replaceWith(
-    t.program(
-      [
-        t.variableDeclaration('const', [
-          t.variableDeclarator(
-            t.identifier(STRING_LITERAL_DROP_BUNDLE),
-            t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
-          ),
-        ]),
-      ],
-      []
-    )
-  )
-}
 
 function errorMessage(state: any, details: string): string {
   const pageName =
@@ -84,7 +65,6 @@ export default function nextPageConfig({
                   return
                 }
 
-                const config: PageConfig = {}
                 const declarations: BabelTypes.VariableDeclarator[] = [
                   ...((
                     exportPath.node
@@ -166,40 +146,7 @@ export default function nextPageConfig({
                         )
                       )
                     }
-                    const { name } = prop.key as BabelTypes.Identifier
-                    if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
-                      if (!BabelTypes.isObjectProperty(prop)) {
-                        throw new Error(
-                          errorMessage(
-                            exportState,
-                            `Invalid property "${name}"`
-                          )
-                        )
-                      }
-                      if (
-                        !BabelTypes.isBooleanLiteral(prop.value) &&
-                        !BabelTypes.isStringLiteral(prop.value)
-                      ) {
-                        throw new Error(
-                          errorMessage(
-                            exportState,
-                            `Invalid value for "${name}"`
-                          )
-                        )
-                      }
-                      config.amp = prop.value.value as PageConfig['amp']
-                    }
                   }
-                }
-
-                if (config.amp === true) {
-                  if (!exportState.file?.opts?.caller.isDev) {
-                    // don't replace bundle in development so HMR can track
-                    // dependencies and trigger reload when they are changed
-                    replaceBundle(exportPath, t)
-                  }
-                  exportState.bundleDropped = true
-                  return
                 }
               },
             },

@@ -6,6 +6,10 @@ use std::{
 
 use crate::AllocationCounters;
 
+/// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
+/// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
+/// to reduce the number of global synchronizations.  This means at any given time this might
+/// overcount by up to [MAX_BUFFER] bytes for each thread.
 static ALLOCATED: AtomicUsize = AtomicUsize::new(0);
 const KB: usize = 1024;
 /// When global counter is updates we will keep a thread-local buffer of this
@@ -26,6 +30,12 @@ struct ThreadLocalCounter {
 }
 
 impl ThreadLocalCounter {
+    const fn new() -> Self {
+        Self {
+            buffer: 0,
+            allocation_counters: AllocationCounters::new(),
+        }
+    }
     fn add(&mut self, size: usize) {
         self.allocation_counters.allocations += size;
         self.allocation_counters.allocation_count += 1;
@@ -88,7 +98,7 @@ impl ThreadLocalCounter {
 }
 
 thread_local! {
-  static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = UnsafeCell::new(ThreadLocalCounter::default());
+  static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
 }
 
 pub fn get() -> usize {

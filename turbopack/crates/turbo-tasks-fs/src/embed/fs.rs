@@ -1,14 +1,16 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use auto_hash_map::AutoMap;
 use include_dir::{Dir, DirEntry};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ValueToString, Vc};
+use turbo_tasks::{ValueToString, Vc};
 
 use crate::{
     File, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
     RawDirectoryEntry,
 };
 
+#[derive(ValueToString)]
+#[value_to_string(self.name)]
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 pub struct EmbeddedFileSystem {
     name: RcStr,
@@ -25,23 +27,23 @@ impl EmbeddedFileSystem {
 #[turbo_tasks::value_impl]
 impl FileSystem for EmbeddedFileSystem {
     #[turbo_tasks::function]
-    async fn read(&self, path: Vc<FileSystemPath>) -> Result<Vc<FileContent>> {
-        let file = match self.dir.get_file(&path.await?.path) {
+    async fn read(&self, path: FileSystemPath) -> Result<Vc<FileContent>> {
+        let file = match self.dir.get_file(&path.path) {
             Some(file) => file,
             None => return Ok(FileContent::NotFound.cell()),
         };
 
-        Ok(File::from(file.contents()).into())
+        Ok(FileContent::Content(File::from(file.contents())).cell())
     }
 
     #[turbo_tasks::function]
-    fn read_link(&self, _path: Vc<FileSystemPath>) -> Vc<LinkContent> {
+    fn read_link(&self, _path: FileSystemPath) -> Vc<LinkContent> {
         LinkContent::NotFound.cell()
     }
 
     #[turbo_tasks::function]
-    async fn raw_read_dir(&self, path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
-        let path_str = &path.await?.path;
+    async fn raw_read_dir(&self, path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
+        let path_str = &path.path;
         let dir = match (path_str.as_str(), self.dir.get_dir(path_str)) {
             ("", _) => self.dir,
             (_, Some(dir)) => dir,
@@ -70,34 +72,21 @@ impl FileSystem for EmbeddedFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn track(&self, _path: Vc<FileSystemPath>) -> Vc<Completion> {
-        Completion::immutable()
-    }
-
-    #[turbo_tasks::function]
-    fn write(&self, _path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
+    fn write(&self, _path: FileSystemPath, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(&self, _path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible to the embedded filesystem")
     }
 
     #[turbo_tasks::function]
-    async fn metadata(&self, path: Vc<FileSystemPath>) -> Result<Vc<FileMeta>> {
-        if self.dir.get_entry(&path.await?.path).is_none() {
+    async fn metadata(&self, path: FileSystemPath) -> Result<Vc<FileMeta>> {
+        if self.dir.get_entry(&path.path).is_none() {
             bail!("path not found, can't read metadata");
         }
 
         Ok(FileMeta::default().cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EmbeddedFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.name.clone())
     }
 }

@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-unused-vars
 export { config as notConfig } from '../../config'
 
 export const getServerSideProps = () => {

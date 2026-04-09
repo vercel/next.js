@@ -1,45 +1,47 @@
+// Import cpu-profile first to start profiling early if enabled
+import { saveCpuProfile } from '../../server/lib/cpu-profile'
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import {
-  formatIssue,
-  getTurbopackJsConfig,
-  isPersistentCachingEnabled,
-  isRelevantWarning,
-  type EntryIssuesMap,
-} from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
-import { createDefineEnv, loadBindings } from '../swc'
-import { Sema } from 'next/dist/compiled/async-sema'
+import { createDefineEnv, getBindingsSync } from '../swc'
+import { installBindings } from '../swc/install-bindings'
 import {
-  handleEntrypoints,
-  handlePagesErrorRoute,
   handleRouteType,
+  rawEntrypointsToEntrypoints,
 } from '../handle-entrypoints'
-import type { Entrypoints } from '../swc/types'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import { createProgress } from '../progress'
-import * as Log from '../output/log'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
-import { setGlobal } from '../../trace'
-
-const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
+import {
+  setGlobal,
+  trace,
+  initializeTraceState,
+  getTraceEvents,
+} from '../../trace'
+import type { TraceState } from '../../trace'
+import { isCI } from '../../server/ci-info'
+import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
+import { getSupportedBrowsers } from '../get-supported-browsers'
+import { printBuildErrors } from '../print-build-errors'
+import { normalizePath } from '../../lib/normalize-path'
+import type {
+  ProjectOptions,
+  RawEntrypoints,
+  TurbopackResult,
+} from '../swc/types'
+import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>
 }> {
-  if (!IS_TURBOPACK_BUILD) {
-    throw new Error("next build doesn't support turbopack yet")
-  }
-
   await validateTurboNextConfig({
     dir: NextBuildContext.dir!,
-    isDev: false,
+    configPhase: PHASE_PRODUCTION_BUILD,
   })
 
   const config = NextBuildContext.config!
@@ -50,275 +52,267 @@ export async function turbopackBuild(): Promise<{
   const previewProps = NextBuildContext.previewProps!
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
-  const appDirOnly = NextBuildContext.appDirOnly!
+  const noMangling = NextBuildContext.noMangling!
+  const currentNodeJsVersion = process.versions.node
 
   const startTime = process.hrtime()
-  const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+  const bindings = getBindingsSync() // our caller should have already loaded these
+
+  if (bindings.isWasm) {
+    throw new Error(
+      `Turbopack is not supported on this platform (${process.platform}/${process.arch}) because native bindings are not available. ` +
+        `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
+        `To build on this platform, use Webpack instead:\n` +
+        `  next build --webpack\n\n` +
+        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+    )
+  }
+
   const dev = false
 
-  // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-  const supportedBrowsers = [
-    'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-  ]
+  const supportedBrowsers = getSupportedBrowsers(dir, dev)
 
-  const persistentCaching = isPersistentCachingEnabled(config)
+  const hasDeferredEntries =
+    (config.experimental.deferredEntries?.length ?? 0) > 0
+
+  const persistentCaching =
+    config.experimental?.turbopackFileSystemCacheForBuild || false
+  const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Shared options for createProject calls
+  const sharedProjectOptions: Omit<ProjectOptions, 'debugBuildPaths'> = {
+    rootPath,
+    projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
+    distDir,
+    nextConfig: config,
+    watch: {
+      enable: false,
+    },
+    dev,
+    env: process.env as Record<string, string>,
+    defineEnv: createDefineEnv({
+      isTurbopack: true,
+      clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      config,
+      dev,
+      distDir,
+      projectPath: dir,
+      fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
+      hasRewrites,
+      // Implemented separately in Turbopack, doesn't have to be passed here.
+      middlewareMatchers: undefined,
+      rewrites,
+    }),
+    buildId,
+    encryptionKey,
+    previewProps,
+    browserslistQuery: supportedBrowsers.join(', '),
+    noMangling,
+    writeRoutesHashesManifest:
+      !!process.env.NEXT_TURBOPACK_WRITE_ROUTES_HASHES_MANIFEST,
+    currentNodeJsVersion,
+    isPersistentCachingEnabled: persistentCaching,
+    deferredEntries: config.experimental.deferredEntries,
+    nextVersion: process.env.__NEXT_VERSION as string,
+    hashSalt: config.hashSalt,
+  }
+
+  const sharedTurboOptions = {
+    memoryLimit: config.experimental?.turbopackMemoryLimit,
+    dependencyTracking: persistentCaching || hasDeferredEntries,
+    isCi: isCI,
+    isShortSession: true,
+    skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',
+  }
+
+  const sriEnabled = Boolean(config.experimental.sri?.algorithm)
+
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
-      rootPath:
-        config.experimental?.turbo?.root || config.outputFileTracingRoot || dir,
-      distDir,
-      nextConfig: config,
-      jsConfig: await getTurbopackJsConfig(dir, config),
-      watch: {
-        enable: false,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters: NextBuildContext.clientRouterFilters!,
-        config,
-        dev,
-        distDir,
-        fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // Implemented separately in Turbopack, doesn't have to be passed here.
-        middlewareMatchers: undefined,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
+      ...sharedProjectOptions,
+      debugBuildPaths: NextBuildContext.debugBuildPaths,
     },
-    {
-      persistentCaching,
-      memoryLimit: config.experimental.turbo?.memoryLimit,
-      dependencyTracking: persistentCaching,
-    }
-  )
+    sharedTurboOptions,
+    hasDeferredEntries && config.experimental.onBeforeDeferredEntries
+      ? {
+          onBeforeDeferredEntries: async () => {
+            const workerConfig = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+              debugPrerender: NextBuildContext.debugPrerender,
+              reactProductionProfiling:
+                NextBuildContext.reactProductionProfiling,
+              bundler: Bundler.Turbopack,
+            })
 
-  await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-  await fs.mkdir(path.join(distDir, 'static', buildId), {
-    recursive: true,
-  })
-  await fs.writeFile(
-    path.join(distDir, 'package.json'),
-    JSON.stringify(
-      {
-        type: 'commonjs',
-      },
-      null,
-      2
-    )
-  )
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntrypoints: Entrypoints = {
-    global: {
-      app: undefined,
-      document: undefined,
-      error: undefined,
-
-      middleware: undefined,
-      instrumentation: undefined,
-    },
-
-    app: new Map(),
-    page: new Map(),
-  }
-
-  const currentEntryIssues: EntryIssuesMap = new Map()
-
-  const manifestLoader = new TurbopackManifestLoader({
-    buildId,
-    distDir,
-    encryptionKey,
-  })
-
-  const entrypointsResult = await entrypointsSubscription.next()
-  if (entrypointsResult.done) {
-    throw new Error('Turbopack did not return any entrypoints')
-  }
-  entrypointsSubscription.return?.().catch(() => {})
-
-  const entrypoints = entrypointsResult.value
-
-  const topLevelErrors: {
-    message: string
-  }[] = []
-  for (const issue of entrypoints.issues) {
-    topLevelErrors.push({
-      message: formatIssue(issue),
-    })
-  }
-
-  if (topLevelErrors.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${
-        topLevelErrors.length
-      } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
-    )
-  }
-
-  await handleEntrypoints({
-    entrypoints,
-    currentEntrypoints,
-    currentEntryIssues,
-    manifestLoader,
-    productionRewrites: rewrites,
-    logErrors: false,
-  })
-
-  const progress = createProgress(
-    currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
-    'Building'
-  )
-  const promises: Promise<any>[] = []
-
-  // Concurrency will start at INITIAL_CONCURRENCY and
-  // slowly ramp up to CONCURRENCY by increasing the
-  // concurrency by 1 every time a task is completed.
-  const INITIAL_CONCURRENCY = 5
-  const CONCURRENCY = 10
-
-  const sema = new Sema(INITIAL_CONCURRENCY)
-  let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
-  const enqueue = (fn: () => Promise<void>) => {
-    promises.push(
-      (async () => {
-        await sema.acquire()
-        try {
-          await fn()
-        } finally {
-          sema.release()
-          if (remainingRampup > 0) {
-            remainingRampup--
-            sema.release()
-          }
-          progress.run()
+            await workerConfig.experimental.onBeforeDeferredEntries?.()
+          },
         }
-      })()
-    )
-  }
+      : undefined
+  )
+  const buildEventsSpan = trace('turbopack-build-events')
+  // Stop immediately: this span is only used as a parent for
+  // manualTraceChild calls which carry their own timestamps.
+  buildEventsSpan.stop()
+  const shutdownController = new AbortController()
+  const compilationEvents = backgroundLogCompilationEvents(project, {
+    parentSpan: buildEventsSpan,
+    signal: shutdownController.signal,
+  })
 
-  if (!appDirOnly) {
-    for (const [page, route] of currentEntrypoints.page) {
-      enqueue(() =>
+  try {
+    // Write an empty file in a known location to signal this was built with Turbopack
+    await fs.writeFile(path.join(distDir, 'turbopack'), '')
+
+    await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+    await fs.mkdir(path.join(distDir, 'static', buildId), {
+      recursive: true,
+    })
+    await fs.writeFile(
+      path.join(distDir, 'package.json'),
+      '{"type": "commonjs"}'
+    )
+
+    let appDirOnly = NextBuildContext.appDirOnly!
+
+    const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    printBuildErrors(entrypoints, dev)
+
+    const routes = entrypoints.routes
+    if (!routes) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
+    }
+
+    const hasPagesEntries = Array.from(routes.values()).some((route) => {
+      if (route.type === 'page' || route.type === 'page-api') {
+        return true
+      }
+      return false
+    })
+    // If there's no pages entries, then we are in app-dir-only mode
+    if (!hasPagesEntries) {
+      appDirOnly = true
+    }
+
+    const manifestLoader = new TurbopackManifestLoader({
+      buildId,
+      distDir,
+      encryptionKey,
+      dev: false,
+      sriEnabled,
+    })
+
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(
+      entrypoints as TurbopackResult<RawEntrypoints>
+    )
+
+    const promises: Promise<void>[] = []
+
+    if (!appDirOnly) {
+      for (const [page, route] of currentEntrypoints.page) {
+        promises.push(
+          handleRouteType({
+            page,
+            route,
+            manifestLoader,
+          })
+        )
+      }
+    }
+
+    for (const [page, route] of currentEntrypoints.app) {
+      promises.push(
         handleRouteType({
           page,
           route,
-          currentEntryIssues,
-          entrypoints: currentEntrypoints,
           manifestLoader,
-          productionRewrites: rewrites,
-          logErrors: false,
         })
       )
     }
-  }
 
-  for (const [page, route] of currentEntrypoints.app) {
-    enqueue(() =>
-      handleRouteType({
-        page,
-        route,
-        currentEntryIssues,
-        entrypoints: currentEntrypoints,
-        manifestLoader,
-        productionRewrites: rewrites,
-        logErrors: false,
-      })
-    )
-  }
+    await Promise.all(promises)
 
-  enqueue(() =>
-    handlePagesErrorRoute({
-      currentEntryIssues,
-      entrypoints: currentEntrypoints,
-      manifestLoader,
+    await Promise.all([
+      // Only load pages router manifests if not app-only
+      ...(!appDirOnly
+        ? [
+            manifestLoader.loadBuildManifest('_app'),
+            manifestLoader.loadPagesManifest('_app'),
+            manifestLoader.loadFontManifest('_app'),
+            manifestLoader.loadPagesManifest('_document'),
+            manifestLoader.loadClientBuildManifest('_error'),
+            manifestLoader.loadBuildManifest('_error'),
+            manifestLoader.loadPagesManifest('_error'),
+            manifestLoader.loadFontManifest('_error'),
+          ]
+        : []),
+      entrypoints.instrumentation &&
+        manifestLoader.loadMiddlewareManifest(
+          'instrumentation',
+          'instrumentation'
+        ),
+      entrypoints.middleware &&
+        (await manifestLoader.loadMiddlewareManifest(
+          'middleware',
+          'middleware'
+        )),
+    ])
+
+    manifestLoader.writeManifests({
+      devRewrites: undefined,
       productionRewrites: rewrites,
-      logErrors: false,
+      entrypoints: currentEntrypoints,
     })
-  )
-  await Promise.all(promises)
 
-  await manifestLoader.writeManifests({
-    devRewrites: undefined,
-    productionRewrites: rewrites,
-    entrypoints: currentEntrypoints,
-  })
-
-  const errors: {
-    page: string
-    message: string
-  }[] = []
-  const warnings: {
-    page: string
-    message: string
-  }[] = []
-  for (const [page, entryIssues] of currentEntryIssues) {
-    for (const issue of entryIssues.values()) {
-      if (issue.severity !== 'warning') {
-        errors.push({
-          page,
-          message: formatIssue(issue),
-        })
-      } else {
-        if (isRelevantWarning(issue)) {
-          warnings.push({
-            page,
-            message: formatIssue(issue),
-          })
-        }
-      }
+    if (NextBuildContext.analyze) {
+      await project.writeAnalyzeData(appDirOnly)
     }
-  }
 
-  const shutdownPromise = project.shutdown()
+    // Shutdown may trigger final compilation events (e.g. persistence,
+    // compaction trace spans).  This is the last chance to capture them.
+    // After shutdown resolves we abort the signal to close the iterator
+    // and drain any remaining buffered events.
+    const shutdownPromise = project.shutdown().then(() => {
+      shutdownController.abort()
+      return compilationEvents.catch(() => {})
+    })
 
-  if (warnings.length > 0) {
-    Log.warn(
-      `Turbopack build collected ${warnings.length} warnings:\n${warnings
-        .map((e) => {
-          return 'Page: ' + e.page + '\n' + e.message
-        })
-        .join('\n')}`
-    )
-  }
-
-  if (errors.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${errors.length} errors:\n${errors
-        .map((e) => {
-          return 'Page: ' + e.page + '\n' + e.message
-        })
-        .join('\n')}`
-    )
-  }
-
-  const time = process.hrtime(startTime)
-  return {
-    duration: time[0] + time[1] / 1e9,
-    buildTraceContext: undefined,
-    shutdownPromise,
+    const time = process.hrtime(startTime)
+    return {
+      duration: time[0] + time[1] / 1e9,
+      buildTraceContext: undefined,
+      shutdownPromise,
+    }
+  } catch (err) {
+    await project.shutdown()
+    shutdownController.abort()
+    await compilationEvents.catch(() => {})
+    throw err
   }
 }
 
 let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
-}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+  traceState: TraceState & { shouldSaveTraceEvents: boolean }
+}): Promise<
+  Omit<Awaited<ReturnType<typeof turbopackBuild>>, 'shutdownPromise'>
+> {
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+  initializeTraceState(workerData.traceState)
 
   /// load the config because it's not serializable
-  NextBuildContext.config = await loadConfig(
+  const config = await loadConfig(
     PHASE_PRODUCTION_BUILD,
-    NextBuildContext.dir!
+    NextBuildContext.dir!,
+    {
+      debugPrerender: NextBuildContext.debugPrerender,
+      reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: Bundler.Turbopack,
+    }
   )
-
+  NextBuildContext.config = config
   // Matches handling in build/index.ts
   // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
   // Ensures the `config.distDir` option is matched.
@@ -331,14 +325,35 @@ export async function workerMain(workerData: {
     distDir: NextBuildContext.config.distDir,
   })
   setGlobal('telemetry', telemetry)
+  // Install bindings early so we can access synchronously later
+  await installBindings(config.experimental?.useWasmBinary)
 
-  const result = await turbopackBuild()
-  shutdownPromise = result.shutdownPromise
-  return result
+  try {
+    const {
+      shutdownPromise: resultShutdownPromise,
+      buildTraceContext,
+      duration,
+    } = await turbopackBuild()
+    shutdownPromise = resultShutdownPromise
+    return {
+      buildTraceContext,
+      duration,
+    }
+  } finally {
+    // Always flush telemetry before worker exits (waits for async operations like setTimeout in debug mode)
+    await telemetry.flush()
+    // Save CPU profile before worker exits
+    await saveCpuProfile()
+  }
 }
 
-export async function waitForShutdown(): Promise<void> {
+export async function waitForShutdown(): Promise<{
+  debugTraceEvents?: ReturnType<typeof getTraceEvents>
+}> {
   if (shutdownPromise) {
     await shutdownPromise
   }
+  // Collect trace events after shutdown completes so that all compilation
+  // events (e.g. persistence trace spans) have been processed.
+  return { debugTraceEvents: getTraceEvents() }
 }

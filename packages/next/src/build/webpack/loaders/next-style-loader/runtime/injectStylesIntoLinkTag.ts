@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 const getTarget = (() => {
   const memo: any = {}
 
@@ -27,8 +29,6 @@ const getTarget = (() => {
   }
 })()
 
-declare let __webpack_nonce__: string
-
 module.exports = (url: any, options: any) => {
   options = options || {}
   options.attributes =
@@ -36,7 +36,6 @@ module.exports = (url: any, options: any) => {
 
   if (typeof options.attributes.nonce === 'undefined') {
     const nonce =
-      // eslint-disable-next-line no-undef
       typeof __webpack_nonce__ !== 'undefined' ? __webpack_nonce__ : null
 
     if (nonce) {

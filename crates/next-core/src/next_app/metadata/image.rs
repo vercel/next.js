@@ -2,14 +2,14 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-image-loader`
 
-use anyhow::{bail, Result};
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
-use turbo_tasks_hash::hash_xxh3_hash64;
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{AssetContent, no_hash_salt},
     context::AssetContext,
     file_source::FileSource,
     module::Module,
@@ -24,56 +24,32 @@ use turbopack_ecmascript::{
 
 use crate::next_app::AppPage;
 
-async fn hash_file_content(path: Vc<FileSystemPath>) -> Result<u64> {
-    let original_file_content = path.read().await?;
-
-    Ok(match &*original_file_content {
-        FileContent::Content(content) => {
-            let content = content.content().to_bytes()?;
-            hash_xxh3_hash64(&*content)
-        }
-        FileContent::NotFound => {
-            bail!("metadata file not found: {}", &path.to_string().await?);
-        }
-    })
-}
-
-#[turbo_tasks::function]
-pub async fn dynamic_image_metadata_source(
-    asset_context: Vc<Box<dyn AssetContext>>,
-    path: Vc<FileSystemPath>,
+async fn dynamic_image_metadata_with_generator_source(
+    path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
+    exported_fields_excluding_default: String,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let stem = path.file_stem().await?;
-    let stem = stem.as_deref().unwrap_or_default();
-    let ext = &*path.extension().await?;
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
 
-    let hash_query = format!("?{:x}", hash_file_content(path).await?);
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
-        "data.width = size.width; data.height = size.height;"
+        "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        "data.sizes = size.width + \"x\" + size.height;"
+        let sizes = if path.has_extension(".svg") {
+            "any"
+        } else {
+            "${size.width}x${size.height}"
+        };
+        format!("data.sizes = `{sizes}`;")
     };
-
-    let source = Vc::upcast(FileSource::new(path));
-    let module = asset_context
-        .process(
-            source,
-            turbo_tasks::Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
-        )
-        .module();
-    let exports = &*collect_direct_exports(module).await?;
-    let exported_fields_excluding_default = exports
-        .iter()
-        .filter(|e| *e != "default")
-        .cloned()
-        .collect::<Vec<_>>()
-        .join(", ");
 
     let code = formatdoc! {
         r#"
@@ -84,7 +60,7 @@ pub async fn dynamic_image_metadata_source(
 
             export default async function (props) {{
                 const {{ __metadata_id__: _, ...params }} = await props.params
-                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
 
                 const {{ generateImageMetadata }} = imageModule
 
@@ -92,7 +68,7 @@ pub async fn dynamic_image_metadata_source(
                     const data = {{
                         alt: imageMetadata.alt,
                         type: imageMetadata.contentType || 'image/png',
-                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
                     }}
                     const {{ size }} = imageMetadata
                     if (size) {{
@@ -101,38 +77,148 @@ pub async fn dynamic_image_metadata_source(
                     return data
                 }}
 
-                if (generateImageMetadata) {{
-                    const imageMetadataArray = await generateImageMetadata({{ params }})
-                    return imageMetadataArray.map((imageMetadata, index) => {{
-                        const idParam = (imageMetadata.id || index) + ''
-                        return getImageMetadata(imageMetadata, idParam)
-                    }})
-                }} else {{
-                    return [getImageMetadata(imageModule, '')]
-                }}
+                const imageMetadataArray = await generateImageMetadata({{ params }})
+                return imageMetadataArray.map((imageMetadata, index) => {{
+                    const idParam = imageMetadata.id + ''
+                    return getImageMetadata(imageMetadata, idParam)
+                }})
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
-        hash_query = StringifyJs(&hash_query),
+        hash = StringifyJs(&hash),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(format!("{stem}--metadata.js").into()),
-        AssetContent::file(file.into()),
+        path.parent().join(&format!("{stem}--metadata.js"))?,
+        AssetContent::file(FileContent::Content(file).cell()),
+    );
+
+    Ok(Vc::upcast(source))
+}
+
+async fn dynamic_image_metadata_without_generator_source(
+    path: FileSystemPath,
+    ty: RcStr,
+    page: AppPage,
+    exported_fields_excluding_default: String,
+) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
+
+    let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
+    let sizes = if use_numeric_sizes {
+        "data.width = size.width; data.height = size.height;".to_string()
+    } else {
+        let sizes = if path.has_extension(".svg") {
+            "any"
+        } else {
+            "${size.width}x${size.height}"
+        };
+        format!("data.sizes = `{sizes}`;")
+    };
+
+    let code = formatdoc! {
+        r#"
+            import {{ {exported_fields_excluding_default} }} from {resource_path}
+            import {{ fillMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
+
+            const imageModule = {{ {exported_fields_excluding_default} }}
+
+            export default async function (props) {{
+                const {{ __metadata_id__: _, ...params }} = await props.params
+                const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment}, false)
+
+                function getImageMetadata(imageMetadata, idParam) {{
+                    const data = {{
+                        alt: imageMetadata.alt,
+                        type: imageMetadata.contentType || 'image/png',
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
+                    }}
+                    const {{ size }} = imageMetadata
+                    if (size) {{
+                        {sizes}
+                    }}
+                    return data
+                }}
+
+                return [getImageMetadata(imageModule, '')]
+            }}
+        "#,
+        exported_fields_excluding_default = exported_fields_excluding_default,
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
+        pathname_prefix = StringifyJs(&page.to_string()),
+        page_segment = StringifyJs(stem),
+        sizes = sizes,
+        hash = StringifyJs(&hash),
+    };
+
+    let file = File::from(code);
+    let source = VirtualSource::new(
+        path.parent().join(&format!("{stem}--metadata.js"))?,
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
 }
 
 #[turbo_tasks::function]
+pub async fn dynamic_image_metadata_source(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    path: FileSystemPath,
+    ty: RcStr,
+    page: AppPage,
+) -> Result<Vc<Box<dyn Source>>> {
+    let source = Vc::upcast(FileSource::new(path.clone()));
+    let module = asset_context
+        .process(
+            source,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+        )
+        .module();
+    let exports = &*collect_direct_exports(module).await?;
+    let exported_fields_excluding_default = exports
+        .iter()
+        .filter(|e| *e != "default")
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let has_generate_image_metadata = exports.contains(&"generateImageMetadata".into());
+
+    if has_generate_image_metadata {
+        dynamic_image_metadata_with_generator_source(
+            path,
+            ty,
+            page,
+            exported_fields_excluding_default,
+        )
+        .await
+    } else {
+        dynamic_image_metadata_without_generator_source(
+            path,
+            ty,
+            page,
+            exported_fields_excluding_default,
+        )
+        .await
+    }
+}
+
+#[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
     else {
         return Ok(Default::default());
     };

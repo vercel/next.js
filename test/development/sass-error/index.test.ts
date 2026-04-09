@@ -1,10 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },
@@ -15,28 +14,39 @@ describe('app dir - css', () => {
   }
 
   describe('sass support', () => {
-    ;(process.env.TURBOPACK ? describe : describe.skip)(
+    ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
       'error handling',
       () => {
         it('should use original source points for sass errors', async () => {
           const browser = await next.browser('/sass-error')
 
-          await assertHasRedbox(browser)
+          await waitForRedbox(browser)
           const source = await getRedboxSource(browser)
 
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
-            "./app/global.scss.css:45:1
-            Parsing css source code failed
-              43 | }
-              44 |
-            > 45 | input.defaultCheckbox::before path {
-                 | ^
-              46 |   fill: currentColor;
-              47 | }
-              48 |
+           "./app/global.scss.css (45:1)
+           Parsing CSS source code failed
+             43 | }
+             44 |
+           > 45 | input.defaultCheckbox::before path {
+                | ^
+             46 |   fill: currentColor;
+             47 | }
+             48 |
 
-            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884"
+           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
+
+           Generated code of PostCSS transform of loaders [next/dist/build/webpack/loaders/resolve-url-loader/index, next/dist/compiled/sass-loader] transform of file content of app/global.scss:
+           ./app/global.scss.css:1:884
+           > 1 | ...ate(-50%, 0px)}input.defaultCheckbox::before path{fill:currentColor}input:checked.defaul...
+               |                                                ^
+
+           Import trace:
+             Client Component Browser:
+               ./app/global.scss.css [Client Component Browser]
+               ./app/layout.js [Client Component Browser]
+               ./app/layout.js [Server Component]"
           `)
         })
       }

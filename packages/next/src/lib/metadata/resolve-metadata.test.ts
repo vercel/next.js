@@ -12,10 +12,10 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
     item[0],
     item[1],
-    null,
   ])
-  return originAccumulateMetadata(fullMetadataItems, {
-    pathname: '/test',
+  const route = '/test'
+  const pathname = Promise.resolve('/test')
+  return originAccumulateMetadata(route, fullMetadataItems, pathname, {
     trailingSlash: false,
     isStaticMetadataRouteFile: false,
   })
@@ -23,9 +23,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
 
 function accumulateViewport(viewportExports: Viewport[]) {
   // skip the first two arguments (metadata and static metadata)
-  return originAccumulateViewport(
-    viewportExports.map((item) => [null, null, item])
-  )
+  return originAccumulateViewport(viewportExports.map((item) => item))
 }
 
 function mapUrlsToStrings(obj: any) {
@@ -48,9 +46,13 @@ function mapUrlsToStrings(obj: any) {
 describe('accumulateMetadata', () => {
   describe('typing', () => {
     it('should support both sync and async metadata', async () => {
+      const generateMetadata = () => Promise.resolve({ description: 'child' })
       const metadataItems: MetadataItems = [
         [{ description: 'parent' }, null],
-        [() => Promise.resolve({ description: 'child' }), null],
+        [
+          Object.assign(generateMetadata, { $$original: generateMetadata }),
+          null,
+        ],
       ]
 
       const metadata = await accumulateMetadata(metadataItems)
@@ -469,16 +471,18 @@ describe('accumulateMetadata', () => {
         },
       })
 
+      function gM2() {
+        return {
+          openGraph: {
+            images: undefined,
+          },
+          // twitter is not specified, supposed to merged with openGraph but images should not be picked up
+        }
+      }
+
       const metadataItems2: MetadataItems = [
         [
-          function gM2() {
-            return {
-              openGraph: {
-                images: undefined,
-              },
-              // twitter is not specified, supposed to merged with openGraph but images should not be picked up
-            }
-          },
+          Object.assign(gM2, { $$original: gM2 }),
           // has static metadata files
           {
             icon: undefined,
@@ -778,6 +782,14 @@ describe('accumulateViewport', () => {
         viewportFit: 'cover',
         userScalable: false,
         interactiveWidget: 'overlays-content',
+      })
+    })
+
+    it('should skip viewport.initialScale if it is set undefined explicitly', async () => {
+      const viewport = await accumulateViewport([{ initialScale: undefined }])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        initialScale: undefined,
       })
     })
   })

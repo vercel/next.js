@@ -1,8 +1,8 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
-async function assertNoConsoleErrors(browser: BrowserInterface) {
+async function assertNoConsoleErrors(browser: Playwright) {
   const logs = await browser.log()
   const warningsAndErrors = logs.filter((log) => {
     return log.source === 'warning' || log.source === 'error'
@@ -18,6 +18,19 @@ describe('view-transitions', () => {
 
   it('smoketest', async () => {
     const browser = await next.browser('/basic')
+
+    await assertNoConsoleErrors(browser)
+  })
+
+  it('transitionTypes smoketest', async () => {
+    const browser = await next.browser('/transition-types')
+
+    await assertNoConsoleErrors(browser)
+
+    // Click the link to navigate to page two
+    // The first link causes a sliding transition
+    // The second link causes a default transition (cross-fade)
+    await browser.elementByCss('a[href="/transition-types/page-two"]').click()
 
     await assertNoConsoleErrors(browser)
   })

@@ -1,7 +1,4 @@
 #![feature(min_specialization)]
-#![feature(trait_alias)]
-#![feature(array_chunks)]
-#![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -24,22 +21,19 @@ use std::{
 
 use anyhow::{Context, Result};
 use hyper::{
-    server::{conn::AddrIncoming, Builder},
-    service::{make_service_fn, service_fn},
     Request, Response, Server,
+    server::{Builder, conn::AddrIncoming},
+    service::{make_service_fn, service_fn},
 };
 use parking_lot::Mutex;
 use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
-use tracing::{event, info_span, Instrument, Level, Span};
+use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    apply_effects, run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, NonLocalValue,
-    OperationVc, TurboTasksApi, Vc,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
+    take_effects, trace::TraceRawVcs, util::FormatDuration,
 };
-use turbopack_core::{
-    error::PrettyPrintError,
-    issue::{handle_issues, IssueReporter, IssueSeverity},
-};
+use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
 use self::{source::ContentSource, update::UpdateServer};
 use crate::{
@@ -61,34 +55,19 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct NonLocalSourceProvider<T>(T);
-
-impl<T> NonLocalSourceProvider<T> {
-    /// Wrap a `SourceProvider` in a type that implements `NonLocalValue`. This is useful for
-    /// closures that cannot implement `NonLocalValue` themselves.
-    ///
-    /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
-    /// this wrapper type and unsafe constructor.
-    ///
-    /// # Safety
-    ///
-    /// `source_provider` must be a type that could safely implement `NonLocalValue`. If it's a
-    /// closure, the closure must not capture any values that are not a `NonLocalValue`.
-    pub unsafe fn new(source_provider: T) -> Self {
-        Self(source_provider)
-    }
+#[turbo_tasks::value(serialization = "none")]
+struct ContentSourceWithIssues {
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    effects: Effects,
 }
 
-unsafe impl<T> NonLocalValue for NonLocalSourceProvider<T> {}
-
-impl<T> SourceProvider for NonLocalSourceProvider<T>
-where
-    T: SourceProvider,
-{
-    fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
-        self.0.get_source()
-    }
+#[turbo_tasks::function(operation)]
+async fn get_source_with_issues_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+) -> Result<Vc<ContentSourceWithIssues>> {
+    let _ = source_op.resolve().strongly_consistent().await?;
+    let effects = take_effects(source_op).await?;
+    Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
 
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
@@ -146,7 +125,7 @@ impl DevServerBuilder {
     pub fn serve(
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider + NonLocalValue + Sync,
+        source_provider: impl SourceProvider + NonLocalValue + TraceRawVcs + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
     ) -> DevServer {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<
@@ -203,6 +182,8 @@ impl DevServerBuilder {
                             uri: request.uri().clone(),
                         };
                         run_once_with_reason(tt.clone(), reason, async move {
+                            // TODO: `get_issue_reporter` should be an `OperationVc`, as there's a
+                            // risk it could be a task-local Vc, which is not safe for us to await.
                             let issue_reporter = get_issue_reporter();
 
                             if hyper_tungstenite::is_upgrade_request(&request) {
@@ -218,9 +199,9 @@ impl DevServerBuilder {
                                     return Ok(response);
                                 }
 
-                                println!("[404] {} (WebSocket)", path);
-                                if path == "/_next/webpack-hmr" {
-                                    // Special-case requests to webpack-hmr as these are made by
+                                println!("[404] {path} (WebSocket)");
+                                if path == "/_next/hmr" {
+                                    // Special-case requests to hmr as these are made by
                                     // Next.js clients built
                                     // without turbopack, which may be making requests in
                                     // development.
@@ -240,14 +221,15 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            let source_op = source_provider.get_source();
-                            // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source_op.resolve_strongly_consistent().await?;
-                            apply_effects(source_op).await?;
+                            let source_with_issues_op =
+                                get_source_with_issues_operation(source_provider.get_source());
+                            let ContentSourceWithIssues { source_op, effects } =
+                                &*source_with_issues_op.read_strongly_consistent().await?;
+                            effects.apply().await?;
                             handle_issues(
-                                source_op,
+                                source_with_issues_op,
                                 issue_reporter,
-                                IssueSeverity::Fatal.cell(),
+                                IssueSeverity::Fatal,
                                 Some(&path),
                                 Some("get source"),
                             )
@@ -256,12 +238,12 @@ impl DevServerBuilder {
                                 http::process_request_with_content_source(
                                     // HACK: pass `source` here (instead of `resolved_source`
                                     // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
+                                    // `.resolve().strongly_consistent()` call.
                                     //
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
                                     // the generated HTTP response.
-                                    source_op,
+                                    *source_op,
                                     request,
                                     issue_reporter,
                                 )
@@ -328,14 +310,4 @@ impl DevServerBuilder {
             }),
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_cli_utils::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

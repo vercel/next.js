@@ -7,6 +7,7 @@ describe('Link with legacyBehavior - handles buggy userspace ref merging', () =>
   const { next } = nextTestSetup({
     files: __dirname,
   })
+
   it('does not crash when Link unmounts', async () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('h1').text()).toEqual('Home')

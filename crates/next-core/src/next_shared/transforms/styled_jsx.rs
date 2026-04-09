@@ -5,7 +5,7 @@ use turbopack_core::environment::RuntimeVersions;
 use turbopack_ecmascript_plugins::transform::styled_jsx::StyledJsxTransformer;
 
 use super::get_ecma_transform_rule;
-use crate::next_config::NextConfig;
+use crate::{next_config::NextConfig, next_shared::transforms::EcmascriptTransformStage};
 
 /// Returns a transform rule for the styled jsx transform.
 pub async fn get_styled_jsx_transform_rule(
@@ -19,6 +19,6 @@ pub async fn get_styled_jsx_transform_rule(
     Ok(Some(get_ecma_transform_rule(
         Box::new(transformer),
         enable_mdx_rs,
-        true,
+        EcmascriptTransformStage::Main,
     )))
 }

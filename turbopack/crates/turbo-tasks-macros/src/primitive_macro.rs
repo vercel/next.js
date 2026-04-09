@@ -1,14 +1,20 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
-use turbo_tasks_macros_shared::{get_type_ident, PrimitiveInput};
 
-use crate::value_macro::value_type_and_register;
+use crate::{
+    global_name::global_name_for_type,
+    ident::get_type_ident,
+    primitive_input::{BincodeWrappers, PrimitiveInput},
+    value_macro::value_type_and_register,
+};
 
 pub fn primitive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as PrimitiveInput);
+    let PrimitiveInput {
+        ty,
+        bincode_wrappers,
+    } = parse_macro_input!(input as PrimitiveInput);
 
-    let ty = input.ty;
     let Some(ident) = get_type_ident(&ty) else {
         return quote! {
             // An error occurred while parsing the ident.
@@ -33,19 +39,33 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         }
     };
 
+    let name = global_name_for_type(&ty);
+    let new_value_type = if let Some(bincode_wrappers) = bincode_wrappers {
+        let BincodeWrappers {
+            encode_ty,
+            decode_ty,
+        } = bincode_wrappers;
+        quote! {
+            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(#name)
+        }
+    } else {
+        quote! {
+            turbo_tasks::ValueType::new_with_bincode::<#ty>(#name)
+        }
+    };
+
     let value_type_and_register = value_type_and_register(
         &ident,
         quote! { #ty },
         None,
         quote! {
-            turbo_tasks::VcTransparentRead<#ty, #ty, #ty>
+            turbo_tasks::VcTransparentRead<#ty, #ty>
         },
         quote! {
-            turbo_tasks::VcCellSharedMode<#ty>
+            turbo_tasks::VcCellCompareMode<#ty>
         },
-        quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#ty>()
-        },
+        new_value_type,
+        /* has_serialization */ quote! { true },
     );
 
     let value_default_impl = quote! {

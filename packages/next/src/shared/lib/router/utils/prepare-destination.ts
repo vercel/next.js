@@ -4,16 +4,15 @@ import type { NextParsedUrlQuery } from '../../../../server/request-meta'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
-import { compile, pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { escapeStringRegexp } from '../../escape-regexp'
-import { parseUrl } from './parse-url'
+import { parseUrl, type ParsedUrl } from './parse-url'
 import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
-} from '../../../../server/lib/interception-routes'
-import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
+} from './interception-routes'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
 import type { Params } from '../../../../server/request/params'
+import { safePathToRegexp, safeCompile } from './route-match-utils'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -157,7 +156,62 @@ export function compileNonPath(value: string, params: Params): string {
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return compile(`/${value}`, { validate: false })(params).slice(1)
+  return safeCompile(`/${value}`, { validate: false })(params).slice(1)
+}
+
+export function parseDestination(args: {
+  destination: string
+  params: Readonly<Params>
+  query: Readonly<NextParsedUrlQuery>
+}): ParsedUrl {
+  let escaped = args.destination
+  for (const param of Object.keys({ ...args.params, ...args.query })) {
+    if (!param) continue
+
+    escaped = escapeSegment(escaped, param)
+  }
+
+  const parsed = parseUrl(escaped)
+
+  let pathname = parsed.pathname
+  if (pathname) {
+    pathname = unescapeSegments(pathname)
+  }
+
+  let href = parsed.href
+  if (href) {
+    href = unescapeSegments(href)
+  }
+
+  let hostname = parsed.hostname
+  if (hostname) {
+    hostname = unescapeSegments(hostname)
+  }
+
+  let hash = parsed.hash
+  if (hash) {
+    hash = unescapeSegments(hash)
+  }
+
+  let search = parsed.search
+  if (search) {
+    search = unescapeSegments(search)
+  }
+
+  let origin = parsed.origin
+  if (origin) {
+    origin = unescapeSegments(origin)
+  }
+
+  return {
+    ...parsed,
+    pathname,
+    hostname,
+    href,
+    hash,
+    search,
+    origin,
+  }
 }
 
 export function prepareDestination(args: {
@@ -166,34 +220,38 @@ export function prepareDestination(args: {
   params: Params
   query: NextParsedUrlQuery
 }) {
-  const query = Object.assign({}, args.query)
-  delete query[NEXT_RSC_UNION_QUERY]
+  const parsedDestination = parseDestination(args)
 
-  let escapedDestination = args.destination
+  const {
+    hostname: destHostname,
+    query: destQuery,
+    search: destSearch,
+  } = parsedDestination
 
-  for (const param of Object.keys({ ...args.params, ...query })) {
-    escapedDestination = param
-      ? escapeSegment(escapedDestination, param)
-      : escapedDestination
+  // The following code assumes that the pathname here includes the hash if it's
+  // present.
+  let destPath = parsedDestination.pathname
+  if (parsedDestination.hash) {
+    destPath = `${destPath}${parsedDestination.hash}`
   }
-
-  const parsedDestination = parseUrl(escapedDestination)
-  const destQuery = parsedDestination.query
-  const destPath = unescapeSegments(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`
-  )
-  const destHostname = unescapeSegments(parsedDestination.hostname || '')
-  const destPathParamKeys: Key[] = []
-  const destHostnameParamKeys: Key[] = []
-  pathToRegexp(destPath, destPathParamKeys)
-  pathToRegexp(destHostname, destHostnameParamKeys)
 
   const destParams: (string | number)[] = []
 
-  destPathParamKeys.forEach((key) => destParams.push(key.name))
-  destHostnameParamKeys.forEach((key) => destParams.push(key.name))
+  const destPathParamKeys: Key[] = []
+  safePathToRegexp(destPath, destPathParamKeys)
+  for (const key of destPathParamKeys) {
+    destParams.push(key.name)
+  }
 
-  const destPathCompiler = compile(
+  if (destHostname) {
+    const destHostnameParamKeys: Key[] = []
+    safePathToRegexp(destHostname, destHostnameParamKeys)
+    for (const key of destHostnameParamKeys) {
+      destParams.push(key.name)
+    }
+  }
+
+  const destPathCompiler = safeCompile(
     destPath,
     // we don't validate while compiling the destination since we should
     // have already validated before we got to this point and validating
@@ -204,7 +262,10 @@ export function prepareDestination(args: {
     { validate: false }
   )
 
-  const destHostnameCompiler = compile(destHostname, { validate: false })
+  let destHostnameCompiler
+  if (destHostname) {
+    destHostnameCompiler = safeCompile(destHostname, { validate: false })
+  }
 
   // update any params in query values
   for (const [key, strOrArray] of Object.entries(destQuery)) {
@@ -261,10 +322,14 @@ export function prepareDestination(args: {
     newUrl = destPathCompiler(args.params)
 
     const [pathname, hash] = newUrl.split('#', 2)
-    parsedDestination.hostname = destHostnameCompiler(args.params)
+    if (destHostnameCompiler) {
+      parsedDestination.hostname = destHostnameCompiler(args.params)
+    }
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete (parsedDestination as any).search
+    parsedDestination.search = destSearch
+      ? compileNonPath(destSearch, args.params)
+      : ''
   } catch (err: any) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
@@ -279,7 +344,7 @@ export function prepareDestination(args: {
   // 2. path segment values
   // 3. destination specified query values
   parsedDestination.query = {
-    ...query,
+    ...args.query,
     ...parsedDestination.query,
   }
 

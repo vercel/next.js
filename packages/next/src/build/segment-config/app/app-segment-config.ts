@@ -1,6 +1,107 @@
 import { z } from 'next/dist/compiled/zod'
 import { formatZodError } from '../../../shared/lib/zod'
 
+const CookieSchema = z
+  .object({
+    name: z.string(),
+    value: z.string().or(z.null()),
+  })
+  .strict()
+
+const RuntimeSampleSchema = z
+  .object({
+    cookies: z.array(CookieSchema).optional(),
+    headers: z.array(z.tuple([z.string(), z.string().or(z.null())])).optional(),
+    params: z.record(z.union([z.string(), z.array(z.string())])).optional(),
+    searchParams: z
+      .record(z.union([z.string(), z.array(z.string()), z.null()]))
+      .optional(),
+  })
+  .strict()
+
+const InstantConfigStaticSchema = z
+  .object({
+    prefetch: z.literal('static'),
+    samples: z.array(RuntimeSampleSchema).min(1).optional(),
+    from: z.array(z.string()).optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
+  })
+  .strict()
+
+const InstantConfigRuntimeSchema = z
+  .object({
+    prefetch: z.literal('runtime'),
+    samples: z.array(RuntimeSampleSchema).min(1),
+    from: z.array(z.string()).optional(),
+    unstable_disableValidation: z.literal(true).optional(),
+    unstable_disableDevValidation: z.literal(true).optional(),
+    unstable_disableBuildValidation: z.literal(true).optional(),
+  })
+  .strict()
+
+const InstantConfigSchema = z.union([
+  z.discriminatedUnion('prefetch', [
+    InstantConfigStaticSchema,
+    InstantConfigRuntimeSchema,
+  ]),
+  z.literal(false),
+])
+
+export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+
+export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
+// the __GenericPrefetch type is used to avoid type widening issues with
+// our choice to make exports the medium for programming a Next.js application
+// With exports the type is controlled by the module and all we can do is assert on it
+// from a consumer. However with string literals in objects these are by default typed widely
+// and thus cannot match the discriminated union type. If we figure out a better way we should
+// delete the __GenericPrefetch member.
+interface __GenericInstantConfig {
+  prefetch: string
+  samples?: Array<WideInstantSample>
+  from?: string[]
+  unstable_disableValidation?: boolean
+  unstable_disableDevValidation?: boolean
+  unstable_disableBuildValidation?: boolean
+}
+
+interface InstantConfigStatic {
+  prefetch: 'static'
+  samples?: Array<InstantSample>
+  from?: string[]
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
+}
+
+interface InstantConfigRuntime {
+  prefetch: 'runtime'
+  samples: Array<InstantSample>
+  from?: string[]
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
+}
+
+type WideInstantSample = {
+  cookies?: InstantSample['cookies']
+  headers?: Array<string[]>
+  params?: InstantSample['params']
+  searchParams?: InstantSample['searchParams']
+}
+
+export type InstantSample = {
+  cookies?: Array<{
+    name: string
+    value: string | null
+  }>
+  headers?: Array<[string, string | null]>
+  params?: { [key: string]: string | string[] }
+  searchParams?: { [key: string]: string | string[] | null }
+}
+
 /**
  * The schema for configuration for a page.
  */
@@ -40,16 +141,21 @@ const AppSegmentConfigSchema = z.object({
     .optional(),
 
   /**
+   * How this segment should be prefetched.
+   */
+  unstable_instant: InstantConfigSchema.optional(),
+
+  /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime: z.number().int().nonnegative().optional(),
+
+  /**
    * The preferred region for the page.
    */
   preferredRegion: z.union([z.string(), z.array(z.string())]).optional(),
-
-  /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr: z.boolean().optional(),
 
   /**
    * The runtime to use for the page.
@@ -74,11 +180,27 @@ export function parseAppSegmentConfig(
 ): AppSegmentConfig {
   const parsed = AppSegmentConfigSchema.safeParse(data, {
     errorMap: (issue, ctx) => {
-      if (issue.path.length === 1 && issue.path[0] === 'revalidate') {
-        return {
-          message: `Invalid revalidate value ${JSON.stringify(
-            ctx.data
-          )} on "${route}", must be a non-negative number or false`,
+      if (issue.path.length === 1) {
+        switch (issue.path[0]) {
+          case 'revalidate': {
+            return {
+              message: `Invalid revalidate value ${JSON.stringify(
+                ctx.data
+              )} on "${route}", must be a non-negative number or false`,
+            }
+          }
+          case 'unstable_instant': {
+            return {
+              // @TODO replace this link with a link to the docs when they are written
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+            }
+          }
+          case 'unstable_dynamicStaleTime': {
+            return {
+              message: `Invalid unstable_dynamicStaleTime value ${JSON.stringify(ctx.data)} on "${route}", must be a non-negative number`,
+            }
+          }
+          default:
         }
       }
 
@@ -128,16 +250,21 @@ export type AppSegmentConfig = {
     | 'only-no-store'
 
   /**
+   * How this segment should be prefetched.
+   */
+  unstable_instant?: Instant
+
+  /**
+   * The stale time for dynamic responses in seconds.
+   * Controls how long the client-side router cache retains dynamic page data.
+   * Pages only — not allowed in layouts.
+   */
+  unstable_dynamicStaleTime?: number
+
+  /**
    * The preferred region for the page.
    */
   preferredRegion?: string | string[]
-
-  /**
-   * Whether the page supports partial prerendering. When true, the page will be
-   * served using partial prerendering. This setting will only take affect if
-   * it's enabled via the `experimental.ppr = "incremental"` option.
-   */
-  experimental_ppr?: boolean
 
   /**
    * The runtime to use for the page.

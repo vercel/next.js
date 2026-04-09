@@ -5,7 +5,7 @@ use turbopack_ecmascript_plugins::transform::styled_components::StyledComponents
 
 use crate::{
     next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean},
-    next_shared::transforms::get_ecma_transform_rule,
+    next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule},
 };
 
 pub async fn get_styled_components_transform_rule(
@@ -27,7 +27,13 @@ pub async fn get_styled_components_transform_rule(
             }
             _ => None,
         })
-        .map(|transformer| get_ecma_transform_rule(Box::new(transformer), enable_mdx_rs, true));
+        .map(|transformer| {
+            get_ecma_transform_rule(
+                Box::new(transformer),
+                enable_mdx_rs,
+                EcmascriptTransformStage::Main,
+            )
+        });
 
     Ok(module_rule)
 }

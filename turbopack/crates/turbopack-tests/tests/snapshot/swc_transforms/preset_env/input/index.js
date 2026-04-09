@@ -1,3 +1,5 @@
 class Foo {}
 
-console.log(Foo, [].includes("foo"));
+console.log(Foo, [].includes('foo'))
+
+export default 123

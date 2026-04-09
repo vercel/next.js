@@ -1,8 +1,8 @@
 use std::sync::{Arc, OnceLock};
 
-use serde::{ser::SerializeMap, Serialize, Serializer};
+use serde::{Serialize, Serializer, ser::SerializeMap};
 
-use crate::{registry, FunctionId, FxDashMap};
+use crate::{FxDashMap, macro_helpers::NativeFunction};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]
@@ -19,17 +19,13 @@ impl TaskStatisticsApi {
         })
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.inner.get().is_some()
-    }
-
     // Calls `func` if statistics have been enabled (via
     // [`TaskStatisticsApi::enable`]).
     pub fn map<T>(&self, func: impl FnOnce(&Arc<TaskStatistics>) -> T) -> Option<T> {
         self.get().map(func)
     }
 
-    // Calls `func` if statistics have been enabled (via
+    // Returns the statistics if they have been enabled (via
     // [`TaskStatisticsApi::enable`]).
     pub fn get(&self) -> Option<&Arc<TaskStatistics>> {
         self.inner.get()
@@ -38,32 +34,36 @@ impl TaskStatisticsApi {
 
 /// A type representing the enabled state of [`TaskStatisticsApi`]. Implements [`serde::Serialize`].
 pub struct TaskStatistics {
-    inner: FxDashMap<FunctionId, TaskFunctionStatistics>,
+    inner: FxDashMap<&'static NativeFunction, TaskFunctionStatistics>,
 }
 
 impl TaskStatistics {
-    pub fn increment_cache_hit(&self, function_id: FunctionId) {
-        self.with_task_type_statistics(function_id, |stats| stats.cache_hit += 1)
+    pub fn increment_cache_hit(&self, native_fn: &'static NativeFunction) {
+        self.with_task_type_statistics(native_fn, |stats| stats.cache_hit += 1)
     }
 
-    pub fn increment_cache_miss(&self, function_id: FunctionId) {
-        self.with_task_type_statistics(function_id, |stats| stats.cache_miss += 1)
+    pub fn increment_cache_miss(&self, native_fn: &'static NativeFunction) {
+        self.with_task_type_statistics(native_fn, |stats| stats.cache_miss += 1)
     }
 
     fn with_task_type_statistics(
         &self,
-        task_function_id: FunctionId,
+        native_fn: &'static NativeFunction,
         func: impl Fn(&mut TaskFunctionStatistics),
     ) {
-        func(self.inner.entry(task_function_id).or_default().value_mut())
+        func(self.inner.entry(native_fn).or_default().value_mut())
+    }
+
+    pub fn get(&self, f: &'static NativeFunction) -> TaskFunctionStatistics {
+        self.inner.get(f).unwrap().value().clone()
     }
 }
 
 /// Statistics for an individual function.
-#[derive(Default, Serialize)]
-struct TaskFunctionStatistics {
-    cache_hit: u32,
-    cache_miss: u32,
+#[derive(Default, Serialize, Clone)]
+pub struct TaskFunctionStatistics {
+    pub cache_hit: u32,
+    pub cache_miss: u32,
 }
 
 impl Serialize for TaskStatistics {
@@ -73,8 +73,7 @@ impl Serialize for TaskStatistics {
     {
         let mut map = serializer.serialize_map(Some(self.inner.len()))?;
         for entry in &self.inner {
-            let key = registry::get_function_global_name(*entry.key());
-            map.serialize_entry(key, entry.value())?;
+            map.serialize_entry(entry.key().ty.global_name, entry.value())?;
         }
         map.end()
     }

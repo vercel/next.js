@@ -1,64 +1,15 @@
 use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 use crate::{
-    debug::{ValueDebugFormat, ValueDebugString},
-    ReadRef, SharedReference,
+    SharedReference,
+    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
-/// Persistent, requires serialization.
-#[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
-pub struct Value<T> {
-    inner: T,
-}
-
-impl<T> Value<T> {
-    pub fn new(value: T) -> Self {
-        Self { inner: value }
-    }
-
-    pub fn into_value(self) -> T {
-        self.inner
-    }
-}
-
-impl<T> Deref for Value<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl<T: Copy> Copy for Value<T> {}
-
-impl<T: Default> Default for Value<T> {
-    fn default() -> Self {
-        Value::new(Default::default())
-    }
-}
-
-impl<T: ValueDebugFormat> Value<T> {
-    pub async fn dbg(&self) -> Result<ReadRef<ValueDebugString>> {
-        self.dbg_depth(usize::MAX).await
-    }
-
-    pub async fn dbg_depth(&self, depth: usize) -> Result<ReadRef<ValueDebugString>> {
-        self.inner
-            .value_debug_format(depth)
-            .try_to_value_debug_string()
-            .await?
-            .await
-    }
-}
-
-/// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
-///
-/// Doesn't require serialization, and won't be stored in the persistent cache
+/// Doesn't require serialization, and won't be stored in the filesystem cache
 /// in the future.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct TransientValue<T> {
@@ -83,11 +34,17 @@ impl<T> Deref for TransientValue<T> {
     }
 }
 
+impl<T: TraceRawVcs> TraceRawVcs for TransientValue<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.inner.trace_raw_vcs(trace_context)
+    }
+}
+
 /// Pass a reference to an instance to a turbo-tasks function.
 ///
 /// Equality and hash is implemented as pointer comparison.
 ///
-/// Doesn't require serialization, and won't be stored in the persistent cache
+/// Doesn't require serialization, and won't be stored in the filesystem cache
 /// in the future, so we don't include the `ValueTypeId` in the
 /// `SharedReference`.
 pub struct TransientInstance<T> {
@@ -175,5 +132,11 @@ impl<T: 'static> Deref for TransientInstance<T> {
 
     fn deref(&self) -> &Self::Target {
         self.inner.0.downcast_ref().unwrap()
+    }
+}
+
+impl<T: TraceRawVcs + 'static> TraceRawVcs for TransientInstance<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.inner.downcast_ref::<T>().trace_raw_vcs(trace_context)
     }
 }

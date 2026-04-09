@@ -1,9 +1,7 @@
 module.exports = {
-  experimental: {
-    turbo: {
-      resolveAlias: {
-        'preact/compat': 'react',
-      },
+  turbopack: {
+    resolveAlias: {
+      'preact/compat': 'react',
     },
   },
   serverExternalPackages: [

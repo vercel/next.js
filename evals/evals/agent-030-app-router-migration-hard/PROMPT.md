@@ -1,0 +1,1 @@
+Migrate every route and file from the Pages Router to the Next.js App Router. When finished, remove the pages dir entirely. Ensure the proper App Router APIs are used. If a Pages Router API was used that no longer exists in App Router, replace it with the newer version or the new pattern. Make sure to add types.

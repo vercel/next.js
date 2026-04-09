@@ -19,18 +19,8 @@ describe('dynamic-requests warnings', () => {
       return line.includes('Route "/request/cookies')
     })
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
-      browserConsoleWarnings: [
-        expect.stringContaining("`cookies().get('page')`."),
-        expect.stringContaining("`cookies().get('component')`."),
-        expect.stringContaining("`cookies().has('component')`."),
-        expect.stringContaining('`...cookies()` or similar iteration'),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining("`cookies().get('page')`."),
-        expect.stringContaining("`cookies().get('component')`."),
-        expect.stringContaining("`cookies().has('component')`."),
-        expect.stringContaining('`...cookies()` or similar iteration'),
-      ],
+      browserConsoleWarnings: [expect.stringContaining('`cookies().get`.')],
+      terminalCookieErrors: [expect.stringContaining('`cookies().get`.')],
     })
   })
 
@@ -50,14 +40,8 @@ describe('dynamic-requests warnings', () => {
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
       browserConsoleWarnings: [
         expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().enable()`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
       ],
       terminalCookieErrors: [
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().enable()`.'),
         expect.stringContaining('`draftMode().isEnabled`.'),
       ],
     })
@@ -77,18 +61,8 @@ describe('dynamic-requests warnings', () => {
       return line.includes('Route "/request/headers')
     })
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
-      browserConsoleWarnings: [
-        expect.stringContaining("`headers().get('page')`."),
-        expect.stringContaining("`headers().get('component')`."),
-        expect.stringContaining("`headers().has('component')`."),
-        expect.stringContaining('`...headers()` or similar iteration'),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining("`headers().get('page')`."),
-        expect.stringContaining("`headers().get('component')`."),
-        expect.stringContaining("`headers().has('component')`."),
-        expect.stringContaining('`...headers()` or similar iteration'),
-      ],
+      browserConsoleWarnings: [expect.stringContaining('`headers().get`.')],
+      terminalCookieErrors: [expect.stringContaining('`headers().get`.')],
     })
   })
 
@@ -106,18 +80,8 @@ describe('dynamic-requests warnings', () => {
       return line.includes('Route "/request/params/[slug]')
     })
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
-      browserConsoleWarnings: [
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`...params` or similar expression'),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`...params` or similar expression'),
-      ],
+      browserConsoleWarnings: [expect.stringContaining('`params.slug`.')],
+      terminalCookieErrors: [expect.stringContaining('`params.slug`.')],
     })
   })
 
@@ -135,18 +99,8 @@ describe('dynamic-requests warnings', () => {
       return line.includes('Route "/request/searchParams')
     })
     expect({ browserConsoleWarnings, terminalCookieErrors }).toEqual({
-      browserConsoleWarnings: [
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`Object.keys(searchParams)` or similar'),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`Object.keys(searchParams)` or similar'),
-      ],
+      browserConsoleWarnings: [expect.stringContaining('`searchParams.slug`.')],
+      terminalCookieErrors: [expect.stringContaining('`searchParams.slug`.')],
     })
   })
 

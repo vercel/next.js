@@ -10,33 +10,33 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
+use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
-    glob::Glob, register, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    ReadGlobResult,
+    DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, ReadGlobResult,
+    glob::{Glob, GlobOptions},
 };
-use turbo_tasks_memory::MemoryBackend;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-    include!(concat!(env!("OUT_DIR"), "/register_example_hash_glob.rs"));
-
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions::default(),
+        noop_backing_storage(),
+    ));
     let start = Instant::now();
 
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(rcstr!("project"), root);
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
-            let input = fs.root().join("crates".into());
-            let glob = Glob::new("**/*.rs".into());
-            let glob_result = input.read_glob(glob, true);
+            let input = fs.root().await?.join("crates")?;
+            let glob = Glob::new(rcstr!("**/*.rs"), GlobOptions::default());
+            let glob_result = input.read_glob(glob);
             let dir_hash = hash_glob_result(glob_result);
             print_hash(dir_hash).await?;
             Ok::<Vc<()>, _>(Default::default())
@@ -74,13 +74,13 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
     let mut hashes = BTreeMap::new();
     for (name, entry) in result.results.iter() {
         if let DirectoryEntry::File(path) = entry {
-            hashes.insert(name, hash_file(**path).await?.clone_value());
+            hashes.insert(name, hash_file(path.clone()).owned().await?);
         }
     }
     for (name, result) in result.inner.iter() {
-        let hash = hash_glob_result(**result).await?;
+        let hash = hash_glob_result(**result).owned().await?;
         if !hash.is_empty() {
-            hashes.insert(name, hash.clone_value());
+            hashes.insert(name, hash);
         }
     }
     if hashes.is_empty() {
@@ -97,7 +97,7 @@ async fn hash_glob_result(result: Vc<ReadGlobResult>) -> Result<Vc<RcStr>> {
 }
 
 #[turbo_tasks::function]
-async fn hash_file(file_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+async fn hash_file(file_path: FileSystemPath) -> Result<Vc<RcStr>> {
     let content = file_path.read().await?;
     Ok(match &*content {
         FileContent::Content(file) => hash_content(&mut file.read()),

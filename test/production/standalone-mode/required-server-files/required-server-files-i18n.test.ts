@@ -13,6 +13,7 @@ import {
   killApp,
   renderViaHTTP,
   waitFor,
+  withInvocationId,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
 import { ChildProcess } from 'child_process'
@@ -61,9 +62,6 @@ describe('required server files i18n', () => {
         i18n: {
           locales: ['en', 'fr'],
           defaultLocale: 'en',
-        },
-        eslint: {
-          ignoreDuringBuilds: true,
         },
         output: 'standalone',
         async rewrites() {
@@ -120,6 +118,7 @@ describe('required server files i18n', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         PORT: `${appPort}`,
       },
       undefined,
@@ -139,22 +138,32 @@ describe('required server files i18n', () => {
   })
 
   it('should not apply locale redirect in minimal mode', async () => {
-    const res = await fetchViaHTTP(appPort, '/', undefined, {
-      redirect: 'manual',
-      headers: {
-        'accept-language': 'fr',
-      },
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+        headers: {
+          'accept-language': 'fr',
+        },
+      })
+    )
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('index page')
 
-    const resCookie = await fetchViaHTTP(appPort, '/', undefined, {
-      redirect: 'manual',
-      headers: {
-        'accept-language': 'en',
-        cookie: 'NEXT_LOCALE=fr',
-      },
-    })
+    const resCookie = await fetchViaHTTP(
+      appPort,
+      '/',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+        headers: {
+          'accept-language': 'en',
+          cookie: 'NEXT_LOCALE=fr',
+        },
+      })
+    )
     expect(resCookie.status).toBe(200)
     expect(await resCookie.text()).toContain('index page')
   })
@@ -164,7 +173,7 @@ describe('required server files i18n', () => {
     expect(Array.isArray(requiredFilesManifest.files)).toBe(true)
     expect(Array.isArray(requiredFilesManifest.ignore)).toBe(true)
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
-    expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
+    expect(requiredFilesManifest.ignore.length).toBe(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
     expect(typeof requiredFilesManifest.appDir).toBe('string')
@@ -173,59 +182,89 @@ describe('required server files i18n', () => {
   it('should set correct SWR headers with notFound gsp', async () => {
     await next.patchFile('standalone/data.txt', 'show')
 
-    const res = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gsp',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
-    const res2 = await fetchViaHTTP(appPort, '/gsp', undefined, {
-      redirect: 'manual',
-    })
+    const res2 = await fetchViaHTTP(
+      appPort,
+      '/gsp',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+      })
+    )
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
   it('should set correct SWR headers with notFound gssp', async () => {
     await next.patchFile('standalone/data.txt', 'show')
 
-    const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+      })
+    )
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
 
-    const res2 = await fetchViaHTTP(appPort, '/gssp', undefined, {
-      redirect: 'manual',
-    })
+    const res2 = await fetchViaHTTP(
+      appPort,
+      '/gssp',
+      undefined,
+      withInvocationId({
+        redirect: 'manual',
+      })
+    )
     await next.patchFile('standalone/data.txt', 'show')
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
   it('should render SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/gssp')
+    const html = await renderViaHTTP(
+      appPort,
+      '/gssp',
+      undefined,
+      withInvocationId()
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
     expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/gssp')
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/gssp',
+      undefined,
+      withInvocationId()
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -235,7 +274,12 @@ describe('required server files i18n', () => {
   })
 
   it('should render dynamic SSR page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/dynamic/first')
+    const html = await renderViaHTTP(
+      appPort,
+      '/dynamic/first',
+      undefined,
+      withInvocationId()
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -243,7 +287,12 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/dynamic/second')
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/dynamic/second',
+      undefined,
+      withInvocationId()
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -254,7 +303,12 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/fallback/first')
+    const html = await renderViaHTTP(
+      appPort,
+      '/fallback/first',
+      undefined,
+      withInvocationId()
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -263,7 +317,13 @@ describe('required server files i18n', () => {
     expect(data.hello).toBe('world')
 
     await waitFor(2000)
-    const html2 = await renderViaHTTP(appPort, '/fallback/first')
+
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/fallback/first',
+      undefined,
+      withInvocationId()
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -272,7 +332,12 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/fallback/second')
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/fallback/second',
+      undefined,
+      withInvocationId()
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -283,7 +348,9 @@ describe('required server files i18n', () => {
     const { pageProps: data4 } = JSON.parse(
       await renderViaHTTP(
         appPort,
-        `/_next/data/${next.buildId}/en/fallback/third.json`
+        `/_next/data/${next.buildId}/en/fallback/third.json`,
+        undefined,
+        withInvocationId()
       )
     )
     expect(data4.hello).toBe('world')
@@ -291,22 +358,32 @@ describe('required server files i18n', () => {
   })
 
   it('should render SSR page correctly with x-matched-path', async () => {
-    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/gssp',
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-other-path',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/gssp',
+        },
+      })
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
     expect($('#gssp').text()).toBe('getServerSideProps page')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/gssp',
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/some-other-path',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/gssp',
+        },
+      })
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -320,11 +397,11 @@ describe('required server files i18n', () => {
       appPort,
       '/some-other-path?nxtPslug=first',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dynamic/[slug]',
         },
-      }
+      })
     )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
@@ -337,11 +414,11 @@ describe('required server files i18n', () => {
       appPort,
       '/some-other-path?nxtPslug=second',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dynamic/[slug]',
         },
-      }
+      })
     )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -355,11 +432,11 @@ describe('required server files i18n', () => {
       appPort,
       '/some-other-path?nxtPslug=second',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
         },
-      }
+      })
     )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
@@ -371,14 +448,19 @@ describe('required server files i18n', () => {
   })
 
   it('should render fallback page correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
-      headers: {
-        'x-matched-path': '/fallback/first',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'first',
-        }).toString(),
-      },
-    })
+    const html = await renderViaHTTP(
+      appPort,
+      '/fallback/first',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/fallback/first',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'first',
+          }).toString(),
+        },
+      })
+    )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
@@ -386,14 +468,19 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
-      headers: {
-        'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': createNowRouteMatches({
-          slug: 'second',
-        }).toString(),
-      },
-    })
+    const html2 = await renderViaHTTP(
+      appPort,
+      `/fallback/[slug]`,
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/fallback/[slug]',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second',
+          }).toString(),
+        },
+      })
+    )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
@@ -410,11 +497,11 @@ describe('required server files i18n', () => {
         { slug: 'first' }
       ).toString()}`,
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dynamic/[slug]',
         },
-      }
+      })
     )
 
     const { pageProps: data } = await res.json()
@@ -426,14 +513,14 @@ describe('required server files i18n', () => {
       appPort,
       `/_next/data/${next.buildId}/en/fallback/[slug].json`,
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/fallback/[slug].json`,
           'x-now-route-matches': createNowRouteMatches({
             slug: 'second',
           }).toString(),
         },
-      }
+      })
     )
 
     const { pageProps: data2 } = await res2.json()
@@ -447,12 +534,12 @@ describe('required server files i18n', () => {
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
           'x-now-route-matches': '',
         },
-      }
+      })
     )
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
@@ -465,14 +552,14 @@ describe('required server files i18n', () => {
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
           'x-now-route-matches': createNowRouteMatches({
             rest: 'hello',
           }).toString(),
         },
-      }
+      })
     )
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
@@ -486,14 +573,14 @@ describe('required server files i18n', () => {
       appPort,
       '/catch-all/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
           'x-now-route-matches': createNowRouteMatches({
             rest: 'hello/world',
           }).toString(),
         },
-      }
+      })
     )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
@@ -509,11 +596,11 @@ describe('required server files i18n', () => {
       appPort,
       `/_next/data/${next.buildId}/en/catch-all.json`,
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/en/catch-all/[[...rest]]',
         },
-      }
+      })
     )
 
     const { pageProps: data } = await res.json()
@@ -525,14 +612,14 @@ describe('required server files i18n', () => {
       appPort,
       `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
           'x-now-route-matches': createNowRouteMatches({
             rest: 'hello',
           }).toString(),
         },
-      }
+      })
     )
 
     const { pageProps: data2 } = await res2.json()
@@ -544,14 +631,14 @@ describe('required server files i18n', () => {
       appPort,
       `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
           'x-now-route-matches': createNowRouteMatches({
             rest: 'hello/world',
           }).toString(),
         },
-      }
+      })
     )
 
     const { pageProps: data3 } = await res3.json()
@@ -570,9 +657,14 @@ describe('required server files i18n', () => {
       '/fallback/another/',
       '/fallback/another',
     ]) {
-      const res = await fetchViaHTTP(appPort, path, undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        undefined,
+        withInvocationId({
+          redirect: 'manual',
+        })
+      )
 
       expect(res.status).toBe(200)
     }
@@ -585,11 +677,11 @@ describe('required server files i18n', () => {
       {
         path: 'hello/world',
       },
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/gssp',
         },
-      }
+      })
     )
     const $ = cheerio.load(html)
     expect(JSON.parse($('#router').text()).query.path).toEqual([
@@ -607,18 +699,23 @@ describe('required server files i18n', () => {
           path: '%c0.%c0.',
         })
       ),
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/dynamic/[slug]',
         },
-      }
+      })
     )
     expect(res.status).toBe(400)
     expect(await res.text()).toContain('Bad Request')
   })
 
   it('should bubble error correctly for gip page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/errors/gip',
+      { crash: '1' },
+      withInvocationId()
+    )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
 
@@ -632,7 +729,12 @@ describe('required server files i18n', () => {
   })
 
   it('should bubble error correctly for gssp page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/errors/gssp',
+      { crash: '1' },
+      withInvocationId()
+    )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -645,7 +747,12 @@ describe('required server files i18n', () => {
   })
 
   it('should bubble error correctly for gsp page', async () => {
-    const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+    const res = await fetchViaHTTP(
+      appPort,
+      '/errors/gsp/crash',
+      undefined,
+      withInvocationId()
+    )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -659,7 +766,12 @@ describe('required server files i18n', () => {
 
   it('should bubble error correctly for API page', async () => {
     errors = []
-    const res = await fetchViaHTTP(appPort, '/api/error')
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/error',
+      undefined,
+      withInvocationId()
+    )
     expect(res.status).toBe(500)
     expect(await res.text()).toBe('Internal Server Error')
     await check(
@@ -685,11 +797,11 @@ describe('required server files i18n', () => {
           }
         )
       ),
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
         },
-      }
+      })
     )
 
     const html = await res.text()
@@ -704,7 +816,7 @@ describe('required server files i18n', () => {
       appPort,
       '/en/optional-ssg/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/en/optional-ssg/[[...rest]]',
           'x-now-route-matches': createNowRouteMatches(
@@ -714,7 +826,7 @@ describe('required server files i18n', () => {
             }
           ).toString(),
         },
-      }
+      })
     )
 
     const html = await res.text()
@@ -728,7 +840,7 @@ describe('required server files i18n', () => {
       appPort,
       '/en/[slug]/social/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/en/[slug]/social/[[...rest]]',
           'x-now-route-matches': createNowRouteMatches(
@@ -736,7 +848,7 @@ describe('required server files i18n', () => {
             { nextLocale: 'en' }
           ).toString(),
         },
-      }
+      })
     )
 
     const html = await res.text()
@@ -753,12 +865,12 @@ describe('required server files i18n', () => {
       appPort,
       '/optional-ssg/[[...rest]]',
       undefined,
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
           'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
-      }
+      })
     )
 
     const html = await res.text()
@@ -783,11 +895,11 @@ describe('required server files i18n', () => {
           }
         )
       ),
-      {
+      withInvocationId({
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
         },
-      }
+      })
     )
 
     const json = await res.json()
@@ -796,12 +908,17 @@ describe('required server files i18n', () => {
   })
 
   it('should match the index page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/', undefined, {
-      headers: {
-        'x-matched-path': '/index',
-      },
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/index',
+        },
+        redirect: 'manual',
+      })
+    )
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -809,12 +926,17 @@ describe('required server files i18n', () => {
   })
 
   it('should match the root dyanmic page correctly', async () => {
-    const res = await fetchViaHTTP(appPort, '/slug-1', undefined, {
-      headers: {
-        'x-matched-path': '/[slug]',
-      },
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/slug-1',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/[slug]',
+        },
+        redirect: 'manual',
+      })
+    )
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -822,20 +944,25 @@ describe('required server files i18n', () => {
   })
 
   it('should have the correct asPath for fallback page', async () => {
-    const res = await fetchViaHTTP(appPort, '/en/fallback/[slug]', undefined, {
-      headers: {
-        'x-matched-path': '/en/fallback/[slug]',
-        'x-now-route-matches': createNowRouteMatches(
-          {
-            slug: 'another',
-          },
-          {
-            nextLocale: 'en',
-          }
-        ).toString(),
-      },
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/en/fallback/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/en/fallback/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'another',
+            },
+            {
+              nextLocale: 'en',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
 
     const html = await res.text()
     const $ = cheerio.load(html)
@@ -847,20 +974,25 @@ describe('required server files i18n', () => {
   })
 
   it('should have the correct asPath for fallback page locale', async () => {
-    const res = await fetchViaHTTP(appPort, '/fr/fallback/[slug]', undefined, {
-      headers: {
-        'x-matched-path': '/fr/fallback/[slug]',
-        'x-now-route-matches': createNowRouteMatches(
-          {
-            slug: 'another',
-          },
-          {
-            nextLocale: 'fr',
-          }
-        ).toString(),
-      },
-      redirect: 'manual',
-    })
+    const res = await fetchViaHTTP(
+      appPort,
+      '/fr/fallback/[slug]',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/fr/fallback/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'another',
+            },
+            {
+              nextLocale: 'fr',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
 
     const html = await res.text()
     const $ = cheerio.load(html)

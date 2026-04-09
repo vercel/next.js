@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   fetchViaHTTP,
   findPort,
   getImagesManifest,
@@ -35,7 +35,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load matching images', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const ids = ['nested-assets', 'static-img']
     const urls = await Promise.all(ids.map((id) => getSrc(browser, id)))
@@ -55,7 +55,7 @@ function runTests(mode: 'dev' | 'server') {
     const page = '/' + id
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
         /Invalid src prop (.+) on `next\/image` does not match `images.localPatterns` configured/g
       )
@@ -75,12 +75,13 @@ function runTests(mode: 'dev' | 'server') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
@@ -95,15 +96,23 @@ function runTests(mode: 'dev' | 'server') {
                 '^(?:\\/_next\\/static\\/media(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
               search: '',
             },
+            {
+              pathname:
+                '^(?:\\/_next\\/static\\/immutable\\/media(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
+              search: '',
+            },
           ],
-          minimumCacheTTL: 60,
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
+          minimumCacheTTL: 14400,
           path: '/_next/image',
-          qualities: undefined,
+          qualities: [75],
           sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
-            128, 256, 384,
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
           ],
           unoptimized: false,
+          customCacheHandler: false,
         },
       })
     })

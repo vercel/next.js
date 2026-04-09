@@ -1,10 +1,10 @@
 ---
-title: Dynamic code evaluation is not available in Middleware
+title: Dynamic code evaluation is not available in Proxy
 ---
 
 ## Why This Error Occurred
 
-`eval()`, `new Function()` or compiling WASM binaries dynamically is not allowed in Middleware.
+`eval()`, `new Function()` or compiling WASM binaries dynamically is not allowed in Proxy.
 Specifically, the following APIs are not supported:
 
 - `eval()`
@@ -16,11 +16,11 @@ Specifically, the following APIs are not supported:
 
 You can bundle your WASM binaries using `import`:
 
-```ts filename="middleware.ts"
+```ts filename="proxy.ts"
 import { NextResponse } from 'next/server'
 import squareWasm from './square.wasm?module'
 
-export default async function middleware() {
+export default async function proxy() {
   const m = await WebAssembly.instantiate(squareWasm)
   const answer = m.exports.square(9)
 
@@ -31,7 +31,7 @@ export default async function middleware() {
 ```
 
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by tree-shaking.
-You can relax the check to allow specific files with your Middleware [configuration](/docs/pages/api-reference/edge#unsupported-apis):
+You can relax the check to allow specific files with your Proxy [configuration](/docs/pages/api-reference/edge#unsupported-apis):
 
 ```ts filename="pages/api/example.ts"
 export const config = {

@@ -2,8 +2,14 @@ import type {
   ExportAppResult,
   ExportAppOptions,
   WorkerRenderOptsPartial,
+  ExportPagesResult,
+  ExportPathEntry,
 } from './types'
-import { createStaticWorker, type PrerenderManifest } from '../build'
+import {
+  createStaticWorker,
+  type PrerenderManifest,
+  type StaticWorker,
+} from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 
 import { bold, yellow } from '../lib/picocolors'
@@ -12,11 +18,14 @@ import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
-import { dirname, join, resolve, sep } from 'path'
-import { formatAmpMessages } from '../build/output/index'
-import type { AmpPageStatus } from '../build/output/index'
+import { dirname, join, resolve, sep, relative } from 'path'
 import * as Log from '../build/output/log'
-import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import {
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SUFFIX,
+  SSG_FALLBACK_EXPORT_ERROR,
+} from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -37,6 +46,7 @@ import {
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
+import { parseMaxPostponedStateSize } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
@@ -54,18 +64,136 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
+import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
+import { getNextBuildDebuggerPortOffset } from '../lib/worker'
+import { getParams } from './helpers/get-params'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import type { Params } from '../server/request/params'
+import { Bundler } from '../lib/bundler'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
 }
 
+/**
+ * Picks an RDC seed by matching on the params that are
+ * already known, so fallback shells use a seed that has already
+ * computed those known params.
+ */
+function buildRDCCacheByPage(
+  results: ExportPagesResult,
+  finalPhaseExportPaths: ExportPathEntry[]
+): Record<string, string> {
+  const renderResumeDataCachesByPage: Record<string, string> = {}
+  const seedCandidatesByPage = new Map<
+    string,
+    Array<{ path: string; renderResumeDataCache: string }>
+  >()
+
+  for (const { page, path, result } of results) {
+    if (!result) {
+      continue
+    }
+
+    if ('renderResumeDataCache' in result && result.renderResumeDataCache) {
+      // Collect all RDC seeds for this page so we can pick the best match
+      // for each fallback shell later (e.g. locale-specific variants).
+      const candidates = seedCandidatesByPage.get(page) ?? []
+      candidates.push({
+        path,
+        renderResumeDataCache: result.renderResumeDataCache,
+      })
+      seedCandidatesByPage.set(page, candidates)
+      // Remove the RDC string from the result so that it can be garbage
+      // collected, when there are more results for the same page.
+      result.renderResumeDataCache = undefined
+    }
+  }
+
+  const getKnownParamsKey = (
+    normalizedPage: string,
+    path: string,
+    fallbackParamNames: Set<string>
+  ): string | null => {
+    let params: Params
+    try {
+      params = getParams(normalizedPage, path)
+    } catch {
+      return null
+    }
+
+    // Only keep params that are known, then sort
+    // for a stable key so we can match a compatible seed.
+    const entries = Object.entries(params).filter(
+      ([key]) => !fallbackParamNames.has(key)
+    )
+
+    entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return JSON.stringify(entries)
+  }
+
+  for (const exportPath of finalPhaseExportPaths) {
+    const { page, path, _fallbackRouteParams = [] } = exportPath
+    if (!isDynamicRoute(page)) {
+      continue
+    }
+
+    // Normalize app pages before param matching.
+    const normalizedPage = normalizeAppPath(page)
+    const pageKey = page !== path ? `${page}: ${path}` : path
+    const fallbackParamNames = new Set(
+      _fallbackRouteParams.map((param) => param.paramName)
+    )
+    // Build a key from the known params for this fallback shell so we can
+    // select a seed from a compatible prerendered route.
+    const targetKey = getKnownParamsKey(
+      normalizedPage,
+      path,
+      fallbackParamNames
+    )
+
+    if (!targetKey) {
+      continue
+    }
+
+    const candidates = seedCandidatesByPage.get(page)
+
+    // No suitable candidates, so there's no RDC seed to select
+    if (!candidates || candidates.length === 0) {
+      continue
+    }
+
+    let selected: string | null = null
+    for (const candidate of candidates) {
+      // Pick the seed whose known params match this fallback shell.
+      const candidateKey = getKnownParamsKey(
+        normalizedPage,
+        candidate.path,
+        fallbackParamNames
+      )
+      if (candidateKey === targetKey) {
+        selected = candidate.renderResumeDataCache
+        break
+      }
+    }
+
+    if (selected) {
+      renderResumeDataCachesByPage[pageKey] = selected
+    }
+  }
+
+  return renderResumeDataCachesByPage
+}
+
 async function exportAppImpl(
   dir: string,
   options: Readonly<ExportAppOptions>,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   dir = resolve(dir)
 
@@ -76,22 +204,24 @@ async function exportAppImpl(
 
   const nextConfig =
     options.nextConfig ||
-    (await span
-      .traceChild('load-next-config')
-      .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
+    (await span.traceChild('load-next-config').traceAsyncFn(() =>
+      loadConfig(PHASE_EXPORT, dir, {
+        debugPrerender: options.debugPrerender,
+      })
+    ))
 
   const distDir = join(dir, nextConfig.distDir)
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
     telemetry.record(
-      eventCliSession(distDir, nextConfig, {
+      eventCliSession(nextConfig, {
         webpackVersion: null,
         cliCommand: 'export',
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        turboFlag: false,
+        turboFlag: options.bundler === Bundler.Turbopack,
         pagesDir: null,
         appDir: null,
       })
@@ -112,7 +242,7 @@ async function exportAppImpl(
     )
   }
 
-  const customRoutes = ['rewrites', 'redirects', 'headers'].filter(
+  const customRoutes = (['rewrites', 'redirects', 'headers'] as const).filter(
     (config) => typeof nextConfig[config] === 'function'
   )
 
@@ -345,15 +475,12 @@ async function exportAppImpl(
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
-    nextExport: true,
+    isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
-    dev: false,
     basePath: nextConfig.basePath,
+    cacheComponents: nextConfig.cacheComponents ?? false,
     trailingSlash: nextConfig.trailingSlash,
-    canonicalBase: nextConfig.amp?.canonicalBase || '',
-    ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
-    ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
     defaultLocale: i18n?.defaultLocale,
@@ -368,35 +495,29 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
-    cacheLifeProfiles: nextConfig.experimental.cacheLife,
+    cacheLifeProfiles: nextConfig.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    ...(enabledDirectories.app
-      ? {
-          serverActionsManifest,
-        }
-      : {}),
-    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
-    deploymentId: nextConfig.deploymentId,
+    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
-      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
-      clientSegmentCache: nextConfig.experimental.clientSegmentCache ?? false,
+      staleTimes: nextConfig.experimental.staleTimes,
+      clientParamParsingOrigins:
+        nextConfig.experimental.clientParamParsingOrigins,
+      dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
+      optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
-      streamingMetadata: !!nextConfig.experimental.streamingMetadata,
-      htmlLimitedBots: nextConfig.experimental.htmlLimitedBots,
+      cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
+      maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+        nextConfig.experimental.maxPostponedStateSize
+      ),
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
-  }
-
-  const { publicRuntimeConfig } = nextConfig
-
-  if (Object.keys(publicRuntimeConfig).length > 0) {
-    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.
@@ -417,8 +538,15 @@ async function exportAppImpl(
       return exportMap
     })
 
+  // During static export, remove export 404/500 of pages router
+  // when only app router presents
+  if (!options.buildExport && options.appDirOnly) {
+    delete exportPathMap['/404']
+    delete exportPathMap['/500']
+  }
+
   // only add missing 404 page when `buildExport` is false
-  if (!options.buildExport) {
+  if (!options.buildExport && !options.appDirOnly) {
     // only add missing /404 if not specified in `exportPathMap`
     if (!exportPathMap['/404']) {
       exportPathMap['/404'] = { page: '/_error' }
@@ -428,56 +556,56 @@ async function exportAppImpl(
      * exports 404.html for backwards compat
      * E.g. GitHub Pages, GitLab Pages, Cloudflare Pages, Netlify
      */
-    if (!exportPathMap['/404.html']) {
+    if (!exportPathMap['/404.html'] && exportPathMap['/404']) {
       // alias /404.html to /404 to be compatible with custom 404 / _error page
       exportPathMap['/404.html'] = exportPathMap['/404']
     }
   }
 
-  // make sure to prevent duplicates
-  const exportPaths = [
-    ...new Set(
-      Object.keys(exportPathMap).map((path) =>
-        denormalizePagePath(normalizePagePath(path))
-      )
-    ),
-  ]
+  const allExportPaths: ExportPathEntry[] = []
+  const seenExportPaths = new Set<string>()
+  const fallbackEnabledPages = new Set<string>()
 
-  const filteredPaths = exportPaths.filter(
-    (route) =>
-      exportPathMap[route]._isAppDir ||
-      // Remove API routes
-      !isAPIRoute(exportPathMap[route].page)
-  )
+  for (const [path, entry] of Object.entries(exportPathMap)) {
+    // make sure to prevent duplicates
+    const normalizedPath = denormalizePagePath(normalizePagePath(path))
 
-  if (filteredPaths.length !== exportPaths.length) {
-    hasApiRoutes = true
-  }
+    if (seenExportPaths.has(normalizedPath)) {
+      continue
+    }
 
-  if (filteredPaths.length === 0) {
-    return null
-  }
+    seenExportPaths.add(normalizedPath)
 
-  if (prerenderManifest && !options.buildExport) {
-    const fallbackEnabledPages = new Set()
+    if (!entry._isAppDir && isAPIRoute(entry.page)) {
+      hasApiRoutes = true
+      continue
+    }
 
-    for (const path of Object.keys(exportPathMap)) {
-      const page = exportPathMap[path].page
-      const prerenderInfo = prerenderManifest.dynamicRoutes[page]
+    allExportPaths.push({ ...entry, path: normalizedPath })
+
+    if (prerenderManifest && !options.buildExport) {
+      const prerenderInfo = prerenderManifest.dynamicRoutes[entry.page]
 
       if (prerenderInfo && prerenderInfo.fallback !== false) {
-        fallbackEnabledPages.add(page)
+        fallbackEnabledPages.add(entry.page)
       }
     }
+  }
 
-    if (fallbackEnabledPages.size > 0) {
-      throw new ExportError(
-        `Found pages with \`fallback\` enabled:\n${[
-          ...fallbackEnabledPages,
-        ].join('\n')}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
-      )
+  if (allExportPaths.length === 0) {
+    if (!prerenderManifest) {
+      return null
     }
   }
+
+  if (fallbackEnabledPages.size > 0) {
+    throw new ExportError(
+      `Found pages with \`fallback\` enabled:\n${[...fallbackEnabledPages].join(
+        '\n'
+      )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+    )
+  }
+
   let hasMiddleware = false
 
   if (!options.buildExport) {
@@ -525,8 +653,6 @@ async function exportAppImpl(
     ? outDir
     : join(outDir, '_next/data', buildId)
 
-  const ampValidations: AmpPageStatus = {}
-
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
   if (!options.buildExport && existsSync(publicDir)) {
@@ -543,62 +669,135 @@ async function exportAppImpl(
     )
   }
 
-  const failedExportAttemptsByPage: Map<string, boolean> = new Map()
+  const exportPagesInBatches = async (
+    worker: StaticWorker,
+    exportPaths: ExportPathEntry[],
+    renderResumeDataCachesByPage?: Record<string, string>
+  ): Promise<ExportPagesResult> => {
+    // Batch filtered pages into smaller batches, and call the export worker on
+    // each batch. We've set a default minimum of 25 pages per batch to ensure
+    // that even setups with only a few static pages can leverage a shared
+    // incremental cache, however this value can be configured.
+    const minPageCountPerBatch =
+      nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
 
-  // Chunk filtered pages into smaller groups, and call the export worker on each group.
-  // We've set a default minimum of 25 pages per chunk to ensure that even setups
-  // with only a few static pages can leverage a shared incremental cache, however this
-  // value can be configured.
-  const minChunkSize =
-    nextConfig.experimental.staticGenerationMinPagesPerWorker ?? 25
-  // Calculate the number of workers needed to ensure each chunk has at least minChunkSize pages
-  const numWorkers = Math.min(
-    options.numWorkers,
-    Math.ceil(filteredPaths.length / minChunkSize)
-  )
-  // Calculate the chunk size based on the number of workers
-  const chunkSize = Math.ceil(filteredPaths.length / numWorkers)
-  const chunks = Array.from({ length: numWorkers }, (_, i) =>
-    filteredPaths.slice(i * chunkSize, (i + 1) * chunkSize)
-  )
-  // Distribute remaining pages
-  const remainingPages = filteredPaths.slice(numWorkers * chunkSize)
-  remainingPages.forEach((page, index) => {
-    chunks[index % chunks.length].push(page)
-  })
-
-  const progress = createProgress(
-    filteredPaths.length,
-    options.statusMessage || 'Exporting'
-  )
-
-  const worker = createStaticWorker(nextConfig, progress)
-
-  const results = (
-    await Promise.all(
-      chunks.map((paths) =>
-        worker.exportPages({
-          buildId,
-          paths,
-          exportPathMap,
-          parentSpanId: span.getId(),
-          pagesDataDir,
-          renderOpts,
-          options,
-          dir,
-          distDir,
-          outDir,
-          nextConfig,
-          cacheHandler: nextConfig.cacheHandler,
-          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-          fetchCache: true,
-          fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-        })
-      )
+    // Calculate the number of workers needed to ensure each batch has at least
+    // minPageCountPerBatch pages.
+    const numWorkers = Math.min(
+      options.numWorkers,
+      Math.ceil(exportPaths.length / minPageCountPerBatch)
     )
-  ).flat()
 
-  let hadValidationError = false
+    // Calculate the page count per batch based on the number of workers.
+    const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
+
+    const batches = Array.from({ length: numWorkers }, (_, i) =>
+      exportPaths.slice(i * pageCountPerBatch, (i + 1) * pageCountPerBatch)
+    )
+
+    // Distribute remaining pages.
+    const remainingPages = exportPaths.slice(numWorkers * pageCountPerBatch)
+    remainingPages.forEach((page, index) => {
+      batches[index % batches.length].push(page)
+    })
+
+    return (
+      await Promise.all(
+        batches.map(async (batch) =>
+          worker.exportPages({
+            buildId,
+            deploymentId: nextConfig.deploymentId,
+            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
+            exportPaths: batch,
+            parentSpanId: span.getId(),
+            pagesDataDir,
+            renderOpts,
+            options,
+            dir,
+            distDir,
+            outDir,
+            nextConfig,
+            cacheHandler: nextConfig.cacheHandler,
+            cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+            fetchCache: true,
+            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+            renderResumeDataCachesByPage,
+          })
+        )
+      )
+    ).flat()
+  }
+
+  let initialPhaseExportPaths: ExportPathEntry[] = []
+  const finalPhaseExportPaths: ExportPathEntry[] = []
+
+  if (renderOpts.cacheComponents) {
+    // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
+    const routesWithInstantValidation = new Set<string>()
+
+    for (const exportPath of allExportPaths) {
+      if (exportPath._allowEmptyStaticShell) {
+        finalPhaseExportPaths.push(exportPath)
+      } else {
+        initialPhaseExportPaths.push(exportPath)
+      }
+
+      const route = exportPath.page
+      if (!routesWithInstantValidation.has(route)) {
+        exportPath._runInstantValidation = true
+        routesWithInstantValidation.add(route)
+      }
+    }
+  } else {
+    initialPhaseExportPaths = allExportPaths
+  }
+
+  const totalExportPaths =
+    initialPhaseExportPaths.length + finalPhaseExportPaths.length
+  let worker: StaticWorker | null = null
+  let results: ExportPagesResult = []
+
+  if (totalExportPaths > 0) {
+    const progress = createProgress(
+      totalExportPaths,
+      options.statusMessage ??
+        `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
+    )
+
+    if (staticWorker) {
+      // TODO: progress shouldn't rely on "activity" event sent from `exportPage`.
+      staticWorker.setOnActivity(progress.run)
+      staticWorker.setOnActivityAbort(progress.clear)
+      worker = staticWorker
+    } else {
+      worker = createStaticWorker(nextConfig, {
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
+        numberOfWorkers: options.numWorkers,
+        progress,
+      })
+    }
+
+    results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+
+    if (finalPhaseExportPaths.length > 0) {
+      const renderResumeDataCachesByPage = buildRDCCacheByPage(
+        results,
+        finalPhaseExportPaths
+      )
+
+      const finalPhaseResults = await exportPagesInBatches(
+        worker,
+        finalPhaseExportPaths,
+        renderResumeDataCachesByPage
+      )
+
+      results.push(...finalPhaseResults)
+    }
+  }
 
   const collector: ExportAppResult = {
     byPath: new Map(),
@@ -607,14 +806,14 @@ async function exportAppImpl(
     turborepoAccessTraceResults: new Map(),
   }
 
-  for (const { result, path, pageKey } of results) {
+  const failedExportAttemptsByPage: Map<string, boolean> = new Map()
+
+  for (const { result, path, page, pageKey } of results) {
     if (!result) continue
     if ('error' in result) {
       failedExportAttemptsByPage.set(pageKey, true)
       continue
     }
-
-    const { page } = exportPathMap[path]
 
     if (result.turborepoAccessTraceResult) {
       collector.turborepoAccessTraceResults?.set(
@@ -625,30 +824,26 @@ async function exportAppImpl(
       )
     }
 
-    // Capture any amp validations.
-    if (result.ampValidations) {
-      for (const validation of result.ampValidations) {
-        ampValidations[validation.page] = validation.result
-        hadValidationError ||= validation.result.errors.length > 0
-      }
-    }
-
     if (options.buildExport) {
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
-      if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+      if (result.cacheControl) {
+        info.cacheControl = result.cacheControl
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
 
-      if (typeof result.hasEmptyPrelude !== 'undefined') {
-        info.hasEmptyPrelude = result.hasEmptyPrelude
+      if (typeof result.hasEmptyStaticShell !== 'undefined') {
+        info.hasEmptyStaticShell = result.hasEmptyStaticShell
       }
 
       if (typeof result.hasPostponed !== 'undefined') {
         info.hasPostponed = result.hasPostponed
+      }
+
+      if (typeof result.hasStaticRsc !== 'undefined') {
+        info.hasStaticRsc = result.hasStaticRsc
       }
 
       if (typeof result.fetchMetrics !== 'undefined') {
@@ -680,19 +875,60 @@ async function exportAppImpl(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      Object.keys(prerenderManifest.routes).map(async (route) => {
-        const { srcRoute } = prerenderManifest!.routes[route]
+      Object.keys(prerenderManifest.routes).map(async (unnormalizedRoute) => {
+        // Special handling: map app /_not-found to 404.html (and 404/index.html when trailingSlash)
+        if (unnormalizedRoute === '/_not-found') {
+          const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
+          const appPageName = mapAppRouteToPage.get(srcRoute || '')
+          const pageName = appPageName || srcRoute || unnormalizedRoute
+          const isAppPath = Boolean(appPageName)
+          const route = normalizePagePath(unnormalizedRoute)
+
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+
+          const orig = join(distPagesDir, route)
+          const htmlSrc = `${orig}.html`
+
+          // write 404.html at root
+          const htmlDest404 = join(outDir, '404.html')
+          await fs.mkdir(dirname(htmlDest404), { recursive: true })
+          await fs.copyFile(htmlSrc, htmlDest404)
+
+          // When trailingSlash, also write 404/index.html
+          if (subFolders) {
+            const htmlDest404Index = join(outDir, '404', 'index.html')
+            await fs.mkdir(dirname(htmlDest404Index), { recursive: true })
+            await fs.copyFile(htmlSrc, htmlDest404Index)
+          }
+        }
+        // Skip 500.html in static export
+        if (unnormalizedRoute === '/_global-error') {
+          return
+        }
+        const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
         const appPageName = mapAppRouteToPage.get(srcRoute || '')
-        const pageName = appPageName || srcRoute || route
+        const pageName = appPageName || srcRoute || unnormalizedRoute
         const isAppPath = Boolean(appPageName)
         const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
 
         // returning notFound: true from getStaticProps will not
         // output html/json files during the build
-        if (prerenderManifest!.notFoundRoutes.includes(route)) {
+        if (prerenderManifest!.notFoundRoutes.includes(unnormalizedRoute)) {
           return
         }
-        route = normalizePagePath(route)
+        // TODO: This rewrites /index/foo to /index/index/foo. Investigate and
+        // fix. I presume this was because normalizePagePath was designed for
+        // some other use case and then reused here for static exports without
+        // realizing the implications.
+        const route = normalizePagePath(unnormalizedRoute)
 
         const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
         const distPagesDir = join(
@@ -722,10 +958,6 @@ async function exportAppImpl(
             subFolders && route !== '/index' ? `${sep}index` : ''
           }.html`
         )
-        const ampHtmlDest = join(
-          outDir,
-          `${route}.amp${subFolders ? `${sep}index` : ''}.html`
-        )
         const jsonDest = isAppPath
           ? join(
               outDir,
@@ -744,27 +976,43 @@ async function exportAppImpl(
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)
 
-        if (existsSync(`${orig}.amp.html`)) {
-          await fs.mkdir(dirname(ampHtmlDest), { recursive: true })
-          await fs.copyFile(`${orig}.amp.html`, ampHtmlDest)
+        const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+
+        if (isAppPath && existsSync(segmentsDir)) {
+          // Output a data file for each of this page's segments
+          //
+          // These files are requested by the client router's internal
+          // prefetcher, not the user directly. So we don't need to account for
+          // things like trailing slash handling.
+          //
+          // To keep the protocol simple, we can use the non-normalized route
+          // path instead of the normalized one (which, among other things,
+          // rewrites `/` to `/index`).
+          const segmentsDirDest = join(outDir, unnormalizedRoute)
+          const segmentPaths = await collectSegmentPaths(segmentsDir)
+          await Promise.all(
+            segmentPaths.map(async (segmentFileSrc) => {
+              const segmentPath =
+                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+              const segmentFilename =
+                convertSegmentPathToStaticExportFilename(segmentPath)
+              const segmentFileDest = join(segmentsDirDest, segmentFilename)
+              await fs.mkdir(dirname(segmentFileDest), { recursive: true })
+              await fs.copyFile(
+                join(segmentsDir, segmentFileSrc),
+                segmentFileDest
+              )
+            })
+          )
         }
       })
-    )
-  }
-
-  if (Object.keys(ampValidations).length) {
-    console.log(formatAmpMessages(ampValidations))
-  }
-  if (hadValidationError) {
-    throw new ExportError(
-      `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
     )
   }
 
   if (failedExportAttemptsByPage.size > 0) {
     const failedPages = Array.from(failedExportAttemptsByPage.keys())
     throw new ExportError(
-      `Export encountered errors on following paths:\n\t${failedPages
+      `Export encountered errors on ${failedPages.length} ${failedPages.length === 1 ? 'path' : 'paths'}:\n\t${failedPages
         .sort()
         .join('\n\t')}`
     )
@@ -784,19 +1032,62 @@ async function exportAppImpl(
     await telemetry.flush()
   }
 
-  await worker.end()
+  // Clean up activity listeners for progress.
+  if (staticWorker) {
+    staticWorker.setOnActivity(undefined)
+    staticWorker.setOnActivityAbort(undefined)
+  }
+
+  if (!staticWorker && worker) {
+    await worker.end()
+  }
 
   return collector
+}
+
+async function collectSegmentPaths(segmentsDirectory: string) {
+  const results: Array<string> = []
+  await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)
+  return results
+}
+
+async function collectSegmentPathsImpl(
+  segmentsDirectory: string,
+  directory: string,
+  results: Array<string>
+) {
+  const segmentFiles = await fs.readdir(directory, {
+    withFileTypes: true,
+  })
+  await Promise.all(
+    segmentFiles.map(async (segmentFile) => {
+      if (segmentFile.isDirectory()) {
+        await collectSegmentPathsImpl(
+          segmentsDirectory,
+          join(directory, segmentFile.name),
+          results
+        )
+        return
+      }
+      if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
+        return
+      }
+      results.push(
+        relative(segmentsDirectory, join(directory, segmentFile.name))
+      )
+    })
+  )
 }
 
 export default async function exportApp(
   dir: string,
   options: ExportAppOptions,
-  span: Span
+  span: Span,
+  staticWorker?: StaticWorker
 ): Promise<ExportAppResult | null> {
   const nextExportSpan = span.traceChild('next-export')
 
   return nextExportSpan.traceAsyncFn(async () => {
-    return await exportAppImpl(dir, options, nextExportSpan)
+    return await exportAppImpl(dir, options, nextExportSpan, staticWorker)
   })
 }

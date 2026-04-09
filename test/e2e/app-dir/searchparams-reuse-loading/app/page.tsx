@@ -16,12 +16,12 @@ export default async function Page(props) {
           <Link href="/search-params?id=2">/search-params?id=2</Link>
         </li>
         <li>
-          <Link href="/search-params?id=3" prefetch>
+          <Link href="/search-params?id=3" prefetch={true}>
             /search-params?id=3 (prefetch: true)
           </Link>
         </li>
         <li>
-          <Link href="/search-params" prefetch>
+          <Link href="/search-params" prefetch={true}>
             /search-params (prefetch: true)
           </Link>
         </li>

@@ -20,34 +20,89 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
-export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
-export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
+// Re-export entry constants for backward compatibility
+export {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from './entry-constants'
+
+export enum AdapterOutputType {
+  /**
+   * `PAGES` represents all the React pages that are under `pages/`.
+   */
+  PAGES = 'PAGES',
+
+  /**
+   * `PAGES_API` represents all the API routes under `pages/api/`.
+   */
+  PAGES_API = 'PAGES_API',
+  /**
+   * `APP_PAGE` represents all the React pages that are under `app/` with the
+   * filename of `page.{j,t}s{,x}`.
+   */
+  APP_PAGE = 'APP_PAGE',
+
+  /**
+   * `APP_ROUTE` represents all the API routes and metadata routes that are under `app/` with the
+   * filename of `route.{j,t}s{,x}`.
+   */
+  APP_ROUTE = 'APP_ROUTE',
+
+  /**
+   * `PRERENDER` represents an ISR enabled route that might
+   * have a seeded cache entry or fallback generated during build
+   */
+  PRERENDER = 'PRERENDER',
+
+  /**
+   * `STATIC_FILE` represents a static file (ie /_next/static)
+   */
+  STATIC_FILE = 'STATIC_FILE',
+
+  /**
+   * `MIDDLEWARE` represents the middleware output if present
+   */
+  MIDDLEWARE = 'MIDDLEWARE',
+}
+
 export const PHASE_EXPORT = 'phase-export'
+export const PHASE_ANALYZE = 'phase-analyze'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PHASE_INFO = 'phase-info'
+
+export type PHASE_TYPE =
+  | typeof PHASE_INFO
+  | typeof PHASE_TEST
+  | typeof PHASE_EXPORT
+  | typeof PHASE_ANALYZE
+  | typeof PHASE_PRODUCTION_BUILD
+  | typeof PHASE_PRODUCTION_SERVER
+  | typeof PHASE_DEVELOPMENT_SERVER
+
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
-export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
 export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
+export const PREFETCH_HINTS = 'prefetch-hints.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
-export const RESPONSE_CONFIG_MANIFEST = 'response-config-manifest.json'
-export const SERVER_FILES_MANIFEST = 'required-server-files.json'
+export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
-  '_clientMiddlewareManifest.json'
+  '_clientMiddlewareManifest.js'
+export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
@@ -55,6 +110,9 @@ export const CONFIG_FILES = [
   'next.config.js',
   'next.config.mjs',
   'next.config.ts',
+  // process.features can be undefined on Edge runtime
+  // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+  ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
@@ -86,8 +144,6 @@ export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTI
 export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
-// static/runtime/amp.js
-export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 // static/runtime/webpack.js
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
@@ -147,6 +203,5 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
 export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])

@@ -8,10 +8,10 @@ const cache =
     ? React.cache
     : (fn: (key: unknown) => void) => fn
 
-// When Dynamic IO is enabled, we record these as errors so that they
+// When Cache Components is enabled, we record these as errors so that they
 // are captured by the dev overlay as it's more critical to fix these
 // when enabled.
-const logErrorOrWarn = process.env.__NEXT_DYNAMIC_IO
+const logErrorOrWarn = process.env.__NEXT_CACHE_COMPONENTS
   ? console.error
   : console.warn
 

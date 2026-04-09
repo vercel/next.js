@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unexpected_cfgs)]
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};

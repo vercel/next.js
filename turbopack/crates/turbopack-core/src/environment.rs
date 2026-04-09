@@ -3,18 +3,20 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
+use browserslist::Distrib;
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::FileSystemPathOption;
 
 use crate::target::CompileTarget;
 
-static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
+static DEFAULT_NODEJS_VERSION: &str = "18.0.0";
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Clone, Copy, Default, Hash, TaskInput, Debug)]
 pub enum Rendering {
     #[default]
     None,
@@ -33,7 +35,7 @@ pub enum ChunkLoading {
     Edge,
     /// CommonJS in Node.js
     NodeJs,
-    /// <script> and <link> tags in the browser
+    /// `<script>` and `<link>` tags in the browser
     Dom,
 }
 
@@ -46,15 +48,13 @@ pub struct Environment {
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub fn new(execution: Value<ExecutionEnvironment>) -> Vc<Self> {
-        Self::cell(Environment {
-            execution: execution.into_value(),
-        })
+    pub fn new(execution: ExecutionEnvironment) -> Vc<Self> {
+        Self::cell(Environment { execution })
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Hash, Clone, Copy)]
+#[turbo_tasks::value]
+#[derive(Debug, Hash, Clone, Copy, TaskInput)]
 pub enum ExecutionEnvironment {
     NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
     NodeJsLambda(ResolvedVc<NodeJsEnvironment>),
@@ -62,6 +62,16 @@ pub enum ExecutionEnvironment {
     Browser(ResolvedVc<BrowserEnvironment>),
     // TODO allow custom trait here
     Custom(u8),
+}
+
+async fn resolve_browserslist(browser_env: ResolvedVc<BrowserEnvironment>) -> Result<Vec<Distrib>> {
+    Ok(browserslist::resolve(
+        browser_env.await?.browserslist_query.split(','),
+        &browserslist::Opts {
+            ignore_unknown_versions: true,
+            ..Default::default()
+        },
+    )?)
 }
 
 #[turbo_tasks::value_impl]
@@ -83,12 +93,31 @@ impl Environment {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
-                Vc::cell(Versions::parse_versions(browserslist::resolve(
-                    browser_env.await?.browserslist_query.split(','),
-                    &browserslist::Opts::default(),
-                )?)?)
+                let distribs = resolve_browserslist(browser_env).await?;
+                Vc::cell(Versions::parse_versions(distribs)?)
             }
-            ExecutionEnvironment::EdgeWorker(_) => todo!(),
+            ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
+            ExecutionEnvironment::Custom(_) => todo!(),
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn browserslist_query(&self) -> Result<Vc<RcStr>> {
+        Ok(match self.execution {
+            ExecutionEnvironment::NodeJsBuildTime(_)
+            | ExecutionEnvironment::NodeJsLambda(_)
+            | ExecutionEnvironment::EdgeWorker(_) =>
+            // TODO: This is a hack, browserslist_query is only used by CSS processing for
+            // LightningCSS However, there is an issue where the CSS is not transitioned
+            // to the client which we still have to solve. It does apply the
+            // browserslist correctly because CSS Modules in client components is double-processed,
+            // once for server once for browser.
+            {
+                Vc::cell(rcstr!(""))
+            }
+            ExecutionEnvironment::Browser(browser_env) => {
+                Vc::cell(browser_env.await?.browserslist_query.clone())
+            }
             ExecutionEnvironment::Custom(_) => todo!(),
         })
     }
@@ -146,7 +175,7 @@ impl Environment {
         let env = self;
         match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                Vc::cell(vec![".js".into(), ".node".into(), ".json".into()])
+                Vc::cell(vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")])
             }
             ExecutionEnvironment::EdgeWorker(_) | ExecutionEnvironment::Browser(_) => {
                 Vc::<Vec<RcStr>>::default()
@@ -174,18 +203,18 @@ impl Environment {
         let env = self;
         match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
-                Vc::cell(vec!["node".into()])
+                Vc::cell(vec![rcstr!("node")])
             }
             ExecutionEnvironment::Browser(_) => Vc::<Vec<RcStr>>::default(),
             ExecutionEnvironment::EdgeWorker(_) => {
-                Vc::cell(vec!["edge-light".into(), "worker".into()])
+                Vc::cell(vec![rcstr!("edge-light"), rcstr!("worker")])
             }
             ExecutionEnvironment::Custom(_) => todo!(),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+    pub async fn cwd(&self) -> Result<Vc<FileSystemPathOption>> {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
@@ -230,7 +259,7 @@ pub struct NodeJsEnvironment {
     pub compile_target: ResolvedVc<CompileTarget>,
     pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: ResolvedVc<Option<RcStr>>,
+    pub cwd: ResolvedVc<FileSystemPathOption>,
 }
 
 impl Default for NodeJsEnvironment {
@@ -255,7 +284,8 @@ impl NodeJsEnvironment {
 
         Ok(Vc::cell(Versions {
             node: Some(
-                Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
+                Version::from_str(&str)
+                    .map_err(|_| anyhow!("Failed to parse Node.js version: '{}'", str))?,
             ),
             ..Default::default()
         }))
@@ -275,7 +305,9 @@ impl NodeJsEnvironment {
 
 #[turbo_tasks::value(shared)]
 pub enum NodeJsVersion {
+    /// Use the version of Node.js that is available from the environment (via `node --version`)
     Current(ResolvedVc<Box<dyn ProcessEnv>>),
+    /// Use the specified version of Node.js.
     Static(ResolvedVc<RcStr>),
 }
 
@@ -294,15 +326,113 @@ pub struct BrowserEnvironment {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EdgeWorkerEnvironment {}
+pub struct EdgeWorkerEnvironment {
+    // This isn't actually the Edge's worker environment, but we have to use some kind of version
+    // for transpiling ECMAScript features. No tool supports Edge Workers as a separate
+    // environment.
+    pub node_version: ResolvedVc<NodeJsVersion>,
+}
+
+#[turbo_tasks::value_impl]
+impl EdgeWorkerEnvironment {
+    #[turbo_tasks::function]
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let str = match *self.node_version.await? {
+            NodeJsVersion::Current(process_env) => get_current_nodejs_version(*process_env),
+            NodeJsVersion::Static(version) => *version,
+        }
+        .await?;
+
+        Ok(Vc::cell(Versions {
+            node: Some(
+                Version::from_str(&str).map_err(|_| anyhow!("Node.js version parse error"))?,
+            ),
+            ..Default::default()
+        }))
+    }
+}
 
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
+#[derive(Debug)]
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
+#[turbo_tasks::value_impl]
+impl RuntimeVersions {
+    /// Whether the environment supports arrow functions.
+    #[turbo_tasks::function]
+    pub fn supports_arrow_functions(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L363-L376
+        // "chrome": "47",
+        // "opera": "34",
+        // "edge": "13",
+        // "firefox": "43",
+        // "safari": "10",
+        // "node": "6",
+        // "deno": "1",
+        // "ios": "10",
+        // "samsung": "5",
+        // "rhino": "1.7.13",
+        // "opera_mobile": "34",
+        // "electron": "0.36"
+        let data = &self.0;
+        let supported = data.chrome.is_none_or(|v| v.major >= 47)
+            && data.opera.is_none_or(|v| v.major >= 34)
+            && data.edge.is_none_or(|v| v.major >= 13)
+            && data.firefox.is_none_or(|v| v.major >= 43)
+            && data.safari.is_none_or(|v| v.major >= 10)
+            && data.node.is_none_or(|v| v.major >= 6)
+            && data.deno.is_none_or(|v| v.major >= 1)
+            && data.ios.is_none_or(|v| v.major >= 10)
+            && data.samsung.is_none_or(|v| v.major >= 5)
+            && data.rhino.is_none_or(|v| {
+                v.major > 1
+                    || (v.major == 1 && v.minor > 7)
+                    || (v.major == 1 && v.minor == 7 && v.patch >= 13)
+            })
+            && data.opera_mobile.is_none_or(|v| v.major >= 34)
+            && data.electron.is_none_or(|v| v.major > 0 || v.minor >= 36);
+
+        Vc::cell(supported)
+    }
+
+    /// Whether the environment supports block scoping (let/const).
+    #[turbo_tasks::function]
+    pub fn supports_block_scoping(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json#L538
+        // "chrome": "50",
+        // "opera": "37",
+        // "edge": "14",
+        // "firefox": "53",
+        // "safari": "11",
+        // "node": "6",
+        // "deno": "1",
+        // "ios": "11",
+        // "samsung": "5",
+        // "opera_mobile": "37",
+        // "electron": "1.1"
+        let data = &self.0;
+        let supported = data.chrome.is_none_or(|v| v.major >= 50)
+            && data.opera.is_none_or(|v| v.major >= 37)
+            && data.edge.is_none_or(|v| v.major >= 14)
+            && data.firefox.is_none_or(|v| v.major >= 53)
+            && data.safari.is_none_or(|v| v.major >= 11)
+            && data.node.is_none_or(|v| v.major >= 6)
+            && data.deno.is_none_or(|v| v.major >= 1)
+            && data.ios.is_none_or(|v| v.major >= 11)
+            && data.samsung.is_none_or(|v| v.major >= 5)
+            && data.opera_mobile.is_none_or(|v| v.major >= 37)
+            && data
+                .electron
+                .is_none_or(|v| v.major > 1 || (v.major == 1 && v.minor >= 1));
+
+        Vc::cell(supported)
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<RcStr>> {
-    let path_read = env.read("PATH".into()).await?;
+    let path_read = env.read(rcstr!("PATH")).await?;
     let path = path_read.as_ref().context("env must have PATH")?;
     let mut cmd = Command::new("node");
     cmd.arg("--version");
@@ -311,12 +441,30 @@ pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
 
-    Ok(Vc::cell(
-        String::from_utf8(cmd.output()?.stdout)?
-            .strip_prefix('v')
-            .context("Version must begin with v")?
-            .strip_suffix('\n')
-            .context("Version must end with \\n")?
-            .into(),
-    ))
+    let output = cmd.output()?;
+
+    if !output.status.success() {
+        bail!(
+            "'node --version' command failed{}{}",
+            output
+                .status
+                .code()
+                .map(|c| format!(" with exit code {c}"))
+                .unwrap_or_default(),
+            String::from_utf8(output.stderr)
+                .map(|stderr| format!(": {stderr}"))
+                .unwrap_or_default()
+        );
+    }
+
+    let version = String::from_utf8(output.stdout)
+        .context("failed to parse 'node --version' output as utf8")?;
+    if let Some(version_number) = version.strip_prefix("v") {
+        Ok(Vc::cell(version_number.trim().into()))
+    } else {
+        bail!(
+            "Expected 'node --version' to return a version starting with 'v', but received: '{}'",
+            version
+        )
+    }
 }

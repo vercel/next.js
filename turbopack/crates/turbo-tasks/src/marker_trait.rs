@@ -43,27 +43,34 @@ macro_rules! impl_auto_marker_trait {
             ::serde_json::Value, ::serde_json::Map<String, ::serde_json::Value>
         );
 
+        $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: E D C B A Z Y X W V U T);
         $crate::marker_trait::impl_marker_trait_tuple!($trait: E D C B A Z Y X W V U T);
 
         unsafe impl<T: $trait> $trait for ::std::option::Option<T> {}
         unsafe impl<T: $trait> $trait for ::std::vec::Vec<T> {}
+        unsafe impl<T: $trait, const N: usize> $trait for ::smallvec::SmallVec<[T; N]> {}
         unsafe impl<T: $trait, const N: usize> $trait for [T; N] {}
         unsafe impl<T: $trait> $trait for [T] {}
         unsafe impl<T: $trait, S> $trait for ::std::collections::HashSet<T, S> {}
         unsafe impl<T: $trait, S, const I: usize> $trait for ::auto_hash_map::AutoSet<T, S, I> {}
         unsafe impl<T: $trait> $trait for ::std::collections::BTreeSet<T> {}
         unsafe impl<T: $trait, S> $trait for ::indexmap::IndexSet<T, S> {}
+        unsafe impl<T: $trait> $trait for ::turbo_frozenmap::FrozenSet<T> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::std::collections::HashMap<K, V, S> {}
         unsafe impl<K: $trait, V: $trait, S, const I: usize> $trait
             for ::auto_hash_map::AutoMap<K, V, S, I> {}
         unsafe impl<K: $trait, V: $trait> $trait for ::std::collections::BTreeMap<K, V> {}
         unsafe impl<K: $trait, V: $trait, S> $trait for ::indexmap::IndexMap<K, V, S> {}
+        unsafe impl<K: $trait, V: $trait> $trait for ::turbo_frozenmap::FrozenMap<K, V> {}
+        unsafe impl<T> $trait for ::std::pin::Pin<T>
+            where T: ::std::ops::Deref, <T as ::std::ops::Deref>::Target: $trait {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::boxed::Box<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Arc<T> {}
         unsafe impl<B: $trait + ::std::borrow::ToOwned + ?Sized> $trait
             for ::std::borrow::Cow<'_, B> {}
         unsafe impl<T: $trait, E: $trait> $trait for ::std::result::Result<T, E> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Mutex<T> {}
+        unsafe impl<T: $trait + ?Sized> $trait for ::parking_lot::Mutex<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::cell::RefCell<T> {}
         unsafe impl<T: ?Sized> $trait for ::std::marker::PhantomData<T> {}
         unsafe impl<L: $trait, R: $trait> $trait for ::either::Either<L, R> {}
@@ -76,9 +83,9 @@ macro_rules! impl_auto_marker_trait {
         {}
         unsafe impl<T: $trait> $trait for $crate::State<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientState<T> {}
-        unsafe impl<T: $trait> $trait for $crate::Value<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientValue<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientInstance<T> {}
+        unsafe impl $trait for $crate::event::Event {}
 
         unsafe impl<T: $trait + ?Sized> $trait for &T {}
         unsafe impl<T: $trait + ?Sized> $trait for &mut T {}
@@ -100,9 +107,27 @@ macro_rules! impl_marker_trait {
     }
 }
 
+/// Create an implementation for every possible `fn` pointer type, regardless of the type of the
+/// arguments and return type.
+///
+/// This is typically valid for marker traits as `fn` pointer types (not the `Fn` trait) do not
+/// contain any data, they are compile-time pointers to static code.
+macro_rules! impl_marker_trait_fn_ptr {
+    ($trait:ident: $T:ident) => {
+        $crate::marker_trait::impl_marker_trait_fn_ptr!(@impl $trait: $T);
+    };
+    ($trait:ident: $T:ident $( $U:ident )+) => {
+        $crate::marker_trait::impl_marker_trait_fn_ptr!($trait: $( $U )+);
+        $crate::marker_trait::impl_marker_trait_fn_ptr!(@impl $trait: $T $( $U )+);
+    };
+    (@impl $trait:ident: $( $T:ident )+) => {
+        unsafe impl<$($T,)+ Return> $trait for fn($($T),+) -> Return {}
+    };
+}
+
 /// Create an implementation for every possible tuple where every element implements `$trait`.
 ///
-/// Must be passed a sequence of identifier fo the tuple's generic parameters. This will only
+/// Must be passed a sequence of identifier to the tuple's generic parameters. This will only
 /// generate implementations up to the length of the passed in sequence.
 ///
 /// Based on stdlib's internal `tuple_impls!` macro.
@@ -121,4 +146,5 @@ macro_rules! impl_marker_trait_tuple {
 
 pub(crate) use impl_auto_marker_trait;
 pub(crate) use impl_marker_trait;
+pub(crate) use impl_marker_trait_fn_ptr;
 pub(crate) use impl_marker_trait_tuple;

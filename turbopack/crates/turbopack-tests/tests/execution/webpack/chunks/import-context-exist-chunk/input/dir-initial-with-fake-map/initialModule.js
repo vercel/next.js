@@ -1,1 +1,1 @@
-export default "initialModuleDefault";
+export default 'initialModuleDefault'

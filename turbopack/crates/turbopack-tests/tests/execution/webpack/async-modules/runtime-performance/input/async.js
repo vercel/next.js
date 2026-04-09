@@ -1,2 +1,2 @@
-await 1;
-export default 1;
+await 1
+export default 1

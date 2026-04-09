@@ -5,26 +5,25 @@ use std::{
 
 use anyhow::Result;
 use hyper::{
-    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
+    header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Vc};
 
-use super::{
+use crate::source::{
+    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
+    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
+    StaticContent,
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
     route_tree::RouteTree,
-    ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
-    StaticContent,
 };
 
-/// The result of [`resolve_source_request`]. Similar to a
-/// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
-/// care in the function.
-#[turbo_tasks::value(serialization = "none")]
+/// The result of [`resolve_source_request`]. Similar to a [`ContentSourceContent`], but without the
+/// [`Rewrite`][ContentSourceContent::Rewrite] variant, as this is taken care in the function.
+#[turbo_tasks::value(serialization = "none", shared)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
@@ -57,19 +56,27 @@ fn get_content_source_content_vary_operation(
 fn get_content_source_content_get_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     path: RcStr,
-    data: Value<ContentSourceData>,
+    data: ContentSourceData,
 ) -> Vc<ContentSourceContent> {
     get_content.get(path, data)
 }
 
-/// Resolves a [SourceRequest] within a [super::ContentSource], returning the
-/// corresponding content.
+/// Resolves a [`SourceRequest`] within a [`ContentSource`], returning the corresponding content.
 ///
-/// This function is the boundary of consistency. All invoked methods should be
-/// invoked strongly consistent. This ensures that all requests serve the latest
-/// version of the content. We don't make resolve_source_request strongly
-/// consistent as we want get_routes and get to be independent consistent and
-/// any side effect in get should not wait for recomputing of get_routes.
+/// Matches the first [`ContentSourceContent`] in the [`RouteTree`] returned by
+/// [`ContentSource::get_routes`] that does not generate [`ContentSourceContent::Next`].
+///
+/// *In the future*, this function may be used at the boundary of consistency. All invoked methods
+/// should be read using [strong consistency][OperationVc::read_strongly_consistent]. This ensures
+/// that all requests serve the latest version of the content.
+///
+/// If this function is not called/read with strong consistency, [`ContentSource::get_routes`] would
+/// be allowed to be independently consistent. Side effects should not need to wait for
+/// recomputation of [`ContentSource::get_routes`].
+///
+/// TODO: The callers of this function now read this operation using strong consistency. This may
+/// have re-introduced performance issues that were solved in
+/// <https://github.com/vercel/turborepo/pull/5360>.
 #[turbo_tasks::function(operation)]
 pub async fn resolve_source_request(
     source: OperationVc<Box<dyn ContentSource>>,
@@ -81,7 +88,8 @@ pub async fn resolve_source_request(
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
     let mut route_tree = content_source_get_routes_operation(source)
-        .resolve_strongly_consistent()
+        .resolve()
+        .strongly_consistent()
         .await?;
     'routes: loop {
         let mut sources_op = route_tree_get_operation(route_tree, current_asset_path.clone());
@@ -95,7 +103,7 @@ pub async fn resolve_source_request(
                 let content_op = get_content_source_content_get_operation(
                     get_content,
                     current_asset_path.clone(),
-                    Value::new(content_data),
+                    content_data,
                 );
                 match &*content_op.read_strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {
@@ -133,7 +141,8 @@ pub async fn resolve_source_request(
                                 request_overwrites.uri = new_uri;
                                 current_asset_path = new_asset_path.into();
                                 route_tree = content_source_get_routes_operation(*source)
-                                    .resolve_strongly_consistent()
+                                    .resolve()
+                                    .strongly_consistent()
                                     .await?;
                                 continue 'routes;
                             }

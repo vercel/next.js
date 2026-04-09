@@ -11,6 +11,7 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function noop() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -49,15 +50,13 @@
     function getComponentNameFromType(type) {
       if (null == type) return null;
       if ("function" === typeof type)
-        return type.$$typeof === REACT_CLIENT_REFERENCE$2
+        return type.$$typeof === REACT_CLIENT_REFERENCE
           ? null
           : type.displayName || type.name || null;
       if ("string" === typeof type) return type;
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -66,6 +65,10 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -75,8 +78,10 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
-            return (type.displayName || "Context") + ".Provider";
+            return type.displayName || "Context";
           case REACT_CONSUMER_TYPE:
             return (type._context.displayName || "Context") + ".Consumer";
           case REACT_FORWARD_REF_TYPE:
@@ -102,280 +107,27 @@
         }
       return null;
     }
-    function isValidElementType(type) {
-      return "string" === typeof type ||
-        "function" === typeof type ||
-        type === REACT_FRAGMENT_TYPE ||
-        type === REACT_PROFILER_TYPE ||
-        type === REACT_STRICT_MODE_TYPE ||
-        type === REACT_SUSPENSE_TYPE ||
-        type === REACT_SUSPENSE_LIST_TYPE ||
-        type === REACT_OFFSCREEN_TYPE ||
-        ("object" === typeof type &&
-          null !== type &&
-          (type.$$typeof === REACT_LAZY_TYPE ||
-            type.$$typeof === REACT_MEMO_TYPE ||
-            type.$$typeof === REACT_CONTEXT_TYPE ||
-            type.$$typeof === REACT_CONSUMER_TYPE ||
-            type.$$typeof === REACT_FORWARD_REF_TYPE ||
-            type.$$typeof === REACT_CLIENT_REFERENCE$1 ||
-            void 0 !== type.getModuleId))
-        ? !0
-        : !1;
-    }
-    function disabledLog() {}
-    function disableLogs() {
-      if (0 === disabledDepth) {
-        prevLog = console.log;
-        prevInfo = console.info;
-        prevWarn = console.warn;
-        prevError = console.error;
-        prevGroup = console.group;
-        prevGroupCollapsed = console.groupCollapsed;
-        prevGroupEnd = console.groupEnd;
-        var props = {
-          configurable: !0,
-          enumerable: !0,
-          value: disabledLog,
-          writable: !0
-        };
-        Object.defineProperties(console, {
-          info: props,
-          log: props,
-          warn: props,
-          error: props,
-          group: props,
-          groupCollapsed: props,
-          groupEnd: props
-        });
-      }
-      disabledDepth++;
-    }
-    function reenableLogs() {
-      disabledDepth--;
-      if (0 === disabledDepth) {
-        var props = { configurable: !0, enumerable: !0, writable: !0 };
-        Object.defineProperties(console, {
-          log: assign({}, props, { value: prevLog }),
-          info: assign({}, props, { value: prevInfo }),
-          warn: assign({}, props, { value: prevWarn }),
-          error: assign({}, props, { value: prevError }),
-          group: assign({}, props, { value: prevGroup }),
-          groupCollapsed: assign({}, props, { value: prevGroupCollapsed }),
-          groupEnd: assign({}, props, { value: prevGroupEnd })
-        });
-      }
-      0 > disabledDepth &&
-        console.error(
-          "disabledDepth fell below zero. This is a bug in React. Please file an issue."
-        );
-    }
-    function describeBuiltInComponentFrame(name) {
-      if (void 0 === prefix)
-        try {
-          throw Error();
-        } catch (x) {
-          var match = x.stack.trim().match(/\n( *(at )?)/);
-          prefix = (match && match[1]) || "";
-          suffix =
-            -1 < x.stack.indexOf("\n    at")
-              ? " (<anonymous>)"
-              : -1 < x.stack.indexOf("@")
-                ? "@unknown:0:0"
-                : "";
-        }
-      return "\n" + prefix + name + suffix;
-    }
-    function describeNativeComponentFrame(fn, construct) {
-      if (!fn || reentry) return "";
-      var frame = componentFrameCache.get(fn);
-      if (void 0 !== frame) return frame;
-      reentry = !0;
-      frame = Error.prepareStackTrace;
-      Error.prepareStackTrace = void 0;
-      var previousDispatcher = null;
-      previousDispatcher = ReactSharedInternals.H;
-      ReactSharedInternals.H = null;
-      disableLogs();
+    function getTaskName(type) {
+      if (type === REACT_FRAGMENT_TYPE) return "<>";
+      if (
+        "object" === typeof type &&
+        null !== type &&
+        type.$$typeof === REACT_LAZY_TYPE
+      )
+        return "<...>";
       try {
-        var RunInRootFrame = {
-          DetermineComponentFrameRoot: function () {
-            try {
-              if (construct) {
-                var Fake = function () {
-                  throw Error();
-                };
-                Object.defineProperty(Fake.prototype, "props", {
-                  set: function () {
-                    throw Error();
-                  }
-                });
-                if ("object" === typeof Reflect && Reflect.construct) {
-                  try {
-                    Reflect.construct(Fake, []);
-                  } catch (x) {
-                    var control = x;
-                  }
-                  Reflect.construct(fn, [], Fake);
-                } else {
-                  try {
-                    Fake.call();
-                  } catch (x$0) {
-                    control = x$0;
-                  }
-                  fn.call(Fake.prototype);
-                }
-              } else {
-                try {
-                  throw Error();
-                } catch (x$1) {
-                  control = x$1;
-                }
-                (Fake = fn()) &&
-                  "function" === typeof Fake.catch &&
-                  Fake.catch(function () {});
-              }
-            } catch (sample) {
-              if (sample && control && "string" === typeof sample.stack)
-                return [sample.stack, control.stack];
-            }
-            return [null, null];
-          }
-        };
-        RunInRootFrame.DetermineComponentFrameRoot.displayName =
-          "DetermineComponentFrameRoot";
-        var namePropDescriptor = Object.getOwnPropertyDescriptor(
-          RunInRootFrame.DetermineComponentFrameRoot,
-          "name"
-        );
-        namePropDescriptor &&
-          namePropDescriptor.configurable &&
-          Object.defineProperty(
-            RunInRootFrame.DetermineComponentFrameRoot,
-            "name",
-            { value: "DetermineComponentFrameRoot" }
-          );
-        var _RunInRootFrame$Deter =
-            RunInRootFrame.DetermineComponentFrameRoot(),
-          sampleStack = _RunInRootFrame$Deter[0],
-          controlStack = _RunInRootFrame$Deter[1];
-        if (sampleStack && controlStack) {
-          var sampleLines = sampleStack.split("\n"),
-            controlLines = controlStack.split("\n");
-          for (
-            _RunInRootFrame$Deter = namePropDescriptor = 0;
-            namePropDescriptor < sampleLines.length &&
-            !sampleLines[namePropDescriptor].includes(
-              "DetermineComponentFrameRoot"
-            );
-
-          )
-            namePropDescriptor++;
-          for (
-            ;
-            _RunInRootFrame$Deter < controlLines.length &&
-            !controlLines[_RunInRootFrame$Deter].includes(
-              "DetermineComponentFrameRoot"
-            );
-
-          )
-            _RunInRootFrame$Deter++;
-          if (
-            namePropDescriptor === sampleLines.length ||
-            _RunInRootFrame$Deter === controlLines.length
-          )
-            for (
-              namePropDescriptor = sampleLines.length - 1,
-                _RunInRootFrame$Deter = controlLines.length - 1;
-              1 <= namePropDescriptor &&
-              0 <= _RunInRootFrame$Deter &&
-              sampleLines[namePropDescriptor] !==
-                controlLines[_RunInRootFrame$Deter];
-
-            )
-              _RunInRootFrame$Deter--;
-          for (
-            ;
-            1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter;
-            namePropDescriptor--, _RunInRootFrame$Deter--
-          )
-            if (
-              sampleLines[namePropDescriptor] !==
-              controlLines[_RunInRootFrame$Deter]
-            ) {
-              if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
-                do
-                  if (
-                    (namePropDescriptor--,
-                    _RunInRootFrame$Deter--,
-                    0 > _RunInRootFrame$Deter ||
-                      sampleLines[namePropDescriptor] !==
-                        controlLines[_RunInRootFrame$Deter])
-                  ) {
-                    var _frame =
-                      "\n" +
-                      sampleLines[namePropDescriptor].replace(
-                        " at new ",
-                        " at "
-                      );
-                    fn.displayName &&
-                      _frame.includes("<anonymous>") &&
-                      (_frame = _frame.replace("<anonymous>", fn.displayName));
-                    "function" === typeof fn &&
-                      componentFrameCache.set(fn, _frame);
-                    return _frame;
-                  }
-                while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
-              }
-              break;
-            }
-        }
-      } finally {
-        (reentry = !1),
-          (ReactSharedInternals.H = previousDispatcher),
-          reenableLogs(),
-          (Error.prepareStackTrace = frame);
+        var name = getComponentNameFromType(type);
+        return name ? "<" + name + ">" : "<...>";
+      } catch (x) {
+        return "<...>";
       }
-      sampleLines = (sampleLines = fn ? fn.displayName || fn.name : "")
-        ? describeBuiltInComponentFrame(sampleLines)
-        : "";
-      "function" === typeof fn && componentFrameCache.set(fn, sampleLines);
-      return sampleLines;
-    }
-    function describeUnknownElementTypeFrameInDEV(type) {
-      if (null == type) return "";
-      if ("function" === typeof type) {
-        var prototype = type.prototype;
-        return describeNativeComponentFrame(
-          type,
-          !(!prototype || !prototype.isReactComponent)
-        );
-      }
-      if ("string" === typeof type) return describeBuiltInComponentFrame(type);
-      switch (type) {
-        case REACT_SUSPENSE_TYPE:
-          return describeBuiltInComponentFrame("Suspense");
-        case REACT_SUSPENSE_LIST_TYPE:
-          return describeBuiltInComponentFrame("SuspenseList");
-      }
-      if ("object" === typeof type)
-        switch (type.$$typeof) {
-          case REACT_FORWARD_REF_TYPE:
-            return describeNativeComponentFrame(type.render, !1);
-          case REACT_MEMO_TYPE:
-            return describeUnknownElementTypeFrameInDEV(type.type);
-          case REACT_LAZY_TYPE:
-            prototype = type._payload;
-            type = type._init;
-            try {
-              return describeUnknownElementTypeFrameInDEV(type(prototype));
-            } catch (x) {}
-        }
-      return "";
     }
     function getOwner() {
       var dispatcher = ReactSharedInternals.A;
       return null === dispatcher ? null : dispatcher.getOwner();
+    }
+    function UnknownOwner() {
+      return Error("react-stack-top-frame");
     }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
@@ -409,8 +161,8 @@
       componentName = this.props.ref;
       return void 0 !== componentName ? componentName : null;
     }
-    function ReactElement(type, key, self, source, owner, props) {
-      self = props.ref;
+    function ReactElement(type, key, props, owner, debugStack, debugTask) {
+      var refProp = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -418,7 +170,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== self ? self : null)
+      null !== (void 0 !== refProp ? refProp : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -437,6 +189,18 @@
         writable: !0,
         value: null
       });
+      Object.defineProperty(type, "_debugStack", {
+        configurable: !1,
+        enumerable: !1,
+        writable: !0,
+        value: debugStack
+      });
+      Object.defineProperty(type, "_debugTask", {
+        configurable: !1,
+        enumerable: !1,
+        writable: !0,
+        value: debugTask
+      });
       Object.freeze && (Object.freeze(type.props), Object.freeze(type));
       return type;
     }
@@ -444,37 +208,26 @@
       newKey = ReactElement(
         oldElement.type,
         newKey,
-        void 0,
-        void 0,
+        oldElement.props,
         oldElement._owner,
-        oldElement.props
+        oldElement._debugStack,
+        oldElement._debugTask
       );
       oldElement._store &&
         (newKey._store.validated = oldElement._store.validated);
       return newKey;
     }
-    function validateChildKeys(node, parentType) {
-      if (
-        "object" === typeof node &&
-        node &&
-        node.$$typeof !== REACT_CLIENT_REFERENCE
-      )
-        if (isArrayImpl(node))
-          for (var i = 0; i < node.length; i++) {
-            var child = node[i];
-            isValidElement(child) && validateExplicitKey(child, parentType);
-          }
-        else if (isValidElement(node))
-          node._store && (node._store.validated = 1);
-        else if (
-          ((i = getIteratorFn(node)),
-          "function" === typeof i &&
-            i !== node.entries &&
-            ((i = i.call(node)), i !== node))
-        )
-          for (; !(node = i.next()).done; )
-            isValidElement(node.value) &&
-              validateExplicitKey(node.value, parentType);
+    function validateChildKeys(node) {
+      isValidElement(node)
+        ? node._store && (node._store.validated = 1)
+        : "object" === typeof node &&
+          null !== node &&
+          node.$$typeof === REACT_LAZY_TYPE &&
+          ("fulfilled" === node._payload.status
+            ? isValidElement(node._payload.value) &&
+              node._payload.value._store &&
+              (node._payload.value._store.validated = 1)
+            : node._store && (node._store.validated = 1));
     }
     function isValidElement(object) {
       return (
@@ -482,52 +235,6 @@
         null !== object &&
         object.$$typeof === REACT_ELEMENT_TYPE
       );
-    }
-    function validateExplicitKey(element, parentType) {
-      if (
-        element._store &&
-        !element._store.validated &&
-        null == element.key &&
-        ((element._store.validated = 1),
-        (parentType = getCurrentComponentErrorInfo(parentType)),
-        !ownerHasKeyUseWarning[parentType])
-      ) {
-        ownerHasKeyUseWarning[parentType] = !0;
-        var childOwner = "";
-        element &&
-          null != element._owner &&
-          element._owner !== getOwner() &&
-          ((childOwner = null),
-          "number" === typeof element._owner.tag
-            ? (childOwner = getComponentNameFromType(element._owner.type))
-            : "string" === typeof element._owner.name &&
-              (childOwner = element._owner.name),
-          (childOwner = " It was passed a child from " + childOwner + "."));
-        var prevGetCurrentStack = ReactSharedInternals.getCurrentStack;
-        ReactSharedInternals.getCurrentStack = function () {
-          var stack = describeUnknownElementTypeFrameInDEV(element.type);
-          prevGetCurrentStack && (stack += prevGetCurrentStack() || "");
-          return stack;
-        };
-        console.error(
-          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
-          parentType,
-          childOwner
-        );
-        ReactSharedInternals.getCurrentStack = prevGetCurrentStack;
-      }
-    }
-    function getCurrentComponentErrorInfo(parentType) {
-      var info = "",
-        owner = getOwner();
-      owner &&
-        (owner = getComponentNameFromType(owner.type)) &&
-        (info = "\n\nCheck the render method of `" + owner + "`.");
-      info ||
-        ((parentType = getComponentNameFromType(parentType)) &&
-          (info =
-            "\n\nCheck the top-level render call using <" + parentType + ">."));
-      return info;
     }
     function escape(key) {
       var escaperLookup = { "=": "=0", ":": "=2" };
@@ -545,7 +252,6 @@
         ? (checkKeyStringCoercion(element.key), escape("" + element.key))
         : index.toString(36);
     }
-    function noop() {}
     function resolveThenable(thenable) {
       switch (thenable.status) {
         case "fulfilled":
@@ -725,35 +431,74 @@
     }
     function lazyInitializer(payload) {
       if (-1 === payload._status) {
-        var ctor = payload._result;
-        ctor = ctor();
-        ctor.then(
+        var resolveDebugValue = null,
+          rejectDebugValue = null,
+          ioInfo = payload._ioInfo;
+        null != ioInfo &&
+          ((ioInfo.start = ioInfo.end = performance.now()),
+          (ioInfo.value = new Promise(function (resolve, reject) {
+            resolveDebugValue = resolve;
+            rejectDebugValue = reject;
+          })));
+        ioInfo = payload._result;
+        var thenable = ioInfo();
+        thenable.then(
           function (moduleObject) {
-            if (0 === payload._status || -1 === payload._status)
-              (payload._status = 1), (payload._result = moduleObject);
+            if (0 === payload._status || -1 === payload._status) {
+              payload._status = 1;
+              payload._result = moduleObject;
+              var _ioInfo = payload._ioInfo;
+              if (null != _ioInfo) {
+                _ioInfo.end = performance.now();
+                var debugValue =
+                  null == moduleObject ? void 0 : moduleObject.default;
+                resolveDebugValue(debugValue);
+                _ioInfo.value.status = "fulfilled";
+                _ioInfo.value.value = debugValue;
+              }
+              void 0 === thenable.status &&
+                ((thenable.status = "fulfilled"),
+                (thenable.value = moduleObject));
+            }
           },
           function (error) {
-            if (0 === payload._status || -1 === payload._status)
-              (payload._status = 2), (payload._result = error);
+            if (0 === payload._status || -1 === payload._status) {
+              payload._status = 2;
+              payload._result = error;
+              var _ioInfo2 = payload._ioInfo;
+              null != _ioInfo2 &&
+                ((_ioInfo2.end = performance.now()),
+                _ioInfo2.value.then(noop, noop),
+                rejectDebugValue(error),
+                (_ioInfo2.value.status = "rejected"),
+                (_ioInfo2.value.reason = error));
+              void 0 === thenable.status &&
+                ((thenable.status = "rejected"), (thenable.reason = error));
+            }
           }
         );
+        ioInfo = payload._ioInfo;
+        if (null != ioInfo) {
+          var displayName = thenable.displayName;
+          "string" === typeof displayName && (ioInfo.name = displayName);
+        }
         -1 === payload._status &&
-          ((payload._status = 0), (payload._result = ctor));
+          ((payload._status = 0), (payload._result = thenable));
       }
       if (1 === payload._status)
         return (
-          (ctor = payload._result),
-          void 0 === ctor &&
+          (ioInfo = payload._result),
+          void 0 === ioInfo &&
             console.error(
               "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))\n\nDid you accidentally put curly braces around the import?",
-              ctor
+              ioInfo
             ),
-          "default" in ctor ||
+          "default" in ioInfo ||
             console.error(
               "lazy: Expected the result of a dynamic import() call. Instead received: %s\n\nYour code should look like: \n  const MyComponent = lazy(() => import('./MyComponent'))",
-              ctor
+              ioInfo
             ),
-          ctor.default
+          ioInfo.default
         );
       throw payload._result;
     }
@@ -763,50 +508,53 @@
     function createCacheNode() {
       return { s: 0, v: void 0, o: null, p: null };
     }
-    var ReactSharedInternals = { H: null, A: null, getCurrentStack: null },
+    var ReactSharedInternals = {
+        H: null,
+        A: null,
+        getCurrentStack: null,
+        recentlyCreatedOwnerStacks: 0
+      },
       isArrayImpl = Array.isArray,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
       REACT_STRICT_MODE_TYPE = Symbol.for("react.strict_mode"),
-      REACT_PROFILER_TYPE = Symbol.for("react.profiler");
-    Symbol.for("react.provider");
-    var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
+      REACT_PROFILER_TYPE = Symbol.for("react.profiler"),
+      REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
       REACT_CONTEXT_TYPE = Symbol.for("react.context"),
       REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
       REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      REACT_CLIENT_REFERENCE$2 = Symbol.for("react.client.reference"),
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
-      REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
-      disabledDepth = 0,
-      prevLog,
-      prevInfo,
-      prevWarn,
-      prevError,
-      prevGroup,
-      prevGroupCollapsed,
-      prevGroupEnd;
-    disabledLog.__reactDisabledLog = !0;
-    var prefix,
-      suffix,
-      reentry = !1;
-    var componentFrameCache = new (
-      "function" === typeof WeakMap ? WeakMap : Map
-    )();
-    var REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
+      createTask = console.createTask
+        ? console.createTask
+        : function () {
+            return null;
+          },
+      createFakeCallStack = {
+        react_stack_bottom_frame: function (callStackForError) {
+          return callStackForError();
+        }
+      },
       specialPropKeyWarningShown,
       didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
-    var ownerHasKeyUseWarning = {},
-      didWarnAboutMaps = !1,
+    var unknownOwnerDebugStack =
+      createFakeCallStack.react_stack_bottom_frame.bind(
+        createFakeCallStack,
+        UnknownOwner
+      )();
+    var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
+    var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g;
-    exports.Children = {
+    createFakeCallStack = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
         mapChildren(
@@ -839,10 +587,13 @@
         return children;
       }
     };
+    exports.Activity = REACT_ACTIVITY_TYPE;
+    exports.Children = createFakeCallStack;
     exports.Fragment = REACT_FRAGMENT_TYPE;
     exports.Profiler = REACT_PROFILER_TYPE;
     exports.StrictMode = REACT_STRICT_MODE_TYPE;
     exports.Suspense = REACT_SUSPENSE_TYPE;
+    exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
     exports.cache = function (fn) {
@@ -889,6 +640,14 @@
         }
       };
     };
+    exports.cacheSignal = function () {
+      var dispatcher = ReactSharedInternals.A;
+      return dispatcher ? dispatcher.cacheSignal() : null;
+    };
+    exports.captureOwnerStack = function () {
+      var getCurrentStack = ReactSharedInternals.getCurrentStack;
+      return null === getCurrentStack ? null : getCurrentStack();
+    };
     exports.cloneElement = function (element, config, children) {
       if (null === element || void 0 === element)
         throw Error(
@@ -934,46 +693,24 @@
           JSCompiler_inline_result[i] = arguments[i + 2];
         props.children = JSCompiler_inline_result;
       }
-      props = ReactElement(element.type, key, void 0, void 0, owner, props);
+      props = ReactElement(
+        element.type,
+        key,
+        props,
+        owner,
+        element._debugStack,
+        element._debugTask
+      );
       for (key = 2; key < arguments.length; key++)
-        validateChildKeys(arguments[key], props.type);
+        validateChildKeys(arguments[key]);
       return props;
     };
     exports.createElement = function (type, config, children) {
-      if (isValidElementType(type))
-        for (var i = 2; i < arguments.length; i++)
-          validateChildKeys(arguments[i], type);
-      else {
-        i = "";
-        if (
-          void 0 === type ||
-          ("object" === typeof type &&
-            null !== type &&
-            0 === Object.keys(type).length)
-        )
-          i +=
-            " You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.";
-        if (null === type) var typeString = "null";
-        else
-          isArrayImpl(type)
-            ? (typeString = "array")
-            : void 0 !== type && type.$$typeof === REACT_ELEMENT_TYPE
-              ? ((typeString =
-                  "<" +
-                  (getComponentNameFromType(type.type) || "Unknown") +
-                  " />"),
-                (i =
-                  " Did you accidentally export a JSX literal instead of a component?"))
-              : (typeString = typeof type);
-        console.error(
-          "React.createElement: type is invalid -- expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s",
-          typeString,
-          i
-        );
-      }
+      for (var i = 2; i < arguments.length; i++)
+        validateChildKeys(arguments[i]);
       var propName;
       i = {};
-      typeString = null;
+      var key = null;
       if (null != config)
         for (propName in (didWarnAboutOldJSXRuntime ||
           !("__self" in config) ||
@@ -983,7 +720,7 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (typeString = "" + config.key)),
+          (checkKeyStringCoercion(config.key), (key = "" + config.key)),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -1005,14 +742,27 @@
       if (type && type.defaultProps)
         for (propName in ((childrenLength = type.defaultProps), childrenLength))
           void 0 === i[propName] && (i[propName] = childrenLength[propName]);
-      typeString &&
+      key &&
         defineKeyPropWarningGetter(
           i,
           "function" === typeof type
             ? type.displayName || type.name || "Unknown"
             : type
         );
-      return ReactElement(type, typeString, void 0, void 0, getOwner(), i);
+      (propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++)
+        ? ((childArray = Error.stackTraceLimit),
+          (Error.stackTraceLimit = 10),
+          (childrenLength = Error("react-stack-top-frame")),
+          (Error.stackTraceLimit = childArray))
+        : (childrenLength = unknownOwnerDebugStack);
+      return ReactElement(
+        type,
+        key,
+        i,
+        getOwner(),
+        childrenLength,
+        propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
+      );
     };
     exports.createRef = function () {
       var refObject = { current: null };
@@ -1062,14 +812,27 @@
     };
     exports.isValidElement = isValidElement;
     exports.lazy = function (ctor) {
-      return {
-        $$typeof: REACT_LAZY_TYPE,
-        _payload: { _status: -1, _result: ctor },
-        _init: lazyInitializer
-      };
+      ctor = { _status: -1, _result: ctor };
+      var lazyType = {
+          $$typeof: REACT_LAZY_TYPE,
+          _payload: ctor,
+          _init: lazyInitializer
+        },
+        ioInfo = {
+          name: "lazy",
+          start: -1,
+          end: -1,
+          value: null,
+          owner: null,
+          debugStack: Error("react-stack-top-frame"),
+          debugTask: console.createTask ? console.createTask("lazy()") : null
+        };
+      ctor._ioInfo = ioInfo;
+      lazyType._debugInfo = [{ awaited: ioInfo }];
+      return lazyType;
     };
     exports.memo = function (type, compare) {
-      isValidElementType(type) ||
+      null == type &&
         console.error(
           "memo: The first argument must be a component. Instead received: %s",
           null === type ? "null" : typeof type
@@ -1111,5 +874,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-canary-ff628334-20250205";
+    exports.version = "19.3.0-canary-404b38c7-20260408";
   })();

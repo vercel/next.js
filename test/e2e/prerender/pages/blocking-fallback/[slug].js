@@ -41,7 +41,7 @@ export async function getStaticProps({ params }) {
 
   console.log(`getStaticProps ${params.slug}`)
 
-  return {
+  const result = {
     props: {
       params,
       hello: 'world',
@@ -49,8 +49,14 @@ export async function getStaticProps({ params }) {
       random: Math.random(),
       time: (await import('perf_hooks')).performance.now(),
     },
-    revalidate: 1,
   }
+
+  // Don't add revalidate for test-manual-1 to test pure on-demand revalidation
+  if (params.slug !== 'test-manual-1') {
+    result.revalidate = 1
+  }
+
+  return result
 }
 
 export default ({ post, time, params }) => {

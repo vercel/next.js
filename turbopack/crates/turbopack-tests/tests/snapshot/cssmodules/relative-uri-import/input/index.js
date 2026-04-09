@@ -1,1 +1,1 @@
-import {foo} from "./index.module.css";
+import { foo } from './index.module.css'

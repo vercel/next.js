@@ -4,12 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { isNextStart, NextInstance } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  shouldRunTurboDevTest,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -37,6 +32,7 @@ describe('Middleware Runtime', () => {
               isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
             )
           ),
+          lib: new FileRef(join(__dirname, '../app/lib')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
@@ -45,7 +41,6 @@ describe('Middleware Runtime', () => {
         nextConfig: {
           experimental: {
             webpackBuildWorker: true,
-            nodeMiddleware: true,
           },
           ...(i18n
             ? {
@@ -89,9 +84,7 @@ describe('Middleware Runtime', () => {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
             build: 'pnpm run setup && next build',
-            dev: `pnpm run setup && next ${
-              shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-            }`,
+            dev: 'pnpm run setup && next dev',
             start: 'next start',
           },
         },
@@ -207,7 +200,9 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
+        expect(matchers).toEqual([
+          { regexp: '^/.*$', originalSource: '/:path*' },
+        ])
       })
     }
 
@@ -223,21 +218,21 @@ describe('Middleware Runtime', () => {
           ...middlewareWithoutEnvs.env,
         }
         delete middlewareWithoutEnvs.env
-        expect(middlewareWithoutEnvs).toEqual({
-          // Turbopack creates more files as it can do chunking.
-          files: process.env.TURBOPACK
-            ? expect.toBeArray()
-            : expect.arrayContaining([
-                'server/edge-runtime-webpack.js',
-                'server/middleware.js',
-              ]),
+        expect(middlewareWithoutEnvs).toMatchObject({
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.TURBOPACK ? expect.toBeArray() : [],
+          assets: [],
           regions: 'auto',
         })
+        expect(middlewareWithoutEnvs.files).toBeArray()
+        expect(middlewareWithoutEnvs.entrypoint).toMatch(
+          /^server\/.+\.(?:js|mjs|cjs)$/
+        )
+        expect(middlewareWithoutEnvs.files).toContain(
+          middlewareWithoutEnvs.entrypoint
+        )
         expect(envs).toContainAllKeys([
           'NEXT_SERVER_ACTIONS_ENCRYPTION_KEY',
           '__NEXT_BUILD_ID',
@@ -264,11 +259,8 @@ describe('Middleware Runtime', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.TURBOPACK) {
-            expect(middleware.files).toContainEqual(
-              expect.stringContaining('server/edge-runtime-webpack')
-            )
-          }
+          expect(middleware.entrypoint).toMatch(/^server\/.+\.(?:js|mjs|cjs)$/)
+          expect(middleware.files).toContain(middleware.entrypoint)
 
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
@@ -696,7 +688,9 @@ describe('Middleware Runtime', () => {
 
     it('should throw when using URL with a relative URL', async () => {
       const res = await fetchViaHTTP(next.url, `/url/relative-url`)
-      expect(readMiddlewareError(res)).toContain('Invalid URL')
+      expect(readMiddlewareError(res)).toMatch(
+        /Invalid URL|cannot be parsed as a URL/
+      )
     })
 
     it('should throw when using NextRequest with a relative URL', async () => {

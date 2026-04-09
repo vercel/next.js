@@ -49,7 +49,7 @@ async function run() {
 
       await slackClient.chat.postMessage({
         blocks,
-        channel: '#next-info',
+        channel: '#coord-next-triage',
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })

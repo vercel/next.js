@@ -1,1 +1,1 @@
-import './mod.mjs';
+import './mod.mjs'

@@ -5,9 +5,10 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
+import { PHASE_PRODUCTION_BUILD } from '../../../shared/lib/constants'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
-import type { NextConfig } from '../../../server/config-shared'
+import { normalizeConfig, type NextConfig } from '../../../server/config-shared'
 import { NextResponse } from '../../../server/web/exports'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import type {
@@ -18,6 +19,7 @@ import type {
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
+import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -80,13 +82,19 @@ export async function unstable_getResponseFromNextConfig({
   cookies = {},
 }: {
   url: string
-  nextConfig: NextConfig
+  nextConfig:
+    | NextConfig
+    | ((...args: any[]) => NextConfig | Promise<NextConfig>)
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
   const parsedUrl = parse(url, true)
   const request = constructRequest({ url, headers, cookies })
-  const routes = await loadCustomRoutes(nextConfig)
+  const resolvedConfig = await normalizeConfig(
+    PHASE_PRODUCTION_BUILD,
+    nextConfig
+  )
+  const routes = await loadCustomRoutes(resolvedConfig)
 
   const headerRoutes = routes.headers.map((route) =>
     buildCustomRoute('header', route)
@@ -122,8 +130,11 @@ export async function unstable_getResponseFromNextConfig({
       params,
       query: parsedUrl.query,
     })
+    const searchParams = new URLSearchParams(
+      parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
+    )
     return new URL(
-      newUrl,
+      searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
         : parsedUrl.host

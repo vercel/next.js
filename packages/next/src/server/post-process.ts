@@ -7,35 +7,15 @@ type PostProcessorFunction =
   | ((html: string) => string)
 
 async function postProcessHTML(
-  pathname: string,
   content: string,
-  renderOpts: Pick<
-    RenderOpts,
-    | 'ampOptimizerConfig'
-    | 'ampValidator'
-    | 'ampSkipValidation'
-    | 'optimizeCss'
-    | 'distDir'
-    | 'assetPrefix'
-  >,
-  { inAmpMode, hybridAmp }: { inAmpMode: boolean; hybridAmp: boolean }
+  renderOpts: Pick<RenderOpts, 'optimizeCss' | 'distDir' | 'assetPrefix'>
 ) {
   const postProcessors: Array<PostProcessorFunction> = [
-    process.env.NEXT_RUNTIME !== 'edge' && inAmpMode
-      ? async (html: string) => {
-          const optimizeAmp = require('./optimize-amp')
-            .default as typeof import('./optimize-amp').default
-          html = await optimizeAmp!(html, renderOpts.ampOptimizerConfig)
-          if (!renderOpts.ampSkipValidation && renderOpts.ampValidator) {
-            await renderOpts.ampValidator(html, pathname)
-          }
-          return html
-        }
-      : null,
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
-          const Critters = require('critters')
+          const Critters = require('critters') as typeof import('critters')
+          // @ts-expect-error -- interopRequireDefault
           const cssOptimizer = new Critters({
             ssrMode: true,
             reduceInlineStyles: false,
@@ -49,11 +29,6 @@ async function postProcessHTML(
             ...renderOpts.optimizeCss,
           })
           return await cssOptimizer.process(html)
-        }
-      : null,
-    inAmpMode || hybridAmp
-      ? (html: string) => {
-          return html.replace(/&amp;amp=1/g, '&amp=1')
         }
       : null,
   ].filter(nonNullable)

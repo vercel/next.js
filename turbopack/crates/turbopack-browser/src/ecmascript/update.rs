@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{chunk::ModuleId, code_builder::Code};
 
-use super::{content::EcmascriptDevChunkContent, version::EcmascriptDevChunkVersion};
+use super::{content::EcmascriptBrowserChunkContent, version::EcmascriptBrowserChunkVersion};
 
 #[allow(clippy::large_enum_variant)]
 pub(super) enum EcmascriptChunkUpdate {
@@ -11,14 +11,14 @@ pub(super) enum EcmascriptChunkUpdate {
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: FxIndexMap<ReadRef<ModuleId>, (u64, ResolvedVc<Code>)>,
-    pub deleted: FxIndexMap<ReadRef<ModuleId>, u64>,
-    pub modified: FxIndexMap<ReadRef<ModuleId>, ResolvedVc<Code>>,
+    pub added: FxIndexMap<ModuleId, (u64, ResolvedVc<Code>)>,
+    pub deleted: FxIndexMap<ModuleId, u64>,
+    pub modified: FxIndexMap<ModuleId, ResolvedVc<Code>>,
 }
 
 pub(super) async fn update_ecmascript_chunk(
-    content: Vc<EcmascriptDevChunkContent>,
-    from: &ReadRef<EcmascriptDevChunkVersion>,
+    content: Vc<EcmascriptBrowserChunkContent>,
+    from: &ReadRef<EcmascriptBrowserChunkVersion>,
 ) -> Result<EcmascriptChunkUpdate> {
     let to = content.own_version().await?;
 
@@ -29,9 +29,7 @@ pub(super) async fn update_ecmascript_chunk(
         return Ok(EcmascriptChunkUpdate::None);
     }
 
-    let content = content.await?;
-
-    let entries = content.entries.await?;
+    let entries = content.entries().await?;
     let mut added = FxIndexMap::default();
     let mut modified = FxIndexMap::default();
     let mut deleted = FxIndexMap::default();

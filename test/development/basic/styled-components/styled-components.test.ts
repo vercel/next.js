@@ -6,7 +6,7 @@ describe('styled-components SWC transform', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      'styled-components': '5.3.3',
+      'styled-components': '6.1.16',
     },
   })
   async function matchLogs$(browser) {

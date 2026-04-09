@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::cjs_optimizer::{cjs_optimizer, Config, PackageConfig};
+use next_custom_transforms::transforms::cjs_optimizer::{Config, PackageConfig, cjs_optimizer};
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::atom,
@@ -54,8 +54,9 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }

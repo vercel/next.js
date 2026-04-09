@@ -5,13 +5,11 @@ import {
   isPositionInsideNode,
   getTs,
   removeStringQuotes,
+  getTypeChecker,
 } from '../utils'
-import {
-  NEXT_TS_ERRORS,
-  ALLOWED_EXPORTS,
-  LEGACY_CONFIG_EXPORT,
-} from '../constant'
+import { NEXT_TS_ERRORS, ALLOWED_EXPORTS } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
+import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 
 const API_DOCS: Record<
   string,
@@ -22,6 +20,7 @@ const API_DOCS: Record<
     type?: string
     isValid?: (value: string) => boolean
     getHint?: (value: any) => string | undefined
+    insertText?: string
   }
 > = {
   dynamic: {
@@ -29,19 +28,19 @@ const API_DOCS: Record<
       'The `dynamic` option provides a few ways to opt in or out of dynamic behavior.',
     options: {
       '"auto"':
-        'Heuristic to cache as much as possible but doesn’t prevent any component to opt-in to dynamic behavior.',
+        "Heuristic to cache as much as possible but doesn't prevent any component to opt-in to dynamic behavior.",
       '"force-dynamic"':
         'This disables all caching of fetches and always revalidates. (This is equivalent to `getServerSideProps`.)',
       '"error"':
         'This errors if any dynamic Hooks or fetches are used. (This is equivalent to `getStaticProps`.)',
       '"force-static"':
         'This forces caching of all fetches and returns empty values from `cookies`, `headers` and `useSearchParams`.',
-    },
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['dynamic']>,
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic',
   },
   fetchCache: {
     description:
-      'The `fetchCache` option controls how Next.js statically caches fetches. By default it statically caches fetches reachable before any dynamic Hooks are used, and it doesn’t cache fetches that are discovered after that.',
+      "The `fetchCache` option controls how Next.js statically caches fetches. By default it statically caches fetches reachable before any dynamic Hooks are used, and it doesn't cache fetches that are discovered after that.",
     options: {
       '"force-no-store"':
         "This lets you intentionally opt-out of all caching of data. This option forces all fetches to be refetched every request even if the `cache: 'force-cache'` option is passed to `fetch()`.",
@@ -50,14 +49,14 @@ const API_DOCS: Record<
       '"default-no-store"':
         "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'no-store'`. This means that even fetches before a dynamic Hook are considered dynamic.",
       '"auto"':
-        'This is the default option. It caches any fetches with the default `cache` option provided, that happened before a dynamic Hook is used and don’t cache any such fetches if they’re issued after a dynamic Hook.',
+        "This is the default option. It caches any fetches with the default `cache` option provided, that happened before a dynamic Hook is used and don't cache any such fetches if they're issued after a dynamic Hook.",
       '"default-cache"':
         "Allows any explicit `cache` option to be passed to `fetch()` but if `'default'`, or no option, is provided then it defaults to `'force-cache'`. This means that even fetches before a dynamic Hook are considered dynamic.",
       '"only-cache"':
         "This lets you enforce that all data opts into caching. This option makes `fetch()` reject with an error if `cache: 'force-cache'` is provided. It also changes the default to `force-cache`. This error can be discovered early during static builds - or dynamically during Edge rendering.",
       '"force-cache"':
         "This lets you intentionally opt-in to all caching of data. This option forces all fetches to be cache even if the `cache: 'no-store'` option is passed to `fetch()`.",
-    },
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['fetchCache']>,
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#fetchcache',
   },
   preferredRegion: {
@@ -65,7 +64,7 @@ const API_DOCS: Record<
       'Specify the perferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.\n\nYou can also specify a region, such as "iad1", or an array of regions, such as `["iad1", "sfo1"]`.',
     options: {
       '"auto"':
-        'Next.js will first deploy to the `"home"` region. Then if it doesn’t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
+        'Next.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
       '"global"': 'Prefer deploying globally.',
       '"home"': 'Prefer deploying to the Home region.',
     },
@@ -91,7 +90,7 @@ const API_DOCS: Record<
   },
   revalidate: {
     description:
-      'The `revalidate` option sets the default revalidation time for that layout or page. Note that it doesn’t override the value specify by each `fetch()`.',
+      "The `revalidate` option sets the default revalidation time for that layout or page. Note that it doesn't override the value specify by each `fetch()`.",
     type: 'mixed',
     options: {
       false:
@@ -114,7 +113,7 @@ const API_DOCS: Record<
       true: 'Allow rendering dynamic params that are not generated by `generateStaticParams`.',
       false:
         'Disallow rendering dynamic params that are not generated by `generateStaticParams`.',
-    },
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['dynamicParams']>,
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams',
     isValid: (value: string) => {
       return value === 'true' || value === 'false'
@@ -127,30 +126,69 @@ const API_DOCS: Record<
       '"nodejs"': 'Prefer the Node.js runtime.',
       '"edge"': 'Prefer the Edge runtime.',
       '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
-    },
+    } satisfies DocsOptionsObject<
+      FullAppSegmentConfig['runtime'] | 'experimental-edge'
+    >,
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime',
   },
   metadata: {
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/building-your-application/optimizing/metadata',
+    insertText: 'metadata: Metadata = {};',
+  },
+  generateMetadata: {
+    description: 'Next.js generateMetadata configurations',
+    link: 'https://nextjs.org/docs/app/api-reference/functions/generate-metadata',
+    insertText: 'generateMetadata = (): Metadata => { return {} };',
   },
   maxDuration: {
     description:
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  experimental_ppr: {
-    description: `Enables experimental Partial Prerendering (PPR) for this page / layout, when PPR is set to "incremental" mode.`,
-    link: 'https://nextjs.org/docs/app/api-reference/next-config-js/ppr',
-    options: {
-      true: 'Enable PPR for this route',
-      false: 'Disable PPR for this route',
-    },
+  unstable_instant: {
+    description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: 'object | false',
+    // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
+    // with the way this plugin is currently structured.
+    // For now, since we don't provide an `options` here, we won't do any validation in
+    // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
+    insertText: 'unstable_instant = { prefetch: "static" };',
+  },
+  unstable_dynamicStaleTime: {
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    link: '(docs coming soon)',
+    type: 'number',
     isValid: (value: string) => {
-      return value === 'true' || value === 'false'
+      return Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the dynamic stale time to \`${value}\` seconds.`
     },
   },
 }
+
+type FullAppSegmentConfig = Required<AppSegmentConfig>
+
+/**
+ * Maps a type for a config value to a docs object that lists all its values.
+ * This ensures that all the valid options are listed.
+ * Note that values that aren't primitives are skipped.
+ *
+ * ```
+ * DocsOptionsObject<0 | false | "yes"> = { 0: string, false: string, '"yes"': string }
+ * ```
+ */
+type DocsOptionsObject<T> = {
+  [Value in T as AsObjectKey<Value>]: string
+}
+
+type AsObjectKey<Value> = Value extends string
+  ? `"${Value}"`
+  : Value extends number | boolean | null | undefined
+    ? `${Value}`
+    : never
 
 function visitEntryConfig(
   fileName: string,
@@ -185,8 +223,10 @@ function visitEntryConfig(
 
 function createAutoCompletionOptionName(sort: number, name: string) {
   const ts = getTs()
+
   return {
     name,
+    insertText: API_DOCS[name].insertText,
     sortText: '!' + sort,
     kind: ts.ScriptElementKind.constElement,
     kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
@@ -232,6 +272,7 @@ function getAPIDescription(api: string): string {
       .join('\n')
   )
 }
+
 const config = {
   // Auto completion for entry exported configs.
   addCompletionsAtPosition(
@@ -279,9 +320,49 @@ const config = {
           API_DOCS[entryConfig].link,
       }
 
-      if (value && isPositionInsideNode(position, value)) {
-        // Hovers the value of the config
-        const isString = ts.isStringLiteral(value)
+      // When the value is a flexible type (like a function), also compute its
+      // inferred type so we can surface it alongside the docs. This is useful
+      // even when the value is considered invalid by the config validation,
+      // as long as it's not a direct literal export.
+      let displayParts: tsModule.SymbolDisplayPart[] = []
+      const typeChecker = getTypeChecker()
+      const isString = !!value && ts.isStringLiteral(value)
+      const isFunctionValue =
+        !!value &&
+        !isString &&
+        (ts.isArrowFunction(value) ||
+          ts.isFunctionExpression(value) ||
+          ts.isFunctionDeclaration(value))
+
+      if (typeChecker && value && isFunctionValue) {
+        try {
+          // If we're hovering the config identifier, ask for the type at the
+          // identifier; otherwise, ask at the value node. This makes sure
+          // highlighting `generateMetadata` itself also shows the inferred type.
+          const typeTarget = isPositionInsideNode(position, name) ? name : value
+          const type = typeChecker.getTypeAtLocation(typeTarget)
+          if (type) {
+            const typeString = typeChecker.typeToString(type, typeTarget)
+            if (typeString) {
+              displayParts = [
+                {
+                  text: typeString,
+                  kind: 'typeName',
+                },
+              ]
+            }
+          }
+        } catch {
+          // If type checking fails, continue without type info.
+        }
+      }
+
+      // For non-function values (like literals), hovering the value should show
+      // option-specific docs. For function-valued configs (e.g. `generateMetadata`),
+      // we let TypeScript handle hover anywhere in the initializer except for the
+      // export identifier itself.
+      if (value && !isFunctionValue && isPositionInsideNode(position, value)) {
+        // Hovering the value of the config
         const text = removeStringQuotes(value.getText())
         const key = isString ? `"${text}"` : text
 
@@ -310,7 +391,8 @@ const config = {
             ],
           }
         } else {
-          // Wrong value, display the docs link
+          // Wrong value: still show the docs link, and when available, the
+          // inferred type for non-literal (i.e. non-direct) exports.
           overridden = {
             kind: ts.ScriptElementKind.enumElement,
             kindModifiers: ts.ScriptElementKindModifier.none,
@@ -318,11 +400,23 @@ const config = {
               start: value.getStart(),
               length: value.getWidth(),
             },
-            displayParts: [],
+            displayParts,
             documentation: [docsLink],
           }
         }
       } else {
+        // For function-valued configs, if we're hovering anywhere within the
+        // initializer (including `async`, parameters, or the body) but not on
+        // the export identifier itself, don't override TypeScript's default
+        // hover. We only want to override when hovering the config identifier
+        // (e.g. `generateMetadata`), not arbitrary tokens within the function.
+        if (
+          isFunctionValue &&
+          isPositionInsideNode(position, value) && // hover is somewhere within the function initializer
+          !isPositionInsideNode(position, name) // ...but not on the export identifier itself
+        ) {
+          return
+        }
         // Hovers the name of the config
         overridden = {
           kind: ts.ScriptElementKind.enumElement,
@@ -331,7 +425,7 @@ const config = {
             start: name.getStart(),
             length: name.getWidth(),
           },
-          displayParts: [],
+          displayParts,
           documentation: [
             {
               kind: 'text',
@@ -348,8 +442,9 @@ const config = {
   // Show details on the side when auto completing.
   getCompletionEntryDetails(
     entryName: string,
-    data: tsModule.CompletionEntryData
-  ) {
+    data: tsModule.CompletionEntryData,
+    fileName: string
+  ): tsModule.CompletionEntryDetails | undefined {
     const ts = getTs()
     if (
       data &&
@@ -364,6 +459,87 @@ const config = {
         if (!options) return
         content = options[entryName]
       }
+
+      if (entryName === 'metadata' || entryName === 'generateMetadata') {
+        const sourceFile = getSource(fileName)
+        let start = 0
+        let foundMetadataImport = false
+
+        if (sourceFile) {
+          const visitor: tsModule.Visitor = (node) => {
+            // Check for top directive
+            if (
+              ts.isExpressionStatement(node) &&
+              ts.isStringLiteral(node.expression) &&
+              node.expression.getStart() === 0
+            ) {
+              const text = node.expression.text
+              if (text.startsWith('use ')) {
+                start = node.end + 1
+                return node // Continue traversal
+              }
+            }
+
+            // Check for Metadata import
+            if (
+              ts.isImportDeclaration(node) &&
+              (node.moduleSpecifier.getText() === '"next"' ||
+                node.moduleSpecifier.getText() === "'next'")
+            ) {
+              const namedImports = node.importClause?.namedBindings
+              if (namedImports && ts.isNamedImports(namedImports)) {
+                foundMetadataImport = namedImports.elements.some((element) => {
+                  const name = element.name.getText()
+                  const propertyName = element.propertyName?.getText()
+                  return name === 'Metadata' || propertyName === 'Metadata'
+                })
+                if (foundMetadataImport) {
+                  return // Stop traversal
+                }
+              }
+            }
+
+            return node
+          }
+
+          for (const statement of sourceFile.statements) {
+            if (foundMetadataImport) break
+            ts.visitNode(statement, visitor)
+          }
+        }
+
+        return {
+          name: entryName,
+          kind: ts.ScriptElementKind.enumElement,
+          kindModifiers: ts.ScriptElementKindModifier.none,
+          displayParts: [],
+          codeActions: foundMetadataImport
+            ? undefined
+            : [
+                {
+                  description: `Import type 'Metadata' from module 'next'`,
+                  changes: [
+                    {
+                      fileName,
+                      textChanges: [
+                        {
+                          span: { start, length: 0 },
+                          newText: `import type { Metadata } from 'next';\n`,
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+          documentation: [
+            {
+              kind: 'text',
+              text: content,
+            },
+          ],
+        }
+      }
+
       return {
         name: entryName,
         kind: ts.ScriptElementKind.enumElement,
@@ -488,28 +664,6 @@ const config = {
                   start: value.getStart(),
                   length: value.getWidth(),
                 })
-              }
-            }
-          } else if (name.text === LEGACY_CONFIG_EXPORT) {
-            // export const config = { ... }
-            // Error if using `amp: ...`
-            const value = declaration.initializer
-            if (value && ts.isObjectLiteralExpression(value)) {
-              for (const prop of value.properties) {
-                if (
-                  ts.isPropertyAssignment(prop) &&
-                  ts.isIdentifier(prop.name) &&
-                  prop.name.text === 'amp'
-                ) {
-                  diagnostics.push({
-                    file: source,
-                    category: ts.DiagnosticCategory.Error,
-                    code: NEXT_TS_ERRORS.INVALID_CONFIG_OPTION,
-                    messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
-                    start: prop.getStart(),
-                    length: prop.getWidth(),
-                  })
-                }
               }
             }
           }

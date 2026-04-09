@@ -8,6 +8,9 @@ tarballs/
 packages/**/*.tgz
 .errors/
 
+# rust compiler crashes
+rustc-ice-*.txt
+
 # dependencies
 node_modules
 package-lock.json
@@ -22,14 +25,16 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output
 coverage
 
 # test output
-test/**/out*
+test/**/out/*
 test/**/next-env.d.ts
+test/**/.next*
 .DS_Store
 /e2e-tests
 test/tmp/**
@@ -42,8 +47,11 @@ test/traces
 .nvmrc
 
 # examples
-examples/**/out
-examples/**/.env*.local
+examples/**/out/*
+
+# env
+.env*.local
+evals/.env
 
 pr-stats.md
 test-timings.json
@@ -59,3 +67,22 @@ test-timings.json
 
 # Storybook
 *storybook.log
+
+# Claude Code (local settings and session files)
+.claude/settings.local.json
+.claude/plans/
+.claude/todos.json
+.claude/worktrees
+CLAUDE.local.md
+
+# Conductor (worktrees created by Conductor app, but keep scripts/)
+.conductor/*/
+!.conductor/scripts/
+
+index.scip
+
+# Evals
+evals/.tarballs/
+evals/experiments/
+evals/results/
+evals/agent-results.json

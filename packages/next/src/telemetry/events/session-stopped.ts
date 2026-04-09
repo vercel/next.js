@@ -8,10 +8,14 @@ export type EventCliSessionStopped = {
   durationMilliseconds?: number | null
   pagesDir?: boolean
   appDir?: boolean
+  isRspack: boolean
 }
 
 export function eventCliSessionStopped(
-  event: Omit<EventCliSessionStopped, 'nextVersion' | 'nodeVersion'>
+  event: Omit<
+    EventCliSessionStopped,
+    'nextVersion' | 'nodeVersion' | 'isRspack'
+  >
 ): { eventName: string; payload: EventCliSessionStopped }[] {
   // This should be an invariant, if it fails our build tooling is broken.
   if (typeof process.env.__NEXT_VERSION !== 'string') {
@@ -30,6 +34,7 @@ export function eventCliSessionStopped(
       : {}),
     pagesDir: event.pagesDir,
     appDir: event.appDir,
+    isRspack: process.env.NEXT_RSPACK !== undefined,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

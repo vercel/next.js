@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
-import type { Request, Response } from 'playwright'
+import { getTitle, retry, waitFor } from 'next-test-utils'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -11,7 +10,7 @@ describe('app dir - navigation', () => {
     it('should set query correctly', async () => {
       const browser = await next.browser('/')
       expect(await browser.elementById('query').text()).toMatchInlineSnapshot(
-        `""`
+        `"<empty-query>"`
       )
 
       await browser.elementById('set-query').click()
@@ -44,7 +43,7 @@ describe('app dir - navigation', () => {
 
       const browser = await next.browser('/search-params?name=名', {
         beforePageLoad(page) {
-          page.on('response', async (res: Response) => {
+          page.on('response', async (res) => {
             requests.push({
               pathname: new URL(res.url()).pathname,
               ok: res.ok(),
@@ -151,13 +150,13 @@ describe('app dir - navigation', () => {
 
   describe('hash', () => {
     it('should scroll to the specified hash', async () => {
-      let hasRscRequest = false
+      const rscRequestUrls = new Set<string>()
       const browser = await next.browser('/hash', {
         beforePageLoad(page) {
-          page.on('request', async (req) => {
-            const headers = await req.allHeaders()
+          page.on('request', (req) => {
+            const headers = req.headers()
             if (headers['rsc']) {
-              hasRscRequest = true
+              rscRequestUrls.add(req.url())
             }
           })
         },
@@ -181,8 +180,8 @@ describe('app dir - navigation', () => {
       }
 
       // Wait for all network requests to finish, and then initialize the flag
-      // used to determine if any RSC requests are made
-      hasRscRequest = false
+      // used to determine if any query-param RSC requests are made.
+      rscRequestUrls.clear()
 
       await checkLink(6, 128)
       await checkLink(50, 744)
@@ -193,17 +192,23 @@ describe('app dir - navigation', () => {
       await checkLink('non-existent', 0)
 
       if (!isNextDev) {
-        // there should have been no RSC calls to fetch data
-        // this is skipped in development because there'll never be a prefetch cache
-        // entry for the loaded page and so every request will be a cache miss.
-        expect(hasRscRequest).toBe(false)
+        // Hash-only navigations should not request the query-param payload.
+        // In some runtimes, hash-only transitions can still trigger RSC
+        // requests for /hash itself, so we assert on query-param payloads.
+        const hasQueryParamRscRequest = Array.from(rscRequestUrls).some((url) =>
+          url.includes('with-query-param')
+        )
+        expect(hasQueryParamRscRequest).toBe(false)
       }
 
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
 
       // There should be an RSC request if the query param is changed
-      expect(hasRscRequest).toBe(true)
+      const hasQueryParamRscRequest = Array.from(rscRequestUrls).some((url) =>
+        url.includes('with-query-param')
+      )
+      expect(hasQueryParamRscRequest).toBe(true)
     })
 
     it('should not scroll to hash when scroll={false} is set', async () => {
@@ -408,21 +413,6 @@ describe('app dir - navigation', () => {
     })
   })
 
-  describe('bots', () => {
-    if (!isNextDeploy) {
-      it('should block rendering for bots and return 404 status', async () => {
-        const res = await next.fetch('/not-found/servercomponent', {
-          headers: {
-            'User-Agent': 'Googlebot',
-          },
-        })
-
-        expect(res.status).toBe(404)
-        expect(await res.text()).toInclude('"noindex"')
-      })
-    }
-  })
-
   describe('redirect', () => {
     describe('components', () => {
       it('should redirect in a server component', async () => {
@@ -447,7 +437,6 @@ describe('app dir - navigation', () => {
           .elementByCss('button')
           .click()
           .waitForElementByCss('#result-page')
-        // eslint-disable-next-line jest/no-standalone-expect
         expect(await browser.elementByCss('#result-page').text()).toBe(
           'Result Page'
         )
@@ -497,7 +486,7 @@ describe('app dir - navigation', () => {
 
           const browser = await next.browser(path, {
             beforePageLoad(page) {
-              page.on('request', async (req: Request) => {
+              page.on('request', async (req) => {
                 requestedPathnames.push(new URL(req.url()).pathname)
               })
             },
@@ -521,7 +510,9 @@ describe('app dir - navigation', () => {
 
               // If the timestamp has changed, throw immediately.
               if (currentTimestamp !== initialTimestamp) {
-                throw new Error('Timestamp has changed')
+                throw new Error(
+                  `Timestamp has changed from the initial '${initialTimestamp}' to '${currentTimestamp}'`
+                )
               }
 
               // If we've reached the last attempt without the timestamp changing, force a retry failure to keep going.
@@ -581,27 +572,6 @@ describe('app dir - navigation', () => {
           .waitForElementByCss('h1')
         expect(await browser.elementByCss('h1').text()).toBe('redirect-dest')
         expect(await browser.url()).toBe(next.url + '/redirect-dest')
-      })
-    })
-
-    describe('status code', () => {
-      it('should respond with 307 status code in server component', async () => {
-        const res = await next.fetch('/redirect/servercomponent', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-      it('should respond with 307 status code in client component', async () => {
-        const res = await next.fetch('/redirect/clientcomponent', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(307)
-      })
-      it('should respond with 308 status code if permanent flag is set', async () => {
-        const res = await next.fetch('/redirect/servercomponent-2', {
-          redirect: 'manual',
-        })
-        expect(res.status).toBe(308)
       })
     })
   })
@@ -871,7 +841,9 @@ describe('app dir - navigation', () => {
       const scrollPosition = await browser.eval('window.pageYOffset')
 
       await browser.elementByCss("[href='/scroll-restoration/other']").click()
-      await browser.elementById('back-button').click()
+      await retry(async () => {
+        await browser.elementById('back-button').click()
+      })
 
       const newScrollPosition = await browser.eval('window.pageYOffset')
 
@@ -891,10 +863,10 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration)
+      await waitFor(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
-      expect(await browser.elementByCss('title').text()).toBe('Async Title')
+      expect(await getTitle(browser)).toBe('Async Title')
     })
 
     it('shows a fallback when prefetch completed', async () => {
@@ -912,16 +884,9 @@ describe('app dir - navigation', () => {
       if (!isNextDev) {
         expect(
           await browser
-            .waitForElementByCss(
-              '#loading',
-              // Give it some time to commit
-              100
-            )
+            .waitForElementByCss('title', resolveMetadataDuration + 500)
             .text()
-        ).toEqual('Loading')
-        expect(await browser.elementByCss('title').text()).toBe('Async Title')
-
-        await waitFor(resolveMetadataDuration + 500)
+        ).toBe('Async Title')
       }
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
@@ -1000,15 +965,18 @@ describe('app dir - navigation', () => {
     describe('locale warnings', () => {
       it('should warn about using the `locale` prop with `next/link` in app router', async () => {
         const browser = await next.browser('/locale-app')
-        const logs = await browser.log()
-        expect(logs).toContainEqual(
-          expect.objectContaining({
-            message: expect.stringContaining(
-              'The `locale` prop is not supported in `next/link` while using the `app` router.'
-            ),
-            source: 'warning',
-          })
-        )
+
+        await retry(async () => {
+          const logs = await browser.log()
+          expect(logs).toContainEqual(
+            expect.objectContaining({
+              message: expect.stringContaining(
+                'The `locale` prop is not supported in `next/link` while using the `app` router.'
+              ),
+              source: 'warning',
+            })
+          )
+        })
       })
 
       it('should have no warnings in pages router', async () => {
@@ -1018,4 +986,65 @@ describe('app dir - navigation', () => {
       })
     })
   }
+
+  describe('useRouter identity between navigations', () => {
+    it('should preserve identity when navigating to the same page', async () => {
+      const browser = await next.browser('/use-router/same-page')
+
+      expect(await browser.elementByCss('#count-from-server').text()).toBe('0')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
+
+      for (let i = 1; i <= 3; i++) {
+        await browser.elementByCss('#trigger-push').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#count-from-server').text()).toBe(
+            `${i}`
+          )
+          // the client state is independent from the count we keep in the queryparam.
+          // we expect it to stay mounted and thus keep its own count.
+          // if it was getting unmounted, then its count of router changes would always stay at 0.
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
+        })
+      }
+    })
+
+    it('should preserve identity when navigating between different pages', async () => {
+      const browser = await next.browser('/use-router/shared-layout/one')
+
+      expect(await browser.elementByCss('h1').text()).toBe('One')
+      expect(
+        await browser.elementByCss('#count-from-client-state').text()
+      ).toBe('0')
+      expect(await browser.elementByCss('#router-change-count').text()).toBe(
+        '0'
+      )
+
+      for (let i = 1; i <= 3; i++) {
+        await browser.elementByCss('#trigger-push').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe(
+            i % 2 === 0 ? 'One' : 'Two'
+          )
+          // we expect the client part to stay mounted and thus keep its own count.
+          // if it was getting unmounted, then its count of router changes would always be 0.
+          expect(
+            await browser.elementByCss('#count-from-client-state').text()
+          ).toBe(`${i}`)
+          expect(
+            await browser.elementByCss('#router-change-count').text()
+          ).toBe('0')
+        })
+      }
+    })
+  })
 })

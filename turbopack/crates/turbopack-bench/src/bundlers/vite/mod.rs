@@ -4,7 +4,7 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use regex::Regex;
 
 use crate::{
@@ -31,11 +31,7 @@ impl Vite {
 impl Bundler for Vite {
     fn get_name(&self) -> &str {
         if self.ssr {
-            if self.swc {
-                "Vite SWC SSR"
-            } else {
-                "Vite SSR"
-            }
+            if self.swc { "Vite SWC SSR" } else { "Vite SSR" }
         } else if self.swc {
             "Vite SWC CSR"
         } else {
@@ -69,11 +65,13 @@ impl Bundler for Vite {
 
     fn start_server(&self, test_dir: &Path) -> Result<(Child, String)> {
         let args = if self.ssr {
-            vec![test_dir
-                .join("vite-server.mjs")
-                .to_str()
-                .unwrap()
-                .to_string()]
+            vec![
+                test_dir
+                    .join("vite-server.mjs")
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            ]
         } else {
             vec![
                 test_dir

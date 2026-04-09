@@ -28,15 +28,13 @@ describe('esm-externals', () => {
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)
-      const body = $('body > div > div').html()
+      const body = $('body p').html()
       expect(normalize(body)).toEqual(expectedHtml)
     })
 
     it('should render the correct page', async () => {
       const browser = await next.browser(url)
-      expect(await browser.elementByCss('body > div').text()).toEqual(
-        expectedText
-      )
+      expect(await browser.elementByCss('body p').text()).toEqual(expectedText)
     })
   })
 
@@ -54,13 +52,13 @@ describe('esm-externals', () => {
 
     it('should return the correct SSR HTML', async () => {
       const $ = await next.render$(url)
-      const body = $('body > div').html()
+      const body = $('body > p').html()
       expect(normalize(body)).toEqual(expectedHtml)
     })
 
     it('should render the correct page', async () => {
       const browser = await next.browser(url)
-      expect(await browser.elementByCss('body > div').text()).toEqual(
+      expect(await browser.elementByCss('body > p').text()).toEqual(
         expectedText
       )
     })

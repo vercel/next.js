@@ -1,14 +1,13 @@
 use std::{
     fs,
-    sync::{mpsc::channel, Arc},
+    sync::{Arc, mpsc::channel},
     thread,
     time::{Duration, Instant},
 };
 
 use criterion::{
-    criterion_group, criterion_main,
+    BenchmarkId, Criterion, criterion_group, criterion_main,
     measurement::{Measurement, WallTime},
-    BenchmarkId, Criterion,
 };
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::runtime::Runtime;
@@ -33,7 +32,7 @@ fn bench_file_watching(c: &mut Criterion) {
         BenchmarkId::new("bench_file_watching", "change file"),
         move |b| {
             let (tx, rx) = channel();
-            let event = Arc::new(Event::new(|| "test event".to_string()));
+            let event = Arc::new(Event::new(|| || "test event".to_string()));
 
             let mut watcher = RecommendedWatcher::new(tx, Config::default()).unwrap();
             watcher.watch(temp_path, RecursiveMode::Recursive).unwrap();

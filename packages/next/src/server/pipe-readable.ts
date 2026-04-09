@@ -1,4 +1,5 @@
 import type { ServerResponse } from 'node:http'
+import type { Readable } from 'node:stream'
 
 import {
   ResponseAbortedName,
@@ -139,6 +140,100 @@ export async function pipeToNodeResponse(
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
+    if (isAbortError(err)) return
+
+    throw new Error('failed to pipe response', { cause: err })
+  }
+}
+
+export async function pipeNodeReadableToNodeResponse(
+  readable: Readable,
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
+) {
+  try {
+    const { errored, destroyed } = res
+    if (errored || destroyed) return
+
+    let started = false
+
+    const finished = new DetachedPromise<void>()
+
+    res.once('close', () => {
+      readable.destroy()
+      finished.resolve()
+    })
+
+    readable.on('data', (chunk: Buffer) => {
+      if (!started) {
+        started = true
+
+        if (
+          'performance' in globalThis &&
+          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+        ) {
+          const metrics = getClientComponentLoaderMetrics()
+          if (metrics) {
+            performance.measure(
+              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+              {
+                start: metrics.clientComponentLoadStart,
+                end:
+                  metrics.clientComponentLoadStart +
+                  metrics.clientComponentLoadTimes,
+              }
+            )
+          }
+        }
+
+        res.flushHeaders()
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          {
+            spanName: 'start response',
+          },
+          () => undefined
+        )
+      }
+
+      const ok = res.write(chunk)
+
+      if ('flush' in res && typeof res.flush === 'function') {
+        res.flush()
+      }
+
+      if (!ok) {
+        readable.pause()
+        res.once('drain', () => {
+          readable.resume()
+        })
+      }
+    })
+
+    readable.on('end', async () => {
+      if (waitUntilForEnd) {
+        await waitUntilForEnd
+      }
+
+      if (!res.writableFinished) {
+        res.end()
+      }
+
+      finished.resolve()
+    })
+
+    readable.on('error', (err) => {
+      if (isAbortError(err)) {
+        finished.resolve()
+        return
+      }
+
+      res.destroy(err)
+      finished.resolve()
+    })
+
+    await finished.promise
+  } catch (err: any) {
     if (isAbortError(err)) return
 
     throw new Error('failed to pipe response', { cause: err })

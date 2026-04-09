@@ -1,7 +1,7 @@
-import { promises as fs } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { getClientReferenceManifest, retry } from 'next-test-utils'
+import { parseRelativeUrl } from 'next/dist/shared/lib/router/utils/parse-relative-url'
 
 function getServerReferenceIdsFromBundle(source: string): string[] {
   // Reference IDs are strings with [0-9a-f] that are at least 32 characters long.
@@ -29,30 +29,57 @@ describe('app-dir - client-actions-tree-shaking', () => {
     logs.length = 0
   })
 
+  /**
+   * Parses the client reference manifest for a given route and returns the client chunks
+   */
+  function getClientChunks(route: string): Array<string> {
+    const clientManifest = getClientReferenceManifest(next, route)
+    const chunks = new Set<string>()
+    if (process.env.IS_TURBOPACK_TEST) {
+      // These only exist for turbopack and are encoded as files
+      // entryJSFiles is a map of module name to a set of chunks relative to `.next`
+      for (const entries of Object.values(clientManifest.entryJSFiles)) {
+        for (const chunk of entries) {
+          chunks.add(chunk)
+        }
+      }
+      // clientModules is a mapping from module name to a set of URLs
+      // So strip that prefix and add it to the chunks
+      for (const clientModule of Object.values(clientManifest.clientModules)) {
+        for (const chunk of clientModule.chunks) {
+          chunks.add(parseRelativeUrl(chunk).pathname.replace('/_next/', ''))
+        }
+      }
+    } else {
+      // webpack doens't use entryJSFiles, so we need to use clientModules but the format is different.
+      // chunks is a sequence of 'chunk-id', chunk-path pairs, so we need to skip the chunk-id
+      for (const clientModule of Object.values(clientManifest.clientModules)) {
+        for (let i = 1; i < clientModule.chunks.length; i += 2) {
+          chunks.add(clientModule.chunks[i])
+        }
+      }
+    }
+    return Array.from(chunks)
+  }
+
   it('should not bundle unused server reference id in client bundles', async () => {
-    const appDir = next.testDir
-
-    const appBuildManifest = require(
-      join(appDir, '.next/app-build-manifest.json')
-    )
-
-    const bundle1Files = appBuildManifest.pages['/route-1/page']
-    const bundle2Files = appBuildManifest.pages['/route-2/page']
-    const bundle3Files = appBuildManifest.pages['/route-3/page']
+    const bundle1Files = getClientChunks('/route-1/page')
+    const bundle2Files = getClientChunks('/route-2/page')
+    const bundle3Files = getClientChunks('/route-3/page')
 
     const bundle1Contents = await Promise.all(
       bundle1Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
     const bundle2Contents = await Promise.all(
       bundle2Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
     const bundle3Contents = await Promise.all(
       bundle3Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        next.readFile(join(next.distDir, file))
       )
     )
 

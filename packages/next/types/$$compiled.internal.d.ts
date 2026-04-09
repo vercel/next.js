@@ -8,40 +8,27 @@ declare module 'next/dist/compiled/postcss-modules-extract-imports'
 declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/babel/plugin-syntax-typescript'
 declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
-declare module 'next/dist/compiled/react-server-dom-webpack/static.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
-declare module 'next/dist/client/app-call-server' {
-  export function callServer(
-    actionId: string,
-    actionArgs: unknown[]
-  ): Promise<unknown>
-}
-declare module 'next/dist/client/app-find-source-map-url' {
-  export function findSourceMapURL(filename: string): string | null
-}
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client' {
-  export interface Options {
-    callServer?: CallServerCallback
-    temporaryReferences?: TemporaryReferenceSet
-    findSourceMapURL?: FindSourceMapURLCallback
-    replayConsoleLogs?: boolean
-    environmentName?: string
-  }
+  import type { Options } from 'react-server-dom-webpack/client.edge'
+
+  export { Options }
 
   type TemporaryReferenceSet = Map<string, unknown>
 
@@ -79,12 +66,21 @@ declare module 'react-server-dom-webpack/client' {
     options?: Options
   ): Promise<T>
 
+  export function createFromNodeStream<T>(
+    stream: import('node:stream').Readable,
+    serverConsumerManifest: Options['serverConsumerManifest'],
+    options?: Omit<Options, 'serverConsumerManifest' | 'debugChannel'> & {
+      // For the Node.js client we only support a single-direction debug channel.
+      debugChannel?: import('node:stream').Readable
+    }
+  ): Promise<T>
+
   export function createServerReference(
     id: string,
     callServer: CallServerCallback,
-    encodeFormAction?: EncodeFormActionCallback,
-    findSourceMapURL?: FindSourceMapURLCallback, // DEV-only
-    functionName?: string
+    encodeFormAction: EncodeFormActionCallback | undefined,
+    findSourceMapURL: FindSourceMapURLCallback | undefined, // DEV-only
+    functionName: string | undefined
   ): (...args: unknown[]) => Promise<unknown>
 
   export function createTemporaryReferenceSet(
@@ -93,8 +89,46 @@ declare module 'react-server-dom-webpack/client' {
 
   export function encodeReply(
     value: unknown,
-    options?: { temporaryReferences?: TemporaryReferenceSet }
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
   ): Promise<string | FormData>
+}
+
+declare module 'react-server-dom-webpack/client.browser' {
+  import {
+    createTemporaryReferenceSet,
+    encodeReply,
+    type CallServerCallback,
+    type FindSourceMapURLCallback,
+    type TemporaryReferenceSet,
+  } from 'react-server-dom-webpack/client.edge'
+
+  export { createTemporaryReferenceSet, encodeReply }
+
+  export interface Options {
+    callServer?: CallServerCallback
+    environmentName?: string
+    // It's optional but we want to avoid accidentally omitting it.
+    findSourceMapURL: FindSourceMapURLCallback | undefined
+    replayConsoleLogs?: boolean
+    temporaryReferences?: TemporaryReferenceSet
+    debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+    startTime?: number
+    endTime?: number
+    unstable_allowPartialStream?: boolean
+  }
+
+  export function createFromFetch<T>(
+    promiseForResponse: Promise<Response>,
+    options?: Options
+  ): Promise<T>
+
+  export function createFromReadableStream<T>(
+    stream: ReadableStream,
+    options?: Options
+  ): Promise<T>
 }
 
 declare module 'react-server-dom-webpack/server.edge' {
@@ -122,10 +156,21 @@ declare module 'react-server-dom-webpack/server.edge' {
     options?: {
       temporaryReferences?: TemporaryReferenceSet
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      // This is actually optional.
+      // But we want to not miss callsites accidentally and explicitly choose
+      // at each callsite which implementation to choose.
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
       signal?: AbortSignal
+      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      startTime?: number
     }
   ): ReadableStream<Uint8Array>
 
@@ -165,15 +210,56 @@ declare module 'react-server-dom-webpack/server.edge' {
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
+
+declare module 'react-server-dom-webpack/server' {
+  export * from 'react-server-dom-webpack/server.node'
+}
+
 declare module 'react-server-dom-webpack/server.node' {
   import type { Busboy } from 'busboy'
+
+  export {
+    createClientModuleProxy,
+    decodeReplyFromAsyncIterable,
+    registerServerReference,
+    renderToReadableStream,
+  } from 'react-server-dom-webpack/server.edge'
+
+  export function renderToPipeableStream(
+    model: any,
+    webpackMap: import('react-server-dom-webpack/server.edge').ClientManifest,
+    options?: {
+      temporaryReferences?: import('react-server-dom-webpack/server.edge').TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      onError?: (error: unknown) => void
+      signal?: AbortSignal
+      // React's Node API expects debugChannel to be a Node.js Writable
+      // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
+      // This differs from the web API which expects { readable?, writable? }.
+      debugChannel?: import('node:stream').Writable
+      startTime?: number
+    }
+  ): {
+    pipe<Writable extends NodeJS.WritableStream>(
+      destination: Writable
+    ): Writable
+    abort(reason?: unknown): void
+  }
 
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export type ImportManifestEntry = {
-    id: string
+    id: string | number
     // chunks is a double indexed array of chunkId / chunkFilename pairs
-    chunks: Array<string>
+    chunks: ReadonlyArray<string>
     name: string
     async?: boolean
   }
@@ -199,11 +285,11 @@ declare module 'react-server-dom-webpack/server.node' {
     options?: { temporaryReferences?: TemporaryReferenceSet }
   ): Promise<unknown[]>
 
-  export function decodeReply(
+  export function decodeReply<T>(
     body: string | FormData,
     webpackMap: ServerManifest,
     options?: { temporaryReferences?: TemporaryReferenceSet }
-  ): Promise<unknown[]>
+  ): Promise<T[]>
 
   export function decodeAction(
     body: FormData,
@@ -216,38 +302,84 @@ declare module 'react-server-dom-webpack/server.node' {
     serverManifest: ServerManifest
   ): Promise<ReactFormState | null>
 }
-declare module 'react-server-dom-webpack/static.edge' {
-  export function unstable_prerender(
+declare module 'react-server-dom-webpack/static' {
+  export type TemporaryReferenceSet = WeakMap<any, string>
+
+  export function prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {
         readonly id: string | number
-        readonly chunks: readonly string[]
+        readonly chunks: ReadonlyArray<string>
         readonly name: string
         readonly async?: boolean
       }
     },
     options?: {
       environmentName?: string | (() => string)
-      filterStackFrame?: (url: string, functionName: string) => boolean
+      // This is actually optional.
+      // But we want to not miss callsites accidentally and explicitly choose
+      // at each callsite which implementation to choose.
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
       identifierPrefix?: string
       signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
       onError?: (error: unknown) => void
-      onPostpone?: (reason: string) => void
     }
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
   }>
+
+  export function prerenderToNodeStream(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: ReadonlyArray<string>
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame:
+        | ((
+            url: string,
+            functionName: string,
+            lineNumber: number,
+            columnNumber: number
+          ) => boolean)
+        | undefined
+      identifierPrefix?: string
+      signal?: AbortSignal
+      temporaryReferences?: TemporaryReferenceSet
+      onError?: (error: unknown) => void
+    }
+  ): Promise<{
+    prelude: import('node:stream').Readable
+  }>
 }
 declare module 'react-server-dom-webpack/client.edge' {
   export interface Options {
+    callServer?: CallServerCallback
     serverConsumerManifest: ServerConsumerManifest
     nonce?: string
     encodeFormAction?: EncodeFormActionCallback
     temporaryReferences?: TemporaryReferenceSet
-    findSourceMapURL?: FindSourceMapURLCallback
+    // It's optional but we want to avoid accidentally omitting it.
+    findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     environmentName?: string
+    debugChannel?: { readable?: ReadableStream }
+    startTime?: number
+    endTime?: number
   }
 
   export type EncodeFormActionCallback = <A>(
@@ -334,6 +466,7 @@ declare module 'react-server-dom-webpack/client.edge' {
 }
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_MODULE_GLOBAL_NOT_FOUND'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
@@ -349,12 +482,6 @@ declare module 'next/dist/compiled/@napi-rs/triples' {
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
-}
-
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
 }
 
 declare module 'next/dist/compiled/commander' {
@@ -375,6 +502,9 @@ declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
 }
 
+// TODO: Use tsconfig#paths instead
+declare module 'next/dist/compiled/next-devtools'
+
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
 }
@@ -394,6 +524,11 @@ declare module 'next/dist/compiled/p-queue' {
   export = m
 }
 
+declare module 'next/dist/compiled/busboy' {
+  import m from 'busboy'
+  export = m
+}
+
 declare module 'next/dist/compiled/raw-body' {
   import m from 'raw-body'
   export = m
@@ -402,6 +537,33 @@ declare module 'next/dist/compiled/raw-body' {
 declare module 'next/dist/compiled/image-size' {
   import m from 'image-size'
   export = m
+}
+
+declare module 'next/dist/compiled/image-detector/detector.js' {
+  export function detector(
+    arr: Uint8Array
+  ):
+    | 'bmp'
+    | 'cur'
+    | 'dds'
+    | 'gif'
+    | 'heif'
+    | 'icns'
+    | 'ico'
+    | 'j2c'
+    | 'jp2'
+    | 'jpg'
+    | 'jxl'
+    | 'jxl-stream'
+    | 'ktx'
+    | 'png'
+    | 'pnm'
+    | 'psd'
+    | 'svg'
+    | 'tga'
+    | 'tiff'
+    | 'webp'
+    | undefined
 }
 
 declare module 'next/dist/compiled/@hapi/accept' {
@@ -413,10 +575,6 @@ declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m
 }
-declare module 'next/dist/compiled/amphtml-validator' {
-  import m from 'amphtml-validator'
-  export = m
-}
 
 declare module 'next/dist/compiled/superstruct' {
   import * as m from 'superstruct'
@@ -426,10 +584,6 @@ declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
   export = m
-}
-
-declare module 'next/dist/compiled/babel/code-frame' {
-  export * from '@babel/code-frame'
 }
 
 declare module 'next/dist/compiled/@next/font/dist/google' {
@@ -461,6 +615,20 @@ declare module 'next/dist/compiled/babel/core-lib-normalize-file'
 declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
 declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
 declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
+declare module 'next/dist/compiled/babel/plugin-syntax-dynamic-import'
+declare module 'next/dist/compiled/babel/plugin-syntax-import-attributes'
+declare module 'next/dist/compiled/babel/plugin-proposal-class-properties'
+declare module 'next/dist/compiled/babel/plugin-proposal-object-rest-spread'
+declare module 'next/dist/compiled/babel/plugin-transform-runtime'
+declare module 'styled-jsx/babel-test'
+declare module 'styled-jsx/babel'
+declare module 'next/dist/compiled/babel/plugin-transform-react-remove-prop-types'
+declare module 'next/dist/compiled/babel/plugin-syntax-bigint'
+declare module 'next/dist/compiled/babel/plugin-proposal-numeric-separator'
+declare module 'next/dist/compiled/babel/plugin-proposal-export-namespace-from'
+declare module 'next/dist/compiled/babel/preset-env'
+declare module 'next/dist/compiled/babel/preset-react'
+declare module 'next/dist/compiled/babel/preset-typescript'
 
 declare module 'next/dist/compiled/bytes' {
   import m from 'bytes'
@@ -546,6 +714,9 @@ declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
 }
+declare module 'next/dist/compiled/nanoid' {
+  export * from 'nanoid'
+}
 declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m
@@ -562,6 +733,7 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
+declare module 'next/dist/compiled/react-refresh/babel'
 declare module 'next/dist/compiled/send' {
   import m from 'send'
   export = m
@@ -586,14 +758,17 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/blob' {
+  import m from '@vercel/blob'
+  export = m
+}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
 }
 
 declare module 'next/dist/compiled/tar' {
-  import m from 'tar'
-  export = m
+  export * from 'tar'
 }
 
 declare module 'next/dist/compiled/terser' {
@@ -634,6 +809,18 @@ declare module 'next/dist/compiled/web-vitals-attribution' {}
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m
+}
+declare module 'next/dist/compiled/@vercel/routing-utils' {
+  import m from '@vercel/routing-utils/dist/superstatic'
+  export = m
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
+  export * from '@modelcontextprotocol/sdk/server/mcp'
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp' {
+  export * from '@modelcontextprotocol/sdk/server/streamableHttp'
 }
 
 declare module 'next/dist/compiled/comment-json' {
@@ -679,8 +866,8 @@ declare module 'next/dist/compiled/anser' {
   export = m
 }
 
-declare module 'next/dist/compiled/platform' {
-  import * as m from 'platform'
+declare module 'next/dist/compiled/safe-stable-stringify' {
+  import * as m from 'safe-stable-stringify'
   export = m
 }
 
@@ -743,6 +930,11 @@ declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
 }
 
+declare module 'next/dist/compiled/ipaddr.js' {
+  import * as m from 'ipaddr.js'
+  export = m
+}
+
 declare module 'next/dist/compiled/@opentelemetry/api' {
   import * as m from '@opentelemetry/api'
   export = m
@@ -772,13 +964,11 @@ declare module 'next/dist/compiled/webpack-sources3' {
 }
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import type webpackSources from 'webpack-sources1'
   import { type Compilation, Module } from 'webpack'
 
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  export let sources: typeof webpackSources
   export let StringXor: any
   export class ConcatenatedModule extends Module {
     rootModule: Module
@@ -888,6 +1078,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
     NormalModule,
     ResolvePluginInstance,
     ModuleFilenameHelpers,
+    WebpackError,
+    sources,
   } from 'webpack'
   export type {
     javascript,
@@ -895,4 +1087,6 @@ declare module 'next/dist/compiled/webpack/webpack' {
     LoaderContext,
     ModuleGraph,
   } from 'webpack'
+
+  export type CacheFacade = ReturnType<Compilation['getCache']>
 }

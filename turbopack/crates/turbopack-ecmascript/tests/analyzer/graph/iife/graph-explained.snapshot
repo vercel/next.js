@@ -1,4 +1,4 @@
-a = FreeVar(require)
+a (const after eval) = FreeVar(require)
 
 b = a
 

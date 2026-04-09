@@ -1,19 +1,23 @@
 #![allow(internal_features)]
 #![feature(proc_macro_diagnostic)]
 #![feature(allow_internal_unstable)]
-#![feature(box_patterns)]
 
 mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
-mod generic_type_macro;
+mod global_name;
 mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;
 mod value_trait_macro;
 
-extern crate proc_macro;
+mod expand;
+mod ident;
+mod primitive_input;
+mod self_filter;
+mod turbofmt_macro;
+mod value_trait_arguments;
 
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
@@ -53,17 +57,26 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
-/// Derives the `turbo_tasks::KeyValuePair` trait for a enum. Each variant need to have a `value`
-/// field which becomes part of the value enum and all remaining fields become part of the key.
-///
-/// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The key
-/// enum will have `Debug, Clone, PartialEq, Eq, Hash` derived and the value enum will have `Debug,
-/// Clone` derived. It's expected that all fields implement these traits.
-#[proc_macro_derive(KeyValuePair)]
-pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
-    derive::derive_key_value_pair(input)
+/// Derive macro for `ValueToString`. Also generates `ValueToStringify for &T`.
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
+#[proc_macro_derive(ValueToString, attributes(value_to_string))]
+pub fn derive_value_to_string(input: TokenStream) -> TokenStream {
+    derive::value_to_string_macro::derive_value_to_string(input)
 }
 
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.task_storage.html>
+/// -->
+#[proc_macro_attribute]
+pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
+    derive::task_storage(input)
+}
+
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -71,24 +84,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
 }
 
-/// Allows this trait to be used as part of a trait object inside of a value
-/// cell, in the form of `Vc<dyn MyTrait>`.
-///
-/// ## Arguments
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
-///
-/// ### 'no_debug`
-///
-/// Disables the automatic implementation of [`turbo_tasks::debug::ValueDebug`].
-///
-/// Example: `#[turbo_tasks::value_trait(no_debug)]`
-///
-/// ### 'resolved`
-///
-/// Adds [`turbo_tasks::NonLocalValue`] as a supertrait of this trait.
-///
-/// Example: `#[turbo_tasks::value_trait(resolved)]`
+/// <!--
+/// Documentation for this macro is available on the re-export:
+/// <https://turbopack-rust-docs.vercel.sh/rustdoc/turbo_tasks/attr.value_trait.html>
+/// -->
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -124,27 +123,24 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     primitive_macro::primitive(input)
 }
 
-/// Registers a value type that is generic over the `Vc` it contains.
+/// Async format macro. Returns `impl Future<Output = Result<RcStr>>`.
 ///
-/// # Example
-///
+/// ```ignore
+/// let s: RcStr = turbofmt!("asset {} in path {}", asset.ident(), base_path).await?;
 /// ```
-/// use crate::generic_type as __turbo_tasks_internal_generic_type;
-///
-/// __turbo_tasks_internal_generic_type!(<A, B>, GenericType<Vc<A>, Vc<B>>);
-///
-/// // Now you can do the following, for any `A` and `B` value types:
-///
-/// let vc: Vc<GenericType<Vc<u32>, Vc<RcStr>>> = Vc::cell(
-///     GenericType::new(
-///         Vc::cell(42),
-///         Vc::cell("hello".to_string())
-///     )
-/// );
-/// ```
-#[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
-#[proc_macro_error]
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
 #[proc_macro]
-pub fn generic_type(input: TokenStream) -> TokenStream {
-    generic_type_macro::generic_type(input)
+pub fn turbofmt(input: TokenStream) -> TokenStream {
+    turbofmt_macro::turbofmt(input)
+}
+
+/// Async bail macro. Resolves arguments then calls `anyhow::bail!()`.
+///
+/// ```ignore
+/// turbobail!("asset {} is not in path {}", asset.ident(), base_path);
+/// ```
+#[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
+#[proc_macro]
+pub fn turbobail(input: TokenStream) -> TokenStream {
+    turbofmt_macro::turbobail(input)
 }

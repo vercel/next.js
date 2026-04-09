@@ -4,27 +4,31 @@ pub mod retry;
 mod run;
 
 use std::{
-    borrow::Cow,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
+    pin::Pin,
     sync::{Arc, Mutex, Weak},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow, bail};
 use futures::FutureExt;
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
+use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
+    ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
-    registry,
+    message_queue::CompilationEvent,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
-    TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
-pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
+pub use crate::run::{
+    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+};
 
 enum Task {
     Spawned(Event),
@@ -41,25 +45,27 @@ pub struct VcStorage {
 impl VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
         arg: Box<dyn MagicAny>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
-        let future = registry::get_function(func).execute(this_arg, &*arg);
+        let future = func.execute(this_arg, &*arg);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();
             tasks.push(Task::Spawned(Event::new(move || {
-                format!("Task({i})::event")
+                move || format!("Task({i})::event")
             })));
             i
         };
-        let task_id = TaskId::from(i as u32 + 1);
+        let task_id = TaskId::try_from(u32::try_from(i + 1).unwrap()).unwrap();
+        let execution_id = ExecutionId::try_from(u16::try_from(i + 1).unwrap()).unwrap();
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
+            execution_id,
             async move {
                 let result = AssertUnwindSafe(future).catch_unwind().await;
 
@@ -88,7 +94,7 @@ impl VcStorage {
 impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
-        func: turbo_tasks::FunctionId,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -97,7 +103,7 @@ impl TurboTasksCallApi for VcStorage {
     }
     fn native_call(
         &self,
-        _func: turbo_tasks::FunctionId,
+        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
         _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -107,8 +113,7 @@ impl TurboTasksCallApi for VcStorage {
 
     fn trait_call(
         &self,
-        _trait_type: turbo_tasks::TraitTypeId,
-        _trait_fn_name: Cow<'static, str>,
+        _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
@@ -116,10 +121,21 @@ impl TurboTasksCallApi for VcStorage {
         unreachable!()
     }
 
+    fn run(
+        &self,
+        _future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<(), turbo_tasks::backend::TurboTasksExecutionError>> + Send>,
+    > {
+        unreachable!()
+    }
+
     fn run_once(
         &self,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
+    > {
         unreachable!()
     }
 
@@ -127,23 +143,31 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _reason: StaticOrArc<dyn InvalidationReason>,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
+    > {
         unreachable!()
     }
 
-    fn run_once_process(
+    fn start_once_process(
         &self,
-        _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+        _future: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unreachable!()
+    }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
+        unimplemented!()
+    }
+
+    fn get_task_name(&self, task: TaskId) -> String {
+        format!("Task({})", task)
     }
 }
 
 impl TurboTasksApi for VcStorage {
-    fn pin(&self) -> Arc<dyn TurboTasksApi> {
-        self.this.upgrade().unwrap()
-    }
-
     fn invalidate(&self, _task: TaskId) {
         unreachable!()
     }
@@ -157,17 +181,13 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn invalidate_serialization(&self, _task: TaskId) {
-        // ingore
-    }
-
-    fn notify_scheduled_tasks(&self) {
         // ignore
     }
 
     fn try_read_task_output(
         &self,
         id: TaskId,
-        _consistency: ReadConsistency,
+        _options: ReadOutputOptions,
     ) -> Result<Result<RawVc, EventListener>> {
         let tasks = self.tasks.lock().unwrap();
         let i = *id - 1;
@@ -176,23 +196,16 @@ impl TurboTasksApi for VcStorage {
             Task::Spawned(event) => Ok(Err(event.listen())),
             Task::Finished(result) => match result {
                 Ok(vc) => Ok(Ok(*vc)),
-                Err(err) => Err(anyhow!(err.clone())),
+                Err(err) => bail!(err.clone()),
             },
         }
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_task_output(task, consistency)
     }
 
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
         Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
@@ -202,32 +215,18 @@ impl TurboTasksApi for VcStorage {
         }
         .into_typed(index.type_id)))
     }
-
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        let map = self.cells.lock().unwrap();
-        Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
-            cell.to_owned()
-        } else {
-            Default::default()
-        }
-        .into_typed(index.type_id)))
-    }
-
-    fn try_read_own_task_cell_untracked(
+    fn try_read_own_task_cell(
         &self,
         current_task: TaskId,
         index: CellId,
+        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        self.read_own_task_cell(current_task, index)
+        self.read_own_task_cell(current_task, index, options)
     }
 
     fn try_read_local_output(
         &self,
-        _parent_task_id: TaskId,
+        _execution_id: ExecutionId,
         _local_task_id: LocalTaskId,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
@@ -258,7 +257,12 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
+    fn read_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        _options: ReadCellOptions,
+    ) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
         Ok(if let Some(cell) = map.get(&(task, index)) {
             cell.to_owned()
@@ -268,7 +272,16 @@ impl TurboTasksApi for VcStorage {
         .into_typed(index.type_id))
     }
 
-    fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent) {
+    fn update_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        _is_serializable_cell_content: bool,
+        content: CellContent,
+        _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        _content_hash: Option<[u8; 16]>,
+        _verification_mode: VerificationMode,
+    ) {
         let mut map = self.cells.lock().unwrap();
         let cell = map.entry((task, index)).or_default();
         *cell = content;
@@ -286,14 +299,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
-    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
-        // no-op
-    }
-
-    fn detached_for_testing(
+    fn spawn_detached_for_testing(
         &self,
-        _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        _f: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unimplemented!()
     }
 
@@ -304,6 +313,19 @@ impl TurboTasksApi for VcStorage {
     fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         Box::pin(async {})
     }
+
+    /// Should not be called on the testing VcStorage. These methods are only implemented for
+    /// structs with access to a `MessageQueue` like `TurboTasks`.
+    fn subscribe_to_compilation_events(
+        &self,
+        _event_types: Option<Vec<String>>,
+    ) -> Receiver<Arc<dyn CompilationEvent>> {
+        unimplemented!()
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        false
+    }
 }
 
 impl VcStorage {
@@ -313,7 +335,8 @@ impl VcStorage {
                 this: weak.clone(),
                 ..Default::default()
             }),
-            TaskId::from(u32::MAX),
+            TaskId::MAX,
+            ExecutionId::MIN,
             f,
         )
     }

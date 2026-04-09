@@ -1,18 +1,20 @@
-use std::cmp::Ordering;
+use std::{
+    fmt::{self, Debug, Display},
+    pin::Pin,
+    sync::Arc,
+};
 
+use anyhow::Result;
+use bincode::{Decode, Encode};
+use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    event::{Event, EventListener},
-    registry,
-    util::SharedError,
-    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
+    CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
+    backend::TransientTaskRoot,
+    event::{Event, EventDescription, EventListener},
 };
 
-use crate::{
-    backend::TaskDataCategory,
-    data_storage::{AutoMapStorage, OptionStorage, Storage},
-};
+use crate::error::TaskError;
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -31,41 +33,67 @@ macro_rules! transient_traits {
                 panic!(concat!(stringify!($name), " cannot be compared"));
             }
         }
+
+        impl Eq for $name {}
     };
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CellRef {
     pub task: TaskId,
     pub cell: CellId,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+impl CellRef {
+    /// Returns true if this cell reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectibleRef {
     pub collectible_type: TraitTypeId,
     pub cell: CellRef,
 }
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+impl CollectibleRef {
+    /// Returns true if this collectible reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.cell.is_transient()
+    }
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CollectiblesRef {
     pub task: TaskId,
     pub collectible_type: TraitTypeId,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+impl CollectiblesRef {
+    /// Returns true if this collectibles reference points to a transient task.
+    pub fn is_transient(&self) -> bool {
+        self.task.is_transient()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
-    Error,
-    Panic,
+    Error(Arc<TaskError>),
 }
+
 impl OutputValue {
-    fn is_transient(&self) -> bool {
+    /// Returns true if this output value references a transient task.
+    ///
+    /// Transient values should not be persisted to disk since they reference
+    /// tasks that will not exist after restart.
+    pub fn is_transient(&self) -> bool {
         match self {
             OutputValue::Cell(cell) => cell.task.is_transient(),
             OutputValue::Output(task) => task.is_transient(),
-            OutputValue::Error => false,
-            OutputValue::Panic => false,
+            OutputValue::Error(_) => false,
         }
     }
 }
@@ -96,7 +124,7 @@ impl ActivenessState {
             root_ty: None,
             active_until_clean: false,
             all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
+                move || format!("ActivenessState::all_clean_event {id:?}")
             }),
         }
     }
@@ -142,159 +170,52 @@ impl ActivenessState {
 
 transient_traits!(ActivenessState);
 
-impl Eq for ActivenessState {}
+type TransientTaskOnce =
+    Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DirtyState {
-    pub clean_in_session: Option<SessionId>,
+pub enum TransientTask {
+    /// A root task that will track dependencies and re-execute when
+    /// dependencies change. Task will eventually settle to the correct
+    /// execution.
+    ///
+    /// Always active. Automatically scheduled.
+    Root(TransientTaskRoot),
+
+    // TODO implement these strongly consistency
+    /// A single root task execution. It won't track dependencies.
+    /// Task will definitely include all invalidations that happened before the
+    /// start of the task. It may or may not include invalidations that
+    /// happened after that. It may see these invalidations partially
+    /// applied.
+    ///
+    /// Active until done. Automatically scheduled.
+    Once(TransientTaskOnce),
 }
 
-impl DirtyState {
-    pub fn get(&self, session: SessionId) -> bool {
-        self.clean_in_session != Some(session)
+impl Debug for TransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransientTask::Root(_) => f.write_str("TransientTask::Root"),
+            TransientTask::Once(_) => f.write_str("TransientTask::Once"),
+        }
     }
 }
 
-fn add_with_diff(v: &mut i32, u: i32) -> i32 {
-    let old = *v;
-    *v += u;
-    if old <= 0 && *v > 0 {
-        1
-    } else if old > 0 && *v <= 0 {
-        -1
-    } else {
-        0
+impl Display for TransientTask {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransientTask::Root(_) => f.write_str("Root Task"),
+            TransientTask::Once(_) => f.write_str("Once Task"),
+        }
     }
 }
 
-/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
-/// a different count for a specific session. It only need to store the highest session count, since
-/// old sessions can't be visited again, so we can ignore their counts.
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DirtyContainerCount {
-    pub count: i32,
-    pub count_in_session: Option<(SessionId, i32)>,
-}
+transient_traits!(TransientTask);
 
-impl DirtyContainerCount {
-    /// Get the count for a specific session. It's only expected to be asked for the current
-    /// session, since old session counts might be dropped.
-    pub fn get(&self, session: SessionId) -> i32 {
-        if let Some((s, count)) = self.count_in_session {
-            if s == session {
-                return count;
-            }
-        }
-        self.count
-    }
-
-    /// Increase/decrease the count by the given value.
-    pub fn update(&mut self, count: i32) -> DirtyContainerCount {
-        self.update_count(&DirtyContainerCount {
-            count,
-            count_in_session: None,
-        })
-    }
-
-    /// Increase/decrease the count by the given value, but does not update the count for a specific
-    /// session. This matches the "dirty, but clean in one session" behavior.
-    pub fn update_session_dependent(
-        &mut self,
-        ignore_session: SessionId,
-        count: i32,
-    ) -> DirtyContainerCount {
-        self.update_count(&DirtyContainerCount {
-            count,
-            count_in_session: Some((ignore_session, 0)),
-        })
-    }
-
-    /// Adds the `count` to the current count. This correctly handles session dependent counts.
-    /// Returns a new count object that represents the aggregated count. The aggregated count will
-    /// be +1 when the self count changes from <= 0 to > 0 and -1 when the self count changes from >
-    /// 0 to <= 0. The same for the session dependent count.
-    pub fn update_count(&mut self, count: &DirtyContainerCount) -> DirtyContainerCount {
-        let mut diff = DirtyContainerCount::default();
-        match (
-            self.count_in_session.as_mut(),
-            count.count_in_session.as_ref(),
-        ) {
-            (None, None) => {}
-            (Some((s, c)), None) => {
-                let d = add_with_diff(c, count.count);
-                diff.count_in_session = Some((*s, d));
-            }
-            (None, Some((s, c))) => {
-                let mut new = self.count;
-                let d = add_with_diff(&mut new, *c);
-                self.count_in_session = Some((*s, new));
-                diff.count_in_session = Some((*s, d));
-            }
-            (Some((s1, c1)), Some((s2, c2))) => match (*s1).cmp(s2) {
-                Ordering::Less => {
-                    let mut new = self.count;
-                    let d = add_with_diff(&mut new, *c2);
-                    self.count_in_session = Some((*s2, new));
-                    diff.count_in_session = Some((*s2, d));
-                }
-                Ordering::Equal => {
-                    let d = add_with_diff(c1, *c2);
-                    diff.count_in_session = Some((*s1, d));
-                }
-                Ordering::Greater => {
-                    let d = add_with_diff(c1, count.count);
-                    diff.count_in_session = Some((*s1, d));
-                }
-            },
-        }
-        let d = add_with_diff(&mut self.count, count.count);
-        diff.count = d;
-        diff
-    }
-
-    /// Applies a dirty state to the count. Returns an aggregated count that represents the change.
-    pub fn update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, 1)
-        } else {
-            self.update(1)
-        }
-    }
-
-    /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
-    /// the change.
-    pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
-        if let Some(clean_in_session) = dirty.clean_in_session {
-            self.update_session_dependent(clean_in_session, -1)
-        } else {
-            self.update(-1)
-        }
-    }
-
-    /// Replaces the old dirty state with the new one. Returns an aggregated count that represents
-    /// the change.
-    pub fn replace_dirty_state(
-        &mut self,
-        old: &DirtyState,
-        new: &DirtyState,
-    ) -> DirtyContainerCount {
-        let mut diff = self.undo_update_with_dirty_state(old);
-        diff.update_count(&self.update_with_dirty_state(new));
-        diff
-    }
-
-    /// Returns true if the count is zero and appling it would have no effect
-    pub fn is_zero(&self) -> bool {
-        self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
-    }
-
-    /// Negates the counts.
-    pub fn negate(&self) -> Self {
-        Self {
-            count: -self.count,
-            count_in_session: self.count_in_session.map(|(s, c)| (s, -c)),
-        }
-    }
+#[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
+pub enum Dirtyness {
+    Dirty(TaskPriority),
+    SessionDependent,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -303,13 +224,26 @@ pub enum RootType {
     OnceTask,
 }
 
+impl Display for RootType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RootType::RootTask => f.write_str("Root Task"),
+            RootType::OnceTask => f.write_str("Once Task"),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct InProgressStateInner {
     pub stale: bool,
     #[allow(dead_code)]
     pub once_task: bool,
     pub session_dependent: bool,
+    /// Early marking as completed. This is set before the output is available and will ignore full
+    /// task completion of the task for strongly consistent reads.
     pub marked_as_completed: bool,
+    /// Event that is triggered when the task output is available (completed flag set).
+    /// This is used to wait for completion when reading the task output before it's available.
     pub done_event: Event,
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
@@ -318,13 +252,18 @@ pub struct InProgressStateInner {
 
 #[derive(Debug)]
 pub enum InProgressState {
-    Scheduled { done_event: Event },
+    Scheduled {
+        /// Event that is triggered when the task output is available (completed flag set).
+        /// This is used to wait for completion when reading the task output before it's available.
+        done_event: Event,
+        /// Reason for scheduling the task.
+        reason: TaskExecutionReason,
+    },
     InProgress(Box<InProgressStateInner>),
+    Canceled,
 }
 
 transient_traits!(InProgressState);
-
-impl Eq for InProgressState {}
 
 #[derive(Debug)]
 pub struct InProgressCellState {
@@ -333,329 +272,63 @@ pub struct InProgressCellState {
 
 transient_traits!(InProgressCellState);
 
-impl Eq for InProgressCellState {}
-
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
             event: Event::new(move || {
-                format!("InProgressCellState::event ({} {:?})", task_id, cell)
+                move || format!("InProgressCellState::event ({task_id} {cell:?})")
             }),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
     pub effective: u32,
 }
 
-#[derive(Debug, Clone, KeyValuePair, Serialize, Deserialize)]
-pub enum CachedDataItem {
-    // Output
-    Output {
-        value: OutputValue,
-    },
-    Collectible {
-        collectible: CollectibleRef,
-        value: i32,
-    },
-
-    // State
-    Dirty {
-        value: DirtyState,
-    },
-
-    // Children
-    Child {
-        task: TaskId,
-        value: (),
-    },
-
-    // Cells
-    CellData {
-        cell: CellId,
-        value: TypedSharedReference,
-    },
-    CellTypeMaxIndex {
-        cell_type: ValueTypeId,
-        value: u32,
-    },
-
-    // Dependencies
-    OutputDependency {
-        target: TaskId,
-        value: (),
-    },
-    CellDependency {
-        target: CellRef,
-        value: (),
-    },
-    CollectiblesDependency {
-        target: CollectiblesRef,
-        value: (),
-    },
-
-    // Dependent
-    OutputDependent {
-        task: TaskId,
-        value: (),
-    },
-    CellDependent {
-        cell: CellId,
-        task: TaskId,
-        value: (),
-    },
-    CollectiblesDependent {
-        collectible_type: TraitTypeId,
-        task: TaskId,
-        value: (),
-    },
-
-    // Aggregation Graph
-    AggregationNumber {
-        value: AggregationNumber,
-    },
-    Follower {
-        task: TaskId,
-        value: i32,
-    },
-    Upper {
-        task: TaskId,
-        value: i32,
-    },
-
-    // Aggregated Data
-    AggregatedDirtyContainer {
-        task: TaskId,
-        value: DirtyContainerCount,
-    },
-    AggregatedCollectible {
-        collectible: CollectibleRef,
-        value: i32,
-    },
-    AggregatedDirtyContainerCount {
-        value: DirtyContainerCount,
-    },
-
-    // Transient Root Type
-    #[serde(skip)]
-    Activeness {
-        value: ActivenessState,
-    },
-
-    // Transient In Progress state
-    #[serde(skip)]
-    InProgress {
-        value: InProgressState,
-    },
-    #[serde(skip)]
-    InProgressCell {
-        cell: CellId,
-        value: InProgressCellState,
-    },
-    #[serde(skip)]
-    OutdatedCollectible {
-        collectible: CollectibleRef,
-        value: i32,
-    },
-    #[serde(skip)]
-    OutdatedOutputDependency {
-        target: TaskId,
-        value: (),
-    },
-    #[serde(skip)]
-    OutdatedCellDependency {
-        target: CellRef,
-        value: (),
-    },
-    #[serde(skip)]
-    OutdatedCollectiblesDependency {
-        target: CollectiblesRef,
-        value: (),
-    },
-
-    // Transient Error State
-    #[serde(skip)]
-    Error {
-        value: SharedError,
-    },
+/// Monotonic increasing distance range to leaf nodes when following "dependencies" edges.
+/// It is a range and ranges might overlap. There is a strictly monotonic increasing `distance`
+/// value. `max_distance_in_buffer` value might not be monotonic. The `max_distance_in_buffer` value
+/// is used as buffer zone to avoid too many updates to dependent nodes when the leaf distance
+/// increases slightly. When the leaf distance is increased it tries to keep the
+/// `max_distance_in_buffer` value equal. When increasing there are three cases:
+/// - `distance` >= `distance` of the dependency + 1: no change.
+/// - `distance` <= `max_distance_in_buffer`: only `distance` is increased to the smallest possible
+///   value.
+/// - `distance` > `max_distance_in_buffer`: `distance` is increased to the `max_distance_in_buffer`
+///   value of the dependency + 1 and `max_distance_in_buffer` is increased to `distance` + buffer
+///   zone.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Encode, Decode)]
+pub struct LeafDistance {
+    /// This is the strictly monotonic increasing minimum leaf distance.
+    pub distance: u32,
+    /// A buffer zone value in which is usually safe to increase the leaf distance without causing
+    /// too many updates to dependent nodes.
+    /// Newly added dependents might be added within this buffer zone to avoid propagating updates,
+    /// therefore one can't rely on this being safe. It's only "often safe".
+    pub max_distance_in_buffer: u32,
 }
 
-impl CachedDataItem {
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItem::Output { value } => value.is_transient(),
-            CachedDataItem::Collectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItem::Dirty { .. } => true,
-            CachedDataItem::Child { task, .. } => !task.is_transient(),
-            CachedDataItem::CellData { .. } => true,
-            CachedDataItem::CellTypeMaxIndex { .. } => true,
-            CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
-            CachedDataItem::CellDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItem::CollectiblesDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItem::OutputDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::CellDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::CollectiblesDependent { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregationNumber { .. } => true,
-            CachedDataItem::Follower { task, .. } => !task.is_transient(),
-            CachedDataItem::Upper { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedCollectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItem::Activeness { .. } => false,
-            CachedDataItem::InProgress { .. } => false,
-            CachedDataItem::InProgressCell { .. } => false,
-            CachedDataItem::OutdatedCollectible { .. } => false,
-            CachedDataItem::OutdatedOutputDependency { .. } => false,
-            CachedDataItem::OutdatedCellDependency { .. } => false,
-            CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItem::Error { .. } => false,
-        }
-    }
-
-    pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
-        CachedDataItem::InProgress {
-            value: InProgressState::Scheduled {
-                done_event: Event::new(move || format!("{} done_event", description())),
-            },
-        }
+impl InProgressState {
+    /// Create a new scheduled state with a done event.
+    pub fn new_scheduled(reason: TaskExecutionReason, description: EventDescription) -> Self {
+        let done_event = Event::new(move || move || format!("{description} done_event"));
+        InProgressState::Scheduled { done_event, reason }
     }
 
     pub fn new_scheduled_with_listener(
-        description: impl Fn() -> String + Sync + Send + 'static,
-        note: impl Fn() -> String + Sync + Send + 'static,
+        reason: TaskExecutionReason,
+        description: EventDescription,
+        note: EventDescription,
     ) -> (Self, EventListener) {
-        let done_event = Event::new(move || format!("{} done_event", description()));
+        let done_event = Event::new(move || move || format!("{description} done_event"));
         let listener = done_event.listen_with_note(note);
-        (
-            CachedDataItem::InProgress {
-                value: InProgressState::Scheduled { done_event },
-            },
-            listener,
-        )
-    }
-
-    pub fn category(&self) -> TaskDataCategory {
-        match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
-            | Self::CellTypeMaxIndex { .. }
-            | Self::OutputDependency { .. }
-            | Self::CellDependency { .. }
-            | Self::CollectiblesDependency { .. }
-            | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
-
-            Self::Output { .. }
-            | Self::AggregationNumber { .. }
-            | Self::Dirty { .. }
-            | Self::Follower { .. }
-            | Self::Upper { .. }
-            | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
-
-            Self::OutdatedCollectible { .. }
-            | Self::OutdatedOutputDependency { .. }
-            | Self::OutdatedCellDependency { .. }
-            | Self::OutdatedCollectiblesDependency { .. }
-            | Self::InProgressCell { .. }
-            | Self::InProgress { .. }
-            | Self::Error { .. }
-            | Self::Activeness { .. } => TaskDataCategory::All,
-        }
+        (InProgressState::Scheduled { done_event, reason }, listener)
     }
 }
-
-impl CachedDataItemKey {
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItemKey::Output { .. } => true,
-            CachedDataItemKey::Collectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItemKey::Dirty { .. } => true,
-            CachedDataItemKey::Child { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CellData { .. } => true,
-            CachedDataItemKey::CellTypeMaxIndex { .. } => true,
-            CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
-            CachedDataItemKey::CellDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItemKey::CollectiblesDependency { target, .. } => !target.task.is_transient(),
-            CachedDataItemKey::OutputDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CellDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::CollectiblesDependent { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregationNumber { .. } => true,
-            CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
-            CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
-                !collectible.cell.task.is_transient()
-            }
-            CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItemKey::Activeness { .. } => false,
-            CachedDataItemKey::InProgress { .. } => false,
-            CachedDataItemKey::InProgressCell { .. } => false,
-            CachedDataItemKey::OutdatedCollectible { .. } => false,
-            CachedDataItemKey::OutdatedOutputDependency { .. } => false,
-            CachedDataItemKey::OutdatedCellDependency { .. } => false,
-            CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItemKey::Error { .. } => false,
-        }
-    }
-
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItemKey::CellData { .. })
-    }
-
-    pub fn category(&self) -> TaskDataCategory {
-        self.ty().category()
-    }
-}
-
-impl CachedDataItemType {
-    pub fn category(&self) -> TaskDataCategory {
-        match self {
-            Self::Collectible { .. }
-            | Self::Child { .. }
-            | Self::CellData { .. }
-            | Self::CellTypeMaxIndex { .. }
-            | Self::OutputDependency { .. }
-            | Self::CellDependency { .. }
-            | Self::CollectiblesDependency { .. }
-            | Self::OutputDependent { .. }
-            | Self::CellDependent { .. }
-            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
-
-            Self::Output { .. }
-            | Self::AggregationNumber { .. }
-            | Self::Dirty { .. }
-            | Self::Follower { .. }
-            | Self::Upper { .. }
-            | Self::AggregatedDirtyContainer { .. }
-            | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
-
-            Self::OutdatedCollectible { .. }
-            | Self::OutdatedOutputDependency { .. }
-            | Self::OutdatedCellDependency { .. }
-            | Self::OutdatedCollectiblesDependency { .. }
-            | Self::InProgressCell { .. }
-            | Self::InProgress { .. }
-            | Self::Error { .. }
-            | Self::Activeness { .. } => TaskDataCategory::All,
-        }
-    }
-}
-
 /// Used by the [`get_mut`][crate::backend::storage::get_mut] macro to restrict mutable access to a
 /// subset of types. No mutable access should be allowed for persisted data, since that would break
 /// persisting.
@@ -663,43 +336,4 @@ impl CachedDataItemType {
 pub mod allow_mut_access {
     pub const InProgress: () = ();
     pub const Activeness: () = ();
-}
-
-impl CachedDataItemValue {
-    pub fn is_persistent(&self) -> bool {
-        match self {
-            CachedDataItemValue::Output { value } => !value.is_transient(),
-            CachedDataItemValue::CellData { value } => {
-                registry::get_value_type(value.0).is_serializable()
-            }
-            _ => true,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CachedDataUpdate {
-    /// Sets the current task id.
-    Task { task: TaskId },
-    /// An item was added. There was no old value.
-    New { item: CachedDataItem },
-    /// An item was removed.
-    Removed { old_item: CachedDataItem },
-    /// An item was replaced. This is step 1 and tells about the key and the old value
-    Replace1 { old_item: CachedDataItem },
-    /// An item was replaced. This is step 2 and tells about the new value.
-    Replace2 { value: CachedDataItemValue },
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[test]
-    fn test_sizes() {
-        assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
-        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
-        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
-    }
 }

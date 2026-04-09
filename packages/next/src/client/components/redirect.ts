@@ -1,11 +1,17 @@
-import { actionAsyncStorage } from '../../server/app-render/action-async-storage.external'
 import { RedirectStatusCode } from './redirect-status-code'
 import {
-  RedirectType,
+  type RedirectType,
   type RedirectError,
   isRedirectError,
   REDIRECT_ERROR_CODE,
 } from './redirect-error'
+
+const actionAsyncStorage =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
+      ).actionAsyncStorage
+    : undefined
 
 export function getRedirectError(
   url: string,
@@ -34,14 +40,9 @@ export function redirect(
   url: string,
   type?: RedirectType
 ): never {
-  const actionStore = actionAsyncStorage.getStore()
-  const redirectType =
-    type || (actionStore?.isAction ? RedirectType.push : RedirectType.replace)
-  throw getRedirectError(
-    url,
-    redirectType,
-    RedirectStatusCode.TemporaryRedirect
-  )
+  type ??= actionAsyncStorage?.getStore()?.isAction ? 'push' : 'replace'
+
+  throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
 }
 
 /**
@@ -58,7 +59,7 @@ export function redirect(
 export function permanentRedirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type: RedirectType = 'replace'
 ): never {
   throw getRedirectError(url, type, RedirectStatusCode.PermanentRedirect)
 }

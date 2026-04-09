@@ -1,38 +1,124 @@
 use std::borrow::Cow;
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
+use either::Either;
+use futures::join;
 use next_core::{
     next_client_reference::{
-        find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
-        ServerEntries, VisitedClientReferenceGraphNodes,
+        ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
+        find_server_entries,
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
-    issue::Issue,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
+use turbopack_css::{CssModule, EcmascriptCssModule};
 
 use crate::{
-    client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
-    dynamic_imports::{map_next_dynamic, DynamicImportEntries, DynamicImportEntriesMapType},
-    server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
+    client_references::{ClientManifestEntryType, ClientReferenceData, map_client_references},
+    dynamic_imports::{DynamicImportEntries, DynamicImportEntriesMapType, map_next_dynamic},
+    server_actions::{
+        ActionMeta, AllActions, AllModuleActions, map_server_actions, to_rsc_context,
+    },
 };
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
-    graph: ResolvedVc<SingleModuleGraph>,
+
     /// list of NextDynamicEntryModules
     data: ResolvedVc<DynamicImportEntries>,
+}
+
+#[turbo_tasks::value]
+pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
+
+#[turbo_tasks::value_impl]
+impl NextDynamicGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = &graphs.iter_graphs().await?;
+        let next_dynamic = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    NextDynamicGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating next/dynamic graphs"))
+        .await?;
+        Ok(Self(next_dynamic).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve().strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
+    /// given endpoint.
+    #[turbo_tasks::function]
+    pub async fn get_next_dynamic_imports_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
+        let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
+        async move {
+            if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
+            } else {
+                let result = self
+                    .0
+                    .iter()
+                    .map(|graph| async move {
+                        Ok(graph
+                            .get_next_dynamic_imports_for_endpoint(entry)
+                            .await?
+                            .into_iter()
+                            .map(|(k, v)| (*k, *v))
+                            // TODO remove this collect and return an iterator instead
+                            .collect::<Vec<_>>())
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                Ok(Vc::cell(result.into_iter().collect()))
+            }
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -47,34 +133,10 @@ pub struct DynamicImportEntriesWithImporter(
 impl NextDynamicGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<SingleModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_next_dynamic(*graph);
-
-        // TODO shrink graph here, using the information from
-        //  - `mapped` (which lists the relevant nodes)
-        //  - `graph.entries` (which lists the page/route/... entries we need to keep)
-
-        // This would clone the graph and allow changing the node weights. We can probably get away
-        // with keeping the sidecar information separate from the graph itself, though.
-        //
-        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
-        // for idx in graph.node_indices() {
-        //     let weight = *graph.node_weight(idx).unwrap();
-        //     let new_idx = reduced_graph.add_node(weight);
-        //     reduced_modules.insert(weight, new_idx);
-        //     for e in graph.edges_directed(idx, petgraph::Direction::Outgoing) {
-        //         let target_weight = *graph.node_weight(e.target()).context("Missing
-        // target")?;         if let Some(new_target_idx) =
-        // reduced_modules.get(&target_weight) {
-        // reduced_graph.add_edge(new_idx, *new_target_idx, ());         } else {
-        //             let new_idx = reduced_graph.add_node(target_weight);
-        //             reduced_modules.insert(target_weight, new_idx);
-        //         }
-        //     }
-        // }
 
         Ok(NextDynamicGraph {
             is_single_page,
@@ -92,7 +154,7 @@ impl NextDynamicGraph {
         let span = tracing::info_span!("collect next/dynamic imports for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = &*self.graph.await?;
+            let graph = self.graph.await?;
 
             #[derive(Clone, PartialEq, Eq)]
             enum VisitState {
@@ -100,62 +162,70 @@ impl NextDynamicGraph {
                 InClientReference(ClientReferenceType),
             }
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.graphs.first().unwrap().entry_modules())
             };
 
             let mut result = vec![];
 
             // module -> the client reference entry (if any)
             let mut state_map = FxHashMap::default();
-            graph.traverse_edges_from_entries(entries, |parent_info, node| {
-                let module = node.module;
-                let Some((parent_node, _)) = parent_info else {
-                    state_map.insert(module, VisitState::Entry);
-                    return GraphTraversalAction::Continue;
-                };
-                let parent_module = parent_node.module;
-
-                let module_type = data.get(&module);
-                let parent_state = state_map.get(&parent_module).unwrap().clone();
-                let parent_client_reference =
-                    if let Some(DynamicImportEntriesMapType::ClientReference(module)) = module_type
-                    {
-                        Some(ClientReferenceType::EcmascriptClientReference(*module))
-                    } else if let VisitState::InClientReference(ty) = parent_state {
-                        Some(ty)
-                    } else {
-                        None
+            graph.traverse_edges_dfs(
+                entries,
+                &mut (),
+                |parent_info, node, _| {
+                    let module = node;
+                    let Some((parent_node, _)) = parent_info else {
+                        state_map.insert(module, VisitState::Entry);
+                        return Ok(GraphTraversalAction::Continue);
                     };
+                    let parent_module = parent_node;
 
-                match module_type {
-                    Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
-                        result.push((*dynamic_entry, parent_client_reference));
+                    let module_type = data.get(&module);
+                    let parent_state = state_map.get(&parent_module).unwrap().clone();
+                    let parent_client_reference =
+                        if let Some(DynamicImportEntriesMapType::ClientReference(module)) =
+                            module_type
+                        {
+                            Some(ClientReferenceType::EcmascriptClientReference(*module))
+                        } else if let VisitState::InClientReference(ty) = parent_state {
+                            Some(ty)
+                        } else {
+                            None
+                        };
 
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Skip
-                    }
-                    Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
-                        state_map.insert(
-                            module,
-                            VisitState::InClientReference(
-                                ClientReferenceType::EcmascriptClientReference(*client_reference),
-                            ),
-                        );
-                        GraphTraversalAction::Continue
-                    }
-                    None => {
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Continue
-                    }
-                }
-            })?;
+                    Ok(match module_type {
+                        Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
+                            result.push((*dynamic_entry, parent_client_reference));
+
+                            state_map.insert(module, parent_state);
+                            GraphTraversalAction::Skip
+                        }
+                        Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
+                            state_map.insert(
+                                module,
+                                VisitState::InClientReference(
+                                    ClientReferenceType::EcmascriptClientReference(
+                                        *client_reference,
+                                    ),
+                                ),
+                            );
+                            GraphTraversalAction::Continue
+                        }
+                        None => {
+                            state_map.insert(module, parent_state);
+                            GraphTraversalAction::Continue
+                        }
+                    })
+                },
+                |_, _, _| Ok(()),
+            )?;
             Ok(Vc::cell(result))
         }
         .instrument(span)
@@ -165,22 +235,95 @@ impl NextDynamicGraph {
 
 #[turbo_tasks::value]
 pub struct ServerActionsGraph {
+    graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
-    graph: ResolvedVc<SingleModuleGraph>,
+
     /// (Layer, RSC or Browser module) -> list of actions
     data: ResolvedVc<AllModuleActions>,
+}
+
+#[turbo_tasks::value]
+pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
+
+#[turbo_tasks::value_impl]
+impl ServerActionsGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = &graphs.iter_graphs().await?;
+        let server_actions = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating server actions graphs"))
+        .await?;
+        Ok(Self(server_actions).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve().strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the server actions for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_server_actions_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<AllActions>> {
+        let span = tracing::info_span!("collect all server actions for endpoint");
+        async move {
+            if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
+            } else {
+                let result = self
+                    .0
+                    .iter()
+                    .map(|graph| async move {
+                        graph
+                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
+                            .owned()
+                            .await
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                Ok(Vc::cell(result))
+            }
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<SingleModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
         let mapped = map_server_actions(*graph);
-
-        // TODO shrink graph here
 
         Ok(ServerActionsGraph {
             is_single_page,
@@ -204,38 +347,54 @@ impl ServerActionsGraph {
                 Cow::Borrowed(data)
             } else {
                 // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = &*self.graph.await?;
+                let graph = self.graph.await?;
 
-                if !graph.entries.contains(&entry) {
+                if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = FxHashMap::default();
-                graph.traverse_from_entry(entry, |node| {
-                    if let Some(node_data) = data.get(&node.module) {
-                        result.insert(node.module, *node_data);
-                    }
-                })?;
+                let mut result = FxIndexMap::default();
+                graph.traverse_nodes_dfs(
+                    vec![entry],
+                    &mut result,
+                    |node, result| {
+                        if let Some(node_data) = data.get(&node) {
+                            result.insert(node, *node_data);
+                        }
+                        Ok(GraphTraversalAction::Continue)
+                    },
+                    |_, _| Ok(()),
+                )?;
                 Cow::Owned(result)
             };
 
             let actions = data
                 .iter()
                 .map(|(module, (layer, actions))| async move {
+                    let actions = actions.await?;
                     actions
-                        .await?
+                        .actions
                         .iter()
-                        .map(|(hash, name)| async move {
+                        .map(async |(hash, entry)| {
                             Ok((
                                 hash.to_string(),
                                 (
                                     *layer,
-                                    name.to_string(),
+                                    ActionMeta {
+                                        name: entry.name.clone(),
+                                        source_path: actions.entry_path.clone(),
+                                    },
                                     if *layer == ActionLayer::Rsc {
                                         *module
                                     } else {
-                                        to_rsc_context(**module, rsc_asset_context).await?
+                                        to_rsc_context(
+                                            **module,
+                                            &actions.entry_path,
+                                            &actions.entry_query,
+                                            rsc_asset_context,
+                                        )
+                                        .await?
                                     },
                                 ),
                             ))
@@ -245,7 +404,7 @@ impl ServerActionsGraph {
                 })
                 .try_flat_join()
                 .await?;
-            Ok(Vc::cell(actions.into_iter().collect()))
+            Ok(Vc::cell(actions))
         }
         .instrument(span)
         .await
@@ -255,23 +414,122 @@ impl ServerActionsGraph {
 #[turbo_tasks::value]
 pub struct ClientReferencesGraph {
     is_single_page: bool,
-    graph: ResolvedVc<SingleModuleGraph>,
+    graph: ResolvedVc<ModuleGraphLayer>,
+
     /// List of client references (modules that entries into the client graph)
-    data: ResolvedVc<ClientReferencesSet>,
+    data: ResolvedVc<ClientReferenceData>,
+}
+
+#[turbo_tasks::value]
+pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
+
+#[turbo_tasks::value_impl]
+impl ClientReferencesGraphs {
+    #[turbo_tasks::function(operation)]
+    async fn new_operation(
+        graphs: ResolvedVc<ModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let graphs_ref = graphs.iter_graphs().await?;
+        let client_references = async {
+            graphs_ref
+                .iter()
+                .map(|graph| {
+                    ClientReferencesGraph::new_with_entries(graph.connect(), is_single_page)
+                        .to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating client references graphs"))
+        .await?;
+        Ok(Self(client_references).cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        // TODO get rid of this function once everything inside of
+        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
+        let result_op = Self::new_operation(graphs, is_single_page);
+        let result_vc = if !is_single_page {
+            let result_vc = result_op.resolve().strongly_consistent().await?;
+            result_op.drop_collectibles::<Box<dyn Issue>>();
+            *result_vc
+        } else {
+            result_op.connect()
+        };
+        Ok(result_vc)
+    }
+
+    /// Returns the client references for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_client_references_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        has_layout_segments: bool,
+        include_traced: bool,
+        include_binding_usage: bool,
+    ) -> Result<Vc<ClientReferenceGraphResult>> {
+        let span = tracing::info_span!("collect all client references for endpoint");
+        async move {
+            let result = if let [graph] = &self.0[..] {
+                // Just a single graph, no need to merge results  This also naturally aggregates
+                // server components and server utilities in the correct order
+                graph.get_client_references_for_endpoint(entry)
+            } else {
+                let results = self
+                    .0
+                    .iter()
+                    .map(|graph| graph.get_client_references_for_endpoint(entry))
+                    .try_join();
+                // Do this separately for now, because the aggregation of multiple graph traversals
+                // messes up the order of the server_component_entries.
+                let server_entries = async {
+                    if has_layout_segments {
+                        let server_entries =
+                            find_server_entries(entry, include_traced, include_binding_usage)
+                                .await?;
+                        Ok(Some(server_entries))
+                    } else {
+                        Ok(None)
+                    }
+                };
+                // Wait for both in parallel since `find_server_entries` tends to be slower than the
+                // graph traversals
+                let (results, server_entries) = join!(results, server_entries);
+
+                let mut result = ClientReferenceGraphResult {
+                    client_references: results?
+                        .iter()
+                        .flat_map(|r| r.client_references.iter().copied())
+                        .collect(),
+                    ..Default::default()
+                };
+                if let Some(ServerEntries {
+                    server_utils,
+                    server_component_entries,
+                }) = server_entries?.as_deref()
+                {
+                    result.server_utils = server_utils.clone();
+                    result.server_component_entries = server_component_entries.clone();
+                }
+                result.cell()
+            };
+            Ok(result)
+        }
+        .instrument(span)
+        .await
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<SingleModuleGraph>,
+        graph: ResolvedVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        // TODO if is_single_page, then perform the graph traversal below in map_client_references
-        // already, which saves us a traversal.
         let mapped = map_client_references(*graph);
-
-        // TODO shrink graph here
 
         Ok(Self {
             is_single_page,
@@ -282,105 +540,144 @@ impl ClientReferencesGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
+    async fn get_client_references_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect client references for endpoint");
         async move {
             let data = &*self.data.await?;
-            let graph = &*self.graph.await?;
+            let graph = self.graph.await?;
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.graphs.first().unwrap().has_entry_module(entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.graphs.first().unwrap().entry_modules())
             };
 
-            let mut client_references = FxIndexSet::default();
-            // Make sure None (for the various internal next/dist/esm/client/components/*) is
-            // listed first
-            let mut client_references_by_server_component =
-                FxIndexMap::from_iter([(None, Vec::new())]);
+            // Because we care about 'evaluation order' we need to collect client references in the
+            // post_order callbacks which is the same as evaluation order
+            let mut client_references = Vec::new();
+            let mut server_utils = FxIndexSet::default();
 
-            graph.traverse_edges_from_entries_topological(
+            let mut server_components = FxIndexSet::default();
+
+            // Perform a DFS traversal to find all server components included by this page.
+            graph.traverse_nodes_dfs(
                 entries,
-                // state_map is `module -> Option< the current so parent server component >`
-                &mut FxHashMap::default(),
-                |parent_info, node, state_map| {
-                    let module = node.module;
-                    let module_type = data.get(&module);
-
-                    let current_server_component = if let Some(
-                        ClientReferenceMapType::ServerComponent(module),
-                    ) = module_type
-                    {
-                        Some(*module)
-                    } else if let Some((parent_node, _)) = parent_info {
-                        *state_map.get(&parent_node.module).unwrap()
-                    } else {
-                        // a root node
-                        None
-                    };
-
-                    state_map.insert(module, current_server_component);
-
+                &mut (),
+                |node, _| {
+                    let module_type = data.get(&node);
                     Ok(match module_type {
                         Some(
-                            ClientReferenceMapType::EcmascriptClientReference { .. }
-                            | ClientReferenceMapType::CssClientReference { .. },
+                            ClientManifestEntryType::EcmascriptClientReference { .. }
+                            | ClientManifestEntryType::CssClientReference { .. }
+                            | ClientManifestEntryType::ServerComponent { .. },
                         ) => GraphTraversalAction::Skip,
-                        _ => GraphTraversalAction::Continue,
+                        None => GraphTraversalAction::Continue,
                     })
                 },
-                |parent_info, node, state_map| {
-                    let Some((parent_node, _)) = parent_info else {
-                        return;
-                    };
-                    let parent_module = parent_node.module;
+                |node, _| {
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(node)
+                    {
+                        // Server utility used by the template, not a server component
+                        server_utils.insert(server_util_module);
+                        return Ok(());
+                    }
 
-                    let parent_server_component = *state_map.get(&parent_module).unwrap();
+                    let module_type = data.get(&node);
 
-                    match data.get(&node.module) {
-                        Some(ClientReferenceMapType::EcmascriptClientReference {
-                            module: module_ref,
-                            ssr_module,
-                        }) => {
-                            let client_reference: ClientReference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
-                            client_references_by_server_component
-                                .entry(parent_server_component)
-                                .or_insert_with(Vec::new)
-                                .push(*ssr_module);
+                    let ty = match module_type {
+                        Some(ClientManifestEntryType::EcmascriptClientReference {
+                            module,
+                            ssr_module: _,
+                        }) => ClientReferenceType::EcmascriptClientReference(*module),
+                        Some(ClientManifestEntryType::CssClientReference(module)) => {
+                            ClientReferenceType::CssClientReference(*module)
                         }
-                        Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
-                            let client_reference = ClientReference {
-                                server_component: parent_server_component,
-                                ty: ClientReferenceType::CssClientReference(*module_ref),
-                            };
-                            client_references.insert(client_reference);
+                        Some(ClientManifestEntryType::ServerComponent(sc)) => {
+                            server_components.insert(*sc);
+                            return Ok(());
                         }
-                        _ => {}
+                        None => {
+                            return Ok(());
+                        }
                     };
+
+                    // Client reference used by the template, not a server component
+                    client_references.push(ClientReference {
+                        server_component: None,
+                        ty,
+                    });
+
+                    Ok(())
                 },
             )?;
 
+            // Traverse each server component separately. Because not all server components are
+            // necessarily rendered at the same time (not-found, or parallel routes), we need to
+            // determine the order of client references individually for each server component.
+            for sc in server_components.iter().copied() {
+                graph.traverse_nodes_dfs(
+                    std::iter::once(ResolvedVc::upcast(sc)),
+                    &mut (),
+                    |node, _| {
+                        let module = node;
+                        let module_type = data.get(&module);
+
+                        Ok(match module_type {
+                            Some(
+                                ClientManifestEntryType::EcmascriptClientReference { .. }
+                                | ClientManifestEntryType::CssClientReference { .. },
+                            ) => GraphTraversalAction::Skip,
+                            _ => GraphTraversalAction::Continue,
+                        })
+                    },
+                    |node, _| {
+                        let module = node;
+                        if let Some(server_util_module) =
+                            ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
+                        {
+                            server_utils.insert(server_util_module);
+                        }
+
+                        let Some(module_type) = data.get(&module) else {
+                            return Ok(());
+                        };
+
+                        let ty = match module_type {
+                            ClientManifestEntryType::EcmascriptClientReference {
+                                module,
+                                ssr_module: _,
+                            } => ClientReferenceType::EcmascriptClientReference(*module),
+                            ClientManifestEntryType::CssClientReference(module) => {
+                                ClientReferenceType::CssClientReference(*module)
+                            }
+                            ClientManifestEntryType::ServerComponent(_) => {
+                                return Ok(());
+                            }
+                        };
+
+                        client_references.push(ClientReference {
+                            server_component: Some(sc),
+                            ty,
+                        });
+
+                        Ok(())
+                    },
+                )?;
+            }
+
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
-                client_references_by_server_component,
-                server_utils: vec![],
-                server_component_entries: vec![],
-                // TODO remove
-                visited_nodes: VisitedClientReferenceGraphNodes::empty()
-                    .to_resolved()
-                    .await?,
+                // The order of server_utils does not matter
+                server_utils: server_utils.into_iter().collect(),
+                server_component_entries: server_components.into_iter().collect(),
             }
             .cell())
         }
@@ -389,211 +686,209 @@ impl ClientReferencesGraph {
     }
 }
 
-/// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
-/// by the accessor functions, but
-/// - In dev, contains information about the modules of the current endpoint only
-/// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
-#[turbo_tasks::value]
-pub struct ReducedGraphs {
-    next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
-    server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
-    client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
-    // TODO add other graphs
+#[turbo_tasks::value(shared)]
+struct CssGlobalImportIssue {
+    pub parent_module: ResolvedVc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
+}
+
+impl CssGlobalImportIssue {
+    fn new(
+        parent_module: ResolvedVc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Self {
+        Self {
+            parent_module,
+            module,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
-impl ReducedGraphs {
+impl Issue for CssGlobalImportIssue {
     #[turbo_tasks::function]
-    pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        let graphs = &graphs.await?.graphs;
-        let next_dynamic = async {
-            graphs
-                .iter()
-                .map(|graph| {
-                    NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating next/dynamic graphs"));
-
-        let server_actions = async {
-            graphs
-                .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating server actions graphs"));
-
-        let client_references = async {
-            graphs
-                .iter()
-                .map(|graph| {
-                    ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
-                })
-                .try_join()
-                .await
-        }
-        .instrument(tracing::info_span!("generating client references graphs"));
-
-        let (next_dynamic, server_actions, client_references) =
-            futures::join!(next_dynamic, server_actions, client_references);
-
-        Ok(Self {
-            next_dynamic: next_dynamic?,
-            server_actions: server_actions?,
-            client_references: client_references?,
-        }
-        .cell())
+    async fn title(&self) -> Vc<StyledString> {
+        StyledString::Stack(vec![
+            StyledString::Text(rcstr!("Failed to compile")),
+            StyledString::Text(rcstr!(
+                "Global CSS cannot be imported from files other than your Custom <App>. Due to \
+                 the Global nature of stylesheets, and to avoid conflicts, Please move all \
+                 first-party global CSS imports to pages/_app.js. Or convert the import to \
+                 Component-Level CSS (CSS Modules)."
+            )),
+            StyledString::Text(rcstr!(
+                "Read more: https://nextjs.org/docs/messages/css-global"
+            )),
+        ])
+        .cell()
     }
 
-    /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
-    /// given endpoint.
     #[turbo_tasks::function]
-    pub async fn get_next_dynamic_imports_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
-        let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
-        async move {
-            if let [graph] = &self.next_dynamic[..] {
-                // Just a single graph, no need to merge results
-                Ok(graph.get_next_dynamic_imports_for_endpoint(entry))
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let parent_path = self.parent_module.ident().path().owned().await?;
+        let module_path = self.module.ident().path().owned().await?;
+        let relative_import_location = parent_path.parent();
+
+        let import_path = match relative_import_location.get_relative_path_to(&module_path) {
+            Some(path) => path,
+            None => module_path.path.clone(),
+        };
+        let cleaned_import_path =
+            if import_path.ends_with(".scss.css") || import_path.ends_with(".sass.css") {
+                RcStr::from(import_path.trim_end_matches(".css"))
             } else {
-                let result = self
-                    .next_dynamic
-                    .iter()
-                    .map(|graph| async move {
-                        Ok(graph
-                            .get_next_dynamic_imports_for_endpoint(entry)
-                            .await?
-                            .into_iter()
-                            .map(|(k, v)| (*k, *v))
-                            // TODO remove this collect and return an iterator instead
-                            .collect::<Vec<_>>())
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                Ok(Vc::cell(result.into_iter().collect()))
-            }
-        }
-        .instrument(span)
-        .await
-    }
-
-    /// Returns the server actions for the given page.
-    #[turbo_tasks::function]
-    pub async fn get_server_actions_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        rsc_asset_context: Vc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<AllActions>> {
-        let span = tracing::info_span!("collect all server actions for endpoint");
-        async move {
-            if let [graph] = &self.server_actions[..] {
-                // Just a single graph, no need to merge results
-                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
-            } else {
-                let result = self
-                    .server_actions
-                    .iter()
-                    .map(|graph| async move {
-                        Ok(graph
-                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
-                            .await?
-                            .clone_value())
-                    })
-                    .try_flat_join()
-                    .await?;
-
-                Ok(Vc::cell(result.into_iter().collect()))
-            }
-        }
-        .instrument(span)
-        .await
-    }
-
-    /// Returns the client references for the given page.
-    #[turbo_tasks::function]
-    pub async fn get_client_references_for_endpoint(
-        &self,
-        entry: Vc<Box<dyn Module>>,
-        has_layout_segments: bool,
-    ) -> Result<Vc<ClientReferenceGraphResult>> {
-        let span = tracing::info_span!("collect all client references for endpoint");
-        async move {
-            let mut result = if let [graph] = &self.client_references[..] {
-                // Just a single graph, no need to merge results
-                graph
-                    .get_client_references_for_endpoint(entry)
-                    .await?
-                    .clone_value()
-            } else {
-                let results = self
-                    .client_references
-                    .iter()
-                    .map(|graph| async move {
-                        let get_client_references_for_endpoint =
-                            graph.get_client_references_for_endpoint(entry).await?;
-                        Ok(get_client_references_for_endpoint)
-                    })
-                    .try_join()
-                    .await?;
-
-                let mut result = results[0].clone_value();
-                for r in results.into_iter().skip(1) {
-                    result.extend(&r);
-                }
-                result
+                import_path
             };
 
-            if has_layout_segments {
-                // Do this separately for now, because the graph traversal order messes up the order
-                // of the server_component_entries.
-                let ServerEntries {
-                    server_utils,
-                    server_component_entries,
-                } = &*find_server_entries(entry).await?;
-                result.server_utils = server_utils.clone();
-                result.server_component_entries = server_component_entries.clone();
+        Ok(Vc::cell(Some(
+            StyledString::Stack(vec![
+                StyledString::Text(format!("Location: {}", parent_path.path).into()),
+                StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
+            ])
+            .resolved_cell(),
+        )))
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.parent_module.ident().path()
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.cell()
+    }
+
+    // TODO(PACK-4879): compute the source information by following the module references
+}
+
+#[tracing::instrument(level = "info", name = "validate pages css imports", skip_all)]
+#[turbo_tasks::function]
+async fn validate_pages_css_imports_individual(
+    graph: ResolvedVc<ModuleGraphLayer>,
+    is_single_page: bool,
+    entry: Vc<Box<dyn Module>>,
+    app_module: ResolvedVc<Box<dyn Module>>,
+) -> Result<()> {
+    let graph = graph.await?;
+    let entry = entry.to_resolved().await?;
+
+    let entries = if !is_single_page {
+        if !graph.graphs.first().unwrap().has_entry_module(entry) {
+            // the graph doesn't contain the entry, e.g. for the additional module graph
+            return Ok(());
+        }
+        Either::Left(std::iter::once(entry))
+    } else {
+        Either::Right(graph.graphs.first().unwrap().entry_modules())
+    };
+
+    let mut candidates = vec![];
+
+    graph.traverse_edges_dfs(
+        entries,
+        &mut (),
+        |parent_info, node, _| {
+            let module = node;
+
+            // If we're at a root node, there is nothing importing this module and we can skip
+            // any further validations.
+            let Some((parent_node, _)) = parent_info else {
+                return Ok(GraphTraversalAction::Continue);
+            };
+            let parent_module = parent_node;
+
+            // Importing CSS from _app.js is always allowed.
+            if parent_module == app_module {
+                return Ok(GraphTraversalAction::Continue);
             }
 
-            Ok(result.cell())
-        }
-        .instrument(span)
-        .await
-    }
+            // If the module being imported isn't a global css module, there is nothing to
+            // validate.
+            let module_is_global_css = ResolvedVc::try_downcast_type::<CssModule>(module).is_some();
+
+            if !module_is_global_css {
+                return Ok(GraphTraversalAction::Continue);
+            }
+
+            let parent_is_css_module =
+                ResolvedVc::try_downcast_type::<EcmascriptCssModule>(parent_module).is_some()
+                    || ResolvedVc::try_downcast_type::<CssModule>(parent_module).is_some();
+
+            // We also always allow .module css/scss/sass files to import global css files as
+            // well.
+            if parent_is_css_module {
+                return Ok(GraphTraversalAction::Continue);
+            }
+
+            // If all of the above invariants have been checked, we look to see if the parent
+            // module is the same as the app module. If it isn't we know it
+            // isn't a valid place to import global css.
+            if parent_module != app_module {
+                candidates.push(CssGlobalImportIssue::new(parent_module, module))
+            }
+
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+    )?;
+
+    candidates
+        .into_iter()
+        .map(async |issue| {
+            let path = issue.module.ident().path().await?;
+            // We allow imports of global CSS files which are inside of `node_modules`.
+            // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
+            // are mostly tooling-generated and co-located with the importing components
+            Ok(
+                if !path.is_in_node_modules() && !path.file_name().starts_with("data:") {
+                    Some(issue)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .for_each(|issue| {
+            issue.resolved_cell().emit();
+        });
+
+    Ok(())
 }
 
-#[turbo_tasks::function(operation)]
-async fn get_reduced_graphs_for_endpoint_inner_operation(
-    module_graph: ResolvedVc<ModuleGraph>,
-    is_single_page: bool,
-) -> Vc<ReducedGraphs> {
-    ReducedGraphs::new(*module_graph, is_single_page)
-}
-
-/// Generates a [ReducedGraph] for the given project and endpoint containing information that is
-/// either global (module ids, chunking) or computed globally as a performance optimization (client
-/// references, etc).
+/// Validates that the global CSS/SCSS/SASS imports are only valid imports with the following
+/// rules:
+/// * The import is made from a `node_modules` package
+/// * The imported CSS is a `data:` URL module
+/// * The import is made from a `.module.css` file
+/// * The import is made from the `pages/_app.js`, or equivalent file
 #[turbo_tasks::function]
-pub async fn get_reduced_graphs_for_endpoint(
-    module_graph: ResolvedVc<ModuleGraph>,
+pub async fn validate_pages_css_imports(
+    graph: Vc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<ReducedGraphs>> {
-    // TODO get rid of this function once everything inside of
-    // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
-    let result_vc = if !is_single_page {
-        let result_vc = result_op.resolve_strongly_consistent().await?;
-        let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
-        *result_vc
-    } else {
-        result_op.connect()
-    };
-    Ok(result_vc)
+    entry: Vc<Box<dyn Module>>,
+    app_module: Vc<Box<dyn Module>>,
+) -> Result<()> {
+    let graphs = graph.iter_graphs().await?;
+    graphs
+        .iter()
+        .map(|graph| {
+            validate_pages_css_imports_individual(
+                graph.connect(),
+                is_single_page,
+                entry,
+                app_module,
+            )
+            .as_side_effect()
+        })
+        .try_join()
+        .await?;
+
+    Ok(())
 }

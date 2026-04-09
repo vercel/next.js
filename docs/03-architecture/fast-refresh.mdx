@@ -3,7 +3,7 @@ title: Fast Refresh
 description: Fast Refresh is a hot module reloading experience that gives you instantaneous feedback on edits made to your React components.
 ---
 
-Fast refresh is a React feature integrated into Next.js that allows you live reload the browser page while maintaining temporary client-side state when you save changes to a file. It's enabled by default in all Next.js applications on **9.4 or newer**. With Fast Refresh enabled, most edits should be visible within a second.
+Fast refresh is a React feature integrated into Next.js that allows you to live reload the browser page while maintaining temporary client-side state when you save changes to a file. It's enabled by default in all Next.js applications on **9.4 or newer**. With Fast Refresh enabled, most edits should be visible within a second.
 
 ## How It Works
 
@@ -63,7 +63,7 @@ local state being reset on every edit to a file:
 - Sometimes, a file would export the result of calling a higher-order component
   like `HOC(WrappedComponent)`. If the returned component is a
   class, its state will be reset.
-- Anonymous arrow functions like `export default () => <div />;` cause Fast Refresh to not preserve local component state. For large codebases you can use our [`name-default-component` codemod](/docs/pages/building-your-application/upgrading/codemods#name-default-component).
+- Anonymous arrow functions like `export default () => <div />;` cause Fast Refresh to not preserve local component state. For large codebases you can use our [`name-default-component` codemod](/docs/pages/guides/upgrading/codemods#name-default-component).
 
 As more of your codebase moves to function components and Hooks, you can expect
 state to be preserved in more cases.

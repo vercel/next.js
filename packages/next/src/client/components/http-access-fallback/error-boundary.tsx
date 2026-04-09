@@ -26,7 +26,8 @@ interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
   forbidden?: React.ReactNode
   unauthorized?: React.ReactNode
-  children: React.ReactNode
+  // TODO: Make this required once `React.createElement` understands that positional args go into children
+  children?: React.ReactNode
   missingSlots?: Set<string>
 }
 
@@ -136,7 +137,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta
-              name="next-error"
+              name="boundary-next-error"
               content={getAccessFallbackErrorTypeByStatus(triggeredStatus)}
             />
           )}

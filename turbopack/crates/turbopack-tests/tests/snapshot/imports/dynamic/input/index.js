@@ -1,1 +1,1 @@
-import("./vercel.mjs").then(console.log);
+import('./vercel.mjs').then(console.log)

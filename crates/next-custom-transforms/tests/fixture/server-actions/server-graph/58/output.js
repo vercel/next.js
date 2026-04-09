@@ -1,23 +1,31 @@
-/* __next_internal_action_entry_do_not_use__ {"401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":"$$RSC_SERVER_ACTION_2","c03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
-export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 1, async function([$$ACTION_ARG_0]) {
+import { cache as $$reactCache__ } from "react";
+const $$RSC_SERVER_CACHE_0_INNER = async function([$$ACTION_ARG_0]) {
     return $$ACTION_ARG_0();
+};
+Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
+    value: ""
 });
-function createCachedFn(start) {
+export var $$RSC_SERVER_CACHE_0 = $$reactCache__(function() {
+    return $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 1, $$RSC_SERVER_CACHE_0_INNER, Array.prototype.slice.call(arguments, 0, 1));
+});
+registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
+/* __next_internal_action_entry_do_not_use__ {"4090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"c03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ function createCachedFn(start) {
     function fn() {
         return start + Math.random();
     }
-    return $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", fn));
+    return $$RSC_SERVER_CACHE_0.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", fn));
 }
-var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0] = await decryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
+export const $$RSC_SERVER_ACTION_1 = async function($$ACTION_CLOSURE_BOUND) {
+    var [$$ACTION_ARG_0] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     console.log($$ACTION_ARG_0());
 };
+registerServerReference($$RSC_SERVER_ACTION_1, "4090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 function createServerAction(start) {
     function fn() {
         return start + Math.random();
     }
-    return registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", fn));
+    return $$RSC_SERVER_ACTION_1.bind(null, encryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", fn));
 }

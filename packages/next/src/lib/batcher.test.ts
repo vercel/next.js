@@ -32,7 +32,7 @@ describe('Batcher', () => {
 
     it('should not batch calls to different keys', async () => {
       const batcher = Batcher.create<string, string>()
-      const workFn = jest.fn((key) => key)
+      const workFn = jest.fn(({ key }) => Promise.resolve(key))
 
       const result1 = batcher.batch('key1', workFn)
       const result2 = batcher.batch('key2', workFn)

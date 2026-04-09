@@ -1,3 +1,5 @@
+import { Button } from 'components'
+
 async function myAction(a, b, c) {
   // comment
   'use strict'

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, DeriveInput};
+use syn::{DeriveInput, parse_macro_input, parse_quote};
 
 use crate::{assert_fields::assert_fields_impl_trait, derive::trace_raw_vcs_macro::filter_field};
 
@@ -17,6 +17,7 @@ pub fn derive_non_local_value(input: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = derive_input.generics.split_for_impl();
     quote! {
+        #[automatically_derived]
         unsafe impl #impl_generics turbo_tasks::NonLocalValue
             for #ident #ty_generics #where_clause {}
         #assertions

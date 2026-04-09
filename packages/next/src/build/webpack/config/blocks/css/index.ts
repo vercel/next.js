@@ -14,6 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 import { nonNullable } from '../../../../../lib/non-nullable'
 import { WEBPACK_LAYERS } from '../../../../../lib/constants'
+import { getRspackCore } from '../../../../../shared/lib/get-rspack'
 
 // RegExps for all Style Sheet variants
 export const regexLikeCss = /\.(css|scss|sass)$/
@@ -62,7 +63,7 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss = require('postcss') as typeof import('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
@@ -147,6 +148,7 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
 ) {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
@@ -172,19 +174,7 @@ export const css = curry(async function css(
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
-        sassOptions: {
-          // The "fibers" option is not needed for Node.js 16+, but it's causing
-          // problems for Node.js <= 14 users as you'll have to manually install
-          // the `fibers` package:
-          // https://github.com/webpack-contrib/sass-loader#:~:text=We%20automatically%20inject%20the%20fibers%20package
-          // https://github.com/vercel/next.js/issues/45052
-          // Since it's optional and not required, we'll disable it by default
-          // to avoid the confusion.
-          fibers: false,
-          // TODO: Remove this once we upgrade to sass-loader 16
-          silenceDeprecations: ['legacy-js-api'],
-          ...sassOptions,
-        },
+        sassOptions,
         additionalData: sassPrependData || sassAdditionalData,
       },
     },
@@ -592,8 +582,12 @@ export const css = curry(async function css(
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
   if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
-    const MiniCssExtractPlugin =
-      require('../../../plugins/mini-css-extract-plugin').default
+    const MiniCssExtractPlugin = isRspack
+      ? getRspackCore().CssExtractRspackPlugin
+      : (
+          require('../../../plugins/mini-css-extract-plugin') as typeof import('../../../plugins/mini-css-extract-plugin')
+        ).default
+
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat
@@ -618,14 +612,25 @@ export const css = curry(async function css(
           ignoreOrder: true,
           insert: function (linkTag: HTMLLinkElement) {
             if (typeof _N_E_STYLE_LOAD === 'function') {
-              const { href, onload, onerror } = linkTag
+              // Avoid destructuring and optional-chaining here: this function
+              // is serialized as a string by mini-css-extract-plugin and
+              // injected directly into the browser bundle without further
+              // transpilation. Destructuring (`const { x } = obj`) breaks on
+              // browsers that pre-date ES2015 support (e.g. Chrome <49).
+              var href = linkTag.href
+              var onload = linkTag.onload
+              var onerror = linkTag.onerror
               _N_E_STYLE_LOAD(
                 href.indexOf(window.location.origin) === 0
                   ? new URL(href).pathname
                   : href
               ).then(
-                () => onload?.call(linkTag, { type: 'load' } as Event),
-                () => onerror?.call(linkTag, {} as Event)
+                function () {
+                  if (onload) onload.call(linkTag, { type: 'load' } as Event)
+                },
+                function () {
+                  if (onerror) onerror.call(linkTag, {} as Event)
+                }
               )
             } else {
               document.head.appendChild(linkTag)

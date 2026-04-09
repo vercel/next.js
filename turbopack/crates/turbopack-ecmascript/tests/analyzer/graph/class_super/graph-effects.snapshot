@@ -114,7 +114,6 @@
                                 ),
                             ],
                             span: 152..157,
-                            in_try: false,
                         },
                         Call {
                             func: Member(
@@ -122,9 +121,7 @@
                                 Module(
                                     ModuleValue {
                                         module: "./module.js",
-                                        annotations: ImportAnnotations {
-                                            map: {},
-                                        },
+                                        annotations: None,
                                     },
                                 ),
                                 Constant(

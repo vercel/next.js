@@ -1,19 +1,18 @@
-use std::{fmt::Debug, hash::Hash, pin::Pin};
+use std::{any::Any, fmt::Debug, pin::Pin};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use futures::Future;
-use serde::{Deserialize, Serialize};
 use tracing::Span;
+use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
+use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    self as turbo_tasks,
-    magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
-    registry::register_function,
-    task::{
-        function::{IntoTaskFnWithThis, NativeTaskFuture},
-        IntoTaskFn, TaskFn,
-    },
-    RawVc, TaskInput, TaskPersistence,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    macro_helpers::into_task_fn,
+    magic_any::{MagicAny, any_as_encode},
+    registry::{RegistryType, turbo_registry},
+    task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
@@ -21,12 +20,22 @@ type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
-type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
-type FilterAndResolveFunctor = ResolveFunctor;
+#[doc(hidden)]
+pub type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
+#[doc(hidden)]
+pub type FilterAndResolveFunctor = ResolveFunctor;
+
+/// Function pointer that encodes a task argument directly to a hasher.
+///
+/// This allows computing hashes of task arguments without intermediate buffer allocation.
+pub type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
 
 pub struct ArgMeta {
-    serializer: MagicAnySerializeSeed,
-    deserializer: MagicAnyDeserializeSeed,
+    // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
+    pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn MagicAny>>),
+    /// Encodes the argument directly to a hasher, avoiding buffer allocation.
+    /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
+    pub hash_encode: AnyHashEncodeFn,
     is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
     /// Used for trait methods, filters out unused arguments.
@@ -42,9 +51,31 @@ pub struct ArgMeta {
 }
 
 impl ArgMeta {
-    pub fn new<T>() -> Self
+    /// Equivalent to `new`, but with type inference from a function.
+    #[doc(hidden)]
+    pub const fn new_from<T>(_t: &T) -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskFnInputs,
+    {
+        Self::new::<T::INPUTS>()
+    }
+
+    /// Equivalent to `with_filter_trait_call`, but with type inference from a function.
+    #[doc(hidden)]
+    pub const fn with_filter_trait_call_from<T>(
+        _t: &T,
+        filter_owned: FilterOwnedArgsFunctor,
+        filter_and_resolve: FilterAndResolveFunctor,
+    ) -> Self
+    where
+        T: TaskFnInputs,
+    {
+        Self::with_filter_trait_call::<T::INPUTS>(filter_owned, filter_and_resolve)
+    }
+
+    pub const fn new<T>() -> Self
+    where
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
@@ -52,29 +83,34 @@ impl ArgMeta {
         Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
     }
 
-    pub fn with_filter_trait_call<T>(
+    pub const fn with_filter_trait_call<T>(
         filter_owned: FilterOwnedArgsFunctor,
         filter_and_resolve: FilterAndResolveFunctor,
     ) -> Self
     where
-        T: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        T: TaskInput + Encode + Decode<()> + 'static,
     {
         Self {
-            serializer: MagicAnySerializeSeed::new::<T>(),
-            deserializer: MagicAnyDeserializeSeed::new::<T>(),
+            bincode: (
+                |this, enc| {
+                    T::encode(any_as_encode::<T>(this), enc)?;
+                    Ok(())
+                },
+                |dec| {
+                    let val = T::decode(dec)?;
+                    Ok(Box::new(val))
+                },
+            ),
+            hash_encode: |this, hasher| {
+                let mut encoder = new_hash_encoder(hasher);
+                T::encode(any_as_encode::<T>(this), &mut encoder)
+                    .expect("encoding to hasher should not fail");
+            },
             is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,
         }
-    }
-
-    pub fn deserialization_seed(&self) -> MagicAnyDeserializeSeed {
-        self.deserializer
-    }
-
-    pub fn as_serialize<'a>(&self, value: &'a dyn MagicAny) -> &'a dyn erased_serde::Serialize {
-        self.serializer.as_serialize(value)
     }
 
     pub fn is_resolved(&self, value: &dyn MagicAny) -> bool {
@@ -89,13 +125,15 @@ impl ArgMeta {
         (self.filter_owned)(args)
     }
 
+    /// This will return `(None, _)` even if the target is a method, if the method does not use
+    /// `self`.
     pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
         (self.filter_and_resolve)(args).await
     }
 }
 
 fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
-    Box::pin(async {
+    Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
         Ok(Box::new(resolved) as Box<dyn MagicAny>)
@@ -104,32 +142,21 @@ fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> Resolv
 
 #[cfg(debug_assertions)]
 #[inline(never)]
-pub fn debug_downcast_args_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
-    format!(
-        "Invalid argument type, expected {expected} got {}",
-        (*actual).magic_type_name()
-    )
+pub fn debug_downcast_args_error_msg(expected: &str, actual: &str) -> String {
+    format!("Invalid argument type, expected {expected} got {actual}")
 }
 
 pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
-    #[allow(unused_variables)]
-    args.downcast::<T>()
-        .map_err(|args| {
-            #[cfg(debug_assertions)]
-            return debug_downcast_args_error_msg(std::any::type_name::<T>(), &*args);
-            #[cfg(not(debug_assertions))]
-            return anyhow::anyhow!("Invalid argument type");
-        })
-        .unwrap()
-}
+    #[cfg(debug_assertions)]
+    let args_type_name = args.magic_type_name();
 
-pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
-    args.downcast_ref::<T>()
-        .ok_or_else(|| {
+    (args as Box<dyn Any>)
+        .downcast::<T>()
+        .map_err(|_args| {
             #[cfg(debug_assertions)]
             return anyhow::anyhow!(debug_downcast_args_error_msg(
                 std::any::type_name::<T>(),
-                args
+                args_type_name,
             ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
@@ -137,79 +164,75 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
         .unwrap()
 }
 
-#[derive(Debug)]
-pub struct FunctionMeta {
-    /// Does not run the function as a task, and instead runs it inside the parent task using
-    /// task-local state. The function call itself will not be cached, but cells will be created on
-    /// the parent task.
-    pub local: bool,
+pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
+    (args as &dyn Any)
+        .downcast_ref::<T>()
+        .ok_or_else(|| {
+            #[cfg(debug_assertions)]
+            return anyhow::anyhow!(debug_downcast_args_error_msg(
+                std::any::type_name::<T>(),
+                args.magic_type_name(),
+            ));
+            #[cfg(not(debug_assertions))]
+            return anyhow::anyhow!("Invalid argument type");
+        })
+        .unwrap()
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct NativeFunction {
-    /// A readable name of the function that is used to reporting purposes.
-    pub name: String,
-
-    #[turbo_tasks(trace_ignore)]
-    pub function_meta: FunctionMeta,
-
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub arg_meta: ArgMeta,
+    pub(crate) arg_meta: ArgMeta,
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+    pub(crate) implementation: &'static dyn TaskFn,
+
+    pub(crate) ty: RegistryType,
+
+    /// Whether this function's tasks should be treated as root nodes in the aggregation graph.
+    /// Root tasks start with aggregation number `u32::MAX` on initial creation.
+    pub is_root: bool,
 }
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
-            .field("name", &self.name)
-            .field("function_meta", &self.function_meta)
+            .field("name", &self.ty.name)
+            .field("global_name", &self.ty.global_name)
             .finish_non_exhaustive()
     }
 }
 
-impl NativeFunction {
-    pub fn new_function<Mode, Inputs>(
-        name: String,
-        function_meta: FunctionMeta,
-        implementation: impl IntoTaskFn<Mode, Inputs>,
-    ) -> Self
-    where
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
-    {
-        Self {
-            name,
-            function_meta,
-            arg_meta: ArgMeta::new::<Inputs>(),
-            implementation: Box::new(implementation.into_task_fn()),
-        }
-    }
+fn default_fn() {
+    panic!("Pure virtual function called")
+}
 
-    pub fn new_method<Mode, This, Inputs, I>(
-        name: String,
-        function_meta: FunctionMeta,
-        arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
-        implementation: I,
-    ) -> Self
-    where
-        This: Sync + Send + 'static,
-        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
-        I: IntoTaskFnWithThis<Mode, This, Inputs>,
-    {
+/// Sentinel used as placeholder in trait vtables before overrides are applied.
+/// A single static (not per-monomorphization) avoids bloating the FUNCTIONS registry.
+pub static VTABLE_DEFAULT: NativeFunction = NativeFunction::DEFAULT;
+
+impl NativeFunction {
+    #[allow(clippy::declare_interior_mutable_const)] // Interior mutability from RegistryType::id is only written during init
+    pub const DEFAULT: NativeFunction = NativeFunction {
+        arg_meta: ArgMeta::new::<()>(),
+        implementation: &into_task_fn(default_fn) as &dyn TaskFn,
+        ty: RegistryType::new::<()>("", ""),
+        is_root: false,
+    };
+
+    pub const fn new<T: TaskFn>(
+        name: &'static str,
+        global_name: &'static str,
+        arg_meta: ArgMeta,
+        implementation: &'static T,
+        is_root: bool,
+    ) -> Self {
         Self {
-            name,
-            function_meta,
-            arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
-                ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
-            } else {
-                ArgMeta::new::<Inputs>()
-            },
-            implementation: Box::new(implementation.into_task_fn_with_this()),
+            ty: RegistryType::new::<T>(name, global_name),
+            arg_meta,
+            implementation,
+            is_root,
         }
     }
 
@@ -221,80 +244,28 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
-    }
-
-    pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
-    }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_function(global_name, self);
-    }
-}
-
-impl PartialEq for &'static NativeFunction {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(*self, *other)
-    }
-}
-
-impl Eq for &'static NativeFunction {}
-
-impl Hash for &'static NativeFunction {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&(*self as *const NativeFunction), state);
-    }
-}
-
-impl PartialOrd for &'static NativeFunction {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for &'static NativeFunction {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Ord::cmp(
-            &(*self as *const NativeFunction),
-            &(*other as *const NativeFunction),
+    pub fn span(
+        &'static self,
+        persistence: TaskPersistence,
+        reason: TaskExecutionReason,
+        priority: TaskPriority,
+    ) -> Span {
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+        };
+        tracing::trace_span!(
+            "turbo_tasks::function",
+            name = self.ty.name,
+            priority = %priority,
+            flags = flags,
+            reason = reason.as_str()
         )
     }
+
+    pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
+    }
 }
+
+turbo_registry!("Function", NativeFunction);

@@ -4,7 +4,7 @@ import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { withExecuteRevalidates } from './revalidation-utils'
+import { withExecuteRevalidates } from '../revalidation-utils'
 import { bindSnapshot } from '../app-render/async-local-storage'
 import {
   workUnitAsyncStorage,
@@ -84,15 +84,19 @@ export class AfterContext {
     //   after(() => x())
     //   after(x())
     //   await x()
-    const wrappedCallback = bindSnapshot(async () => {
-      try {
-        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-          callback()
-        )
-      } catch (error) {
-        this.reportTaskError('function', error)
+    const wrappedCallback = bindSnapshot(
+      // WARNING: Don't make this a named function. It must be anonymous.
+      // See: https://github.com/facebook/react/pull/34911
+      async () => {
+        try {
+          await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+            callback()
+          )
+        } catch (error) {
+          this.reportTaskError('function', error)
+        }
       }
-    })
+    )
 
     this.callbackQueue.add(wrappedCallback)
   }

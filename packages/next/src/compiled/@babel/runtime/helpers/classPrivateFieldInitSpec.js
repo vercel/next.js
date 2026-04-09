@@ -1,6 +1,5 @@
 var checkPrivateRedeclaration = require("./checkPrivateRedeclaration.js");
-function _classPrivateFieldInitSpec(obj, privateMap, value) {
-  checkPrivateRedeclaration(obj, privateMap);
-  privateMap.set(obj, value);
+function _classPrivateFieldInitSpec(e, t, a) {
+  checkPrivateRedeclaration(e, t), t.set(e, a);
 }
 module.exports = _classPrivateFieldInitSpec, module.exports.__esModule = true, module.exports["default"] = module.exports;

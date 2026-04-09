@@ -2,8 +2,8 @@
 name = "turbopack-create-test-app"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
-edition = "2021"
+license = "MIT"
+edition = "2024"
 
 # don't publish this crate (for now)
 publish = false

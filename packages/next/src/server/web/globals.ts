@@ -55,7 +55,7 @@ export function ensureInstrumentationRegistered() {
 }
 
 function getUnsupportedModuleErrorMessage(module: string) {
-  // warning: if you change these messages, you must adjust how react-dev-overlay's middleware detects modules not found
+  // warning: if you change these messages, you must adjust how dev-overlay's middleware detects modules not found
   return `The edge runtime does not support Node.js '${module}' module.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`
 }
@@ -95,11 +95,13 @@ function enhanceGlobals() {
 
   // to allow building code that import but does not use node.js modules,
   // webpack will expect this function to exist in global scope
-  Object.defineProperty(globalThis, '__import_unsupported', {
-    value: __import_unsupported,
-    enumerable: false,
-    configurable: false,
-  })
+  try {
+    Object.defineProperty(globalThis, '__import_unsupported', {
+      value: __import_unsupported,
+      enumerable: false,
+      configurable: false,
+    })
+  } catch {}
 
   // Eagerly fire instrumentation hook to make the startup faster.
   void ensureInstrumentationRegistered()

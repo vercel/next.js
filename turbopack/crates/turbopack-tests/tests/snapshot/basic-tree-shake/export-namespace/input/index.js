@@ -1,3 +1,3 @@
-import {lib} from './module'
+import { lib } from './module'
 
 console.log(lib.cat)

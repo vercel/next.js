@@ -1,35 +1,35 @@
 a#3 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#6 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 a#9 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#10 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 b#5 = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 inner = (...) => (a + b)
 
 outer = (...) => inner("b")
 
-r = (...) => (undefined | a | (r((a + 1)) + 1))
+r = (...) => (a | (r((a + 1)) + 1))
 
 v1 = (???*0* + 2)
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
-v2 = (undefined | 2 | (???*0* + 1))
-- *0* (...) => (undefined | a | (r((a + 1)) + 1))(3)
+v2 = (2 | (???*0* + 1))
+- *0* (...) => (a | (r((a + 1)) + 1))(3)
   ⚠️  recursive function call
   ⚠️  This value might have side effects
 

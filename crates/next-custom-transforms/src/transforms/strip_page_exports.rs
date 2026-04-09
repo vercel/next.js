@@ -9,13 +9,13 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{fold_pass, noop_fold_type, noop_visit_type, Fold, FoldWith, Visit, VisitWith},
+        visit::{Fold, FoldWith, Visit, VisitWith, fold_pass, noop_fold_type, noop_visit_type},
     },
 };
 
@@ -347,10 +347,10 @@ impl Visit for Analyzer<'_> {
                 self.state
                     .encounter_export(exported_ident, local_ident, export_type);
 
-                if let Some(local_ident) = local_ident {
-                    if self.state.should_retain_export_type(export_type) {
-                        self.add_ref(local_ident.to_id());
-                    }
+                if let Some(local_ident) = local_ident
+                    && self.state.should_retain_export_type(export_type)
+                {
+                    self.add_ref(local_ident.to_id());
                 }
             }
         }
@@ -657,15 +657,11 @@ impl Fold for NextSsg {
         n = n.fold_children_with(self);
 
         match &n {
-            AssignTargetPat::Array(arr) => {
-                if arr.elems.is_empty() {
-                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
-                }
+            AssignTargetPat::Array(arr) if arr.elems.is_empty() => {
+                return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
             }
-            AssignTargetPat::Object(obj) => {
-                if obj.props.is_empty() {
-                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
-                }
+            AssignTargetPat::Object(obj) if obj.props.is_empty() => {
+                return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
             }
             _ => {}
         }
@@ -729,12 +725,12 @@ impl Fold for NextSsg {
                         && matches!(self.state.filter, ExportFilter::StripDataExports)
                         // filter out non-packages import
                         // third part packages must start with `a-z` or `@`
-                        && import_src.starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
+                        && import_src.as_str().unwrap_or_default().starts_with(|c: char| c.is_ascii_lowercase() || c == '@')
                     {
                         self.state
                             .ssr_removed_packages
                             .borrow_mut()
-                            .insert(import_src.clone());
+                            .insert(import_src.clone().to_atom_lossy().into_owned());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",
@@ -789,35 +785,33 @@ impl Fold for NextSsg {
 
         match &i {
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) if e.specifiers.is_empty() => {
-                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(e)) => match &e.decl {
                 Decl::Fn(f) => {
-                    if let Some(export_type) = self.state.export_type(&f.ident.to_id()) {
-                        if self.state.dropping_export(export_type) {
-                            tracing::trace!(
-                                "Dropping an export specifier because it's an SSR/SSG function"
-                            );
-                            return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                        }
+                    if let Some(export_type) = self.state.export_type(&f.ident.to_id())
+                        && self.state.dropping_export(export_type)
+                    {
+                        tracing::trace!(
+                            "Dropping an export specifier because it's an SSR/SSG function"
+                        );
+                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                     }
                 }
 
-                Decl::Var(d) => {
-                    if d.decls.is_empty() {
-                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                    }
+                Decl::Var(d) if d.decls.is_empty() => {
+                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 }
                 _ => {}
             },
 
             ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(_))
-            | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(_)) => {
-                if self.state.dropping_export(ExportType::Default) {
-                    tracing::trace!("Dropping an export specifier because it's a default export");
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(_))
+                if self.state.dropping_export(ExportType::Default) =>
+            {
+                tracing::trace!("Dropping an export specifier because it's a default export");
 
-                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                }
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             _ => {}
         }
@@ -922,48 +916,39 @@ impl Fold for NextSsg {
 
         if self.in_lhs_of_var {
             match &mut p {
-                Pat::Ident(name) => {
-                    if self.should_remove(&name.id.to_id()) {
+                Pat::Ident(name) if self.should_remove(&name.id.to_id()) => {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping var `{}{:?}` because it should be removed",
+                        name.id.sym,
+                        name.id.ctxt
+                    );
+
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Array(arr) if arr.elems.is_empty() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Object(obj) if obj.props.is_empty() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Rest(rest) if rest.arg.is_invalid() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Expr(expr) => {
+                    if let Expr::Member(member_expr) = &**expr
+                        && let Some(id) = find_member_root_id(member_expr)
+                        && self.should_remove(&id)
+                    {
                         self.state.should_run_again = true;
                         tracing::trace!(
-                            "Dropping var `{}{:?}` because it should be removed",
-                            name.id.sym,
-                            name.id.ctxt
+                            "Dropping member expression object `{}{:?}` because it should be \
+                             removed",
+                            id.0,
+                            id.1
                         );
 
                         return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
-                }
-                Pat::Array(arr) => {
-                    if arr.elems.is_empty() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
-                }
-                Pat::Object(obj) => {
-                    if obj.props.is_empty() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
-                }
-                Pat::Rest(rest) => {
-                    if rest.arg.is_invalid() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
-                }
-                Pat::Expr(expr) => {
-                    if let Expr::Member(member_expr) = &**expr {
-                        if let Some(id) = find_member_root_id(member_expr) {
-                            if self.should_remove(&id) {
-                                self.state.should_run_again = true;
-                                tracing::trace!(
-                                    "Dropping member expression object `{}{:?}` because it should \
-                                     be removed",
-                                    id.0,
-                                    id.1
-                                );
-
-                                return Pat::Invalid(Invalid { span: DUMMY_SP });
-                            }
-                        }
                     }
                 }
                 _ => {}
@@ -976,32 +961,31 @@ impl Fold for NextSsg {
     fn fold_simple_assign_target(&mut self, mut n: SimpleAssignTarget) -> SimpleAssignTarget {
         n = n.fold_children_with(self);
 
-        if let SimpleAssignTarget::Ident(name) = &n {
-            if self.should_remove(&name.id.to_id()) {
-                self.state.should_run_again = true;
-                tracing::trace!(
-                    "Dropping var `{}{:?}` because it should be removed",
-                    name.id.sym,
-                    name.id.ctxt
-                );
+        if let SimpleAssignTarget::Ident(name) = &n
+            && self.should_remove(&name.id.to_id())
+        {
+            self.state.should_run_again = true;
+            tracing::trace!(
+                "Dropping var `{}{:?}` because it should be removed",
+                name.id.sym,
+                name.id.ctxt
+            );
 
-                return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
-            }
+            return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
         }
 
-        if let SimpleAssignTarget::Member(member_expr) = &n {
-            if let Some(id) = find_member_root_id(member_expr) {
-                if self.should_remove(&id) {
-                    self.state.should_run_again = true;
-                    tracing::trace!(
-                        "Dropping member expression object `{}{:?}` because it should be removed",
-                        id.0,
-                        id.1
-                    );
+        if let SimpleAssignTarget::Member(member_expr) = &n
+            && let Some(id) = find_member_root_id(member_expr)
+            && self.should_remove(&id)
+        {
+            self.state.should_run_again = true;
+            tracing::trace!(
+                "Dropping member expression object `{}{:?}` because it should be removed",
+                id.0,
+                id.1
+            );
 
-                    return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
-                }
-            }
+            return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
         }
 
         n
@@ -1037,11 +1021,9 @@ impl Fold for NextSsg {
             Stmt::Decl(Decl::Var(v)) if v.decls.is_empty() => {
                 return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
             }
-            Stmt::Expr(_) => {
-                if self.remove_expression {
-                    self.remove_expression = false;
-                    return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                }
+            Stmt::Expr(_) if self.remove_expression => {
+                self.remove_expression = false;
+                return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
             }
             _ => {}
         }

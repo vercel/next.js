@@ -1,7 +1,4 @@
-export default function _taggedTemplateLiteralLoose(strings, raw) {
-  if (!raw) {
-    raw = strings.slice(0);
-  }
-  strings.raw = raw;
-  return strings;
+function _taggedTemplateLiteralLoose(e, t) {
+  return t || (t = e.slice(0)), e.raw = t, e;
 }
+export { _taggedTemplateLiteralLoose as default };

@@ -1,12 +1,19 @@
-/*
-  This is the default "use cache" handler it defaults
-  to an in memory store
-*/
+/**
+ * This is the default "use cache" handler it defaults to an in-memory store.
+ * In-memory caches are fragile and should not use stale-while-revalidate
+ * semantics on the caches because it's not worth warming up an entry that's
+ * likely going to get evicted before we get to use it anyway. However, we also
+ * don't want to reuse a stale entry for too long so stale entries should be
+ * considered expired/missing in such cache handlers.
+ */
+
 import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandler } from './types'
 import {
-  isTagStale,
+  areTagsExpired,
+  areTagsStale,
   tagsManifest,
+  type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
@@ -29,98 +36,171 @@ type PrivateCacheEntry = {
   size: number
 }
 
-// LRU cache default to max 50 MB but in future track
-const memoryCache = new LRUCache<PrivateCacheEntry>(
-  50 * 1024 * 1024,
-  (entry) => entry.size
-)
-const pendingSets = new Map<string, Promise<void>>()
-
-const DefaultCacheHandler: CacheHandler = {
-  async get(cacheKey, softTags) {
-    await pendingSets.get(cacheKey)
-
-    const privateEntry = memoryCache.get(cacheKey)
-
-    if (!privateEntry) {
-      return undefined
-    }
-
-    const entry = privateEntry.entry
-    if (
-      performance.timeOrigin + performance.now() >
-      entry.timestamp + entry.revalidate * 1000
-    ) {
-      // In memory caches should expire after revalidate time because it is unlikely that
-      // a new entry will be able to be used before it is dropped from the cache.
-      return undefined
-    }
-
-    if (
-      isTagStale(entry.tags, entry.timestamp) ||
-      isTagStale(softTags, entry.timestamp)
-    ) {
-      return undefined
-    }
-    const [returnStream, newSaved] = entry.value.tee()
-    entry.value = newSaved
-
+export function createDefaultCacheHandler(maxSize: number): CacheHandler {
+  // If the max size is 0, return a cache handler that doesn't cache anything,
+  // this avoids an unnecessary LRUCache instance and potential memory
+  // allocation.
+  if (maxSize === 0) {
     return {
-      ...entry,
-      value: returnStream,
+      get: () => Promise.resolve(undefined),
+      set: () => Promise.resolve(),
+      refreshTags: () => Promise.resolve(),
+      getExpiration: () => Promise.resolve(0),
+      updateTags: () => Promise.resolve(),
     }
-  },
+  }
 
-  async set(cacheKey, pendingEntry) {
-    let resolvePending: () => void = () => {}
-    const pendingPromise = new Promise<void>((resolve) => {
-      resolvePending = resolve
-    })
-    pendingSets.set(cacheKey, pendingPromise)
+  const memoryCache = new LRUCache<PrivateCacheEntry>(
+    maxSize,
+    (entry) => entry.size
+  )
+  const pendingSets = new Map<string, Promise<void>>()
 
-    const entry = await pendingEntry
+  const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
+    ? console.debug.bind(console, 'DefaultCacheHandler:')
+    : undefined
 
-    let size = 0
+  return {
+    async get(cacheKey) {
+      const pendingPromise = pendingSets.get(cacheKey)
 
-    try {
-      const [value, clonedValue] = entry.value.tee()
-      entry.value = value
-      const reader = clonedValue.getReader()
-
-      for (let chunk; !(chunk = await reader.read()).done; ) {
-        size += Buffer.from(chunk.value).byteLength
+      if (pendingPromise) {
+        debug?.('get', cacheKey, 'pending')
+        await pendingPromise
       }
 
-      memoryCache.set(cacheKey, {
-        entry,
-        isErrored: false,
-        errorRetryCount: 0,
-        size,
+      const privateEntry = memoryCache.get(cacheKey)
+
+      if (!privateEntry) {
+        debug?.('get', cacheKey, 'not found')
+        return undefined
+      }
+
+      const entry = privateEntry.entry
+      if (
+        performance.timeOrigin + performance.now() >
+        entry.timestamp + entry.revalidate * 1000
+      ) {
+        // In-memory caches should expire after revalidate time because it is
+        // unlikely that a new entry will be able to be used before it is dropped
+        // from the cache.
+        debug?.('get', cacheKey, 'expired')
+
+        return undefined
+      }
+
+      let revalidate = entry.revalidate
+
+      if (areTagsExpired(entry.tags, entry.timestamp)) {
+        debug?.('get', cacheKey, 'had expired tag')
+        return undefined
+      }
+
+      if (areTagsStale(entry.tags, entry.timestamp)) {
+        debug?.('get', cacheKey, 'had stale tag')
+        revalidate = -1
+      }
+
+      const [returnStream, newSaved] = entry.value.tee()
+      entry.value = newSaved
+
+      debug?.('get', cacheKey, 'found', {
+        tags: entry.tags,
+        timestamp: entry.timestamp,
+        expire: entry.expire,
+        revalidate,
       })
-    } catch {
-      // TODO: store partial buffer with error after we retry 3 times
-    } finally {
-      resolvePending()
-      pendingSets.delete(cacheKey)
-    }
-  },
 
-  async expireTags(...tags) {
-    for (const tag of tags) {
-      if (!tagsManifest.items[tag]) {
-        tagsManifest.items[tag] = {}
+      return {
+        ...entry,
+        revalidate,
+        value: returnStream,
       }
-      // TODO: use performance.now and update file-system-cache?
-      tagsManifest.items[tag].revalidatedAt = Date.now()
-    }
-  },
+    },
 
-  // This is only meant to invalidate in memory tags
-  // not meant to be propagated like expireTags would
-  // in multi-instance scenario
-  async receiveExpiredTags(...tags): Promise<void> {
-    return this.expireTags(...tags)
-  },
+    async set(cacheKey, pendingEntry) {
+      debug?.('set', cacheKey, 'start')
+
+      let resolvePending: () => void = () => {}
+      const pendingPromise = new Promise<void>((resolve) => {
+        resolvePending = resolve
+      })
+      pendingSets.set(cacheKey, pendingPromise)
+
+      const entry = await pendingEntry
+
+      let size = 0
+
+      try {
+        const [value, clonedValue] = entry.value.tee()
+        entry.value = value
+        const reader = clonedValue.getReader()
+
+        for (let chunk; !(chunk = await reader.read()).done; ) {
+          size += Buffer.from(chunk.value).byteLength
+        }
+
+        memoryCache.set(cacheKey, {
+          entry,
+          isErrored: false,
+          errorRetryCount: 0,
+          size,
+        })
+
+        debug?.('set', cacheKey, 'done')
+      } catch (err) {
+        // TODO: store partial buffer with error after we retry 3 times
+        debug?.('set', cacheKey, 'failed', err)
+      } finally {
+        resolvePending()
+        pendingSets.delete(cacheKey)
+      }
+    },
+
+    async refreshTags() {
+      // Nothing to do for an in-memory cache handler.
+    },
+
+    async getExpiration(tags) {
+      const expirations = tags.map((tag) => {
+        const entry = tagsManifest.get(tag)
+        if (!entry) return 0
+        // Return the most recent timestamp (either expired or stale)
+        return entry.expired || 0
+      })
+
+      const expiration = Math.max(...expirations, 0)
+
+      debug?.('getExpiration', { tags, expiration })
+
+      return expiration
+    },
+
+    async updateTags(tags, durations) {
+      const now = Math.round(performance.timeOrigin + performance.now())
+      debug?.('updateTags', { tags, timestamp: now })
+
+      for (const tag of tags) {
+        // TODO: update file-system-cache?
+        const existingEntry = tagsManifest.get(tag) || {}
+
+        if (durations) {
+          // Use provided durations directly
+          const updates: TagManifestEntry = { ...existingEntry }
+
+          // mark as stale immediately
+          updates.stale = now
+
+          if (durations.expire !== undefined) {
+            updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+          }
+
+          tagsManifest.set(tag, updates)
+        } else {
+          // Update expired field for immediate expiration (default behavior when no durations provided)
+          tagsManifest.set(tag, { ...existingEntry, expired: now })
+        }
+      }
+    },
+  }
 }
-
-export default DefaultCacheHandler

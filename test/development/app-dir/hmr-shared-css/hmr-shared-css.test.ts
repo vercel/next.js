@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('hmr-app-and-pages', () => {
   const { next } = nextTestSetup({
@@ -21,7 +21,7 @@ describe('hmr-app-and-pages', () => {
       )
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     expect(
       await browser.elementByCss('body').getComputedCss('background-color')
     ).toEqual('rgb(255, 0, 0)')
@@ -41,7 +41,7 @@ describe('hmr-app-and-pages', () => {
       )
     )
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     expect(
       await browser.elementByCss('body').getComputedCss('background-color')
     ).toEqual('rgb(255, 255, 255)')

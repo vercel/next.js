@@ -12,7 +12,7 @@ import {
   normalizeRegEx,
   renderViaHTTP,
   waitFor,
-  assertHasRedbox,
+  waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -168,6 +168,12 @@ const expectedManifestRoutes = () => [
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh\\.json$`
     ),
     page: '/refresh',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/rewrite-target\\.json$`
+    ),
+    page: '/rewrite-target',
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -543,6 +549,13 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect($('#as-path').text()).toBe('/something')
   })
 
+  it('should not include rewrite query params in `asPath` and `req.url`', async () => {
+    const $ = await next.render$('/rewrite-source/foo')
+    expect($('h1').text()).toBe('rewrite-target')
+    expect($('#as-path').text()).toBe('/rewrite-source/foo')
+    expect($('#req-url').text()).toBe('/rewrite-source/foo')
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json`)
@@ -585,13 +598,9 @@ const runTests = (isDev = false, isDeploy = false) => {
 
   it('should load a fast refresh page', async () => {
     const browser = await webdriver(next.url, '/refresh')
-    expect(
-      await check(
-        () => browser.elementByCss('p').text(),
-        /client loaded/,
-        false
-      )
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
+    })
   })
 
   it('should provide correct query value for dynamic page', async () => {
@@ -629,13 +638,9 @@ const runTests = (isDev = false, isDeploy = false) => {
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
-    expect(
-      await check(() => browser.eval('window.beforeClick'), {
-        test(v) {
-          return v !== 'abc'
-        },
-      })
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+    })
   })
 
   it('should always call getServerSideProps without caching', async () => {
@@ -759,7 +764,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await assertHasRedbox(browser)
+      await waitForRedbox(browser)
       await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/
       )

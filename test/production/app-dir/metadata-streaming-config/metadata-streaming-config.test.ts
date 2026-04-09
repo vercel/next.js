@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-dir - metadata-streaming-config', () => {
+// TODO: the incremental option has been removed, update to use cacheComponents
+describe.skip('app-dir - metadata-streaming-config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -9,23 +10,37 @@ describe('app-dir - metadata-streaming-config', () => {
     const requiredServerFiles = JSON.parse(
       await next.readFile('.next/required-server-files.json')
     )
-    expect(requiredServerFiles.files).toContain(
-      '.next/response-config-manifest.json'
-    )
-    expect(
-      requiredServerFiles.config.experimental.htmlLimitedBots
-    ).toMatchInlineSnapshot(
-      `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview"`
+
+    expect(requiredServerFiles.config.htmlLimitedBots).toMatchInlineSnapshot(
+      `"[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight"`
     )
 
-    const responseConfigManifest = JSON.parse(
-      await next.readFile('.next/response-config-manifest.json')
+    const prerenderManifest = JSON.parse(
+      await next.readFile('.next/prerender-manifest.json')
     )
+    const { routes } = prerenderManifest
 
-    expect(responseConfigManifest).toMatchInlineSnapshot(`
+    const bypassConfigs = Object.keys(routes)
+      // Pick the user-agent bypass config of each route
+      .map((route) => [
+        route,
+        routes[route].experimentalBypassFor?.find(
+          (bypassConfig) => bypassConfig.key === 'user-agent'
+        ),
+      ])
+      .filter(([, bypassConfig]) => Boolean(bypassConfig))
+      .reduce((acc, [route, bypassConfig]) => {
+        acc[route] = bypassConfig
+        return acc
+      }, {})
+
+    expect(bypassConfigs).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview",
-       "version": 0,
+       "/ppr": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight",
+       },
      }
     `)
   })

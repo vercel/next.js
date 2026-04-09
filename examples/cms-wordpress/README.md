@@ -15,8 +15,6 @@ This is an example on how you can build a Next.js 14 project (with App Router), 
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-wordpress)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress&project-name=cms-wordpress&repository-name=cms-wordpress)
 
 ### Related examples
@@ -121,7 +119,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 | `NEXT_PUBLIC_BASE_URL`               | Insert base url of frontend                                             | http://localhost:3000    | Used for generating sitemap, redirects etc.                                                                                                                         |
 | `NEXT_PUBLIC_WORDPRESS_API_URL`      | Insert base url of your WordPress installation                          | http://wp-domain.com     | Used when requesting wordpress for data                                                                                                                             |
 | `NEXT_PUBLIC_WORDPRESS_API_HOSTNAME` | The hostname without protocol for your WordPress installation           | wp-domain.com            | Used for dynamically populating the next.config images remotePatterns                                                                                               |
-| `HEADLESS_SECRET`                    | Insert the same random key, that you generated for your `wp-config.php` | INSERT_RANDOM_SECRET_KEY | Used for public exhanges between frontend and backend                                                                                                               |
+| `HEADLESS_SECRET`                    | Insert the same random key, that you generated for your `wp-config.php` | INSERT_RANDOM_SECRET_KEY | Used for public exchanges between frontend and backend                                                                                                               |
 | `WP_USER`                            | Insert a valid WordPress username                                       | username                 | Username for a system user created specifically for interacting with your WordPress installation                                                                    |
 | `WP_APP_PASS`                        | Insert application password                                             | 1234 5678 abcd efgh      | [Generate an application password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/) for the WordPress user defined in `WP_USER` |
 
@@ -155,7 +153,7 @@ module.exports = {
 ## Advanced Custom Fields PRO (optional, but recommended)
 
 I will recommend building your page content by using the [Flexible Content](https://www.advancedcustomfields.com/resources/flexible-content/) data type in ACF Pro.
-This will make you able to create a "Block Builder" editor experience, but still having everything automatically type generated, and recieving the data in a structured way.
+This will make you able to create a "Block Builder" editor experience, but still having everything automatically type generated, and receiving the data in a structured way.
 The default "Gutenberg" editor returns a lot of HTML, which makes you loose a lot of the advantages of using GraphQL with type generation.
 
 ## Redirection setup
@@ -197,7 +195,7 @@ This `functions.php` is implementing different useful features for using WordPre
 
 - Setting up a primary menu (fetched in `Navigation..tsx`)
 - Rewriting preview and rest links to match the frontend instead of the WordPress installation
-- Implementing cache tag revalidation everytime you update a post in WordPress
+- Implementing cache tag revalidation every time you update a post in WordPress
 - Implementing rest endpoints for sitemap generation
 
 ```php

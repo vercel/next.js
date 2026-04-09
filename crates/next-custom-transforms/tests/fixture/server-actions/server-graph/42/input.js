@@ -10,5 +10,6 @@ async function Component({ foo }) {
   }
 
   const data = await fn()
+  // @ts-ignore: data is not a valid react child
   return <div>{data}</div>
 }

@@ -118,8 +118,8 @@ export class I18NProvider {
       // query and strip it from the pathname.
       if (analysis.detectedLocale) {
         if (analysis.detectedLocale !== detectedLocale) {
-          throw new Error(
-            `Invariant: The detected locale does not match the locale in the query. Expected to find '${detectedLocale}' in '${pathname}' but found '${analysis.detectedLocale}'}`
+          console.warn(
+            `The detected locale does not match the locale in the query. Expected to find '${detectedLocale}' in '${pathname}' but found '${analysis.detectedLocale}'}`
           )
         }
 

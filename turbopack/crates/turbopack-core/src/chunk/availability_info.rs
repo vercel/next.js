@@ -1,44 +1,76 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use bincode::{Decode, Encode};
+use bitfield::bitfield;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use super::available_modules::{AvailableModuleInfoMap, AvailableModules};
+use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Hash, Clone, Copy, Debug)]
-pub enum AvailabilityInfo {
-    /// Availability of modules is not tracked
-    Untracked,
-    /// Availablility of modules is tracked, but no modules are available
-    Root,
+bitfield! {
+    #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, PartialEq, Eq, Hash, Encode, Decode)]
+    pub struct AvailabilityFlags(u8);
+    impl Debug;
+    pub is_in_async_module, set_is_in_async_module: 0;
+}
+
+#[derive(
+    Eq, PartialEq, Hash, Clone, Copy, Debug, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
+)]
+pub struct AvailabilityInfo {
+    flags: AvailabilityFlags,
     /// There are modules already available.
-    Complete {
-        available_modules: ResolvedVc<AvailableModules>,
-    },
+    available_modules: Option<ResolvedVc<AvailableModules>>,
 }
 
 impl AvailabilityInfo {
-    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
-        match self {
-            Self::Untracked => None,
-            Self::Root => None,
-            Self::Complete {
-                available_modules, ..
-            } => Some(*available_modules),
+    pub fn root() -> Self {
+        Self {
+            flags: AvailabilityFlags::default(),
+            available_modules: None,
         }
     }
 
-    pub async fn with_modules(self, modules: Vc<AvailableModuleInfoMap>) -> Result<Self> {
-        Ok(match self {
-            AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
-            AvailabilityInfo::Root => AvailabilityInfo::Complete {
-                available_modules: AvailableModules::new(modules).to_resolved().await?,
-            },
-            AvailabilityInfo::Complete { available_modules } => AvailabilityInfo::Complete {
-                available_modules: available_modules
-                    .with_modules(modules)
-                    .to_resolved()
-                    .await?,
-            },
+    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
+        self.available_modules
+    }
+
+    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
+        Ok(if let Some(available_modules) = self.available_modules {
+            Self {
+                flags: self.flags,
+                available_modules: Some(
+                    available_modules
+                        .with_modules(modules)
+                        .to_resolved()
+                        .await?,
+                ),
+            }
+        } else {
+            Self {
+                flags: self.flags,
+                available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+            }
+        })
+    }
+
+    pub fn in_async_module(self) -> Self {
+        let mut flags = self.flags;
+        flags.set_is_in_async_module(true);
+        Self {
+            flags,
+            available_modules: self.available_modules,
+        }
+    }
+
+    pub fn is_in_async_module(&self) -> bool {
+        self.flags.is_in_async_module()
+    }
+
+    pub async fn ident(&self) -> Result<Option<RcStr>> {
+        Ok(if let Some(available_modules) = self.available_modules {
+            Some(available_modules.hash().await?.to_string().into())
+        } else {
+            None
         })
     }
 }

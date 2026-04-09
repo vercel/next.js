@@ -1,5 +1,5 @@
 The main purpose of this end-to-end test app is to allow manual testing of
-server component and server action source mapping in DevTools.
+Server Component and server action source mapping in DevTools.
 
 ## Server Components
 

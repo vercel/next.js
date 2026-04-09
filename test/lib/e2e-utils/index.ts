@@ -6,27 +6,61 @@ import { NextInstance, NextInstanceOpts } from '../next-modes/base'
 import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
-import { shouldRunTurboDevTest } from '../next-test-utils'
+import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
 
-// increase timeout to account for pnpm install time
-// if either test runs for the --turbo or have a custom timeout, set reduced timeout instead.
-// this is due to current --turbo test have a lot of tests fails with timeouts, ends up the whole
-// test job exceeds the 6 hours limit.
-let testTimeout = shouldRunTurboDevTest()
-  ? (240 * 1000) / 2
-  : (process.platform === 'win32' ? 240 : 120) * 1000
+const individualTestTimeout = 60 * 1000
+
+// Keep a higher timeout for setup hooks (e.g. initial createNext/startup),
+// but enforce 60s per test case via wrapped `it`/`test` for non-dev modes.
+let setupTimeout = (process.platform === 'win32' ? 240 : 120) * 1000
 
 if (process.env.NEXT_E2E_TEST_TIMEOUT) {
-  try {
-    testTimeout = parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
-  } catch (_) {
-    // ignore
+  const parsedTimeout = Number.parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  if (!Number.isNaN(parsedTimeout)) {
+    setupTimeout = parsedTimeout
   }
 }
 
-jest.setTimeout(testTimeout)
+jest.setTimeout(setupTimeout)
+
+type E2ETestGlobal = typeof globalThis & {
+  __NEXT_E2E_TEST_CONFIG_PATCHED__?: boolean
+  __NEXT_E2E_WRAPPED_TEST_FNS__?: WeakMap<Function, Function>
+}
+
+const wrapJestTestFn = <T extends Function>(fn: T): T => {
+  const e2eGlobal = global as E2ETestGlobal
+  const wrappedFns =
+    e2eGlobal.__NEXT_E2E_WRAPPED_TEST_FNS__ ??
+    (e2eGlobal.__NEXT_E2E_WRAPPED_TEST_FNS__ = new WeakMap())
+  const existing = wrappedFns.get(fn)
+  if (existing) return existing as T
+
+  const wrapped = new Proxy(fn, {
+    apply(target, thisArg, argArray: unknown[]) {
+      const args = [...argArray]
+      if (
+        args.length >= 2 &&
+        typeof args[1] === 'function' &&
+        args[2] === undefined
+      ) {
+        args[2] = individualTestTimeout
+      }
+
+      const result = Reflect.apply(target, thisArg, args)
+      return typeof result === 'function' ? wrapJestTestFn(result) : result
+    },
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? wrapJestTestFn(value) : value
+    },
+  })
+
+  wrappedFns.set(fn, wrapped)
+  return wrapped as T
+}
 
 const testsFolder = path.join(__dirname, '..', '..')
 
@@ -71,7 +105,7 @@ if (testModeFromFile === 'e2e') {
     testMode = 'start'
   }
   assert(
-    validE2EModes.includes(testMode),
+    validE2EModes.includes(testMode!),
     `NEXT_TEST_MODE must be one of ${validE2EModes.join(
       ', '
     )} for e2e tests but received ${testMode}`
@@ -80,6 +114,24 @@ if (testModeFromFile === 'e2e') {
   testMode = 'dev'
 } else if (testModeFromFile === 'production') {
   testMode = 'start'
+}
+
+const e2eGlobal = global as E2ETestGlobal
+if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
+  if (testMode !== 'dev') {
+    if (typeof global.it === 'function') {
+      global.it = wrapJestTestFn(global.it) as jest.It
+    }
+    if (typeof global.test === 'function') {
+      global.test = wrapJestTestFn(global.test) as jest.It
+    }
+
+    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
+      jest.retryTimes(1)
+    }
+  }
+
+  e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true
 }
 
 if (testMode === 'dev') {
@@ -106,6 +158,15 @@ export const isNextDeploy = testMode === 'deploy'
  */
 export const isNextStart = !isNextDev && !isNextDeploy
 
+if (!process.env.NEXT_TEST_WASM && process.env.NEXT_TEST_WASM_AFTER_JEST) {
+  process.env.NEXT_TEST_WASM = process.env.NEXT_TEST_WASM_AFTER_JEST
+}
+
+export const isRspack = !!process.env.NEXT_RSPACK
+const isNextTestWasm = !!process.env.NEXT_TEST_WASM
+export const itTurbopack =
+  !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
@@ -124,6 +185,20 @@ export class FileRef {
 
   constructor(path: string) {
     this.fsPath = path
+  }
+}
+
+/**
+ * FileRef is wrapper around a file path that is meant be copied
+ * to the location where the next instance is being created
+ */
+export class PatchedFileRef {
+  public fsPath: string
+  public cb: (content: string) => string
+
+  constructor(path: string, cb: (content: string) => string) {
+    this.fsPath = path
+    this.cb = cb
   }
 }
 
@@ -164,9 +239,9 @@ export async function createNext(
 
     setupTracing()
     return await trace('createNext').traceAsyncFn(async (rootSpan) => {
-      const useTurbo = !!process.env.TEST_WASM
+      const useTurbo = isNextTestWasm
         ? false
-        : opts?.turbo ?? shouldRunTurboDevTest()
+        : (opts?.turbo ?? shouldUseTurbopack())
 
       if (testMode === 'dev') {
         // next dev
@@ -181,7 +256,6 @@ export async function createNext(
         rootSpan.traceChild('init next deploy instance').traceFn(() => {
           nextInstance = new NextDeployInstance({
             ...opts,
-            turbo: false,
           })
         })
       } else {
@@ -189,10 +263,11 @@ export async function createNext(
         rootSpan.traceChild('init next start instance').traceFn(() => {
           nextInstance = new NextStartInstance({
             ...opts,
-            turbo: false,
           })
         })
       }
+
+      nextInstance = nextInstance!
 
       nextInstance.on('destroy', () => {
         nextInstance = undefined
@@ -204,7 +279,7 @@ export async function createNext(
         await rootSpan
           .traceChild('start next instance')
           .traceAsyncFn(async () => {
-            await nextInstance.start()
+            await nextInstance!.start()
           })
       }
 
@@ -234,6 +309,7 @@ export function nextTestSetup(
   isNextDeploy: boolean
   isNextStart: boolean
   isTurbopack: boolean
+  isRspack: boolean
   next: NextInstance
   skipped: boolean
 } {
@@ -272,23 +348,32 @@ export function nextTestSetup(
       const prop = next[property]
       return typeof prop === 'function' ? prop.bind(next) : prop
     },
+    set: function (_target, key, value) {
+      if (!next) {
+        throw new Error(
+          'next instance is not initialized yet, make sure you call methods on next instance in test body.'
+        )
+      }
+      next[key] = value
+      return true
+    },
   })
 
   return {
     get isNextDev() {
       return isNextDev
     },
-    get isTurbopack(): boolean {
-      return Boolean(
-        !process.env.TEST_WASM && (options.turbo ?? shouldRunTurboDevTest())
-      )
-    },
-
     get isNextDeploy() {
       return isNextDeploy
     },
     get isNextStart() {
       return isNextStart
+    },
+    get isTurbopack() {
+      return Boolean(!isNextTestWasm && (options.turbo ?? shouldUseTurbopack()))
+    },
+    get isRspack() {
+      return isRspack
     },
     get next() {
       return nextProxy

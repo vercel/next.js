@@ -26,7 +26,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{magic_any::MagicAny, RawVc, Vc, VcRead, VcValueType};
+use crate::{RawVc, Vc, VcRead, VcValueType, magic_any::MagicAny};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 
@@ -34,51 +34,38 @@ pub trait TaskFn: Send + Sync + 'static {
     fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
-pub trait IntoTaskFn<Mode, Inputs> {
-    type TaskFn: TaskFn;
-
-    fn into_task_fn(self) -> Self::TaskFn;
+/// A trait for `TaskFn` implementations that allows task inputs to be extracted as a type.
+pub trait TaskFnInputs: TaskFn {
+    type INPUTS: TaskInput + TaskInputs;
 }
 
-impl<F, Mode, Inputs> IntoTaskFn<Mode, Inputs> for F
-where
-    F: TaskFnInputFunction<Mode, Inputs>,
+pub const fn into_task_fn<
     Mode: TaskFnMode,
     Inputs: TaskInputs,
-{
-    type TaskFn = FunctionTaskFn<F, Mode, Inputs>;
-
-    fn into_task_fn(self) -> Self::TaskFn {
-        FunctionTaskFn {
-            task_fn: self,
-            mode: PhantomData,
-            inputs: PhantomData,
-        }
+    F: TaskFnInputFunction<Mode, Inputs>,
+>(
+    f: F,
+) -> FunctionTaskFn<F, Mode, Inputs> {
+    FunctionTaskFn {
+        task_fn: f,
+        mode: PhantomData,
+        inputs: PhantomData,
     }
 }
 
-pub trait IntoTaskFnWithThis<Mode, This, Inputs> {
-    type TaskFn: TaskFn;
-
-    fn into_task_fn_with_this(self) -> Self::TaskFn;
-}
-
-impl<F, Mode, This, Inputs> IntoTaskFnWithThis<Mode, This, Inputs> for F
-where
-    F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
+pub const fn into_task_fn_with_this<
     Mode: TaskFnMode,
-    This: Sync + Send + 'static,
+    This: Send + Sync + 'static,
     Inputs: TaskInputs,
-{
-    type TaskFn = FunctionTaskFnWithThis<F, Mode, This, Inputs>;
-
-    fn into_task_fn_with_this(self) -> Self::TaskFn {
-        FunctionTaskFnWithThis {
-            task_fn: self,
-            mode: PhantomData,
-            this: PhantomData,
-            inputs: PhantomData,
-        }
+    F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
+>(
+    f: F,
+) -> FunctionTaskFnWithThis<F, Mode, This, Inputs> {
+    FunctionTaskFnWithThis {
+        task_fn: f,
+        mode: PhantomData,
+        this: PhantomData,
+        inputs: PhantomData,
     }
 }
 
@@ -97,6 +84,15 @@ where
     fn functor(&self, _this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
         TaskFnInputFunction::functor(&self.task_fn, arg)
     }
+}
+
+impl<F, Mode, Inputs> TaskFnInputs for FunctionTaskFn<F, Mode, Inputs>
+where
+    F: TaskFnInputFunction<Mode, Inputs>,
+    Mode: TaskFnMode,
+    Inputs: TaskInputs + TaskInput,
+{
+    type INPUTS = Inputs;
 }
 
 pub struct FunctionTaskFnWithThis<
@@ -126,12 +122,29 @@ where
     }
 }
 
-trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + Clone + 'static {
+impl<F, Mode, This, Inputs> TaskFnInputs for FunctionTaskFnWithThis<F, Mode, This, Inputs>
+where
+    F: TaskFnInputFunctionWithThis<Mode, This, Inputs>,
+    Mode: TaskFnMode,
+    This: Sync + Send + 'static,
+    Inputs: TaskInputs + TaskInput,
+{
+    type INPUTS = Inputs;
+}
+
+#[doc(hidden)]
+pub trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>:
+    Send + Sync + Clone + 'static
+{
     fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
 
-trait TaskFnInputFunctionWithThis<Mode: TaskFnMode, This: Sync + Send + 'static, Inputs: TaskInputs>:
-    Send + Sync + Clone + 'static
+#[doc(hidden)]
+pub trait TaskFnInputFunctionWithThis<
+    Mode: TaskFnMode,
+    This: Sync + Send + 'static,
+    Inputs: TaskInputs,
+>: Send + Sync + Clone + 'static
 {
     fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
 }
@@ -172,10 +185,13 @@ macro_rules! task_inputs_impl {
 /// gives the compiler more chances to dedupe monomorphized code across small functions with less
 /// typevars.
 fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
-    let value = arg.downcast_ref::<T>().cloned();
+    let value = (arg as &dyn std::any::Any).downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
-        crate::native_function::debug_downcast_args_error_msg(std::any::type_name::<T>(), arg)
+        crate::native_function::debug_downcast_args_error_msg(
+            std::any::type_name::<T>(),
+            arg.magic_type_name(),
+        )
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");
@@ -183,10 +199,6 @@ fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
 
 // Helper function for `task_fn_impl!()`
 async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<RawVc> {
-    // TODO: Potential future optimization: If we know we're inside a local task, we can avoid
-    // calling `to_non_local()` here, which might let us avoid constructing a non-local cell for the
-    // local task's return value. Flattening chains of `RawVc::LocalOutput` may still be useful to
-    // reduce traversal later.
     output.try_into_raw_vc()?.to_non_local().await
 }
 
@@ -417,6 +429,10 @@ mod tests {
             fn get_value_type_id() -> crate::ValueTypeId {
                 todo!()
             }
+
+            fn has_serialization() -> bool {
+                false
+            }
         }
 
         trait AsyncTrait {
@@ -450,25 +466,25 @@ mod tests {
         }
         */
 
-        let _task_fn = no_args.into_task_fn();
-        accepts_task_fn(no_args.into_task_fn());
-        let _task_fn = one_arg.into_task_fn();
-        accepts_task_fn(one_arg.into_task_fn());
-        let _task_fn = async_one_arg.into_task_fn();
-        accepts_task_fn(async_one_arg.into_task_fn());
-        let task_fn = with_recv.into_task_fn_with_this();
+        let task_fn = into_task_fn(no_args);
         accepts_task_fn(task_fn);
-        let task_fn = async_with_recv.into_task_fn_with_this();
+        let task_fn = into_task_fn(one_arg);
         accepts_task_fn(task_fn);
-        let task_fn = with_recv_and_str.into_task_fn_with_this();
+        let task_fn = into_task_fn(async_one_arg);
         accepts_task_fn(task_fn);
-        let task_fn = async_with_recv_and_str.into_task_fn_with_this();
+        let task_fn = into_task_fn_with_this(with_recv);
         accepts_task_fn(task_fn);
-        let task_fn = async_with_recv_and_str_and_result.into_task_fn_with_this();
+        let task_fn = into_task_fn_with_this(async_with_recv);
         accepts_task_fn(task_fn);
-        let task_fn = <Struct as AsyncTrait>::async_method.into_task_fn_with_this();
+        let task_fn = into_task_fn_with_this(with_recv_and_str);
         accepts_task_fn(task_fn);
-        let task_fn = Struct::inherent_method.into_task_fn_with_this();
+        let task_fn = into_task_fn_with_this(async_with_recv_and_str);
+        accepts_task_fn(task_fn);
+        let task_fn = into_task_fn_with_this(async_with_recv_and_str_and_result);
+        accepts_task_fn(task_fn);
+        let task_fn = into_task_fn_with_this(<Struct as AsyncTrait>::async_method);
+        accepts_task_fn(task_fn);
+        let task_fn = into_task_fn_with_this(Struct::inherent_method);
         accepts_task_fn(task_fn);
 
         /*

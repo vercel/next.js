@@ -1,0 +1,36 @@
+packages:
+  - '.'
+allowBuilds:
+  '@apollo/protobufjs': true
+  '@datadog/pprof': true
+  '@ffmpeg-installer/darwin-arm64': true
+  '@ffmpeg-installer/darwin-x64': true
+  '@ffmpeg-installer/linux-arm': true
+  '@ffmpeg-installer/linux-arm64': true
+  '@ffmpeg-installer/linux-ia32': true
+  '@ffmpeg-installer/linux-x64': true
+  '@ffmpeg-installer/win32-ia32': true
+  '@ffmpeg-installer/win32-x64': true
+  '@firebase/util': true
+  '@serialport/bindings-cpp': true
+  argon2: true
+  bcrypt: true
+  better-sqlite3: true
+  canvas: true
+  core-js: true
+  ejs: true
+  es5-ext: true
+  esbuild: true
+  ffmpeg-static: true
+  leveldown: true
+  microtime: true
+  msgpackr-extract: true
+  nice-napi: true
+  oniguruma: true
+  oracledb: true
+  phantomjs-prebuilt: true
+  protobufjs: true
+  sharp: true
+  sqlite3: true
+  unix-dgram: true
+  zeromq: true

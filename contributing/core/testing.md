@@ -92,6 +92,8 @@ these can be leveraged by prefixing the `pnpm test` command.
   it can be used when not using `pnpm test-dev` or `pnpm test-start` directly.
   Valid test modes can be seen here:
   https://github.com/vercel/next.js/blob/aa664868c102ddc5adc618415162d124503ad12e/test/lib/e2e-utils.ts#L46
+- Use `NEXT_TEST_DEPLOY_URL` with `pnpm test-deploy` to skip the Vercel deploy step and run
+  deploy-mode assertions against an existing deployment URL.
 - You can use `NEXT_TEST_PREFER_OFFLINE=1` while testing to configure the package manager to include the
   [`--prefer-offline`](https://pnpm.io/cli/install#--prefer-offline) argument during test setup.
   This is helpful when running tests in internet-restricted environments such as planes or public Wi-Fi.
@@ -103,16 +105,29 @@ we attempt to capture traces of the playwright run to make debugging the failure
 A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped,
 and then inspected with `pnpm playwright show-trace ./path/to/trace`
 
+To attach the chrome debugger to next the easiest approach is to modify the `createNext` call in your test to pass `--inspect` to next.
+
+```js
+const next = await createNext({
+  ...
+  startArgs: =['--inspect'],
+})
+```
+
+Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+
+To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
+
 ### Profiling tests
 
 Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.
 
 ### Testing Turbopack
 
-To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment variable:
+To run the test suite using Turbopack, you can use the `-turbo` version of the npm script:
 
 ```sh
-TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
+pnpm test-dev-turbo test/e2e/app-dir/app/
 ```
 
 If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
@@ -121,42 +136,92 @@ If you want to run a test again both Turbopack and Webpack, use Jest's `--projec
 pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
 ```
 
+### Deploy Tests
+
+Deploy tests verify that Next.js works correctly when deployed to Vercel.
+These tests are part of the e2e test suite and run against real Vercel deployments.
+
+#### Triggering Deploy Tests on PRs
+
+Deploy tests run automatically on `canary` but are not triggered by default on every PR.
+Test files that are modified or created in your PR will have their deploy tests run in CI.
+
+Alternatively, you can manually trigger the deploy test workflow via the
+[GitHub Actions UI](https://github.com/vercel/next.js/actions/workflows/test_e2e_deploy_release.yml)
+and point it at your branch (this requires passing a custom tarball).
+
+#### Running Deploy Tests Locally
+
+You can run deploy tests locally against a specific commit using the `NEXT_TEST_VERSION` environment variable:
+
+```sh
+NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/<commitSha>/next pnpm test-deploy <path-to-test>
+```
+
+For example, to test against commit `abc123`:
+
+```sh
+NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/abc123/next pnpm test-deploy test/e2e/app-dir/actions/
+```
+
+This downloads a pre-built Next.js tarball from the specified commit and runs the deploy tests against it.
+
+If you already have a deployment URL and want to skip the Vercel deploy step,
+use `NEXT_TEST_DEPLOY_URL` instead:
+
+```sh
+NEXT_TEST_DEPLOY_URL=https://your-deployment.vercel.app pnpm test-deploy test/e2e/app-dir/actions/
+```
+
 ## Integration testing outside the repository with local builds
 
-You can locally generate tarballs for each package in this repository with:
+You can locally generate builds for each package in this repository with:
 
-```
+```bash
 pnpm pack-next
 ```
 
-The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
-be shown information about how to use these tarballs in a project by modifying the workspace
-`package.json` file.
+You can automatically apply modifications to `package.json` by specifying your project directory:
 
-Alternatively, you can automatically apply these `package.json` modifications by passing in your
-project directory:
-
-```
+```bash
 pnpm pack-next --project ~/shadcn-ui/apps/www/
 ```
 
 This will find and modify parent workspaces when relevant. These automatic overrides should work
 with `npm` and `pnpm`. There are known issues preventing it from working with `bun` and `yarn`.
 
-On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
+Flags can be passed to `napi`'s CLI, separated by an argument separator (`--`). For example:
+
+```bash
+pnpm pack-next --project ~/my-project/ -- --release
+```
+
+See `pnpm pack-next --help` for more details.
+
+### Locally creating tarballs
+
+You can create tarballs with:
+
+```bash
+pnpm pack-next --tar
+```
+
+The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
+be shown information about how to use these tarballs in a project by modifying the workspace
+`package.json` file.
+
+On Linux, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
 known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
-overridden with `PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo),
-or with `PACK_NEXT_COMPRESS=none` on all platforms (which disables stripping entirely).
+overridden with `--compress objcopy-zstd` on Linux (which is slower, but retains debuginfo).
 
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:
 
-```
+```bash
 pnpm unpack-next ~/shadcn-ui
 ```
 
-However, this is not typically recommended, unless you're running into issues like the 2 GiB file
-size limit.
+However, this is not typically recommended, as installing using the package manager is safer.
 
 ## Integration testing outside the repository with preview builds
 
@@ -188,4 +253,4 @@ or, to use `next` from a specific Pull Request (PR number required):
 
 <sup>1</sup> Not all native packages are built automatically.
 `build-and-deploy` excludes slow, rarely used native variants of `next-swc`.
-To force a build of all packages, you can trigger `build-and-deploy` manually (i.e. `workflow_dispatch`).
+To force a build of all packages, you can [trigger `build-and-deploy` manually](https://github.com/vercel/next.js/actions/workflows/build_and_deploy.yml) (i.e. `workflow_dispatch`).
