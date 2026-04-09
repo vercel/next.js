@@ -121,7 +121,7 @@ export function createWebSocket(
       newWebSocket.close()
       reconnections++
 
-      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
       if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
@@ -141,6 +141,28 @@ export function createWebSocket(
     webSocket = newWebSocket
     return newWebSocket
   }
+
+  function handleVisibilityChange() {
+    if (
+      document.visibilityState === 'visible' &&
+      webSocket.readyState !== WebSocket.OPEN
+    ) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  function handleOnlineEvent() {
+    if (webSocket.readyState !== WebSocket.OPEN) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('online', handleOnlineEvent)
 
   return init()
 }
