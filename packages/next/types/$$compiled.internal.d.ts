@@ -806,6 +806,16 @@ declare module 'next/dist/compiled/web-vitals' {
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
 
+declare module 'next/dist/compiled/write-file-atomic' {
+  function writeFileAtomicSync(
+    filename: string,
+    data: string | Buffer,
+    options?: { mode?: number; chown?: { uid: number; gid: number } }
+  ): void
+  export const sync: typeof writeFileAtomicSync
+  export default writeFileAtomicSync
+}
+
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'
   export = m

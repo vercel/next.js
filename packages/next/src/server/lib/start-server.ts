@@ -599,6 +599,13 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
+      let rageRestartAttrsFromParent = {}
+      if (process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS) {
+        rageRestartAttrsFromParent = JSON.parse(
+          process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
@@ -606,6 +613,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
         ...enabledFeaturesFromParent,
+        ...rageRestartAttrsFromParent,
       })
 
       initializeTraceState({

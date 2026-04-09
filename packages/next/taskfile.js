@@ -2109,6 +2109,14 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('src/compiled/webpack/')
 }
 
+externals['write-file-atomic'] = 'next/dist/compiled/write-file-atomic'
+export async function ncc_write_file_atomic(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('write-file-atomic')))
+    .ncc({ packageName: 'write-file-atomic', externals })
+    .target('src/compiled/write-file-atomic')
+}
+
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
   await task
@@ -2320,6 +2328,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_write_file_atomic',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',
