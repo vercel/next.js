@@ -472,7 +472,27 @@ export function getMiddlewareMatchers(
     }`
 
     if (nextConfig.basePath) {
-      source = `${nextConfig.basePath}${source}`
+      // When basePath is set and the source pattern can match the root path "/",
+      // we need to make the source optional so that the basePath alone (e.g. "/test")
+      // also matches. Without this, patterns like /((?!api|_next/static|...).*)
+      // would require at least a "/" after the basePath.
+      if (!isRoot) {
+        const parsed = tryToParsePath(originalSource)
+        if (parsed.regexStr && new RegExp(parsed.regexStr).test('/')) {
+          const optionalSource = `/:nextData(_next/data/[^/]{1,})?{${originalSource}}?{(\\.json)}?`
+          const candidateSource = `${nextConfig.basePath}${optionalSource}`
+          const candidateParsed = tryToParsePath(candidateSource)
+          if (!candidateParsed.error) {
+            source = candidateSource
+          } else {
+            source = `${nextConfig.basePath}${source}`
+          }
+        } else {
+          source = `${nextConfig.basePath}${source}`
+        }
+      } else {
+        source = `${nextConfig.basePath}${source}`
+      }
     }
 
     // Validate that the source is still.
