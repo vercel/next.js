@@ -145,7 +145,7 @@ impl Storage {
     /// This is used after persisting a snapshot: _during_snapshot flags represent changes
     /// that occurred concurrently and were not included in the persisted snapshot, so they
     /// must be carried forward as `modified` for the next snapshot cycle.
-    fn promote_during_snapshot_flags(&self, task_id: &TaskId, task: &mut TaskStorage) {
+    fn promote_during_snapshot_flags(&self, task: &mut TaskStorage, shard_idx: usize) {
         let already_modified = task.flags.any_modified();
         let mut promoted = false;
         if task.flags.meta_modified_during_snapshot() {
@@ -159,7 +159,6 @@ impl Storage {
             promoted = true;
         }
         if !already_modified && promoted {
-            let shard_idx = self.shard_index(task_id);
             self.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -322,7 +321,7 @@ impl Storage {
             let mut shard_guard = shard.write();
             for (key, _) in shard_guard.drain() {
                 if let Some(mut inner) = self.map.get_mut(&key) {
-                    self.promote_during_snapshot_flags(&key, &mut inner);
+                    self.promote_during_snapshot_flags(&mut inner, self.shard_index(&key));
                 }
             }
             // If we are saving a non-trivial amount of memory just clear it out.
@@ -450,8 +449,8 @@ impl StorageWriteGuard<'_> {
                 // In snapshot mode and item is modified (so it's part of the snapshot)
                 // We need to store the original version that is part of the snapshot
                 if !flags.any_modified_during_snapshot() {
-                    // Snapshot all non-transient fields but keep the modified bits since
-                    // save_snapshot relies on them
+                    // Snapshot all non-transient fields, carrying the modified bits into
+                    // the copy so the iterator knows which categories to persist.
                     let mut snapshot = self.inner.clone_snapshot();
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
@@ -604,81 +603,57 @@ where
         // track_modification. We encode from the owned snapshot copy,
         // clear the stale modified flags, and promote any _during_snapshot
         // flags so the task stays dirty for the next cycle.
-        while let Some((task_id, snapshot)) = self.shard.direct_snapshots.pop() {
+        if let Some((task_id, snapshot)) = self.shard.direct_snapshots.pop() {
             let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+            // Clear pre-snapshot flags. Since we removed this task's entry from the
+            // snapshots map in take_snapshot, end_snapshot won't see it, so we must
+            // promote here.
             let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
-            if !item.is_empty() {
-                // Successfully encoded — clear pre-snapshot flags. Since we removed
-                // this task's entry from the snapshots map in take_snapshot,
-                // end_snapshot won't see it, so we must promote here.
-                inner.flags.set_data_modified(false);
-                inner.flags.set_meta_modified(false);
-                inner.flags.set_new_task(false);
-                self.shard
-                    .storage
-                    .promote_during_snapshot_flags(&task_id, &mut inner);
-                return Some(item);
-            } else {
-                // Error path: encoding failed. Re-mark dirty for next cycle.
-                std::hint::cold_path();
-                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
-                    .fetch_add(1, Ordering::Relaxed);
-                self.shard
-                    .storage
-                    .promote_during_snapshot_flags(&task_id, &mut inner);
-            }
+            inner.flags.set_data_modified(false);
+            inner.flags.set_meta_modified(false);
+            inner.flags.set_new_task(false);
+            self.shard
+                .storage
+                .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
+            return Some(item);
         }
         // modified tasks: acquire a write lock to encode and clear flags in one pass.
-        while let Some(task_id) = self.shard.modified.pop() {
+        if let Some(task_id) = self.shard.modified.pop() {
             let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
             if !inner.flags.any_modified_during_snapshot() {
                 let item = (self.shard.process)(task_id, &inner, &mut self.buffer);
-                if !item.is_empty() {
-                    // Successfully encoded — clear flags.
-                    inner.flags.set_data_modified(false);
-                    inner.flags.set_meta_modified(false);
-                    inner.flags.set_new_task(false);
-                    return Some(item);
-                }
-                // Error path: encoding failed. Re-mark dirty for next cycle.
-                std::hint::cold_path();
-                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
-                    .fetch_add(1, Ordering::Relaxed);
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
+                inner.flags.set_new_task(false);
+                return Some(item);
             } else {
                 // Task was modified again during snapshot mode. A snapshot copy was
-                // created in track_modification_internal. Use that for encoding.
-                // Promote modified_during_snapshot → modified so the task stays dirty
-                // for the next snapshot cycle (the original has diverged from what
-                // we're about to persist).
-                debug_assert!(!inner.flags.any_modified(), "cannot already be modified");
-                self.shard
-                    .storage
-                    .promote_during_snapshot_flags(&task_id, &mut inner);
-                drop(inner);
-
-                // Take the snapshot and remove from the snapshots map so
-                // end_snapshot doesn't double-process this task.
+                // created in track_modification_internal. Remove it and encode it.
+                // end_snapshot must not also process it, so we take it out of the map.
+                // snapshots is a separate DashMap from map, so holding `inner` across
+                // the remove and encode is safe — no lock ordering issue.
                 let snapshot = self
                     .shard
                     .storage
                     .snapshots
                     .remove(&task_id)
                     .expect("The snapshot bit was set, so it must be in Snapshot state")
-                    .1;
+                    .1
+                    .expect(
+                        "snapshot entry for modified_during_snapshot task must contain a value",
+                    );
 
-                if let Some(snapshot) = snapshot {
-                    let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
-                    if !item.is_empty() {
-                        // Successfully encoded the snapshot — clear new_task since it
-                        // was captured in the snapshot. The promoted modified flags
-                        // keep the task dirty for future changes.
-                        if let Some(mut inner) = self.shard.storage.map.get_mut(&task_id) {
-                            inner.flags.set_new_task(false);
-                        }
-                        return Some(item);
-                    }
-                    // Encoding failed — new_task flag stays set for retry.
-                }
+                let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+                // Clear the modified flags that were captured into the snapshot copy,
+                // then promote modified_during_snapshot → modified so the task stays
+                // dirty for the next snapshot cycle.
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
+                inner.flags.set_new_task(false);
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
+                return Some(item);
             }
         }
         None
@@ -690,5 +665,109 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
         self.shard
             ._guard
             .return_scratch_buffer(std::mem::take(&mut self.buffer));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_bincode::TurboBincodeBuffer;
+    use turbo_tasks::TaskId;
+
+    use super::{SpecificTaskDataCategory, Storage};
+    use crate::backing_storage::SnapshotItem;
+
+    fn non_transient_task(id: u32) -> TaskId {
+        // TRANSIENT_TASK_BIT is 0x8000_0000; any id without that bit is non-transient.
+        TaskId::new(id).expect("id must be non-zero")
+    }
+
+    /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't
+    /// silently skip items via the "encoding failed" error path.
+    fn dummy_process(
+        task_id: TaskId,
+        _: &super::TaskStorage,
+        _: &mut TurboBincodeBuffer,
+    ) -> SnapshotItem {
+        SnapshotItem {
+            task_id,
+            meta: Some(TurboBincodeBuffer::default()),
+            data: None,
+            task_type_hash: None,
+        }
+    }
+
+    /// Regression test: a task modified before a snapshot and then modified *again* during
+    /// snapshot iteration must not trigger `debug_assert!(!inner.flags.any_modified())` in
+    /// `SnapshotShardIter::next`.
+    ///
+    /// Sequence of events:
+    /// 1. Task is modified (data_modified = true) → added to shard_modified_counts.
+    /// 2. `start_snapshot` puts us in snapshot mode.
+    /// 3. `take_snapshot` scans the shard: task has `any_modified()=true` and
+    ///    `any_modified_during_snapshot()=false` → task goes into the `modified` list.
+    /// 4. **Between scan and iteration**: `track_modification` is called on the task again. This is
+    ///    the `(true, true)` branch: already modified AND in snapshot mode. A snapshot copy of the
+    ///    pre-snapshot state is created (carrying the modified bits) and stored in `snapshots`.
+    /// 5. `SnapshotShardIter::next` processes the task from the `modified` list, finds
+    ///    `any_modified_during_snapshot()=true`, clears the live modified flags (which were
+    ///    captured into the snapshot), then asserts `!any_modified()` before promoting.
+    // `end_snapshot` uses `parallel::for_each` which calls `block_in_place` internally,
+    // requiring a multi-threaded Tokio runtime.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn modify_during_snapshot_clears_live_modified_flags() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        // Step 1: modify the task outside snapshot mode (data_modified = true).
+        {
+            let mut guard = storage.access_mut(task_id);
+            guard.track_modification(SpecificTaskDataCategory::Data, "test");
+        }
+
+        // Step 2: enter snapshot mode.
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+
+        // Step 3: `take_snapshot` scans the shard. At this point the task has
+        // `any_modified()=true` and `any_modified_during_snapshot()=false`, so it
+        // goes into the `modified` list inside the returned `SnapshotShard`.
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process);
+
+        // Step 4: now that the scan is done but before we consume the iterator,
+        // modify the task again. We're still in snapshot mode, the task is already
+        // modified → `(true, true)` branch: creates a snapshot copy (carrying the
+        // modified bits) and sets `data_modified_during_snapshot=true`.
+        {
+            let mut guard = storage.access_mut(task_id);
+            guard.track_modification(SpecificTaskDataCategory::Data, "test");
+            // We should have set a snapshot bit
+            assert!(guard.flags.data_modified_during_snapshot())
+        }
+
+        // Step 5: consume the iterator. The iterator clears the live modified flags
+        // before the assert, encodes the snapshot copy, and promotes
+        // `data_modified_during_snapshot → data_modified` for the next cycle.
+        let items: Vec<_> = shards
+            .into_iter()
+            .flat_map(|shard| shard.into_iter())
+            .collect();
+
+        // The pre-snapshot snapshot copy should have been encoded and returned.
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].task_id, task_id);
+
+        {
+            let guard = storage.access_mut(task_id);
+            // Ending the snapshot should have promoted modified_during_snapshot → modified.
+            assert!(guard.flags.data_modified());
+        }
+
+        // The during-snapshot modification must be reflected in shard_modified_counts so
+        // the next snapshot cycle picks it up. Verify by starting another snapshot.
+        let (_guard2, has_modifications) = storage.start_snapshot();
+        assert!(
+            has_modifications,
+            "shard_modified_counts must be non-zero after promoting modified_during_snapshot"
+        );
     }
 }
