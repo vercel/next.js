@@ -34,7 +34,6 @@ import {
   fillInFallbackFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
-  replaceDeferredRouteParamMarkersInFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
@@ -300,14 +299,6 @@ export async function fetchServerResponse(
       flightResponsePromise,
       res.cacheData,
     ])
-
-    if (usedOutputExportFallback) {
-      replaceDeferredRouteParamMarkersInFlightData(
-        flightResponse.f,
-        originalUrl.pathname,
-        originalUrl.search as NormalizedSearch
-      )
-    }
 
     if (
       (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==

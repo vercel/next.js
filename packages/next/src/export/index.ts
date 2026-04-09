@@ -28,6 +28,8 @@ import {
 } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
+  getOutputExportFallbackPath,
+  getOutputExportFallbackStaticPrefix,
   isOutputExportDynamicFallbackEnabled,
   isOutputExportOptimisticRoutingEnabled,
 } from '../lib/output-export-dynamic-fallback'
@@ -1154,17 +1156,12 @@ function hasOutputExportDynamicFallbackRoutes(
 }
 
 function getFallbackExportPath(routePath: string): string | null {
-  const segments = routePath.split('/').filter(Boolean)
-  const firstDynamicIndex = segments.findIndex(
-    (segment) => segment.startsWith('[') && segment.endsWith(']')
-  )
-
-  if (firstDynamicIndex === -1) {
+  const staticPrefix = getOutputExportFallbackStaticPrefix(routePath)
+  if (staticPrefix === null) {
     return null
   }
 
-  const staticPrefix = segments.slice(0, firstDynamicIndex).join('/')
-  return staticPrefix.length > 0 ? `/${staticPrefix}/__fallback` : '/__fallback'
+  return getOutputExportFallbackPath(staticPrefix)
 }
 
 async function writeOutputExportFallbackHtml(outDir: string): Promise<void> {

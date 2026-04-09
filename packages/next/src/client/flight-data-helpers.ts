@@ -102,15 +102,11 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   const canonicalUrl = createHrefFromUrl(
     renderedUrlOverride ?? new URL(location.href)
   )
-  const patchedFlightData = replaceDeferredRouteParamMarkersInFlightData(
-    fillInFallbackFlightDataPaths(
-      fallbackInitialRSCPayload.f,
-      renderedPathname,
-      renderedSearch as NormalizedSearch
-    ),
+  const patchedFlightData = fillInFallbackFlightData(
+    fallbackInitialRSCPayload.f,
     renderedPathname,
     renderedSearch as NormalizedSearch
-  )
+  ) as FlightDataPath[]
   const payload: InitialRSCPayload = {
     c: canonicalUrl.split('/'),
     q: renderedSearch,
@@ -127,52 +123,30 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   return payload
 }
 
-export function fillInFallbackFlightData(
-  flightData: FlightData,
-  renderedPathname: string,
-  renderedSearch: NormalizedSearch
-): FlightData {
-  if (typeof flightData === 'string') {
-    return flightData
-  }
-
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
-
-  return flightData.map((flightDataPath) =>
-    fillInFallbackFlightDataPath(flightDataPath, renderedSearch, pathnameParts)
-  )
-}
-
-function fillInFallbackFlightDataPaths(
-  flightData: FlightDataPath[],
-  renderedPathname: string,
-  renderedSearch: NormalizedSearch
-): FlightDataPath[] {
-  return fillInFallbackFlightData(
-    flightData,
-    renderedPathname,
-    renderedSearch
-  ) as FlightDataPath[]
-}
-
-export function replaceDeferredRouteParamMarkersInFlightData<
-  T extends FlightData | FlightDataPath[],
->(
+export function fillInFallbackFlightData<T extends FlightData>(
   flightData: T,
   renderedPathname: string,
   renderedSearch: NormalizedSearch
 ): T {
-  const replacements = collectFallbackParamReplacementMap(
-    flightData,
-    renderedPathname,
-    renderedSearch
-  )
-  if (replacements.size === 0) {
+  if (typeof flightData === 'string') {
     return flightData
   }
 
-  replaceDeferredRouteParamMarkersInValue(flightData, replacements)
-  return flightData
+  const pathnameParts = getPathnameParts(renderedPathname)
+  const replacements = collectFallbackParamReplacementMap(
+    flightData,
+    pathnameParts,
+    renderedSearch
+  )
+  const filledFlightData = flightData.map((flightDataPath) =>
+    fillInFallbackFlightDataPath(flightDataPath, renderedSearch, pathnameParts)
+  ) as FlightDataPath[]
+
+  if (replacements.size > 0) {
+    replaceDeferredRouteParamMarkersInValue(filledFlightData, replacements)
+  }
+
+  return filledFlightData as T
 }
 
 export function replaceDeferredRouteParamMarkersInFlightRouterState(
@@ -180,7 +154,7 @@ export function replaceDeferredRouteParamMarkersInFlightRouterState(
   renderedPathname: string,
   renderedSearch: NormalizedSearch
 ): FlightRouterState {
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const pathnameParts = getPathnameParts(renderedPathname)
   replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
     flightRouterState,
     renderedSearch,
@@ -223,10 +197,9 @@ function fillInFallbackFlightDataPath(
 
 function collectFallbackParamReplacementMap(
   flightData: FlightData | FlightDataPath[],
-  renderedPathname: string,
+  pathnameParts: Array<string>,
   renderedSearch: NormalizedSearch
 ): Map<string, string> {
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
   const replacements = new Map<string, string>()
   const flightDataPaths = Array.isArray(flightData) ? flightData : []
 
@@ -243,6 +216,10 @@ function collectFallbackParamReplacementMap(
   }
 
   return replacements
+}
+
+function getPathnameParts(renderedPathname: string): Array<string> {
+  return renderedPathname.split('/').filter((part) => part !== '')
 }
 
 function collectFallbackParamReplacementMapFromTree(
