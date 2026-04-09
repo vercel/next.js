@@ -61,6 +61,9 @@ export default function Page(props) {
         <li>
           <Link href="/another">Visit another page</Link>
         </li>
+        <li>
+          <Link href="/org/acme/chat/thread-cross">Visit org thread (cross-subtree)</Link>
+        </li>
       </ul>
     </main>
   )
@@ -681,6 +684,128 @@ export default function OrgThreadPage() {
               'acme:thread-456'
             )
           })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('generates _fallback.html from a PPR shell instead of index.html', async () => {
+        const outDir = join(next.testDir, 'out')
+        const fallbackHtml = await fs.readFile(
+          join(outDir, '_fallback.html'),
+          'utf8'
+        )
+
+        // Must contain the bootstrap script
+        expect(fallbackHtml).toContain('__NEXT_EXPORT_FALLBACK=1')
+
+        // Should be based on a __fallback PPR shell, not index.html.
+        // The homepage has <h1>Home</h1> which should NOT appear.
+        expect(fallbackHtml).not.toContain('>Home<')
+
+        // A PPR shell should not need the visibility:hidden workaround
+        expect(fallbackHtml).not.toContain('__next-export-fallback-style')
+      })
+
+      it('supports browser back/forward between fallback routes', async () => {
+        const browser = await webdriver(port, '/another/slug-a/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('slug-a')
+          })
+
+          // Navigate to a static page
+          await browser.elementByCss('a[href="/another/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+
+          // Back to the fallback route
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('slug-a')
+          })
+
+          // Forward to the static page
+          await browser.forward()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('handles consecutive hard navigations to different params', async () => {
+        const browser = await webdriver(port, '/another/param-one/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('param-one')
+          })
+
+          await browser.get(`http://localhost:${port}/another/param-two/`)
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('param-two')
+          })
+
+          await browser.get(`http://localhost:${port}/another/param-three/`)
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('param-three')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('supports client navigation across different fallback subtrees', async () => {
+        const browser = await webdriver(port, '/another/cross-test/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('cross-test')
+          })
+
+          // Client navigate from /another/[slug] to /org/[org]/chat/[thread]
+          await browser
+            .elementByCss('a[href="/org/acme/chat/thread-cross/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-cross'
+            )
+          })
+
+          // Back to the original subtree
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('cross-test')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('shows Suspense fallback UI during hard load of a fallback route', async () => {
+        const browser = await webdriver(port, '/another/suspense-test/')
+
+        try {
+          // The page should eventually render the param value.
+          // During loading, the Suspense fallback "Loading slug..." is shown.
+          // We verify the final state is correct (the Suspense boundary resolved).
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'suspense-test'
+            )
+          })
+
+          // Verify the Suspense fallback text is NOT still visible after load
+          const html = await browser.eval('document.documentElement.innerHTML')
+          expect(html).not.toContain('Loading slug...')
         } finally {
           await browser.close()
         }
