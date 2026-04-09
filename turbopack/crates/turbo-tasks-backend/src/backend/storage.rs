@@ -456,6 +456,9 @@ impl StorageWriteGuard<'_> {
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());
+                    self.inner.flags.set_data_modified(false);
+                    self.inner.flags.set_meta_modified(false);
+                    self.inner.flags.set_new_task(false);
                     self.storage
                         .snapshots
                         .insert(*self.inner.key(), Some(Box::new(snapshot)));
