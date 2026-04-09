@@ -161,6 +161,14 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     data_restored: bool,
 
+    /// Whether meta data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    meta_restoring: bool,
+
+    /// Whether data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    data_restoring: bool,
+
     /// Whether meta was modified before snapshot mode was entered.
     #[field(storage = "flag", category = "transient")]
     meta_modified: bool,
@@ -345,6 +353,31 @@ impl TaskFlags {
             TaskDataCategory::Meta => self.meta_restored(),
             TaskDataCategory::Data => self.data_restored(),
             TaskDataCategory::All => self.meta_restored() && self.data_restored(),
+        }
+    }
+
+    /// Check if the category's restoration is currently in progress by another thread
+    pub fn is_restoring(&self, category: TaskDataCategory) -> bool {
+        match category {
+            TaskDataCategory::Meta => self.meta_restoring(),
+            TaskDataCategory::Data => self.data_restoring(),
+            TaskDataCategory::All => self.meta_restoring() || self.data_restoring(),
+        }
+    }
+
+    /// Set or clear the restoring bits for the given category
+    pub fn set_restoring(&mut self, category: TaskDataCategory, value: bool) {
+        match category {
+            TaskDataCategory::Meta => {
+                self.set_meta_restoring(value);
+            }
+            TaskDataCategory::Data => {
+                self.set_data_restoring(value);
+            }
+            TaskDataCategory::All => {
+                self.set_meta_restoring(value);
+                self.set_data_restoring(value);
+            }
         }
     }
 
