@@ -69,7 +69,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
-    let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
       let mainRef = statsConfig.mainBranch
@@ -78,7 +77,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
         const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
-        mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         logger(`using latestStable: "${lastStableTag}"`)
 
@@ -165,7 +163,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths
